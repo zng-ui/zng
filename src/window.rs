@@ -2,6 +2,7 @@ use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::ControlFlow;
 use webrender::api::*;
+use euclid::rect;
 
 pub fn show_window() {
     let mut events_loop = glutin::EventsLoop::new();
@@ -14,7 +15,9 @@ pub fn show_window() {
         .build_windowed(
             glutin::WindowBuilder::new()
                 .with_title("Test")
-                .with_dimensions(LogicalSize::new(800.0, 600.0)),
+                .with_dimensions(LogicalSize::new(800.0, 600.0))
+                .with_transparency(true)//on windows 10 makes everything be slightly transparent even at alpha 1.0
+                ,
             &events_loop,
         )
         .expect("Error building windowed GL context");
@@ -69,6 +72,7 @@ pub fn show_window() {
         device_size.height as f32 / device_pixel_ratio,
     );
     let mut builder = DisplayListBuilder::new(pipeline_id, layout_size);
+    builder.push_rect(&LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.)), &SpaceAndClipInfo::root_scroll(pipeline_id), ColorF::new(1., 0., 0.4, 1.));
     let mut tsn = Transaction::new();
 
     tsn.set_display_list(
