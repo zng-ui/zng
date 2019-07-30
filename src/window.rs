@@ -16,7 +16,7 @@ pub fn show_window() {
             glutin::WindowBuilder::new()
                 .with_title("Test")
                 .with_dimensions(LogicalSize::new(800.0, 600.0))
-                .with_transparency(true), //on windows 10 makes everything be slightly transparent even at alpha 1.0
+                .with_multitouch(),
             &events_loop,
         )
         .expect("Error building windowed GL context");
@@ -39,59 +39,40 @@ pub fn show_window() {
 
     println!("OpenGL version {}", gl.get_string(gl::VERSION));
 
-    let device_pixel_ratio = w_context.window().get_hidpi_factor() as f32;
-    println!("Device pixel ratio: {}", device_pixel_ratio);
+    let dpi = w_context.window().get_hidpi_factor();
+    println!("Device pixel ratio: {}", dpi);
 
     let background = ColorF::new(0., 0., 0., 1.);
 
     let opts = webrender::RendererOptions {
+        device_pixel_ratio: dpi as f32,
         clear_color: Some(background),
         ..Default::default()
     };
     let notifier = Box::new(Notifier::new(events_loop.create_proxy()));
-    let (mut renderer, sender) =
+    let (mut render, sender) =
         webrender::Renderer::new(gl, notifier, opts, None).expect("Error creating web renderer");
 
-    let device_size = {
+    let framebuffer_size = {
         let size = w_context
             .window()
             .get_inner_size()
             .unwrap()
-            .to_physical(device_pixel_ratio as f64);
+            .to_physical(dpi);
         DeviceIntSize::new(size.width as i32, size.height as i32)
     };
 
     let api = sender.create_api();
 
-    let document_id = api.add_document(device_size, 0);
-    let epoch = Epoch(0);
+    let document_id = api.add_document(framebuffer_size, 0);
+    let mut epoch = Epoch(0);
     let pipeline_id = PipelineId(0, 0);
-    let layout_size = LayoutSize::new(
-        device_size.width as f32 / device_pixel_ratio,
-        device_size.height as f32 / device_pixel_ratio,
-    );
-    let mut builder = DisplayListBuilder::new(pipeline_id, layout_size);
-    builder.push_rect(
-        &LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.)),
-        &SpaceAndClipInfo::root_scroll(pipeline_id),
-        ColorF::new(1., 0., 0.4, 1.),
-    );
-    let mut tsn = Transaction::new();
 
-    tsn.set_display_list(
-        epoch,
-        Some(background),
-        layout_size,
-        builder.finalize(),
-        true,
-    );
+    let mut tsn = Transaction::new();
     tsn.set_root_pipeline(pipeline_id);
-    tsn.generate_frame();
     api.send_transaction(document_id, tsn);
 
     events_loop.run_forever(|global_event| {
-        let mut tsn = Transaction::new();
-
         let win_event = match global_event {
             glutin::Event::WindowEvent { event, .. } => event,
             _ => return ControlFlow::Continue,
@@ -99,46 +80,69 @@ pub fn show_window() {
 
         match win_event {
             glutin::WindowEvent::CloseRequested => return ControlFlow::Break,
-            glutin::WindowEvent::Resized(inner_size) => {
-                              
-                let device_size = {
-                    let size = inner_size.to_physical(device_pixel_ratio as f64);
-                    DeviceIntSize::new(size.width as i32, size.height as i32)
-                };
-                let layout_size = LayoutSize::new(
-                    device_size.width as f32 / device_pixel_ratio,
-                    device_size.height as f32 / device_pixel_ratio,
-                );
-                let mut builder = DisplayListBuilder::new(pipeline_id, layout_size);
-                builder.push_rect(
-                    &LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.)),
-                    &SpaceAndClipInfo::root_scroll(pipeline_id),
-                    ColorF::new(1., 0., 0.4, 1.),
-                );
-                tsn.set_display_list(
-                    epoch,
-                    Some(background),
-                    layout_size,
-                    builder.finalize(),
-                    true,
-                );
-                tsn.set_root_pipeline(pipeline_id);
-                tsn.generate_frame();
-                api.set_window_parameters(document_id, device_size, DeviceIntRect::from_size(device_size), device_pixel_ratio)
-            }
+             // skip high-frequency events
+            glutin::WindowEvent::AxisMotion { .. } |
+            glutin::WindowEvent::CursorMoved { .. } => return ControlFlow::Continue,
             _ => {}
         };
 
+        let mut tsn = Transaction::new();
+
+        epoch = increase_epoch(epoch);
+
+        let framebuffer_size = {
+            let size = w_context
+                .window()
+                .get_inner_size()
+                .unwrap()
+                .to_physical(dpi);
+            DeviceIntSize::new(size.width as i32, size.height as i32)
+        };
+        let layout_size = framebuffer_size.to_f32() / euclid::TypedScale::new(dpi as f32);
+
+        let mut builder = DisplayListBuilder::new(pipeline_id, layout_size);
+        builder.push_rect(
+            &LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.)),
+            &SpaceAndClipInfo::root_scroll(pipeline_id),
+            ColorF::new(1., 0., 0.4, 1.),
+        );
+        api.set_window_parameters(
+            document_id,
+            framebuffer_size,
+            DeviceIntRect::new(DeviceIntPoint::zero(), framebuffer_size),
+            dpi as f32,
+        );
+        tsn.set_display_list(
+            epoch,
+            Some(background),
+            layout_size,
+            builder.finalize(),
+            true,
+        );
+
+        //tsn.set_root_pipeline(pipeline_id);
+        tsn.generate_frame();
+
         api.send_transaction(document_id, tsn);
-        renderer.update();
-        renderer.render(device_size).unwrap();
-        let _ = renderer.flush_pipeline_info();
+        render.update();
+        render.render(framebuffer_size).unwrap();
+
+        let _ = render.flush_pipeline_info();
         w_context.swap_buffers().ok();
 
         ControlFlow::Continue
     });
 
-    renderer.deinit();
+    render.deinit();
+}
+
+fn increase_epoch(old: Epoch) -> Epoch {
+    use std::u32;
+    const MAX_ID: u32 = u32::MAX - 1;
+    match old.0 {
+        MAX_ID => Epoch(0),
+        other => Epoch(other + 1),
+    }
 }
 
 struct Notifier {
