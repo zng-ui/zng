@@ -70,26 +70,15 @@ pub fn show_window() {
 
     let mut tsn = Transaction::new();
     tsn.set_root_pipeline(pipeline_id);
+    tsn.generate_frame();
     api.send_transaction(document_id, tsn);
 
+    let mut is_hovered = false;
+    let mut awaiting_frame = false;
+    let rect_tag = (1, 0);
+
     events_loop.run_forever(|global_event| {
-        let win_event = match global_event {
-            glutin::Event::WindowEvent { event, .. } => event,
-            _ => return ControlFlow::Continue,
-        };
-
-        match win_event {
-            glutin::WindowEvent::CloseRequested => return ControlFlow::Break,
-             // skip high-frequency events
-            glutin::WindowEvent::AxisMotion { .. } |
-            glutin::WindowEvent::CursorMoved { .. } => return ControlFlow::Continue,
-            _ => {}
-        };
-
         let mut tsn = Transaction::new();
-
-        epoch = increase_epoch(epoch);
-
         let framebuffer_size = {
             let size = w_context
                 .window()
@@ -98,14 +87,61 @@ pub fn show_window() {
                 .to_physical(dpi);
             DeviceIntSize::new(size.width as i32, size.height as i32)
         };
+
+        let win_event = match global_event {
+            glutin::Event::WindowEvent { event, .. } => event,
+            glutin::Event::Awakened => {
+                if awaiting_frame {
+                    api.send_transaction(document_id, tsn);
+                    render.update();
+                    render.render(framebuffer_size).unwrap();
+                    awaiting_frame = false;
+                }
+                return ControlFlow::Continue;
+            }
+            _ => return ControlFlow::Continue,
+        };
+
+        match win_event {
+            glutin::WindowEvent::CloseRequested => return ControlFlow::Break,
+            // skip high-frequency events
+            glutin::WindowEvent::AxisMotion { .. } => return ControlFlow::Continue,
+            glutin::WindowEvent::CursorMoved { position, .. } => {
+                let position = position.to_physical(dpi);
+                let ht_result = api.hit_test(
+                    document_id,
+                    Some(pipeline_id),
+                    WorldPoint::new(position.x as f32, position.y as f32),
+                    HitTestFlags::FIND_ALL,
+                );
+                let new_is_hovered = ht_result.items.into_iter().any(|i| i.tag == rect_tag);
+                if new_is_hovered == is_hovered {
+                    return ControlFlow::Continue;
+                } else {
+                    is_hovered = dbg!(new_is_hovered);
+                }
+            }
+            _ => {}
+        };
+
+        epoch = increase_epoch(epoch);
+
         let layout_size = framebuffer_size.to_f32() / euclid::TypedScale::new(dpi as f32);
 
         let mut builder = DisplayListBuilder::new(pipeline_id, layout_size);
+
+        let mut layour_primitive_info = LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.));
+        layour_primitive_info.tag = Some(rect_tag);
         builder.push_rect(
-            &LayoutPrimitiveInfo::new(rect(80.0, 2.0, 554., 50.)),
+            &layour_primitive_info,
             &SpaceAndClipInfo::root_scroll(pipeline_id),
-            ColorF::new(1., 0., 0.4, 1.),
+            if dbg!(is_hovered) {
+                ColorF::new(0., 1., 0.4, 1.)
+            } else {
+                ColorF::new(1., 0., 0.4, 1.)
+            },
         );
+
         api.set_window_parameters(
             document_id,
             framebuffer_size,
@@ -122,13 +158,13 @@ pub fn show_window() {
 
         //tsn.set_root_pipeline(pipeline_id);
         tsn.generate_frame();
-
+        awaiting_frame = true;
         api.send_transaction(document_id, tsn);
         render.update();
         render.render(framebuffer_size).unwrap();
 
         let _ = render.flush_pipeline_info();
-        w_context.swap_buffers().ok();
+        w_context.swap_buffers().unwrap();
 
         ControlFlow::Continue
     });
