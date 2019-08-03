@@ -1,5 +1,5 @@
 mod window;
 
 fn main() {
-    window::show_window();
+    window::Window::show().run();
 }
