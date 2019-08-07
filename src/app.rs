@@ -45,6 +45,10 @@ impl App {
                 _ => {}
             });
 
+            for win in self.windows.values_mut() {
+                win.render();
+            }
+
             //let diff = time_start.elapsed();
             //const FRAME_TIME: Duration = Duration::from_millis(16);
             //if diff < FRAME_TIME {

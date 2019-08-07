@@ -42,11 +42,11 @@ pub struct Window {
     button: Button,
     context: Option<WindowedContext<NotCurrent>>,
     render_context: RenderContext,
-    pub(crate) exit: bool,
+    pub exit: bool,
 }
 
 impl Window {
-    pub(crate) fn new(name: String, clear_color: ColorF, events_loop: &EventsLoop) -> Self {
+    pub fn new(name: String, clear_color: ColorF, events_loop: &EventsLoop) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(name)
             .with_multitouch()
@@ -114,7 +114,7 @@ impl Window {
         }
     }
 
-    pub(crate) fn event(&mut self, event: WindowEvent) {
+    pub fn event(&mut self, event: WindowEvent) {
         let button = &mut self.button;
         let render_context = &mut self.render_context;
 
@@ -142,10 +142,10 @@ impl Window {
                 button.on_event(&event, render_context);
             }
         }
+    }
 
-        if self.exit {
-            return;
-        }
+    pub fn render(&mut self) {
+        let render_context = &mut self.render_context;
 
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
         let device_pixel_ratio = context.window().get_hidpi_factor() as f32;
@@ -182,7 +182,7 @@ impl Window {
         self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
 
-    pub(crate) fn deinit(mut self) {
+    pub fn deinit(mut self) {
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
         self.render_context.renderer.deinit();
         unsafe { context.make_not_current().unwrap() };
