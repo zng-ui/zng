@@ -9,7 +9,7 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn on_event(&mut self, event: &glutin::WindowEvent, context: &RenderContext) -> bool {
+    pub fn event(&mut self, event: &glutin::WindowEvent, context: &RenderContext) -> bool {
         match event {
             glutin::WindowEvent::CursorMoved { position, .. } => {
                 let new_is_hovered = context.hit_test(

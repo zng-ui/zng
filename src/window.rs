@@ -139,7 +139,7 @@ impl Window {
                 .api
                 .send_debug_cmd(DebugCommand::SetFlags(DebugFlags::PROFILER_DBG)),
             _ => {
-                button.on_event(&event, render_context);
+                button.event(&event, render_context);
             }
         }
     }
