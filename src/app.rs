@@ -1,6 +1,8 @@
 use crate::window::Window;
 use glutin::*;
 use std::collections::BTreeMap;
+use std::thread;
+use std::time::{Duration, Instant};
 
 pub struct App {
     events_loop: EventsLoop,
@@ -27,7 +29,7 @@ impl App {
 
     pub fn run(mut self) {
         while !self.windows.is_empty() {
-            //let time_start = Instant::now();
+            let time_start = Instant::now();
 
             let windows = &mut self.windows;
 
@@ -39,21 +41,20 @@ impl App {
                         if win.exit {
                             let win = windows.remove(&window_id).unwrap();
                             win.deinit();
+                        } else {
+                            win.render();
+                            win.render();// TODO
                         }
                     }
                 }
                 _ => {}
             });
 
-            for win in self.windows.values_mut() {
-                win.render();
+            let diff = time_start.elapsed();
+            const FRAME_TIME: Duration = Duration::from_millis(16);
+            if diff < FRAME_TIME {
+                thread::sleep(FRAME_TIME - diff);
             }
-
-            //let diff = time_start.elapsed();
-            //const FRAME_TIME: Duration = Duration::from_millis(16);
-            //if diff < FRAME_TIME {
-            //    thread::sleep(FRAME_TIME - diff);
-            //}
         }
     }
 }
