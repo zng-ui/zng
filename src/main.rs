@@ -2,61 +2,48 @@ mod app;
 mod button;
 mod window;
 
-use webrender::api::ColorF;
+use webrender::api::*;
 
 fn main() {
- let db = ();
-
     app::App::new()
         .window("window1", ColorF::new(0.1, 0.2, 0.3, 1.0))
         .window("window2", ColorF::new(0.3, 0.2, 0.1, 1.0))
         .run();
-
-Border(Text).click(||{db})
-    let w = (Click(Border(Text), fn))
 }
+
+type UiSize = euclid::TypedSize2D<f32, LayoutPixel>;
 
 trait Ui {
-    fn event(){}
-    fn render(){}
+    fn render(&self, rend_ctxt: RenderContext) {}
+    fn measure(&mut self) -> UiSize {UiSize::default()}
+    fn arrange(&mut self, final_size: UiSize) {}
 }
 
-struct Click<T: Ui>(T, fn);
+struct Rect {}
 
-impl Ui for Click {
-    fn event(&self) {
-        match event { click =>  self.fn()}
-    }
+impl Ui for Rect {}
 
-    fn render(&self) {
-        self.0.render()
-    }
+pub struct RenderContext<'b> {
+    dl_builder: &'b mut DisplayListBuilder,
+    final_size: UiSize,
+    spatial_id: SpatialId,
 }
 
-struct Border<T: Ui>(T);
-
-
-trait UiBuilder {
-    fn click(self) -> Ui;
-}
-
-impl<T: Ui> UiBuilder for T {
-    fn click(self, fn) -> Ui {
-        Click(self, fn)
-    }
-}
-
-impl Ui for NossaTela {
-    fn event() {
-        util::is_click(event) {
-db
-        }
-        util::is_click(event) {
-db
+impl<'b> RenderContext<'b> {
+    pub fn new(pipeline_id: PipelineId, dl_builder: &'b mut DisplayListBuilder, window_size: UiSize) -> Self {
+        RenderContext{
+            final_size: window_size,
+            dl_builder,
+            spatial_id: SpatialId::root_reference_frame(pipeline_id)
         }
     }
-
-    fn render() {
-        sel
+    
+fn child_context(&'b mut self, final_rect: &LayoutRect) -> Self {
+        let spatial_id = self.dl_builder.push_reference_frame(final_rect, self.spatial_id, TransformStyle::Flat, PropertyBinding::Value(LayoutTransform::default()), ReferenceFrameKind::Transform);
+        RenderContext{
+            final_size: final_rect.size,
+            dl_builder: self.dl_builder,
+            spatial_id: spatial_id
+        }
     }
 }

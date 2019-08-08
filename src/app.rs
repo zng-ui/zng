@@ -43,7 +43,7 @@ impl App {
                             win.deinit();
                         } else {
                             win.render();
-                            win.render();// TODO
+                            win.render(); // TODO
                         }
                     }
                 }
