@@ -89,8 +89,7 @@ impl Window {
             DeviceIntSize::new(size.width as i32, size.height as i32)
         };
         let notifier = Box::new(Notifier);
-        let (renderer, sender) =
-            webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
+        let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
         let document_id = api.add_document(device_size, 0);
 
@@ -162,13 +161,7 @@ impl Window {
         let mut builder = DisplayListBuilder::new(render_context.pipeline_id, layout_size);
         self.button.render(render_context.pipeline_id, &mut builder);
 
-        txn.set_display_list(
-            render_context.epoch,
-            None,
-            layout_size,
-            builder.finalize(),
-            true,
-        );
+        txn.set_display_list(render_context.epoch, None, layout_size, builder.finalize(), true);
         txn.set_root_pipeline(render_context.pipeline_id);
         txn.generate_frame();
         render_context

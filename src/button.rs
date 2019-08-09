@@ -12,10 +12,8 @@ impl Button {
     pub fn event(&mut self, event: &glutin::WindowEvent, context: &RenderContext) -> bool {
         match event {
             glutin::WindowEvent::CursorMoved { position, .. } => {
-                let new_is_hovered = context.hit_test(
-                    WorldPoint::new(position.x as f32, position.y as f32),
-                    self.tag,
-                );
+                let new_is_hovered =
+                    context.hit_test(WorldPoint::new(position.x as f32, position.y as f32), self.tag);
 
                 if self.is_hovered != new_is_hovered {
                     self.is_hovered = new_is_hovered;

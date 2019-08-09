@@ -17,11 +17,7 @@ impl App {
         }
     }
 
-    pub fn window(
-        mut self,
-        title: impl ToString,
-        background_color: webrender::api::ColorF,
-    ) -> Self {
+    pub fn window(mut self, title: impl ToString, background_color: webrender::api::ColorF) -> Self {
         let win = Window::new(title.to_string(), background_color, &self.events_loop);
         self.windows.insert(win.id(), win);
         self

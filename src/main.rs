@@ -15,7 +15,9 @@ type UiSize = euclid::TypedSize2D<f32, LayoutPixel>;
 
 trait Ui {
     fn render(&self, rend_ctxt: RenderContext) {}
-    fn measure(&mut self) -> UiSize {UiSize::default()}
+    fn measure(&mut self) -> UiSize {
+        UiSize::default()
+    }
     fn arrange(&mut self, final_size: UiSize) {}
 }
 
@@ -31,19 +33,25 @@ pub struct RenderContext<'b> {
 
 impl<'b> RenderContext<'b> {
     pub fn new(pipeline_id: PipelineId, dl_builder: &'b mut DisplayListBuilder, window_size: UiSize) -> Self {
-        RenderContext{
+        RenderContext {
             final_size: window_size,
             dl_builder,
-            spatial_id: SpatialId::root_reference_frame(pipeline_id)
+            spatial_id: SpatialId::root_reference_frame(pipeline_id),
         }
     }
-    
-fn child_context(&'b mut self, final_rect: &LayoutRect) -> Self {
-        let spatial_id = self.dl_builder.push_reference_frame(final_rect, self.spatial_id, TransformStyle::Flat, PropertyBinding::Value(LayoutTransform::default()), ReferenceFrameKind::Transform);
-        RenderContext{
+
+    fn child_context(&'b mut self, final_rect: &LayoutRect) -> Self {
+        let spatial_id = self.dl_builder.push_reference_frame(
+            final_rect,
+            self.spatial_id,
+            TransformStyle::Flat,
+            PropertyBinding::Value(LayoutTransform::default()),
+            ReferenceFrameKind::Transform,
+        );
+        RenderContext {
             final_size: final_rect.size,
             dl_builder: self.dl_builder,
-            spatial_id: spatial_id
+            spatial_id: spatial_id,
         }
     }
 }
