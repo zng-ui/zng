@@ -1,3 +1,4 @@
+use crate::ui::Ui;
 use crate::window::Window;
 use glutin::*;
 use std::collections::BTreeMap;
@@ -17,8 +18,13 @@ impl App {
         }
     }
 
-    pub fn window(mut self, title: impl ToString, background_color: webrender::api::ColorF) -> Self {
-        let win = Window::new(title.to_string(), background_color, &self.events_loop);
+    pub fn window(
+        mut self,
+        title: impl ToString,
+        background_color: webrender::api::ColorF,
+        content: Box<dyn Ui>,
+    ) -> Self {
+        let win = Window::new(title.to_string(), background_color, content, &self.events_loop);
         self.windows.insert(win.id(), win);
         self
     }
