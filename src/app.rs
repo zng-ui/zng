@@ -22,9 +22,14 @@ impl App {
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: Box<dyn Ui>,
+        content: impl Ui + 'static,
     ) -> Self {
-        let win = Window::new(title.to_string(), background_color, content, &self.events_loop);
+        let win = Window::new(
+            title.to_string(),
+            background_color,
+            Box::new(content),
+            &self.events_loop,
+        );
         self.windows.insert(win.id(), win);
         self
     }

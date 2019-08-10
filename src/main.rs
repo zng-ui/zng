@@ -13,14 +13,39 @@ fn main() {
         .window(
             "window1",
             ColorF::new(0.1, 0.2, 0.3, 1.0),
-            Box::new(Centered::new(Sized::new(Rect::new(r_color), r_size))),
+            center(size(Rect::new(r_color), r_size)),
         )
         .window(
             "window2",
             ColorF::new(0.3, 0.2, 0.1, 1.0),
-            Box::new(Centered::new(Sized::new(Rect::new(r_color), r_size))),
+            Rect::new(r_color).size(r_size).center(),
         )
         .run();
+}
+
+pub fn center<T: Ui>(child: T) -> Centered<T> {
+    Centered::new(child)
+}
+pub fn size<T: Ui>(child: T, size: LayoutSize) -> Sized<T> {
+    Sized::new(child, size)
+}
+
+trait SizedExt: Ui + std::marker::Sized {
+    fn size(self, size: LayoutSize) -> Sized<Self>;
+}
+impl<T: Ui> SizedExt for T {
+    fn size(self, size: LayoutSize) -> Sized<Self> {
+        Sized::new(self, size)
+    }
+}
+
+trait CenteredExt: Ui + std::marker::Sized {
+    fn center(self) -> Centered<Self>;
+}
+impl<T: Ui> CenteredExt for T {
+    fn center(self) -> Centered<Self> {
+        Centered::new(self)
+    }
 }
 
 struct Rect {
@@ -56,7 +81,7 @@ impl Ui for Rect {
     }
 }
 
-struct Sized<T: Ui> {
+pub struct Sized<T: Ui> {
     child: T,
     size: LayoutSize,
 }
@@ -81,7 +106,7 @@ impl<T: Ui> Ui for Sized<T> {
     }
 }
 
-struct Centered<T: Ui> {
+pub struct Centered<T: Ui> {
     child: T,
     child_size: LayoutSize,
 }
