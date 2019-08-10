@@ -1,4 +1,4 @@
-use crate::ui::Ui;
+use crate::ui::{RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::*;
@@ -140,11 +140,11 @@ impl Window {
 
         let final_size = self.content.measure(layout_size).min(layout_size);
         self.content.arrange(final_size);
-        self.content.render(
+        self.content.render(RenderContext::new(
             &mut builder,
             SpatialId::root_reference_frame(self.pipeline_id),
             final_size,
-        );
+        ));
 
         txn.set_display_list(self.epoch, None, layout_size, builder.finalize(), true);
         txn.set_root_pipeline(self.pipeline_id);

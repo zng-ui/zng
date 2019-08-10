@@ -46,12 +46,13 @@ impl Ui for Rect {
         available_size
     }
 
-    fn render(&self, builder: &mut DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) {
-        let lpi = LayoutPrimitiveInfo::new(LayoutRect::from_size(final_size));
+    fn render(&self, c: RenderContext) {
+        let lpi = LayoutPrimitiveInfo::new(LayoutRect::from_size(c.final_size()));
         let sci = SpaceAndClipInfo {
-            spatial_id, clip_id: ClipId::root(spatial_id.pipeline_id())
+            spatial_id: c.spatial_id(),
+            clip_id: ClipId::root(c.spatial_id().pipeline_id()),
         };
-        builder.push_rect(&lpi, &sci, self.color);
+        c.builder.push_rect(&lpi, &sci, self.color);
     }
 }
 
@@ -71,8 +72,8 @@ impl<T: Ui> Ui for Sized<T> {
         self.size
     }
 
-    fn render(&self, builder: &mut DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) {
-        self.child.render(builder, spatial_id, final_size)
+    fn render(&self, c: RenderContext) {
+        self.child.render(c)
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
@@ -113,17 +114,15 @@ impl<T: Ui> Ui for Centered<T> {
         self.child.arrange(final_size)
     }
 
-    fn render(&self, builder: &mut DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) {
+    fn render(&self, mut c: RenderContext) {
+        //centered = final_rect
         let centered = LayoutRect::new(
             LayoutPoint::new(
-                (final_size.width - self.child_size.width) / 2.,
-                (final_size.height - self.child_size.height) / 2.,
+                (c.final_size().width - self.child_size.width) / 2.,
+                (c.final_size().height - self.child_size.height) / 2.,
             ),
             self.child_size,
         );
-
-        let spatial_id = push_child_context(builder, spatial_id, &centered);
-        self.child.render(builder, spatial_id, self.child_size);
-        pop_child_context(builder);
+        c.push_child(&self.child, &centered);
     }
 }
