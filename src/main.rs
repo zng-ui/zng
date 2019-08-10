@@ -94,6 +94,7 @@ impl<T: Ui> Sized<T> {
 
 impl<T: Ui> Ui for Sized<T> {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
+        self.child.measure(self.size);
         self.size
     }
 
