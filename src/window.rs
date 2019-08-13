@@ -29,6 +29,15 @@ pub struct Window {
     pub exit: bool,
 }
 
+fn dpi_and_device_size(win: &glutin::Window) -> (f32, DeviceIntSize) {
+    let dpi = win.get_hidpi_factor() as f32;
+    let device_size = {
+        let size = win.get_inner_size().unwrap().to_physical(dpi as f64);
+        DeviceIntSize::new(size.width as i32, size.height as i32)
+    };
+    (dpi, device_size)
+}
+
 impl Window {
     pub fn new(name: String, clear_color: ColorF, content: Box<dyn Ui>, events_loop: &EventsLoop) -> Self {
         let window_builder = WindowBuilder::new()
@@ -56,7 +65,7 @@ impl Window {
             Api::WebGl => unimplemented!(),
         };
 
-        let device_pixel_ratio = context.window().get_hidpi_factor() as f32;
+        let (device_pixel_ratio, device_size) = dpi_and_device_size(context.window());
 
         let opts = webrender::RendererOptions {
             device_pixel_ratio,
@@ -64,14 +73,6 @@ impl Window {
             ..webrender::RendererOptions::default()
         };
 
-        let device_size = {
-            let size = context
-                .window()
-                .get_inner_size()
-                .unwrap()
-                .to_physical(device_pixel_ratio as f64);
-            DeviceIntSize::new(size.width as i32, size.height as i32)
-        };
         let notifier = Box::new(Notifier);
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
@@ -100,6 +101,15 @@ impl Window {
 
     pub fn event(&mut self, event: WindowEvent) {
         match event {
+            WindowEvent::Resized(_) => {
+                let (dpi, device_size) = dpi_and_device_size(self.context.as_ref().unwrap().window());
+                self.api.set_window_parameters(
+                    self.document_id,
+                    device_size,
+                    DeviceIntRect::from_size(device_size),
+                    dpi,
+                );
+            }
             WindowEvent::CloseRequested
             | WindowEvent::KeyboardInput {
                 input:

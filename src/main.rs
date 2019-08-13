@@ -109,46 +109,44 @@ impl<T: Ui> Ui for Sized<T> {
 
 pub struct Centered<T: Ui> {
     child: T,
-    child_size: LayoutSize,
+    child_rect: LayoutRect,
 }
 
 impl<T: Ui> Centered<T> {
     pub fn new(child: T) -> Self {
         Centered {
             child,
-            child_size: LayoutSize::default(),
+            child_rect: LayoutRect::default(),
         }
     }
 }
 
 impl<T: Ui> Ui for Centered<T> {
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        self.child_size = self.child.measure(available_size);
+        self.child_rect.size = self.child.measure(available_size);
 
         if available_size.width.is_infinite() {
-            available_size.width = self.child_size.width;
+            available_size.width = self.child_rect.size.width;
         }
 
         if available_size.height.is_infinite() {
-            available_size.height = self.child_size.height;
+            available_size.height = self.child_rect.size.height;
         }
 
         available_size
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
+        self.child_rect.size = self.child_rect.size.min(final_size);
+        self.child.arrange(self.child_rect.size);
+
+        self.child_rect.origin = LayoutPoint::new(
+            (final_size.width - self.child_rect.size.width) / 2.,
+            (final_size.height - self.child_rect.size.height) / 2.,
+        );
     }
 
     fn render(&self, mut c: RenderContext) {
-        //centered = final_rect
-        let centered = LayoutRect::new(
-            LayoutPoint::new(
-                (c.final_size().width - self.child_size.width) / 2.,
-                (c.final_size().height - self.child_size.height) / 2.,
-            ),
-            self.child_size,
-        );
-        c.push_child(&self.child, &centered);
+        c.push_child(&self.child, &self.child_rect);
     }
 }
