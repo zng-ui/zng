@@ -229,15 +229,62 @@ pub fn margin_ltrb<T: Ui>(child: T, left: f32, top: f32, right: f32, bottom: f32
     Margin::ltrb(child, left, top, right, bottom)
 }
 
-pub struct VerticalList {
-    children: Vec<ListChild>,
-}
-
 struct ListChild {
     child: Box<dyn Ui>,
     rect: LayoutRect,
 }
 
+pub struct HorizontalList {
+    children: Vec<ListChild>,
+}
+impl HorizontalList {
+    pub fn new(children: Vec<Box<dyn Ui>>) -> Self {
+        HorizontalList {
+            children: children
+                .into_iter()
+                .map(|child| ListChild {
+                    child,
+                    rect: LayoutRect::default(),
+                })
+                .collect(),
+        }
+    }
+}
+impl Ui for HorizontalList {
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+        let mut total_size = LayoutSize::default();
+        
+        available_size.width = std::f32::INFINITY;
+        for c in self.children.iter_mut() {
+            c.rect.size = c.child.measure(available_size);
+            total_size.height = total_size.height.max(c.rect.size.height);
+            total_size.width += c.rect.size.width;
+        }
+
+        total_size
+    }
+    fn arrange(&mut self, final_size: LayoutSize) {
+        let mut x = 0.0;
+        for c in self.children.iter_mut() {
+            c.rect.origin.x = x;
+            c.rect.size.height = c.rect.size.height.min(final_size.height);
+            x += c.rect.size.width;
+            c.child.arrange(c.rect.size);
+        }
+    }
+    fn render(&self, mut r: RenderContext) {
+        for c in self.children.iter() {
+            r.push_child(&c.child, &c.rect);
+        }
+    }
+}
+pub fn h_list(children: Vec<Box<dyn Ui>>) -> HorizontalList {
+    HorizontalList::new(children)
+}
+
+pub struct VerticalList {
+    children: Vec<ListChild>,
+}
 impl VerticalList {
     pub fn new(children: Vec<Box<dyn Ui>>) -> Self {
         VerticalList {
@@ -251,7 +298,6 @@ impl VerticalList {
         }
     }
 }
-
 impl Ui for VerticalList {
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         let mut total_size = LayoutSize::default();
@@ -280,7 +326,6 @@ impl Ui for VerticalList {
         }
     }
 }
-
 pub fn v_list(children: Vec<Box<dyn Ui>>) -> VerticalList {
     VerticalList::new(children)
 }

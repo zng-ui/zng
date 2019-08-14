@@ -13,7 +13,7 @@ fn main() {
             "window1",
             ColorF::new(0.1, 0.2, 0.3, 1.0),
             center(v_list(
-                std::iter::repeat_with(|| Rect::new(r_color).width(554.).margin(2.).into_box())
+                std::iter::repeat_with(|| Rect::new(r_color).height(150.).margin(2.).into_box())
                     .take(8)
                     .collect(),
             )),
@@ -21,8 +21,8 @@ fn main() {
         .window(
             "window2",
             ColorF::new(0.3, 0.2, 0.1, 1.0),
-            center(v_list(
-                std::iter::repeat_with(|| Rect::new(r_color).height(50.).margin(2.).into_box())
+            center(h_list(
+                std::iter::repeat_with(|| Rect::new(r_color).width(200.).margin(2.).into_box())
                     .take(8)
                     .collect(),
             )),

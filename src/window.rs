@@ -42,7 +42,6 @@ impl Window {
     pub fn new(name: String, clear_color: ColorF, content: Box<dyn Ui>, events_loop: &EventsLoop) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(name)
-            .with_multitouch()
             .with_dimensions(LogicalSize::new(800., 600.));
 
         let context = ContextBuilder::new()
