@@ -45,6 +45,12 @@ pub trait Ui {
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
     fn arrange(&mut self, _final_size: LayoutSize) {}
     fn render(&self, c: RenderContext);
+    fn into_box(self) -> Box<dyn Ui>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
 }
 
 impl Ui for Box<dyn Ui> {
@@ -56,6 +62,12 @@ impl Ui for Box<dyn Ui> {
     }
     fn render(&self, c: RenderContext) {
         self.as_ref().render(c)
+    }
+    fn into_box(self) -> Box<dyn Ui>
+    where
+        Self: Sized + 'static,
+    {
+        self
     }
 }
 

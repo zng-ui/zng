@@ -3,7 +3,7 @@ use webrender::euclid;
 
 /// Constrain a child to a size.
 /// # Constructors
-/// Can be initialized using [`size(child, (w, h))` function](size) and [`child.size(w, h)`](SizeChildExt::size).
+/// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](SizeChildExt::size).
 pub struct SizeChild<T: Ui> {
     child: T,
     size: LayoutSize,
@@ -32,8 +32,81 @@ pub trait SizeChildExt: Ui + Sized {
     fn size(self, size: LayoutSize) -> SizeChild<Self> {
         SizeChild::new(self, size)
     }
+
+    fn size_wh(self, width: f32, height: f32) -> SizeChild<Self> {
+        SizeChild::new(self, LayoutSize::new(width, height))
+    }
 }
 impl<T: Ui> SizeChildExt for T {}
+
+
+pub struct WidthChild<T: Ui>  {
+    child: T,
+    width: f32,
+}
+impl<T: Ui> WidthChild<T> {
+    pub fn new(child: T, width: f32) -> Self {
+        WidthChild { child, width }
+    }
+}
+impl<T: Ui> Ui for WidthChild<T> {
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+        available_size.width = self.width;
+        let mut child_size = self.child.measure(available_size);
+        child_size.width = self.width;
+        child_size
+    }
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child.arrange(final_size)
+    }
+    fn render(&self, c: RenderContext) {
+        self.child.render(c)
+    }
+}
+pub fn width<T: Ui>(child: T, width: LayoutSize) -> SizeChild<T> {
+    SizeChild::new(child, width)
+}
+pub trait WidthChildExt: Ui + Sized {
+    fn width(self, width: f32) -> WidthChild<Self> {
+        WidthChild::new(self, width)
+    }
+}
+impl<T: Ui> WidthChildExt for T {}
+
+
+pub struct HeightChild<T: Ui>  {
+    child: T,
+    height: f32,
+}
+impl<T: Ui> HeightChild<T> {
+    pub fn new(child: T, height: f32) -> Self {
+        HeightChild { child, height }
+    }
+}
+impl<T: Ui> Ui for HeightChild<T> {
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+        available_size.height = self.height;
+        let mut child_size = self.child.measure(available_size);
+        child_size.height = self.height;
+        child_size
+    }
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child.arrange(final_size)
+    }
+    fn render(&self, c: RenderContext) {
+        self.child.render(c)
+    }
+}
+pub fn height<T: Ui>(child: T, height: LayoutSize) -> SizeChild<T> {
+    SizeChild::new(child, height)
+}
+pub trait HeightChildExt: Ui + Sized {
+    fn height(self, height: f32) -> HeightChild<Self> {
+        HeightChild::new(self, height)
+    }
+}
+impl<T: Ui> HeightChildExt for T {}
+
 
 pub struct CenterChild<T: Ui> {
     child: T,
@@ -180,9 +253,10 @@ impl VerticalList {
 }
 
 impl Ui for VerticalList {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         let mut total_size = LayoutSize::default();
-
+        
+        available_size.height = std::f32::INFINITY;
         for c in self.children.iter_mut() {
             c.rect.size = c.child.measure(available_size);
             total_size.width = total_size.width.max(c.rect.size.width);

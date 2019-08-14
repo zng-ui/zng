@@ -27,7 +27,7 @@ impl App {
         let win = Window::new(
             title.to_string(),
             background_color,
-            Box::new(content),
+            content.into_box(),
             &self.events_loop,
         );
         self.windows.insert(win.id(), win);
