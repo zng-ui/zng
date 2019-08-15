@@ -1,6 +1,8 @@
 mod layout;
+mod text;
 
 pub use layout::*;
+pub use text::*;
 
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};

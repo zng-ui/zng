@@ -20,11 +20,10 @@ fn main() {
         .window(
             "window2",
             ColorF::new(0.3, 0.2, 0.1, 1.0),
-            center(h_list(
-                std::iter::repeat_with(|| Rect::new(r_color).width(200.).margin(2.).into_box())
-                    .take(8)
-                    .collect(),
-            )),
+            center(z_list(vec![
+                Rect::new(r_color).into_box(),
+                text("Hello World!").center().into_box()
+            ]).size_wh(300., 200.)),
         )
         .run();
 }
