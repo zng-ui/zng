@@ -34,6 +34,8 @@ macro_rules! impl_tuples {
     };
 }
 
+// see!: https://stackoverflow.com/questions/55553281/is-it-possible-to-automatically-implement-a-trait-for-any-tuple-that-is-made-up
+//
 // C# codegen
 //> r = "";
 //. for (int i = 2; i <= 32; i++)
