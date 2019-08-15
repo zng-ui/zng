@@ -329,3 +329,48 @@ impl Ui for VerticalList {
 pub fn v_list(children: Vec<Box<dyn Ui>>) -> VerticalList {
     VerticalList::new(children)
 }
+
+pub struct ZList {
+    children: Vec<ListChild>
+}
+
+impl ZList {
+    pub fn new(children: Vec<Box<dyn Ui>>) -> Self {
+        ZList { children: children
+                .into_iter()
+                .map(|child| ListChild {
+                    child,
+                    rect: LayoutRect::default(),
+                })
+                .collect(), }
+    }
+}
+
+impl Ui for ZList {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut desired_size = LayoutSize::default();
+
+        for c in self.children.iter_mut() {
+            c.rect.size = c.child.measure(available_size);
+            desired_size = desired_size.max(c.rect.size);
+        }
+
+        desired_size
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        for c in self.children.iter_mut() {
+            c.rect.size = c.rect.size.min(final_size);
+            c.child.arrange(c.rect.size);
+        }
+    }
+
+    fn render(&self, mut r: RenderContext) {
+        for c in self.children.iter() {
+            r.push_child(&c.child, &c.rect);
+        }
+    }
+}
+pub fn z_list(children: Vec<Box<dyn Ui>>) -> ZList {
+    ZList::new(children)
+}
