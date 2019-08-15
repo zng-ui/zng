@@ -1,7 +1,9 @@
 mod layout;
+mod stack;
 mod text;
 
 pub use layout::*;
+pub use stack::*;
 pub use text::*;
 
 use webrender::api::*;
@@ -73,6 +75,7 @@ impl Ui for Box<dyn Ui> {
     }
 }
 
+#[derive(Clone)]
 pub struct Rect {
     color: ColorF,
 }

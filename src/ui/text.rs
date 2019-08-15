@@ -1,9 +1,7 @@
 use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
 use harfbuzz_rs::*;
 
-pub struct Text {
-
-}
+pub struct Text {}
 
 impl Text {
     pub fn new(text: &str) -> Self {
