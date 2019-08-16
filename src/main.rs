@@ -1,6 +1,6 @@
 pub mod app;
 pub mod ui;
-pub mod window;
+mod window;
 
 use ui::*;
 use webrender::api::*;
