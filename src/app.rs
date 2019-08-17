@@ -1,20 +1,23 @@
 use crate::ui::Ui;
-use crate::window::Window;
-use glutin::*;
-use std::collections::BTreeMap;
-use std::thread;
-use std::time::{Duration, Instant};
+use crate::window::{WebRenderEvent, Window};
+
+use std::collections::HashMap;
+
+use glutin::event::{Event, WindowEvent};
+use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::window::WindowId;
+use webrender::api::LayoutSize;
 
 pub struct App {
-    events_loop: EventsLoop,
-    windows: BTreeMap<WindowId, Window>,
+    events_loop: EventLoop<WebRenderEvent>,
+    windows: HashMap<WindowId, Window>,
 }
 
 impl App {
     pub fn new() -> App {
         App {
-            events_loop: EventsLoop::new(),
-            windows: BTreeMap::new(),
+            events_loop: EventLoop::with_user_event(),
+            windows: HashMap::new(),
         }
     }
 
@@ -27,6 +30,7 @@ impl App {
         let win = Window::new(
             title.to_string(),
             background_color,
+            LayoutSize::new(800., 600.),
             content.into_box(),
             &self.events_loop,
         );
@@ -34,34 +38,58 @@ impl App {
         self
     }
 
-    pub fn run(mut self) {
-        while !self.windows.is_empty() {
-            let time_start = Instant::now();
+    pub fn run(self) -> ! {
+        let App {
+            events_loop,
+            mut windows,
+        } = self;
 
-            let windows = &mut self.windows;
+        events_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Wait;
 
-            self.events_loop.poll_events(|event| match event {
+            match event {
                 Event::WindowEvent { window_id, event } => {
                     if let Some(win) = windows.get_mut(&window_id) {
                         win.event(event);
+                    }
+                }
+                Event::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
+                    if let Some(win) = windows.get_mut(&window_id) {
+                        win.event(WindowEvent::RedrawRequested);
+                    }
+                }
+                Event::EventsCleared => {
+                    let to_remove: Vec<_> = windows.values().filter(|w| w.close).map(|w| w.id()).collect();
+                    for window_id in to_remove {
+                        let win = windows.remove(&window_id).unwrap();
+                        win.deinit();
+                    }
 
-                        if win.exit {
-                            let win = windows.remove(&window_id).unwrap();
-                            win.deinit();
-                        } else {
-                            win.render();
-                            win.render(); // TODO
+                    if windows.is_empty() {
+                        *control_flow = ControlFlow::Exit;
+                        return;
+                    }
+
+                    for win in windows.values_mut() {
+                        if win.update_layout {
+                            win.layout();
+                        }
+                        if win.render_frame {
+                            win.send_render_frame();
+                        }
+                        if win.redraw {
+                            win.redraw_and_swap_buffers();
                         }
                     }
                 }
-                _ => {}
-            });
+                Event::LoopDestroyed => {
+                    for (_, win) in windows.drain() {
+                        win.deinit();
+                    }
+                }
 
-            let diff = time_start.elapsed();
-            const FRAME_TIME: Duration = Duration::from_millis(16);
-            if diff < FRAME_TIME {
-                thread::sleep(FRAME_TIME - diff);
+                _ => {}
             }
-        }
+        })
     }
 }
