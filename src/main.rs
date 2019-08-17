@@ -12,12 +12,12 @@ fn main() {
         .window(
             "window1",
             ColorF::new(0.1, 0.2, 0.3, 1.0),
-            center(v_list(vec![Rect::new(r_color).height(150.).margin(2.); 4])),
+            center(v_stack(vec![Rect::new(r_color).height(150.).margin(2.); 4])),
         )
         .window(
             "window2",
             ColorF::new(0.3, 0.2, 0.1, 1.0),
-            center(h_list(vec![Rect::new(r_color).width(200.).margin(2.); 4])),
+            center(h_stack(vec![Rect::new(r_color).width(200.).margin(2.); 4])),
         )
         .run();
 }

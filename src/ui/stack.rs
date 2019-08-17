@@ -25,69 +25,22 @@ impl<T: Ui + 'static> IntoStackChildren for Vec<T> {
 }
 
 macro_rules! impl_tuples {
-    ($($T: ident),* | $($n:tt),*) => {
-        impl<$($T: Ui + 'static, )*> IntoStackChildren for ($($T,)*) {
+    ($TH:ident, $TH2:ident, $($T:ident, )* ) => {
+        impl<$TH, $TH2, $($T, )*> IntoStackChildren for ($TH, $TH2, $($T,)*)
+        where $TH: Ui + 'static, $TH2: Ui + 'static, $($T: Ui + 'static, )*
+        {
+            #[allow(non_snake_case)]
             fn into(self) -> Vec<StackChild> {
-                vec![$(StackChild::new(self.$n), )*]
+                let ($TH, $TH2, $($T,)*) = self;
+                vec![StackChild::new($TH), StackChild::new($TH2),  $(StackChild::new($T), )*]
             }
         }
+        impl_tuples!($( $T, )*);
     };
+
+    () => {};
 }
-
-// see!: https://stackoverflow.com/questions/55553281/is-it-possible-to-automatically-implement-a-trait-for-any-tuple-that-is-made-up
-//
-// C# codegen
-//> r = "";
-//. for (int i = 2; i <= 32; i++)
-//. {
-//.     r += "\nimpl_tuples!(";
-//.     for (int t = 1; t <= i; t++)
-//.     {
-//.         r += $"T{t}, ";
-//.     }
-//.     r = r.TrimEnd(',', ' ');
-//.     r += " | ";
-//.     for (int n = 0; n < i; n++)
-//.     {
-//.         r += $"{n}, ";
-//.     }
-//.     r = r.TrimEnd(',', ' ');
-//.     r += ");";
-//. }
-//. WriteLine(r)
-impl_tuples!(T1, T2 | 0, 1);
-impl_tuples!(T1, T2, T3 | 0, 1, 2);
-impl_tuples!(T1, T2, T3, T4 | 0, 1, 2, 3);
-impl_tuples!(T1, T2, T3, T4, T5 | 0, 1, 2, 3, 4);
-impl_tuples!(T1, T2, T3, T4, T5, T6 | 0, 1, 2, 3, 4, 5);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7 | 0, 1, 2, 3, 4, 5, 6);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8 | 0, 1, 2, 3, 4, 5, 6, 7);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9 | 0, 1, 2, 3, 4, 5, 6, 7, 8);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30);
-impl_tuples!(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, T24, T25, T26, T27, T28, T29, T30, T31, T32 | 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
-
-
+impl_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,);
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
@@ -135,11 +88,11 @@ macro_rules! stack {
 stack!(HStack, width, height, x);
 stack!(VStack, height, width, y);
 
-pub fn h_list(children: impl IntoStackChildren) -> HStack {
+pub fn h_stack(children: impl IntoStackChildren) -> HStack {
     HStack::new(children)
 }
 
-pub fn v_list(children: impl IntoStackChildren) -> VStack {
+pub fn v_stack(children: impl IntoStackChildren) -> VStack {
     VStack::new(children)
 }
 

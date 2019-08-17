@@ -8,6 +8,7 @@ use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use webrender::api::*;
 
+#[derive(Debug)]
 pub enum WebRenderEvent {
     NewFrameReady(WindowId),
 }
