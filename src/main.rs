@@ -6,8 +6,6 @@ use ui::*;
 use webrender::api::{GradientStop, LayoutPoint};
 
 fn main() {
-    let r_color = rgbaf(0.2, 0.4, 0.1, 1.);
-
     app::App::new()
         .window(
             "window1",

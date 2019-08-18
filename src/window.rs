@@ -141,7 +141,8 @@ impl Window {
     }
 
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
-    pub fn event(&mut self, event: WindowEvent) {
+    pub fn event(&mut self, event: WindowEvent) -> bool {
+        let mut has_update = true;
         match event {
             WindowEvent::Resized(new_size) => {
                 // open issue on resize delay: https://github.com/servo/webrender/issues/1640
@@ -155,8 +156,9 @@ impl Window {
             WindowEvent::RedrawRequested => self.redraw = true,
             WindowEvent::CloseRequested => self.close = true,
 
-            _ => {}
+            _ => has_update = false,
         }
+        has_update
     }
 
     fn device_size(&self) -> DeviceIntSize {
@@ -220,11 +222,17 @@ impl Window {
         self.renderer.render(self.device_size()).unwrap();
         let _ = self.renderer.flush_pipeline_info();
         context.swap_buffers().ok();
-        if self.first_draw {
-            context.window().set_visible(true);
-            self.first_draw = false;
-        }
         self.context = Some(unsafe { context.make_not_current().unwrap() });
+    }
+
+    pub fn request_redraw(&mut self) {
+        let context = self.context.as_ref().unwrap();
+        if self.first_draw {
+            context.window().set_visible(true); // OS generates a RequestRedraw here
+            self.first_draw = false;
+        } else {
+            context.window().request_redraw();
+        }
     }
 
     pub fn deinit(mut self) {
