@@ -75,6 +75,14 @@ impl Ui for Box<dyn Ui> {
     }
 }
 
+impl Ui for () {
+    fn measure(&mut self, _: LayoutSize) -> LayoutSize {
+        LayoutSize::default()
+    }
+
+    fn render(&self, _: RenderContext) {}
+}
+
 #[derive(Clone)]
 pub struct Rect {
     color: ColorF,
