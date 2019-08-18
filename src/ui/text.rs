@@ -1,10 +1,10 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
-use harfbuzz_rs::*;
+use super::{LayoutSize, RenderContext, Ui};
+//use harfbuzz_rs::*;
 
 pub struct Text {}
 
 impl Text {
-    pub fn new(text: &str) -> Self {
+    pub fn new(_text: &str) -> Self {
         unimplemented!()
     }
 }
@@ -20,7 +20,7 @@ impl Ui for Text {
     fn arrange(&mut self, _final_size: LayoutSize) {
         unimplemented!()
     }
-    fn render(&self, c: RenderContext) {
+    fn render(&self, _c: RenderContext) {
         unimplemented!()
     }
 }
