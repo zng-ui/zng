@@ -10,7 +10,7 @@ use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct RenderContext<'b> {
-    pub builder: &'b mut DisplayListBuilder,
+    builder: &'b mut DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
 }
@@ -34,12 +34,35 @@ impl<'b> RenderContext<'b> {
         child.render(RenderContext::new(self.builder, spatial_id, final_rect.size));
         self.builder.pop_reference_frame();
     }
+
+    pub fn push_rect(&mut self, final_rect: LayoutRect, color: ColorF) {
+        let lpi = LayoutPrimitiveInfo::new(final_rect);
+        let sci = SpaceAndClipInfo {
+            spatial_id: self.spatial_id,
+            clip_id: ClipId::root(self.spatial_id.pipeline_id()),
+        };
+        self.builder.push_rect(&lpi, &sci, color);
+    }
+
+    pub fn push_gradient(
+        &mut self,
+        final_rect: LayoutRect,
+        start: LayoutPoint,
+        end: LayoutPoint,
+        stops: Vec<GradientStop>,
+    ) {
+        let grad = self.builder.create_gradient(start, end, stops, ExtendMode::Clamp);
+        let lpi = LayoutPrimitiveInfo::new(final_rect);
+        let sci = SpaceAndClipInfo {
+            spatial_id: self.spatial_id,
+            clip_id: ClipId::root(self.spatial_id.pipeline_id()),
+        };
+        self.builder
+            .push_gradient(&lpi, &sci, grad, final_rect.size, LayoutSize::default());
+    }
 }
 
 impl<'b> RenderContext<'b> {
-    pub fn spatial_id(&self) -> SpatialId {
-        self.spatial_id
-    }
     pub fn final_size(&self) -> LayoutSize {
         self.final_size
     }
@@ -83,36 +106,92 @@ impl Ui for () {
     fn render(&self, _: RenderContext) {}
 }
 
+pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
+    ColorF::new(r, g, b, 1.)
+}
+
+pub fn rgbaf(r: f32, g: f32, b: f32, a: f32) -> ColorF {
+    ColorF::new(r, g, b, a)
+}
+
+pub fn rgb(r: u8, g: u8, b: u8) -> ColorF {
+    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., 1.)
+}
+
+pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
+    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., a as f32 / 255.)
+}
+
 #[derive(Clone)]
-pub struct Rect {
+pub struct FillColor {
     color: ColorF,
 }
 
-impl Rect {
+impl FillColor {
     pub fn new(color: ColorF) -> Self {
-        Rect { color }
+        FillColor { color }
     }
 }
 
-impl Ui for Rect {
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        if available_size.width.is_infinite() {
-            available_size.width = 0.;
-        }
-
-        if available_size.height.is_infinite() {
-            available_size.height = 0.;
-        }
-
-        available_size
+#[inline]
+fn fill_measure(mut available_size: LayoutSize) -> LayoutSize {
+    if available_size.width.is_infinite() {
+        available_size.width = 0.;
     }
 
-    fn render(&self, c: RenderContext) {
-        let lpi = LayoutPrimitiveInfo::new(LayoutRect::from_size(c.final_size()));
-        let sci = SpaceAndClipInfo {
-            spatial_id: c.spatial_id(),
-            clip_id: ClipId::root(c.spatial_id().pipeline_id()),
-        };
-        c.builder.push_rect(&lpi, &sci, self.color);
+    if available_size.height.is_infinite() {
+        available_size.height = 0.;
     }
+
+    available_size
+}
+
+impl Ui for FillColor {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        fill_measure(available_size)
+    }
+
+    fn render(&self, mut c: RenderContext) {
+        c.push_rect(LayoutRect::from_size(c.final_size()), self.color);
+    }
+}
+
+pub fn fill_color(color: ColorF) -> FillColor {
+    FillColor::new(color)
+}
+
+#[derive(Clone)]
+pub struct FillGradient {
+    start: LayoutPoint,
+    end: LayoutPoint,
+    stops: Vec<GradientStop>,
+}
+
+impl FillGradient {
+    pub fn new(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
+        FillGradient { start, end, stops }
+    }
+}
+
+impl Ui for FillGradient {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        fill_measure(available_size)
+    }
+
+    fn render(&self, mut c: RenderContext) {
+        let final_size = c.final_size();
+        let mut start = self.start;
+        let mut end = self.end;
+
+        start.x *= final_size.width;
+        start.y *= final_size.height;
+        end.x *= final_size.width;
+        end.y *= final_size.height;
+
+        c.push_gradient(LayoutRect::from_size(final_size), start, end, self.stops.clone());
+    }
+}
+
+pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
+    FillGradient::new(start, end, stops)
 }
