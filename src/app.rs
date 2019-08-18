@@ -9,14 +9,14 @@ use glutin::window::WindowId;
 use webrender::api::LayoutSize;
 
 pub struct App {
-    events_loop: EventLoop<WebRenderEvent>,
+    event_loop: EventLoop<WebRenderEvent>,
     windows: HashMap<WindowId, Window>,
 }
 
 impl App {
     pub fn new() -> App {
         App {
-            events_loop: EventLoop::with_user_event(),
+            event_loop: EventLoop::with_user_event(),
             windows: HashMap::new(),
         }
     }
@@ -32,7 +32,8 @@ impl App {
             background_color,
             LayoutSize::new(800., 600.),
             content.into_box(),
-            &self.events_loop,
+            &self.event_loop,
+            self.event_loop.create_proxy(),
         );
         self.windows.insert(win.id(), win);
         self
@@ -40,11 +41,15 @@ impl App {
 
     pub fn run(self) -> ! {
         let App {
-            events_loop,
+            event_loop,
             mut windows,
         } = self;
 
-        events_loop.run(move |event, _, control_flow| {
+        // will use to create window inside run callback.
+        let _event_loop_proxy = event_loop.create_proxy();
+
+        event_loop.run(move |event, _event_loop, control_flow| {
+            //println!("{:?}", event);
             *control_flow = ControlFlow::Wait;
 
             match event {

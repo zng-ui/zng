@@ -2,7 +2,7 @@ use crate::ui::{RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
-use glutin::event_loop::{EventLoop, EventLoopProxy};
+use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use glutin::window::{WindowBuilder, WindowId};
 use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
@@ -62,7 +62,8 @@ impl Window {
         clear_color: ColorF,
         inner_size: LayoutSize,
         content: Box<dyn Ui>,
-        events_loop: &EventLoop<WebRenderEvent>,
+        event_loop: &EventLoopWindowTarget<WebRenderEvent>,
+        event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(name)
@@ -77,7 +78,7 @@ impl Window {
                 opengl_version: (3, 2),
                 opengles_version: (3, 0),
             })
-            .build_windowed(window_builder, &events_loop)
+            .build_windowed(window_builder, &event_loop)
             .unwrap();
 
         let context = unsafe { context.make_current().unwrap() };
@@ -106,7 +107,7 @@ impl Window {
 
         let notifier = Box::new(Notifier {
             window_id: context.window().id(),
-            event_loop: events_loop.create_proxy(),
+            event_loop: event_loop_proxy,
         });
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
