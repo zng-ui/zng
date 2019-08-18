@@ -47,6 +47,8 @@ pub struct Window {
     content: Box<dyn Ui>,
     content_size: LayoutSize,
 
+    first_draw: bool,
+
     pub update_layout: bool,
     pub render_frame: bool,
     pub redraw: bool,
@@ -126,6 +128,8 @@ impl Window {
 
             content,
             content_size: LayoutSize::default(),
+
+            first_draw: true,
 
             update_layout: true,
             render_frame: true,
@@ -215,7 +219,10 @@ impl Window {
         self.renderer.render(self.device_size()).unwrap();
         let _ = self.renderer.flush_pipeline_info();
         context.swap_buffers().ok();
-        context.window().set_visible(true);
+        if self.first_draw {
+            context.window().set_visible(true);
+            self.first_draw = false;
+        }
         self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
 
