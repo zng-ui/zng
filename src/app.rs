@@ -59,18 +59,13 @@ impl App {
                     }
                 }
                 Event::EventsCleared => {
-                    let to_remove: Vec<_> = windows.values().filter(|w| w.close).map(|w| w.id()).collect();
-                    for window_id in to_remove {
-                        let win = windows.remove(&window_id).unwrap();
-                        win.deinit();
-                    }
-
-                    if windows.is_empty() {
-                        *control_flow = ControlFlow::Exit;
-                        return;
-                    }
+                    let mut to_remove = vec![];
 
                     for win in windows.values_mut() {
+                        if win.close {
+                            to_remove.push(win.id());
+                            continue;
+                        }
                         if win.update_layout {
                             win.layout();
                         }
@@ -80,6 +75,16 @@ impl App {
                         if win.redraw {
                             win.redraw_and_swap_buffers();
                         }
+                    }
+
+                    for window_id in to_remove {
+                        let win = windows.remove(&window_id).unwrap();
+                        win.deinit();
+                    }
+
+                    if windows.is_empty() {
+                        *control_flow = ControlFlow::Exit;
+                        return;
                     }
                 }
                 Event::LoopDestroyed => {
