@@ -6,11 +6,11 @@ use ui::*;
 use webrender::api::{GradientStop, LayoutPoint};
 
 fn main() {
-    app::App::new()
+    app::App::new()//
         .window(
             "window1",
             rgbaf(0.1, 0.2, 0.3, 1.0),
-            center(v_stack(vec![
+            |c| center(v_stack(vec![
                 fill_gradient(
                     LayoutPoint::new(0., 0.),
                     LayoutPoint::new(1., 0.),
@@ -33,7 +33,7 @@ fn main() {
         .window(
             "window2",
             rgbaf(0.3, 0.2, 0.1, 1.0),
-            center(h_stack(vec![
+            |c| center(h_stack(vec![
                 fill_gradient(
                     LayoutPoint::new(0., 0.),
                     LayoutPoint::new(1., 1.),

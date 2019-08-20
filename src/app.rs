@@ -21,17 +21,17 @@ impl App {
         }
     }
 
-    pub fn window(
+    pub fn window<Tcontent: Ui + 'static>(
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: impl Ui + 'static,
+        content: impl Fn (u8) -> Tcontent,
     ) -> Self {
         let win = Window::new(
             title.to_string(),
             background_color,
             LayoutSize::new(800., 600.),
-            content.into_box(),
+            |c| content(c).into_box(),
             &self.event_loop,
             self.event_loop.create_proxy(),
         );

@@ -9,6 +9,11 @@ pub use text::*;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
+pub struct InitContext {
+    api: RenderApi,
+    document_id: DocumentId
+}
+
 pub struct RenderContext<'b> {
     builder: &'b mut DisplayListBuilder,
     spatial_id: SpatialId,

@@ -61,7 +61,7 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: Box<dyn Ui>,
+        content: impl Fn(u8) -> Box<dyn Ui>,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ) -> Self {
@@ -115,6 +115,7 @@ impl Window {
         let epoch = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
+        let content = content(0);
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 
