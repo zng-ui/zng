@@ -58,6 +58,7 @@ impl Text {
         glyphs.shrink_to_fit();
 
         //https://harfbuzz.github.io/
+        //https://crates.io/crates/unicode-bidi
 
         Text {
             glyphs,
