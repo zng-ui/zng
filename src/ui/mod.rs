@@ -10,8 +10,8 @@ use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct InitContext {
-    api: RenderApi,
-    document_id: DocumentId
+    pub api: RenderApi,
+    pub document_id: DocumentId
 }
 
 pub struct RenderContext<'b> {
@@ -40,12 +40,18 @@ impl<'b> RenderContext<'b> {
         self.builder.pop_reference_frame();
     }
 
-    pub fn push_rect(&mut self, final_rect: LayoutRect, color: ColorF) {
+    fn layout_and_clip(&self, final_rect: LayoutRect) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
         let lpi = LayoutPrimitiveInfo::new(final_rect);
         let sci = SpaceAndClipInfo {
             spatial_id: self.spatial_id,
             clip_id: ClipId::root(self.spatial_id.pipeline_id()),
         };
+
+        (lpi, sci)
+    }
+
+    pub fn push_rect(&mut self, final_rect: LayoutRect, color: ColorF) {
+        let (lpi, sci) = self.layout_and_clip(final_rect);
         self.builder.push_rect(&lpi, &sci, color);
     }
 
@@ -56,14 +62,23 @@ impl<'b> RenderContext<'b> {
         end: LayoutPoint,
         stops: Vec<GradientStop>,
     ) {
+        let (lpi, sci) = self.layout_and_clip(final_rect);
+
         let grad = self.builder.create_gradient(start, end, stops, ExtendMode::Clamp);
-        let lpi = LayoutPrimitiveInfo::new(final_rect);
-        let sci = SpaceAndClipInfo {
-            spatial_id: self.spatial_id,
-            clip_id: ClipId::root(self.spatial_id.pipeline_id()),
-        };
         self.builder
             .push_gradient(&lpi, &sci, grad, final_rect.size, LayoutSize::default());
+    }
+
+    pub fn push_text(&mut self, final_rect: LayoutRect, glyphs: &[GlyphInstance], font_instance_key: FontInstanceKey, color: ColorF) {
+        let (lpi, sci) = self.layout_and_clip(final_rect);
+
+        self.builder.push_text(&lpi,
+            &sci,
+            &glyphs,
+            font_instance_key,
+            color,
+            None,
+        );
     }
 }
 
@@ -200,3 +215,37 @@ impl Ui for FillGradient {
 pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
     FillGradient::new(start, end, stops)
 }
+
+#[derive(Clone)]
+pub struct BackgroundColor<T: Ui> {
+    child: T,
+    color: ColorF,
+}
+
+impl<T: Ui> BackgroundColor<T> {
+    pub fn new(child: T, color: ColorF) -> Self {
+        BackgroundColor { child, color }
+    }
+}
+
+impl<T: Ui> Ui for BackgroundColor<T> {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+       self.child.measure(available_size)
+    }
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child.arrange(final_size)
+    }
+    fn render(&self, mut c: RenderContext) {
+        c.push_rect(LayoutRect::from_size(c.final_size()), self.color);
+        self.child.render(c)
+    }
+}
+pub fn background_color<T: Ui>(child: T, color: ColorF) -> BackgroundColor<T> {
+    BackgroundColor::new(child, color)
+}
+pub trait BackgroundColorExt: Ui + Sized {
+    fn background_color(self, color: ColorF) -> BackgroundColor<Self> {
+        BackgroundColor::new(self, color)
+    }
+}
+impl<T: Ui> BackgroundColorExt for T {}
