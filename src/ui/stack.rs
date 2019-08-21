@@ -132,6 +132,6 @@ impl Ui for ZStack {
         }
     }
 }
-pub fn z_list(children: impl IntoStackChildren) -> ZStack {
+pub fn z_stack(children: impl IntoStackChildren) -> ZStack {
     ZStack::new(children)
 }
