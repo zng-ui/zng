@@ -59,6 +59,7 @@ impl Text {
 
         //https://harfbuzz.github.io/
         //https://crates.io/crates/unicode-bidi
+        //https://www.geeksforgeeks.org/word-wrap-problem-dp-19/
 
         Text {
             glyphs,
