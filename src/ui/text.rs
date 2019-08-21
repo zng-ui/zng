@@ -1,8 +1,7 @@
-use super::{LayoutSize, InitContext, RenderContext, Ui};
+use super::{InitContext, LayoutSize, RenderContext, Ui};
+use app_units::Au;
 use font_loader::system_fonts;
 use webrender::api::*;
-use app_units::Au;
-
 
 pub struct Text {
     glyphs: Vec<GlyphInstance>,
@@ -21,11 +20,23 @@ impl Text {
         txn.add_raw_font(font_key, font, 0);
 
         let font_instance_key = c.api.generate_font_instance_key();
-        txn.add_font_instance(font_instance_key, font_key, Au::from_px(32), None, None, Vec::new());
+        txn.add_font_instance(
+            font_instance_key,
+            font_key,
+            Au::from_px(32),
+            None,
+            None,
+            Vec::new(),
+        );
 
         c.api.send_transaction(c.document_id, txn);
 
-        let indices: Vec<_> = c.api.get_glyph_indices(font_key, text).into_iter().filter_map(|i|i).collect();
+        let indices: Vec<_> = c
+            .api
+            .get_glyph_indices(font_key, text)
+            .into_iter()
+            .filter_map(|i| i)
+            .collect();
         let dimensions = c.api.get_glyph_dimensions(font_instance_key, indices.clone());
 
         let mut glyphs = Vec::with_capacity(indices.len());
@@ -37,17 +48,20 @@ impl Text {
             if let Some(dim) = dim {
                 glyphs.push(GlyphInstance {
                     index,
-                    point: LayoutPoint::new(offset, 24.)
+                    point: LayoutPoint::new(offset, 24.),
                 });
 
                 offset += dim.advance as f32;
             }
         }
-       let size = LayoutSize::new(offset, 32.);
+        let size = LayoutSize::new(offset, 32.);
         glyphs.shrink_to_fit();
 
         Text {
-            glyphs, size, font_instance_key, color
+            glyphs,
+            size,
+            font_instance_key,
+            color,
         }
     }
 }
@@ -62,6 +76,11 @@ impl Ui for Text {
     }
 
     fn render(&self, mut c: RenderContext) {
-        c.push_text(LayoutRect::from_size(self.size), &self.glyphs, self.font_instance_key, self.color)
+        c.push_text(
+            LayoutRect::from_size(self.size),
+            &self.glyphs,
+            self.font_instance_key,
+            self.color,
+        )
     }
 }

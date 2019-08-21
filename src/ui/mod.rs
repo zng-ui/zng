@@ -11,7 +11,7 @@ pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct InitContext {
     pub api: RenderApi,
-    pub document_id: DocumentId
+    pub document_id: DocumentId,
 }
 
 pub struct RenderContext<'b> {
@@ -69,16 +69,17 @@ impl<'b> RenderContext<'b> {
             .push_gradient(&lpi, &sci, grad, final_rect.size, LayoutSize::default());
     }
 
-    pub fn push_text(&mut self, final_rect: LayoutRect, glyphs: &[GlyphInstance], font_instance_key: FontInstanceKey, color: ColorF) {
+    pub fn push_text(
+        &mut self,
+        final_rect: LayoutRect,
+        glyphs: &[GlyphInstance],
+        font_instance_key: FontInstanceKey,
+        color: ColorF,
+    ) {
         let (lpi, sci) = self.layout_and_clip(final_rect);
 
-        self.builder.push_text(&lpi,
-            &sci,
-            &glyphs,
-            font_instance_key,
-            color,
-            None,
-        );
+        self.builder
+            .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
     }
 }
 
@@ -230,7 +231,7 @@ impl<T: Ui> BackgroundColor<T> {
 
 impl<T: Ui> Ui for BackgroundColor<T> {
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-       self.child.measure(available_size)
+        self.child.measure(available_size)
     }
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child.arrange(final_size)

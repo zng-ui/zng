@@ -115,9 +115,7 @@ impl Window {
         let epoch = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let init_ctx = InitContext {
-            api, document_id
-        };
+        let init_ctx = InitContext { api, document_id };
 
         let content = content(&init_ctx);
         Window {

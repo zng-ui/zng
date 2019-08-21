@@ -1,4 +1,4 @@
-use crate::ui::{Ui, InitContext};
+use crate::ui::{InitContext, Ui};
 use crate::window::{WebRenderEvent, Window};
 
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ impl App {
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: impl Fn (&InitContext) -> Tcontent,
+        content: impl Fn(&InitContext) -> Tcontent,
     ) -> Self {
         let win = Window::new(
             title.to_string(),
