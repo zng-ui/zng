@@ -57,6 +57,8 @@ impl Text {
         let size = LayoutSize::new(offset, 32.);
         glyphs.shrink_to_fit();
 
+        //https://harfbuzz.github.io/
+
         Text {
             glyphs,
             size,
