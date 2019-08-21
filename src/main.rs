@@ -10,30 +10,12 @@ fn main() {
         .window(
             "window1",
             rgbaf(0.1, 0.2, 0.3, 1.0),
-            |c| center(v_stack(vec![
-                fill_gradient(
-                    LayoutPoint::new(0., 0.),
-                    LayoutPoint::new(1., 0.),
-                    vec![
-                        GradientStop {
-                            offset: 0.,
-                            color: rgb(0, 200, 0),
-                        },
-                        GradientStop {
-                            offset: 1.,
-                            color: rgb(200, 0, 0),
-                        }
-                    ]
-                )
-                .height(150.)
-                .margin(2.);
-                4
-            ])),
+            |c| text(c, "çHello World! pç", rgb(0, 0, 0)).background_color(rgb(255, 255, 255)).center(),
         )
         .window(
             "window2",
             rgbaf(0.3, 0.2, 0.1, 1.0),
-            |c| center(h_stack(vec![
+            |_| center(h_stack(vec![
                 fill_gradient(
                     LayoutPoint::new(0., 0.),
                     LayoutPoint::new(1., 1.),

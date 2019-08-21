@@ -1,4 +1,4 @@
-use crate::ui::{RenderContext, Ui};
+use crate::ui::{InitContext, RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -61,7 +61,7 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(u8) -> Box<dyn Ui>,
+        content: impl Fn(&InitContext) -> Box<dyn Ui>,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ) -> Self {
@@ -115,11 +115,15 @@ impl Window {
         let epoch = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let content = content(0);
+        let init_ctx = InitContext {
+            api, document_id
+        };
+
+        let content = content(&init_ctx);
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 
-            api,
+            api: init_ctx.api,
             document_id,
             epoch,
             pipeline_id,

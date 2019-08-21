@@ -6,11 +6,13 @@ use app_units::Au;
 
 pub struct Text {
     glyphs: Vec<GlyphInstance>,
-    size: LayoutSize
+    size: LayoutSize,
+    font_instance_key: FontInstanceKey,
+    color: ColorF,
 }
 
 impl Text {
-    pub fn new(c: &InitContext, text: &str) -> Self {
+    pub fn new(c: &InitContext, text: &str, color: ColorF) -> Self {
         let font_key = c.api.generate_font_key();
         let property = system_fonts::FontPropertyBuilder::new().family("Arial").build();
         let (font, _) = system_fonts::get(&property).unwrap();
@@ -23,31 +25,43 @@ impl Text {
 
         c.api.send_transaction(c.document_id, txn);
 
-        let indices = c.api.get_glyph_indices(font_key, text).into_iter().filter_map(|i|i).collect();
-        let dimensions = c.api.get_glyph_dimensions(font_instance_key, indices);
+        let indices: Vec<_> = c.api.get_glyph_indices(font_key, text).into_iter().filter_map(|i|i).collect();
+        let dimensions = c.api.get_glyph_dimensions(font_instance_key, indices.clone());
 
-        let mut size = LayoutSize::default();
+        let mut glyphs = Vec::with_capacity(indices.len());
+        let mut offset = 0.;
 
-        //https://github.com/servo/webrender/blob/master/examples/multiwindow.rs
-        //https://docs.rs/webrender_api/0.60.0/webrender_api/struct.RenderApi.html#method.get_glyph_indices
-        //https://crates.io/crates/font-loader
+        assert_eq!(indices.len(), dimensions.len());
 
-        unimplemented!()
+        for (index, dim) in indices.into_iter().zip(dimensions) {
+            if let Some(dim) = dim {
+                glyphs.push(GlyphInstance {
+                    index,
+                    point: LayoutPoint::new(offset, 24.)
+                });
+
+                offset += dim.advance as f32;
+            }
+        }
+       let size = LayoutSize::new(offset, 32.);
+        glyphs.shrink_to_fit();
+
+        Text {
+            glyphs, size, font_instance_key, color
+        }
     }
 }
 
-pub fn text(text: &str) -> Text {
-    unimplemented!()//Text::new(text)
+pub fn text(c: &InitContext, text: &str, color: ColorF) -> Text {
+    Text::new(c, text, color)
 }
 
 impl Ui for Text {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        unimplemented!()
+        self.size
     }
-    fn arrange(&mut self, _final_size: LayoutSize) {
-        unimplemented!()
-    }
-    fn render(&self, _c: RenderContext) {
-        unimplemented!()
+
+    fn render(&self, mut c: RenderContext) {
+        c.push_text(LayoutRect::from_size(self.size), &self.glyphs, self.font_instance_key, self.color)
     }
 }
