@@ -11,9 +11,9 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn new(c: &InitContext, text: &str, color: ColorF) -> Self {
+    pub fn new(c: &InitContext, text: &str, color: ColorF, font_family: &str, font_size: f32) -> Self {
         let font_key = c.api.generate_font_key();
-        let property = system_fonts::FontPropertyBuilder::new().family("Arial").build();
+        let property = system_fonts::FontPropertyBuilder::new().family(font_family).build();
         let (font, _) = system_fonts::get(&property).unwrap();
 
         let mut txn = Transaction::new();
@@ -23,7 +23,7 @@ impl Text {
         txn.add_font_instance(
             font_instance_key,
             font_key,
-            Au::from_px(32),
+            Au::from_f32_px(font_size),
             None,
             None,
             Vec::new(),
@@ -48,13 +48,15 @@ impl Text {
             if let Some(dim) = dim {
                 glyphs.push(GlyphInstance {
                     index,
-                    point: LayoutPoint::new(offset, 24.),
+                    point: LayoutPoint::new(offset, font_size),
                 });
 
                 offset += dim.advance as f32;
+            }else{
+                offset += font_size/4.;
             }
         }
-        let size = LayoutSize::new(offset, 32.);
+        let size = LayoutSize::new(offset, font_size*1.3);
         glyphs.shrink_to_fit();
 
         //https://harfbuzz.github.io/
@@ -70,8 +72,8 @@ impl Text {
     }
 }
 
-pub fn text(c: &InitContext, text: &str, color: ColorF) -> Text {
-    Text::new(c, text, color)
+pub fn text(c: &InitContext, text: &str, color: ColorF, font_family: &str, font_size: f32) -> Text {
+    Text::new(c, text, color, font_family, font_size)
 }
 
 impl Ui for Text {

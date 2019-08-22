@@ -6,11 +6,17 @@ use ui::*;
 use webrender::api::{GradientStop, LayoutPoint};
 
 fn main() {
+    let string = r".....
+    ÃÂÃÂÃÂÃÂÃÂ
+    Economize tempo no Word com novos botões que são mostrados
+     no local em que você precisa deles. 
+     Para alterar a maneira como uma imagem se ajusta ao seu documento,
+    clique nela e um botão de opções de layout será exibido ao lado.";
+
     app::App::new() //
         .window("window1", rgbaf(0.1, 0.2, 0.3, 1.0), |c| {
-            text(c, "çHello World! pç", rgb(0, 0, 0))
-                .background_color(rgb(255, 255, 255))
-                .center()
+            v_stack(string.split("\n").map(|l|text(c, l, rgb(0, 0, 0), "Arial", 14.)
+                .background_color(rgb(255, 255, 255))).collect::<Vec<_>>())      
         })
         .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |_| {
             center(h_stack(vec![
