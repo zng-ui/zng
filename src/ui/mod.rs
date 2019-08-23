@@ -15,8 +15,12 @@ pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 pub struct InitContext {
     pub api: RenderApi,
     pub document_id: DocumentId,
-    fonts: HashMap<String, FontKey>,
-    font_instances: HashMap<(FontKey, u32), FontInstanceKey>,
+    fonts: HashMap<String, FontInstances>,
+}
+
+struct FontInstances {
+    font_key: FontKey,
+    instances: HashMap<u32, FontInstanceKey>,
 }
 
 #[derive(Clone)]
@@ -32,54 +36,60 @@ impl InitContext {
             api,
             document_id,
             fonts: HashMap::new(),
-            font_instances: HashMap::new(),
         }
     }
 
     pub fn font(&mut self, family: &str, size: u32) -> FontInstance {
-        if let Some(&font_key) = self.fonts.get(family) {
-            if let Some(&instance_key) = self.font_instances.get(&(font_key, size)) {
-                FontInstance {
-                    font_key,
+        let mut uncached_font = true;
+
+        if let Some(font) = self.fonts.get(family) {
+            if let Some(&instance_key) = font.instances.get(&size) {
+                return FontInstance {
+                    font_key: font.font_key,
                     instance_key,
                     size,
-                }
-            } else {
-                let mut txn = Transaction::new();
-
-                let instance_key = self.api.generate_font_instance_key();
-                txn.add_font_instance(instance_key, font_key, Au::from_px(size as i32), None, None, Vec::new());
-                self.api.send_transaction(self.document_id, txn);
-
-                self.font_instances.insert((font_key, size), instance_key);
-
-                FontInstance {
-                    font_key,
-                    instance_key,
-                    size,
-                }
+                };
             }
-        } else {
+            uncached_font = false;
+        }
+
+        let mut txn = Transaction::new();
+
+        if uncached_font {
             let property = system_fonts::FontPropertyBuilder::new().family(family).build();
             let (font, _) = system_fonts::get(&property).unwrap();
 
             let font_key = self.api.generate_font_key();
-
-            let mut txn = Transaction::new();
             txn.add_raw_font(font_key, font, 0);
 
-            let instance_key = self.api.generate_font_instance_key();
-            txn.add_font_instance(instance_key, font_key, Au::from_px(size as i32), None, None, Vec::new());
-            self.api.send_transaction(self.document_id, txn);
+            self.fonts.insert(
+                family.to_owned(),
+                FontInstances {
+                    font_key,
+                    instances: HashMap::new(),
+                },
+            );
+        }
 
-            self.fonts.insert(family.to_owned(), font_key);
-            self.font_instances.insert((font_key, size), instance_key);
+        let f = self.fonts.get_mut(family).unwrap();
 
-            FontInstance {
-                font_key,
-                instance_key,
-                size,
-            }
+        let instance_key = self.api.generate_font_instance_key();
+        txn.add_font_instance(
+            instance_key,
+            f.font_key,
+            Au::from_px(size as i32),
+            None,
+            None,
+            Vec::new(),
+        );
+        f.instances.insert(size, instance_key);
+
+        self.api.send_transaction(self.document_id, txn);
+
+        FontInstance {
+            font_key: f.font_key,
+            instance_key,
+            size,
         }
     }
 }
