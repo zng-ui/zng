@@ -61,17 +61,14 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(&InitContext) -> Box<dyn Ui>,
+        content: impl Fn(&mut InitContext) -> Box<dyn Ui>,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(name)
             .with_visible(false)
-            .with_inner_size(LogicalSize::new(
-                inner_size.width as f64,
-                inner_size.height as f64,
-            ));
+            .with_inner_size(LogicalSize::new(inner_size.width as f64, inner_size.height as f64));
 
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
@@ -84,12 +81,8 @@ impl Window {
         let context = unsafe { context.make_current().unwrap() };
 
         let gl = match context.get_api() {
-            Api::OpenGl => unsafe {
-                gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _)
-            },
-            Api::OpenGlEs => unsafe {
-                gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _)
-            },
+            Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+            Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
             Api::WebGl => unimplemented!(),
         };
 
@@ -115,9 +108,9 @@ impl Window {
         let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let init_ctx = InitContext { api, document_id };
+        let mut init_ctx = InitContext::new(api, document_id);
 
-        let content = content(&init_ctx);
+        let content = content(&mut init_ctx);
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 

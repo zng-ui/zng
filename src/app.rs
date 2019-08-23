@@ -25,7 +25,7 @@ impl App {
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: impl Fn(&InitContext) -> Tcontent,
+        content: impl Fn(&mut InitContext) -> Tcontent,
     ) -> Self {
         let win = Window::new(
             title.to_string(),

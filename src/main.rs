@@ -15,8 +15,12 @@ fn main() {
 
     app::App::new() //
         .window("window1", rgbaf(0.1, 0.2, 0.3, 1.0), |c| {
-            v_stack(string.split("\n").map(|l|text(c, l, rgb(0, 0, 0), "Arial", 14.)
-                .background_color(rgb(255, 255, 255))).collect::<Vec<_>>())      
+            v_stack(
+                string
+                    .split("\n")
+                    .map(|l| text(c, l, rgb(0, 0, 0), "Arial", 14).background_color(rgb(255, 255, 255)))
+                    .collect::<Vec<_>>(),
+            )
         })
         .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |_| {
             center(h_stack(vec![

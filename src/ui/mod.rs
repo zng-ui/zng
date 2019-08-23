@@ -6,12 +6,82 @@ pub use layout::*;
 pub use stack::*;
 pub use text::*;
 
+use app_units::Au;
+use font_loader::system_fonts;
+use std::collections::HashMap;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct InitContext {
     pub api: RenderApi,
     pub document_id: DocumentId,
+    fonts: HashMap<String, FontKey>,
+    font_instances: HashMap<(FontKey, u32), FontInstanceKey>,
+}
+
+#[derive(Clone)]
+pub struct FontInstance {
+    pub font_key: FontKey,
+    pub instance_key: FontInstanceKey,
+    pub size: u32,
+}
+
+impl InitContext {
+    pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
+        InitContext {
+            api,
+            document_id,
+            fonts: HashMap::new(),
+            font_instances: HashMap::new(),
+        }
+    }
+
+    pub fn font(&mut self, family: &str, size: u32) -> FontInstance {
+        if let Some(&font_key) = self.fonts.get(family) {
+            if let Some(&instance_key) = self.font_instances.get(&(font_key, size)) {
+                FontInstance {
+                    font_key,
+                    instance_key,
+                    size,
+                }
+            } else {
+                let mut txn = Transaction::new();
+
+                let instance_key = self.api.generate_font_instance_key();
+                txn.add_font_instance(instance_key, font_key, Au::from_px(size as i32), None, None, Vec::new());
+                self.api.send_transaction(self.document_id, txn);
+
+                self.font_instances.insert((font_key, size), instance_key);
+
+                FontInstance {
+                    font_key,
+                    instance_key,
+                    size,
+                }
+            }
+        } else {
+            let property = system_fonts::FontPropertyBuilder::new().family(family).build();
+            let (font, _) = system_fonts::get(&property).unwrap();
+
+            let font_key = self.api.generate_font_key();
+
+            let mut txn = Transaction::new();
+            txn.add_raw_font(font_key, font, 0);
+
+            let instance_key = self.api.generate_font_instance_key();
+            txn.add_font_instance(instance_key, font_key, Au::from_px(size as i32), None, None, Vec::new());
+            self.api.send_transaction(self.document_id, txn);
+
+            self.fonts.insert(family.to_owned(), font_key);
+            self.font_instances.insert((font_key, size), instance_key);
+
+            FontInstance {
+                font_key,
+                instance_key,
+                size,
+            }
+        }
+    }
 }
 
 pub struct RenderContext<'b> {
