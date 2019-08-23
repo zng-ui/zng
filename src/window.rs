@@ -37,7 +37,7 @@ pub struct Window {
 
     api: RenderApi,
     document_id: DocumentId,
-    epoch: Epoch,
+    latest_frame_id: Epoch,
     pipeline_id: PipelineId,
     renderer: webrender::Renderer,
 
@@ -112,7 +112,7 @@ impl Window {
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
         let document_id = api.add_document(device_size, 0);
-        let epoch = Epoch(0);
+        let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
         let init_ctx = InitContext { api, document_id };
@@ -123,7 +123,7 @@ impl Window {
 
             api: init_ctx.api,
             document_id,
-            epoch,
+            latest_frame_id,
             pipeline_id,
             renderer,
 
@@ -204,7 +204,15 @@ impl Window {
             self.content_size,
         ));
 
-        txn.set_display_list(self.epoch, None, self.inner_size, builder.finalize(), true);
+        self.latest_frame_id = Epoch({
+            let mut next = self.latest_frame_id.0.wrapping_add(1);
+            if next == Epoch::invalid().0 {
+                next = next.wrapping_add(1);
+            }
+            next
+        });
+
+        txn.set_display_list(self.latest_frame_id, None, self.inner_size, builder.finalize(), true);
         txn.set_root_pipeline(self.pipeline_id);
         txn.generate_frame();
         self.api.send_transaction(self.document_id, txn);
