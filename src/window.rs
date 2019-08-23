@@ -1,4 +1,4 @@
-use crate::ui::{InitContext, RenderContext, Ui};
+use crate::ui::{self, InitContext, RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -151,6 +151,12 @@ impl Window {
             }
             WindowEvent::RedrawRequested => self.redraw = true,
             WindowEvent::CloseRequested => self.close = true,
+
+            WindowEvent::KeyboardInput { input, .. } => match self.content.on_keyboard_input(&input) {
+                ui::Update::Layout => self.update_layout = true,
+                ui::Update::Render => self.render_frame = true,
+                _ => {}
+            }
 
             _ => has_update = false,
         }

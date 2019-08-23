@@ -1,4 +1,4 @@
-use super::{LayoutRect, LayoutSize, RenderContext, Ui};
+use super::{LayoutRect, LayoutSize, RenderContext, Ui, KeyboardInput, Update};
 
 pub struct StackChild {
     child: Box<dyn Ui>,
@@ -108,6 +108,28 @@ impl ZStack {
     }
 }
 impl Ui for ZStack {
+     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+       let mut update_layout = false;
+       let mut update_render = false;
+        for c in self.children.iter_mut() {
+            match c.child.on_keyboard_input(input) {
+                Update::Layout => update_layout = true,
+                Update::Render => update_render = true,
+                _ => {}
+            }
+        }
+
+        if update_layout {
+            return Update::Layout;
+        }
+
+        if update_render {
+            return Update::Render;
+        }
+
+        Update::None
+    }
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut desired_size = LayoutSize::default();
 

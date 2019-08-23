@@ -10,6 +10,7 @@ use app_units::Au;
 use font_loader::system_fonts;
 use std::collections::HashMap;
 use webrender::api::*;
+pub use glutin::event::KeyboardInput;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct InitContext {
@@ -172,10 +173,21 @@ impl<'b> RenderContext<'b> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub enum Update {
+    None,
+    Render,
+    Layout
+}
+
 pub trait Ui {
+    fn on_keyboard_input(&mut self, _input: &KeyboardInput) -> Update { Update::None }
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
     fn arrange(&mut self, _final_size: LayoutSize) {}
     fn render(&self, c: RenderContext);
+
+
     fn into_box(self) -> Box<dyn Ui>
     where
         Self: Sized + 'static,
@@ -313,6 +325,10 @@ impl<T: Ui> BackgroundColor<T> {
 }
 
 impl<T: Ui> Ui for BackgroundColor<T> {
+    fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         self.child.measure(available_size)
     }

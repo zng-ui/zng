@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
+use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui, Update, KeyboardInput};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -15,6 +15,10 @@ impl<T: Ui> SizeChild<T> {
     }
 }
 impl<T: Ui> Ui for SizeChild<T> {
+     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.child.measure(self.size);
         self.size
@@ -51,6 +55,10 @@ impl<T: Ui> WidthChild<T> {
     }
 }
 impl<T: Ui> Ui for WidthChild<T> {
+     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.width = self.width;
         let mut child_size = self.child.measure(available_size);
@@ -85,6 +93,10 @@ impl<T: Ui> HeightChild<T> {
     }
 }
 impl<T: Ui> Ui for HeightChild<T> {
+     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.height = self.height;
         let mut child_size = self.child.measure(available_size);
@@ -122,6 +134,10 @@ impl<T: Ui> CenterChild<T> {
     }
 }
 impl<T: Ui> Ui for CenterChild<T> {
+     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -186,6 +202,10 @@ impl<T: Ui> Margin<T> {
     }
 }
 impl<T: Ui> Ui for Margin<T> {
+    fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
+        self.child.on_keyboard_input(input)
+    }
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut child_sz = self.child.measure(available_size);
         child_sz.width += self.left + self.right;
