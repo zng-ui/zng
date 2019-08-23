@@ -38,6 +38,9 @@ impl<'b> RenderContext<'b> {
         );
         child.render(RenderContext::new(self.builder, spatial_id, final_rect.size));
         self.builder.pop_reference_frame();
+
+        // about Stacking Contexts
+        //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
     }
 
     fn layout_and_clip(&self, final_rect: LayoutRect) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
