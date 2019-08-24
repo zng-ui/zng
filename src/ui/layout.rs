@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui, Update, KeyboardInput};
+use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -15,8 +15,9 @@ impl<T: Ui> SizeChild<T> {
     }
 }
 impl<T: Ui> Ui for SizeChild<T> {
-     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
+    type Child = T;
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+        action(&mut self.child);
     }
 
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
@@ -26,7 +27,7 @@ impl<T: Ui> Ui for SizeChild<T> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child.arrange(final_size)
     }
-    fn render(&self, c: RenderContext) {
+    fn render(&mut self, c: &mut RenderContext) {
         self.child.render(c)
     }
 }
@@ -55,8 +56,9 @@ impl<T: Ui> WidthChild<T> {
     }
 }
 impl<T: Ui> Ui for WidthChild<T> {
-     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
+    type Child = T;
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+        action(&mut self.child);
     }
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
@@ -68,7 +70,7 @@ impl<T: Ui> Ui for WidthChild<T> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child.arrange(final_size)
     }
-    fn render(&self, c: RenderContext) {
+    fn render(&mut self, c: &mut RenderContext) {
         self.child.render(c)
     }
 }
@@ -93,8 +95,9 @@ impl<T: Ui> HeightChild<T> {
     }
 }
 impl<T: Ui> Ui for HeightChild<T> {
-     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
+    type Child = T;
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+        action(&mut self.child);
     }
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
@@ -106,7 +109,7 @@ impl<T: Ui> Ui for HeightChild<T> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child.arrange(final_size)
     }
-    fn render(&self, c: RenderContext) {
+    fn render(&mut self, c: &mut RenderContext) {
         self.child.render(c)
     }
 }
@@ -134,10 +137,10 @@ impl<T: Ui> CenterChild<T> {
     }
 }
 impl<T: Ui> Ui for CenterChild<T> {
-     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
+    type Child = T;
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+        action(&mut self.child);
     }
-
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -160,8 +163,8 @@ impl<T: Ui> Ui for CenterChild<T> {
             (final_size.height - self.child_rect.size.height) / 2.,
         );
     }
-    fn render(&self, mut c: RenderContext) {
-        c.push_child(&self.child, &self.child_rect);
+    fn render(&mut self, rc: &mut RenderContext) {
+        rc.push_child(&mut self.child, &self.child_rect);
     }
 }
 pub fn center<T: Ui>(child: T) -> CenterChild<T> {
@@ -202,8 +205,9 @@ impl<T: Ui> Margin<T> {
     }
 }
 impl<T: Ui> Ui for Margin<T> {
-    fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
+    type Child = T;
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+        action(&mut self.child);
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -217,15 +221,15 @@ impl<T: Ui> Ui for Margin<T> {
         final_size.height -= self.top + self.bottom;
         self.child.arrange(final_size);
     }
-    fn render(&self, mut c: RenderContext) {
-        let sz = c.final_size();
+    fn render(&mut self, rc: &mut RenderContext) {
+        let sz = rc.final_size();
         let rect = euclid::rect(
             self.left,
             self.top,
             sz.width - self.left - self.right,
             sz.height - self.top - self.bottom,
         );
-        c.push_child(&self.child, &rect);
+        rc.push_child(&mut self.child, &rect);
     }
 }
 pub trait MarginExt: Ui + Sized {

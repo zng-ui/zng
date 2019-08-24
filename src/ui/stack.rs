@@ -1,14 +1,14 @@
-use super::{LayoutRect, LayoutSize, RenderContext, Ui, KeyboardInput, Update};
+use super::{AnyUi, LayoutRect, LayoutSize, RenderContext, Ui};
 
 pub struct StackChild {
-    child: Box<dyn Ui>,
+    child: AnyUi,
     rect: LayoutRect,
 }
 
 impl StackChild {
     pub fn new(child: impl Ui + 'static) -> Self {
         StackChild {
-            child: child.into_box(),
+            child: child.as_any(),
             rect: LayoutRect::default(),
         }
     }
@@ -55,6 +55,13 @@ macro_rules! stack {
             }
         }
         impl Ui for $Stack {
+            type Child = AnyUi;
+
+            fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
+                for c in self.children.iter_mut() {
+                    action(&mut c.child)
+                }
+            }
             fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
                 let mut total_size = LayoutSize::default();
 
@@ -76,9 +83,9 @@ macro_rules! stack {
                     c.child.arrange(c.rect.size);
                 }
             }
-            fn render(&self, mut r: RenderContext) {
-                for c in self.children.iter() {
-                    r.push_child(&c.child, &c.rect);
+            fn render(&mut self, rc: &mut RenderContext) {
+                for c in self.children.iter_mut() {
+                    rc.push_child(&mut c.child, &c.rect);
                 }
             }
         }
@@ -108,26 +115,12 @@ impl ZStack {
     }
 }
 impl Ui for ZStack {
-     fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-       let mut update_layout = false;
-       let mut update_render = false;
+    type Child = AnyUi;
+
+    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
         for c in self.children.iter_mut() {
-            match c.child.on_keyboard_input(input) {
-                Update::Layout => update_layout = true,
-                Update::Render => update_render = true,
-                _ => {}
-            }
+            action(&mut c.child)
         }
-
-        if update_layout {
-            return Update::Layout;
-        }
-
-        if update_render {
-            return Update::Render;
-        }
-
-        Update::None
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -148,9 +141,9 @@ impl Ui for ZStack {
         }
     }
 
-    fn render(&self, mut r: RenderContext) {
-        for c in self.children.iter() {
-            r.push_child(&c.child, &c.rect);
+    fn render(&mut self, rc: &mut RenderContext) {
+        for c in self.children.iter_mut() {
+            rc.push_child(&mut c.child, &c.rect);
         }
     }
 }

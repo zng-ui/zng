@@ -1,16 +1,19 @@
+mod color;
 mod layout;
 mod stack;
 mod text;
 
+pub use crate::window::NextUpdate;
+pub use color::*;
 pub use layout::*;
 pub use stack::*;
 pub use text::*;
 
 use app_units::Au;
 use font_loader::system_fonts;
+pub use glutin::event::KeyboardInput;
 use std::collections::HashMap;
 use webrender::api::*;
-pub use glutin::event::KeyboardInput;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
 pub struct InitContext {
@@ -109,7 +112,7 @@ impl<'b> RenderContext<'b> {
         }
     }
 
-    pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
+    pub fn push_child(&mut self, child: &mut impl Ui, final_rect: &LayoutRect) {
         let spatial_id = self.builder.push_reference_frame(
             final_rect,
             self.spatial_id,
@@ -117,7 +120,7 @@ impl<'b> RenderContext<'b> {
             PropertyBinding::Value(LayoutTransform::default()),
             ReferenceFrameKind::Transform,
         );
-        child.render(RenderContext::new(self.builder, spatial_id, final_rect.size));
+        child.render(&mut RenderContext::new(self.builder, spatial_id, final_rect.size));
         self.builder.pop_reference_frame();
 
         // about Stacking Contexts
@@ -173,179 +176,140 @@ impl<'b> RenderContext<'b> {
     }
 }
 
-#[derive(Clone, Copy)]
-pub enum Update {
-    None,
-    Render,
-    Layout
-}
-
 pub trait Ui {
-    fn on_keyboard_input(&mut self, _input: &KeyboardInput) -> Update { Update::None }
+    type Child: Ui;
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
-    fn arrange(&mut self, _final_size: LayoutSize) {}
-    fn render(&self, c: RenderContext);
+    fn for_each_child(&mut self, _action: impl FnMut(&mut Self::Child)) {}
 
-
-    fn into_box(self) -> Box<dyn Ui>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
-    }
-}
-
-impl Ui for Box<dyn Ui> {
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.as_mut().measure(available_size)
+        let mut desired_size = LayoutSize::default();
+        let mut have_child = false;
+
+        self.for_each_child(|c| {
+            have_child = true;
+            let child_desired_size = c.measure(available_size);
+            desired_size = desired_size.max(child_desired_size);
+        });
+
+        if have_child {
+            desired_size
+        } else {
+            desired_size = available_size;
+            if desired_size.width.is_infinite() {
+                desired_size.width = 0.;
+            }
+            if desired_size.height.is_infinite() {
+                desired_size.height = 0.;
+            }
+            desired_size
+        }
     }
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.as_mut().arrange(final_size)
+        self.for_each_child(|c| c.arrange(final_size));
     }
-    fn render(&self, c: RenderContext) {
-        self.as_ref().render(c)
+    fn render(&mut self, rc: &mut RenderContext) {
+        self.for_each_child(|c| c.render(rc));
     }
-    fn into_box(self) -> Box<dyn Ui>
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+        self.for_each_child(|c| c.keyboard_input(input, update));
+    }
+
+    fn close_request(&mut self, update: &mut NextUpdate) {
+        self.for_each_child(|c| c.close_request(update));
+    }
+
+    fn as_any(self) -> AnyUi
     where
         Self: Sized + 'static,
     {
+        AnyUi::new(self)
+    }
+}
+
+mod any_ui {
+    use super::*;
+    use std::any::Any;
+
+    pub trait UiFns: Any {
+        fn measure(&mut self, _: LayoutSize) -> LayoutSize;
+        fn arrange(&mut self, _: LayoutSize);
+        fn render(&mut self, _: &mut RenderContext);
+        fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
+        fn close_request(&mut self, update: &mut NextUpdate);
+    }
+
+    impl<T: Ui + 'static> UiFns for T {
+        fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+            Ui::measure(self, available_size)
+        }
+
+        fn arrange(&mut self, final_size: LayoutSize) {
+            Ui::arrange(self, final_size)
+        }
+
+        fn render(&mut self, rc: &mut RenderContext) {
+            Ui::render(self, rc)
+        }
+
+        fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+            Ui::keyboard_input(self, input, update)
+        }
+
+        fn close_request(&mut self, update: &mut NextUpdate) {
+            Ui::close_request(self, update)
+        }
+    }
+}
+
+pub struct AnyUi {
+    ui: Box<dyn any_ui::UiFns>,
+}
+
+impl AnyUi {
+    fn new<T: any_ui::UiFns>(ui: T) -> Self {
+        Self { ui: Box::new(ui) }
+    }
+}
+
+impl Ui for AnyUi {
+    type Child = ();
+
+    fn for_each_child(&mut self, _: impl FnMut(&mut Self::Child)) {
+        panic!("Ui::for_each_child must not be called directly")
+    }
+
+    fn as_any(self) -> AnyUi {
         self
+    }
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.ui.measure(available_size)
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.ui.arrange(final_size)
+    }
+
+    fn render(&mut self, rc: &mut RenderContext) {
+        self.ui.render(rc)
+    }
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+        self.ui.keyboard_input(input, update)
+    }
+
+    fn close_request(&mut self, update: &mut NextUpdate) {
+        self.ui.close_request(update)
     }
 }
 
 impl Ui for () {
+    type Child = ();
+
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         LayoutSize::default()
     }
 
-    fn render(&self, _: RenderContext) {}
+    fn render(&mut self, _: &mut RenderContext) {}
 }
-
-pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
-    ColorF::new(r, g, b, 1.)
-}
-
-pub fn rgbaf(r: f32, g: f32, b: f32, a: f32) -> ColorF {
-    ColorF::new(r, g, b, a)
-}
-
-pub fn rgb(r: u8, g: u8, b: u8) -> ColorF {
-    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., 1.)
-}
-
-pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
-    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., a as f32 / 255.)
-}
-
-#[derive(Clone)]
-pub struct FillColor {
-    color: ColorF,
-}
-
-impl FillColor {
-    pub fn new(color: ColorF) -> Self {
-        FillColor { color }
-    }
-}
-
-#[inline]
-fn fill_measure(mut available_size: LayoutSize) -> LayoutSize {
-    if available_size.width.is_infinite() {
-        available_size.width = 0.;
-    }
-
-    if available_size.height.is_infinite() {
-        available_size.height = 0.;
-    }
-
-    available_size
-}
-
-impl Ui for FillColor {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        fill_measure(available_size)
-    }
-
-    fn render(&self, mut c: RenderContext) {
-        c.push_rect(LayoutRect::from_size(c.final_size()), self.color);
-    }
-}
-
-pub fn fill_color(color: ColorF) -> FillColor {
-    FillColor::new(color)
-}
-
-#[derive(Clone)]
-pub struct FillGradient {
-    start: LayoutPoint,
-    end: LayoutPoint,
-    stops: Vec<GradientStop>,
-}
-
-impl FillGradient {
-    pub fn new(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
-        FillGradient { start, end, stops }
-    }
-}
-
-impl Ui for FillGradient {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        fill_measure(available_size)
-    }
-
-    fn render(&self, mut c: RenderContext) {
-        let final_size = c.final_size();
-        let mut start = self.start;
-        let mut end = self.end;
-
-        start.x *= final_size.width;
-        start.y *= final_size.height;
-        end.x *= final_size.width;
-        end.y *= final_size.height;
-
-        c.push_gradient(LayoutRect::from_size(final_size), start, end, self.stops.clone());
-    }
-}
-
-pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
-    FillGradient::new(start, end, stops)
-}
-
-#[derive(Clone)]
-pub struct BackgroundColor<T: Ui> {
-    child: T,
-    color: ColorF,
-}
-
-impl<T: Ui> BackgroundColor<T> {
-    pub fn new(child: T, color: ColorF) -> Self {
-        BackgroundColor { child, color }
-    }
-}
-
-impl<T: Ui> Ui for BackgroundColor<T> {
-    fn on_keyboard_input(&mut self, input: &KeyboardInput) -> Update {
-        self.child.on_keyboard_input(input)
-    }
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child.measure(available_size)
-    }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
-    }
-    fn render(&self, mut c: RenderContext) {
-        c.push_rect(LayoutRect::from_size(c.final_size()), self.color);
-        self.child.render(c)
-    }
-}
-pub fn background_color<T: Ui>(child: T, color: ColorF) -> BackgroundColor<T> {
-    BackgroundColor::new(child, color)
-}
-pub trait BackgroundColorExt: Ui + Sized {
-    fn background_color(self, color: ColorF) -> BackgroundColor<Self> {
-        BackgroundColor::new(self, color)
-    }
-}
-impl<T: Ui> BackgroundColorExt for T {}

@@ -31,7 +31,7 @@ impl App {
             title.to_string(),
             background_color,
             LayoutSize::new(800., 600.),
-            |c| content(c).into_box(),
+            |c| content(c).as_any(),
             &self.event_loop,
             self.event_loop.create_proxy(),
         );
@@ -92,15 +92,12 @@ impl App {
                         to_remove.push(win.id());
                         continue;
                     }
-                    if win.update_layout {
-                        win.layout();
-                    }
-                    if win.render_frame {
-                        win.send_render_frame();
-                    }
+
                     if win.redraw {
                         win.redraw_and_swap_buffers();
                     }
+
+                    win.update();
                 }
 
                 for window_id in to_remove {

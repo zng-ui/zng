@@ -58,12 +58,14 @@ pub fn text(c: &mut InitContext, text: &str, color: ColorF, font_family: &str, f
 }
 
 impl Ui for Text {
+    type Child = ();
+
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.size
     }
 
-    fn render(&self, mut c: RenderContext) {
-        c.push_text(
+    fn render(&mut self, rc: &mut RenderContext) {
+        rc.push_text(
             LayoutRect::from_size(self.size),
             &self.glyphs,
             self.font_instance_key,

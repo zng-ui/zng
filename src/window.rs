@@ -1,4 +1,4 @@
-use crate::ui::{self, InitContext, RenderContext, Ui};
+use crate::ui::{AnyUi, InitContext, RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -32,6 +32,45 @@ impl RenderNotifier for Notifier {
     }
 }
 
+pub struct NextUpdate {
+    update_layout: bool,
+    render_frame: bool,
+    _request_close: bool,
+}
+impl NextUpdate {
+    fn update_layout(&mut self) {
+        self.update_layout = true;
+    }
+    fn render_frame(&mut self) {
+        self.render_frame = true;
+    }
+
+    //-------idea---------
+    //
+    //pub fn close_app(&mut self) {
+    //    self.close = Some(CloseRequest::App);
+    //}
+
+    //pub fn cancel_close(&mut self) {
+    //    self.cancel_close = true;
+    //}
+
+    //pub fn set_window_title(&mut self, title: String) {
+    //    self.new_window_title = Some(title);
+    //}
+
+    //pub fn start_work(&mut self, work: impl FnOnce() + 'static) -> WorkKey {
+    //    let key = self.next_work_key;
+    //    self.new_work.push((key, Box::new(work)));
+    //    self.next_work_key = WorkKey(key.0.wrapping_add(1));
+    //    key
+    //}
+
+    //pub fn cancel_work(&mut self, work_key: WorkKey) {
+    //    self.cancel_work.push(work_key)
+    //}
+}
+
 pub struct Window {
     context: Option<WindowedContext<NotCurrent>>,
 
@@ -44,13 +83,12 @@ pub struct Window {
     dpi_factor: f32,
     inner_size: LayoutSize,
 
-    content: Box<dyn Ui>,
+    content: AnyUi,
     content_size: LayoutSize,
 
     first_draw: bool,
 
-    pub update_layout: bool,
-    pub render_frame: bool,
+    pub next_update: NextUpdate,
     pub redraw: bool,
 
     pub close: bool,
@@ -61,7 +99,7 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(&mut InitContext) -> Box<dyn Ui>,
+        content: impl Fn(&mut InitContext) -> AnyUi,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ) -> Self {
@@ -127,9 +165,11 @@ impl Window {
             content_size: LayoutSize::default(),
 
             first_draw: true,
-
-            update_layout: true,
-            render_frame: true,
+            next_update: NextUpdate {
+                update_layout: true,
+                render_frame: true,
+                _request_close: false,
+            },
             redraw: false,
 
             close: false,
@@ -143,20 +183,16 @@ impl Window {
             WindowEvent::Resized(new_size) => {
                 // open issue on resize delay: https://github.com/servo/webrender/issues/1640
                 self.inner_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
-                self.update_layout = true;
+                self.next_update.update_layout();
             }
             WindowEvent::HiDpiFactorChanged(new_dpi_factor) => {
                 self.dpi_factor = new_dpi_factor as f32;
-                self.update_layout = true;
+                self.next_update.update_layout();
             }
             WindowEvent::RedrawRequested => self.redraw = true,
             WindowEvent::CloseRequested => self.close = true,
 
-            WindowEvent::KeyboardInput { input, .. } => match self.content.on_keyboard_input(&input) {
-                ui::Update::Layout => self.update_layout = true,
-                ui::Update::Render => self.render_frame = true,
-                _ => {}
-            }
+            WindowEvent::KeyboardInput { input, .. } => self.content.keyboard_input(&input, &mut self.next_update),
 
             _ => has_update = false,
         }
@@ -168,10 +204,17 @@ impl Window {
         DeviceIntSize::new(size.width as i32, size.height as i32)
     }
 
+    pub fn update(&mut self) {
+        self.update_layout();
+        self.send_render_frame();
+    }
+
     /// Updates the content layout and flags `render_frame`.
-    pub fn layout(&mut self) {
-        assert!(self.update_layout);
-        self.update_layout = false;
+    fn update_layout(&mut self) {
+        if !self.next_update.update_layout {
+            return;
+        }
+        self.next_update.update_layout = false;
 
         let device_size = self.device_size();
 
@@ -185,19 +228,21 @@ impl Window {
         self.content_size = self.content.measure(self.inner_size).min(self.inner_size);
         self.content.arrange(self.content_size);
 
-        self.render_frame = true;
+        self.next_update.render_frame();
     }
 
     /// Generates window content display list and sends a new frame request to webrender.
     /// Webrender will request a redraw when the frame is done.
-    pub fn send_render_frame(&mut self) {
-        assert!(self.render_frame);
-        self.render_frame = false;
+    fn send_render_frame(&mut self) {
+        if !self.next_update.render_frame {
+            return;
+        }
+        self.next_update.render_frame = false;
 
         let mut txn = Transaction::new();
         let mut builder = DisplayListBuilder::new(self.pipeline_id, self.inner_size);
 
-        self.content.render(RenderContext::new(
+        self.content.render(&mut RenderContext::new(
             &mut builder,
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
