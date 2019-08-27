@@ -13,7 +13,7 @@ pub use text::*;
 
 use app_units::Au;
 use font_loader::system_fonts;
-pub use glutin::event::{ElementState, KeyboardInput, ModifiersState, ScanCode, VirtualKeyCode};
+pub use glutin::event::{ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
 use std::collections::HashMap;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
@@ -178,6 +178,12 @@ impl<'b> RenderContext<'b> {
     }
 }
 
+pub struct MouseInput {
+    pub state: ElementState,
+    pub button: MouseButton,
+    pub modifiers: ModifiersState,
+}
+
 pub trait Ui {
     type Child: Ui;
 
@@ -217,6 +223,10 @@ pub trait Ui {
         self.for_each_child(|c| c.keyboard_input(input, update));
     }
 
+    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+        self.for_each_child(|c| c.mouse_input(input, update));
+    }
+
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.for_each_child(|c| c.close_request(update));
     }
@@ -238,6 +248,7 @@ mod any_ui {
         fn arrange(&mut self, _: LayoutSize);
         fn render(&mut self, _: &mut RenderContext);
         fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
+        fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate);
         fn close_request(&mut self, update: &mut NextUpdate);
     }
 
@@ -256,6 +267,10 @@ mod any_ui {
 
         fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
             Ui::keyboard_input(self, input, update)
+        }
+
+        fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+            Ui::mouse_input(self, input, update)
         }
 
         fn close_request(&mut self, update: &mut NextUpdate) {
@@ -278,7 +293,7 @@ impl Ui for AnyUi {
     type Child = ();
 
     fn for_each_child(&mut self, _: impl FnMut(&mut Self::Child)) {
-        panic!("Ui::for_each_child must not be called directly")
+        panic!("Ui::for_each_child must not be called in AnyUi")
     }
 
     fn as_any(self) -> AnyUi {
@@ -299,6 +314,10 @@ impl Ui for AnyUi {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
         self.ui.keyboard_input(input, update)
+    }
+
+     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+        self.ui.mouse_input(input, update)
     }
 
     fn close_request(&mut self, update: &mut NextUpdate) {

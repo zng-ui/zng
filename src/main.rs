@@ -11,7 +11,7 @@ fn main() {
     let string = r".....
     ÃÂÃÂÃÂÃÂÃÂ
     Economize tempo no Word com novos botões que são mostrados
-     no local em que você precisa deles. 
+     no local em que você precisa deles.
      Para alterar a maneira como uma imagem se ajusta ao seu documento,
     clique nela e um botão de opções de layout será exibido ao lado.";
 
@@ -25,6 +25,7 @@ fn main() {
             )
             .on_keydown(|k, _| println!("on_keydown: {}", k))
             .on_keyup(|k, _| println!("on_keyup: {}", k))
+            .on_mousedown(|m, _| println!("on_mousedown: {}", m))
         })
         .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |_| {
             center(h_stack(vec![

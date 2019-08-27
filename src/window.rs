@@ -1,4 +1,4 @@
-use crate::ui::{AnyUi, InitContext, RenderContext, Ui};
+use crate::ui::{AnyUi, InitContext, MouseInput, RenderContext, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -197,6 +197,19 @@ impl Window {
             WindowEvent::CloseRequested => self.close = true,
 
             WindowEvent::KeyboardInput { input, .. } => self.content.keyboard_input(&input, &mut self.next_update),
+            WindowEvent::MouseInput {
+                state,
+                button,
+                modifiers,
+                ..
+            } => self.content.mouse_input(
+                &MouseInput {
+                    state,
+                    button,
+                    modifiers,
+                },
+                &mut self.next_update,
+            ),
 
             _ => has_update = false,
         }
