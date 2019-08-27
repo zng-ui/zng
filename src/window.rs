@@ -6,6 +6,8 @@ use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use glutin::window::{WindowBuilder, WindowId};
 use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
+use rayon::ThreadPool;
+use std::sync::Arc;
 use webrender::api::*;
 
 #[derive(Debug)]
@@ -102,6 +104,7 @@ impl Window {
         content: impl Fn(&mut InitContext) -> AnyUi,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
+        ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let window_builder = WindowBuilder::new()
             .with_title(name)
@@ -133,6 +136,7 @@ impl Window {
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
             clear_color: Some(clear_color),
+            workers: Some(ui_threads),
             ..webrender::RendererOptions::default()
         };
 

@@ -1,5 +1,7 @@
 use crate::ui::{InitContext, Ui};
 use crate::window::{WebRenderEvent, Window};
+use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::sync::Arc;
 
 use std::collections::HashMap;
 
@@ -11,6 +13,7 @@ use webrender::api::LayoutSize;
 pub struct App {
     event_loop: EventLoop<WebRenderEvent>,
     windows: HashMap<WindowId, Window>,
+    ui_threads: Arc<ThreadPool>,
 }
 
 impl App {
@@ -18,6 +21,12 @@ impl App {
         App {
             event_loop: EventLoop::with_user_event(),
             windows: HashMap::new(),
+            ui_threads: Arc::new(
+                ThreadPoolBuilder::new()
+                    .thread_name(|idx| format!("UI#{}", idx))
+                    .build()
+                    .unwrap(),
+            ),
         }
     }
 
@@ -34,6 +43,7 @@ impl App {
             |c| content(c).as_any(),
             &self.event_loop,
             self.event_loop.create_proxy(),
+            Arc::clone(&self.ui_threads),
         );
         self.windows.insert(win.id(), win);
         self
@@ -43,6 +53,7 @@ impl App {
         let App {
             event_loop,
             mut windows,
+            ..
         } = self;
 
         // will use to create window inside run callback.

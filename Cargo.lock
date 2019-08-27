@@ -1474,6 +1474,7 @@ dependencies = [
  "font-loader 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gleam 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "glutin 0.22.0-alpha3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "webrender 0.60.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
