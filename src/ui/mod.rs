@@ -1,17 +1,19 @@
 mod color;
+mod event;
 mod layout;
 mod stack;
 mod text;
 
 pub use crate::window::NextUpdate;
 pub use color::*;
+pub use event::*;
 pub use layout::*;
 pub use stack::*;
 pub use text::*;
 
 use app_units::Au;
 use font_loader::system_fonts;
-pub use glutin::event::KeyboardInput;
+pub use glutin::event::{ElementState, KeyboardInput, ModifiersState, ScanCode, VirtualKeyCode};
 use std::collections::HashMap;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
