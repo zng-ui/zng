@@ -3,6 +3,7 @@ mod event;
 mod layout;
 mod stack;
 mod text;
+mod ui3;
 
 pub use crate::window::NextUpdate;
 pub use color::*;
@@ -316,7 +317,7 @@ impl Ui for AnyUi {
         self.ui.keyboard_input(input, update)
     }
 
-     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
         self.ui.mouse_input(input, update)
     }
 
