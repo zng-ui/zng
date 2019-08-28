@@ -1,4 +1,4 @@
-use crate::ui::{AnyUi, InitContext, MouseInput, RenderContext, Ui};
+use crate::ui::{InitContext, MouseInput, NextFrame, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -85,7 +85,7 @@ pub struct Window {
     dpi_factor: f32,
     inner_size: LayoutSize,
 
-    content: AnyUi,
+    content: Box<dyn Ui>,
     content_size: LayoutSize,
 
     first_draw: bool,
@@ -101,7 +101,7 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(&mut InitContext) -> AnyUi,
+        content: impl Fn(&mut InitContext) -> Box<dyn Ui>,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
         ui_threads: Arc<ThreadPool>,
@@ -257,13 +257,13 @@ impl Window {
         self.next_update.render_frame = false;
 
         let mut txn = Transaction::new();
-        let mut builder = DisplayListBuilder::new(self.pipeline_id, self.inner_size);
-
-        self.content.render(&mut RenderContext::new(
-            &mut builder,
+        let mut frame = NextFrame::new(
+            DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
-        ));
+        );
+
+        self.content.render(&mut frame);
 
         self.latest_frame_id = Epoch({
             let mut next = self.latest_frame_id.0.wrapping_add(1);
@@ -273,7 +273,7 @@ impl Window {
             next
         });
 
-        txn.set_display_list(self.latest_frame_id, None, self.inner_size, builder.finalize(), true);
+        txn.set_display_list(self.latest_frame_id, None, self.inner_size, frame.finalize(), true);
         txn.set_root_pipeline(self.pipeline_id);
         txn.generate_frame();
         self.api.send_transaction(self.document_id, txn);

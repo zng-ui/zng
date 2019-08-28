@@ -1,67 +1,21 @@
-use super::{AnyUi, LayoutRect, LayoutSize, RenderContext, Ui};
-
-pub struct StackChild {
-    child: AnyUi,
-    rect: LayoutRect,
-}
-
-impl StackChild {
-    pub fn new(child: impl Ui + 'static) -> Self {
-        StackChild {
-            child: child.as_any(),
-            rect: LayoutRect::default(),
-        }
-    }
-}
-
-pub trait IntoStackChildren {
-    fn into(self) -> Vec<StackChild>;
-}
-
-impl<T: Ui + 'static> IntoStackChildren for Vec<T> {
-    fn into(self) -> Vec<StackChild> {
-        self.into_iter().map(StackChild::new).collect()
-    }
-}
-
-macro_rules! impl_tuples {
-    ($TH:ident, $TH2:ident, $($T:ident, )* ) => {
-        impl<$TH, $TH2, $($T, )*> IntoStackChildren for ($TH, $TH2, $($T,)*)
-        where $TH: Ui + 'static, $TH2: Ui + 'static, $($T: Ui + 'static, )*
-        {
-            #[allow(non_snake_case)]
-            fn into(self) -> Vec<StackChild> {
-                let ($TH, $TH2, $($T,)*) = self;
-                vec![StackChild::new($TH), StackChild::new($TH2),  $(StackChild::new($T), )*]
-            }
-        }
-        impl_tuples!($( $T, )*);
-    };
-
-    () => {};
-}
-impl_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,);
+use super::{LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
+use std::iter::FromIterator;
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
-        pub struct $Stack {
-            children: Vec<StackChild>,
+        pub struct $Stack<T> {
+            children: Vec<StackSlot<T>>,
         }
-        impl $Stack {
-            pub fn new(children: impl IntoStackChildren) -> Self {
+        impl<T: Ui> $Stack<T> {
+            pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
                 $Stack {
                     children: children.into(),
                 }
             }
         }
-        impl Ui for $Stack {
-            type Child = AnyUi;
+        impl<'a, T: Ui + 'static> UiMultiContainer<'a> for $Stack<T> {
+            delegate_children!(children, StackSlot<T>);
 
-            fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-                for c in self.children.iter_mut() {
-                    action(&mut c.child)
-                }
-            }
             fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
                 let mut total_size = LayoutSize::default();
 
@@ -83,70 +37,109 @@ macro_rules! stack {
                     c.child.arrange(c.rect.size);
                 }
             }
-            fn render(&mut self, rc: &mut RenderContext) {
-                for c in self.children.iter_mut() {
-                    rc.push_child(&mut c.child, &c.rect);
+            fn render(&self, f: &mut NextFrame) {
+                for c in self.children.iter() {
+                    f.push_child(&c.child, &c.rect);
                 }
             }
         }
+        delegate_ui!(UiMultiContainer, $Stack<T>, T);
     };
 }
 
 stack!(HStack, width, height, x);
 stack!(VStack, height, width, y);
 
-pub fn h_stack(children: impl IntoStackChildren) -> HStack {
+pub fn h_stack<B: IntoStackSlots>(children: B) -> HStack<B::Child> {
     HStack::new(children)
 }
 
-pub fn v_stack(children: impl IntoStackChildren) -> VStack {
+pub fn v_stack<B: IntoStackSlots>(children: B) -> VStack<B::Child> {
     VStack::new(children)
 }
 
-///
-pub struct ZStack {
-    children: Vec<StackChild>,
+/// A child in a stack munti-container.
+pub struct StackSlot<T> {
+    child: T,
+    rect: LayoutRect,
 }
-impl ZStack {
-    pub fn new(children: impl IntoStackChildren) -> Self {
+
+impl<T> StackSlot<T> {
+    pub fn new(child: T) -> Self {
+        StackSlot {
+            child,
+            rect: LayoutRect::default(),
+        }
+    }
+}
+
+pub struct ZStack<T> {
+    children: Vec<StackSlot<T>>,
+}
+
+impl<T: Ui> UiContainer for StackSlot<T> {
+    delegate_child!(child, T);
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.rect.size = self.child.measure(available_size);
+        self.rect.size
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.rect.size = final_size;
+    }
+
+    fn render(&self, f: &mut NextFrame) {
+        f.push_child(&self.child, &self.rect);
+    }
+}
+delegate_ui!(UiContainer, StackSlot<T>, T);
+
+impl<'a, T: Ui + 'static> UiMultiContainer<'a> for ZStack<T> {
+    delegate_children!(children, StackSlot<T>);
+}
+delegate_ui!(UiMultiContainer, ZStack<T>, T);
+
+pub trait IntoStackSlots {
+    type Child: Ui;
+    fn into(self) -> Vec<StackSlot<Self::Child>>;
+}
+
+impl<T: Ui + 'static> IntoStackSlots for Vec<T> {
+    type Child = T;
+    fn into(self) -> Vec<StackSlot<T>> {
+        self.into_iter().map(StackSlot::new).collect()
+    }
+}
+
+macro_rules! impl_tuples {
+    ($TH:ident, $TH2:ident, $($T:ident, )* ) => {
+        impl<$TH, $TH2, $($T, )*> IntoStackSlots for ($TH, $TH2, $($T,)*)
+        where $TH: Ui + 'static, $TH2: Ui + 'static, $($T: Ui + 'static, )*
+        {
+            type Child = Box<dyn Ui>;
+
+            #[allow(non_snake_case)]
+            fn into(self) -> Vec<StackSlot<Box<dyn Ui>>> {
+                let ($TH, $TH2, $($T,)*) = self;
+                vec![StackSlot::new($TH.into_box()), StackSlot::new($TH2.into_box()),  $(StackSlot::new($T.into_box()), )*]
+            }
+        }
+        impl_tuples!($( $T, )*);
+    };
+
+    () => {};
+}
+impl_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,);
+
+impl<T: Ui> ZStack<T> {
+    pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
         ZStack {
             children: children.into(),
         }
     }
 }
-impl Ui for ZStack {
-    type Child = AnyUi;
 
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        for c in self.children.iter_mut() {
-            action(&mut c.child)
-        }
-    }
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let mut desired_size = LayoutSize::default();
-
-        for c in self.children.iter_mut() {
-            c.rect.size = c.child.measure(available_size);
-            desired_size = desired_size.max(c.rect.size);
-        }
-
-        desired_size
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize) {
-        for c in self.children.iter_mut() {
-            c.rect.size = c.rect.size.min(final_size);
-            c.child.arrange(c.rect.size);
-        }
-    }
-
-    fn render(&mut self, rc: &mut RenderContext) {
-        for c in self.children.iter_mut() {
-            rc.push_child(&mut c.child, &c.rect);
-        }
-    }
-}
-pub fn z_stack(children: impl IntoStackChildren) -> ZStack {
+pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
     ZStack::new(children)
 }

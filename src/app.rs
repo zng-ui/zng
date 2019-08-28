@@ -30,17 +30,17 @@ impl App {
         }
     }
 
-    pub fn window<Tcontent: Ui + 'static>(
+    pub fn window<TContent: Ui + 'static>(
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: impl Fn(&mut InitContext) -> Tcontent,
+        content: impl Fn(&mut InitContext) -> TContent,
     ) -> Self {
         let win = Window::new(
             title.to_string(),
             background_color,
             LayoutSize::new(800., 600.),
-            |c| content(c).as_any(),
+            |c| content(c).into_box(),
             &self.event_loop,
             self.event_loop.create_proxy(),
             Arc::clone(&self.ui_threads),

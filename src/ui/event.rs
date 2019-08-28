@@ -1,4 +1,6 @@
-use super::{ElementState, KeyboardInput, ModifiersState, MouseButton, MouseInput, NextUpdate, Ui, VirtualKeyCode};
+use super::{
+    ElementState, KeyboardInput, ModifiersState, MouseButton, MouseInput, NextUpdate, Ui, UiContainer, VirtualKeyCode,
+};
 use std::fmt;
 
 macro_rules! on_key {
@@ -14,12 +16,20 @@ macro_rules! on_key {
             }
         }
 
-        impl<T: Ui, F: FnMut(KeyInput, &mut NextUpdate)> Ui for $name<T, F> {
+        impl<T: Ui, F: FnMut(KeyInput, &mut NextUpdate)> UiContainer for $name<T, F> {
             type Child = T;
 
-            fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-                action(&mut self.child)
+            fn child(&self) -> &Self::Child {
+                &self.child
             }
+
+    fn child_mut(&mut self) -> &mut Self::Child {
+        &mut self.child
+    }
+
+    fn into_child(self) -> Self::Child {
+        self.child
+    }
 
             fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
                 self.child.keyboard_input(input, update);
@@ -32,6 +42,10 @@ macro_rules! on_key {
                     (self.handler)(input, update);
                 }
             }
+        }
+
+        impl<T: Ui, F: FnMut(KeyInput, &mut NextUpdate)> Ui for $name<T, F> {
+            delegate_ui_methods!(UiContainer, $name<T, F>);
         }
 
         pub trait $ext_name: Ui + Sized {
@@ -58,11 +72,19 @@ impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> OnMouseDown<T, F> {
     }
 }
 
-impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnMouseDown<T, F> {
+impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for OnMouseDown<T, F> {
     type Child = T;
 
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child)
+    fn child(&self) -> &Self::Child {
+        &self.child
+    }
+
+    fn child_mut(&mut self) -> &mut Self::Child {
+        &mut self.child
+    }
+
+    fn into_child(self) -> Self::Child {
+        self.child
     }
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
@@ -76,6 +98,10 @@ impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnMouseDown<T, F
             (self.handler)(input, update);
         }
     }
+}
+
+impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnMouseDown<T, F> {
+    delegate_ui_methods!(UiContainer, OnMouseDown<T, F>);
 }
 
 pub trait OnMouseDownExt: Ui + Sized {

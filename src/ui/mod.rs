@@ -1,15 +1,18 @@
+#[macro_use]
+mod macros;
+
 mod color;
 mod event;
 mod layout;
 mod stack;
 mod text;
-mod ui3;
 
 pub use crate::window::NextUpdate;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
 pub use stack::*;
+use std::iter::FromIterator;
 pub use text::*;
 
 use app_units::Au;
@@ -101,30 +104,39 @@ impl InitContext {
     }
 }
 
-pub struct RenderContext<'b> {
-    builder: &'b mut DisplayListBuilder,
+pub struct NextFrame {
+    builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
 }
-impl<'b> RenderContext<'b> {
-    pub fn new(builder: &'b mut DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) -> Self {
-        RenderContext {
+
+impl NextFrame {
+    pub fn new(builder: DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) -> Self {
+        NextFrame {
             builder,
             spatial_id,
             final_size,
         }
     }
 
-    pub fn push_child(&mut self, child: &mut impl Ui, final_rect: &LayoutRect) {
-        let spatial_id = self.builder.push_reference_frame(
+    pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
+        let final_size = self.final_size;
+        let spatial_id = self.spatial_id;
+
+        self.final_size = final_rect.size;
+        self.spatial_id = self.builder.push_reference_frame(
             final_rect,
             self.spatial_id,
             TransformStyle::Flat,
             PropertyBinding::Value(LayoutTransform::default()),
             ReferenceFrameKind::Transform,
         );
-        child.render(&mut RenderContext::new(self.builder, spatial_id, final_rect.size));
+
+        child.render(self);
         self.builder.pop_reference_frame();
+
+        self.final_size = final_size;
+        self.spatial_id = spatial_id;
 
         // about Stacking Contexts
         //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
@@ -171,11 +183,13 @@ impl<'b> RenderContext<'b> {
         self.builder
             .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
     }
-}
 
-impl<'b> RenderContext<'b> {
     pub fn final_size(&self) -> LayoutSize {
         self.final_size
+    }
+
+    pub fn finalize(self) -> (PipelineId, LayoutSize, BuiltDisplayList) {
+        self.builder.finalize()
     }
 }
 
@@ -185,153 +199,180 @@ pub struct MouseInput {
     pub modifiers: ModifiersState,
 }
 
+/// An UI component.
+///
+/// # Implementers
+/// This is usually not implemented directly, consider using [UiContainer], [UiMultiContainer], [UiLeaf] and [delegate_ui] first.
 pub trait Ui {
-    type Child: Ui;
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
 
-    fn for_each_child(&mut self, _action: impl FnMut(&mut Self::Child)) {}
+    fn arrange(&mut self, final_size: LayoutSize);
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let mut desired_size = LayoutSize::default();
-        let mut have_child = false;
+    fn render(&self, f: &mut NextFrame);
 
-        self.for_each_child(|c| {
-            have_child = true;
-            let child_desired_size = c.measure(available_size);
-            desired_size = desired_size.max(child_desired_size);
-        });
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
 
-        if have_child {
-            desired_size
-        } else {
-            desired_size = available_size;
-            if desired_size.width.is_infinite() {
-                desired_size.width = 0.;
-            }
-            if desired_size.height.is_infinite() {
-                desired_size.height = 0.;
-            }
-            desired_size
-        }
-    }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.for_each_child(|c| c.arrange(final_size));
-    }
-    fn render(&mut self, rc: &mut RenderContext) {
-        self.for_each_child(|c| c.render(rc));
-    }
+    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate);
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.for_each_child(|c| c.keyboard_input(input, update));
-    }
+    fn close_request(&mut self, update: &mut NextUpdate);
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-        self.for_each_child(|c| c.mouse_input(input, update));
-    }
-
-    fn close_request(&mut self, update: &mut NextUpdate) {
-        self.for_each_child(|c| c.close_request(update));
-    }
-
-    fn as_any(self) -> AnyUi
+    /// Box this component, unless it is already `Box<dyn Ui>`.
+    fn into_box(self) -> Box<dyn Ui>
     where
         Self: Sized + 'static,
     {
-        AnyUi::new(self)
+        Box::new(self)
     }
 }
 
-mod any_ui {
-    use super::*;
-    use std::any::Any;
-
-    pub trait UiFns: Any {
-        fn measure(&mut self, _: LayoutSize) -> LayoutSize;
-        fn arrange(&mut self, _: LayoutSize);
-        fn render(&mut self, _: &mut RenderContext);
-        fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
-        fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate);
-        fn close_request(&mut self, update: &mut NextUpdate);
-    }
-
-    impl<T: Ui + 'static> UiFns for T {
-        fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-            Ui::measure(self, available_size)
-        }
-
-        fn arrange(&mut self, final_size: LayoutSize) {
-            Ui::arrange(self, final_size)
-        }
-
-        fn render(&mut self, rc: &mut RenderContext) {
-            Ui::render(self, rc)
-        }
-
-        fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-            Ui::keyboard_input(self, input, update)
-        }
-
-        fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-            Ui::mouse_input(self, input, update)
-        }
-
-        fn close_request(&mut self, update: &mut NextUpdate) {
-            Ui::close_request(self, update)
-        }
-    }
-}
-
-pub struct AnyUi {
-    ui: Box<dyn any_ui::UiFns>,
-}
-
-impl AnyUi {
-    fn new<T: any_ui::UiFns>(ui: T) -> Self {
-        Self { ui: Box::new(ui) }
-    }
-}
-
-impl Ui for AnyUi {
-    type Child = ();
-
-    fn for_each_child(&mut self, _: impl FnMut(&mut Self::Child)) {
-        panic!("Ui::for_each_child must not be called in AnyUi")
-    }
-
-    fn as_any(self) -> AnyUi {
+impl Ui for Box<dyn Ui> {
+    fn into_box(self) -> Box<dyn Ui> {
         self
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.ui.measure(available_size)
+        self.as_mut().measure(available_size)
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.ui.arrange(final_size)
+        self.as_mut().arrange(final_size);
     }
 
-    fn render(&mut self, rc: &mut RenderContext) {
-        self.ui.render(rc)
+    fn render(&self, f: &mut NextFrame) {
+        self.as_ref().render(f);
     }
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.ui.keyboard_input(input, update)
+        self.as_mut().keyboard_input(input, update);
     }
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-        self.ui.mouse_input(input, update)
+        self.as_mut().mouse_input(input, update);
     }
 
     fn close_request(&mut self, update: &mut NextUpdate) {
-        self.ui.close_request(update)
+        self.as_mut().close_request(update);
     }
 }
 
-impl Ui for () {
-    type Child = ();
+/// An UI component that does not have a child component.
+#[allow(unused_variables)]
+pub trait UiLeaf {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut size = available_size;
 
+        if size.width.is_infinite() {
+            size.width = 0.0;
+        }
+
+        if size.height.is_infinite() {
+            size.height = 0.0;
+        }
+
+        size
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {}
+
+    fn render(&self, f: &mut NextFrame);
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {}
+
+    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {}
+
+    fn close_request(&mut self, update: &mut NextUpdate) {}
+}
+
+/// An UI component with a single child component.
+pub trait UiContainer {
+    type Child: Ui;
+
+    fn child(&self) -> &Self::Child;
+
+    fn child_mut(&mut self) -> &mut Self::Child;
+
+    fn into_child(self) -> Self::Child;
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.child_mut().measure(available_size)
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child_mut().arrange(final_size);
+    }
+
+    fn render(&self, f: &mut NextFrame) {
+        self.child().render(f);
+    }
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+        self.child_mut().keyboard_input(input, update);
+    }
+
+    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+        self.child_mut().mouse_input(input, update);
+    }
+
+    fn close_request(&mut self, update: &mut NextUpdate) {
+        self.child_mut().close_request(update);
+    }
+}
+
+/// An UI Component with many child components.
+pub trait UiMultiContainer<'a> {
+    type Child: Ui + 'static;
+    type Children: Iterator<Item = &'a Self::Child>;
+    type ChildrenMut: Iterator<Item = &'a mut Self::Child>;
+
+    fn children(&'a self) -> Self::Children;
+
+    fn children_mut(&'a mut self) -> Self::ChildrenMut;
+
+    fn collect_children<B: FromIterator<Self::Child>>(self) -> B;
+
+    fn measure(&'a mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut size = LayoutSize::default();
+        for c in self.children_mut() {
+            size = c.measure(available_size).max(size);
+        }
+        size
+    }
+
+    fn arrange(&'a mut self, final_size: LayoutSize) {
+        for c in self.children_mut() {
+            c.arrange(final_size);
+        }
+    }
+
+    fn render(&'a self, f: &mut NextFrame) {
+        for c in self.children() {
+            c.render(f);
+        }
+    }
+
+    fn keyboard_input(&'a mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.keyboard_input(input, update);
+        }
+    }
+
+    fn mouse_input(&'a mut self, input: &MouseInput, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.mouse_input(input, update);
+        }
+    }
+
+    fn close_request(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.close_request(update);
+        }
+    }
+}
+
+impl UiLeaf for () {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         LayoutSize::default()
     }
-
-    fn render(&mut self, _: &mut RenderContext) {}
+    fn render(&self, _: &mut NextFrame) {}
 }
+delegate_ui!(UiLeaf, ());

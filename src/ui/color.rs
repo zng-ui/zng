@@ -1,4 +1,4 @@
-use super::{ColorF, GradientStop, LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
+use super::{ColorF, GradientStop, LayoutPoint, LayoutRect, NextFrame, Ui, UiContainer, UiLeaf};
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
     ColorF::new(r, g, b, 1.)
@@ -27,30 +27,12 @@ impl FillColor {
     }
 }
 
-#[inline]
-fn fill_measure(mut available_size: LayoutSize) -> LayoutSize {
-    if available_size.width.is_infinite() {
-        available_size.width = 0.;
-    }
-
-    if available_size.height.is_infinite() {
-        available_size.height = 0.;
-    }
-
-    available_size
-}
-
-impl Ui for FillColor {
-    type Child = ();
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        fill_measure(available_size)
-    }
-
-    fn render(&mut self, rc: &mut RenderContext) {
-        rc.push_rect(LayoutRect::from_size(rc.final_size()), self.color);
+impl UiLeaf for FillColor {
+    fn render(&self, f: &mut NextFrame) {
+        f.push_rect(LayoutRect::from_size(f.final_size()), self.color);
     }
 }
+delegate_ui!(UiLeaf, FillColor);
 
 pub fn fill_color(color: ColorF) -> FillColor {
     FillColor::new(color)
@@ -69,15 +51,9 @@ impl FillGradient {
     }
 }
 
-impl Ui for FillGradient {
-    type Child = ();
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        fill_measure(available_size)
-    }
-
-    fn render(&mut self, rc: &mut RenderContext) {
-        let final_size = rc.final_size();
+impl UiLeaf for FillGradient {
+    fn render(&self, f: &mut NextFrame) {
+        let final_size = f.final_size();
         let mut start = self.start;
         let mut end = self.end;
 
@@ -86,43 +62,37 @@ impl Ui for FillGradient {
         end.x *= final_size.width;
         end.y *= final_size.height;
 
-        rc.push_gradient(LayoutRect::from_size(final_size), start, end, self.stops.clone());
+        f.push_gradient(LayoutRect::from_size(final_size), start, end, self.stops.clone());
     }
 }
+delegate_ui!(UiLeaf, FillGradient);
 
 pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
     FillGradient::new(start, end, stops)
 }
 
 #[derive(Clone)]
-pub struct BackgroundColor<T: Ui> {
+pub struct BackgroundColor<T> {
     child: T,
     color: ColorF,
 }
 
-impl<T: Ui> BackgroundColor<T> {
+impl<T> BackgroundColor<T> {
     pub fn new(child: T, color: ColorF) -> Self {
         BackgroundColor { child, color }
     }
 }
 
-impl<T: Ui> Ui for BackgroundColor<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+impl<T: Ui> UiContainer for BackgroundColor<T> {
+    delegate_child!(child, T);
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child.measure(available_size)
-    }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
-    }
-    fn render(&mut self, rc: &mut RenderContext) {
-        rc.push_rect(LayoutRect::from_size(rc.final_size()), self.color);
-        self.child.render(rc)
+    fn render(&self, f: &mut NextFrame) {
+        f.push_rect(LayoutRect::from_size(f.final_size()), self.color);
+        self.child.render(f)
     }
 }
+delegate_ui!(UiContainer, BackgroundColor<T>, T);
+
 pub fn background_color<T: Ui>(child: T, color: ColorF) -> BackgroundColor<T> {
     BackgroundColor::new(child, color)
 }

@@ -1,4 +1,4 @@
-use super::{InitContext, LayoutSize, RenderContext, Ui};
+use super::{InitContext, LayoutSize, NextFrame, UiLeaf};
 use webrender::api::*;
 
 pub struct Text {
@@ -57,15 +57,13 @@ pub fn text(c: &mut InitContext, text: &str, color: ColorF, font_family: &str, f
     Text::new(c, text, color, font_family, font_size)
 }
 
-impl Ui for Text {
-    type Child = ();
-
+impl UiLeaf for Text {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.size
     }
 
-    fn render(&mut self, rc: &mut RenderContext) {
-        rc.push_text(
+    fn render(&self, f: &mut NextFrame) {
+        f.push_text(
             LayoutRect::from_size(self.size),
             &self.glyphs,
             self.font_instance_key,
@@ -73,3 +71,4 @@ impl Ui for Text {
         )
     }
 }
+delegate_ui!(UiLeaf, Text);

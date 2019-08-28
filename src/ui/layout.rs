@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, RenderContext, Ui};
+use super::{LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -9,28 +9,23 @@ pub struct SizeChild<T: Ui> {
     child: T,
     size: LayoutSize,
 }
+
 impl<T: Ui> SizeChild<T> {
     pub fn new(child: T, size: LayoutSize) -> Self {
         SizeChild { child, size }
     }
 }
-impl<T: Ui> Ui for SizeChild<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+
+impl<T: Ui> UiContainer for SizeChild<T> {
+    delegate_child!(child, T);
 
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.child.measure(self.size);
         self.size
     }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
-    }
-    fn render(&mut self, c: &mut RenderContext) {
-        self.child.render(c)
-    }
 }
+delegate_ui!(UiContainer, SizeChild<T>, T);
+
 pub fn size<T: Ui>(child: T, size: LayoutSize) -> SizeChild<T> {
     SizeChild::new(child, size)
 }
@@ -55,11 +50,8 @@ impl<T: Ui> WidthChild<T> {
         WidthChild { child, width }
     }
 }
-impl<T: Ui> Ui for WidthChild<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+impl<T: Ui> UiContainer for WidthChild<T> {
+    delegate_child!(child, T);
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.width = self.width;
@@ -67,13 +59,9 @@ impl<T: Ui> Ui for WidthChild<T> {
         child_size.width = self.width;
         child_size
     }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
-    }
-    fn render(&mut self, c: &mut RenderContext) {
-        self.child.render(c)
-    }
 }
+delegate_ui!(UiContainer, WidthChild<T>, T);
+
 pub fn width<T: Ui>(child: T, width: LayoutSize) -> SizeChild<T> {
     SizeChild::new(child, width)
 }
@@ -94,23 +82,14 @@ impl<T: Ui> HeightChild<T> {
         HeightChild { child, height }
     }
 }
-impl<T: Ui> Ui for HeightChild<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+impl<T: Ui> UiContainer for HeightChild<T> {
+    delegate_child!(child, T);
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.height = self.height;
         let mut child_size = self.child.measure(available_size);
         child_size.height = self.height;
         child_size
-    }
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size)
-    }
-    fn render(&mut self, c: &mut RenderContext) {
-        self.child.render(c)
     }
 }
 pub fn height<T: Ui>(child: T, height: LayoutSize) -> SizeChild<T> {
@@ -136,11 +115,9 @@ impl<T: Ui> CenterChild<T> {
         }
     }
 }
-impl<T: Ui> Ui for CenterChild<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+impl<T: Ui> UiContainer for CenterChild<T> {
+    delegate_child!(child, T);
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -163,10 +140,12 @@ impl<T: Ui> Ui for CenterChild<T> {
             (final_size.height - self.child_rect.size.height) / 2.,
         );
     }
-    fn render(&mut self, rc: &mut RenderContext) {
-        rc.push_child(&mut self.child, &self.child_rect);
+    fn render(&self, f: &mut NextFrame) {
+        f.push_child(&self.child, &self.child_rect);
     }
 }
+delegate_ui!(UiContainer, CenterChild<T>, T);
+
 pub fn center<T: Ui>(child: T) -> CenterChild<T> {
     CenterChild::new(child)
 }
@@ -204,11 +183,8 @@ impl<T: Ui> Margin<T> {
         }
     }
 }
-impl<T: Ui> Ui for Margin<T> {
-    type Child = T;
-    fn for_each_child(&mut self, mut action: impl FnMut(&mut Self::Child)) {
-        action(&mut self.child);
-    }
+impl<T: Ui> UiContainer for Margin<T> {
+    delegate_child!(child, T);
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut child_sz = self.child.measure(available_size);
@@ -221,17 +197,19 @@ impl<T: Ui> Ui for Margin<T> {
         final_size.height -= self.top + self.bottom;
         self.child.arrange(final_size);
     }
-    fn render(&mut self, rc: &mut RenderContext) {
-        let sz = rc.final_size();
+    fn render(&self, f: &mut NextFrame) {
+        let sz = f.final_size();
         let rect = euclid::rect(
             self.left,
             self.top,
             sz.width - self.left - self.right,
             sz.height - self.top - self.bottom,
         );
-        rc.push_child(&mut self.child, &rect);
+        f.push_child(&self.child, &rect);
     }
 }
+delegate_ui!(UiContainer, Margin<T>, T);
+
 pub trait MarginExt: Ui + Sized {
     fn margin(self, uniform: f32) -> Margin<Self> {
         Margin::uniform(self, uniform)
