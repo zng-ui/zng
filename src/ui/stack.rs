@@ -20,8 +20,8 @@ macro_rules! stack {
                 let mut total_size = LayoutSize::default();
 
                 available_size.$stack_size = std::f32::INFINITY;
-                for c in self.children.iter_mut() {
-                    c.rect.size = c.child.measure(available_size);
+                for c in self.children_mut() {
+                    Ui::measure(c, available_size);
                     total_size.$length_size = total_size.$length_size.max(c.rect.size.$length_size);
                     total_size.$stack_size += c.rect.size.$stack_size;
                 }
@@ -30,15 +30,15 @@ macro_rules! stack {
             }
             fn arrange(&mut self, final_size: LayoutSize) {
                 let mut $dimension = 0.0;
-                for c in self.children.iter_mut() {
+                for c in self.children_mut() {
                     c.rect.origin.$dimension = $dimension;
                     c.rect.size.$length_size = c.rect.size.$length_size.min(final_size.$length_size);
                     $dimension += c.rect.size.$stack_size;
-                    c.child.arrange(c.rect.size);
+                    Ui::arrange(c, c.rect.size);
                 }
             }
             fn render(&self, f: &mut NextFrame) {
-                for c in self.children.iter() {
+                for c in self.children() {
                     f.push_child(&c.child, &c.rect);
                 }
             }
@@ -58,7 +58,7 @@ pub fn v_stack<B: IntoStackSlots>(children: B) -> VStack<B::Child> {
     VStack::new(children)
 }
 
-/// A child in a stack munti-container.
+/// A child in a stack container.
 pub struct StackSlot<T> {
     child: T,
     rect: LayoutRect,
@@ -71,8 +71,22 @@ impl<T> StackSlot<T> {
             rect: LayoutRect::default(),
         }
     }
+
+    pub fn child(&self) -> &T {
+        &self.child
+    }
+
+    pub fn child_mut(&mut self) -> &mut T {
+        &mut self.child
+    }
+
+    /// The area taken by the child in the stack container.
+    pub fn rect(&self) -> LayoutRect {
+        self.rect
+    }
 }
 
+/// Stacks the children on top of each other. The first child at the bottom the last at the top.
 pub struct ZStack<T> {
     children: Vec<StackSlot<T>>,
 }
@@ -100,6 +114,7 @@ impl<'a, T: Ui + 'static> UiMultiContainer<'a> for ZStack<T> {
 }
 delegate_ui!(UiMultiContainer, ZStack<T>, T);
 
+/// Helper trait for constructing stack containers.
 pub trait IntoStackSlots {
     type Child: Ui;
     fn into(self) -> Vec<StackSlot<Self::Child>>;
@@ -140,6 +155,7 @@ impl<T: Ui> ZStack<T> {
     }
 }
 
+/// Stacks the children on top of each other. The first child at the bottom the last at the top.
 pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
     ZStack::new(children)
 }
