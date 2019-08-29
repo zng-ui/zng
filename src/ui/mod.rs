@@ -199,6 +199,11 @@ pub struct MouseInput {
     pub modifiers: ModifiersState,
 }
 
+pub struct MouseMove {
+    pub position: LayoutPoint,
+    pub modifiers: ModifiersState,
+}
+
 /// An UI component.
 ///
 /// # Implementers
@@ -213,6 +218,8 @@ pub trait Ui {
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate);
+
+    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate);
 
     fn close_request(&mut self, update: &mut NextUpdate);
 
@@ -250,6 +257,10 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().mouse_input(input, update);
     }
 
+    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
+        self.as_mut().mouse_move(input, update);
+    }
+
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.as_mut().close_request(update);
     }
@@ -279,6 +290,8 @@ pub trait UiLeaf {
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {}
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {}
+
+    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {}
 
     fn close_request(&mut self, update: &mut NextUpdate) {}
 }
@@ -311,6 +324,10 @@ pub trait UiContainer {
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
         self.child_mut().mouse_input(input, update);
+    }
+
+    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
+        self.child_mut().mouse_move(input, update);
     }
 
     fn close_request(&mut self, update: &mut NextUpdate) {
@@ -359,6 +376,12 @@ pub trait UiMultiContainer<'a> {
     fn mouse_input(&'a mut self, input: &MouseInput, update: &mut NextUpdate) {
         for c in self.children_mut() {
             c.mouse_input(input, update);
+        }
+    }
+
+    fn mouse_move(&'a mut self, input: &MouseMove, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.mouse_move(input, update);
         }
     }
 

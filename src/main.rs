@@ -23,9 +23,11 @@ fn main() {
                     .map(|l| text(c, l, rgb(0, 0, 0), "Arial", 14).background_color(rgb(255, 255, 255)))
                     .collect::<Vec<_>>(),
             )
-            .on_keydown(|k, _| println!("on_keydown: {}", k))
-            .on_keyup(|k, _| println!("on_keyup: {}", k))
-            .on_mousedown(|m, _| println!("on_mousedown: {}", m))
+            .on_key_down(|k, _| println!("on_key_down: {}", k))
+            .on_key_up(|k, _| println!("on_key_up: {}", k))
+            .on_mouse_down(|m, _| println!("on_mouse_down: {}", m))
+            .on_mouse_up(|m, _| println!("on_mouse_up: {}", m))
+            .on_mouse_move(|m, _| println!("on_mouse_move: {}", m.position))
         })
         .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |_| {
             center(h_stack(vec![

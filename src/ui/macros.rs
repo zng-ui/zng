@@ -34,7 +34,7 @@
 /// Try [delegate_ui] first before using this.
 #[macro_export]
 macro_rules! delegate_ui_methods {
-    ($Del:ident, $T:ty) => {
+    ($Del:ident) => {
         fn measure(&mut self, available_size: $crate::ui::LayoutSize) -> $crate::ui::LayoutSize {
             $Del::measure(self, available_size)
         }
@@ -53,6 +53,10 @@ macro_rules! delegate_ui_methods {
 
         fn mouse_input(&mut self, input: &$crate::ui::MouseInput, update: &mut $crate::ui::NextUpdate) {
             $Del::mouse_input(self, input, update)
+        }
+
+        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_move(self, input, update)
         }
 
         fn close_request(&mut self, update: &mut $crate::ui::NextUpdate) {
@@ -103,13 +107,13 @@ macro_rules! delegate_ui_methods {
 macro_rules! delegate_ui {
     ($Del:ident, $T:ty) => {
         impl $crate::ui::Ui for $T {
-            delegate_ui_methods!($Del, $T);
+            delegate_ui_methods!($Del);
         }
     };
 
     ($Del:ident, $T:ty, $TChild:ident) => {
         impl<$TChild: Ui + 'static> $crate::ui::Ui for $T {
-            delegate_ui_methods!($Del, $T);
+            delegate_ui_methods!($Del);
         }
     };
 }

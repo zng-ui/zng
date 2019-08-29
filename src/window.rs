@@ -1,4 +1,4 @@
-use crate::ui::{InitContext, MouseInput, NextFrame, Ui};
+use crate::ui::{InitContext, MouseInput, MouseMove, NextFrame, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::WindowEvent;
@@ -206,6 +206,15 @@ impl Window {
                 &MouseInput {
                     state,
                     button,
+                    modifiers,
+                },
+                &mut self.next_update,
+            ),
+            WindowEvent::CursorMoved {
+                position, modifiers, ..
+            } => self.content.mouse_move(
+                &MouseMove {
+                    position: LayoutPoint::new(position.x as f32, position.y as f32),
                     modifiers,
                 },
                 &mut self.next_update,

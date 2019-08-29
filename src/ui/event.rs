@@ -1,5 +1,6 @@
 use super::{
-    ElementState, KeyboardInput, ModifiersState, MouseButton, MouseInput, NextUpdate, Ui, UiContainer, VirtualKeyCode,
+    ElementState, KeyboardInput, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui, UiContainer,
+    VirtualKeyCode,
 };
 use std::fmt;
 
@@ -33,7 +34,7 @@ macro_rules! on_key {
         }
 
         impl<T: Ui, F: FnMut(KeyInput, &mut NextUpdate)> Ui for $name<T, F> {
-            delegate_ui_methods!(UiContainer, $name<T, F>);
+            delegate_ui_methods!(UiContainer);
         }
 
         pub trait $ext_name: Ui + Sized {
@@ -46,47 +47,91 @@ macro_rules! on_key {
     };
 }
 
-on_key!(Pressed, OnKeyDown, OnKeyDownExt, on_keydown);
-on_key!(Released, OnKeyUp, OnKeyUpExt, on_keyup);
+on_key!(Pressed, OnKeyDown, OnKeyDownExt, on_key_down);
+on_key!(Released, OnKeyUp, OnKeyUpExt, on_key_up);
 
-pub struct OnMouseDown<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
+macro_rules! on_mouse {
+    ($state: ident, $name: ident, $ext_name: ident, $ext_fn: ident) => {
+        pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
+            child: T,
+            handler: F,
+        }
+
+        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
+            pub fn new(child: T, handler: F) -> Self {
+                $name { child, handler }
+            }
+        }
+
+        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
+            delegate_child!(child, T);
+
+            fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
+                self.child.mouse_input(input, update);
+
+                if let ElementState::$state = input.state {
+                    let input = MouseButtonInput {
+                        button: input.button,
+                        modifiers: input.modifiers,
+                    };
+                    (self.handler)(input, update);
+                }
+            }
+        }
+
+        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for $name<T, F> {
+            delegate_ui_methods!(UiContainer);
+        }
+
+        pub trait $ext_name: Ui + Sized {
+            fn $ext_fn<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> $name<Self, F> {
+                $name::new(self, handler)
+            }
+        }
+
+        impl<T: Ui + Sized> $ext_name for T {}
+    };
+}
+
+on_mouse!(Pressed, OnMouseDown, OnMouseDownExt, on_mouse_down);
+on_mouse!(Released, OnMouseUp, OnMouseUpExt, on_mouse_up);
+
+pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     child: T,
     handler: F,
 }
 
-impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> OnMouseDown<T, F> {
+impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
     pub fn new(child: T, handler: F) -> Self {
-        OnMouseDown { child, handler }
+        OnMouseMove { child, handler }
     }
 }
 
-impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for OnMouseDown<T, F> {
+impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
     delegate_child!(child, T);
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-        self.child.mouse_input(input, update);
-
-        if let ElementState::Pressed = input.state {
-            let input = MouseButtonInput {
-                button: input.button,
+    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
+        (self.handler)(
+            MouseMove {
+                position: input.position,
                 modifiers: input.modifiers,
-            };
-            (self.handler)(input, update);
-        }
+            },
+            update,
+        )
     }
 }
 
-impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnMouseDown<T, F> {
-    delegate_ui_methods!(UiContainer, OnMouseDown<T, F>);
+impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> Ui for OnMouseMove<T, F> {
+    delegate_ui_methods!(UiContainer);
 }
 
-pub trait OnMouseDownExt: Ui + Sized {
-    fn on_mousedown<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnMouseDown<Self, F> {
-        OnMouseDown::new(self, handler)
+pub trait OnMouseMoveExt: Ui + Sized {
+    fn on_mouse_move<F: FnMut(MouseMove, &mut NextUpdate)>(self, handler: F) -> OnMouseMove<Self, F> {
+        OnMouseMove::new(self, handler)
     }
 }
 
-impl<T: Ui + Sized> OnMouseDownExt for T {}
+impl<T: Ui + Sized> OnMouseMoveExt for T {}
 
 #[derive(Debug)]
 pub struct KeyInput {
