@@ -17,19 +17,7 @@ macro_rules! on_key {
         }
 
         impl<T: Ui, F: FnMut(KeyInput, &mut NextUpdate)> UiContainer for $name<T, F> {
-            type Child = T;
-
-            fn child(&self) -> &Self::Child {
-                &self.child
-            }
-
-    fn child_mut(&mut self) -> &mut Self::Child {
-        &mut self.child
-    }
-
-    fn into_child(self) -> Self::Child {
-        self.child
-    }
+            delegate_child!(child, T);
 
             fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
                 self.child.keyboard_input(input, update);
@@ -73,24 +61,12 @@ impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> OnMouseDown<T, F> {
 }
 
 impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for OnMouseDown<T, F> {
-    type Child = T;
-
-    fn child(&self) -> &Self::Child {
-        &self.child
-    }
-
-    fn child_mut(&mut self) -> &mut Self::Child {
-        &mut self.child
-    }
-
-    fn into_child(self) -> Self::Child {
-        self.child
-    }
+    delegate_child!(child, T);
 
     fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
         self.child.mouse_input(input, update);
 
-        if let ElementState::Released = input.state {
+        if let ElementState::Pressed = input.state {
             let input = MouseButtonInput {
                 button: input.button,
                 modifiers: input.modifiers,

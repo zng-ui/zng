@@ -65,10 +65,10 @@ macro_rules! delegate_ui_methods {
 /// signature in a trait `$Del` that is also implemented by `$T`.
 /// # Example
 /// ```rust
-/// pub struct Foo { }
+/// pub struct Foo {}
 ///
 /// impl UiLeaf for Foo {
-///     fn render(&self, _: &mut NextFrame) { }
+///     fn render(&self, _: &mut NextFrame) {}
 /// }
 /// delegate_ui!(UiLeaf, Foo);
 /// ```
@@ -77,23 +77,23 @@ macro_rules! delegate_ui_methods {
 ///
 /// ```rust
 /// pub struct Bar<T> {
-///     child: T
+///     child: T,
 /// }
 ///
 /// impl<T: Ui> UiContainer for Bar<T> {
 ///     type Child = T;
 ///
 ///     fn child(&self) -> &Self::Child {
-///        &self.child
-///    }
+///         &self.child
+///     }
 ///
-///    fn child_mut(&mut self) -> &mut Self::Child {
-///        &mut self.child
-///    }
+///     fn child_mut(&mut self) -> &mut Self::Child {
+///         &mut self.child
+///     }
 ///
-///    fn into_child(self) -> Self::Child {
-///        self.child
-///    }
+///     fn into_child(self) -> Self::Child {
+///         self.child
+///     }
 /// }
 /// delegate_ui!(UiContainer, Bar<T>, T);
 /// ```
@@ -119,7 +119,7 @@ macro_rules! delegate_ui {
 /// # Example
 /// ```rust
 /// pub struct Bar<T> {
-///     child: T
+///     child: T,
 /// }
 ///
 /// impl<T: Ui> UiContainer for Bar<T> {
@@ -129,23 +129,23 @@ macro_rules! delegate_ui {
 /// Expands to:
 /// ```rust
 /// pub struct Bar<T> {
-///     child: T
+///     child: T,
 /// }
 ///
 /// impl<T: Ui> UiContainer for Bar<T> {
 ///     type Child = T;
 ///
 ///     fn child(&self) -> &Self::Child {
-///        &self.child
-///    }
+///         &self.child
+///     }
 ///
-///    fn child_mut(&mut self) -> &mut Self::Child {
-///        &mut self.child
-///    }
+///     fn child_mut(&mut self) -> &mut Self::Child {
+///         &mut self.child
+///     }
 ///
-///    fn into_child(self) -> Self::Child {
-///        self.child
-///    }
+///     fn into_child(self) -> Self::Child {
+///         self.child
+///     }
 /// }
 /// ```
 #[macro_export]
@@ -172,7 +172,7 @@ macro_rules! delegate_child {
 /// # Example
 /// ```rust
 /// pub struct Bar<T> {
-///     child: T
+///     child: T,
 /// }
 ///
 /// impl<T: Ui> UiContainer for Bar<T> {
@@ -182,23 +182,23 @@ macro_rules! delegate_child {
 /// Expands to:
 /// ```rust
 /// pub struct Bar<T> {
-///     child: T
+///     child: T,
 /// }
 ///
 /// impl<T: Ui> UiContainer for Bar<T> {
 ///     type Child = T;
 ///
 ///     fn child(&self) -> &Self::Child {
-///        &self.child
-///    }
+///         &self.child
+///     }
 ///
-///    fn child_mut(&mut self) -> &mut Self::Child {
-///        &mut self.child
-///    }
+///     fn child_mut(&mut self) -> &mut Self::Child {
+///         &mut self.child
+///     }
 ///
-///    fn into_child(self) -> Self::Child {
-///        self.child
-///    }
+///     fn into_child(self) -> Self::Child {
+///         self.child
+///     }
 /// }
 /// ```
 #[macro_export]
