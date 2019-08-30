@@ -232,8 +232,10 @@ impl Window {
                 if self.mouse_pos != position {
                     self.mouse_pos = position;
 
+                    let hits = Default::default();
+
                     self.content
-                        .mouse_move(&MouseMove { position, modifiers }, &mut self.next_update)
+                        .mouse_move(&MouseMove { position, modifiers }, &hits, &mut self.next_update)
                 }
             }
             WindowEvent::MouseInput {
@@ -241,15 +243,19 @@ impl Window {
                 button,
                 modifiers,
                 ..
-            } => self.content.mouse_input(
-                &MouseInput {
-                    state,
-                    button,
-                    modifiers,
-                    position: self.mouse_pos,
-                },
-                &mut self.next_update,
-            ),
+            } => {
+                let hits = Default::default();
+                self.content.mouse_input(
+                    &MouseInput {
+                        state,
+                        button,
+                        modifiers,
+                        position: self.mouse_pos,
+                    },
+                    &hits,
+                    &mut self.next_update,
+                )
+            }
             WindowEvent::Focused(focused) => {
                 if !focused {
                     self.key_down = None;

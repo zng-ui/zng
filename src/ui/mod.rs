@@ -104,10 +104,14 @@ impl InitContext {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ItemId(u64);
+
 pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
+    current_tag: Option<ItemTag>,
 }
 
 impl NextFrame {
@@ -116,7 +120,17 @@ impl NextFrame {
             builder,
             spatial_id,
             final_size,
+            current_tag: None,
         }
+    }
+
+    pub fn push_id(&mut self, id: ItemId, child: &impl Ui) {
+        let current_tag = self.current_tag;
+        self.current_tag = Some((id.0, 0));
+
+        child.render(self);
+
+        self.current_tag = current_tag;
     }
 
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
@@ -143,7 +157,8 @@ impl NextFrame {
     }
 
     fn layout_and_clip(&self, final_rect: LayoutRect) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
-        let lpi = LayoutPrimitiveInfo::new(final_rect);
+        let mut lpi = LayoutPrimitiveInfo::new(final_rect);
+        lpi.tag = self.current_tag;
         let sci = SpaceAndClipInfo {
             spatial_id: self.spatial_id,
             clip_id: ClipId::root(self.spatial_id.pipeline_id()),
@@ -233,6 +248,15 @@ pub struct MouseMove {
     pub modifiers: ModifiersState,
 }
 
+#[derive(Default)]
+pub struct Hits(HashMap<ItemId, LayoutPoint>);
+
+impl Hits {
+    pub fn mouse_over(&self, item: ItemId) -> Option<LayoutPoint> {
+        self.0.get(&item).cloned()
+    }
+}
+
 /// An UI component.
 ///
 /// # Implementers
@@ -246,11 +270,13 @@ pub trait Ui {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate);
 
-    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate);
 
     fn close_request(&mut self, update: &mut NextUpdate);
+
+    fn id(&self) -> Option<ItemId>;
 
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
@@ -282,16 +308,20 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().keyboard_input(input, update);
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-        self.as_mut().mouse_input(input, update);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+        self.as_mut().mouse_input(input, hits, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
-        self.as_mut().mouse_move(input, update);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+        self.as_mut().mouse_move(input, hits, update);
     }
 
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.as_mut().close_request(update);
+    }
+
+    fn id(&self) -> Option<ItemId> {
+        self.as_ref().id()
     }
 }
 
@@ -318,11 +348,15 @@ pub trait UiLeaf {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {}
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {}
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {}
 
-    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {}
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {}
 
     fn close_request(&mut self, update: &mut NextUpdate) {}
+
+    fn id(&self) -> Option<ItemId> {
+        None
+    }
 }
 
 /// An UI component with a single child component.
@@ -351,16 +385,20 @@ pub trait UiContainer {
         self.child_mut().keyboard_input(input, update);
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-        self.child_mut().mouse_input(input, update);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+        self.child_mut().mouse_input(input, hits, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
-        self.child_mut().mouse_move(input, update);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+        self.child_mut().mouse_move(input, hits, update);
     }
 
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.child_mut().close_request(update);
+    }
+
+    fn id(&self) -> Option<ItemId> {
+        self.child().id()
     }
 }
 
@@ -402,15 +440,15 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
-    fn mouse_input(&'a mut self, input: &MouseInput, update: &mut NextUpdate) {
+    fn mouse_input(&'a mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_input(input, update);
+            c.mouse_input(input, hits, update);
         }
     }
 
-    fn mouse_move(&'a mut self, input: &MouseMove, update: &mut NextUpdate) {
+    fn mouse_move(&'a mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_move(input, update);
+            c.mouse_move(input, hits, update);
         }
     }
 
@@ -418,6 +456,10 @@ pub trait UiMultiContainer<'a> {
         for c in self.children_mut() {
             c.close_request(update);
         }
+    }
+
+    fn id(&self) -> Option<ItemId> {
+        None
     }
 }
 

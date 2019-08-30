@@ -1,6 +1,6 @@
 use super::{
-    ElementState, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui,
-    UiContainer, VirtualKeyCode,
+    ElementState, Hits, ItemId, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
+    NextFrame, NextUpdate, Ui, UiContainer, VirtualKeyCode,
 };
 use std::fmt;
 
@@ -91,27 +91,47 @@ macro_rules! on_mouse {
         pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
             child: T,
             handler: F,
+            id: Option<ItemId>,
         }
 
         impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
             pub fn new(child: T, handler: F) -> Self {
-                $name { child, handler }
+                $name {
+                    child,
+                    handler,
+                    id: None,
+                }
             }
         }
 
         impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
             delegate_child!(child, T);
 
-            fn mouse_input(&mut self, input: &MouseInput, update: &mut NextUpdate) {
-                self.child.mouse_input(input, update);
+            fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+                self.child.mouse_input(input, hits, update);
 
-                if let ElementState::$state = input.state {
-                    let input = MouseButtonInput {
-                        button: input.button,
-                        modifiers: input.modifiers,
-                        position: input.position,
-                    };
-                    (self.handler)(input, update);
+                if let Some(mouse_over) = hits.mouse_over(Ui::id(self).unwrap()) {
+                    if let ElementState::$state = input.state {
+                        let input = MouseButtonInput {
+                            button: input.button,
+                            modifiers: input.modifiers,
+                            position: mouse_over,
+                        };
+                        (self.handler)(input, update);
+                    }
+                }
+            }
+
+            fn id(&self) -> Option<ItemId> {
+                // child id or self id
+                unimplemented!()
+            }
+
+            fn render(&self, f: &mut NextFrame) {
+                if let Some(id) = self.id {
+                    f.push_id(id, &self.child);
+                } else {
+                    self.child.render(f);
                 }
             }
         }
@@ -136,25 +156,47 @@ on_mouse!(Released, OnMouseUp, OnMouseUpExt, on_mouse_up);
 pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     child: T,
     handler: F,
+    id: Option<ItemId>,
 }
 
 impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
     pub fn new(child: T, handler: F) -> Self {
-        OnMouseMove { child, handler }
+        OnMouseMove {
+            child,
+            handler,
+            id: None,
+        }
     }
 }
 
 impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
     delegate_child!(child, T);
 
-    fn mouse_move(&mut self, input: &MouseMove, update: &mut NextUpdate) {
-        (self.handler)(
-            MouseMove {
-                position: input.position,
-                modifiers: input.modifiers,
-            },
-            update,
-        )
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+        self.child.mouse_move(input, hits, update);
+
+        if let Some(mouse_over) = hits.mouse_over(Ui::id(self).unwrap()) {
+            (self.handler)(
+                MouseMove {
+                    position: mouse_over,
+                    modifiers: input.modifiers,
+                },
+                update,
+            )
+        }
+    }
+
+    fn id(&self) -> Option<ItemId> {
+        // child id or self id
+        unimplemented!()
+    }
+
+    fn render(&self, f: &mut NextFrame) {
+        if let Some(id) = self.id {
+            f.push_id(id, &self.child);
+        } else {
+            self.child.render(f);
+        }
     }
 }
 

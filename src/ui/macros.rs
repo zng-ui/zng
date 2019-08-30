@@ -51,16 +51,20 @@ macro_rules! delegate_ui_methods {
             $Del::keyboard_input(self, input, update)
         }
 
-        fn mouse_input(&mut self, input: &$crate::ui::MouseInput, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_input(self, input, update)
+        fn mouse_input(&mut self, input: &$crate::ui::MouseInput, hits: &$crate::ui::Hits, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_input(self, input, hits, update)
         }
 
-        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_move(self, input, update)
+        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, hits: &$crate::ui::Hits, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_move(self, input, hits, update)
         }
 
         fn close_request(&mut self, update: &mut $crate::ui::NextUpdate) {
             $Del::close_request(self, update)
+        }
+
+        fn id(&self) -> Option<$crate::ui::ItemId> {
+            $Del::id(self)
         }
     };
 }
