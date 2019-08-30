@@ -1,7 +1,7 @@
-use crate::ui::{InitContext, MouseInput, MouseMove, NextFrame, Ui};
+use crate::ui::{InitContext, KeyboardInput, MouseInput, MouseMove, NextFrame, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
-use glutin::event::WindowEvent;
+use glutin::event::{ElementState, ScanCode, WindowEvent};
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use glutin::window::{WindowBuilder, WindowId};
 use glutin::{Api, ContextBuilder, GlRequest};
@@ -94,6 +94,9 @@ pub struct Window {
     pub redraw: bool,
 
     pub close: bool,
+
+    mouse_pos: LayoutPoint,
+    key_down: Option<ScanCode>,
 }
 
 impl Window {
@@ -177,6 +180,9 @@ impl Window {
             redraw: false,
 
             close: false,
+
+            mouse_pos: LayoutPoint::new(-1., -1.),
+            key_down: None,
         }
     }
 
@@ -196,7 +202,40 @@ impl Window {
             WindowEvent::RedrawRequested => self.redraw = true,
             WindowEvent::CloseRequested => self.close = true,
 
-            WindowEvent::KeyboardInput { input, .. } => self.content.keyboard_input(&input, &mut self.next_update),
+            WindowEvent::KeyboardInput { input, .. } => {
+                let mut repeat = false;
+                if input.state == ElementState::Pressed {
+                    if self.key_down != Some(input.scancode) {
+                        self.key_down = Some(input.scancode);
+                    } else {
+                        repeat = true;
+                    }
+                } else {
+                    self.key_down = None;
+                }
+
+                self.content.keyboard_input(
+                    &KeyboardInput {
+                        scancode: input.scancode,
+                        state: input.state,
+                        virtual_keycode: input.virtual_keycode,
+                        modifiers: input.modifiers,
+                        repeat,
+                    },
+                    &mut self.next_update,
+                )
+            }
+            WindowEvent::CursorMoved {
+                position, modifiers, ..
+            } => {
+                let position = LayoutPoint::new(position.x as f32, position.y as f32);
+                if self.mouse_pos != position {
+                    self.mouse_pos = position;
+
+                    self.content
+                        .mouse_move(&MouseMove { position, modifiers }, &mut self.next_update)
+                }
+            }
             WindowEvent::MouseInput {
                 state,
                 button,
@@ -207,18 +246,15 @@ impl Window {
                     state,
                     button,
                     modifiers,
+                    position: self.mouse_pos,
                 },
                 &mut self.next_update,
             ),
-            WindowEvent::CursorMoved {
-                position, modifiers, ..
-            } => self.content.mouse_move(
-                &MouseMove {
-                    position: LayoutPoint::new(position.x as f32, position.y as f32),
-                    modifiers,
-                },
-                &mut self.next_update,
-            ),
+            WindowEvent::Focused(focused) => {
+                if !focused {
+                    self.key_down = None;
+                }
+            }
 
             _ => has_update = false,
         }
