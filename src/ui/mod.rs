@@ -258,6 +258,7 @@ pub struct MouseMove {
     pub modifiers: ModifiersState,
 }
 
+/// Hit test results.
 #[derive(Default)]
 pub struct Hits(HashMap<ItemId, LayoutPoint>);
 
@@ -271,7 +272,7 @@ impl Hits {
         )
     }
 
-    pub fn mouse_over(&self, item: ItemId) -> Option<LayoutPoint> {
+    pub fn point_over(&self, item: ItemId) -> Option<LayoutPoint> {
         self.0.get(&item).cloned()
     }
 }

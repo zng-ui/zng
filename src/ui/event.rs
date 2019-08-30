@@ -116,7 +116,7 @@ macro_rules! on_mouse {
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, update);
 
-                if let Some(mouse_over) = hits.mouse_over(self.hit_id()) {
+                if let Some(mouse_over) = hits.point_over(self.hit_id()) {
                     if let ElementState::$state = input.state {
                         let input = MouseButtonInput {
                             button: input.button,
@@ -186,7 +186,7 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T,
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, update);
 
-        if let Some(mouse_over) = hits.mouse_over(self.hit_id()) {
+        if let Some(mouse_over) = hits.point_over(self.hit_id()) {
             (self.handler)(
                 MouseMove {
                     position: mouse_over,
