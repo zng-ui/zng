@@ -88,10 +88,12 @@ impl<T: Ui + Sized> OnKeyUpExt for T {}
 
 macro_rules! on_mouse {
     ($state: ident, $name: ident, $ext_name: ident, $ext_fn: ident) => {
+        #[derive(Clone)]
         pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
             child: T,
             handler: F,
-            id: Option<ItemId>,
+            // id used when child does not have an id.
+            id: ItemId,
         }
 
         impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
@@ -99,8 +101,12 @@ macro_rules! on_mouse {
                 $name {
                     child,
                     handler,
-                    id: None,
+                    id: ItemId::new(),
                 }
+            }
+
+            fn hit_id(&self) -> ItemId {
+                self.child.id().unwrap_or(self.id)
             }
         }
 
@@ -110,7 +116,7 @@ macro_rules! on_mouse {
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, update);
 
-                if let Some(mouse_over) = hits.mouse_over(Ui::id(self).unwrap()) {
+                if let Some(mouse_over) = hits.mouse_over(self.hit_id()) {
                     if let ElementState::$state = input.state {
                         let input = MouseButtonInput {
                             button: input.button,
@@ -123,15 +129,14 @@ macro_rules! on_mouse {
             }
 
             fn id(&self) -> Option<ItemId> {
-                // child id or self id
-                unimplemented!()
+                Some(self.hit_id())
             }
 
             fn render(&self, f: &mut NextFrame) {
-                if let Some(id) = self.id {
-                    f.push_id(id, &self.child);
-                } else {
+                if self.child.id().is_some() {
                     self.child.render(f);
+                } else {
+                    f.push_id(self.id, &self.child);
                 }
             }
         }
@@ -153,10 +158,12 @@ macro_rules! on_mouse {
 on_mouse!(Pressed, OnMouseDown, OnMouseDownExt, on_mouse_down);
 on_mouse!(Released, OnMouseUp, OnMouseUpExt, on_mouse_up);
 
+#[derive(Clone)]
 pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     child: T,
     handler: F,
-    id: Option<ItemId>,
+    // id used when child does not have an id.
+    id: ItemId,
 }
 
 impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
@@ -164,8 +171,12 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
         OnMouseMove {
             child,
             handler,
-            id: None,
+            id: ItemId::new(),
         }
+    }
+
+    fn hit_id(&self) -> ItemId {
+        self.child.id().unwrap_or(self.id)
     }
 }
 
@@ -175,7 +186,7 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T,
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, update);
 
-        if let Some(mouse_over) = hits.mouse_over(Ui::id(self).unwrap()) {
+        if let Some(mouse_over) = hits.mouse_over(self.hit_id()) {
             (self.handler)(
                 MouseMove {
                     position: mouse_over,
@@ -187,15 +198,14 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T,
     }
 
     fn id(&self) -> Option<ItemId> {
-        // child id or self id
-        unimplemented!()
+        Some(self.hit_id())
     }
 
     fn render(&self, f: &mut NextFrame) {
-        if let Some(id) = self.id {
-            f.push_id(id, &self.child);
-        } else {
+        if self.child.id().is_some() {
             self.child.render(f);
+        } else {
+            f.push_id(self.id, &self.child);
         }
     }
 }

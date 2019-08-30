@@ -107,6 +107,16 @@ impl InitContext {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ItemId(u64);
 
+impl ItemId {
+    /// Generates a new unique ID.
+    pub fn new() -> Self {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+
+        ItemId(NEXT.fetch_add(1, Ordering::SeqCst))
+    }
+}
+
 pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
@@ -252,6 +262,15 @@ pub struct MouseMove {
 pub struct Hits(HashMap<ItemId, LayoutPoint>);
 
 impl Hits {
+    pub fn new(hits: HitTestResult) -> Self {
+        Hits(
+            hits.items
+                .into_iter()
+                .map(|h| (ItemId(h.tag.0), h.point_relative_to_item))
+                .collect(),
+        )
+    }
+
     pub fn mouse_over(&self, item: ItemId) -> Option<LayoutPoint> {
         self.0.get(&item).cloned()
     }

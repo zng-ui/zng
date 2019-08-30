@@ -1,4 +1,4 @@
-use crate::ui::{InitContext, KeyboardInput, MouseInput, MouseMove, NextFrame, Ui};
+use crate::ui::{Hits, InitContext, KeyboardInput, MouseInput, MouseMove, NextFrame, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -231,11 +231,11 @@ impl Window {
                 let position = LayoutPoint::new(position.x as f32, position.y as f32);
                 if self.mouse_pos != position {
                     self.mouse_pos = position;
-
-                    let hits = Default::default();
-
-                    self.content
-                        .mouse_move(&MouseMove { position, modifiers }, &hits, &mut self.next_update)
+                    self.content.mouse_move(
+                        &MouseMove { position, modifiers },
+                        &self.hit_test(self.mouse_pos),
+                        &mut self.next_update,
+                    )
                 }
             }
             WindowEvent::MouseInput {
@@ -243,19 +243,16 @@ impl Window {
                 button,
                 modifiers,
                 ..
-            } => {
-                let hits = Default::default();
-                self.content.mouse_input(
-                    &MouseInput {
-                        state,
-                        button,
-                        modifiers,
-                        position: self.mouse_pos,
-                    },
-                    &hits,
-                    &mut self.next_update,
-                )
-            }
+            } => self.content.mouse_input(
+                &MouseInput {
+                    state,
+                    button,
+                    modifiers,
+                    position: self.mouse_pos,
+                },
+                &self.hit_test(self.mouse_pos),
+                &mut self.next_update,
+            ),
             WindowEvent::Focused(focused) => {
                 if !focused {
                     self.key_down = None;
@@ -265,6 +262,15 @@ impl Window {
             _ => has_update = false,
         }
         has_update
+    }
+
+    fn hit_test(&self, point: LayoutPoint) -> Hits {
+        Hits::new(self.api.hit_test(
+            self.document_id,
+            Some(self.pipeline_id),
+            WorldPoint::new(point.x, point.y),
+            HitTestFlags::FIND_ALL,
+        ))
     }
 
     fn device_size(&self) -> DeviceIntSize {
