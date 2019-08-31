@@ -194,12 +194,18 @@ impl Window {
         match event {
             WindowEvent::Resized(new_size) => {
                 // open issue on resize delay: https://github.com/servo/webrender/issues/1640
-                self.inner_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
-                self.next_update.update_layout();
+                let new_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
+                if self.inner_size != new_size {
+                    self.inner_size = new_size;
+                    self.next_update.update_layout();
+                }
             }
             WindowEvent::HiDpiFactorChanged(new_dpi_factor) => {
-                self.dpi_factor = new_dpi_factor as f32;
-                self.next_update.update_layout();
+                let new_dpi_factor = new_dpi_factor as f32;
+                if self.dpi_factor != new_dpi_factor {
+                    self.dpi_factor = new_dpi_factor;
+                    self.next_update.update_layout();
+                }
             }
             WindowEvent::RedrawRequested => self.redraw = true,
             WindowEvent::CloseRequested => self.close = true,
