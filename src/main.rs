@@ -29,27 +29,31 @@ fn main() {
             .on_mouse_up(|m, _| println!("on_mouse_up: {}", m))
             //.on_mouse_move(|m, _| println!("on_mouse_move: {}", m.position))
         })
-        .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |_| {
+        .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |c| {
             center(h_stack(
                 (0..4)
                     .map(|i| {
-                        fill_gradient(
-                            LayoutPoint::new(0., 0.),
-                            LayoutPoint::new(1., 1.),
-                            vec![
-                                GradientStop {
-                                    offset: 0.,
-                                    color: rgb(0, 200, 0),
-                                },
-                                GradientStop {
-                                    offset: 1.,
-                                    color: rgb(200, 0, 0),
-                                },
-                            ],
-                        )
-                        .width(200.)
-                        .on_mouse_down(move |m, _| println!("'Gradient#{}'.on_mouse_down: {}", i, m))
-                        .margin(2.)
+                        text(c, "Ola", rgb(0, 0, 0), "Arial", 90)
+                            .background_color(rgb(255, 255, 255))
+                            .center()
+                            .on_mouse_down(move |m, _| println!("'Text#{}'.on_mouse_down: {}", i, m))
+                            .background_gradient(
+                                LayoutPoint::new(0., 0.),
+                                LayoutPoint::new(1., 1.),
+                                vec![
+                                    GradientStop {
+                                        offset: 0.,
+                                        color: rgb(0, 200, 0),
+                                    },
+                                    GradientStop {
+                                        offset: 1.,
+                                        color: rgb(200, 0, 0),
+                                    },
+                                ],
+                            )
+                            .width(200.)
+                            .on_mouse_down(move |m, _| println!("'Gradient#{}'.on_mouse_down: {}", i, m))
+                            .margin(2.)
                     })
                     .collect::<Vec<_>>(),
             ))

@@ -177,7 +177,7 @@ impl NextFrame {
         (lpi, sci)
     }
 
-    pub fn push_rect(&mut self, final_rect: LayoutRect, color: ColorF) {
+    pub fn push_color(&mut self, final_rect: LayoutRect, color: ColorF) {
         let (lpi, sci) = self.layout_and_clip(final_rect);
         self.builder.push_rect(&lpi, &sci, color);
     }
@@ -418,7 +418,7 @@ pub trait UiContainer {
     }
 
     fn id(&self) -> Option<ItemId> {
-        self.child().id()
+        None
     }
 }
 

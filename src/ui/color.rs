@@ -29,7 +29,7 @@ impl FillColor {
 
 impl UiLeaf for FillColor {
     fn render(&self, f: &mut NextFrame) {
-        f.push_rect(LayoutRect::from_size(f.final_size()), self.color);
+        f.push_color(LayoutRect::from_size(f.final_size()), self.color);
     }
 }
 delegate_ui!(UiLeaf, FillColor);
@@ -87,7 +87,7 @@ impl<T: Ui> UiContainer for BackgroundColor<T> {
     delegate_child!(child, T);
 
     fn render(&self, f: &mut NextFrame) {
-        f.push_rect(LayoutRect::from_size(f.final_size()), self.color);
+        f.push_color(LayoutRect::from_size(f.final_size()), self.color);
         self.child.render(f)
     }
 }
@@ -102,3 +102,50 @@ pub trait BackgroundColorExt: Ui + Sized {
     }
 }
 impl<T: Ui> BackgroundColorExt for T {}
+
+#[derive(Clone)]
+pub struct BackgroundGradient<T> {
+    child: T,
+    gradient: FillGradient,
+}
+
+impl<T> BackgroundGradient<T> {
+    pub fn new(child: T, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
+        BackgroundGradient {
+            child,
+            gradient: FillGradient::new(start, end, stops),
+        }
+    }
+}
+
+impl<T: Ui> UiContainer for BackgroundGradient<T> {
+    delegate_child!(child, T);
+
+    fn render(&self, f: &mut NextFrame) {
+        Ui::render(&self.gradient, f);
+        self.child.render(f);
+    }
+}
+
+delegate_ui!(UiContainer, BackgroundGradient<T>, T);
+
+pub fn background_gradient<T: Ui>(
+    child: T,
+    start: LayoutPoint,
+    end: LayoutPoint,
+    stops: Vec<GradientStop>,
+) -> BackgroundGradient<T> {
+    BackgroundGradient::new(child, start, end, stops)
+}
+
+pub trait BackgroundGradientExt: Ui + Sized {
+    fn background_gradient(
+        self,
+        start: LayoutPoint,
+        end: LayoutPoint,
+        stops: Vec<GradientStop>,
+    ) -> BackgroundGradient<Self> {
+        BackgroundGradient::new(self, start, end, stops)
+    }
+}
+impl<T: Ui> BackgroundGradientExt for T {}
