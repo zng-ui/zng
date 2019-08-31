@@ -4,9 +4,11 @@ mod macros;
 mod color;
 mod event;
 mod layout;
+mod log;
 mod stack;
 mod text;
 
+pub use self::log::*;
 pub use crate::window::NextUpdate;
 pub use color::*;
 pub use event::*;
