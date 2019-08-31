@@ -3,7 +3,7 @@ use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
-use glutin::window::{WindowBuilder, WindowId};
+use glutin::window::{CursorIcon, WindowBuilder, WindowId};
 use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::ThreadPool;
@@ -97,6 +97,7 @@ pub struct Window {
 
     mouse_pos: LayoutPoint,
     key_down: Option<ScanCode>,
+    cursor: CursorIcon,
 }
 
 impl Window {
@@ -183,6 +184,7 @@ impl Window {
 
             mouse_pos: LayoutPoint::new(-1., -1.),
             key_down: None,
+            cursor: CursorIcon::Default,
         }
     }
 
@@ -230,13 +232,15 @@ impl Window {
             } => {
                 let position = LayoutPoint::new(position.x as f32, position.y as f32);
                 if self.mouse_pos != position {
+                    let hit = self.hit_test(self.mouse_pos);
                     self.mouse_pos = position;
-                    self.content.mouse_move(
-                        &MouseMove { position, modifiers },
-                        &self.hit_test(self.mouse_pos),
-                        &mut self.next_update,
-                    )
+                    self.set_cursor(hit.cursor());
+                    self.content
+                        .mouse_move(&MouseMove { position, modifiers }, &hit, &mut self.next_update);
                 }
+            }
+            WindowEvent::CursorLeft { .. } => {
+                self.set_cursor(CursorIcon::Default);
             }
             WindowEvent::MouseInput {
                 state,
@@ -276,6 +280,13 @@ impl Window {
     fn device_size(&self) -> DeviceIntSize {
         let size: LayoutSize = self.inner_size * euclid::TypedScale::new(self.dpi_factor);
         DeviceIntSize::new(size.width as i32, size.height as i32)
+    }
+
+    fn set_cursor(&mut self, cursor: CursorIcon) {
+        if self.cursor != cursor {
+            self.cursor = cursor;
+            self.context.as_ref().unwrap().window().set_cursor_icon(cursor);
+        }
     }
 
     pub fn update(&mut self) {

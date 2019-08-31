@@ -34,6 +34,7 @@ fn main() {
                 (0..4)
                     .map(|i| {
                         text(c, "Ola", rgb(0, 0, 0), "Arial", 90)
+                            .cursor(CursorIcon::Hand)
                             .background_color(rgb(255, 255, 255))
                             .center()
                             .on_mouse_down(move |m, _| println!("'Text#{}'.on_mouse_down: {}", i, m))

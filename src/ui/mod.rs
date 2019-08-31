@@ -18,6 +18,7 @@ pub use text::*;
 use app_units::Au;
 use font_loader::system_fonts;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
+pub use glutin::window::CursorIcon;
 use std::collections::HashMap;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
@@ -121,7 +122,8 @@ pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
-    current_tag: Option<ItemTag>,
+    id: Option<ItemId>,
+    cursor: CursorIcon,
 }
 
 impl NextFrame {
@@ -130,17 +132,18 @@ impl NextFrame {
             builder,
             spatial_id,
             final_size,
-            current_tag: None,
+            id: None,
+            cursor: CursorIcon::Default,
         }
     }
 
     pub fn push_id(&mut self, id: ItemId, child: &impl Ui) {
-        let current_tag = self.current_tag;
-        self.current_tag = Some((id.0, 0));
+        let current_id = self.id;
+        self.id = Some(id);
 
         child.render(self);
 
-        self.current_tag = current_tag;
+        self.id = current_id;
     }
 
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
@@ -166,9 +169,18 @@ impl NextFrame {
         //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
     }
 
+    pub fn push_cursor(&mut self, cursor: CursorIcon, id: ItemId, child: &impl Ui) {
+        let current_cursor = self.cursor;
+        self.cursor = cursor;
+
+        self.push_id(id, child);
+
+        self.cursor = current_cursor;
+    }
+
     fn layout_and_clip(&self, final_rect: LayoutRect) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
         let mut lpi = LayoutPrimitiveInfo::new(final_rect);
-        lpi.tag = self.current_tag;
+        lpi.tag = self.id.map(|v| (v.0, self.cursor as u16));
         let sci = SpaceAndClipInfo {
             spatial_id: self.spatial_id,
             clip_id: ClipId::root(self.spatial_id.pipeline_id()),
@@ -260,20 +272,41 @@ pub struct MouseMove {
 
 /// Hit test results.
 #[derive(Default)]
-pub struct Hits(HashMap<ItemId, LayoutPoint>);
+pub struct Hits {
+    points: HashMap<ItemId, LayoutPoint>,
+    cursor: CursorIcon,
+}
 
 impl Hits {
     pub fn new(hits: HitTestResult) -> Self {
-        Hits(
-            hits.items
+        let cursor = hits
+            .items
+            .first()
+            .map(|h| {
+                if h.tag.1 <= CursorIcon::RowResize as u16 {
+                    unsafe { std::mem::transmute(h.tag.1 as u8) }
+                } else {
+                    CursorIcon::Default
+                }
+            })
+            .unwrap_or(CursorIcon::Default);
+
+        Hits {
+            points: hits
+                .items
                 .into_iter()
                 .map(|h| (ItemId(h.tag.0), h.point_relative_to_item))
                 .collect(),
-        )
+            cursor,
+        }
     }
 
     pub fn point_over(&self, item: ItemId) -> Option<LayoutPoint> {
-        self.0.get(&item).cloned()
+        self.points.get(&item).cloned()
+    }
+
+    pub fn cursor(&self) -> CursorIcon {
+        self.cursor
     }
 }
 
@@ -490,3 +523,48 @@ impl UiLeaf for () {
     fn render(&self, _: &mut NextFrame) {}
 }
 delegate_ui!(UiLeaf, ());
+
+pub struct Cursor<T> {
+    child: T,
+    cursor: CursorIcon,
+    id: ItemId,
+}
+
+impl<T: Ui> Cursor<T> {
+    pub fn new(child: T, cursor: CursorIcon) -> Self {
+        Cursor {
+            child,
+            cursor,
+            id: ItemId::new(),
+        }
+    }
+
+    fn hit_id(&self) -> ItemId {
+        self.child.id().unwrap_or(self.id)
+    }
+}
+
+impl<T: Ui> UiContainer for Cursor<T> {
+    delegate_child!(child, T);
+
+    fn id(&self) -> Option<ItemId> {
+        Some(self.hit_id())
+    }
+
+    fn render(&self, f: &mut NextFrame) {
+        f.push_cursor(self.cursor, self.hit_id(), self.child())
+    }
+}
+
+delegate_ui!(UiContainer, Cursor<T>, T);
+
+pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) -> Cursor<T> {
+    Cursor::new(child, cursor)
+}
+
+pub trait CursorExt: Ui + Sized {
+    fn cursor(self, cursor: CursorIcon) -> Cursor<Self> {
+        Cursor::new(self, cursor)
+    }
+}
+impl<T: Ui> CursorExt for T {}
