@@ -58,6 +58,29 @@ pub fn v_stack<B: IntoStackSlots>(children: B) -> VStack<B::Child> {
     VStack::new(children)
 }
 
+/// Stacks the children on top of each other. The first child at the bottom the last at the top.
+pub struct ZStack<T> {
+    children: Vec<StackSlot<T>>,
+}
+
+impl<'a, T: Ui + 'static> UiMultiContainer<'a> for ZStack<T> {
+    delegate_children!(children, StackSlot<T>);
+}
+delegate_ui!(UiMultiContainer, ZStack<T>, T);
+
+impl<T: Ui> ZStack<T> {
+    pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
+        ZStack {
+            children: children.into(),
+        }
+    }
+}
+
+/// Stacks the children on top of each other. The first child at the bottom the last at the top.
+pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
+    ZStack::new(children)
+}
+
 /// A child in a stack container.
 pub struct StackSlot<T> {
     child: T,
@@ -86,11 +109,6 @@ impl<T> StackSlot<T> {
     }
 }
 
-/// Stacks the children on top of each other. The first child at the bottom the last at the top.
-pub struct ZStack<T> {
-    children: Vec<StackSlot<T>>,
-}
-
 impl<T: Ui> UiContainer for StackSlot<T> {
     delegate_child!(child, T);
 
@@ -101,6 +119,7 @@ impl<T: Ui> UiContainer for StackSlot<T> {
 
     fn arrange(&mut self, final_size: LayoutSize) {
         self.rect.size = final_size;
+        self.child.arrange(final_size);
     }
 
     fn render(&self, f: &mut NextFrame) {
@@ -108,11 +127,6 @@ impl<T: Ui> UiContainer for StackSlot<T> {
     }
 }
 delegate_ui!(UiContainer, StackSlot<T>, T);
-
-impl<'a, T: Ui + 'static> UiMultiContainer<'a> for ZStack<T> {
-    delegate_children!(children, StackSlot<T>);
-}
-delegate_ui!(UiMultiContainer, ZStack<T>, T);
 
 /// Helper trait for constructing stack containers.
 pub trait IntoStackSlots {
@@ -146,16 +160,3 @@ macro_rules! impl_tuples {
     () => {};
 }
 impl_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,);
-
-impl<T: Ui> ZStack<T> {
-    pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
-        ZStack {
-            children: children.into(),
-        }
-    }
-}
-
-/// Stacks the children on top of each other. The first child at the bottom the last at the top.
-pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
-    ZStack::new(children)
-}
