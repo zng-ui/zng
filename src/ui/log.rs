@@ -67,3 +67,21 @@ impl<T: Ui> UiContainer for LogRender<T> {
     }
 }
 delegate_ui!(UiContainer, LogRender<T>, T);
+
+/// Log `"[{level}][{target}] {message}"` to stdout.
+pub fn start_logger_for(target: &'static str) {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "[{level}][{target}] {message}",
+                level = record.level(),
+                target = record.target(),
+                message = message,
+            ))
+        })
+        .level(log::LevelFilter::Off)
+        .level_for(target, log::LevelFilter::Trace)
+        .chain(std::io::stdout())
+        .apply()
+        .ok();
+}

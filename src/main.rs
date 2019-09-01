@@ -8,7 +8,7 @@ use ui::*;
 use webrender::api::{GradientStop, LayoutPoint};
 
 fn main() {
-    simple_logger::init_with_level(log::Level::Info).unwrap();
+    //start_logger_for("log_target");
 
     let string = r".....
     ÃÂÃÂÃÂÃÂÃÂ
@@ -25,7 +25,7 @@ fn main() {
                     .map(|l| text(c, l, rgb(0, 0, 0), "Arial", 14).background_color(rgb(255, 255, 255)))
                     .collect::<Vec<_>>(),
             )
-            .log_layout("log_target")
+            //.log_layout("log_target")
             .on_key_down(|k, _| println!("on_key_down: {}", k))
             .on_key_up(|k, _| println!("on_key_up: {}", k))
             .on_mouse_down(|m, _| println!("on_mouse_down: {}", m))
