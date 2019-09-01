@@ -1,6 +1,6 @@
 use super::{
-    ElementState, Hits, ItemId, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
-    NextFrame, NextUpdate, Ui, UiContainer, VirtualKeyCode,
+    ElementState, EnsureId, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
+    NextUpdate, Ui, UiContainer, VirtualKeyCode,
 };
 use std::fmt;
 
@@ -85,33 +85,26 @@ macro_rules! on_mouse {
     ($state: ident, $name: ident) => {
         #[derive(Clone)]
         pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
-            child: T,
+            child: EnsureId<T>,
             handler: F,
-            // id used when child does not have an id.
-            id: ItemId,
         }
 
         impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
             pub fn new(child: T, handler: F) -> Self {
                 $name {
-                    child,
+                    child: EnsureId::new(child),
                     handler,
-                    id: ItemId::new(),
                 }
-            }
-
-            fn hit_id(&self) -> ItemId {
-                self.child.id().unwrap_or(self.id)
             }
         }
 
-        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
-            delegate_child!(child, T);
+        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
+            delegate_child!(child, EnsureId<T>);
 
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-                self.child.mouse_input(input, hits, update);
+                Ui::mouse_input(&mut self.child, input, hits, update);
 
-                if let Some(mouse_over) = hits.point_over(self.hit_id()) {
+                if let Some(mouse_over) = hits.point_over(self.child.hit_id()) {
                     if let ElementState::$state = input.state {
                         let input = MouseButtonInput {
                             button: input.button,
@@ -122,21 +115,9 @@ macro_rules! on_mouse {
                     }
                 }
             }
-
-            fn id(&self) -> Option<ItemId> {
-                Some(self.hit_id())
-            }
-
-            fn render(&self, f: &mut NextFrame) {
-                if self.child.id().is_some() {
-                    self.child.render(f);
-                } else {
-                    f.push_id(self.id, &self.child);
-                }
-            }
         }
 
-        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for $name<T, F> {
+        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for $name<T, F> {
             delegate_ui_methods!(UiContainer);
         }
     };
@@ -147,33 +128,26 @@ on_mouse!(Released, OnMouseUp);
 
 #[derive(Clone)]
 pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
-    child: T,
+    child: EnsureId<T>,
     handler: F,
-    // id used when child does not have an id.
-    id: ItemId,
 }
 
 impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
     pub fn new(child: T, handler: F) -> Self {
         OnMouseMove {
-            child,
+            child: EnsureId::new(child),
             handler,
-            id: ItemId::new(),
         }
-    }
-
-    fn hit_id(&self) -> ItemId {
-        self.child.id().unwrap_or(self.id)
     }
 }
 
-impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
-    delegate_child!(child, T);
+impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
+    delegate_child!(child, EnsureId<T>);
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-        self.child.mouse_move(input, hits, update);
+        Ui::mouse_move(self, input, hits, update);
 
-        if let Some(mouse_over) = hits.point_over(self.hit_id()) {
+        if let Some(mouse_over) = hits.point_over(self.child.hit_id()) {
             (self.handler)(
                 MouseMove {
                     position: mouse_over,
@@ -183,23 +157,58 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T,
             )
         }
     }
-
-    fn id(&self) -> Option<ItemId> {
-        Some(self.hit_id())
-    }
-
-    fn render(&self, f: &mut NextFrame) {
-        if self.child.id().is_some() {
-            self.child.render(f);
-        } else {
-            f.push_id(self.id, &self.child);
-        }
-    }
 }
-
-impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> Ui for OnMouseMove<T, F> {
+impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> Ui for OnMouseMove<T, F> {
     delegate_ui_methods!(UiContainer);
 }
+
+macro_rules! on_mouse_enter_leave {
+    ($Type: ident, $mouse_over: ident, $if_mouse_over: expr) => {
+        pub struct $Type<T: Ui, F: FnMut(&mut NextUpdate)> {
+            child: EnsureId<T>,
+            handler: F,
+            mouse_over: bool,
+        }
+
+        impl<T: Ui, F: FnMut(&mut NextUpdate)> $Type<T, F> {
+            pub fn new(child: T, handler: F) -> Self {
+                $Type {
+                    child: EnsureId::new(child),
+                    handler,
+                    mouse_over: false,
+                }
+            }
+
+            fn set_mouse_over(&mut self, $mouse_over: bool, update: &mut NextUpdate) {
+                if self.mouse_over != $mouse_over {
+                    self.mouse_over = $mouse_over;
+                    if $if_mouse_over {
+                        (self.handler)(update);
+                    }
+                }
+            }
+        }
+
+        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> UiContainer for $Type<T, F> {
+            delegate_child!(child, EnsureId<T>);
+
+            fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+                Ui::mouse_move(&mut self.child, input, hits, update);
+                self.set_mouse_over(hits.point_over(self.child.hit_id()).is_some(), update);
+            }
+
+            fn mouse_left(&mut self, update: &mut NextUpdate) {
+                Ui::mouse_left(&mut self.child, update);
+                self.set_mouse_over(false, update);
+            }
+        }
+        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
+            delegate_ui_methods!(UiContainer);
+        }
+    };
+}
+on_mouse_enter_leave!(OnMouseEnter, mouse_over, mouse_over);
+on_mouse_enter_leave!(OnMouseLeave, mouse_over, !mouse_over);
 
 pub trait MouseEvents: Ui + Sized {
     fn on_mouse_down<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnMouseDown<Self, F> {
@@ -213,8 +222,15 @@ pub trait MouseEvents: Ui + Sized {
     fn on_mouse_move<F: FnMut(MouseMove, &mut NextUpdate)>(self, handler: F) -> OnMouseMove<Self, F> {
         OnMouseMove::new(self, handler)
     }
-}
 
+    fn on_mouse_enter<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnMouseEnter<Self, F> {
+        OnMouseEnter::new(self, handler)
+    }
+
+    fn on_mouse_leave<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnMouseLeave<Self, F> {
+        OnMouseLeave::new(self, handler)
+    }
+}
 impl<T: Ui + Sized> MouseEvents for T {}
 
 #[derive(Debug)]

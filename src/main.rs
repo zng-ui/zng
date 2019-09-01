@@ -37,10 +37,10 @@ fn main() {
                 (0..4)
                     .map(|i| {
                         text(c, "Ola", rgb(0, 0, 0), "Arial", 90)
-                            .cursor(CursorIcon::Hand)
                             .background_color(rgb(255, 255, 255))
-                            .center()
+                            .cursor(CursorIcon::Hand)
                             .on_mouse_down(move |m, _| println!("'Text#{}'.on_mouse_down: {}", i, m))
+                            .center()
                             .background_gradient(
                                 LayoutPoint::new(0., 0.),
                                 LayoutPoint::new(1., 1.),
@@ -56,7 +56,8 @@ fn main() {
                                 ],
                             )
                             .width(200.)
-                            .on_mouse_down(move |m, _| println!("'Gradient#{}'.on_mouse_down: {}", i, m))
+                            .on_mouse_enter(move |_| println!("'Gradient#{}'.on_mouse_enter", i))
+                            .on_mouse_leave(move |_| println!("'Gradient#{}'.on_mouse_leave", i))
                             .margin(2.)
                     })
                     .collect::<Vec<_>>(),

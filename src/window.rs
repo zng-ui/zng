@@ -245,8 +245,12 @@ impl Window {
                         .mouse_move(&MouseMove { position, modifiers }, &hit, &mut self.next_update);
                 }
             }
+            WindowEvent::CursorEntered { .. } => {
+                self.content.mouse_entered(&mut self.next_update);
+            }
             WindowEvent::CursorLeft { .. } => {
                 self.set_cursor(CursorIcon::Default);
+                self.content.mouse_left(&mut self.next_update);
             }
             WindowEvent::MouseInput {
                 state,

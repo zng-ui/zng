@@ -59,6 +59,14 @@ macro_rules! delegate_ui_methods {
             $Del::mouse_move(self, input, hits, update)
         }
 
+        fn mouse_entered(&mut self, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_entered(self, update);
+        }
+
+        fn mouse_left(&mut self, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_left(self, update);
+        }
+
         fn close_request(&mut self, update: &mut $crate::ui::NextUpdate) {
             $Del::close_request(self, update)
         }

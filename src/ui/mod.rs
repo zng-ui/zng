@@ -329,6 +329,10 @@ pub trait Ui {
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate);
 
+    fn mouse_entered(&mut self, update: &mut NextUpdate);
+
+    fn mouse_left(&mut self, update: &mut NextUpdate);
+
     fn close_request(&mut self, update: &mut NextUpdate);
 
     fn id(&self) -> Option<ItemId>;
@@ -371,6 +375,14 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().mouse_move(input, hits, update);
     }
 
+    fn mouse_entered(&mut self, update: &mut NextUpdate) {
+        self.as_mut().mouse_entered(update);
+    }
+
+    fn mouse_left(&mut self, update: &mut NextUpdate) {
+        self.as_mut().mouse_left(update);
+    }
+
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.as_mut().close_request(update);
     }
@@ -406,6 +418,10 @@ pub trait UiLeaf {
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {}
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {}
+
+    fn mouse_entered(&mut self, update: &mut NextUpdate) {}
+
+    fn mouse_left(&mut self, update: &mut NextUpdate) {}
 
     fn close_request(&mut self, update: &mut NextUpdate) {}
 
@@ -448,12 +464,20 @@ pub trait UiContainer {
         self.child_mut().mouse_move(input, hits, update);
     }
 
+    fn mouse_entered(&mut self, update: &mut NextUpdate) {
+        self.child_mut().mouse_entered(update);
+    }
+
+    fn mouse_left(&mut self, update: &mut NextUpdate) {
+        self.child_mut().mouse_left(update);
+    }
+
     fn close_request(&mut self, update: &mut NextUpdate) {
         self.child_mut().close_request(update);
     }
 
     fn id(&self) -> Option<ItemId> {
-        None
+        self.child().id()
     }
 }
 
@@ -507,6 +531,18 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
+    fn mouse_entered(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.mouse_entered(update);
+        }
+    }
+
+    fn mouse_left(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.mouse_left(update);
+        }
+    }
+
     fn close_request(&'a mut self, update: &mut NextUpdate) {
         for c in self.children_mut() {
             c.close_request(update);
@@ -526,27 +562,27 @@ impl UiLeaf for () {
 }
 delegate_ui!(UiLeaf, ());
 
-pub struct Cursor<T> {
-    child: T,
-    cursor: CursorIcon,
+#[derive(Clone)]
+pub struct EnsureId<T: Ui> {
+    pub child: T,
+    // id used when child does not have an id.
     id: ItemId,
 }
 
-impl<T: Ui> Cursor<T> {
-    pub fn new(child: T, cursor: CursorIcon) -> Self {
-        Cursor {
+impl<T: Ui> EnsureId<T> {
+    pub fn new(child: T) -> Self {
+        EnsureId {
             child,
-            cursor,
             id: ItemId::new(),
         }
     }
 
-    fn hit_id(&self) -> ItemId {
+    pub fn hit_id(&self) -> ItemId {
         self.child.id().unwrap_or(self.id)
     }
 }
 
-impl<T: Ui> UiContainer for Cursor<T> {
+impl<T: Ui> UiContainer for EnsureId<T> {
     delegate_child!(child, T);
 
     fn id(&self) -> Option<ItemId> {
@@ -554,7 +590,34 @@ impl<T: Ui> UiContainer for Cursor<T> {
     }
 
     fn render(&self, f: &mut NextFrame) {
-        f.push_cursor(self.cursor, self.hit_id(), self.child())
+        if self.child.id().is_some() {
+            self.child.render(f);
+        } else {
+            f.push_id(self.id, &self.child);
+        }
+    }
+}
+delegate_ui!(UiContainer, EnsureId<T>, T);
+
+pub struct Cursor<T: Ui> {
+    child: EnsureId<T>,
+    cursor: CursorIcon,
+}
+
+impl<T: Ui> Cursor<T> {
+    pub fn new(child: T, cursor: CursorIcon) -> Self {
+        Cursor {
+            child: EnsureId::new(child),
+            cursor,
+        }
+    }
+}
+
+impl<T: Ui + 'static> UiContainer for Cursor<T> {
+    delegate_child!(child, EnsureId<T>);
+
+    fn render(&self, f: &mut NextFrame) {
+        f.push_cursor(self.cursor, self.child.hit_id(), &self.child.child)
     }
 }
 

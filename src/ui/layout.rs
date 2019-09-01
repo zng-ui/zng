@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer};
+use super::{ItemId, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -118,6 +118,10 @@ impl<T: Ui> CenterChild<T> {
 impl<T: Ui> UiContainer for CenterChild<T> {
     delegate_child!(child, T);
 
+    fn id(&self) -> Option<ItemId> {
+        None
+    }
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -206,6 +210,9 @@ impl<T: Ui> UiContainer for Margin<T> {
             sz.height - self.top - self.bottom,
         );
         f.push_child(&self.child, &rect);
+    }
+    fn id(&self) -> Option<ItemId> {
+        None
     }
 }
 delegate_ui!(UiContainer, Margin<T>, T);
