@@ -96,12 +96,6 @@ delegate_ui!(UiContainer, BackgroundColor<T>, T);
 pub fn background_color<T: Ui>(child: T, color: ColorF) -> BackgroundColor<T> {
     BackgroundColor::new(child, color)
 }
-pub trait BackgroundColorExt: Ui + Sized {
-    fn background_color(self, color: ColorF) -> BackgroundColor<Self> {
-        BackgroundColor::new(self, color)
-    }
-}
-impl<T: Ui> BackgroundColorExt for T {}
 
 #[derive(Clone)]
 pub struct BackgroundGradient<T> {
@@ -138,7 +132,11 @@ pub fn background_gradient<T: Ui>(
     BackgroundGradient::new(child, start, end, stops)
 }
 
-pub trait BackgroundGradientExt: Ui + Sized {
+pub trait Background: Ui + Sized {
+    fn background_color(self, color: ColorF) -> BackgroundColor<Self> {
+        BackgroundColor::new(self, color)
+    }
+
     fn background_gradient(
         self,
         start: LayoutPoint,
@@ -148,4 +146,4 @@ pub trait BackgroundGradientExt: Ui + Sized {
         BackgroundGradient::new(self, start, end, stops)
     }
 }
-impl<T: Ui> BackgroundGradientExt for T {}
+impl<T: Ui> Background for T {}

@@ -3,20 +3,20 @@ use webrender::euclid;
 
 /// Constrain a child to a size.
 /// # Constructors
-/// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](SizeChildExt::size).
+/// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](ExactSize::size).
 #[derive(Clone)]
-pub struct SizeChild<T: Ui> {
+pub struct UiSize<T: Ui> {
     child: T,
     size: LayoutSize,
 }
 
-impl<T: Ui> SizeChild<T> {
+impl<T: Ui> UiSize<T> {
     pub fn new(child: T, size: LayoutSize) -> Self {
-        SizeChild { child, size }
+        UiSize { child, size }
     }
 }
 
-impl<T: Ui> UiContainer for SizeChild<T> {
+impl<T: Ui> UiContainer for UiSize<T> {
     delegate_child!(child, T);
 
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
@@ -24,33 +24,23 @@ impl<T: Ui> UiContainer for SizeChild<T> {
         self.size
     }
 }
-delegate_ui!(UiContainer, SizeChild<T>, T);
+delegate_ui!(UiContainer, UiSize<T>, T);
 
-pub fn size<T: Ui>(child: T, size: LayoutSize) -> SizeChild<T> {
-    SizeChild::new(child, size)
+pub fn size<T: Ui>(child: T, size: LayoutSize) -> UiSize<T> {
+    UiSize::new(child, size)
 }
-pub trait SizeChildExt: Ui + Sized {
-    fn size(self, size: LayoutSize) -> SizeChild<Self> {
-        SizeChild::new(self, size)
-    }
-
-    fn size_wh(self, width: f32, height: f32) -> SizeChild<Self> {
-        SizeChild::new(self, LayoutSize::new(width, height))
-    }
-}
-impl<T: Ui> SizeChildExt for T {}
 
 #[derive(Clone)]
-pub struct WidthChild<T: Ui> {
+pub struct UiWidth<T: Ui> {
     child: T,
     width: f32,
 }
-impl<T: Ui> WidthChild<T> {
+impl<T: Ui> UiWidth<T> {
     pub fn new(child: T, width: f32) -> Self {
-        WidthChild { child, width }
+        UiWidth { child, width }
     }
 }
-impl<T: Ui> UiContainer for WidthChild<T> {
+impl<T: Ui> UiContainer for UiWidth<T> {
     delegate_child!(child, T);
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
@@ -60,29 +50,23 @@ impl<T: Ui> UiContainer for WidthChild<T> {
         child_size
     }
 }
-delegate_ui!(UiContainer, WidthChild<T>, T);
+delegate_ui!(UiContainer, UiWidth<T>, T);
 
-pub fn width<T: Ui>(child: T, width: LayoutSize) -> SizeChild<T> {
-    SizeChild::new(child, width)
+pub fn width<T: Ui>(child: T, width: LayoutSize) -> UiSize<T> {
+    UiSize::new(child, width)
 }
-pub trait WidthChildExt: Ui + Sized {
-    fn width(self, width: f32) -> WidthChild<Self> {
-        WidthChild::new(self, width)
-    }
-}
-impl<T: Ui> WidthChildExt for T {}
 
 #[derive(Clone)]
-pub struct HeightChild<T: Ui> {
+pub struct UiHeight<T: Ui> {
     child: T,
     height: f32,
 }
-impl<T: Ui> HeightChild<T> {
+impl<T: Ui> UiHeight<T> {
     pub fn new(child: T, height: f32) -> Self {
-        HeightChild { child, height }
+        UiHeight { child, height }
     }
 }
-impl<T: Ui> UiContainer for HeightChild<T> {
+impl<T: Ui> UiContainer for UiHeight<T> {
     delegate_child!(child, T);
 
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
@@ -92,30 +76,42 @@ impl<T: Ui> UiContainer for HeightChild<T> {
         child_size
     }
 }
-pub fn height<T: Ui>(child: T, height: LayoutSize) -> SizeChild<T> {
-    SizeChild::new(child, height)
+pub fn height<T: Ui>(child: T, height: LayoutSize) -> UiSize<T> {
+    UiSize::new(child, height)
 }
-pub trait HeightChildExt: Ui + Sized {
-    fn height(self, height: f32) -> HeightChild<Self> {
-        HeightChild::new(self, height)
+pub trait ExactSize: Ui + Sized {
+    fn width(self, width: f32) -> UiWidth<Self> {
+        UiWidth::new(self, width)
+    }
+
+    fn height(self, height: f32) -> UiHeight<Self> {
+        UiHeight::new(self, height)
+    }
+
+    fn size(self, size: LayoutSize) -> UiSize<Self> {
+        UiSize::new(self, size)
+    }
+
+    fn size_wh(self, width: f32, height: f32) -> UiSize<Self> {
+        UiSize::new(self, LayoutSize::new(width, height))
     }
 }
-impl<T: Ui> HeightChildExt for T {}
+impl<T: Ui> ExactSize for T {}
 
 #[derive(Clone)]
-pub struct CenterChild<T: Ui> {
+pub struct Center<T: Ui> {
     child: T,
     child_rect: LayoutRect,
 }
-impl<T: Ui> CenterChild<T> {
+impl<T: Ui> Center<T> {
     pub fn new(child: T) -> Self {
-        CenterChild {
+        Center {
             child,
             child_rect: LayoutRect::default(),
         }
     }
 }
-impl<T: Ui> UiContainer for CenterChild<T> {
+impl<T: Ui> UiContainer for Center<T> {
     delegate_child!(child, T);
 
     fn id(&self) -> Option<ItemId> {
@@ -148,27 +144,27 @@ impl<T: Ui> UiContainer for CenterChild<T> {
         f.push_child(&self.child, &self.child_rect);
     }
 }
-delegate_ui!(UiContainer, CenterChild<T>, T);
+delegate_ui!(UiContainer, Center<T>, T);
 
-pub fn center<T: Ui>(child: T) -> CenterChild<T> {
-    CenterChild::new(child)
+pub fn center<T: Ui>(child: T) -> Center<T> {
+    Center::new(child)
 }
-pub trait CenterChildExt: Ui + Sized {
-    fn center(self) -> CenterChild<Self> {
-        CenterChild::new(self)
+pub trait Align: Ui + Sized {
+    fn center(self) -> Center<Self> {
+        Center::new(self)
     }
 }
-impl<T: Ui> CenterChildExt for T {}
+impl<T: Ui> Align for T {}
 
 #[derive(Clone)]
-pub struct Margin<T: Ui> {
+pub struct UiMargin<T: Ui> {
     child: T,
     left: f32,
     top: f32,
     right: f32,
     bottom: f32,
 }
-impl<T: Ui> Margin<T> {
+impl<T: Ui> UiMargin<T> {
     pub fn uniform(child: T, uniform: f32) -> Self {
         Self::ltrb(child, uniform, uniform, uniform, uniform)
     }
@@ -178,7 +174,7 @@ impl<T: Ui> Margin<T> {
     }
 
     pub fn ltrb(child: T, left: f32, top: f32, right: f32, bottom: f32) -> Self {
-        Self {
+        UiMargin {
             child,
             left,
             top,
@@ -187,7 +183,7 @@ impl<T: Ui> Margin<T> {
         }
     }
 }
-impl<T: Ui> UiContainer for Margin<T> {
+impl<T: Ui> UiContainer for UiMargin<T> {
     delegate_child!(child, T);
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -215,27 +211,27 @@ impl<T: Ui> UiContainer for Margin<T> {
         None
     }
 }
-delegate_ui!(UiContainer, Margin<T>, T);
+delegate_ui!(UiContainer, UiMargin<T>, T);
 
-pub trait MarginExt: Ui + Sized {
-    fn margin(self, uniform: f32) -> Margin<Self> {
-        Margin::uniform(self, uniform)
+pub trait Margin: Ui + Sized {
+    fn margin(self, uniform: f32) -> UiMargin<Self> {
+        UiMargin::uniform(self, uniform)
     }
-    fn margin_lr_tb(self, left_right: f32, top_bottom: f32) -> Margin<Self> {
-        Margin::lr_tb(self, left_right, top_bottom)
+    fn margin_lr_tb(self, left_right: f32, top_bottom: f32) -> UiMargin<Self> {
+        UiMargin::lr_tb(self, left_right, top_bottom)
     }
-    fn margin_ltrb(self, left: f32, top: f32, right: f32, bottom: f32) -> Margin<Self> {
-        Margin::ltrb(self, left, top, right, bottom)
+    fn margin_ltrb(self, left: f32, top: f32, right: f32, bottom: f32) -> UiMargin<Self> {
+        UiMargin::ltrb(self, left, top, right, bottom)
     }
 }
-impl<T: Ui> MarginExt for T {}
+impl<T: Ui> Margin for T {}
 
-pub fn margin<T: Ui>(child: T, uniform: f32) -> Margin<T> {
-    Margin::uniform(child, uniform)
+pub fn margin<T: Ui>(child: T, uniform: f32) -> UiMargin<T> {
+    UiMargin::uniform(child, uniform)
 }
-pub fn margin_lr_tb<T: Ui>(child: T, left_right: f32, top_bottom: f32) -> Margin<T> {
-    Margin::lr_tb(child, left_right, top_bottom)
+pub fn margin_lr_tb<T: Ui>(child: T, left_right: f32, top_bottom: f32) -> UiMargin<T> {
+    UiMargin::lr_tb(child, left_right, top_bottom)
 }
-pub fn margin_ltrb<T: Ui>(child: T, left: f32, top: f32, right: f32, bottom: f32) -> Margin<T> {
-    Margin::ltrb(child, left, top, right, bottom)
+pub fn margin_ltrb<T: Ui>(child: T, left: f32, top: f32, right: f32, bottom: f32) -> UiMargin<T> {
+    UiMargin::ltrb(child, left, top, right, bottom)
 }

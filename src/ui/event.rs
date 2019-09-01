@@ -4,9 +4,6 @@ use super::{
 };
 use std::fmt;
 
-//on_key!(Pressed, OnKeyDown, OnKeyDownExt, on_key_down);
-//on_key!(Released, OnKeyUp, OnKeyUpExt, on_key_up);
-
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
     child: T,
     handler: F,

@@ -604,21 +604,21 @@ impl<T: Ui> UiContainer for EnsureId<T> {
 }
 delegate_ui!(UiContainer, EnsureId<T>, T);
 
-pub struct Cursor<T: Ui> {
+pub struct UiCursor<T: Ui> {
     child: EnsureId<T>,
     cursor: CursorIcon,
 }
 
-impl<T: Ui> Cursor<T> {
+impl<T: Ui> UiCursor<T> {
     pub fn new(child: T, cursor: CursorIcon) -> Self {
-        Cursor {
+        UiCursor {
             child: EnsureId::new(child),
             cursor,
         }
     }
 }
 
-impl<T: Ui + 'static> UiContainer for Cursor<T> {
+impl<T: Ui + 'static> UiContainer for UiCursor<T> {
     delegate_child!(child, EnsureId<T>);
 
     fn render(&self, f: &mut NextFrame) {
@@ -626,15 +626,15 @@ impl<T: Ui + 'static> UiContainer for Cursor<T> {
     }
 }
 
-delegate_ui!(UiContainer, Cursor<T>, T);
+delegate_ui!(UiContainer, UiCursor<T>, T);
 
-pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) -> Cursor<T> {
-    Cursor::new(child, cursor)
+pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) -> UiCursor<T> {
+    UiCursor::new(child, cursor)
 }
 
-pub trait CursorExt: Ui + Sized {
-    fn cursor(self, cursor: CursorIcon) -> Cursor<Self> {
-        Cursor::new(self, cursor)
+pub trait Cursor: Ui + Sized {
+    fn cursor(self, cursor: CursorIcon) -> UiCursor<Self> {
+        UiCursor::new(self, cursor)
     }
 }
-impl<T: Ui> CursorExt for T {}
+impl<T: Ui> Cursor for T {}
