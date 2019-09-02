@@ -71,8 +71,8 @@ macro_rules! delegate_ui_methods {
             $Del::close_request(self, update)
         }
 
-        fn id(&self) -> Option<$crate::ui::ItemId> {
-            $Del::id(self)
+        fn point_over(&self, hits: &$crate::ui::Hits) -> Option<$crate::ui::LayoutPoint> {
+            $Del::point_over(self, hits)
         }
     };
 }

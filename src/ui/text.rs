@@ -1,4 +1,4 @@
-use super::{InitContext, LayoutSize, NextFrame, UiLeaf};
+use super::{HitTag, Hits, InitContext, LayoutSize, NextFrame, UiLeaf};
 use webrender::api::*;
 
 pub struct Text {
@@ -6,6 +6,7 @@ pub struct Text {
     size: LayoutSize,
     font_instance_key: FontInstanceKey,
     color: ColorF,
+    hit_tag: HitTag,
 }
 
 impl Text {
@@ -49,6 +50,7 @@ impl Text {
             size,
             font_instance_key: font.instance_key,
             color,
+            hit_tag: HitTag::new(),
         }
     }
 }
@@ -62,12 +64,17 @@ impl UiLeaf for Text {
         self.size
     }
 
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        hits.point_over(self.hit_tag)
+    }
+
     fn render(&self, f: &mut NextFrame) {
         f.push_text(
             LayoutRect::from_size(self.size),
             &self.glyphs,
             self.font_instance_key,
             self.color,
+            Some(self.hit_tag),
         )
     }
 }

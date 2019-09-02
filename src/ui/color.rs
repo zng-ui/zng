@@ -1,4 +1,4 @@
-use super::{ColorF, GradientStop, LayoutPoint, LayoutRect, NextFrame, Ui, UiContainer, UiLeaf};
+use super::{ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, Ui, UiContainer, UiLeaf};
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
     ColorF::new(r, g, b, 1.)
@@ -19,17 +19,25 @@ pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
 #[derive(Clone)]
 pub struct FillColor {
     color: ColorF,
+    hit_tag: HitTag,
 }
 
 impl FillColor {
     pub fn new(color: ColorF) -> Self {
-        FillColor { color }
+        FillColor {
+            color,
+            hit_tag: HitTag::new(),
+        }
     }
 }
 
 impl UiLeaf for FillColor {
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        hits.point_over(self.hit_tag)
+    }
+
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), self.color);
+        f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
     }
 }
 delegate_ui!(UiLeaf, FillColor);
@@ -43,15 +51,25 @@ pub struct FillGradient {
     start: LayoutPoint,
     end: LayoutPoint,
     stops: Vec<GradientStop>,
+    hit_tag: HitTag,
 }
 
 impl FillGradient {
     pub fn new(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
-        FillGradient { start, end, stops }
+        FillGradient {
+            start,
+            end,
+            stops,
+            hit_tag: HitTag::new(),
+        }
     }
 }
 
 impl UiLeaf for FillGradient {
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        hits.point_over(self.hit_tag)
+    }
+
     fn render(&self, f: &mut NextFrame) {
         let final_size = f.final_size();
         let mut start = self.start;
@@ -62,7 +80,13 @@ impl UiLeaf for FillGradient {
         end.x *= final_size.width;
         end.y *= final_size.height;
 
-        f.push_gradient(LayoutRect::from_size(final_size), start, end, self.stops.clone());
+        f.push_gradient(
+            LayoutRect::from_size(final_size),
+            start,
+            end,
+            self.stops.clone(),
+            Some(self.hit_tag),
+        );
     }
 }
 delegate_ui!(UiLeaf, FillGradient);
@@ -75,19 +99,28 @@ pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientSt
 pub struct BackgroundColor<T> {
     child: T,
     color: ColorF,
+    hit_tag: HitTag,
 }
 
 impl<T> BackgroundColor<T> {
     pub fn new(child: T, color: ColorF) -> Self {
-        BackgroundColor { child, color }
+        BackgroundColor {
+            child,
+            color,
+            hit_tag: HitTag::new(),
+        }
     }
 }
 
 impl<T: Ui> UiContainer for BackgroundColor<T> {
     delegate_child!(child, T);
 
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        hits.point_over(self.hit_tag)
+    }
+
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), self.color);
+        f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
         self.child.render(f)
     }
 }
@@ -114,6 +147,10 @@ impl<T> BackgroundGradient<T> {
 
 impl<T: Ui> UiContainer for BackgroundGradient<T> {
     delegate_child!(child, T);
+
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        Ui::point_over(&self.gradient, hits)
+    }
 
     fn render(&self, f: &mut NextFrame) {
         Ui::render(&self.gradient, f);

@@ -108,15 +108,15 @@ impl InitContext {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ItemId(u64);
+pub struct HitTag(u64);
 
-impl ItemId {
+impl HitTag {
     /// Generates a new unique ID.
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
 
-        ItemId(NEXT.fetch_add(1, Ordering::SeqCst))
+        HitTag(NEXT.fetch_add(1, Ordering::SeqCst))
     }
 }
 
@@ -124,7 +124,6 @@ pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
-    id: Option<ItemId>,
     cursor: CursorIcon,
 }
 
@@ -134,18 +133,8 @@ impl NextFrame {
             builder,
             spatial_id,
             final_size,
-            id: None,
             cursor: CursorIcon::Default,
         }
-    }
-
-    pub fn push_id(&mut self, id: ItemId, child: &impl Ui) {
-        let current_id = self.id;
-        self.id = Some(id);
-
-        child.render(self);
-
-        self.id = current_id;
     }
 
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
@@ -171,18 +160,22 @@ impl NextFrame {
         //https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Positioning/Understanding_z_index/The_stacking_context
     }
 
-    pub fn push_cursor(&mut self, cursor: CursorIcon, id: ItemId, child: &impl Ui) {
+    pub fn push_cursor(&mut self, cursor: CursorIcon, child: &impl Ui) {
         let current_cursor = self.cursor;
         self.cursor = cursor;
 
-        self.push_id(id, child);
+        child.render(self);
 
         self.cursor = current_cursor;
     }
 
-    fn layout_and_clip(&self, final_rect: LayoutRect) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
+    fn layout_and_clip(
+        &self,
+        final_rect: LayoutRect,
+        hit_tag: Option<HitTag>,
+    ) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
         let mut lpi = LayoutPrimitiveInfo::new(final_rect);
-        lpi.tag = self.id.map(|v| (v.0, self.cursor as u16));
+        lpi.tag = hit_tag.map(|v| (v.0, self.cursor as u16));
         let sci = SpaceAndClipInfo {
             spatial_id: self.spatial_id,
             clip_id: ClipId::root(self.spatial_id.pipeline_id()),
@@ -191,8 +184,8 @@ impl NextFrame {
         (lpi, sci)
     }
 
-    pub fn push_color(&mut self, final_rect: LayoutRect, color: ColorF) {
-        let (lpi, sci) = self.layout_and_clip(final_rect);
+    pub fn push_color(&mut self, final_rect: LayoutRect, color: ColorF, hit_tag: Option<HitTag>) {
+        let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
         self.builder.push_rect(&lpi, &sci, color);
     }
 
@@ -202,8 +195,9 @@ impl NextFrame {
         start: LayoutPoint,
         end: LayoutPoint,
         stops: Vec<GradientStop>,
+        hit_tag: Option<HitTag>,
     ) {
-        let (lpi, sci) = self.layout_and_clip(final_rect);
+        let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
 
         let grad = self.builder.create_gradient(start, end, stops, ExtendMode::Clamp);
         self.builder
@@ -216,8 +210,9 @@ impl NextFrame {
         glyphs: &[GlyphInstance],
         font_instance_key: FontInstanceKey,
         color: ColorF,
+        hit_tag: Option<HitTag>,
     ) {
-        let (lpi, sci) = self.layout_and_clip(final_rect);
+        let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
 
         self.builder
             .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
@@ -275,7 +270,7 @@ pub struct MouseMove {
 /// Hit test results.
 #[derive(Default)]
 pub struct Hits {
-    points: HashMap<ItemId, LayoutPoint>,
+    points: HashMap<HitTag, LayoutPoint>,
     cursor: CursorIcon,
 }
 
@@ -297,14 +292,14 @@ impl Hits {
             points: hits
                 .items
                 .into_iter()
-                .map(|h| (ItemId(h.tag.0), h.point_relative_to_item))
+                .map(|h| (HitTag(h.tag.0), h.point_relative_to_item))
                 .collect(),
             cursor,
         }
     }
 
-    pub fn point_over(&self, item: ItemId) -> Option<LayoutPoint> {
-        self.points.get(&item).cloned()
+    pub fn point_over(&self, tag: HitTag) -> Option<LayoutPoint> {
+        self.points.get(&tag).cloned()
     }
 
     pub fn cursor(&self) -> CursorIcon {
@@ -335,7 +330,8 @@ pub trait Ui {
 
     fn close_request(&mut self, update: &mut NextUpdate);
 
-    fn id(&self) -> Option<ItemId>;
+    /// Gets the point over this UI element using a hit test result.
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint>;
 
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
@@ -387,8 +383,8 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().close_request(update);
     }
 
-    fn id(&self) -> Option<ItemId> {
-        self.as_ref().id()
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        self.as_ref().point_over(hits)
     }
 }
 
@@ -425,7 +421,7 @@ pub trait UiLeaf {
 
     fn close_request(&mut self, update: &mut NextUpdate) {}
 
-    fn id(&self) -> Option<ItemId> {
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         None
     }
 }
@@ -476,8 +472,8 @@ pub trait UiContainer {
         self.child_mut().close_request(update);
     }
 
-    fn id(&self) -> Option<ItemId> {
-        self.child().id()
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        self.child().point_over(hits)
     }
 }
 
@@ -549,7 +545,12 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
-    fn id(&self) -> Option<ItemId> {
+    fn point_over(&'a self, hits: &Hits) -> Option<LayoutPoint> {
+        for c in self.children() {
+            if let Some(point) = c.point_over(hits) {
+                return Some(point);
+            }
+        }
         None
     }
 }
@@ -567,62 +568,22 @@ delegate_ui!(UiLeaf, ());
 // https://doc.servo.org/webrender_api/struct.CommonItemProperties.html
 // https://doc.servo.org/webrender_api/struct.DisplayListBuilder.html#method.push_hit_test
 
-#[derive(Clone)]
-pub struct EnsureId<T: Ui> {
-    pub child: T,
-    // id used when child does not have an id.
-    id: ItemId,
-}
-
-impl<T: Ui> EnsureId<T> {
-    pub fn new(child: T) -> Self {
-        EnsureId {
-            child,
-            id: ItemId::new(),
-        }
-    }
-
-    pub fn hit_id(&self) -> ItemId {
-        self.child.id().unwrap_or(self.id)
-    }
-}
-
-impl<T: Ui> UiContainer for EnsureId<T> {
-    delegate_child!(child, T);
-
-    fn id(&self) -> Option<ItemId> {
-        Some(self.hit_id())
-    }
-
-    fn render(&self, f: &mut NextFrame) {
-        if self.child.id().is_some() {
-            self.child.render(f);
-        } else {
-            f.push_id(self.id, &self.child);
-        }
-    }
-}
-delegate_ui!(UiContainer, EnsureId<T>, T);
-
 pub struct UiCursor<T: Ui> {
-    child: EnsureId<T>,
+    child: T,
     cursor: CursorIcon,
 }
 
 impl<T: Ui> UiCursor<T> {
     pub fn new(child: T, cursor: CursorIcon) -> Self {
-        UiCursor {
-            child: EnsureId::new(child),
-            cursor,
-        }
+        UiCursor { child, cursor }
     }
 }
 
 impl<T: Ui + 'static> UiContainer for UiCursor<T> {
-    delegate_child!(child, EnsureId<T>);
+    delegate_child!(child, T);
 
     fn render(&self, f: &mut NextFrame) {
-        f.push_cursor(self.cursor, self.child.hit_id(), &self.child.child)
+        f.push_cursor(self.cursor, &self.child)
     }
 }
 

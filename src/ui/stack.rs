@@ -1,4 +1,4 @@
-use super::{LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
+use super::{Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
 use std::iter::FromIterator;
 
 macro_rules! stack {
@@ -120,6 +120,14 @@ impl<T: Ui> UiContainer for StackSlot<T> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.rect.size = final_size;
         self.child.arrange(final_size);
+    }
+
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+        self.child.point_over(hits).map(|mut p| {
+            p.x += self.rect.origin.x;
+            p.y += self.rect.origin.y;
+            p
+        })
     }
 
     fn render(&self, f: &mut NextFrame) {
