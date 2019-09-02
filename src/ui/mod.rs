@@ -189,6 +189,11 @@ impl NextFrame {
         self.builder.push_rect(&lpi, &sci, color);
     }
 
+    pub fn push_hit_test(&mut self, hit_tag: HitTag, final_rect: LayoutRect) {
+        let (lpi, sci) = self.layout_and_clip(final_rect, Some(hit_tag));
+        self.builder.push_rect(&lpi, &sci, ColorF::TRANSPARENT);
+    }
+
     pub fn push_gradient(
         &mut self,
         final_rect: LayoutRect,

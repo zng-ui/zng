@@ -1,15 +1,17 @@
-use super::{Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
+use super::{HitTag, Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
 use std::iter::FromIterator;
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
         pub struct $Stack<T> {
             children: Vec<StackSlot<T>>,
+            hit_tag: HitTag,
         }
         impl<T: Ui> $Stack<T> {
             pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
                 $Stack {
                     children: children.into(),
+                    hit_tag: HitTag::new(),
                 }
             }
         }
@@ -28,6 +30,7 @@ macro_rules! stack {
 
                 total_size
             }
+
             fn arrange(&mut self, final_size: LayoutSize) {
                 let mut $dimension = 0.0;
                 for c in self.children_mut() {
@@ -37,10 +40,20 @@ macro_rules! stack {
                     Ui::arrange(c, c.rect.size);
                 }
             }
+
             fn render(&self, f: &mut NextFrame) {
                 for c in self.children() {
                     f.push_child(&c.child, &c.rect);
                 }
+                f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size));
+            }
+
+            fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+                let r = hits.point_over(self.hit_tag);
+                if r.is_some() && self.children().any(|c| Ui::point_over(c, hits).is_some()) {
+                    return r;
+                }
+                None
             }
         }
         delegate_ui!(UiMultiContainer, $Stack<T>, T);
@@ -120,14 +133,6 @@ impl<T: Ui> UiContainer for StackSlot<T> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.rect.size = final_size;
         self.child.arrange(final_size);
-    }
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        self.child.point_over(hits).map(|mut p| {
-            p.x += self.rect.origin.x;
-            p.y += self.rect.origin.y;
-            p
-        })
     }
 
     fn render(&self, f: &mut NextFrame) {
