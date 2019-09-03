@@ -271,6 +271,7 @@ impl Window {
                 if !focused {
                     self.key_down = None;
                 }
+                self.content.focused(focused, &mut self.next_update);
             }
 
             _ => has_update = false,

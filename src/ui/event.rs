@@ -120,6 +120,58 @@ macro_rules! on_mouse {
 on_mouse!(Pressed, OnMouseDown);
 on_mouse!(Released, OnMouseUp);
 
+pub struct OnClick<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
+    child: T,
+    handler: F,
+    started_click: bool,
+}
+
+impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> OnClick<T, F> {
+    pub fn new(child: T, handler: F) -> Self {
+        OnClick {
+            child,
+            handler,
+            started_click: false,
+        }
+    }
+}
+
+impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for OnClick<T, F> {
+    delegate_child!(child, T);
+
+    fn focused(&mut self, _: bool, _: &mut NextUpdate) {
+        self.started_click = false;
+    }
+
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+        Ui::mouse_input(&mut self.child, input, hits, update);
+
+        match input.state {
+            ElementState::Pressed => {
+                self.started_click = self.child.point_over(hits).is_some();
+            }
+            ElementState::Released => {
+                if self.started_click {
+                    self.started_click = false;
+
+                    if let Some(position) = self.child.point_over(hits) {
+                        let input = MouseButtonInput {
+                            button: input.button,
+                            modifiers: input.modifiers,
+                            position,
+                        };
+                        (self.handler)(input, update);
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnClick<T, F> {
+    delegate_ui_methods!(UiContainer);
+}
+
 #[derive(Clone)]
 pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     child: T,
@@ -207,6 +259,10 @@ pub trait MouseEvents: Ui + Sized {
 
     fn on_mouse_up<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnMouseUp<Self, F> {
         OnMouseUp::new(self, handler)
+    }
+
+    fn on_click<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnClick<Self, F> {
+        OnClick::new(self, handler)
     }
 
     fn on_mouse_move<F: FnMut(MouseMove, &mut NextUpdate)>(self, handler: F) -> OnMouseMove<Self, F> {

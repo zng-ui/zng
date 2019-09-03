@@ -325,6 +325,8 @@ pub trait Ui {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
 
+    fn focused(&mut self, focused: bool, update: &mut NextUpdate);
+
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate);
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate);
@@ -366,6 +368,10 @@ impl Ui for Box<dyn Ui> {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
         self.as_mut().keyboard_input(input, update);
+    }
+
+    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
+        self.as_mut().focused(focused, update);
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
@@ -416,6 +422,8 @@ pub trait UiLeaf {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {}
 
+    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {}
+
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {}
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {}
@@ -455,6 +463,10 @@ pub trait UiContainer {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
         self.child_mut().keyboard_input(input, update);
+    }
+
+    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
+        self.child_mut().focused(focused, update);
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
@@ -517,6 +529,12 @@ pub trait UiMultiContainer<'a> {
     fn keyboard_input(&'a mut self, input: &KeyboardInput, update: &mut NextUpdate) {
         for c in self.children_mut() {
             c.keyboard_input(input, update);
+        }
+    }
+
+    fn focused(&'a mut self, focused: bool, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.focused(focused, update);
         }
     }
 

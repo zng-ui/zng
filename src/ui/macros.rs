@@ -51,6 +51,10 @@ macro_rules! delegate_ui_methods {
             $Del::keyboard_input(self, input, update)
         }
 
+        fn focused(&mut self, focused: bool, update: &mut $crate::ui::NextUpdate) {
+            $Del::focused(self, focused, update)
+        }
+
         fn mouse_input(&mut self, input: &$crate::ui::MouseInput, hits: &$crate::ui::Hits, update: &mut $crate::ui::NextUpdate) {
             $Del::mouse_input(self, input, hits, update)
         }

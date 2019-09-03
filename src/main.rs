@@ -26,10 +26,11 @@ fn main() {
                     .collect::<Vec<_>>(),
             )
             //.log_layout("log_target")
-            .on_key_down(|k, _| println!("on_key_down: {}", k))
-            .on_key_up(|k, _| println!("on_key_up: {}", k))
-            .on_mouse_down(|m, _| println!("on_mouse_down: {}", m))
-            .on_mouse_up(|m, _| println!("on_mouse_up: {}", m))
+            //.on_key_down(|k, _| println!("on_key_down: {}", k))
+            //.on_key_up(|k, _| println!("on_key_up: {}", k))
+            //.on_mouse_down(|m, _| println!("on_mouse_down: {}", m))
+            //.on_mouse_up(|m, _| println!("on_mouse_up: {}", m))
+            .on_click(|m, _| println!("on_click: {}", m))
             //.on_mouse_move(|m, _| println!("on_mouse_move: {}", m.position))
         })
         .window("window2", rgbaf(0.3, 0.2, 0.1, 1.0), |c| {

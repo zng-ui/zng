@@ -43,7 +43,7 @@ macro_rules! stack {
 
             fn render(&self, f: &mut NextFrame) {
                 f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size));
-                
+
                 for c in self.children() {
                     f.push_child(&c.child, &c.rect);
                 }
