@@ -124,9 +124,8 @@ on_mouse!(Released, OnMouseUp);
 pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
     child: T,
     handler: F,
-    started_click: bool,
     click_count: u8,
-    click_time: Instant,
+    last_pressed: Instant,
 }
 
 impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
@@ -134,23 +133,12 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
         OnClick {
             child,
             handler,
-            started_click: false,
             click_count: 0,
-            click_time: Instant::now() - Duration::from_secs(30),
+            last_pressed: Instant::now() - Duration::from_secs(30),
         }
     }
 
-    fn on_click(&mut self, input: &MouseInput, position: LayoutPoint, update: &mut NextUpdate) {
-        let now = Instant::now();
-
-        if (now - self.click_time) > multi_click_time_ms() {
-            self.click_count = 1;
-        } else {
-            self.click_count = self.click_count.saturating_add(1);
-        }
-
-        self.click_time = now;
-
+    fn call_handler(&mut self, input: &MouseInput, position: LayoutPoint, update: &mut NextUpdate) {
         let input = ClickInput {
             button: input.button,
             modifiers: input.modifiers,
@@ -158,6 +146,11 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
             click_count: self.click_count,
         };
         (self.handler)(input, update);
+    }
+
+    fn interaction_outside(&mut self) {
+        self.click_count = 0;
+        self.last_pressed -= Duration::from_secs(30);
     }
 }
 
@@ -177,7 +170,7 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
     delegate_child!(child, T);
 
     fn focused(&mut self, _: bool, _: &mut NextUpdate) {
-        self.started_click = false;
+        self.interaction_outside();
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
@@ -185,14 +178,31 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
 
         match input.state {
             ElementState::Pressed => {
-                self.started_click = self.child.point_over(hits).is_some();
+                if let Some(position) = self.child.point_over(hits) {
+                    self.click_count = self.click_count.saturating_add(1);
+
+                    let now = Instant::now();
+
+                    if self.click_count > 1 {
+                        if (now - self.last_pressed) < multi_click_time_ms() {
+                            self.call_handler(input, position, update);
+                        } else {
+                            self.click_count = 1;
+                        }
+                    }
+                    self.last_pressed = now;
+                } else {
+                    self.interaction_outside();
+                }
             }
             ElementState::Released => {
-                if self.started_click {
-                    self.started_click = false;
-
+                if self.click_count > 0 {
                     if let Some(position) = self.child.point_over(hits) {
-                        self.on_click(input, position, update);
+                        if self.click_count == 1 {
+                            self.call_handler(input, position, update);
+                        }
+                    } else {
+                        self.interaction_outside();
                     }
                 }
             }
