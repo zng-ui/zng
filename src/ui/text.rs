@@ -1,4 +1,4 @@
-use super::{HitTag, Hits, InitContext, LayoutSize, NextFrame, UiLeaf};
+use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, UiLeaf};
 use webrender::api::*;
 
 pub struct Text {
@@ -10,7 +10,7 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn new(c: &mut InitContext, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Self {
+    pub fn new(c: &mut NextUpdate, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Self {
         let font = c.font(font_family, font_size);
 
         let indices: Vec<_> = c
@@ -55,7 +55,7 @@ impl Text {
     }
 }
 
-pub fn text(c: &mut InitContext, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Text {
+pub fn text(c: &mut NextUpdate, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Text {
     Text::new(c, text, color, font_family, font_size)
 }
 

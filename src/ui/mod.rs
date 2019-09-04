@@ -9,7 +9,6 @@ mod stack;
 mod text;
 
 pub use self::log::*;
-pub use crate::window::NextUpdate;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
@@ -25,12 +24,6 @@ use std::collections::HashMap;
 use webrender::api::*;
 pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
 
-pub struct InitContext {
-    pub api: RenderApi,
-    pub document_id: DocumentId,
-    fonts: HashMap<String, FontInstances>,
-}
-
 struct FontInstances {
     font_key: FontKey,
     instances: HashMap<u32, FontInstanceKey>,
@@ -43,13 +36,45 @@ pub struct FontInstance {
     pub size: u32,
 }
 
-impl InitContext {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct HitTag(u64);
+
+impl HitTag {
+    /// Generates a new unique ID.
+    pub fn new() -> Self {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+
+        HitTag(NEXT.fetch_add(1, Ordering::SeqCst))
+    }
+}
+
+pub struct NextUpdate {
+    pub(crate) api: RenderApi,
+    pub(crate) document_id: DocumentId,
+    fonts: HashMap<String, FontInstances>,
+
+    pub(crate) update_layout: bool,
+    pub(crate) render_frame: bool,
+    _request_close: bool,
+}
+impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
-        InitContext {
+        NextUpdate {
             api,
             document_id,
             fonts: HashMap::new(),
+            update_layout: true,
+            render_frame: true,
+            _request_close: false,
         }
+    }
+
+    pub fn update_layout(&mut self) {
+        self.update_layout = true;
+    }
+    pub fn render_frame(&mut self) {
+        self.render_frame = true;
     }
 
     pub fn font(&mut self, family: &str, size: u32) -> FontInstance {
@@ -105,19 +130,31 @@ impl InitContext {
             size,
         }
     }
-}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct HitTag(u64);
+    //-------idea---------
+    //
+    //pub fn close_app(&mut self) {
+    //    self.close = Some(CloseRequest::App);
+    //}
 
-impl HitTag {
-    /// Generates a new unique ID.
-    pub fn new() -> Self {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(0);
+    //pub fn cancel_close(&mut self) {
+    //    self.cancel_close = true;
+    //}
 
-        HitTag(NEXT.fetch_add(1, Ordering::SeqCst))
-    }
+    //pub fn set_window_title(&mut self, title: String) {
+    //    self.new_window_title = Some(title);
+    //}
+
+    //pub fn start_work(&mut self, work: impl FnOnce() + 'static) -> WorkKey {
+    //    let key = self.next_work_key;
+    //    self.new_work.push((key, Box::new(work)));
+    //    self.next_work_key = WorkKey(key.0.wrapping_add(1));
+    //    key
+    //}
+
+    //pub fn cancel_work(&mut self, work_key: WorkKey) {
+    //    self.cancel_work.push(work_key)
+    //}
 }
 
 pub struct NextFrame {

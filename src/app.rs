@@ -1,4 +1,4 @@
-use crate::ui::{InitContext, Ui};
+use crate::ui::{NextUpdate, Ui};
 use crate::window::{WebRenderEvent, Window};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
@@ -34,7 +34,7 @@ impl App {
         mut self,
         title: impl ToString,
         background_color: webrender::api::ColorF,
-        content: impl Fn(&mut InitContext) -> TContent,
+        content: impl Fn(&mut NextUpdate) -> TContent,
     ) -> Self {
         let win = Window::new(
             title.to_string(),

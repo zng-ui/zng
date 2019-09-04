@@ -1,4 +1,4 @@
-use crate::ui::{Hits, InitContext, KeyboardInput, MouseInput, MouseMove, NextFrame, Ui};
+use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NextFrame, NextUpdate, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -34,50 +34,9 @@ impl RenderNotifier for Notifier {
     }
 }
 
-pub struct NextUpdate {
-    update_layout: bool,
-    render_frame: bool,
-    _request_close: bool,
-}
-impl NextUpdate {
-    fn update_layout(&mut self) {
-        self.update_layout = true;
-    }
-    fn render_frame(&mut self) {
-        self.render_frame = true;
-    }
-
-    //-------idea---------
-    //
-    //pub fn close_app(&mut self) {
-    //    self.close = Some(CloseRequest::App);
-    //}
-
-    //pub fn cancel_close(&mut self) {
-    //    self.cancel_close = true;
-    //}
-
-    //pub fn set_window_title(&mut self, title: String) {
-    //    self.new_window_title = Some(title);
-    //}
-
-    //pub fn start_work(&mut self, work: impl FnOnce() + 'static) -> WorkKey {
-    //    let key = self.next_work_key;
-    //    self.new_work.push((key, Box::new(work)));
-    //    self.next_work_key = WorkKey(key.0.wrapping_add(1));
-    //    key
-    //}
-
-    //pub fn cancel_work(&mut self, work_key: WorkKey) {
-    //    self.cancel_work.push(work_key)
-    //}
-}
-
 pub struct Window {
     context: Option<WindowedContext<NotCurrent>>,
 
-    api: RenderApi,
-    document_id: DocumentId,
     latest_frame_id: Epoch,
     pipeline_id: PipelineId,
     renderer: webrender::Renderer,
@@ -105,7 +64,7 @@ impl Window {
         name: String,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(&mut InitContext) -> Box<dyn Ui>,
+        content: impl Fn(&mut NextUpdate) -> Box<dyn Ui>,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
         ui_threads: Arc<ThreadPool>,
@@ -154,14 +113,12 @@ impl Window {
         let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let mut init_ctx = InitContext::new(api, document_id);
+        let mut next_update = NextUpdate::new(api, document_id);
 
-        let content = content(&mut init_ctx);
+        let content = content(&mut next_update);
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 
-            api: init_ctx.api,
-            document_id,
             latest_frame_id,
             pipeline_id,
             renderer,
@@ -173,11 +130,7 @@ impl Window {
             content_size: LayoutSize::default(),
 
             first_draw: true,
-            next_update: NextUpdate {
-                update_layout: true,
-                render_frame: true,
-                _request_close: false,
-            },
+            next_update,
             redraw: false,
 
             close: false,
@@ -280,8 +233,8 @@ impl Window {
     }
 
     fn hit_test(&self, point: LayoutPoint) -> Hits {
-        Hits::new(self.api.hit_test(
-            self.document_id,
+        Hits::new(self.next_update.api.hit_test(
+            self.next_update.document_id,
             Some(self.pipeline_id),
             WorldPoint::new(point.x, point.y),
             HitTestFlags::FIND_ALL,
@@ -314,8 +267,8 @@ impl Window {
 
         let device_size = self.device_size();
 
-        self.api.set_window_parameters(
-            self.document_id,
+        self.next_update.api.set_window_parameters(
+            self.next_update.document_id,
             device_size,
             DeviceIntRect::from_size(device_size),
             self.dpi_factor,
@@ -355,7 +308,7 @@ impl Window {
         txn.set_display_list(self.latest_frame_id, None, self.inner_size, frame.finalize(), true);
         txn.set_root_pipeline(self.pipeline_id);
         txn.generate_frame();
-        self.api.send_transaction(self.document_id, txn);
+        self.next_update.api.send_transaction(self.next_update.document_id, txn);
     }
 
     /// Redraws the last ready frame and swaps buffers.
