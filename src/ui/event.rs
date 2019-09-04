@@ -3,6 +3,7 @@ use super::{
     UiContainer, VirtualKeyCode,
 };
 use std::fmt;
+use std::time::{Duration, Instant};
 
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
     child: T,
@@ -120,23 +121,59 @@ macro_rules! on_mouse {
 on_mouse!(Pressed, OnMouseDown);
 on_mouse!(Released, OnMouseUp);
 
-pub struct OnClick<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
+pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
     child: T,
     handler: F,
     started_click: bool,
+    click_count: u8,
+    click_time: Instant,
 }
 
-impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> OnClick<T, F> {
+impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
     pub fn new(child: T, handler: F) -> Self {
         OnClick {
             child,
             handler,
             started_click: false,
+            click_count: 0,
+            click_time: Instant::now() - Duration::from_secs(30),
         }
+    }
+
+    fn on_click(&mut self, input: &MouseInput, position: LayoutPoint, update: &mut NextUpdate) {
+        let now = Instant::now();
+
+        if (now - self.click_time) > multi_click_time_ms() {
+            self.click_count = 1;
+        } else {
+            self.click_count = self.click_count.saturating_add(1);
+        }
+
+        self.click_time = now;
+
+        let input = ClickInput {
+            button: input.button,
+            modifiers: input.modifiers,
+            position,
+            click_count: self.click_count,
+        };
+        (self.handler)(input, update);
     }
 }
 
-impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for OnClick<T, F> {
+#[cfg(target_os = "windows")]
+fn multi_click_time_ms() -> Duration {
+    Duration::from_millis(unsafe { winapi::um::winuser::GetDoubleClickTime() } as u64)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn multi_click_time_ms() -> u32 {
+    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
+    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
+    Duration::from_millis(500)
+}
+
+impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnClick<T, F> {
     delegate_child!(child, T);
 
     fn focused(&mut self, _: bool, _: &mut NextUpdate) {
@@ -155,12 +192,7 @@ impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer f
                     self.started_click = false;
 
                     if let Some(position) = self.child.point_over(hits) {
-                        let input = MouseButtonInput {
-                            button: input.button,
-                            modifiers: input.modifiers,
-                            position,
-                        };
-                        (self.handler)(input, update);
+                        self.on_click(input, position, update);
                     }
                 }
             }
@@ -168,7 +200,7 @@ impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer f
     }
 }
 
-impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for OnClick<T, F> {
+impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> Ui for OnClick<T, F> {
     delegate_ui_methods!(UiContainer);
 }
 
@@ -261,7 +293,7 @@ pub trait MouseEvents: Ui + Sized {
         OnMouseUp::new(self, handler)
     }
 
-    fn on_click<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnClick<Self, F> {
+    fn on_click<F: FnMut(ClickInput, &mut NextUpdate)>(self, handler: F) -> OnClick<Self, F> {
         OnClick::new(self, handler)
     }
 
@@ -354,9 +386,31 @@ pub struct MouseButtonInput {
     pub position: LayoutPoint,
 }
 
+#[derive(Debug)]
+pub struct ClickInput {
+    pub button: MouseButton,
+    pub modifiers: ModifiersState,
+    pub position: LayoutPoint,
+    pub click_count: u8,
+}
+
 impl fmt::Display for MouseButtonInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         display_modifiers(&self.modifiers, f)?;
         write!(f, "{:?} {}", self.button, self.position)
+    }
+}
+
+impl fmt::Display for ClickInput {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        display_modifiers(&self.modifiers, f)?;
+        write!(f, "{:?} {}", self.button, self.position)?;
+        match self.click_count {
+            0..=1 => {}
+            2 => write!(f, " double-click")?,
+            3 => write!(f, " triple-click")?,
+            n => write!(f, " click_count={}", n)?,
+        }
+        Ok(())
     }
 }
