@@ -1,4 +1,4 @@
-use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NextFrame, NextUpdate, Ui};
+use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -61,16 +61,15 @@ pub struct Window {
 
 impl Window {
     pub fn new(
-        name: String,
-        clear_color: ColorF,
-        inner_size: LayoutSize,
-        content: impl Fn(&mut NextUpdate) -> Box<dyn Ui>,
+        new_window: NewWindow,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
+        let inner_size = new_window.inner_size;
+        let clear_color = new_window.clear_color;
+
         let window_builder = WindowBuilder::new()
-            .with_title(name)
             .with_visible(false)
             .with_inner_size(LogicalSize::new(inner_size.width as f64, inner_size.height as f64));
 
@@ -115,7 +114,7 @@ impl Window {
 
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let content = content(&mut next_update);
+        let content = (new_window.content)(&mut next_update);
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 
@@ -230,6 +229,10 @@ impl Window {
             _ => has_update = false,
         }
         has_update
+    }
+
+    pub fn new_window_requests (&mut self) -> Vec<NewWindow>{
+        std::mem::replace(&mut self.next_update.windows, vec!())
     }
 
     fn hit_test(&self, point: LayoutPoint) -> Hits {

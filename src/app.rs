@@ -1,4 +1,4 @@
-use crate::ui::{NextUpdate, Ui};
+use crate::ui::{NewWindow, NextUpdate, Ui};
 use crate::window::{WebRenderEvent, Window};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowId;
-use webrender::api::LayoutSize;
+use webrender::api::{ColorF, LayoutSize};
 
 pub struct App {
     event_loop: EventLoop<WebRenderEvent>,
@@ -30,39 +30,33 @@ impl App {
         }
     }
 
-    pub fn window<TContent: Ui + 'static>(
-        mut self,
-        title: impl ToString,
-        background_color: webrender::api::ColorF,
-        content: impl Fn(&mut NextUpdate) -> TContent,
-    ) -> Self {
-        let win = Window::new(
-            title.to_string(),
-            background_color,
-            LayoutSize::new(800., 600.),
-            |c| content(c).into_box(),
-            &self.event_loop,
-            self.event_loop.create_proxy(),
-            Arc::clone(&self.ui_threads),
-        );
-        self.windows.insert(win.id(), win);
-        self
-    }
-
-    pub fn run(self) -> ! {
+    pub fn run<TContent: Ui + 'static>(
+        self,
+        clear_color: ColorF,
+        inner_size: LayoutSize,
+        content: impl Fn(&mut NextUpdate) -> TContent + 'static,
+    ) -> ! {
         let App {
             event_loop,
             mut windows,
-            ..
+            ui_threads,
         } = self;
 
-        // will use to create window inside run callback.
-        let _event_loop_proxy = event_loop.create_proxy();
+        let main_window = NewWindow {
+            content: Box::new(move |c| content(c).into_box()),
+            clear_color,
+            inner_size,
+        };
+
+        let event_loop_proxy = event_loop.create_proxy();
+        let win = Window::new(main_window, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
+
+        windows.insert(win.id(), win);
 
         let mut in_event_sequence = false;
         let mut has_update = true;
 
-        event_loop.run(move |event, _event_loop, control_flow| {
+        event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
 
             match event {
@@ -76,6 +70,12 @@ impl App {
                 Event::WindowEvent { window_id, event } => {
                     if let Some(win) = windows.get_mut(&window_id) {
                         has_update |= win.event(event);
+                        let wins = win.new_window_requests();
+                        for new_win in wins {
+                            let win = Window::new(new_win, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
+
+                            windows.insert(win.id(), win);
+                        }
                     }
                 }
                 Event::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {

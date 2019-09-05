@@ -49,10 +49,17 @@ impl HitTag {
     }
 }
 
+pub struct NewWindow {
+    pub content: Box<Fn(&mut NextUpdate) -> Box<dyn Ui>>,
+    pub clear_color: ColorF,
+    pub inner_size: LayoutSize,
+}
+
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
     fonts: HashMap<String, FontInstances>,
+    pub(crate) windows: Vec<NewWindow>,
 
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
@@ -64,10 +71,25 @@ impl NextUpdate {
             api,
             document_id,
             fonts: HashMap::new(),
+            windows: vec![],
+
             update_layout: true,
             render_frame: true,
             _request_close: false,
         }
+    }
+
+    pub fn create_window<TContent: Ui + 'static>(
+        &mut self,
+        clear_color: ColorF,
+        inner_size: LayoutSize,
+        content: impl Fn(&mut NextUpdate) -> TContent + 'static,
+    ) {
+        self.windows.push(NewWindow {
+            content: Box::new(move |c| content(c).into_box()),
+            clear_color,
+            inner_size,
+        })
     }
 
     pub fn update_layout(&mut self) {
