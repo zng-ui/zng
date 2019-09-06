@@ -35,6 +35,8 @@ fn other_widow(u: &mut NextUpdate) -> impl Ui {
     h_stack(
         (0..4)
             .map(|_| {
+                // https://github.com/rust-lang/rfcs/issues/2407#issuecomment-385291238
+                // https://github.com/BurntSushi/ripgrep/blob/7120f3225862f6c718a37a8616debaebd8c3d459/src/main.rs#L97-L105
                 let bkg_color = Value::new(rgb(255, 255, 255));
                 let m_leave = bkg_color.clone();
 
