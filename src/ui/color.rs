@@ -1,4 +1,7 @@
-use super::{ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, Ui, UiContainer, UiLeaf};
+use super::{
+    ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, NextUpdate, ReadValue, StaticValue, Ui,
+    UiContainer, UiLeaf,
+};
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
     ColorF::new(r, g, b, 1.)
@@ -96,14 +99,14 @@ pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientSt
 }
 
 #[derive(Clone)]
-pub struct BackgroundColor<T> {
+pub struct BackgroundColor<T: Ui, C: ReadValue<ColorF>> {
     child: T,
-    color: ColorF,
+    color: C,
     hit_tag: HitTag,
 }
 
-impl<T> BackgroundColor<T> {
-    pub fn new(child: T, color: ColorF) -> Self {
+impl<T: Ui, C: ReadValue<ColorF>> BackgroundColor<T, C> {
+    pub fn new(child: T, color: C) -> Self {
         BackgroundColor {
             child,
             color,
@@ -112,21 +115,33 @@ impl<T> BackgroundColor<T> {
     }
 }
 
-impl<T: Ui> UiContainer for BackgroundColor<T> {
+impl<T: Ui, C: ReadValue<ColorF>> UiContainer for BackgroundColor<T, C> {
     delegate_child!(child, T);
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
     }
 
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        if self.color.changed() {
+            update.render_frame();
+        }
+    }
+
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
+        f.push_color(
+            LayoutRect::from_size(f.final_size()),
+            self.color.value(),
+            Some(self.hit_tag),
+        );
         self.child.render(f)
     }
 }
-delegate_ui!(UiContainer, BackgroundColor<T>, T);
+impl<T: Ui, C: ReadValue<ColorF>> Ui for BackgroundColor<T, C> {
+    delegate_ui_methods!(UiContainer);
+}
 
-pub fn background_color<T: Ui>(child: T, color: ColorF) -> BackgroundColor<T> {
+pub fn background_color<T: Ui, C: ReadValue<ColorF>>(child: T, color: C) -> BackgroundColor<T, C> {
     BackgroundColor::new(child, color)
 }
 
@@ -170,7 +185,11 @@ pub fn background_gradient<T: Ui>(
 }
 
 pub trait Background: Ui + Sized {
-    fn background_color(self, color: ColorF) -> BackgroundColor<Self> {
+    fn background_color(self, color: ColorF) -> BackgroundColor<Self, StaticValue<ColorF>> {
+        BackgroundColor::new(self, StaticValue(color))
+    }
+
+    fn background_color_dyn<C: ReadValue<ColorF>>(self, color: C) -> BackgroundColor<Self, C> {
         BackgroundColor::new(self, color)
     }
 

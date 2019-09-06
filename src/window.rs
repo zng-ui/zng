@@ -226,7 +226,7 @@ impl Window {
                 self.content.focused(focused, &mut self.next_update);
             }
 
-            _ => has_update = false,
+            _ => has_update = self.next_update.value_changed,
         }
         has_update
     }
@@ -257,8 +257,18 @@ impl Window {
     }
 
     pub fn update(&mut self) {
+        self.value_changed();
         self.update_layout();
         self.send_render_frame();
+    }
+
+    fn value_changed(&mut self) {
+        if !self.next_update.value_changed {
+            return;
+        }
+        self.next_update.value_changed = false;
+
+        self.content.value_changed(&mut self.next_update);
     }
 
     /// Updates the content layout and flags `render_frame`.

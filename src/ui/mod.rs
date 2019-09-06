@@ -13,7 +13,9 @@ pub use color::*;
 pub use event::*;
 pub use layout::*;
 pub use stack::*;
+use std::cell::RefCell;
 use std::iter::FromIterator;
+use std::rc::Rc;
 pub use text::*;
 
 use app_units::Au;
@@ -49,6 +51,65 @@ impl HitTag {
     }
 }
 
+pub trait ReadValue<T>: Clone {
+    fn value(&self) -> T;
+    fn changed(&self) -> bool;
+}
+
+#[derive(Clone)]
+pub struct StaticValue<T: Clone>(T);
+
+impl<T: Clone> ReadValue<T> for StaticValue<T> {
+    fn value(&self) -> T {
+        self.0.clone()
+    }
+    fn changed(&self) -> bool {
+        false
+    }
+}
+
+struct ValueInternal<T> {
+    value: T,
+    changed: bool,
+}
+
+pub struct Value<T> {
+    r: Rc<RefCell<ValueInternal<T>>>,
+}
+
+impl<T> Clone for Value<T> {
+    fn clone(&self) -> Self {
+        Value { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T> Value<T> {
+    pub fn new(value: T) -> Self {
+        Value {
+            r: Rc::new(RefCell::new(ValueInternal {
+                value: value,
+                changed: false,
+            })),
+        }
+    }
+
+    fn set_value(&self, value: T) {
+        let mut r = self.r.borrow_mut();
+        r.value = value;
+        r.changed = true;
+    }
+}
+
+impl<T: Clone> ReadValue<T> for Value<T> {
+    fn value(&self) -> T {
+        self.r.borrow().value.clone()
+    }
+
+    fn changed(&self) -> bool {
+        self.r.borrow().changed
+    }
+}
+
 pub struct NewWindow {
     pub content: Box<dyn Fn(&mut NextUpdate) -> Box<dyn Ui>>,
     pub clear_color: ColorF,
@@ -63,6 +124,7 @@ pub struct NextUpdate {
 
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
+    pub(crate) value_changed: bool,
     _request_close: bool,
 }
 impl NextUpdate {
@@ -75,6 +137,7 @@ impl NextUpdate {
 
             update_layout: true,
             render_frame: true,
+            value_changed: false,
             _request_close: false,
         }
     }
@@ -97,6 +160,11 @@ impl NextUpdate {
     }
     pub fn render_frame(&mut self) {
         self.render_frame = true;
+    }
+
+    pub fn set<T>(&mut self, value: &Value<T>, new_value: T) {
+        value.set_value(new_value);
+        self.value_changed = true;
     }
 
     pub fn font(&mut self, family: &str, size: u32) -> FontInstance {
@@ -399,6 +467,8 @@ pub trait Ui {
     /// Gets the point over this UI element using a hit test result.
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint>;
 
+    fn value_changed(&mut self, update: &mut NextUpdate);
+
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
     where
@@ -456,6 +526,10 @@ impl Ui for Box<dyn Ui> {
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         self.as_ref().point_over(hits)
     }
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        self.as_mut().value_changed(update);
+    }
 }
 
 /// An UI component that does not have a child component.
@@ -496,6 +570,8 @@ pub trait UiLeaf {
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         None
     }
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {}
 }
 
 /// An UI component with a single child component.
@@ -550,6 +626,10 @@ pub trait UiContainer {
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         self.child().point_over(hits)
+    }
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        self.child_mut().value_changed(update);
     }
 }
 
@@ -634,6 +714,12 @@ pub trait UiMultiContainer<'a> {
             }
         }
         None
+    }
+
+    fn value_changed(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.value_changed(update);
+        }
     }
 }
 

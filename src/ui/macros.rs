@@ -78,6 +78,10 @@ macro_rules! delegate_ui_methods {
         fn point_over(&self, hits: &$crate::ui::Hits) -> Option<$crate::ui::LayoutPoint> {
             $Del::point_over(self, hits)
         }
+
+        fn value_changed(&mut self, update: &mut $crate::ui::NextUpdate) {
+            $Del::value_changed(self, update)
+        }
     };
 }
 

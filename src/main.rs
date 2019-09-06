@@ -34,12 +34,20 @@ fn main_window(u: &mut NextUpdate) -> impl Ui {
 fn other_widow(u: &mut NextUpdate) -> impl Ui {
     h_stack(
         (0..4)
-            .map(|i| {
+            .map(|_| {
+                let bkg_color = Value::new(rgb(255, 255, 255));
+                let m_leave = bkg_color.clone();
+
                 text(u, "Ola", rgb(0, 0, 0), "Arial", 90)
-                    .background_color(rgb(255, 255, 255))
+                    .background_color_dyn(bkg_color.clone())
                     .center()
                     .cursor(CursorIcon::Hand)
-                    .on_mouse_down(move |m, _| println!("'Text#{}'.on_mouse_down: {}", i, m))
+                    .on_mouse_enter(move |u| {
+                        u.set(&bkg_color, rgb(100, 255, 255));
+                    })
+                    .on_mouse_leave(move |u| {
+                        u.set(&m_leave, rgb(255, 255, 255));
+                    })
                     .background_gradient(
                         LayoutPoint::new(0., 0.),
                         LayoutPoint::new(1., 1.),
@@ -55,8 +63,6 @@ fn other_widow(u: &mut NextUpdate) -> impl Ui {
                         ],
                     )
                     .width(200.)
-                    .on_mouse_enter(move |_| println!("'Gradient#{}'.on_mouse_enter", i))
-                    .on_mouse_leave(move |_| println!("'Gradient#{}'.on_mouse_leave", i))
                     .margin(2.)
             })
             .collect::<Vec<_>>(),
