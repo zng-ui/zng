@@ -45,12 +45,12 @@ impl HitTag {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
 
-        HitTag(NEXT.fetch_add(1, Ordering::SeqCst))
+        HitTag(NEXT.fetch_add(1, Ordering::Relaxed))
     }
 }
 
 pub struct NewWindow {
-    pub content: Box<Fn(&mut NextUpdate) -> Box<dyn Ui>>,
+    pub content: Box<dyn Fn(&mut NextUpdate) -> Box<dyn Ui>>,
     pub clear_color: ColorF,
     pub inner_size: LayoutSize,
 }

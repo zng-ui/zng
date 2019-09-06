@@ -231,8 +231,8 @@ impl Window {
         has_update
     }
 
-    pub fn new_window_requests (&mut self) -> Vec<NewWindow>{
-        std::mem::replace(&mut self.next_update.windows, vec!())
+    pub fn new_window_requests(&mut self) -> Vec<NewWindow> {
+        std::mem::replace(&mut self.next_update.windows, vec![])
     }
 
     fn hit_test(&self, point: LayoutPoint) -> Hits {

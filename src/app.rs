@@ -49,7 +49,12 @@ impl App {
         };
 
         let event_loop_proxy = event_loop.create_proxy();
-        let win = Window::new(main_window, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
+        let win = Window::new(
+            main_window,
+            &event_loop,
+            event_loop_proxy.clone(),
+            Arc::clone(&ui_threads),
+        );
 
         windows.insert(win.id(), win);
 
@@ -72,7 +77,8 @@ impl App {
                         has_update |= win.event(event);
                         let wins = win.new_window_requests();
                         for new_win in wins {
-                            let win = Window::new(new_win, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
+                            let win =
+                                Window::new(new_win, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
 
                             windows.insert(win.id(), win);
                         }
