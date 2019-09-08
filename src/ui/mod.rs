@@ -8,6 +8,8 @@ mod log;
 mod stack;
 mod text;
 
+use std::cell::Ref;
+use std::ops::Deref;
 pub use self::log::*;
 pub use color::*;
 pub use event::*;
@@ -51,42 +53,60 @@ impl HitTag {
     }
 }
 
-pub trait ReadValue<T>: Clone {
-    fn value(&self) -> T;
+pub trait ReadValue<T> {
+    fn value(&self) -> ValueRef<'_, T>;
     fn changed(&self) -> bool;
 }
 
 #[derive(Clone)]
-pub struct StaticValue<T: Clone>(T);
+pub struct Static<T>(T);
 
-impl<T: Clone> ReadValue<T> for StaticValue<T> {
-    fn value(&self) -> T {
-        self.0.clone()
+impl<T: 'static> ReadValue<T> for Static<T> {
+    fn value(&self) -> ValueRef<'_, T> {
+        ValueRef(ValueRefData::Static(&self.0))
     }
     fn changed(&self) -> bool {
         false
     }
 }
 
-struct ValueInternal<T> {
+struct VarData<T> {
     value: T,
+    //new_value: Option<T>
     changed: bool,
 }
 
-pub struct Value<T> {
-    r: Rc<RefCell<ValueInternal<T>>>,
+pub struct ValueRef<'a, T>(ValueRefData<'a, T>);
+
+enum ValueRefData<'a, T>{
+    Static(&'a T),
+    Dynamic(Ref<'a, VarData<T>>)
 }
 
-impl<T> Clone for Value<T> {
-    fn clone(&self) -> Self {
-        Value { r: Rc::clone(&self.r) }
+impl<'a, T> Deref for ValueRef<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        match &self.0{
+            ValueRefData::Static(r) => r,
+            ValueRefData::Dynamic(r) => &r.value,
+        }
     }
 }
 
-impl<T> Value<T> {
+pub struct Var<T> {
+    r: Rc<RefCell<VarData<T>>>,
+}
+
+impl<T> Clone for Var<T> {
+    fn clone(&self) -> Self {
+        Var { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T> Var<T> {
     pub fn new(value: T) -> Self {
-        Value {
-            r: Rc::new(RefCell::new(ValueInternal {
+        Var {
+            r: Rc::new(RefCell::new(VarData {
                 value: value,
                 changed: false,
             })),
@@ -100,9 +120,9 @@ impl<T> Value<T> {
     }
 }
 
-impl<T: Clone> ReadValue<T> for Value<T> {
-    fn value(&self) -> T {
-        self.r.borrow().value.clone()
+impl<T> ReadValue<T> for Var<T> {
+    fn value(&self) -> ValueRef<'_, T> {
+         ValueRef(ValueRefData::Dynamic(self.r.borrow()))
     }
 
     fn changed(&self) -> bool {
@@ -162,7 +182,7 @@ impl NextUpdate {
         self.render_frame = true;
     }
 
-    pub fn set<T>(&mut self, value: &Value<T>, new_value: T) {
+    pub fn set<T>(&mut self, value: &Var<T>, new_value: T) {
         value.set_value(new_value);
         self.value_changed = true;
     }

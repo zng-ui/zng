@@ -1,5 +1,5 @@
 use super::{
-    ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, NextUpdate, ReadValue, StaticValue, Ui,
+    ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, NextUpdate, ReadValue, Static, Ui,
     UiContainer, UiLeaf,
 };
 
@@ -131,7 +131,7 @@ impl<T: Ui, C: ReadValue<ColorF>> UiContainer for BackgroundColor<T, C> {
     fn render(&self, f: &mut NextFrame) {
         f.push_color(
             LayoutRect::from_size(f.final_size()),
-            self.color.value(),
+            *self.color.value(),
             Some(self.hit_tag),
         );
         self.child.render(f)
@@ -184,9 +184,10 @@ pub fn background_gradient<T: Ui>(
     BackgroundGradient::new(child, start, end, stops)
 }
 
+
 pub trait Background: Ui + Sized {
-    fn background_color(self, color: ColorF) -> BackgroundColor<Self, StaticValue<ColorF>> {
-        BackgroundColor::new(self, StaticValue(color))
+    fn background_color(self, color: ColorF) -> BackgroundColor<Self, Static<ColorF>> {
+        BackgroundColor::new(self, Static(color))
     }
 
     fn background_color_dyn<C: ReadValue<ColorF>>(self, color: C) -> BackgroundColor<Self, C> {
