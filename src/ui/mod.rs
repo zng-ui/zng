@@ -26,7 +26,7 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use std::collections::HashMap;
 use webrender::api::*;
-pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize, ColorF};
+pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
 
 struct FontInstances {
     font_key: FontKey,
@@ -71,8 +71,12 @@ impl<T: 'static> ReadValue<T> for Static<T> {
 }
 
 struct VarData<T> {
-    value: T,
-    pending_change: Option<Box<dyn FnOnce(&mut T)>>,
+    value: RefCell<T>,
+    change: RefCell<VarChange<T>>,
+}
+
+struct VarChange<T> {
+    pending: Option<Box<dyn FnOnce(&mut T)>>,
     changed: bool,
 }
 
@@ -80,7 +84,7 @@ pub struct ValueRef<'a, T>(ValueRefData<'a, T>);
 
 enum ValueRefData<'a, T> {
     Static(&'a T),
-    Dynamic(Ref<'a, VarData<T>>),
+    Cell(Ref<'a, T>),
 }
 
 impl<'a, T> Deref for ValueRef<'a, T> {
@@ -88,13 +92,13 @@ impl<'a, T> Deref for ValueRef<'a, T> {
     fn deref(&self) -> &Self::Target {
         match &self.0 {
             ValueRefData::Static(r) => r,
-            ValueRefData::Dynamic(r) => &r.value,
+            ValueRefData::Cell(r) => &r,
         }
     }
 }
 
 pub struct Var<T> {
-    r: Rc<RefCell<VarData<T>>>,
+    r: Rc<VarData<T>>,
 }
 
 impl<T> Clone for Var<T> {
@@ -106,26 +110,28 @@ impl<T> Clone for Var<T> {
 impl<T: 'static> Var<T> {
     pub fn new(value: T) -> Self {
         Var {
-            r: Rc::new(RefCell::new(VarData {
-                value: value,
-                pending_change: None,
-                changed: false,
-            })),
+            r: Rc::new(VarData {
+                value: RefCell::new(value),
+                change: RefCell::new(VarChange {
+                    pending: None,
+                    changed: false,
+                }),
+            }),
         }
     }
 
     fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
-        self.r.borrow_mut().pending_change = Some(Box::new(change));
+        self.r.change.borrow_mut().pending = Some(Box::new(change));
     }
 }
 
 impl<T> ReadValue<T> for Var<T> {
     fn value(&self) -> ValueRef<'_, T> {
-        ValueRef(ValueRefData::Dynamic(self.r.borrow()))
+        ValueRef(ValueRefData::Cell(self.r.value.borrow()))
     }
 
     fn changed(&self) -> bool {
-        self.r.borrow().changed
+        self.r.change.borrow().changed
     }
 }
 
@@ -136,15 +142,15 @@ pub(crate) trait ValueChange {
 
 impl<T> ValueChange for Var<T> {
     fn commit(&mut self) {
-        let mut data = self.r.borrow_mut();
-        if let Some(change) = data.pending_change.take() {
-            change(&mut data.value);
+        let mut data = self.r.change.borrow_mut();
+        if let Some(change) = data.pending.take() {
+            change(&mut self.r.value.borrow_mut());
             data.changed = true;
         }
     }
 
     fn reset_changed(&mut self) {
-        self.r.borrow_mut().changed = false;
+        self.r.change.borrow_mut().changed = false;
     }
 }
 
