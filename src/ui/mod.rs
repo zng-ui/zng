@@ -8,6 +8,8 @@ mod log;
 mod stack;
 mod text;
 
+use std::any::Any;
+use std::marker::PhantomData;
 pub use self::log::*;
 pub use color::*;
 pub use event::*;
@@ -160,6 +162,34 @@ pub struct NewWindow {
     pub inner_size: LayoutSize,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ContextVarId(u64);
+
+impl ContextVarId {
+     /// Generates a new unique ID.
+    pub const fn new() -> Self {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+
+        ContextVarId(NEXT.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct ContextVarKey<T> {
+    id: ContextVarId,
+    _data: PhantomData<T>
+}
+
+impl<T: 'static> ContextVarKey<T> {
+    pub const fn new() -> Self {
+        ContextVarKey {
+            id: ContextVarId::new(),
+            _data: PhantomData
+        }
+    }
+}
+
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
@@ -170,6 +200,8 @@ pub struct NextUpdate {
     pub(crate) render_frame: bool,
     pub(crate) value_changes: Vec<Box<dyn ValueChange>>,
     _request_close: bool,
+
+    context_vars: HashMap<ContextVarId, Box<dyn Any>>
 }
 impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
@@ -183,6 +215,8 @@ impl NextUpdate {
             render_frame: true,
             value_changes: vec![],
             _request_close: false,
+
+            context_vars: HashMap::new(),
         }
     }
 
@@ -204,6 +238,10 @@ impl NextUpdate {
     }
     pub fn render_frame(&mut self) {
         self.render_frame = true;
+    }
+
+    pub fn get<T: 'static>(&self, key: ContextVarKey<T>) -> Option<&T> {
+        self.context_vars.get(&key.id).map(|a|a.downcast_ref::<T>().unwrap())
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -266,6 +304,18 @@ impl NextUpdate {
             font_key: f.font_key,
             instance_key,
             size,
+        }
+    }
+
+    pub fn propagate_context_var<T: 'static>(&mut self, key: ContextVarKey<T>, value: T, child: &mut impl Ui) {
+       let previous_value = self.context_vars.insert(key.id, Box::new(value));
+
+       //child.context_value_changed(self);
+
+        if let Some(value) = previous_value {
+            self.context_vars.insert(key.id, value);
+        } else {
+            self.context_vars.remove(&key.id);
         }
     }
 

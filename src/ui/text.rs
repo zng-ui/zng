@@ -1,4 +1,6 @@
-use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, UiLeaf};
+use crate::ui::ContextVarKey;
+use crate::ui::ReadValue;
+use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, UiLeaf, Ui, UiContainer};
 use webrender::api::*;
 
 pub struct Text {
@@ -79,3 +81,22 @@ impl UiLeaf for Text {
     }
 }
 delegate_ui!(UiLeaf, Text);
+
+pub struct FontFamily<T: Ui, F: ReadValue<String>> {
+    child: T,
+    font: F
+}
+
+pub static FONT_FAMILY: ContextVarKey<String> = ContextVarKey::new();
+
+impl<T: Ui, F: ReadValue<String>> UiContainer for FontFamily<T, F> {
+    delegate_child!(child, T);
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        if self.font.changed() {
+            update.propagate_context_var(FONT_FAMILY, self.font.value().clone(), self.child_mut());
+            //self.child_mut().context_value_changed()
+        }
+
+    }
+}
