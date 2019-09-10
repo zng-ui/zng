@@ -103,6 +103,15 @@ impl App {
                 has_update = false;
 
                 let mut to_remove = vec![];
+                let mut value_changes = vec![];
+
+                for win in windows.values_mut() {
+                    value_changes.append(&mut win.value_changes());
+                }
+
+                for var in value_changes.iter_mut() {
+                    var.commit();
+                }
 
                 for win in windows.values_mut() {
                     if win.close {
@@ -114,7 +123,11 @@ impl App {
                         win.redraw_and_swap_buffers();
                     }
 
-                    win.update();
+                    win.update(!value_changes.is_empty());
+                }
+
+                for mut var in value_changes {
+                    var.reset_changed();
                 }
 
                 for window_id in to_remove {

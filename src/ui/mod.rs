@@ -8,15 +8,15 @@ mod log;
 mod stack;
 mod text;
 
-use std::cell::Ref;
-use std::ops::Deref;
 pub use self::log::*;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
 pub use stack::*;
+use std::cell::Ref;
 use std::cell::RefCell;
 use std::iter::FromIterator;
+use std::ops::Deref;
 use std::rc::Rc;
 pub use text::*;
 
@@ -26,7 +26,7 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use std::collections::HashMap;
 use webrender::api::*;
-pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize};
+pub use webrender::api::{LayoutPoint, LayoutRect, LayoutSize, ColorF};
 
 struct FontInstances {
     font_key: FontKey,
@@ -72,21 +72,21 @@ impl<T: 'static> ReadValue<T> for Static<T> {
 
 struct VarData<T> {
     value: T,
-    //new_value: Option<T>
+    pending_change: Option<Box<dyn FnOnce(&mut T)>>,
     changed: bool,
 }
 
 pub struct ValueRef<'a, T>(ValueRefData<'a, T>);
 
-enum ValueRefData<'a, T>{
+enum ValueRefData<'a, T> {
     Static(&'a T),
-    Dynamic(Ref<'a, VarData<T>>)
+    Dynamic(Ref<'a, VarData<T>>),
 }
 
 impl<'a, T> Deref for ValueRef<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        match &self.0{
+        match &self.0 {
             ValueRefData::Static(r) => r,
             ValueRefData::Dynamic(r) => &r.value,
         }
@@ -103,26 +103,25 @@ impl<T> Clone for Var<T> {
     }
 }
 
-impl<T> Var<T> {
+impl<T: 'static> Var<T> {
     pub fn new(value: T) -> Self {
         Var {
             r: Rc::new(RefCell::new(VarData {
                 value: value,
+                pending_change: None,
                 changed: false,
             })),
         }
     }
 
-    fn set_value(&self, value: T) {
-        let mut r = self.r.borrow_mut();
-        r.value = value;
-        r.changed = true;
+    fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
+        self.r.borrow_mut().pending_change = Some(Box::new(change));
     }
 }
 
 impl<T> ReadValue<T> for Var<T> {
     fn value(&self) -> ValueRef<'_, T> {
-         ValueRef(ValueRefData::Dynamic(self.r.borrow()))
+        ValueRef(ValueRefData::Dynamic(self.r.borrow()))
     }
 
     fn changed(&self) -> bool {
@@ -130,8 +129,27 @@ impl<T> ReadValue<T> for Var<T> {
     }
 }
 
+pub(crate) trait ValueChange {
+    fn commit(&mut self);
+    fn reset_changed(&mut self);
+}
+
+impl<T> ValueChange for Var<T> {
+    fn commit(&mut self) {
+        let mut data = self.r.borrow_mut();
+        if let Some(change) = data.pending_change.take() {
+            change(&mut data.value);
+            data.changed = true;
+        }
+    }
+
+    fn reset_changed(&mut self) {
+        self.r.borrow_mut().changed = false;
+    }
+}
+
 pub struct NewWindow {
-    pub content: Box<dyn Fn(&mut NextUpdate) -> Box<dyn Ui>>,
+    pub content: Box<dyn FnOnce(&mut NextUpdate) -> Box<dyn Ui>>,
     pub clear_color: ColorF,
     pub inner_size: LayoutSize,
 }
@@ -144,7 +162,7 @@ pub struct NextUpdate {
 
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
-    pub(crate) value_changed: bool,
+    pub(crate) value_changes: Vec<Box<dyn ValueChange>>,
     _request_close: bool,
 }
 impl NextUpdate {
@@ -157,7 +175,7 @@ impl NextUpdate {
 
             update_layout: true,
             render_frame: true,
-            value_changed: false,
+            value_changes: vec![],
             _request_close: false,
         }
     }
@@ -166,7 +184,7 @@ impl NextUpdate {
         &mut self,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl Fn(&mut NextUpdate) -> TContent + 'static,
+        content: impl FnOnce(&mut NextUpdate) -> TContent + 'static,
     ) {
         self.windows.push(NewWindow {
             content: Box::new(move |c| content(c).into_box()),
@@ -182,9 +200,13 @@ impl NextUpdate {
         self.render_frame = true;
     }
 
-    pub fn set<T>(&mut self, value: &Var<T>, new_value: T) {
-        value.set_value(new_value);
-        self.value_changed = true;
+    pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
+        self.change(value, |v| *v = new_value);
+    }
+
+    fn change<T: 'static>(&mut self, value: &Var<T>, change: impl FnOnce(&mut T) + 'static) {
+        value.change_value(change);
+        self.value_changes.push(Box::new(value.clone()));
     }
 
     pub fn font(&mut self, family: &str, size: u32) -> FontInstance {

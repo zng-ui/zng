@@ -184,7 +184,6 @@ pub fn background_gradient<T: Ui>(
     BackgroundGradient::new(child, start, end, stops)
 }
 
-
 pub trait Background: Ui + Sized {
     fn background_color(self, color: ColorF) -> BackgroundColor<Self, Static<ColorF>> {
         BackgroundColor::new(self, Static(color))

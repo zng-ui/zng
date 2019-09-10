@@ -1,4 +1,4 @@
-use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui};
+use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, ValueChange};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -11,7 +11,7 @@ use std::sync::Arc;
 use webrender::api::*;
 
 #[derive(Debug)]
-pub enum WebRenderEvent {
+pub(crate) enum WebRenderEvent {
     NewFrameReady(WindowId),
 }
 
@@ -34,7 +34,7 @@ impl RenderNotifier for Notifier {
     }
 }
 
-pub struct Window {
+pub(crate) struct Window {
     context: Option<WindowedContext<NotCurrent>>,
 
     latest_frame_id: Epoch,
@@ -226,13 +226,17 @@ impl Window {
                 self.content.focused(focused, &mut self.next_update);
             }
 
-            _ => has_update = self.next_update.value_changed,
+            _ => has_update = !self.next_update.value_changes.is_empty(),
         }
         has_update
     }
 
     pub fn new_window_requests(&mut self) -> Vec<NewWindow> {
         std::mem::replace(&mut self.next_update.windows, vec![])
+    }
+
+    pub fn value_changes(&mut self) -> Vec<Box<dyn ValueChange>> {
+        std::mem::replace(&mut self.next_update.value_changes, vec![])
     }
 
     fn hit_test(&self, point: LayoutPoint) -> Hits {
@@ -256,19 +260,13 @@ impl Window {
         }
     }
 
-    pub fn update(&mut self) {
-        self.value_changed();
+    pub fn update(&mut self, values_changed: bool) {
+        if values_changed {
+            self.content.value_changed(&mut self.next_update);
+        }
+
         self.update_layout();
         self.send_render_frame();
-    }
-
-    fn value_changed(&mut self) {
-        if !self.next_update.value_changed {
-            return;
-        }
-        self.next_update.value_changed = false;
-
-        self.content.value_changed(&mut self.next_update);
     }
 
     /// Updates the content layout and flags `render_frame`.
