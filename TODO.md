@@ -59,7 +59,7 @@ Widgets that stay at the root of the Window and define type of app interaction t
 * Docking editor.
 
 # Advanced
-Hard todo but does not mess with the core API.
+Hard to-do but does not mess with the core API.
 
 * Plugins (run as a separate process that is hosted in an iframe like widget).
 * Hosting Ui in a custom OpenGL window.
@@ -78,7 +78,7 @@ Hard todo but does not mess with the core API.
 * Markdown.
 * Massive images (deep zoom).
 * SVG images.
-* Html (css, no js).
+* Html (CSS, no Js).
 * Diagram editor.
 * Rich text editor.
 * Browser hosting.
