@@ -1,6 +1,6 @@
+use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Static, Ui, UiContainer, UiLeaf};
 use crate::ui::ContextVarKey;
 use crate::ui::ReadValue;
-use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, UiLeaf, Ui, UiContainer};
 use webrender::api::*;
 
 pub struct Text {
@@ -82,21 +82,70 @@ impl UiLeaf for Text {
 }
 delegate_ui!(UiLeaf, Text);
 
-pub struct FontFamily<T: Ui, F: ReadValue<String>> {
-    child: T,
-    font: F
+lazy_static! {
+    static ref FONT_FAMILY: ContextVarKey<String> = ContextVarKey::new();
+    static ref FONT_SIZE: ContextVarKey<u32> = ContextVarKey::new();
 }
 
-pub static FONT_FAMILY: ContextVarKey<String> = ContextVarKey::new();
-
+pub struct FontFamily<T: Ui, F: ReadValue<String>> {
+    child: T,
+    font: F,
+}
+impl<T: Ui, F: ReadValue<String>> FontFamily<T, F> {
+    fn new(child: T, font: F) -> Self {
+        FontFamily { child, font }
+    }
+}
 impl<T: Ui, F: ReadValue<String>> UiContainer for FontFamily<T, F> {
     delegate_child!(child, T);
 
     fn value_changed(&mut self, update: &mut NextUpdate) {
         if self.font.changed() {
-            update.propagate_context_var(FONT_FAMILY, self.font.value().clone(), self.child_mut());
-            //self.child_mut().context_value_changed()
+            let font_value = self.font.value().clone();
+            update.propagate_context_var(*FONT_FAMILY, font_value, self.child_mut());
         }
-
     }
 }
+impl<T: Ui, F: ReadValue<String>> Ui for FontFamily<T, F> {
+    delegate_ui_methods!(UiContainer);
+}
+
+pub struct FontSize<T: Ui, S: ReadValue<u32>> {
+    child: T,
+    size: S,
+}
+impl<T: Ui, S: ReadValue<u32>> FontSize<T, S> {
+    fn new(child: T, size: S) -> Self {
+        FontSize { child, size }
+    }
+}
+impl<T: Ui, S: ReadValue<u32>> UiContainer for FontSize<T, S> {
+    delegate_child!(child, T);
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        if self.size.changed() {
+            let font_value = self.size.value().clone();
+            update.propagate_context_var(*FONT_SIZE, font_value, self.child_mut());
+        }
+    }
+}
+impl<T: Ui, S: ReadValue<u32>> Ui for FontSize<T, S> {
+    delegate_ui_methods!(UiContainer);
+}
+
+pub trait Font: Ui + Sized {
+    fn font_family(self, font: impl ToString) -> FontFamily<Self, Static<String>> {
+        FontFamily::new(self, Static(font.to_string()))
+    }
+    fn font_size(self, size: u32) -> FontSize<Self, Static<u32>> {
+        FontSize::new(self, Static(size))
+    }
+
+    fn font_family_dyn<F: ReadValue<String>>(self, font: F) -> FontFamily<Self, F> {
+        FontFamily::new(self, font)
+    }
+    fn font_size_dyn<S: ReadValue<u32>>(self, size: S) -> FontSize<Self, S> {
+        FontSize::new(self, size)
+    }
+}
+impl<T: Ui> Font for T {}

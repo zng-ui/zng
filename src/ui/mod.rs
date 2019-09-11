@@ -8,16 +8,16 @@ mod log;
 mod stack;
 mod text;
 
-use std::any::Any;
-use std::marker::PhantomData;
 pub use self::log::*;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
 pub use stack::*;
+use std::any::Any;
 use std::cell::Ref;
 use std::cell::RefCell;
 use std::iter::FromIterator;
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
 pub use text::*;
@@ -166,8 +166,8 @@ pub struct NewWindow {
 struct ContextVarId(u64);
 
 impl ContextVarId {
-     /// Generates a new unique ID.
-    pub const fn new() -> Self {
+    /// Generates a new unique ID.
+    pub fn new() -> Self {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
 
@@ -175,17 +175,26 @@ impl ContextVarId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct ContextVarKey<T> {
     id: ContextVarId,
-    _data: PhantomData<T>
+    _data: PhantomData<T>,
 }
+impl<T> Clone for ContextVarKey<T> {
+    fn clone(&self) -> Self {
+        ContextVarKey {
+            id: self.id,
+            _data: self._data,
+        }
+    }
+}
+impl<T> Copy for ContextVarKey<T> {}
 
 impl<T: 'static> ContextVarKey<T> {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         ContextVarKey {
             id: ContextVarId::new(),
-            _data: PhantomData
+            _data: PhantomData,
         }
     }
 }
@@ -201,7 +210,7 @@ pub struct NextUpdate {
     pub(crate) value_changes: Vec<Box<dyn ValueChange>>,
     _request_close: bool,
 
-    context_vars: HashMap<ContextVarId, Box<dyn Any>>
+    context_vars: HashMap<ContextVarId, Box<dyn Any>>,
 }
 impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
@@ -241,7 +250,7 @@ impl NextUpdate {
     }
 
     pub fn get<T: 'static>(&self, key: ContextVarKey<T>) -> Option<&T> {
-        self.context_vars.get(&key.id).map(|a|a.downcast_ref::<T>().unwrap())
+        self.context_vars.get(&key.id).map(|a| a.downcast_ref::<T>().unwrap())
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -308,9 +317,9 @@ impl NextUpdate {
     }
 
     pub fn propagate_context_var<T: 'static>(&mut self, key: ContextVarKey<T>, value: T, child: &mut impl Ui) {
-       let previous_value = self.context_vars.insert(key.id, Box::new(value));
+        let previous_value = self.context_vars.insert(key.id, Box::new(value));
 
-       //child.context_value_changed(self);
+        child.context_value_changed(self);
 
         if let Some(value) = previous_value {
             self.context_vars.insert(key.id, value);
@@ -567,6 +576,8 @@ pub trait Ui {
 
     fn value_changed(&mut self, update: &mut NextUpdate);
 
+    fn context_value_changed(&mut self, update: &mut NextUpdate);
+
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
     where
@@ -628,6 +639,10 @@ impl Ui for Box<dyn Ui> {
     fn value_changed(&mut self, update: &mut NextUpdate) {
         self.as_mut().value_changed(update);
     }
+
+    fn context_value_changed(&mut self, update: &mut NextUpdate) {
+        self.as_mut().context_value_changed(update);
+    }
 }
 
 /// An UI component that does not have a child component.
@@ -670,6 +685,8 @@ pub trait UiLeaf {
     }
 
     fn value_changed(&mut self, update: &mut NextUpdate) {}
+
+    fn context_value_changed(&mut self, update: &mut NextUpdate) {}
 }
 
 /// An UI component with a single child component.
@@ -728,6 +745,10 @@ pub trait UiContainer {
 
     fn value_changed(&mut self, update: &mut NextUpdate) {
         self.child_mut().value_changed(update);
+    }
+
+    fn context_value_changed(&mut self, update: &mut NextUpdate) {
+        self.child_mut().context_value_changed(update);
     }
 }
 
@@ -817,6 +838,12 @@ pub trait UiMultiContainer<'a> {
     fn value_changed(&'a mut self, update: &mut NextUpdate) {
         for c in self.children_mut() {
             c.value_changed(update);
+        }
+    }
+
+    fn context_value_changed(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.context_value_changed(update);
         }
     }
 }

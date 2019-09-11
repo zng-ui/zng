@@ -1,4 +1,6 @@
 //#![windows_subsystem = "windows"]
+#[macro_use]
+extern crate lazy_static;
 
 pub mod app;
 pub mod ui;
@@ -25,6 +27,8 @@ fn main_window(u: &mut NextUpdate) -> impl Ui {
             .map(|l| text(u, l, rgb(0, 0, 0), "Arial", 14).background_color(rgb(255, 255, 255)))
             .collect::<Vec<_>>(),
     )
+    .font_family("Arial")
+    .font_size(14)
     .on_click(|m, u| {
         println!("on_click: {}", m);
         u.create_window(rgbaf(0.3, 0.2, 0.1, 1.0), LayoutSize::new(1000., 800.), other_widow);
