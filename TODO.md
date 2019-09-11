@@ -16,6 +16,7 @@ Things that must be done first because they influence the core API design that i
 * Other DisplayListBuilder (iframe).
 * Drag-drop.
 * Modal Window.
+* Workers.
 * Diagnostics.
 
 # Basic Layout
