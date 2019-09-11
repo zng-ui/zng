@@ -1,0 +1,87 @@
+# Core
+Things that must be done first because they influence the core API design that is used to do all the rest.
+
+* Contextual values (parent -> descendants).
+* Return values (descendent -> parents).
+* Better Ui related macros, reduce verbosity.
+* Focusable, keyboard events when focused, automatic TAB navigation.
+* Enabled/Disabled.
+* Images.
+* Raw OpenGL textures.
+* Automatic screen reader integration.
+* Animation, transition and storyboarding.
+* Localization.
+* Theming.
+* Scrolling.
+* Other DisplayListBuilder (iframe).
+* Drag-drop.
+* Modal Window.
+* Diagnostics.
+
+# Basic Layout
+* Align.
+* Min/Max size.
+* Grid.
+* WrapPanel.
+* DockPanel.
+
+# Basic Widgets
+* Button (work button, default, primary, cancel, etc).
+* Validation.
+* TextInput.
+* CheckInput.
+* ToggleInput.
+* Slider.
+* ContextMenu.
+* ToolTip.
+* Resize parent.
+* MainMenu.
+
+# Virtualizing Widgets
+Widgets that contain many elements that must be loaded on demand.
+
+* ListView.
+* TreeView.
+* GridView.
+* TabView.
+* Infinite Canvas.
+
+# Dialogs
+* Message dialogs (themable?).
+* File dialogs (not themable?).
+
+# Window Widgets
+Widgets that stay at the root of the Window and define type of app interaction that is used in the window.
+
+* Custom decoration.
+* Wizard.
+* Ribbon.
+* Docking editor.
+
+# Advanced
+Hard todo but does not mess with the core API.
+
+* Plugins (run as a separate process that is hosted in an iframe like widget).
+* Hosting Ui in a custom OpenGL window.
+* Custom installers.
+
+# Themes
+* Dark/Light default.
+* High contrast.
+* Fluent Design (Windows 10).
+* Material Design (Google).
+
+# More Widgets
+* Charts.
+* Media (audio & video).
+* Image effects.
+* Markdown.
+* Massive images (deep zoom).
+* SVG images.
+* Html (css, no js).
+* Diagram editor.
+* Rich text editor.
+* Browser hosting.
+* Parallax.
+* Morphing.
+* [List of Widgets](https://www.telerik.com/products/wpf/overview.aspx)
