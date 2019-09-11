@@ -27,6 +27,7 @@ Things that must be done first because they influence the core API design that i
 * DockPanel.
 
 # Basic Widgets
+* Progress indicator.
 * Button (work button, default, primary, cancel, etc).
 * Validation.
 * TextInput.
