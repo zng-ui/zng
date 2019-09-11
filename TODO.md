@@ -72,6 +72,10 @@ Hard to-do but does not mess with the core API.
 * Fluent Design (Windows 10).
 * Material Design (Google).
 
+# OS integration.
+* MainMenu.
+* TaskbarItemInfo.
+
 # More Widgets
 * Charts.
 * Media (audio & video).
