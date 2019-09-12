@@ -114,7 +114,9 @@ impl Window {
 
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let content = (new_window.content)(&mut next_update);
+        let mut content = (new_window.content)(&mut next_update);
+        content.init(&mut next_update);
+
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
 

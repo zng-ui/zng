@@ -163,37 +163,37 @@ pub struct NewWindow {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct ContextVarId(u64);
+struct ContextValueId(u64);
 
-impl ContextVarId {
+impl ContextValueId {
     /// Generates a new unique ID.
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(0);
 
-        ContextVarId(NEXT.fetch_add(1, Ordering::Relaxed))
+        ContextValueId(NEXT.fetch_add(1, Ordering::Relaxed))
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct ContextVarKey<T> {
-    id: ContextVarId,
+pub struct ContextValueKey<T> {
+    id: ContextValueId,
     _data: PhantomData<T>,
 }
-impl<T> Clone for ContextVarKey<T> {
+impl<T> Clone for ContextValueKey<T> {
     fn clone(&self) -> Self {
-        ContextVarKey {
+        ContextValueKey {
             id: self.id,
             _data: self._data,
         }
     }
 }
-impl<T> Copy for ContextVarKey<T> {}
+impl<T> Copy for ContextValueKey<T> {}
 
-impl<T: 'static> ContextVarKey<T> {
+impl<T: 'static> ContextValueKey<T> {
     pub fn new() -> Self {
-        ContextVarKey {
-            id: ContextVarId::new(),
+        ContextValueKey {
+            id: ContextValueId::new(),
             _data: PhantomData,
         }
     }
@@ -210,7 +210,7 @@ pub struct NextUpdate {
     pub(crate) value_changes: Vec<Box<dyn ValueChange>>,
     _request_close: bool,
 
-    context_vars: HashMap<ContextVarId, Box<dyn Any>>,
+    context_values: HashMap<ContextValueId, Box<dyn Any>>,
 }
 impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
@@ -225,7 +225,7 @@ impl NextUpdate {
             value_changes: vec![],
             _request_close: false,
 
-            context_vars: HashMap::new(),
+            context_values: HashMap::new(),
         }
     }
 
@@ -249,8 +249,10 @@ impl NextUpdate {
         self.render_frame = true;
     }
 
-    pub fn get<T: 'static>(&self, key: ContextVarKey<T>) -> Option<&T> {
-        self.context_vars.get(&key.id).map(|a| a.downcast_ref::<T>().unwrap())
+    pub fn get<T: 'static>(&self, key: ContextValueKey<T>) -> Option<ValueRef<'_, T>> {
+        self.context_values
+            .get(&key.id)
+            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -316,15 +318,22 @@ impl NextUpdate {
         }
     }
 
-    pub fn propagate_context_var<T: 'static>(&mut self, key: ContextVarKey<T>, value: T, child: &mut impl Ui) {
-        let previous_value = self.context_vars.insert(key.id, Box::new(value));
+    pub fn with_context_value<T: 'static>(
+        &mut self,
+        key: ContextValueKey<T>,
+        value: impl ReadValue<T> + 'static,
+        action: impl FnOnce(&mut NextUpdate),
+    ) {
+        let dyn_box: Box<dyn ReadValue<T>> = Box::new(value);
+        let any_box = Box::new(dyn_box);
+        let previous_value = self.context_values.insert(key.id, any_box);
 
-        child.context_value_changed(self);
+        action(self);
 
         if let Some(value) = previous_value {
-            self.context_vars.insert(key.id, value);
+            self.context_values.insert(key.id, value);
         } else {
-            self.context_vars.remove(&key.id);
+            self.context_values.remove(&key.id);
         }
     }
 
@@ -551,6 +560,8 @@ impl Hits {
 /// # Implementers
 /// This is usually not implemented directly, consider using [UiContainer], [UiMultiContainer], [UiLeaf] and [delegate_ui] first.
 pub trait Ui {
+    fn init(&mut self, update: &mut NextUpdate);
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
 
     fn arrange(&mut self, final_size: LayoutSize);
@@ -590,6 +601,10 @@ pub trait Ui {
 impl Ui for Box<dyn Ui> {
     fn into_box(self) -> Box<dyn Ui> {
         self
+    }
+
+    fn init(&mut self, update: &mut NextUpdate) {
+        self.as_mut().init(update);
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -662,6 +677,8 @@ pub trait UiLeaf {
         size
     }
 
+    fn init(&mut self, update: &mut NextUpdate) {}
+
     fn arrange(&mut self, final_size: LayoutSize) {}
 
     fn render(&self, f: &mut NextFrame);
@@ -698,6 +715,10 @@ pub trait UiContainer {
     fn child_mut(&mut self) -> &mut Self::Child;
 
     fn into_child(self) -> Self::Child;
+
+    fn init(&mut self, update: &mut NextUpdate) {
+        self.child_mut().init(update);
+    }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         self.child_mut().measure(available_size)
@@ -763,6 +784,12 @@ pub trait UiMultiContainer<'a> {
     fn children_mut(&'a mut self) -> Self::ChildrenMut;
 
     fn collect_children<B: FromIterator<Self::Child>>(self) -> B;
+
+    fn init(&'a mut self, update: &mut NextUpdate) {
+        for c in self.children_mut() {
+            c.init(update);
+        }
+    }
 
     fn measure(&'a mut self, available_size: LayoutSize) -> LayoutSize {
         let mut size = LayoutSize::default();
@@ -892,3 +919,87 @@ pub trait Cursor: Ui + Sized {
     }
 }
 impl<T: Ui> Cursor for T {}
+
+pub struct SetContextValue<T: Ui, V, R: ReadValue<V> + Clone> {
+    child: T,
+    value: R,
+    key: ContextValueKey<V>,
+}
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> SetContextValue<T, V, R> {
+    fn new(child: T, key: ContextValueKey<V>, value: R) -> Self {
+        SetContextValue { child, key, value }
+    }
+}
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetContextValue<T, V, R> {
+    delegate_child!(child, T);
+
+    fn init(&mut self, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| Ui::init(self.child_mut(), u));
+    }
+
+    fn value_changed(&mut self, update: &mut NextUpdate) {
+        if self.value.changed() {
+            update.with_context_value(self.key, self.value.clone(), |u| {
+                Ui::context_value_changed(self.child_mut(), u)
+            });
+        }
+
+        update.with_context_value(self.key, self.value.clone(), |u| Ui::value_changed(self.child_mut(), u));
+    }
+
+    fn context_value_changed(&mut self, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| {
+            Ui::context_value_changed(self.child_mut(), u)
+        });
+    }
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| {
+            Ui::keyboard_input(self.child_mut(), input, u)
+        });
+    }
+
+    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| {
+            Ui::focused(self.child_mut(), focused, u)
+        });
+    }
+
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| {
+            Ui::mouse_input(self.child_mut(), input, hits, u)
+        });
+    }
+
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| {
+            Ui::mouse_move(self.child_mut(), input, hits, u)
+        });
+    }
+
+    fn mouse_entered(&mut self, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| Ui::mouse_entered(self.child_mut(), u));
+    }
+
+    fn mouse_left(&mut self, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| Ui::mouse_left(self.child_mut(), u));
+    }
+
+    fn close_request(&mut self, update: &mut NextUpdate) {
+        update.with_context_value(self.key, self.value.clone(), |u| Ui::close_request(self.child_mut(), u));
+    }
+}
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetContextValue<T, V, R> {
+    delegate_ui_methods!(UiContainer);
+}
+
+pub trait ContextValue: Ui + Sized {
+    fn set_ctx_val<T: 'static, R: ReadValue<T> + Clone + 'static>(
+        self,
+        key: ContextValueKey<T>,
+        value: R,
+    ) -> SetContextValue<Self, T, R> {
+        SetContextValue::new(self, key, value)
+    }
+}
+impl<T: Ui> ContextValue for T {}

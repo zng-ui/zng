@@ -1,67 +1,88 @@
-use super::{HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Static, Ui, UiContainer, UiLeaf};
-use crate::ui::ContextVarKey;
-use crate::ui::ReadValue;
+use super::{
+    ContextValue, ContextValueKey, HitTag, Hits, LayoutSize, NextFrame, NextUpdate, ReadValue, SetContextValue, Static,
+    Ui, UiLeaf,
+};
 use webrender::api::*;
 
 pub struct Text {
-    glyphs: Vec<GlyphInstance>,
-    size: LayoutSize,
-    font_instance_key: FontInstanceKey,
+    text: String,
     color: ColorF,
     hit_tag: HitTag,
+
+    glyphs: Vec<GlyphInstance>,
+    size: LayoutSize,
+    font_instance_key: Option<FontInstanceKey>,
 }
 
 impl Text {
-    pub fn new(c: &mut NextUpdate, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Self {
-        let font = c.font(font_family, font_size);
-
-        let indices: Vec<_> = c
-            .api
-            .get_glyph_indices(font.font_key, text)
-            .into_iter()
-            .filter_map(|i| i)
-            .collect();
-        let dimensions = c.api.get_glyph_dimensions(font.instance_key, indices.clone());
-
-        let mut glyphs = Vec::with_capacity(indices.len());
-        let mut offset = 0.;
-
-        assert_eq!(indices.len(), dimensions.len());
-
-        for (index, dim) in indices.into_iter().zip(dimensions) {
-            if let Some(dim) = dim {
-                glyphs.push(GlyphInstance {
-                    index,
-                    point: LayoutPoint::new(offset, font.size as f32),
-                });
-
-                offset += dim.advance as f32;
-            } else {
-                offset += font.size as f32 / 4.;
-            }
-        }
-        let size = LayoutSize::new(offset, font.size as f32 * 1.3);
-        glyphs.shrink_to_fit();
-
+    pub fn new(text: &str, color: ColorF) -> Self {
         //https://harfbuzz.github.io/
         //https://crates.io/crates/unicode-bidi
         //https://www.geeksforgeeks.org/word-wrap-problem-dp-19/
 
         Text {
-            glyphs,
-            size,
-            font_instance_key: font.instance_key,
+            text: text.to_owned(),
+            glyphs: vec![],
+            size: LayoutSize::default(),
+            font_instance_key: None,
             color,
             hit_tag: HitTag::new(),
         }
     }
+
+    fn update(&mut self, u: &mut NextUpdate) {
+        if let (Some(font_family), Some(font_size)) =
+            (u.get(*FONT_FAMILY).map(|f| f.clone()), u.get(*FONT_SIZE).map(|s| *s))
+        {
+            let font = u.font(&font_family, font_size);
+
+            let indices: Vec<_> = u
+                .api
+                .get_glyph_indices(font.font_key, &self.text)
+                .into_iter()
+                .filter_map(|i| i)
+                .collect();
+            let dimensions = u.api.get_glyph_dimensions(font.instance_key, indices.clone());
+
+            let mut glyphs = Vec::with_capacity(indices.len());
+            let mut offset = 0.;
+
+            assert_eq!(indices.len(), dimensions.len());
+
+            for (index, dim) in indices.into_iter().zip(dimensions) {
+                if let Some(dim) = dim {
+                    glyphs.push(GlyphInstance {
+                        index,
+                        point: LayoutPoint::new(offset, font.size as f32),
+                    });
+
+                    offset += dim.advance as f32;
+                } else {
+                    offset += font.size as f32 / 4.;
+                }
+            }
+            glyphs.shrink_to_fit();
+
+            self.glyphs = glyphs;
+            self.size = LayoutSize::new(offset, font.size as f32 * 1.3);
+            self.font_instance_key = Some(font.instance_key);
+        } else {
+            self.glyphs = vec![];
+            self.size = LayoutSize::default();
+            self.font_instance_key = None;
+        }
+    }
 }
 
-pub fn text(c: &mut NextUpdate, text: &str, color: ColorF, font_family: &str, font_size: u32) -> Text {
-    Text::new(c, text, color, font_family, font_size)
+pub fn text(text: &str, color: ColorF) -> Text {
+    Text::new(text, color)
 }
 
 impl UiLeaf for Text {
+    fn init(&mut self, update: &mut NextUpdate) {
+        self.update(update);
+    }
+
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.size
     }
@@ -70,82 +91,45 @@ impl UiLeaf for Text {
         hits.point_over(self.hit_tag)
     }
 
+    fn context_value_changed(&mut self, update: &mut NextUpdate) {
+        self.update(update);
+    }
+
     fn render(&self, f: &mut NextFrame) {
-        f.push_text(
-            LayoutRect::from_size(self.size),
-            &self.glyphs,
-            self.font_instance_key,
-            self.color,
-            Some(self.hit_tag),
-        )
+        if let Some(font) = self.font_instance_key {
+            f.push_text(
+                LayoutRect::from_size(self.size),
+                &self.glyphs,
+                font,
+                self.color,
+                Some(self.hit_tag),
+            )
+        }
     }
 }
 delegate_ui!(UiLeaf, Text);
 
 lazy_static! {
-    static ref FONT_FAMILY: ContextVarKey<String> = ContextVarKey::new();
-    static ref FONT_SIZE: ContextVarKey<u32> = ContextVarKey::new();
+    pub static ref FONT_FAMILY: ContextValueKey<String> = ContextValueKey::new();
+    pub static ref FONT_SIZE: ContextValueKey<u32> = ContextValueKey::new();
 }
 
-pub struct FontFamily<T: Ui, F: ReadValue<String>> {
-    child: T,
-    font: F,
-}
-impl<T: Ui, F: ReadValue<String>> FontFamily<T, F> {
-    fn new(child: T, font: F) -> Self {
-        FontFamily { child, font }
-    }
-}
-impl<T: Ui, F: ReadValue<String>> UiContainer for FontFamily<T, F> {
-    delegate_child!(child, T);
-
-    fn value_changed(&mut self, update: &mut NextUpdate) {
-        if self.font.changed() {
-            let font_value = self.font.value().clone();
-            update.propagate_context_var(*FONT_FAMILY, font_value, self.child_mut());
-        }
-    }
-}
-impl<T: Ui, F: ReadValue<String>> Ui for FontFamily<T, F> {
-    delegate_ui_methods!(UiContainer);
-}
-
-pub struct FontSize<T: Ui, S: ReadValue<u32>> {
-    child: T,
-    size: S,
-}
-impl<T: Ui, S: ReadValue<u32>> FontSize<T, S> {
-    fn new(child: T, size: S) -> Self {
-        FontSize { child, size }
-    }
-}
-impl<T: Ui, S: ReadValue<u32>> UiContainer for FontSize<T, S> {
-    delegate_child!(child, T);
-
-    fn value_changed(&mut self, update: &mut NextUpdate) {
-        if self.size.changed() {
-            let font_value = self.size.value().clone();
-            update.propagate_context_var(*FONT_SIZE, font_value, self.child_mut());
-        }
-    }
-}
-impl<T: Ui, S: ReadValue<u32>> Ui for FontSize<T, S> {
-    delegate_ui_methods!(UiContainer);
-}
+pub type SetFontFamily<T, R> = SetContextValue<T, String, R>;
+pub type SetFontSize<T, R> = SetContextValue<T, u32, R>;
 
 pub trait Font: Ui + Sized {
-    fn font_family(self, font: impl ToString) -> FontFamily<Self, Static<String>> {
-        FontFamily::new(self, Static(font.to_string()))
+    fn font_family(self, font: impl ToString) -> SetFontFamily<Self, Static<String>> {
+        self.set_ctx_val(*FONT_FAMILY, Static(font.to_string()))
     }
-    fn font_size(self, size: u32) -> FontSize<Self, Static<u32>> {
-        FontSize::new(self, Static(size))
+    fn font_size(self, size: u32) -> SetFontSize<Self, Static<u32>> {
+        self.set_ctx_val(*FONT_SIZE, Static(size))
     }
 
-    fn font_family_dyn<F: ReadValue<String>>(self, font: F) -> FontFamily<Self, F> {
-        FontFamily::new(self, font)
+    fn font_family_dyn<F: ReadValue<String> + Clone + 'static>(self, font: F) -> SetFontFamily<Self, F> {
+        self.set_ctx_val(*FONT_FAMILY, font)
     }
-    fn font_size_dyn<S: ReadValue<u32>>(self, size: S) -> FontSize<Self, S> {
-        FontSize::new(self, size)
+    fn font_size_dyn<S: ReadValue<u32> + Clone + 'static>(self, size: S) -> SetFontSize<Self, S> {
+        self.set_ctx_val(*FONT_SIZE, size)
     }
 }
 impl<T: Ui> Font for T {}

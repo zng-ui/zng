@@ -14,7 +14,7 @@ fn main() {
     app::App::new().run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), main_window);
 }
 
-fn main_window(u: &mut NextUpdate) -> impl Ui {
+fn main_window(_: &mut NextUpdate) -> impl Ui {
     let string = r".....
     ÃÂÃÂÃÂÃÂÃÂ
     Economize tempo no Word com novos botões que são mostrados
@@ -24,7 +24,7 @@ fn main_window(u: &mut NextUpdate) -> impl Ui {
     v_stack(
         string
             .split("\n")
-            .map(|l| text(u, l, rgb(0, 0, 0), "Arial", 14).background_color(rgb(255, 255, 255)))
+            .map(|l| text(l, rgb(0, 0, 0)).background_color(rgb(255, 255, 255)))
             .collect::<Vec<_>>(),
     )
     .font_family("Arial")
@@ -35,13 +35,15 @@ fn main_window(u: &mut NextUpdate) -> impl Ui {
     })
 }
 
-fn other_widow(u: &mut NextUpdate) -> impl Ui {
+fn other_widow(_: &mut NextUpdate) -> impl Ui {
     h_stack(
         (0..4)
             .map(|_| {
                 let bkg_color = Var::new(rgb(255, 255, 255));
 
-                text(u, "Ola", rgb(0, 0, 0), "Arial", 90)
+                text("Ola", rgb(0, 0, 0))
+                    .font_family("Arial")
+                    .font_size(90)
                     .background_color_dyn(bkg_color.clone())
                     .center()
                     .cursor(CursorIcon::Hand)

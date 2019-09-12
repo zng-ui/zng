@@ -35,6 +35,10 @@
 #[macro_export]
 macro_rules! delegate_ui_methods {
     ($Del:ident) => {
+        fn init(&mut self, update: &mut $crate::ui::NextUpdate) {
+            $Del::init(self, update);
+        }
+
         fn measure(&mut self, available_size: $crate::ui::LayoutSize) -> $crate::ui::LayoutSize {
             $Del::measure(self, available_size)
         }
