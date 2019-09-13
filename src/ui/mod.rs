@@ -956,66 +956,66 @@ impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetPa
     delegate_child!(child, T);
 
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| Ui::init(self.child_mut(), v, update));
+        values.with_parent_value(self.key, self.value.clone(), |v| self.child.init(v, update));
     }
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         if self.value.changed() {
             values.with_parent_value(self.key, self.value.clone(), |v| {
-                Ui::parent_value_changed(self.child_mut(), v, update)
+                self.child.parent_value_changed(v, update)
             });
         }
 
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::value_changed(self.child_mut(), v, update)
+            self.child.value_changed(v, update)
         });
     }
 
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::parent_value_changed(self.child_mut(), v, update)
+            self.child.parent_value_changed(v, update)
         });
     }
 
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::keyboard_input(self.child_mut(), input, v, update)
+            self.child.keyboard_input(input, v, update)
         });
     }
 
     fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::focused(self.child_mut(), focused, v, update)
+            self.child.focused(focused, v, update)
         });
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::mouse_input(self.child_mut(), input, hits, v, update)
+            self.child.mouse_input(input, hits, v, update)
         });
     }
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::mouse_move(self.child_mut(), input, hits, v, update)
+            self.child.mouse_move(input, hits, v, update)
         });
     }
 
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::mouse_entered(self.child_mut(), v, update)
+            self.child.mouse_entered(v, update)
         });
     }
 
     fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::mouse_left(self.child_mut(), v, update)
+            self.child.mouse_left(v, update)
         });
     }
 
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         values.with_parent_value(self.key, self.value.clone(), |v| {
-            Ui::close_request(self.child_mut(), v, update)
+            self.child.close_request(v, update)
         });
     }
 }
