@@ -204,11 +204,11 @@ macro_rules! ui_value_key {
 }
 
 ui_value_key! {ParentValueId, ParentValueKey}
-ui_value_key! {ReturnValueId, ReturnValueKey}
+ui_value_key! {ChildValueId, ChildValueKey}
 
 pub struct UiValues {
     parent_values: HashMap<ParentValueId, Box<dyn Any>>,
-    child_values: HashMap<ReturnValueId, Box<dyn Any>>,
+    child_values: HashMap<ChildValueId, Box<dyn Any>>,
 }
 impl UiValues {
     pub fn new() -> Self {
@@ -224,7 +224,7 @@ impl UiValues {
             .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
     }
 
-    pub fn child<T: 'static>(&self, key: ReturnValueKey<T>) -> Option<ValueRef<'_, T>> {
+    pub fn child<T: 'static>(&self, key: ChildValueKey<T>) -> Option<ValueRef<'_, T>> {
         self.child_values
             .get(&key.id)
             .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
