@@ -1,9 +1,13 @@
 use super::{
-    ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui,
+    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui,
     UiContainer, UiValues, VirtualKeyCode,
 };
 use std::fmt;
 use std::time::{Duration, Instant};
+
+lazy_static! {
+    pub static ref EVENT_HANDLED: ChildValueKey<bool> = ChildValueKey::new();
+}
 
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
     child: T,
@@ -98,6 +102,10 @@ macro_rules! on_mouse {
 
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
+
+                if values.child(*EVENT_HANDLED).map_or(false, |r| *r){
+                    return
+                }
 
                 if let Some(position) = self.child.point_over(hits) {
                     if let ElementState::$state = input.state {

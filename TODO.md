@@ -1,7 +1,7 @@
 # Core
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Use ChildValue to implement event handling.
+* Use ChildValue to implement event handling.  -continue from line 107@event.rs
 * Better Ui related macros, reduce verbosity.
 * Focusable, keyboard events when focused, automatic TAB navigation.
 * Enabled/Disabled.
