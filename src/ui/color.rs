@@ -1,6 +1,6 @@
 use super::{
     ColorF, GradientStop, HitTag, Hits, LayoutPoint, LayoutRect, NextFrame, NextUpdate, ReadValue, Static, Ui,
-    UiContainer, UiLeaf,
+    UiContainer, UiLeaf, UiValues,
 };
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
@@ -122,7 +122,8 @@ impl<T: Ui, C: ReadValue<ColorF>> UiContainer for BackgroundColor<T, C> {
         hits.point_over(self.hit_tag)
     }
 
-    fn value_changed(&mut self, update: &mut NextUpdate) {
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.value_changed(values, update);
         if self.color.changed() {
             update.render_frame();
         }

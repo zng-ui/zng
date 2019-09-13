@@ -1,4 +1,6 @@
-use crate::ui::{Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, ValueChange};
+use crate::ui::{
+    Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, UiValues, ValueChange,
+};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -57,6 +59,8 @@ pub(crate) struct Window {
     mouse_pos: LayoutPoint,
     key_down: Option<ScanCode>,
     cursor: CursorIcon,
+
+    ui_values: UiValues,
 }
 
 impl Window {
@@ -112,10 +116,11 @@ impl Window {
         let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
+        let mut ui_values = UiValues::new();
         let mut next_update = NextUpdate::new(api, document_id);
 
         let mut content = (new_window.content)(&mut next_update);
-        content.init(&mut next_update);
+        content.init(&mut ui_values, &mut next_update);
 
         Window {
             context: Some(unsafe { context.make_not_current().unwrap() }),
@@ -131,6 +136,7 @@ impl Window {
             content_size: LayoutSize::default(),
 
             first_draw: true,
+            ui_values,
             next_update,
             redraw: false,
 
@@ -184,6 +190,7 @@ impl Window {
                         modifiers: input.modifiers,
                         repeat,
                     },
+                    &mut self.ui_values,
                     &mut self.next_update,
                 )
             }
@@ -195,16 +202,20 @@ impl Window {
                     let hit = self.hit_test(self.mouse_pos);
                     self.mouse_pos = position;
                     self.set_cursor(hit.cursor());
-                    self.content
-                        .mouse_move(&MouseMove { position, modifiers }, &hit, &mut self.next_update);
+                    self.content.mouse_move(
+                        &MouseMove { position, modifiers },
+                        &hit,
+                        &mut self.ui_values,
+                        &mut self.next_update,
+                    );
                 }
             }
             WindowEvent::CursorEntered { .. } => {
-                self.content.mouse_entered(&mut self.next_update);
+                self.content.mouse_entered(&mut self.ui_values, &mut self.next_update);
             }
             WindowEvent::CursorLeft { .. } => {
                 self.set_cursor(CursorIcon::Default);
-                self.content.mouse_left(&mut self.next_update);
+                self.content.mouse_left(&mut self.ui_values, &mut self.next_update);
             }
             WindowEvent::MouseInput {
                 state,
@@ -219,13 +230,15 @@ impl Window {
                     position: self.mouse_pos,
                 },
                 &self.hit_test(self.mouse_pos),
+                &mut self.ui_values,
                 &mut self.next_update,
             ),
             WindowEvent::Focused(focused) => {
                 if !focused {
                     self.key_down = None;
                 }
-                self.content.focused(focused, &mut self.next_update);
+                self.content
+                    .focused(focused, &mut self.ui_values, &mut self.next_update);
             }
 
             _ => has_update = !self.next_update.value_changes.is_empty(),
@@ -264,7 +277,7 @@ impl Window {
 
     pub fn update(&mut self, values_changed: bool) {
         if values_changed {
-            self.content.value_changed(&mut self.next_update);
+            self.content.value_changed(&mut self.ui_values, &mut self.next_update);
         }
 
         self.update_layout();

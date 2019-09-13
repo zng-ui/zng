@@ -1,8 +1,6 @@
 # Core
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Contextual values (parent -> descendants).
-    * Use a separate parameter for context values.
 * Return values (descendent -> parents).
 * Better Ui related macros, reduce verbosity.
 * Focusable, keyboard events when focused, automatic TAB navigation.

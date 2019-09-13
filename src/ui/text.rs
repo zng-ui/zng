@@ -1,6 +1,6 @@
 use super::{
     ContextValue, ContextValueKey, HitTag, Hits, LayoutSize, NextFrame, NextUpdate, ReadValue, SetContextValue, Static,
-    Ui, UiLeaf,
+    Ui, UiLeaf, UiValues,
 };
 use webrender::api::*;
 
@@ -30,11 +30,9 @@ impl Text {
         }
     }
 
-    fn update(&mut self, u: &mut NextUpdate) {
-        if let (Some(font_family), Some(font_size)) =
-            (u.get(*FONT_FAMILY).map(|f| f.clone()), u.get(*FONT_SIZE).map(|s| *s))
-        {
-            let font = u.font(&font_family, font_size);
+    fn update(&mut self, v: &mut UiValues, u: &mut NextUpdate) {
+        if let (Some(font_family), Some(font_size)) = (v.get(*FONT_FAMILY), v.get(*FONT_SIZE)) {
+            let font = u.font(&font_family, *font_size);
 
             let indices: Vec<_> = u
                 .api
@@ -79,8 +77,8 @@ pub fn text(text: &str, color: ColorF) -> Text {
 }
 
 impl UiLeaf for Text {
-    fn init(&mut self, update: &mut NextUpdate) {
-        self.update(update);
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.update(values, update);
     }
 
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
@@ -91,8 +89,8 @@ impl UiLeaf for Text {
         hits.point_over(self.hit_tag)
     }
 
-    fn context_value_changed(&mut self, update: &mut NextUpdate) {
-        self.update(update);
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.update(values, update);
     }
 
     fn render(&self, f: &mut NextFrame) {

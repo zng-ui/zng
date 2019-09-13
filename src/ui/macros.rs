@@ -35,8 +35,8 @@
 #[macro_export]
 macro_rules! delegate_ui_methods {
     ($Del:ident) => {
-        fn init(&mut self, update: &mut $crate::ui::NextUpdate) {
-            $Del::init(self, update);
+        fn init(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::init(self, values, update)
         }
 
         fn measure(&mut self, available_size: $crate::ui::LayoutSize) -> $crate::ui::LayoutSize {
@@ -51,44 +51,44 @@ macro_rules! delegate_ui_methods {
             $Del::render(self, rc)
         }
 
-        fn keyboard_input(&mut self, input: &$crate::ui::KeyboardInput, update: &mut $crate::ui::NextUpdate) {
-            $Del::keyboard_input(self, input, update)
+        fn keyboard_input(&mut self, input: &$crate::ui::KeyboardInput, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::keyboard_input(self, input, values, update)
         }
 
-        fn focused(&mut self, focused: bool, update: &mut $crate::ui::NextUpdate) {
-            $Del::focused(self, focused, update)
+        fn focused(&mut self, focused: bool, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::focused(self, focused, values, update)
         }
 
-        fn mouse_input(&mut self, input: &$crate::ui::MouseInput, hits: &$crate::ui::Hits, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_input(self, input, hits, update)
+        fn mouse_input(&mut self, input: &$crate::ui::MouseInput, hits: &$crate::ui::Hits, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_input(self, input, hits, values, update)
         }
 
-        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, hits: &$crate::ui::Hits, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_move(self, input, hits, update)
+        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, hits: &$crate::ui::Hits, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_move(self, input, hits, values, update)
         }
 
-        fn mouse_entered(&mut self, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_entered(self, update);
+        fn mouse_entered(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_entered(self, values, update);
         }
 
-        fn mouse_left(&mut self, update: &mut $crate::ui::NextUpdate) {
-            $Del::mouse_left(self, update);
+        fn mouse_left(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::mouse_left(self, values, update);
         }
 
-        fn close_request(&mut self, update: &mut $crate::ui::NextUpdate) {
-            $Del::close_request(self, update)
+        fn close_request(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::close_request(self, values, update)
         }
 
         fn point_over(&self, hits: &$crate::ui::Hits) -> Option<$crate::ui::LayoutPoint> {
             $Del::point_over(self, hits)
         }
 
-        fn value_changed(&mut self, update: &mut $crate::ui::NextUpdate) {
-            $Del::value_changed(self, update)
+        fn value_changed(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+            $Del::value_changed(self, values, update)
         }
 
-        fn context_value_changed(&mut self, update: &mut $crate::ui::NextUpdate){
-            $Del::context_value_changed(self, update)
+        fn context_value_changed(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate){
+            $Del::context_value_changed(self, values, update)
         }
 
     };

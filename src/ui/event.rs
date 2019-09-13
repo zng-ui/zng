@@ -1,6 +1,6 @@
 use super::{
     ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui,
-    UiContainer, VirtualKeyCode,
+    UiContainer, UiValues, VirtualKeyCode,
 };
 use std::fmt;
 use std::time::{Duration, Instant};
@@ -19,8 +19,8 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
 impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> UiContainer for OnKeyDown<T, F> {
     delegate_child!(child, T);
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.child.keyboard_input(input, update);
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.keyboard_input(input, values, update);
 
         if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
             let input = KeyDown {
@@ -51,8 +51,8 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
 impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> UiContainer for OnKeyUp<T, F> {
     delegate_child!(child, T);
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.child.keyboard_input(input, update);
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.keyboard_input(input, values, update);
 
         if let (ElementState::Released, Some(key)) = (input.state, input.virtual_keycode) {
             let input = KeyUp {
@@ -96,8 +96,8 @@ macro_rules! on_mouse {
         impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
             delegate_child!(child, T);
 
-            fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-                Ui::mouse_input(&mut self.child, input, hits, update);
+            fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+                self.child.mouse_input(input, hits, values, update);
 
                 if let Some(position) = self.child.point_over(hits) {
                     if let ElementState::$state = input.state {
@@ -169,12 +169,12 @@ fn multi_click_time_ms() -> u32 {
 impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnClick<T, F> {
     delegate_child!(child, T);
 
-    fn focused(&mut self, _: bool, _: &mut NextUpdate) {
+    fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
         self.interaction_outside();
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-        Ui::mouse_input(&mut self.child, input, hits, update);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.mouse_input(input, hits, values, update);
 
         match input.state {
             ElementState::Pressed => {
@@ -229,8 +229,8 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
 impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
     delegate_child!(child, T);
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-        Ui::mouse_move(self, input, hits, update);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.mouse_move(input, hits, values, update);
         if let Some(position) = self.child.point_over(hits) {
             (self.handler)(
                 MouseMove {
@@ -276,13 +276,13 @@ macro_rules! on_mouse_enter_leave {
         impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> UiContainer for $Type<T, F> {
             delegate_child!(child, T);
 
-            fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-                Ui::mouse_move(&mut self.child, input, hits, update);
+            fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+                self.child.mouse_move(input, hits, values, update);
                 self.set_mouse_over(self.child.point_over(hits).is_some(), update);
             }
 
-            fn mouse_left(&mut self, update: &mut NextUpdate) {
-                Ui::mouse_left(&mut self.child, update);
+            fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+                self.child.mouse_left(values, update);
                 self.set_mouse_over(false, update);
             }
         }

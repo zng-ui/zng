@@ -199,6 +199,42 @@ impl<T: 'static> ContextValueKey<T> {
     }
 }
 
+pub struct UiValues {
+    context_values: HashMap<ContextValueId, Box<dyn Any>>,
+}
+impl UiValues {
+    pub fn new() -> Self {
+        UiValues {
+            context_values: HashMap::new(),
+        }
+    }
+
+    pub fn get<T: 'static>(&self, key: ContextValueKey<T>) -> Option<ValueRef<'_, T>> {
+        self.context_values
+            .get(&key.id)
+            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
+    }
+
+    pub fn with_context_value<T: 'static>(
+        &mut self,
+        key: ContextValueKey<T>,
+        value: impl ReadValue<T> + 'static,
+        action: impl FnOnce(&mut UiValues),
+    ) {
+        let dyn_box: Box<dyn ReadValue<T>> = Box::new(value);
+        let any_box = Box::new(dyn_box);
+        let previous_value = self.context_values.insert(key.id, any_box);
+
+        action(self);
+
+        if let Some(value) = previous_value {
+            self.context_values.insert(key.id, value);
+        } else {
+            self.context_values.remove(&key.id);
+        }
+    }
+}
+
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
@@ -209,8 +245,6 @@ pub struct NextUpdate {
     pub(crate) render_frame: bool,
     pub(crate) value_changes: Vec<Box<dyn ValueChange>>,
     _request_close: bool,
-
-    context_values: HashMap<ContextValueId, Box<dyn Any>>,
 }
 impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
@@ -224,8 +258,6 @@ impl NextUpdate {
             render_frame: true,
             value_changes: vec![],
             _request_close: false,
-
-            context_values: HashMap::new(),
         }
     }
 
@@ -247,12 +279,6 @@ impl NextUpdate {
     }
     pub fn render_frame(&mut self) {
         self.render_frame = true;
-    }
-
-    pub fn get<T: 'static>(&self, key: ContextValueKey<T>) -> Option<ValueRef<'_, T>> {
-        self.context_values
-            .get(&key.id)
-            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -315,25 +341,6 @@ impl NextUpdate {
             font_key: f.font_key,
             instance_key,
             size,
-        }
-    }
-
-    pub fn with_context_value<T: 'static>(
-        &mut self,
-        key: ContextValueKey<T>,
-        value: impl ReadValue<T> + 'static,
-        action: impl FnOnce(&mut NextUpdate),
-    ) {
-        let dyn_box: Box<dyn ReadValue<T>> = Box::new(value);
-        let any_box = Box::new(dyn_box);
-        let previous_value = self.context_values.insert(key.id, any_box);
-
-        action(self);
-
-        if let Some(value) = previous_value {
-            self.context_values.insert(key.id, value);
-        } else {
-            self.context_values.remove(&key.id);
         }
     }
 
@@ -560,7 +567,7 @@ impl Hits {
 /// # Implementers
 /// This is usually not implemented directly, consider using [UiContainer], [UiMultiContainer], [UiLeaf] and [delegate_ui] first.
 pub trait Ui {
-    fn init(&mut self, update: &mut NextUpdate);
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
 
@@ -568,26 +575,26 @@ pub trait Ui {
 
     fn render(&self, f: &mut NextFrame);
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate);
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn focused(&mut self, focused: bool, update: &mut NextUpdate);
+    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn mouse_entered(&mut self, update: &mut NextUpdate);
+    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn mouse_left(&mut self, update: &mut NextUpdate);
+    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn close_request(&mut self, update: &mut NextUpdate);
+    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     /// Gets the point over this UI element using a hit test result.
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint>;
 
-    fn value_changed(&mut self, update: &mut NextUpdate);
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn context_value_changed(&mut self, update: &mut NextUpdate);
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
@@ -603,8 +610,8 @@ impl Ui for Box<dyn Ui> {
         self
     }
 
-    fn init(&mut self, update: &mut NextUpdate) {
-        self.as_mut().init(update);
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().init(values, update);
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -619,44 +626,44 @@ impl Ui for Box<dyn Ui> {
         self.as_ref().render(f);
     }
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.as_mut().keyboard_input(input, update);
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().keyboard_input(input, values, update);
     }
 
-    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
-        self.as_mut().focused(focused, update);
+    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().focused(focused, values, update);
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-        self.as_mut().mouse_input(input, hits, update);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().mouse_input(input, hits, values, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-        self.as_mut().mouse_move(input, hits, update);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().mouse_move(input, hits, values, update);
     }
 
-    fn mouse_entered(&mut self, update: &mut NextUpdate) {
-        self.as_mut().mouse_entered(update);
+    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().mouse_entered(values, update);
     }
 
-    fn mouse_left(&mut self, update: &mut NextUpdate) {
-        self.as_mut().mouse_left(update);
+    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().mouse_left(values, update);
     }
 
-    fn close_request(&mut self, update: &mut NextUpdate) {
-        self.as_mut().close_request(update);
+    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().close_request(values, update);
     }
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         self.as_ref().point_over(hits)
     }
 
-    fn value_changed(&mut self, update: &mut NextUpdate) {
-        self.as_mut().value_changed(update);
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().value_changed(values, update);
     }
 
-    fn context_value_changed(&mut self, update: &mut NextUpdate) {
-        self.as_mut().context_value_changed(update);
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().context_value_changed(values, update);
     }
 }
 
@@ -677,33 +684,33 @@ pub trait UiLeaf {
         size
     }
 
-    fn init(&mut self, update: &mut NextUpdate) {}
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
     fn arrange(&mut self, final_size: LayoutSize) {}
 
     fn render(&self, f: &mut NextFrame);
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {}
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {}
+    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {}
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {}
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn mouse_entered(&mut self, update: &mut NextUpdate) {}
+    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn mouse_left(&mut self, update: &mut NextUpdate) {}
+    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn close_request(&mut self, update: &mut NextUpdate) {}
+    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         None
     }
 
-    fn value_changed(&mut self, update: &mut NextUpdate) {}
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn context_value_changed(&mut self, update: &mut NextUpdate) {}
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 }
 
 /// An UI component with a single child component.
@@ -716,8 +723,8 @@ pub trait UiContainer {
 
     fn into_child(self) -> Self::Child;
 
-    fn init(&mut self, update: &mut NextUpdate) {
-        self.child_mut().init(update);
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().init(values, update);
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -732,44 +739,44 @@ pub trait UiContainer {
         self.child().render(f);
     }
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        self.child_mut().keyboard_input(input, update);
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().keyboard_input(input, values, update);
     }
 
-    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
-        self.child_mut().focused(focused, update);
+    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().focused(focused, values, update);
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-        self.child_mut().mouse_input(input, hits, update);
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().mouse_input(input, hits, values, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-        self.child_mut().mouse_move(input, hits, update);
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().mouse_move(input, hits, values, update);
     }
 
-    fn mouse_entered(&mut self, update: &mut NextUpdate) {
-        self.child_mut().mouse_entered(update);
+    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().mouse_entered(values, update);
     }
 
-    fn mouse_left(&mut self, update: &mut NextUpdate) {
-        self.child_mut().mouse_left(update);
+    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().mouse_left(values, update);
     }
 
-    fn close_request(&mut self, update: &mut NextUpdate) {
-        self.child_mut().close_request(update);
+    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().close_request(values, update);
     }
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         self.child().point_over(hits)
     }
 
-    fn value_changed(&mut self, update: &mut NextUpdate) {
-        self.child_mut().value_changed(update);
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().value_changed(values, update);
     }
 
-    fn context_value_changed(&mut self, update: &mut NextUpdate) {
-        self.child_mut().context_value_changed(update);
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().context_value_changed(values, update);
     }
 }
 
@@ -785,9 +792,9 @@ pub trait UiMultiContainer<'a> {
 
     fn collect_children<B: FromIterator<Self::Child>>(self) -> B;
 
-    fn init(&'a mut self, update: &mut NextUpdate) {
+    fn init(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.init(update);
+            c.init(values, update);
         }
     }
 
@@ -811,45 +818,45 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
-    fn keyboard_input(&'a mut self, input: &KeyboardInput, update: &mut NextUpdate) {
+    fn keyboard_input(&'a mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.keyboard_input(input, update);
+            c.keyboard_input(input, values, update);
         }
     }
 
-    fn focused(&'a mut self, focused: bool, update: &mut NextUpdate) {
+    fn focused(&'a mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.focused(focused, update);
+            c.focused(focused, values, update);
         }
     }
 
-    fn mouse_input(&'a mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
+    fn mouse_input(&'a mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_input(input, hits, update);
+            c.mouse_input(input, hits, values, update);
         }
     }
 
-    fn mouse_move(&'a mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
+    fn mouse_move(&'a mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_move(input, hits, update);
+            c.mouse_move(input, hits, values, update);
         }
     }
 
-    fn mouse_entered(&'a mut self, update: &mut NextUpdate) {
+    fn mouse_entered(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_entered(update);
+            c.mouse_entered(values, update);
         }
     }
 
-    fn mouse_left(&'a mut self, update: &mut NextUpdate) {
+    fn mouse_left(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.mouse_left(update);
+            c.mouse_left(values, update);
         }
     }
 
-    fn close_request(&'a mut self, update: &mut NextUpdate) {
+    fn close_request(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.close_request(update);
+            c.close_request(values, update);
         }
     }
 
@@ -862,15 +869,15 @@ pub trait UiMultiContainer<'a> {
         None
     }
 
-    fn value_changed(&'a mut self, update: &mut NextUpdate) {
+    fn value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.value_changed(update);
+            c.value_changed(values, update);
         }
     }
 
-    fn context_value_changed(&'a mut self, update: &mut NextUpdate) {
+    fn context_value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.context_value_changed(update);
+            c.context_value_changed(values, update);
         }
     }
 }
@@ -933,60 +940,68 @@ impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> SetContextValue<T, V,
 impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetContextValue<T, V, R> {
     delegate_child!(child, T);
 
-    fn init(&mut self, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| Ui::init(self.child_mut(), u));
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| Ui::init(self.child_mut(), v, update));
     }
 
-    fn value_changed(&mut self, update: &mut NextUpdate) {
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         if self.value.changed() {
-            update.with_context_value(self.key, self.value.clone(), |u| {
-                Ui::context_value_changed(self.child_mut(), u)
+            values.with_context_value(self.key, self.value.clone(), |v| {
+                Ui::context_value_changed(self.child_mut(), v, update)
             });
         }
 
-        update.with_context_value(self.key, self.value.clone(), |u| Ui::value_changed(self.child_mut(), u));
-    }
-
-    fn context_value_changed(&mut self, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| {
-            Ui::context_value_changed(self.child_mut(), u)
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::value_changed(self.child_mut(), v, update)
         });
     }
 
-    fn keyboard_input(&mut self, input: &KeyboardInput, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| {
-            Ui::keyboard_input(self.child_mut(), input, u)
+    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::context_value_changed(self.child_mut(), v, update)
         });
     }
 
-    fn focused(&mut self, focused: bool, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| {
-            Ui::focused(self.child_mut(), focused, u)
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::keyboard_input(self.child_mut(), input, v, update)
         });
     }
 
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| {
-            Ui::mouse_input(self.child_mut(), input, hits, u)
+    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::focused(self.child_mut(), focused, v, update)
         });
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| {
-            Ui::mouse_move(self.child_mut(), input, hits, u)
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::mouse_input(self.child_mut(), input, hits, v, update)
         });
     }
 
-    fn mouse_entered(&mut self, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| Ui::mouse_entered(self.child_mut(), u));
+    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::mouse_move(self.child_mut(), input, hits, v, update)
+        });
     }
 
-    fn mouse_left(&mut self, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| Ui::mouse_left(self.child_mut(), u));
+    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::mouse_entered(self.child_mut(), v, update)
+        });
     }
 
-    fn close_request(&mut self, update: &mut NextUpdate) {
-        update.with_context_value(self.key, self.value.clone(), |u| Ui::close_request(self.child_mut(), u));
+    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::mouse_left(self.child_mut(), v, update)
+        });
+    }
+
+    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_context_value(self.key, self.value.clone(), |v| {
+            Ui::close_request(self.child_mut(), v, update)
+        });
     }
 }
 impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetContextValue<T, V, R> {
