@@ -162,75 +162,90 @@ pub struct NewWindow {
     pub inner_size: LayoutSize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-struct ContextValueId(u64);
+macro_rules! ui_value_key {
+    ($Id: ident, $Key: ident) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        struct $Id(u64);
 
-impl ContextValueId {
-    /// Generates a new unique ID.
-    pub fn new() -> Self {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(0);
+        impl $Id {
+            /// Generates a new unique ID.
+            pub fn new() -> Self {
+                use std::sync::atomic::{AtomicU64, Ordering};
+                static NEXT: AtomicU64 = AtomicU64::new(0);
 
-        ContextValueId(NEXT.fetch_add(1, Ordering::Relaxed))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct ContextValueKey<T> {
-    id: ContextValueId,
-    _data: PhantomData<T>,
-}
-impl<T> Clone for ContextValueKey<T> {
-    fn clone(&self) -> Self {
-        ContextValueKey {
-            id: self.id,
-            _data: self._data,
+                $Id(NEXT.fetch_add(1, Ordering::Relaxed))
+            }
         }
-    }
-}
-impl<T> Copy for ContextValueKey<T> {}
 
-impl<T: 'static> ContextValueKey<T> {
-    pub fn new() -> Self {
-        ContextValueKey {
-            id: ContextValueId::new(),
-            _data: PhantomData,
+        #[derive(Debug, PartialEq, Eq, Hash)]
+        pub struct $Key<T> {
+            id: $Id,
+            _data: PhantomData<T>,
         }
-    }
+        impl<T> Clone for $Key<T> {
+            fn clone(&self) -> Self {
+                $Key {
+                    id: self.id,
+                    _data: self._data,
+                }
+            }
+        }
+        impl<T> Copy for $Key<T> {}
+
+        impl<T: 'static> $Key<T> {
+            pub fn new() -> Self {
+                $Key {
+                    id: $Id::new(),
+                    _data: PhantomData,
+                }
+            }
+        }
+    };
 }
+
+ui_value_key! {ParentValueId, ParentValueKey}
+ui_value_key! {ReturnValueId, ReturnValueKey}
 
 pub struct UiValues {
-    context_values: HashMap<ContextValueId, Box<dyn Any>>,
+    parent_values: HashMap<ParentValueId, Box<dyn Any>>,
+    child_values: HashMap<ReturnValueId, Box<dyn Any>>,
 }
 impl UiValues {
     pub fn new() -> Self {
         UiValues {
-            context_values: HashMap::new(),
+            parent_values: HashMap::new(),
+            child_values: HashMap::new(),
         }
     }
 
-    pub fn get<T: 'static>(&self, key: ContextValueKey<T>) -> Option<ValueRef<'_, T>> {
-        self.context_values
+    pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<ValueRef<'_, T>> {
+        self.parent_values
             .get(&key.id)
             .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
     }
 
-    pub fn with_context_value<T: 'static>(
+    pub fn child<T: 'static>(&self, key: ReturnValueKey<T>) -> Option<ValueRef<'_, T>> {
+        self.child_values
+            .get(&key.id)
+            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
+    }
+
+    pub fn with_parent_value<T: 'static>(
         &mut self,
-        key: ContextValueKey<T>,
+        key: ParentValueKey<T>,
         value: impl ReadValue<T> + 'static,
         action: impl FnOnce(&mut UiValues),
     ) {
         let dyn_box: Box<dyn ReadValue<T>> = Box::new(value);
         let any_box = Box::new(dyn_box);
-        let previous_value = self.context_values.insert(key.id, any_box);
+        let previous_value = self.parent_values.insert(key.id, any_box);
 
         action(self);
 
         if let Some(value) = previous_value {
-            self.context_values.insert(key.id, value);
+            self.parent_values.insert(key.id, value);
         } else {
-            self.context_values.remove(&key.id);
+            self.parent_values.remove(&key.id);
         }
     }
 }
@@ -594,7 +609,7 @@ pub trait Ui {
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     /// Box this component, unless it is already `Box<dyn Ui>`.
     fn into_box(self) -> Box<dyn Ui>
@@ -662,8 +677,8 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().value_changed(values, update);
     }
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().context_value_changed(values, update);
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.as_mut().parent_value_changed(values, update);
     }
 }
 
@@ -710,7 +725,7 @@ pub trait UiLeaf {
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 }
 
 /// An UI component with a single child component.
@@ -775,8 +790,8 @@ pub trait UiContainer {
         self.child_mut().value_changed(values, update);
     }
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().context_value_changed(values, update);
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child_mut().parent_value_changed(values, update);
     }
 }
 
@@ -875,9 +890,9 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
-    fn context_value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
+    fn parent_value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
-            c.context_value_changed(values, update);
+            c.parent_value_changed(values, update);
         }
     }
 }
@@ -927,94 +942,94 @@ pub trait Cursor: Ui + Sized {
 }
 impl<T: Ui> Cursor for T {}
 
-pub struct SetContextValue<T: Ui, V, R: ReadValue<V> + Clone> {
+pub struct SetParentValue<T: Ui, V, R: ReadValue<V> + Clone> {
     child: T,
     value: R,
-    key: ContextValueKey<V>,
+    key: ParentValueKey<V>,
 }
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> SetContextValue<T, V, R> {
-    fn new(child: T, key: ContextValueKey<V>, value: R) -> Self {
-        SetContextValue { child, key, value }
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> SetParentValue<T, V, R> {
+    fn new(child: T, key: ParentValueKey<V>, value: R) -> Self {
+        SetParentValue { child, key, value }
     }
 }
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetContextValue<T, V, R> {
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetParentValue<T, V, R> {
     delegate_child!(child, T);
 
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| Ui::init(self.child_mut(), v, update));
+        values.with_parent_value(self.key, self.value.clone(), |v| Ui::init(self.child_mut(), v, update));
     }
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         if self.value.changed() {
-            values.with_context_value(self.key, self.value.clone(), |v| {
-                Ui::context_value_changed(self.child_mut(), v, update)
+            values.with_parent_value(self.key, self.value.clone(), |v| {
+                Ui::parent_value_changed(self.child_mut(), v, update)
             });
         }
 
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::value_changed(self.child_mut(), v, update)
         });
     }
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
-            Ui::context_value_changed(self.child_mut(), v, update)
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
+            Ui::parent_value_changed(self.child_mut(), v, update)
         });
     }
 
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::keyboard_input(self.child_mut(), input, v, update)
         });
     }
 
     fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::focused(self.child_mut(), focused, v, update)
         });
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::mouse_input(self.child_mut(), input, hits, v, update)
         });
     }
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::mouse_move(self.child_mut(), input, hits, v, update)
         });
     }
 
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::mouse_entered(self.child_mut(), v, update)
         });
     }
 
     fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::mouse_left(self.child_mut(), v, update)
         });
     }
 
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_context_value(self.key, self.value.clone(), |v| {
+        values.with_parent_value(self.key, self.value.clone(), |v| {
             Ui::close_request(self.child_mut(), v, update)
         });
     }
 }
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetContextValue<T, V, R> {
+impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetParentValue<T, V, R> {
     delegate_ui_methods!(UiContainer);
 }
 
-pub trait ContextValue: Ui + Sized {
+pub trait ParentValue: Ui + Sized {
     fn set_ctx_val<T: 'static, R: ReadValue<T> + Clone + 'static>(
         self,
-        key: ContextValueKey<T>,
+        key: ParentValueKey<T>,
         value: R,
-    ) -> SetContextValue<Self, T, R> {
-        SetContextValue::new(self, key, value)
+    ) -> SetParentValue<Self, T, R> {
+        SetParentValue::new(self, key, value)
     }
 }
-impl<T: Ui> ContextValue for T {}
+impl<T: Ui> ParentValue for T {}

@@ -1,5 +1,5 @@
 use super::{
-    ContextValue, ContextValueKey, HitTag, Hits, LayoutSize, NextFrame, NextUpdate, ReadValue, SetContextValue, Static,
+    HitTag, Hits, LayoutSize, NextFrame, NextUpdate, ParentValue, ParentValueKey, ReadValue, SetParentValue, Static,
     Ui, UiLeaf, UiValues,
 };
 use webrender::api::*;
@@ -31,7 +31,7 @@ impl Text {
     }
 
     fn update(&mut self, v: &mut UiValues, u: &mut NextUpdate) {
-        if let (Some(font_family), Some(font_size)) = (v.get(*FONT_FAMILY), v.get(*FONT_SIZE)) {
+        if let (Some(font_family), Some(font_size)) = (v.parent(*FONT_FAMILY), v.parent(*FONT_SIZE)) {
             let font = u.font(&font_family, *font_size);
 
             let indices: Vec<_> = u
@@ -89,7 +89,7 @@ impl UiLeaf for Text {
         hits.point_over(self.hit_tag)
     }
 
-    fn context_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.update(values, update);
     }
 
@@ -108,12 +108,12 @@ impl UiLeaf for Text {
 delegate_ui!(UiLeaf, Text);
 
 lazy_static! {
-    pub static ref FONT_FAMILY: ContextValueKey<String> = ContextValueKey::new();
-    pub static ref FONT_SIZE: ContextValueKey<u32> = ContextValueKey::new();
+    pub static ref FONT_FAMILY: ParentValueKey<String> = ParentValueKey::new();
+    pub static ref FONT_SIZE: ParentValueKey<u32> = ParentValueKey::new();
 }
 
-pub type SetFontFamily<T, R> = SetContextValue<T, String, R>;
-pub type SetFontSize<T, R> = SetContextValue<T, u32, R>;
+pub type SetFontFamily<T, R> = SetParentValue<T, String, R>;
+pub type SetFontSize<T, R> = SetParentValue<T, u32, R>;
 
 pub trait Font: Ui + Sized {
     fn font_family(self, font: impl ToString) -> SetFontFamily<Self, Static<String>> {

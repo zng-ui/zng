@@ -87,8 +87,8 @@ macro_rules! delegate_ui_methods {
             $Del::value_changed(self, values, update)
         }
 
-        fn context_value_changed(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate){
-            $Del::context_value_changed(self, values, update)
+        fn parent_value_changed(&mut self, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate){
+            $Del::parent_value_changed(self, values, update)
         }
 
     };
