@@ -272,6 +272,49 @@ impl UiValues {
     }
 }
 
+#[cfg(test)]
+mod ui_values {
+    use super::*;
+
+    #[test]
+    fn with_parent_value() {
+        let mut ui_values = UiValues::new();
+        let key1 = ParentValueKey::new();
+        let key2 = ParentValueKey::new();
+
+        let val1: u32 = 10;
+        let val2: u32 = 11;
+        let val3: u32 = 12;
+
+        assert_eq!(ui_values.parent(key1), None);
+        assert_eq!(ui_values.parent(key2), None);
+
+        ui_values.with_parent_value(key1, &val1, |ui_values|{
+            assert_eq!(ui_values.parent(key1), Some(&val1));
+            assert_eq!(ui_values.parent(key2), None);
+
+            ui_values.with_parent_value(key2, &val2, |ui_values|{
+                assert_eq!(ui_values.parent(key1), Some(&val1));
+                assert_eq!(ui_values.parent(key2), Some(&val2));
+
+                ui_values.with_parent_value(key1, &val3, |ui_values|{
+                    assert_eq!(ui_values.parent(key1), Some(&val3));
+                    assert_eq!(ui_values.parent(key2), Some(&val2));
+                });
+
+                assert_eq!(ui_values.parent(key1), Some(&val1));
+                assert_eq!(ui_values.parent(key2), Some(&val2));
+            });
+
+            assert_eq!(ui_values.parent(key1), Some(&val1));
+            assert_eq!(ui_values.parent(key2), None);
+        });
+
+        assert_eq!(ui_values.parent(key1), None);
+        assert_eq!(ui_values.parent(key2), None);
+    }
+}
+
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
