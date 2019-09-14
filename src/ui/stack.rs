@@ -95,6 +95,13 @@ pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
     ZStack::new(children)
 }
 
+#[cfg(test)]
+mod z_stack_tests {
+    use super::*;
+
+    ui_multi_container_tests!(|c: Vec<TestChild>| z_stack(c));
+}
+
 /// A child in a stack container.
 pub struct StackSlot<T> {
     child: T,

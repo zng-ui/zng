@@ -44,6 +44,12 @@ impl UiLeaf for FillColor {
     }
 }
 delegate_ui!(UiLeaf, FillColor);
+#[cfg(test)]
+mod fill_color_tests {
+    use super::*;
+
+    ui_leaf_tests!(FillColor::new(rgb(0, 0, 0)));
+}
 
 pub fn fill_color(color: ColorF) -> FillColor {
     FillColor::new(color)
@@ -93,6 +99,25 @@ impl UiLeaf for FillGradient {
     }
 }
 delegate_ui!(UiLeaf, FillGradient);
+#[cfg(test)]
+mod fill_gradient_tests {
+    use super::*;
+
+    ui_leaf_tests!(FillGradient::new(
+        LayoutPoint::new(0., 0.),
+        LayoutPoint::new(1., 1.),
+        vec![
+            GradientStop {
+                offset: 0.,
+                color: rgb(0, 200, 0),
+            },
+            GradientStop {
+                offset: 1.,
+                color: rgb(200, 0, 0),
+            },
+        ]
+    ));
+}
 
 pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
     FillGradient::new(start, end, stops)
@@ -196,3 +221,10 @@ pub trait Background: Ui + Sized {
     }
 }
 impl<T: Ui> Background for T {}
+
+#[cfg(test)]
+mod background_color_tests {
+    use super::*;
+
+    ui_container_tests!(|c: TestChild| c.background_color(rgb(0, 0, 0)));
+}

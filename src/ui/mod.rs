@@ -1,6 +1,10 @@
 #[macro_use]
 mod macros;
 
+#[cfg(test)]
+#[macro_use]
+pub mod test;
+
 mod color;
 mod event;
 mod layout;
@@ -289,15 +293,15 @@ mod ui_values {
         assert_eq!(ui_values.parent(key1), None);
         assert_eq!(ui_values.parent(key2), None);
 
-        ui_values.with_parent_value(key1, &val1, |ui_values|{
+        ui_values.with_parent_value(key1, &val1, |ui_values| {
             assert_eq!(ui_values.parent(key1), Some(&val1));
             assert_eq!(ui_values.parent(key2), None);
 
-            ui_values.with_parent_value(key2, &val2, |ui_values|{
+            ui_values.with_parent_value(key2, &val2, |ui_values| {
                 assert_eq!(ui_values.parent(key1), Some(&val1));
                 assert_eq!(ui_values.parent(key2), Some(&val2));
 
-                ui_values.with_parent_value(key1, &val3, |ui_values|{
+                ui_values.with_parent_value(key1, &val3, |ui_values| {
                     assert_eq!(ui_values.parent(key1), Some(&val3));
                     assert_eq!(ui_values.parent(key2), Some(&val2));
                 });
@@ -590,6 +594,7 @@ pub struct KeyboardInput {
     pub repeat: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct MouseInput {
     pub state: ElementState,
     pub button: MouseButton,
@@ -597,6 +602,7 @@ pub struct MouseInput {
     pub position: LayoutPoint,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct MouseMove {
     pub position: LayoutPoint,
     pub modifiers: ModifiersState,
