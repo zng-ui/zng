@@ -1,6 +1,6 @@
 use super::{
-    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove, NextUpdate, Ui,
-    UiContainer, UiValues, VirtualKeyCode,
+    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
+    NextUpdate, Ui, UiContainer, UiValues, VirtualKeyCode,
 };
 use std::fmt;
 use std::time::{Duration, Instant};
@@ -103,8 +103,8 @@ macro_rules! on_mouse {
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
 
-                if values.child(*EVENT_HANDLED).map_or(false, |r| *r){
-                    return
+                if values.child(*EVENT_HANDLED).map_or(false, |r| *r) {
+                    return;
                 }
 
                 if let Some(position) = self.child.point_over(hits) {

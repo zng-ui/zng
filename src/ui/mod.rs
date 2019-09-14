@@ -61,9 +61,9 @@ pub trait ReadValue<T> {
 }
 
 #[derive(Clone)]
-pub struct Static<T>(T);
+pub struct Owned<T>(T);
 
-impl<T: 'static> ReadValue<T> for Static<T> {
+impl<T: 'static> ReadValue<T> for Owned<T> {
     fn value(&self) -> ValueRef<'_, T> {
         ValueRef(ValueRefData::Static(&self.0))
     }
@@ -137,6 +137,28 @@ impl<T> ReadValue<T> for Var<T> {
     }
 }
 
+pub trait IntoReadValue<T> {
+    type ReadValue: ReadValue<T>;
+
+    fn into(self) -> Self::ReadValue;
+}
+
+impl<T> IntoReadValue<T> for Var<T> {
+    type ReadValue = Var<T>;
+
+    fn into(self) -> Self {
+        self
+    }
+}
+
+impl<T: 'static> IntoReadValue<T> for T {
+    type ReadValue = Owned<T>;
+
+    fn into(self) -> Owned<T> {
+        Owned(self)
+    }
+}
+
 pub(crate) trait ValueChange {
     fn commit(&mut self);
     fn reset_changed(&mut self);
@@ -206,8 +228,10 @@ macro_rules! ui_value_key {
 ui_value_key! {ParentValueId, ParentValueKey}
 ui_value_key! {ChildValueId, ChildValueKey}
 
+enum UntypedRef {}
+
 pub struct UiValues {
-    parent_values: HashMap<ParentValueId, Box<dyn Any>>,
+    parent_values: HashMap<ParentValueId, *const UntypedRef>,
     child_values: HashMap<ChildValueId, Box<dyn Any>>,
 }
 impl UiValues {
@@ -218,35 +242,37 @@ impl UiValues {
         }
     }
 
-    pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<ValueRef<'_, T>> {
+    pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<&T> {
+        // REFERENCE SAFETY: This is safe because parent_values are only inserted for the duration
+        // of [with_parent_value] that holds the reference.
+        //
+        // TYPE SAFETY: This is safe because [ParentValueId::new] is always unique AND created by
+        // [ParentValueKey::new] THAT can only be inserted in [with_parent_value].
         self.parent_values
             .get(&key.id)
-            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
+            .map(|pointer| unsafe { &*(*pointer as *const T) })
     }
 
-    pub fn child<T: 'static>(&self, key: ChildValueKey<T>) -> Option<ValueRef<'_, T>> {
-        self.child_values
-            .get(&key.id)
-            .map(|a| a.downcast_ref::<Box<dyn ReadValue<T>>>().unwrap().value())
-    }
-
-    pub fn with_parent_value<T: 'static>(
-        &mut self,
-        key: ParentValueKey<T>,
-        value: impl ReadValue<T> + 'static,
-        action: impl FnOnce(&mut UiValues),
-    ) {
-        let dyn_box: Box<dyn ReadValue<T>> = Box::new(value);
-        let any_box = Box::new(dyn_box);
-        let previous_value = self.parent_values.insert(key.id, any_box);
+    pub fn with_parent_value<T>(&mut self, key: ParentValueKey<T>, value: &T, action: impl FnOnce(&mut UiValues)) {
+        let previous_value = self
+            .parent_values
+            .insert(key.id, (value as *const T) as *const UntypedRef);
 
         action(self);
 
-        if let Some(value) = previous_value {
-            self.parent_values.insert(key.id, value);
+        if let Some(previous_value) = previous_value {
+            self.parent_values.insert(key.id, previous_value);
         } else {
             self.parent_values.remove(&key.id);
         }
+    }
+
+    pub fn child<T: 'static>(&self, key: ChildValueKey<T>) -> Option<&T> {
+        self.child_values.get(&key.id).map(|a| a.downcast_ref::<T>().unwrap())
+    }
+
+    pub fn set_child_value<T: 'static>(&mut self, key: ChildValueKey<T>, value: T) {
+        self.child_values.insert(key.id, Box::new(value));
     }
 }
 
@@ -956,67 +982,68 @@ impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetPa
     delegate_child!(child, T);
 
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| self.child.init(v, update));
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.init(v, update));
     }
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        let child = &mut self.child;
+
         if self.value.changed() {
-            values.with_parent_value(self.key, self.value.clone(), |v| {
-                self.child.parent_value_changed(v, update)
+            values.with_parent_value(self.key, &*self.value.value(), |v| {
+                child.parent_value_changed(v, update)
             });
         }
 
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.value_changed(v, update)
-        });
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.value_changed(v, update));
     }
 
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.parent_value_changed(v, update)
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| {
+            child.parent_value_changed(v, update)
         });
     }
 
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.keyboard_input(input, v, update)
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| {
+            child.keyboard_input(input, v, update)
         });
     }
 
     fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.focused(focused, v, update)
-        });
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.focused(focused, v, update));
     }
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.mouse_input(input, hits, v, update)
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| {
+            child.mouse_input(input, hits, v, update)
         });
     }
 
     fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.mouse_move(input, hits, v, update)
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| {
+            child.mouse_move(input, hits, v, update)
         });
     }
 
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.mouse_entered(v, update)
-        });
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.mouse_entered(v, update));
     }
 
     fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.mouse_left(v, update)
-        });
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.mouse_left(v, update));
     }
 
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        values.with_parent_value(self.key, self.value.clone(), |v| {
-            self.child.close_request(v, update)
-        });
+        let child = &mut self.child;
+        values.with_parent_value(self.key, &*self.value.value(), |v| child.close_request(v, update));
     }
 }
 impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetParentValue<T, V, R> {

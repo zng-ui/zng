@@ -44,7 +44,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                 text("Ola", rgb(0, 0, 0))
                     .font_family("Arial")
                     .font_size(90)
-                    .background_color_dyn(bkg_color.clone())
+                    .background_color(bkg_color.clone())
                     .center()
                     .cursor(CursorIcon::Hand)
                     .on_mouse_enter(enclose! {(bkg_color) move |u| {
