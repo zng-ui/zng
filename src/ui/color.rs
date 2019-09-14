@@ -228,3 +228,23 @@ mod background_color_tests {
 
     ui_container_tests!(|c: TestChild| c.background_color(rgb(0, 0, 0)));
 }
+
+#[cfg(test)]
+mod background_gradient_tests {
+    use super::*;
+
+    ui_container_tests!(|c: TestChild| c.background_gradient(
+        LayoutPoint::new(0., 0.),
+        LayoutPoint::new(1., 1.),
+        vec![
+            GradientStop {
+                offset: 0.,
+                color: rgb(0, 200, 0),
+            },
+            GradientStop {
+                offset: 1.,
+                color: rgb(200, 0, 0),
+            },
+        ]
+    ));
+}
