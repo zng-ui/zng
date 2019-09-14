@@ -1,5 +1,5 @@
 use crate::ui::{
-    Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, UiValues, ValueChange,
+    Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, UiValues, VarChange,
 };
 use gleam::gl;
 use glutin::dpi::LogicalSize;
@@ -250,7 +250,7 @@ impl Window {
         std::mem::replace(&mut self.next_update.windows, vec![])
     }
 
-    pub fn value_changes(&mut self) -> Vec<Box<dyn ValueChange>> {
+    pub fn value_changes(&mut self) -> Vec<Box<dyn VarChange>> {
         std::mem::replace(&mut self.next_update.value_changes, vec![])
     }
 

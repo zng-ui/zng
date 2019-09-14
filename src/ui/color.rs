@@ -130,11 +130,7 @@ impl<T: Ui, C: ReadValue<ColorF>> UiContainer for BackgroundColor<T, C> {
     }
 
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(
-            LayoutRect::from_size(f.final_size()),
-            *self.color.value(),
-            Some(self.hit_tag),
-        );
+        f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
         self.child.render(f)
     }
 }
