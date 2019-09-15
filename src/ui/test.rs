@@ -122,20 +122,6 @@ macro_rules! ui_leaf_tests {
         }
 
         #[test]
-        fn measure_is_pure() {
-            let mut ui = new();
-
-            let measure1 = ui.measure(LayoutSize::new(100., 200.));
-            let measure2 = ui.measure(LayoutSize::new(100., 200.));
-
-            assert_eq!(
-                measure1, measure2,
-                "`measure` must be a pure function (same output for input). It takes `&mut self` \
-                 for caching purposes only."
-            )
-        }
-
-        #[test]
         fn layout_and_render_fast() {
             // TODO figure timing here
         }
