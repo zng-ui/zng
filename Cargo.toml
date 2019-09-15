@@ -25,3 +25,7 @@ bencher = "0.1.5"
 [[bench]]
 name = "u64_map"
 harness = false
+
+[[bench]]
+name = "value_changed"
+harness = false
