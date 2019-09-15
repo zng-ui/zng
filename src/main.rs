@@ -27,7 +27,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
             .map(|l| {
                 text(l, rgb(0, 0, 0))
                     .background_color(rgb(255, 255, 255))
-                    .on_click(|m, u| {
+                    .on_click(|_, _| {
                         // m.stop_propagation();
                         println!("on_click: line")
                     })
@@ -36,7 +36,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
     )
     .font_family("Arial")
     .font_size(14)
-    .on_click(|m, u| {
+    .on_click(|_, u| {
         println!("on_click: text");
         u.create_window(rgbaf(0.3, 0.2, 0.1, 1.0), LayoutSize::new(1000., 800.), other_widow);
     })
