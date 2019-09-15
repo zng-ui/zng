@@ -17,3 +17,11 @@ log = "0.4.8"
 fern = "0.5.8"
 winapi = "0.3.8"
 lazy_static = "1.4.0"
+
+[dev-dependencies]
+fnv = "1.0.6"
+bencher = "0.1.5"
+
+[[bench]]
+name = "u64_map"
+harness = false
