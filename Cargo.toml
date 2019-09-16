@@ -26,6 +26,6 @@ bencher = "0.1.5"
 name = "u64_map"
 harness = false
 
-[[bench]]
-name = "value_changed"
-harness = false
+#[[bench]]
+#name = "value_changed"
+#harness = false
