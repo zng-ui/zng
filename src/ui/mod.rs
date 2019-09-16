@@ -58,6 +58,8 @@ impl HitTag {
     }
 }
 
+// README https://rust-lang-nursery.github.io/api-guidelines
+
 pub trait ReadValue<T>: Deref<Target = T> {
     fn changed(&self) -> bool;
 
