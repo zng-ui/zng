@@ -2,7 +2,9 @@ use super::{
     ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
     NextUpdate, Ui, UiContainer, UiValues, VirtualKeyCode,
 };
+use std::cell::Cell;
 use std::fmt;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 lazy_static! {
@@ -146,12 +148,19 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
         }
     }
 
-    fn call_handler(&mut self, input: &MouseInput, position: LayoutPoint, update: &mut NextUpdate) {
+    fn call_handler(
+        &mut self,
+        input: &MouseInput,
+        position: LayoutPoint,
+        stop_propagation: Rc<Cell<bool>>,
+        update: &mut NextUpdate,
+    ) {
         let input = ClickInput {
             button: input.button,
             modifiers: input.modifiers,
             position,
             click_count: self.click_count,
+            stop_propagation,
         };
         (self.handler)(input, update);
     }
@@ -183,6 +192,12 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_input(input, hits, values, update);
+        if values.child(*EVENT_HANDLED).map_or(false, |r| *r) {
+            self.click_count = 0;
+            return;
+        }
+
+        let handled = Rc::default();
 
         match input.state {
             ElementState::Pressed => {
@@ -193,7 +208,7 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
 
                     if self.click_count > 1 {
                         if (now - self.last_pressed) < multi_click_time_ms() {
-                            self.call_handler(input, position, update);
+                            self.call_handler(input, position, Rc::clone(&handled), update);
                         } else {
                             self.click_count = 1;
                         }
@@ -207,13 +222,16 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
                 if self.click_count > 0 {
                     if let Some(position) = self.child.point_over(hits) {
                         if self.click_count == 1 {
-                            self.call_handler(input, position, update);
+                            self.call_handler(input, position, Rc::clone(&handled), update);
                         }
                     } else {
                         self.interaction_outside();
                     }
                 }
             }
+        }
+        if handled.get() {
+            values.set_child_value(*EVENT_HANDLED, true);
         }
     }
 }
@@ -410,6 +428,12 @@ pub struct ClickInput {
     pub modifiers: ModifiersState,
     pub position: LayoutPoint,
     pub click_count: u8,
+    stop_propagation: Rc<Cell<bool>>,
+}
+impl ClickInput {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
 }
 
 impl fmt::Display for MouseButtonInput {

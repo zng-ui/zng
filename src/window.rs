@@ -222,17 +222,20 @@ impl Window {
                 button,
                 modifiers,
                 ..
-            } => self.content.mouse_input(
-                &MouseInput {
-                    state,
-                    button,
-                    modifiers,
-                    position: self.mouse_pos,
-                },
-                &self.hit_test(self.mouse_pos),
-                &mut self.ui_values,
-                &mut self.next_update,
-            ),
+            } => {
+                self.content.mouse_input(
+                    &MouseInput {
+                        state,
+                        button,
+                        modifiers,
+                        position: self.mouse_pos,
+                    },
+                    &self.hit_test(self.mouse_pos),
+                    &mut self.ui_values,
+                    &mut self.next_update,
+                );
+                self.ui_values.clear_child_values()
+            }
             WindowEvent::Focused(focused) => {
                 if !focused {
                     self.key_down = None;

@@ -26,10 +26,10 @@ use std::rc::Rc;
 pub use text::*;
 
 use app_units::Au;
+use fnv::FnvHashMap;
 use font_loader::system_fonts;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
 pub use glutin::window::CursorIcon;
-use fnv::FnvHashMap;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
 
@@ -275,6 +275,10 @@ impl UiValues {
 
     pub fn set_child_value<T: 'static>(&mut self, key: ChildValueKey<T>, value: T) {
         self.child_values.insert(key.id, Box::new(value));
+    }
+
+    pub(crate) fn clear_child_values(&mut self) {
+        self.child_values.clear()
     }
 }
 
