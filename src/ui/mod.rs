@@ -29,13 +29,13 @@ use app_units::Au;
 use font_loader::system_fonts;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
 pub use glutin::window::CursorIcon;
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
 
 struct FontInstances {
     font_key: FontKey,
-    instances: HashMap<u32, FontInstanceKey>,
+    instances: FnvHashMap<u32, FontInstanceKey>,
 }
 
 #[derive(Clone)]
@@ -233,14 +233,14 @@ ui_value_key! {ChildValueId, ChildValueKey}
 enum UntypedRef {}
 
 pub struct UiValues {
-    parent_values: HashMap<ParentValueId, *const UntypedRef>,
-    child_values: HashMap<ChildValueId, Box<dyn Any>>,
+    parent_values: FnvHashMap<ParentValueId, *const UntypedRef>,
+    child_values: FnvHashMap<ChildValueId, Box<dyn Any>>,
 }
 impl UiValues {
     pub fn new() -> Self {
         UiValues {
-            parent_values: HashMap::new(),
-            child_values: HashMap::new(),
+            parent_values: FnvHashMap::default(),
+            child_values: FnvHashMap::default(),
         }
     }
 
@@ -324,7 +324,7 @@ mod ui_values {
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
-    fonts: HashMap<String, FontInstances>,
+    fonts: FnvHashMap<String, FontInstances>,
     pub(crate) windows: Vec<NewWindow>,
 
     pub(crate) update_layout: bool,
@@ -337,7 +337,7 @@ impl NextUpdate {
         NextUpdate {
             api,
             document_id,
-            fonts: HashMap::new(),
+            fonts: FnvHashMap::default(),
             windows: vec![],
 
             update_layout: true,
@@ -403,7 +403,7 @@ impl NextUpdate {
                 family.to_owned(),
                 FontInstances {
                     font_key,
-                    instances: HashMap::new(),
+                    instances: FnvHashMap::default(),
                 },
             );
         }
@@ -613,7 +613,7 @@ pub struct MouseMove {
 /// Hit test results.
 #[derive(Default)]
 pub struct Hits {
-    points: HashMap<HitTag, LayoutPoint>,
+    points: FnvHashMap<HitTag, LayoutPoint>,
     cursor: CursorIcon,
 }
 

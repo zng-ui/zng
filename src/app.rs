@@ -3,7 +3,7 @@ use crate::window::{WebRenderEvent, Window};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::Arc;
 
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -12,7 +12,7 @@ use webrender::api::{ColorF, LayoutSize};
 
 pub struct App {
     event_loop: EventLoop<WebRenderEvent>,
-    windows: HashMap<WindowId, Window>,
+    windows: FnvHashMap<WindowId, Window>,
     ui_threads: Arc<ThreadPool>,
 }
 
@@ -20,7 +20,7 @@ impl App {
     pub fn new() -> App {
         App {
             event_loop: EventLoop::with_user_event(),
-            windows: HashMap::new(),
+            windows: FnvHashMap::default(),
             ui_threads: Arc::new(
                 ThreadPoolBuilder::new()
                     .thread_name(|idx| format!("UI#{}", idx))
