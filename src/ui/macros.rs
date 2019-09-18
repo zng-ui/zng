@@ -63,7 +63,7 @@ macro_rules! delegate_ui_methods {
             $Del::mouse_input(self, input, hits, values, update)
         }
 
-        fn mouse_move(&mut self, input: &$crate::ui::MouseMove, hits: &$crate::ui::Hits, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
+        fn mouse_move(&mut self, input: &$crate::ui::UiMouseMove, hits: &$crate::ui::Hits, values: &mut $crate::ui::UiValues, update: &mut $crate::ui::NextUpdate) {
             $Del::mouse_move(self, input, hits, values, update)
         }
 

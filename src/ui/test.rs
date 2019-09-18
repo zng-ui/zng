@@ -14,7 +14,7 @@ pub struct TestChildData {
     pub keyboard_input_calls: Vec<KeyboardInput>,
     pub focused_calls: Vec<bool>,
     pub mouse_input_calls: Vec<MouseInput>,
-    pub mouse_move_calls: Vec<MouseMove>,
+    pub mouse_move_calls: Vec<UiMouseMove>,
     pub mouse_entered_calls: u32,
     pub mouse_left_calls: u32,
     pub close_request_calls: u32,
@@ -62,7 +62,7 @@ impl UiLeaf for TestChild {
         self.0.borrow_mut().mouse_input_calls.push(input.clone());
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, _hits: &Hits, _values: &mut UiValues, _update: &mut NextUpdate) {
+    fn mouse_move(&mut self, input: &UiMouseMove, _hits: &Hits, _values: &mut UiValues, _update: &mut NextUpdate) {
         self.0.borrow_mut().mouse_move_calls.push(input.clone());
     }
 
@@ -170,8 +170,8 @@ pub fn test_mouse_input() -> MouseInput {
     }
 }
 
-pub fn test_mouse_move() -> MouseMove {
-    MouseMove {
+pub fn test_mouse_move() -> UiMouseMove {
+    UiMouseMove {
         position: LayoutPoint::default(),
         modifiers: test_modifiers_state(),
     }

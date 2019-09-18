@@ -1,6 +1,6 @@
 use super::{
-    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, MouseMove,
-    NextUpdate, Ui, UiContainer, UiValues, VirtualKeyCode,
+    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, NextUpdate,
+    Ui, UiContainer, UiMouseMove, UiValues, VirtualKeyCode,
 };
 use std::cell::Cell;
 use std::fmt;
@@ -8,7 +8,12 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 lazy_static! {
-    pub static ref EVENT_HANDLED: ChildValueKey<bool> = ChildValueKey::new();
+    pub static ref STOP_CLICK: ChildValueKey<()> = ChildValueKey::new();
+    pub static ref STOP_MOUSE_DOWN: ChildValueKey<()> = ChildValueKey::new();
+    pub static ref STOP_MOUSE_UP: ChildValueKey<()> = ChildValueKey::new();
+    pub static ref STOP_MOUSE_MOVE: ChildValueKey<()> = ChildValueKey::new();
+    pub static ref STOP_KEY_DOWN: ChildValueKey<()> = ChildValueKey::new();
+    pub static ref STOP_KEY_UP: ChildValueKey<()> = ChildValueKey::new();
 }
 
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
@@ -28,13 +33,22 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> UiContainer for OnKeyDown<T, F> 
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
 
+        if values.child(*STOP_KEY_DOWN).is_some() {
+            return;
+        }
+
         if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
+            let stop = Rc::default();
             let input = KeyDown {
                 key,
                 modifiers: input.modifiers,
                 repeat: input.repeat,
+                stop_propagation: Rc::clone(&stop),
             };
             (self.handler)(input, update);
+            if stop.get() {
+                values.set_child_value(*STOP_KEY_DOWN, ());
+            }
         }
     }
 }
@@ -60,12 +74,22 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> UiContainer for OnKeyUp<T, F> {
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
 
+        if values.child(*STOP_KEY_UP).is_some() {
+            return;
+        }
+
         if let (ElementState::Released, Some(key)) = (input.state, input.virtual_keycode) {
+            let stop = Rc::default();
+
             let input = KeyUp {
                 key,
                 modifiers: input.modifiers,
+                stop_propagation: Rc::clone(&stop),
             };
             (self.handler)(input, update);
+            if stop.get() {
+                values.set_child_value(*STOP_KEY_UP, ());
+            }
         }
     }
 }
@@ -86,7 +110,7 @@ pub trait KeyboardEvents: Ui + Sized {
 impl<T: Ui + Sized> KeyboardEvents for T {}
 
 macro_rules! on_mouse {
-    ($state: ident, $name: ident) => {
+    ($state: ident, $name: ident, $stop_tag: expr) => {
         #[derive(Clone)]
         pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
             child: T,
@@ -105,18 +129,25 @@ macro_rules! on_mouse {
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
 
-                if values.child(*EVENT_HANDLED).map_or(false, |r| *r) {
+                if values.child(*$stop_tag).is_some() {
                     return;
                 }
 
                 if let Some(position) = self.child.point_over(hits) {
                     if let ElementState::$state = input.state {
+                        let stop = Rc::default();
+
                         let input = MouseButtonInput {
                             button: input.button,
                             modifiers: input.modifiers,
                             position,
+                            stop_propagation: Rc::clone(&stop),
                         };
                         (self.handler)(input, update);
+
+                        if stop.get() {
+                            values.set_child_value(*$stop_tag, ());
+                        }
                     }
                 }
             }
@@ -128,8 +159,8 @@ macro_rules! on_mouse {
     };
 }
 
-on_mouse!(Pressed, OnMouseDown);
-on_mouse!(Released, OnMouseUp);
+on_mouse!(Pressed, OnMouseDown, STOP_MOUSE_DOWN);
+on_mouse!(Released, OnMouseUp, STOP_MOUSE_UP);
 
 pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
     child: T,
@@ -192,12 +223,12 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_input(input, hits, values, update);
-        if values.child(*EVENT_HANDLED).map_or(false, |r| *r) {
+        if values.child(*STOP_CLICK).is_some() {
             self.click_count = 0;
             return;
         }
 
-        let handled = Rc::default();
+        let stop = Rc::default();
 
         match input.state {
             ElementState::Pressed => {
@@ -208,7 +239,7 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
 
                     if self.click_count > 1 {
                         if (now - self.last_pressed) < multi_click_time_ms() {
-                            self.call_handler(input, position, Rc::clone(&handled), update);
+                            self.call_handler(input, position, Rc::clone(&stop), update);
                         } else {
                             self.click_count = 1;
                         }
@@ -222,7 +253,7 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
                 if self.click_count > 0 {
                     if let Some(position) = self.child.point_over(hits) {
                         if self.click_count == 1 {
-                            self.call_handler(input, position, Rc::clone(&handled), update);
+                            self.call_handler(input, position, Rc::clone(&stop), update);
                         }
                     } else {
                         self.interaction_outside();
@@ -230,8 +261,8 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
                 }
             }
         }
-        if handled.get() {
-            values.set_child_value(*EVENT_HANDLED, true);
+        if stop.get() {
+            values.set_child_value(*STOP_CLICK, ());
         }
     }
 }
@@ -255,16 +286,27 @@ impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
 impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
     delegate_child!(child, T);
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, values, update);
+
+        if values.child(*STOP_MOUSE_MOVE).is_some() {
+            return;
+        }
+
         if let Some(position) = self.child.point_over(hits) {
+            let stop = Rc::default();
             (self.handler)(
                 MouseMove {
                     position,
                     modifiers: input.modifiers,
+                    stop_propagation: Rc::clone(&stop),
                 },
                 update,
-            )
+            );
+
+            if stop.get() {
+                values.set_child_value(*STOP_MOUSE_MOVE, ());
+            }
         }
     }
 }
@@ -302,7 +344,7 @@ macro_rules! on_mouse_enter_leave {
         impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> UiContainer for $Type<T, F> {
             delegate_child!(child, T);
 
-            fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+            fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_move(input, hits, values, update);
                 self.set_mouse_over(self.child.point_over(hits).is_some(), update);
             }
@@ -352,12 +394,38 @@ pub struct KeyDown {
     pub key: VirtualKeyCode,
     pub modifiers: ModifiersState,
     pub repeat: bool,
+    stop_propagation: Rc<Cell<bool>>,
+}
+
+impl KeyDown {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
 }
 
 #[derive(Debug)]
 pub struct KeyUp {
     pub key: VirtualKeyCode,
     pub modifiers: ModifiersState,
+    stop_propagation: Rc<Cell<bool>>,
+}
+
+impl KeyUp {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MouseMove {
+    pub position: LayoutPoint,
+    pub modifiers: ModifiersState,
+    stop_propagation: Rc<Cell<bool>>,
+}
+impl MouseMove {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
 }
 
 fn display_modifiers(m: &ModifiersState, f: &mut fmt::Formatter) -> fmt::Result {
@@ -420,6 +488,13 @@ pub struct MouseButtonInput {
     pub button: MouseButton,
     pub modifiers: ModifiersState,
     pub position: LayoutPoint,
+    stop_propagation: Rc<Cell<bool>>,
+}
+
+impl MouseButtonInput {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
 }
 
 #[derive(Debug)]

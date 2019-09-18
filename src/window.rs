@@ -1,5 +1,5 @@
 use crate::ui::{
-    Hits, KeyboardInput, MouseInput, MouseMove, NewWindow, NextFrame, NextUpdate, Ui, UiValues, VarChange,
+    Hits, KeyboardInput, MouseInput, NewWindow, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange,
 };
 use gleam::gl;
 use glutin::dpi::LogicalSize;
@@ -192,7 +192,9 @@ impl Window {
                     },
                     &mut self.ui_values,
                     &mut self.next_update,
-                )
+                );
+
+                self.ui_values.clear_child_values();
             }
             WindowEvent::CursorMoved {
                 position, modifiers, ..
@@ -203,11 +205,13 @@ impl Window {
                     self.mouse_pos = position;
                     self.set_cursor(hit.cursor());
                     self.content.mouse_move(
-                        &MouseMove { position, modifiers },
+                        &UiMouseMove { position, modifiers },
                         &hit,
                         &mut self.ui_values,
                         &mut self.next_update,
                     );
+
+                    self.ui_values.clear_child_values();
                 }
             }
             WindowEvent::CursorEntered { .. } => {
@@ -242,6 +246,8 @@ impl Window {
                 }
                 self.content
                     .focused(focused, &mut self.ui_values, &mut self.next_update);
+
+                self.ui_values.clear_child_values();
             }
 
             _ => has_update = !self.next_update.value_changes.is_empty(),

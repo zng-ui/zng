@@ -28,8 +28,8 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
                 text(l, rgb(0, 0, 0))
                     .background_color(rgb(255, 255, 255))
                     .on_click(|c, _| {
-                        c.stop_propagation();
-                        println!("on_click: line")
+                        //c.stop_propagation();
+                        println!("on_mouse_move: line")
                     })
             })
             .collect::<Vec<_>>(),
@@ -37,7 +37,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
     .font_family("Arial")
     .font_size(14)
     .on_click(|_, u| {
-        println!("on_click: text");
+        println!("on_mouse_move: text");
         u.create_window(rgbaf(0.3, 0.2, 0.1, 1.0), LayoutSize::new(1000., 800.), other_widow);
     })
 }

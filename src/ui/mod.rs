@@ -609,7 +609,7 @@ pub struct MouseInput {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct MouseMove {
+pub struct UiMouseMove {
     pub position: LayoutPoint,
     pub modifiers: ModifiersState,
 }
@@ -673,7 +673,7 @@ pub trait Ui {
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
@@ -730,7 +730,7 @@ impl Ui for Box<dyn Ui> {
         self.as_mut().mouse_input(input, hits, values, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.as_mut().mouse_move(input, hits, values, update);
     }
 
@@ -788,7 +788,7 @@ pub trait UiLeaf {
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
 
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
 
@@ -843,7 +843,7 @@ pub trait UiContainer {
         self.child_mut().mouse_input(input, hits, values, update);
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child_mut().mouse_move(input, hits, values, update);
     }
 
@@ -928,7 +928,7 @@ pub trait UiMultiContainer<'a> {
         }
     }
 
-    fn mouse_move(&'a mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+    fn mouse_move(&'a mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         for c in self.children_mut() {
             c.mouse_move(input, hits, values, update);
         }
@@ -1067,7 +1067,7 @@ impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetPa
         values.with_parent_value(self.key, &self.value, |v| child.mouse_input(input, hits, v, update));
     }
 
-    fn mouse_move(&mut self, input: &MouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.mouse_move(input, hits, v, update));
     }
