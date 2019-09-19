@@ -1,6 +1,8 @@
 //#![windows_subsystem = "windows"]
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate derive_new;
 
 pub mod app;
 pub mod ui;
@@ -11,7 +13,7 @@ use webrender::api::{GradientStop, LayoutPoint};
 
 fn main() {
     //start_logger_for("log_target");
-    app::App::new().run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), main_window);
+    app::run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), main_window);
 }
 
 fn main_window(_: &mut NextUpdate) -> impl Ui {

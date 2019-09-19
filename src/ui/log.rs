@@ -20,17 +20,11 @@ pub fn log_render<T: Ui>(child: T, target: &'static str) -> LogRender<T> {
     LogRender::new(child, target)
 }
 
+#[derive(new)]
 pub struct LogLayout<T: Ui> {
     child: T,
     target: &'static str,
 }
-
-impl<T: Ui> LogLayout<T> {
-    pub fn new(child: T, target: &'static str) -> Self {
-        LogLayout { child, target }
-    }
-}
-
 impl<T: Ui> UiContainer for LogLayout<T> {
     delegate_child!(child, T);
 
@@ -47,17 +41,11 @@ impl<T: Ui> UiContainer for LogLayout<T> {
 }
 delegate_ui!(UiContainer, LogLayout<T>, T);
 
+#[derive(new)]
 pub struct LogRender<T: Ui> {
     child: T,
     target: &'static str,
 }
-
-impl<T: Ui> LogRender<T> {
-    pub fn new(child: T, target: &'static str) -> Self {
-        LogRender { child, target }
-    }
-}
-
 impl<T: Ui> UiContainer for LogRender<T> {
     delegate_child!(child, T);
 

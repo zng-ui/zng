@@ -19,19 +19,11 @@ pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
     ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., a as f32 / 255.)
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct FillColor {
     color: ColorF,
+    #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
-}
-
-impl FillColor {
-    pub fn new(color: ColorF) -> Self {
-        FillColor {
-            color,
-            hit_tag: HitTag::new(),
-        }
-    }
 }
 
 impl UiLeaf for FillColor {
@@ -55,25 +47,14 @@ pub fn fill_color(color: ColorF) -> FillColor {
     FillColor::new(color)
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct FillGradient {
     start: LayoutPoint,
     end: LayoutPoint,
     stops: Vec<GradientStop>,
+    #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
 }
-
-impl FillGradient {
-    pub fn new(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
-        FillGradient {
-            start,
-            end,
-            stops,
-            hit_tag: HitTag::new(),
-        }
-    }
-}
-
 impl UiLeaf for FillGradient {
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
@@ -123,21 +104,12 @@ pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientSt
     FillGradient::new(start, end, stops)
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct BackgroundColor<T: Ui, C: ReadValue<ColorF>> {
     child: T,
     color: C,
+    #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
-}
-
-impl<T: Ui, C: ReadValue<ColorF>> BackgroundColor<T, C> {
-    pub fn new(child: T, color: C) -> Self {
-        BackgroundColor {
-            child,
-            color,
-            hit_tag: HitTag::new(),
-        }
-    }
 }
 
 impl<T: Ui, C: ReadValue<ColorF>> UiContainer for BackgroundColor<T, C> {

@@ -103,27 +103,14 @@ mod z_stack_tests {
 }
 
 /// A child in a stack container.
+#[derive(new)]
 pub struct StackSlot<T> {
     child: T,
+    #[new(default)]
     rect: LayoutRect,
 }
 
 impl<T> StackSlot<T> {
-    pub fn new(child: T) -> Self {
-        StackSlot {
-            child,
-            rect: LayoutRect::default(),
-        }
-    }
-
-    pub fn child(&self) -> &T {
-        &self.child
-    }
-
-    pub fn child_mut(&mut self) -> &mut T {
-        &mut self.child
-    }
-
     /// The area taken by the child in the stack container.
     pub fn rect(&self) -> LayoutRect {
         self.rect

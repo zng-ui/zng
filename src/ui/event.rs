@@ -16,17 +16,11 @@ lazy_static! {
     pub static ref STOP_KEY_UP: ChildValueKey<()> = ChildValueKey::new();
 }
 
+#[derive(new)]
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
     child: T,
     handler: F,
 }
-
-impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
-    pub fn new(child: T, handler: F) -> Self {
-        OnKeyDown { child, handler }
-    }
-}
-
 impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> UiContainer for OnKeyDown<T, F> {
     delegate_child!(child, T);
 
@@ -57,15 +51,10 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> Ui for OnKeyDown<T, F> {
     delegate_ui_methods!(UiContainer);
 }
 
+#[derive(new)]
 pub struct OnKeyUp<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> {
     child: T,
     handler: F,
-}
-
-impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
-    pub fn new(child: T, handler: F) -> Self {
-        OnKeyUp { child, handler }
-    }
 }
 
 impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> UiContainer for OnKeyUp<T, F> {
@@ -111,16 +100,10 @@ impl<T: Ui + Sized> KeyboardEvents for T {}
 
 macro_rules! on_mouse {
     ($state: ident, $name: ident, $stop_tag: expr) => {
-        #[derive(Clone)]
+        #[derive(Clone, new)]
         pub struct $name<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> {
             child: T,
             handler: F,
-        }
-
-        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
-            pub fn new(child: T, handler: F) -> Self {
-                $name { child, handler }
-            }
         }
 
         impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
@@ -162,23 +145,17 @@ macro_rules! on_mouse {
 on_mouse!(Pressed, OnMouseDown, STOP_MOUSE_DOWN);
 on_mouse!(Released, OnMouseUp, STOP_MOUSE_UP);
 
+#[derive(new)]
 pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
     child: T,
     handler: F,
+    #[new(default)]
     click_count: u8,
+    #[new(value = "Instant::now() - Duration::from_secs(30)")]
     last_pressed: Instant,
 }
 
 impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
-    pub fn new(child: T, handler: F) -> Self {
-        OnClick {
-            child,
-            handler,
-            click_count: 0,
-            last_pressed: Instant::now() - Duration::from_secs(30),
-        }
-    }
-
     fn call_handler(
         &mut self,
         input: &MouseInput,
@@ -271,16 +248,10 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> Ui for OnClick<T, F
     delegate_ui_methods!(UiContainer);
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     child: T,
     handler: F,
-}
-
-impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
-    pub fn new(child: T, handler: F) -> Self {
-        OnMouseMove { child, handler }
-    }
 }
 
 impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
@@ -316,21 +287,15 @@ impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> Ui for OnMouseMove<T
 
 macro_rules! on_mouse_enter_leave {
     ($Type: ident, $mouse_over: ident, $if_mouse_over: expr) => {
+        #[derive(new)]
         pub struct $Type<T: Ui, F: FnMut(&mut NextUpdate)> {
             child: T,
             handler: F,
+            #[new(default)]
             mouse_over: bool,
         }
 
         impl<T: Ui, F: FnMut(&mut NextUpdate)> $Type<T, F> {
-            pub fn new(child: T, handler: F) -> Self {
-                $Type {
-                    child,
-                    handler,
-                    mouse_over: false,
-                }
-            }
-
             fn set_mouse_over(&mut self, $mouse_over: bool, update: &mut NextUpdate) {
                 if self.mouse_over != $mouse_over {
                     self.mouse_over = $mouse_over;

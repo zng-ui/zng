@@ -96,12 +96,6 @@ pub struct Var<T> {
     r: Rc<VarData<T>>,
 }
 
-impl<T> Clone for Var<T> {
-    fn clone(&self) -> Self {
-        Var { r: Rc::clone(&self.r) }
-    }
-}
-
 impl<T: 'static> Var<T> {
     pub fn new(value: T) -> Self {
         Var {
@@ -115,6 +109,12 @@ impl<T: 'static> Var<T> {
 
     fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
         self.r.pending.set(Box::new(change));
+    }
+}
+
+impl<T> Clone for Var<T> {
+    fn clone(&self) -> Self {
+        Var { r: Rc::clone(&self.r) }
     }
 }
 
@@ -232,18 +232,14 @@ ui_value_key! {ChildValueId, ChildValueKey}
 
 enum UntypedRef {}
 
+#[derive(new)]
 pub struct UiValues {
+    #[new(default)]    
     parent_values: FnvHashMap<ParentValueId, *const UntypedRef>,
+    #[new(default)]
     child_values: FnvHashMap<ChildValueId, Box<dyn Any>>,
 }
 impl UiValues {
-    pub fn new() -> Self {
-        UiValues {
-            parent_values: FnvHashMap::default(),
-            child_values: FnvHashMap::default(),
-        }
-    }
-
     pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<&T> {
         // REFERENCE SAFETY: This is safe because parent_values are only inserted for the duration
         // of [with_parent_value] that holds the reference.
@@ -460,23 +456,16 @@ impl NextUpdate {
     //}
 }
 
+#[derive(new)]
 pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
+    #[new(value="CursorIcon::Default")]
     cursor: CursorIcon,
 }
 
 impl NextFrame {
-    pub fn new(builder: DisplayListBuilder, spatial_id: SpatialId, final_size: LayoutSize) -> Self {
-        NextFrame {
-            builder,
-            spatial_id,
-            final_size,
-            cursor: CursorIcon::Default,
-        }
-    }
-
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
         let final_size = self.final_size;
         let spatial_id = self.spatial_id;
@@ -987,15 +976,10 @@ delegate_ui!(UiLeaf, ());
 // https://doc.servo.org/webrender_api/struct.CommonItemProperties.html
 // https://doc.servo.org/webrender_api/struct.DisplayListBuilder.html#method.push_hit_test
 
+#[derive(new)]
 pub struct UiCursor<T: Ui> {
     child: T,
     cursor: CursorIcon,
-}
-
-impl<T: Ui> UiCursor<T> {
-    pub fn new(child: T, cursor: CursorIcon) -> Self {
-        UiCursor { child, cursor }
-    }
 }
 
 impl<T: Ui + 'static> UiContainer for UiCursor<T> {
@@ -1019,15 +1003,11 @@ pub trait Cursor: Ui + Sized {
 }
 impl<T: Ui> Cursor for T {}
 
+#[derive(new)]
 pub struct SetParentValue<T: Ui, V, R: ReadValue<V> + Clone> {
     child: T,
-    value: R,
     key: ParentValueKey<V>,
-}
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> SetParentValue<T, V, R> {
-    fn new(child: T, key: ParentValueKey<V>, value: R) -> Self {
-        SetParentValue { child, key, value }
-    }
+    value: R,
 }
 impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetParentValue<T, V, R> {
     delegate_child!(child, T);

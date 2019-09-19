@@ -22,11 +22,12 @@ impl Text {
 
         Text {
             text: text.to_owned(),
+            color,
+            hit_tag: HitTag::new(),
+
             glyphs: vec![],
             size: LayoutSize::default(),
             font_instance_key: None,
-            color,
-            hit_tag: HitTag::new(),
         }
     }
 

@@ -4,18 +4,11 @@ use webrender::euclid;
 /// Constrain a child to a size.
 /// # Constructors
 /// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](ExactSize::size).
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct UiSize<T: Ui> {
     child: T,
     size: LayoutSize,
 }
-
-impl<T: Ui> UiSize<T> {
-    pub fn new(child: T, size: LayoutSize) -> Self {
-        UiSize { child, size }
-    }
-}
-
 impl<T: Ui> UiContainer for UiSize<T> {
     delegate_child!(child, T);
 
@@ -30,15 +23,10 @@ pub fn size<T: Ui>(child: T, size: LayoutSize) -> UiSize<T> {
     UiSize::new(child, size)
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct UiWidth<T: Ui> {
     child: T,
     width: f32,
-}
-impl<T: Ui> UiWidth<T> {
-    pub fn new(child: T, width: f32) -> Self {
-        UiWidth { child, width }
-    }
 }
 impl<T: Ui> UiContainer for UiWidth<T> {
     delegate_child!(child, T);
@@ -56,15 +44,10 @@ pub fn width<T: Ui>(child: T, width: LayoutSize) -> UiSize<T> {
     UiSize::new(child, width)
 }
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct UiHeight<T: Ui> {
     child: T,
     height: f32,
-}
-impl<T: Ui> UiHeight<T> {
-    pub fn new(child: T, height: f32) -> Self {
-        UiHeight { child, height }
-    }
 }
 impl<T: Ui> UiContainer for UiHeight<T> {
     delegate_child!(child, T);
@@ -98,18 +81,11 @@ pub trait ExactSize: Ui + Sized {
 }
 impl<T: Ui> ExactSize for T {}
 
-#[derive(Clone)]
+#[derive(Clone, new)]
 pub struct Center<T: Ui> {
     child: T,
+    #[new(default)]
     child_rect: LayoutRect,
-}
-impl<T: Ui> Center<T> {
-    pub fn new(child: T) -> Self {
-        Center {
-            child,
-            child_rect: LayoutRect::default(),
-        }
-    }
 }
 impl<T: Ui> UiContainer for Center<T> {
     delegate_child!(child, T);
