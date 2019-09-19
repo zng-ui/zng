@@ -106,7 +106,7 @@ macro_rules! delegate_ui_methods {
 /// delegate_ui!(UiLeaf, Foo);
 /// ```
 ///
-/// You can also have a generic child type `TChild: Ui + 'static`.
+/// You can also have a generic child type `Child: Ui + 'static`.
 ///
 /// ```rust
 /// pub struct Bar<T> {
@@ -140,8 +140,8 @@ macro_rules! delegate_ui {
         }
     };
 
-    ($Del:ident, $T:ty, $TChild:ident) => {
-        impl<$TChild: Ui + 'static> $crate::ui::Ui for $T {
+    ($Del:ident, $T:ty, $Child:ident) => {
+        impl<$Child: Ui + 'static> $crate::ui::Ui for $T {
             delegate_ui_methods!($Del);
         }
     };
@@ -183,8 +183,8 @@ macro_rules! delegate_ui {
 /// ```
 #[macro_export]
 macro_rules! delegate_child {
-    ($child: ident, $TChild: ty) => {
-        type Child = $TChild;
+    ($child: ident, $Child: ty) => {
+        type Child = $Child;
 
         fn child(&self) -> &Self::Child {
             &self.$child
@@ -236,8 +236,8 @@ macro_rules! delegate_child {
 /// ```
 #[macro_export]
 macro_rules! delegate_children {
-    ($children: ident, $TChild: ty) => {
-        type Child = $TChild;
+    ($children: ident, $Child: ty) => {
+        type Child = $Child;
         type Children = std::slice::Iter<'a, Self::Child>;
         type ChildrenMut = std::slice::IterMut<'a, Self::Child>;
 

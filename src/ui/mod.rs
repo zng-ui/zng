@@ -234,7 +234,7 @@ enum UntypedRef {}
 
 #[derive(new)]
 pub struct UiValues {
-    #[new(default)]    
+    #[new(default)]
     parent_values: FnvHashMap<ParentValueId, *const UntypedRef>,
     #[new(default)]
     child_values: FnvHashMap<ChildValueId, Box<dyn Any>>,
@@ -347,11 +347,11 @@ impl NextUpdate {
         }
     }
 
-    pub fn create_window<TContent: Ui + 'static>(
+    pub fn create_window<C: Ui + 'static>(
         &mut self,
         clear_color: ColorF,
         inner_size: LayoutSize,
-        content: impl FnOnce(&mut NextUpdate) -> TContent + 'static,
+        content: impl FnOnce(&mut NextUpdate) -> C + 'static,
     ) {
         self.windows.push(NewWindow {
             content: Box::new(move |c| content(c).into_box()),
@@ -461,7 +461,7 @@ pub struct NextFrame {
     builder: DisplayListBuilder,
     spatial_id: SpatialId,
     final_size: LayoutSize,
-    #[new(value="CursorIcon::Default")]
+    #[new(value = "CursorIcon::Default")]
     cursor: CursorIcon,
 }
 

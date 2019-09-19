@@ -29,7 +29,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
             .map(|l| {
                 text(l, rgb(0, 0, 0))
                     .background_color(rgb(255, 255, 255))
-                    .on_click(|c, _| {
+                    .on_click(|_c, _| {
                         //c.stop_propagation();
                         println!("on_mouse_move: line")
                     })

@@ -9,10 +9,10 @@ use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use webrender::api::{ColorF, LayoutSize};
 
-pub fn run<TContent: Ui + 'static>(
+pub fn run<C: Ui + 'static>(
     clear_color: ColorF,
     inner_size: LayoutSize,
-    content: impl Fn(&mut NextUpdate) -> TContent + 'static,
+    content: impl Fn(&mut NextUpdate) -> C + 'static,
 ) -> ! {
     let event_loop = EventLoop::with_user_event();
     let mut windows = FnvHashMap::default();
