@@ -46,24 +46,59 @@ pub struct FontInstance {
     pub size: u32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct HitTag(NonZeroU64);
+/// Declare and implement a unique ID type.
+macro_rules! uid {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Type:ident (_);
+    )+) => {
+        $(
+            $(#[$outer])*
+            #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+            $vis struct $Type(NonZeroU64);
 
-impl HitTag {
-    /// Generates a new unique ID.
-    pub fn new() -> Self {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(1);
+            impl $Type {
+                /// Generates a new unique ID.
+                pub fn new() -> Self {
+                    use std::sync::atomic::{AtomicU64, Ordering};
+                    static NEXT: AtomicU64 = AtomicU64::new(1);
 
-        let id = NEXT.fetch_add(1, Ordering::Relaxed);
-        HitTag(unsafe { NonZeroU64::new_unchecked(id) })
-    }
+                    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+                    HitTag(unsafe { NonZeroU64::new_unchecked(id) })
+                }
 
-    /// Retrieve the underlying `u64` value.
-    pub fn get(self) -> u64 {
-        self.0.get()
-    }
+                /// Retrieve the underlying `u64` value.
+                pub fn get(self) -> u64 {
+                    self.0.get()
+                }
+            }
+        )+
+    };
 }
+
+uid! {
+    /// Hit-test tag.
+    pub struct HitTag(_);
+}
+
+//#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+//pub struct HitTag(NonZeroU64);
+//
+//impl HitTag {
+//    /// Generates a new unique ID.
+//    pub fn new() -> Self {
+//        use std::sync::atomic::{AtomicU64, Ordering};
+//        static NEXT: AtomicU64 = AtomicU64::new(1);
+//
+//        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+//        HitTag(unsafe { NonZeroU64::new_unchecked(id) })
+//    }
+//
+//    /// Retrieve the underlying `u64` value.
+//    pub fn get(self) -> u64 {
+//        self.0.get()
+//    }
+//}
 
 // README https://rust-lang-nursery.github.io/api-guidelines
 
