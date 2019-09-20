@@ -163,15 +163,6 @@ impl<T> IntoValue<T> for Var<T> {
     }
 }
 
-/// Clones `Var<T>`.
-impl<T> IntoValue<T> for &Var<T> {
-    type Value = Var<T>;
-
-    fn into_value(self) -> Self::Value {
-        Var::clone(self)
-    }
-}
-
 /// Wraps the value in an `Owned<T>` value.
 impl<T: 'static> IntoValue<T> for T {
     type Value = Owned<T>;
