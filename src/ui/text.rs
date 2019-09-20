@@ -1,6 +1,6 @@
 use super::{
-    HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Owned, ParentValue, ParentValueKey, ReadValue, SetParentValue, Ui,
-    UiLeaf, UiValues,
+    HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Owned, ParentValue, ParentValueKey, SetParentValue, Ui, UiLeaf,
+    UiValues, Value,
 };
 use webrender::api::*;
 
@@ -124,10 +124,10 @@ pub trait Font: Ui + Sized {
         self.set_ctx_val(*FONT_SIZE, Owned(size))
     }
 
-    fn font_family_dyn<F: ReadValue<String> + Clone + 'static>(self, font: F) -> SetFontFamily<Self, F> {
+    fn font_family_dyn<F: Value<String> + Clone + 'static>(self, font: F) -> SetFontFamily<Self, F> {
         self.set_ctx_val(*FONT_FAMILY, font)
     }
-    fn font_size_dyn<S: ReadValue<u32> + Clone + 'static>(self, size: S) -> SetFontSize<Self, S> {
+    fn font_size_dyn<S: Value<u32> + Clone + 'static>(self, size: S) -> SetFontSize<Self, S> {
         self.set_ctx_val(*FONT_SIZE, size)
     }
 }

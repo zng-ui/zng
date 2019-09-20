@@ -60,11 +60,11 @@ impl HitTag {
 
 // README https://rust-lang-nursery.github.io/api-guidelines
 
-pub trait ReadValue<T>: Deref<Target = T> {
+pub trait Value<T>: Deref<Target = T> {
     fn changed(&self) -> bool;
 
     /// Gets if `self` and `other` derefs to the same data.
-    fn is_same<O: ReadValue<T>>(&self, other: &O) -> bool {
+    fn is_same<O: Value<T>>(&self, other: &O) -> bool {
         std::ptr::eq(self.deref(), other.deref())
     }
 }
@@ -80,7 +80,7 @@ impl<T> Deref for Owned<T> {
     }
 }
 
-impl<T: 'static> ReadValue<T> for Owned<T> {
+impl<T: 'static> Value<T> for Owned<T> {
     fn changed(&self) -> bool {
         false
     }
@@ -135,28 +135,28 @@ impl<T> Deref for Var<T> {
     }
 }
 
-impl<T> ReadValue<T> for Var<T> {
+impl<T> Value<T> for Var<T> {
     fn changed(&self) -> bool {
         self.r.changed.get()
     }
 }
 
-pub trait IntoReadValue<T> {
-    type ReadValue: ReadValue<T>;
+pub trait IntoValue<T> {
+    type Value: Value<T>;
 
-    fn into(self) -> Self::ReadValue;
+    fn into(self) -> Self::Value;
 }
 
-impl<T> IntoReadValue<T> for Var<T> {
-    type ReadValue = Var<T>;
+impl<T> IntoValue<T> for Var<T> {
+    type Value = Var<T>;
 
     fn into(self) -> Self {
         self
     }
 }
 
-impl<T: 'static> IntoReadValue<T> for T {
-    type ReadValue = Owned<T>;
+impl<T: 'static> IntoValue<T> for T {
+    type Value = Owned<T>;
 
     fn into(self) -> Owned<T> {
         Owned(self)
@@ -1004,12 +1004,12 @@ pub trait Cursor: Ui + Sized {
 impl<T: Ui> Cursor for T {}
 
 #[derive(new)]
-pub struct SetParentValue<T: Ui, V, R: ReadValue<V> + Clone> {
+pub struct SetParentValue<T: Ui, V, R: Value<V> + Clone> {
     child: T,
     key: ParentValueKey<V>,
     value: R,
 }
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetParentValue<T, V, R> {
+impl<T: Ui, V: 'static, R: Value<V> + Clone + 'static> UiContainer for SetParentValue<T, V, R> {
     delegate_child!(child, T);
 
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
@@ -1067,12 +1067,12 @@ impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> UiContainer for SetPa
         values.with_parent_value(self.key, &self.value, |v| child.close_request(v, update));
     }
 }
-impl<T: Ui, V: 'static, R: ReadValue<V> + Clone + 'static> Ui for SetParentValue<T, V, R> {
+impl<T: Ui, V: 'static, R: Value<V> + Clone + 'static> Ui for SetParentValue<T, V, R> {
     delegate_ui_methods!(UiContainer);
 }
 
 pub trait ParentValue: Ui + Sized {
-    fn set_ctx_val<T: 'static, R: ReadValue<T> + Clone + 'static>(
+    fn set_ctx_val<T: 'static, R: Value<T> + Clone + 'static>(
         self,
         key: ParentValueKey<T>,
         value: R,
