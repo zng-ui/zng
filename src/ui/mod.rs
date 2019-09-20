@@ -21,6 +21,7 @@ use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
+use std::num::NonZeroU64;
 use std::ops::Deref;
 use std::rc::Rc;
 pub use text::*;
@@ -46,15 +47,21 @@ pub struct FontInstance {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct HitTag(u64);
+pub struct HitTag(NonZeroU64);
 
 impl HitTag {
     /// Generates a new unique ID.
     pub fn new() -> Self {
         use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(0);
+        static NEXT: AtomicU64 = AtomicU64::new(1);
 
-        HitTag(NEXT.fetch_add(1, Ordering::Relaxed))
+        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+        HitTag(unsafe { NonZeroU64::new_unchecked(id) })
+    }
+
+    /// Retrieve the underlying `u64` value.
+    pub fn get(self) -> u64 {
+        self.0.get()
     }
 }
 
@@ -144,21 +151,32 @@ impl<T> Value<T> for Var<T> {
 pub trait IntoValue<T> {
     type Value: Value<T>;
 
-    fn into(self) -> Self::Value;
+    fn into_value(self) -> Self::Value;
 }
 
+/// Does nothing. `Var<T>` already implements `Value<T>`.
 impl<T> IntoValue<T> for Var<T> {
     type Value = Var<T>;
 
-    fn into(self) -> Self {
+    fn into_value(self) -> Self::Value {
         self
     }
 }
 
+/// Clones `Var<T>`.
+impl<T> IntoValue<T> for &Var<T> {
+    type Value = Var<T>;
+
+    fn into_value(self) -> Self::Value {
+        Var::clone(self)
+    }
+}
+
+/// Wraps the value in an `Owned<T>` value.
 impl<T: 'static> IntoValue<T> for T {
     type Value = Owned<T>;
 
-    fn into(self) -> Owned<T> {
+    fn into_value(self) -> Owned<T> {
         Owned(self)
     }
 }
@@ -189,15 +207,16 @@ pub struct NewWindow {
 macro_rules! ui_value_key {
     ($Id: ident, $Key: ident) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        struct $Id(u64);
+        struct $Id(NonZeroU64);
 
         impl $Id {
             /// Generates a new unique ID.
             pub fn new() -> Self {
                 use std::sync::atomic::{AtomicU64, Ordering};
-                static NEXT: AtomicU64 = AtomicU64::new(0);
+                static NEXT: AtomicU64 = AtomicU64::new(1);
 
-                $Id(NEXT.fetch_add(1, Ordering::Relaxed))
+                let id = NEXT.fetch_add(1, Ordering::Relaxed);
+                $Id(unsafe { NonZeroU64::new_unchecked(dbg!(id)) })
             }
         }
 
@@ -504,7 +523,7 @@ impl NextFrame {
         hit_tag: Option<HitTag>,
     ) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
         let mut lpi = LayoutPrimitiveInfo::new(final_rect);
-        lpi.tag = hit_tag.map(|v| (v.0, self.cursor as u16));
+        lpi.tag = hit_tag.map(|v| (v.get(), self.cursor as u16));
         let sci = SpaceAndClipInfo {
             spatial_id: self.spatial_id,
             clip_id: ClipId::root(self.spatial_id.pipeline_id()),
@@ -628,7 +647,12 @@ impl Hits {
             points: hits
                 .items
                 .into_iter()
-                .map(|h| (HitTag(h.tag.0), h.point_relative_to_item))
+                .map(|h| {
+                    (
+                        HitTag(NonZeroU64::new(h.tag.0).expect("Invalid tag: 0")),
+                        h.point_relative_to_item,
+                    )
+                })
                 .collect(),
             cursor,
         }

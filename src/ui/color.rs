@@ -180,7 +180,7 @@ pub fn background_gradient<T: Ui>(
 
 pub trait Background: Ui + Sized {
     fn background_color<C: IntoValue<ColorF>>(self, color: C) -> BackgroundColor<Self, C::Value> {
-        BackgroundColor::new(self, color.into())
+        BackgroundColor::new(self, color.into_value())
     }
 
     fn background_gradient(
