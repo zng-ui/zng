@@ -67,7 +67,11 @@ impl HitTag {
 
 // README https://rust-lang-nursery.github.io/api-guidelines
 
-pub trait Value<T>: Deref<Target = T> {
+mod private {
+    pub trait Sealed {}
+}
+
+pub trait Value<T>: private::Sealed + Deref<Target = T> {
     fn changed(&self) -> bool;
 
     /// Gets if `self` and `other` derefs to the same data.
@@ -78,6 +82,8 @@ pub trait Value<T>: Deref<Target = T> {
 
 #[derive(Clone)]
 pub struct Owned<T>(T);
+
+impl<T> private::Sealed for Owned<T> {}
 
 impl<T> Deref for Owned<T> {
     type Target = T;
@@ -141,6 +147,8 @@ impl<T> Deref for Var<T> {
         }
     }
 }
+
+impl<T> private::Sealed for Var<T> {}
 
 impl<T> Value<T> for Var<T> {
     fn changed(&self) -> bool {
@@ -207,7 +215,7 @@ macro_rules! ui_value_key {
                 static NEXT: AtomicU64 = AtomicU64::new(1);
 
                 let id = NEXT.fetch_add(1, Ordering::Relaxed);
-                $Id(unsafe { NonZeroU64::new_unchecked(dbg!(id)) })
+                $Id(unsafe { NonZeroU64::new_unchecked(id) })
             }
         }
 
