@@ -1,4 +1,7 @@
-# Core
+# TODO
+
+## Core
+
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
 * Better Ui related macros, reduce verbosity.
@@ -17,18 +20,21 @@ Things that must be done first because they influence the core API design that i
 * Workers.
 * Diagnostics.
 
-# Basic Layout
+## Basic Layout
+
 * Align.
 * Min/Max size.
 * Grid.
 * WrapPanel.
 * DockPanel.
 
-# Basic Events
+## Basic Events
+
 * Implement all basic events.
 * Implement capturing/tunneling event counterparts.
 
-# Basic Widgets
+## Basic Widgets
+
 * Progress indicator.
 * Button (work button, default, primary, cancel, etc).
 * Validation.
@@ -41,7 +47,8 @@ Things that must be done first because they influence the core API design that i
 * Resize parent.
 * MainMenu.
 
-# Virtualizing Widgets
+## Virtualizing Widgets
+
 Widgets that contain many elements that must be loaded on demand.
 
 * ListView.
@@ -50,11 +57,13 @@ Widgets that contain many elements that must be loaded on demand.
 * TabView.
 * Infinite Canvas.
 
-# Dialogs
+## Dialogs
+
 * Message dialogs (themable?).
 * File dialogs (not themable?).
 
-# Window Widgets
+## Window Widgets
+
 Widgets that stay at the root of the Window and define type of app interaction that is used in the window.
 
 * Custom decoration.
@@ -62,24 +71,28 @@ Widgets that stay at the root of the Window and define type of app interaction t
 * Ribbon.
 * Docking editor.
 
-# Advanced
+## Advanced
+
 Hard to-do but does not mess with the core API.
 
 * Plugins (run as a separate process that is hosted in an iframe like widget).
 * Hosting Ui in a custom OpenGL window.
 * Custom installers.
 
-# Themes
+## Themes
+
 * Dark/Light default.
 * High contrast.
 * Fluent Design (Windows 10).
 * Material Design (Google).
 
-# OS integration.
+## OS Integration
+
 * MainMenu.
 * TaskbarItemInfo.
 
-# More Widgets
+## More Widgets
+
 * Charts.
 * Media (audio & video).
 * Image effects.
