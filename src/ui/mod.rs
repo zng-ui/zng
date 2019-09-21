@@ -64,10 +64,11 @@ macro_rules! uid {
                     static NEXT: AtomicU64 = AtomicU64::new(1);
 
                     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-                    HitTag(unsafe { NonZeroU64::new_unchecked(id) })
+                    $Type(unsafe { NonZeroU64::new_unchecked(id) })
                 }
 
                 /// Retrieve the underlying `u64` value.
+                #[allow(dead_code)]
                 pub fn get(self) -> u64 {
                     self.0.get()
                 }
@@ -239,49 +240,42 @@ pub struct NewWindow {
 }
 
 macro_rules! ui_value_key {
-    ($Id: ident, $Key: ident) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-        struct $Id(NonZeroU64);
+    ($(
+        $(#[$outer:meta])*
+        pub struct $Key: ident(struct $Id: ident);
+    )+) => {$(
+        uid! {struct $Id(_);}
 
-        impl $Id {
-            /// Generates a new unique ID.
-            pub fn new() -> Self {
-                use std::sync::atomic::{AtomicU64, Ordering};
-                static NEXT: AtomicU64 = AtomicU64::new(1);
-
-                let id = NEXT.fetch_add(1, Ordering::Relaxed);
-                $Id(unsafe { NonZeroU64::new_unchecked(id) })
-            }
-        }
-
+        $(#[$outer])*
         #[derive(Debug, PartialEq, Eq, Hash)]
-        pub struct $Key<T> {
-            id: $Id,
-            _data: PhantomData<T>,
-        }
+        pub struct $Key<T> ($Id, PhantomData<T>);
+
         impl<T> Clone for $Key<T> {
             fn clone(&self) -> Self {
-                $Key {
-                    id: self.id,
-                    _data: self._data,
-                }
+                $Key (self.0,self.1)
             }
         }
+
         impl<T> Copy for $Key<T> {}
 
         impl<T: 'static> $Key<T> {
             pub fn new() -> Self {
-                $Key {
-                    id: $Id::new(),
-                    _data: PhantomData,
-                }
+                $Key ($Id::new(), PhantomData)
+            }
+            fn id(&self) -> $Id {
+                self.0
             }
         }
-    };
+    )+};
 }
 
-ui_value_key! {ParentValueId, ParentValueKey}
-ui_value_key! {ChildValueId, ChildValueKey}
+ui_value_key! {
+    ///
+    pub struct ParentValueKey(struct ParentValueId);
+
+    ///
+    pub struct ChildValueKey(struct ChildValueId);
+}
 
 enum UntypedRef {}
 
@@ -300,30 +294,35 @@ impl UiValues {
         // TYPE SAFETY: This is safe because [ParentValueId::new] is always unique AND created by
         // [ParentValueKey::new] THAT can only be inserted in [with_parent_value].
         self.parent_values
-            .get(&key.id)
+            .get(&key.id())
             .map(|pointer| unsafe { &*(*pointer as *const T) })
     }
 
-    pub fn with_parent_value<T>(&mut self, key: ParentValueKey<T>, value: &T, action: impl FnOnce(&mut UiValues)) {
+    pub fn with_parent_value<T: 'static>(
+        &mut self,
+        key: ParentValueKey<T>,
+        value: &T,
+        action: impl FnOnce(&mut UiValues),
+    ) {
         let previous_value = self
             .parent_values
-            .insert(key.id, (value as *const T) as *const UntypedRef);
+            .insert(key.id(), (value as *const T) as *const UntypedRef);
 
         action(self);
 
         if let Some(previous_value) = previous_value {
-            self.parent_values.insert(key.id, previous_value);
+            self.parent_values.insert(key.id(), previous_value);
         } else {
-            self.parent_values.remove(&key.id);
+            self.parent_values.remove(&key.id());
         }
     }
 
     pub fn child<T: 'static>(&self, key: ChildValueKey<T>) -> Option<&T> {
-        self.child_values.get(&key.id).map(|a| a.downcast_ref::<T>().unwrap())
+        self.child_values.get(&key.id()).map(|a| a.downcast_ref::<T>().unwrap())
     }
 
     pub fn set_child_value<T: 'static>(&mut self, key: ChildValueKey<T>, value: T) {
-        self.child_values.insert(key.id, Box::new(value));
+        self.child_values.insert(key.id(), Box::new(value));
     }
 
     pub(crate) fn clear_child_values(&mut self) {
