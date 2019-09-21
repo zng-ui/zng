@@ -33,6 +33,7 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
+use std::sync::{Once, ONCE_INIT};
 
 struct FontInstances {
     font_key: FontKey,
@@ -81,27 +82,6 @@ uid! {
     /// Hit-test tag.
     pub struct HitTag(_);
 }
-
-//#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-//pub struct HitTag(NonZeroU64);
-//
-//impl HitTag {
-//    /// Generates a new unique ID.
-//    pub fn new() -> Self {
-//        use std::sync::atomic::{AtomicU64, Ordering};
-//        static NEXT: AtomicU64 = AtomicU64::new(1);
-//
-//        let id = NEXT.fetch_add(1, Ordering::Relaxed);
-//        HitTag(unsafe { NonZeroU64::new_unchecked(id) })
-//    }
-//
-//    /// Retrieve the underlying `u64` value.
-//    pub fn get(self) -> u64 {
-//        self.0.get()
-//    }
-//}
-
-// README https://rust-lang-nursery.github.io/api-guidelines
 
 mod private {
     pub trait Sealed {}
@@ -276,6 +256,26 @@ ui_value_key! {
     ///
     pub struct ChildValueKey(struct ChildValueId);
 }
+
+pub struct ParentValueKeyRef<T>(*mut ParentValueKey<T>, Once);
+impl<T> ParentValueKeyRef<T>{
+    const fn new() -> Self{
+        ParentValueKeyRef(std::ptr::null_mut(), Once::new())
+    }
+}
+impl<T: 'static> Deref for ParentValueKeyRef<T> {
+    type Target = ParentValueKey<T>;
+    fn deref(&self) -> &ParentValueKey<T> {
+        self.1.call_once(|| unsafe{ *self.0 = ParentValueKey::new()} );
+        unsafe{
+            &*self.0
+        }
+    }
+}
+unsafe impl<T> Sync for ParentValueKeyRef<T>{}
+
+pub static TEST: ParentValueKeyRef<()> = ParentValueKeyRef::new();
+
 
 enum UntypedRef {}
 
