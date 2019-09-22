@@ -31,9 +31,9 @@ use fnv::FnvHashMap;
 use font_loader::system_fonts;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
 pub use glutin::window::CursorIcon;
+use once_cell::sync::OnceCell;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
-use std::sync::{Once, ONCE_INIT};
 
 struct FontInstances {
     font_key: FontKey,
@@ -55,17 +55,31 @@ macro_rules! uid {
     )+) => {
         $(
             $(#[$outer])*
+            /// # Details
+            /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
+            /// so IDs are unique for the process duration but order is not garanteed.
+            ///
+            /// Panics if you somehow reach `u64::max_value()` calls to `new`.
             #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
             $vis struct $Type(NonZeroU64);
 
             impl $Type {
                 /// Generates a new unique ID.
+                ///
+                /// # Panics
+                /// Panics if called more then `u64::max_value()` times.
                 pub fn new() -> Self {
                     use std::sync::atomic::{AtomicU64, Ordering};
                     static NEXT: AtomicU64 = AtomicU64::new(1);
 
                     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-                    $Type(unsafe { NonZeroU64::new_unchecked(id) })
+
+                    if let Some(id) = NonZeroU64::new(id) {
+                        $Type(id)
+                    } else {
+                        NEXT.store(0, Ordering::SeqCst);
+                        panic!("`{}` reached `u64::max_value()` IDs.",  stringify!($Type))
+                    }
                 }
 
                 /// Retrieve the underlying `u64` value.
@@ -222,11 +236,15 @@ pub struct NewWindow {
 macro_rules! ui_value_key {
     ($(
         $(#[$outer:meta])*
-        pub struct $Key: ident(struct $Id: ident);
+        pub struct $Key:ident (struct $Id:ident) new_lazy -> $KeyRef:ident;
     )+) => {$(
         uid! {struct $Id(_);}
 
         $(#[$outer])*
+        /// # Example
+        /// ```rust
+        /// pub static FOO: $KeyRef<String> = $Key<String>::new_lazy();
+        /// ```
         #[derive(Debug, PartialEq, Eq, Hash)]
         pub struct $Key<T> ($Id, PhantomData<T>);
 
@@ -238,44 +256,47 @@ macro_rules! ui_value_key {
 
         impl<T> Copy for $Key<T> {}
 
+        /// Dereferences to a $Key<T> that is generated on the first deref.
+        pub struct $KeyRef<T> (OnceCell<$Key<T>>);
+
         impl<T: 'static> $Key<T> {
+            /// New unique key.
             pub fn new() -> Self {
                 $Key ($Id::new(), PhantomData)
             }
+
+            /// New lazy initialized unique key. Use this for public static
+            /// variables.
+            ///
+            /// # Example
+            /// ```rust
+            /// pub static FOO: $KeyRef<String> = $Key<String>::new_lazy();
+            /// ```
+            pub const fn new_lazy() -> $KeyRef<T> {
+                $KeyRef(OnceCell::new())
+            }
+
             fn id(&self) -> $Id {
                 self.0
+            }
+        }
+
+        impl<T: 'static> Deref for $KeyRef<T> {
+            type Target = $Key<T>;
+            fn deref(&self) -> &Self::Target {
+                self.0.get_or_init(|| $Key::new())
             }
         }
     )+};
 }
 
 ui_value_key! {
-    ///
-    pub struct ParentValueKey(struct ParentValueId);
+    /// Unique key for a value set in a parent Ui to be read in a child Ui.
+    pub struct ParentValueKey(struct ParentValueId) new_lazy -> ParentValueKeyRef;
 
-    ///
-    pub struct ChildValueKey(struct ChildValueId);
+    /// Unique key for a value set in a child Ui to be read in a parent Ui.
+    pub struct ChildValueKey(struct ChildValueId) new_lazy -> ChildValueKeyRef;
 }
-
-pub struct ParentValueKeyRef<T>(*mut ParentValueKey<T>, Once);
-impl<T> ParentValueKeyRef<T>{
-    const fn new() -> Self{
-        ParentValueKeyRef(std::ptr::null_mut(), Once::new())
-    }
-}
-impl<T: 'static> Deref for ParentValueKeyRef<T> {
-    type Target = ParentValueKey<T>;
-    fn deref(&self) -> &ParentValueKey<T> {
-        self.1.call_once(|| unsafe{ *self.0 = ParentValueKey::new()} );
-        unsafe{
-            &*self.0
-        }
-    }
-}
-unsafe impl<T> Sync for ParentValueKeyRef<T>{}
-
-pub static TEST: ParentValueKeyRef<()> = ParentValueKeyRef::new();
-
 
 enum UntypedRef {}
 

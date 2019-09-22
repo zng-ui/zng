@@ -1,20 +1,18 @@
 use super::{
-    ChildValueKey, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton, MouseInput, NextUpdate,
-    Ui, UiContainer, UiMouseMove, UiValues, VirtualKeyCode,
+    ChildValueKey, ChildValueKeyRef, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton,
+    MouseInput, NextUpdate, Ui, UiContainer, UiMouseMove, UiValues, VirtualKeyCode,
 };
 use std::cell::Cell;
 use std::fmt;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-lazy_static! {
-    pub static ref STOP_CLICK: ChildValueKey<()> = ChildValueKey::new();
-    pub static ref STOP_MOUSE_DOWN: ChildValueKey<()> = ChildValueKey::new();
-    pub static ref STOP_MOUSE_UP: ChildValueKey<()> = ChildValueKey::new();
-    pub static ref STOP_MOUSE_MOVE: ChildValueKey<()> = ChildValueKey::new();
-    pub static ref STOP_KEY_DOWN: ChildValueKey<()> = ChildValueKey::new();
-    pub static ref STOP_KEY_UP: ChildValueKey<()> = ChildValueKey::new();
-}
+pub static STOP_CLICK: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_MOUSE_DOWN: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_MOUSE_UP: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_MOUSE_MOVE: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_KEY_DOWN: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_KEY_UP: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 
 #[derive(new)]
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {

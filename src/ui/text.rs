@@ -1,6 +1,6 @@
 use super::{
-    HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Owned, ParentValue, ParentValueKey, SetParentValue, Ui, UiLeaf,
-    UiValues, Value,
+    HitTag, Hits, LayoutSize, NextFrame, NextUpdate, Owned, ParentValue, ParentValueKey, ParentValueKeyRef,
+    SetParentValue, Ui, UiLeaf, UiValues, Value,
 };
 use webrender::api::*;
 
@@ -108,10 +108,8 @@ impl UiLeaf for Text {
 }
 delegate_ui!(UiLeaf, Text);
 
-lazy_static! {
-    pub static ref FONT_FAMILY: ParentValueKey<String> = ParentValueKey::new();
-    pub static ref FONT_SIZE: ParentValueKey<u32> = ParentValueKey::new();
-}
+pub static FONT_FAMILY: ParentValueKeyRef<String> = ParentValueKey::new_lazy();
+pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
 
 pub type SetFontFamily<T, R> = SetParentValue<T, String, R>;
 pub type SetFontSize<T, R> = SetParentValue<T, u32, R>;
