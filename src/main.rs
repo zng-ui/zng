@@ -33,7 +33,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
             })
             .collect::<Vec<_>>(),
     )
-    .font_family("Arial")
+    .font_family("Arial".to_owned())
     .font_size(14)
     .on_click(|_, u| {
         u.create_window(rgbaf(0.3, 0.2, 0.1, 1.0), LayoutSize::new(1000., 800.), other_widow);
@@ -47,7 +47,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                 let bkg_color = Var::new(rgb(255, 255, 255));
 
                 text("Ola", rgb(0, 0, 0))
-                    .font_family("Arial")
+                    .font_family("Arial".to_owned())
                     .font_size(90)
                     .background_color(Var::clone(&bkg_color))
                     .center()

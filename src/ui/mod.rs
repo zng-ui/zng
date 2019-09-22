@@ -1082,12 +1082,13 @@ pub trait Cursor: Ui + Sized {
 impl<T: Ui> Cursor for T {}
 
 #[derive(new)]
-pub struct SetParentValue<T: Ui, V, R: Value<V> + Clone> {
+pub struct SetParentValue<T: Ui, V, R: Value<V>> {
     child: T,
     key: ParentValueKey<V>,
     value: R,
 }
-impl<T: Ui, V: 'static, R: Value<V> + Clone + 'static> UiContainer for SetParentValue<T, V, R> {
+
+impl<T: Ui, V: 'static, R: Value<V>> UiContainer for SetParentValue<T, V, R> {
     delegate_child!(child, T);
 
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
@@ -1145,17 +1146,17 @@ impl<T: Ui, V: 'static, R: Value<V> + Clone + 'static> UiContainer for SetParent
         values.with_parent_value(self.key, &self.value, |v| child.close_request(v, update));
     }
 }
-impl<T: Ui, V: 'static, R: Value<V> + Clone + 'static> Ui for SetParentValue<T, V, R> {
+impl<T: Ui, V: 'static, R: Value<V>> Ui for SetParentValue<T, V, R> {
     delegate_ui_methods!(UiContainer);
 }
 
 pub trait ParentValue: Ui + Sized {
-    fn set_ctx_val<T: 'static, R: Value<T> + Clone + 'static>(
+    fn set_ctx_val<T: 'static, V: IntoValue<T>>(
         self,
         key: ParentValueKey<T>,
-        value: R,
-    ) -> SetParentValue<Self, T, R> {
-        SetParentValue::new(self, key, value)
+        value: V,
+    ) -> SetParentValue<Self, T, V::Value> {
+        SetParentValue::new(self, key, value.into_value())
     }
 }
 impl<T: Ui> ParentValue for T {}
