@@ -25,11 +25,9 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
         string
             .split("\n")
             .map(|l| {
-                text(l, rgb(0, 0, 0))
-                    .background_color(rgb(255, 255, 255))
-                    .on_click(|_c, _| {
-                        //c.stop_propagation();
-                    })
+                text(l).background_color(rgb(255, 255, 255)).on_click(|_c, _| {
+                    //c.stop_propagation();
+                })
             })
             .collect::<Vec<_>>(),
     )
@@ -46,10 +44,11 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
             .map(|_| {
                 let bkg_color = Var::new(rgb(255, 255, 255));
 
-                text("Ola", rgb(0, 0, 0))
+                text("Ola")
                     .font_family("Arial".to_owned())
                     .font_size(90)
                     .background_color(Var::clone(&bkg_color))
+                    .text_color(rgb(0, 150, 0))
                     .center()
                     .cursor(CursorIcon::Hand)
                     .on_mouse_enter(enclose! {(bkg_color) move |u| {

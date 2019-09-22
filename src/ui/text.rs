@@ -6,28 +6,28 @@ use webrender::api::*;
 
 pub struct Text {
     text: String,
-    color: ColorF,
     hit_tag: HitTag,
 
     glyphs: Vec<GlyphInstance>,
     size: LayoutSize,
     font_instance_key: Option<FontInstanceKey>,
+    color: ColorF,
 }
 
 impl Text {
-    pub fn new(text: &str, color: ColorF) -> Self {
+    pub fn new(text: &str) -> Self {
         //https://harfbuzz.github.io/
         //https://crates.io/crates/unicode-bidi
         //https://www.geeksforgeeks.org/word-wrap-problem-dp-19/
 
         Text {
             text: text.to_owned(),
-            color,
             hit_tag: HitTag::new(),
 
             glyphs: vec![],
             size: LayoutSize::default(),
             font_instance_key: None,
+            color: ColorF::BLACK,
         }
     }
 
@@ -70,11 +70,13 @@ impl Text {
             self.size = LayoutSize::default();
             self.font_instance_key = None;
         }
+
+        self.color = *v.parent(*TEXT_COLOR).unwrap_or(&ColorF::BLACK);
     }
 }
 
-pub fn text(text: &str, color: ColorF) -> Text {
-    Text::new(text, color)
+pub fn text(text: &str) -> Text {
+    Text::new(text)
 }
 
 impl UiLeaf for Text {
@@ -110,16 +112,21 @@ delegate_ui!(UiLeaf, Text);
 
 pub static FONT_FAMILY: ParentValueKeyRef<String> = ParentValueKey::new_lazy();
 pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
+pub static TEXT_COLOR: ParentValueKeyRef<ColorF> = ParentValueKey::new_lazy();
 
 pub type SetFontFamily<T, R> = SetParentValue<T, String, R>;
 pub type SetFontSize<T, R> = SetParentValue<T, u32, R>;
+pub type SetTextColor<T, R> = SetParentValue<T, ColorF, R>;
 
-pub trait Font: Ui + Sized {
+pub trait TextVals: Ui + Sized {
     fn font_family<V: IntoValue<String>>(self, font: V) -> SetFontFamily<Self, V::Value> {
         self.set_ctx_val(*FONT_FAMILY, font)
     }
     fn font_size<V: IntoValue<u32>>(self, size: V) -> SetFontSize<Self, V::Value> {
         self.set_ctx_val(*FONT_SIZE, size)
     }
+    fn text_color<V: IntoValue<ColorF>>(self, color: V) -> SetTextColor<Self, V::Value> {
+        self.set_ctx_val(*TEXT_COLOR, color)
+    }
 }
-impl<T: Ui> Font for T {}
+impl<T: Ui> TextVals for T {}
