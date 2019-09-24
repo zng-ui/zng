@@ -19,9 +19,12 @@ winapi = "0.3.8"
 once_cell = "1.2.0"
 fnv = "1.0.6"
 derive-new = "0.5.8"
+zero-ui-derive = { path = "zero-ui-derive" }
 
 [dev-dependencies]
 bencher = "0.1.5"
+
+[workspace]
 
 #[[bench]]
 #name = "value_changed"

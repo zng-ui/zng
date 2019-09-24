@@ -236,7 +236,7 @@ pub struct NewWindow {
 macro_rules! ui_value_key {
     ($(
         $(#[$outer:meta])*
-        pub struct $Key:ident (struct $Id:ident) new_lazy -> $KeyRef:ident;
+        pub struct $Key:ident (struct $Id:ident) { new_lazy() -> pub struct $KeyRef:ident };
     )+) => {$(
         uid! {struct $Id(_);}
 
@@ -292,10 +292,14 @@ macro_rules! ui_value_key {
 
 ui_value_key! {
     /// Unique key for a value set in a parent Ui to be read in a child Ui.
-    pub struct ParentValueKey(struct ParentValueId) new_lazy -> ParentValueKeyRef;
+    pub struct ParentValueKey(struct ParentValueId) {
+        new_lazy() -> pub struct ParentValueKeyRef
+    };
 
     /// Unique key for a value set in a child Ui to be read in a parent Ui.
-    pub struct ChildValueKey(struct ChildValueId) new_lazy -> ChildValueKeyRef;
+    pub struct ChildValueKey(struct ChildValueId) {
+        new_lazy() -> pub struct ChildValueKeyRef
+    };
 }
 
 enum UntypedRef {}
@@ -1162,3 +1166,19 @@ pub trait ParentValue: Ui + Sized {
     //TODO alias value
 }
 impl<T: Ui> ParentValue for T {}
+
+pub struct TestLeaf;
+
+use zero_ui_derive::impl_ui;
+
+#[impl_ui]
+impl TestLeaf {
+    /// Custom doc
+    #[Ui]
+    fn render(&self, f: &mut NextFrame) {
+        f.push_color(LayoutRect::from_size(f.final_size()), rgb(0, 0, 0), None);
+    }
+
+    /// Outra fn
+    pub fn outro() {}
+}
