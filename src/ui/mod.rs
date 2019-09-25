@@ -1169,9 +1169,9 @@ impl<T: Ui> ParentValue for T {}
 
 pub struct TestLeaf;
 
-use zero_ui_derive::impl_ui;
+use zero_ui_derive::impl_ui_crate;
 
-#[impl_ui]
+#[impl_ui_crate]
 impl TestLeaf {
     /// Custom doc
     #[Ui]
