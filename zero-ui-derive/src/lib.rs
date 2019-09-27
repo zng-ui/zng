@@ -85,20 +85,32 @@ impl VisitMut for CrateUiEverything {
     }
 }
 
+struct MakeDefaults {
+    user_mtds: HashSet<Ident>,
+    measure_default: Option<Block>,
+    render_default: Option<Block>,
+    point_over_default: Option<Block>,
+    other_mtds: Box<dyn Fn(Ident, Vec<Ident>) -> Block>,
+}
+
+impl VisitMut for MakeDefaults {}
+
 fn ui_defaults(
     crate_: QTokenStream,
     user_mtds: HashSet<Ident>,
-    measure_default: impl Fn(Ident, Vec<Ident>) -> Block,
-    render_default: impl Fn(Ident, Vec<Ident>) -> Block,
-    point_over_default: impl Fn(Ident, Vec<Ident>) -> Block,
-    other_mtds: impl Fn(Ident, Vec<Ident>) -> Block,
+    measure_default: Block,
+    render_default: Block,
+    point_over_default: Block,
+    other_mtds: impl Fn(Ident, Vec<Ident>) -> Block + 'static,
 ) -> Vec<ImplItem> {
-    let ui: ItemImpl = parse_quote! {
+    let mut ui: ItemImpl = parse_quote! {
         impl Ui for Dummy {
-            fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
             fn measure(&mut self, available_size: LayoutSize) -> LayoutSize { LayoutSize::default() }
-            fn arrange(&mut self, final_size: LayoutSize) { }
             fn render(&self, f: &mut NextFrame) { }
+            fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> { None }
+
+            fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn arrange(&mut self, final_size: LayoutSize) { }
             fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) { }
             fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
@@ -106,13 +118,30 @@ fn ui_defaults(
             fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
             fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
-            fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> { None }
             fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
             fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
         }
     };
 
-    unimplemented!()
+    let mut visitor = MakeDefaults {
+        user_mtds: user_mtds,
+        measure_default: Some(measure_default),
+        render_default: Some(render_default),
+        point_over_default: Some(point_over_default),
+        other_mtds: Box::new(other_mtds),
+    };
+    visitor.visit_item_impl_mut(&mut ui);
+
+    let mut visitor = CrateUiEverything::new(crate_);
+    visitor.visit_item_impl_mut(&mut ui);
+
+    ui.items
+        .into_iter()
+        .filter(|i| match &i {
+            ImplItem::Method(_) => true,
+            _ => false,
+        })
+        .collect()
 }
 
 fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) {
@@ -120,25 +149,23 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) {
         crate_,
         user_mtds,
         /* measure */
-        |_, args| {
-            parse_quote! {{
-                let mut size = #(#args),*;
+        parse_quote! {{
+            let mut size = available_size;
 
-                if size.width.is_infinite() {
-                    size.width = 0.0;
-                }
+            if size.width.is_infinite() {
+                size.width = 0.0;
+            }
 
-                if size.height.is_infinite() {
-                    size.height = 0.0;
-                }
+            if size.height.is_infinite() {
+                size.height = 0.0;
+            }
 
-                size
-            }}
-        },
+            size
+        }},
         /* render */
-        |_, _| parse_quote! {{}},
+        parse_quote! {{}},
         /* point_over */
-        |_, _| parse_quote! {{ None }},
+        parse_quote! {{ None }},
         /* other_mtds */
         |_, _| parse_quote! {{}},
     );
@@ -149,27 +176,27 @@ fn ui_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, borrow
         crate_,
         user_mtds,
         /* measure */
-        |_, args| {
-            parse_quote! {{
-                let d = #borrow_mut;
-                d.measure(#(#args),*)
-            }}
-        },
+        parse_quote! {{
+            let d = #borrow_mut;
+            d.measure(available_size)
+        }},
         /* render */
-        |_, args| parse_quote! {{
+        parse_quote! {{
             let d = #borrow;
-            d.render(#(#args),*)
+            d.render(f);
         }},
         /* point_over */
-        |_, args| parse_quote! {{
-            let d = #borrow_mut;
-            d.point_over(#(#args),*)
-         }},
-        /* other_mtds */
-        |mtd, args| parse_quote! {{
-            let d = #borrow_mut;
-            d.#mtd(#(#args),*);
+        parse_quote! {{
+           let d = #borrow_mut;
+           d.point_over(h)
         }},
+        /* other_mtds */
+        move |mtd, args| {
+            parse_quote! {{
+                let d = #borrow_mut;
+                d.#mtd(#(#args),*);
+            }}
+        },
     );
 }
 
@@ -178,36 +205,36 @@ fn ui_multi_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, 
         crate_,
         user_mtds,
         /* measure */
-        |_, args| {
-            parse_quote! {{
-                let mut size = Default::default();
-                for d in #iter_mut {
-                   size = d.measure(#(#args),*).max(size);
-                }
-                size
-            }}
-        },
+        parse_quote! {{
+            let mut size = Default::default();
+            for d in #iter_mut {
+               size = d.measure(available_size).max(size);
+            }
+            size
+        }},
         /* render */
-        |_, args| parse_quote! {{
+        parse_quote! {{
             for d in #iter {
-                d.render(#(#args),*);
+                d.render(f);
             }
         }},
         /* point_over */
-        |_, args| parse_quote! {{
-            for d in #iter {
-                if let Some(pt) = d.point_over(#(#args),*) {
-                    return Some(pt);
-                }
-            }
-            None
-         }},
-        /* other_mtds */
-        |mtd, args| parse_quote! {{
-            for d in #iter_mut {
-                d.#mtd(#(#args),*);
-            }
+        parse_quote! {{
+           for d in #iter {
+               if let Some(pt) = d.point_over(h) {
+                   return Some(pt);
+               }
+           }
+           None
         }},
+        /* other_mtds */
+        move |mtd, args| {
+            parse_quote! {{
+                for d in #iter_mut {
+                    d.#mtd(#(#args),*);
+                }
+            }}
+        },
     );
 }
 
