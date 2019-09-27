@@ -34,6 +34,8 @@ pub use glutin::window::CursorIcon;
 use once_cell::sync::OnceCell;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
+pub use zero_ui_derive::impl_ui;
+use zero_ui_derive::impl_ui_crate;
 
 struct FontInstances {
     font_key: FontKey,
@@ -768,290 +770,23 @@ pub trait Ui {
     }
 }
 
-impl Ui for Box<dyn Ui> {
+#[impl_ui_crate(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+impl Box<dyn Ui> {
+    #[Ui]
+    #[inline]
     fn into_box(self) -> Box<dyn Ui> {
         self
     }
-
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().init(values, update);
-    }
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.as_mut().measure(available_size)
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.as_mut().arrange(final_size);
-    }
-
-    fn render(&self, f: &mut NextFrame) {
-        self.as_ref().render(f);
-    }
-
-    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().keyboard_input(input, values, update);
-    }
-
-    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().focused(focused, values, update);
-    }
-
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().mouse_input(input, hits, values, update);
-    }
-
-    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().mouse_move(input, hits, values, update);
-    }
-
-    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().mouse_entered(values, update);
-    }
-
-    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().mouse_left(values, update);
-    }
-
-    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().close_request(values, update);
-    }
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        self.as_ref().point_over(hits)
-    }
-
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().value_changed(values, update);
-    }
-
-    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.as_mut().parent_value_changed(values, update);
-    }
 }
 
-/// An UI component that does not have a child component.
-#[allow(unused_variables)]
-pub trait UiLeaf {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let mut size = available_size;
-
-        if size.width.is_infinite() {
-            size.width = 0.0;
-        }
-
-        if size.height.is_infinite() {
-            size.height = 0.0;
-        }
-
-        size
-    }
-
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn arrange(&mut self, final_size: LayoutSize) {}
-
-    fn render(&self, f: &mut NextFrame);
-
-    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        None
-    }
-
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-
-    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {}
-}
-
-/// An UI component with a single child component.
-pub trait UiContainer {
-    type Child: Ui;
-
-    fn child(&self) -> &Self::Child;
-
-    fn child_mut(&mut self) -> &mut Self::Child;
-
-    fn into_child(self) -> Self::Child;
-
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().init(values, update);
-    }
-
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child_mut().measure(available_size)
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child_mut().arrange(final_size);
-    }
-
-    fn render(&self, f: &mut NextFrame) {
-        self.child().render(f);
-    }
-
-    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().keyboard_input(input, values, update);
-    }
-
-    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().focused(focused, values, update);
-    }
-
-    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().mouse_input(input, hits, values, update);
-    }
-
-    fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().mouse_move(input, hits, values, update);
-    }
-
-    fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().mouse_entered(values, update);
-    }
-
-    fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().mouse_left(values, update);
-    }
-
-    fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().close_request(values, update);
-    }
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        self.child().point_over(hits)
-    }
-
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().value_changed(values, update);
-    }
-
-    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child_mut().parent_value_changed(values, update);
-    }
-}
-
-/// An UI Component with many child components.
-pub trait UiMultiContainer<'a> {
-    type Child: Ui + 'static;
-    type Children: Iterator<Item = &'a Self::Child>;
-    type ChildrenMut: Iterator<Item = &'a mut Self::Child>;
-
-    fn children(&'a self) -> Self::Children;
-
-    fn children_mut(&'a mut self) -> Self::ChildrenMut;
-
-    fn collect_children<B: FromIterator<Self::Child>>(self) -> B;
-
-    fn init(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.init(values, update);
-        }
-    }
-
-    fn measure(&'a mut self, available_size: LayoutSize) -> LayoutSize {
-        let mut size = LayoutSize::default();
-        for c in self.children_mut() {
-            size = c.measure(available_size).max(size);
-        }
-        size
-    }
-
-    fn arrange(&'a mut self, final_size: LayoutSize) {
-        for c in self.children_mut() {
-            c.arrange(final_size);
-        }
-    }
-
-    fn render(&'a self, f: &mut NextFrame) {
-        for c in self.children() {
-            c.render(f);
-        }
-    }
-
-    fn keyboard_input(&'a mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.keyboard_input(input, values, update);
-        }
-    }
-
-    fn focused(&'a mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.focused(focused, values, update);
-        }
-    }
-
-    fn mouse_input(&'a mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.mouse_input(input, hits, values, update);
-        }
-    }
-
-    fn mouse_move(&'a mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.mouse_move(input, hits, values, update);
-        }
-    }
-
-    fn mouse_entered(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.mouse_entered(values, update);
-        }
-    }
-
-    fn mouse_left(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.mouse_left(values, update);
-        }
-    }
-
-    fn close_request(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.close_request(values, update);
-        }
-    }
-
-    fn point_over(&'a self, hits: &Hits) -> Option<LayoutPoint> {
-        for c in self.children() {
-            if let Some(point) = c.point_over(hits) {
-                return Some(point);
-            }
-        }
-        None
-    }
-
-    fn value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.value_changed(values, update);
-        }
-    }
-
-    fn parent_value_changed(&'a mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        for c in self.children_mut() {
-            c.parent_value_changed(values, update);
-        }
-    }
-}
-
-impl UiLeaf for () {
+#[impl_ui_crate]
+impl () {
+    #[Ui]
+    #[inline]
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         LayoutSize::default()
     }
-    fn render(&self, _: &mut NextFrame) {}
 }
-delegate_ui!(UiLeaf, ());
 
 // TODO
 // https://github.com/servo/webrender/commit/717b1a272e8425d3952cc19f6d182b9087495c32
@@ -1064,15 +799,13 @@ pub struct UiCursor<T: Ui> {
     cursor: CursorIcon,
 }
 
-impl<T: Ui + 'static> UiContainer for UiCursor<T> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui + 'static> UiCursor<T> {
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_cursor(self.cursor, &self.child)
     }
 }
-
-delegate_ui!(UiContainer, UiCursor<T>, T);
 
 pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) -> UiCursor<T> {
     UiCursor::new(child, cursor)
@@ -1092,14 +825,15 @@ pub struct SetParentValue<T: Ui, V, R: Value<V>> {
     value: R,
 }
 
-impl<T: Ui, V: 'static, R: Value<V>> UiContainer for SetParentValue<T, V, R> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui, V: 'static, R: Value<V>> SetParentValue<T, V, R> {
+    #[Ui]
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.init(v, update));
     }
 
+    #[Ui]
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
 
@@ -1110,48 +844,53 @@ impl<T: Ui, V: 'static, R: Value<V>> UiContainer for SetParentValue<T, V, R> {
         values.with_parent_value(self.key, &self.value, |v| child.value_changed(v, update));
     }
 
+    #[Ui]
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.parent_value_changed(v, update));
     }
 
+    #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.keyboard_input(input, v, update));
     }
 
+    #[Ui]
     fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.focused(focused, v, update));
     }
 
+    #[Ui]
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.mouse_input(input, hits, v, update));
     }
 
+    #[Ui]
     fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.mouse_move(input, hits, v, update));
     }
 
+    #[Ui]
     fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.mouse_entered(v, update));
     }
 
+    #[Ui]
     fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.mouse_left(v, update));
     }
 
+    #[Ui]
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
         values.with_parent_value(self.key, &self.value, |v| child.close_request(v, update));
     }
-}
-impl<T: Ui, V: 'static, R: Value<V>> Ui for SetParentValue<T, V, R> {
-    delegate_ui_methods!(UiContainer);
 }
 
 pub trait ParentValue: Ui + Sized {
@@ -1166,19 +905,3 @@ pub trait ParentValue: Ui + Sized {
     //TODO alias value
 }
 impl<T: Ui> ParentValue for T {}
-
-pub struct TestLeaf;
-
-use zero_ui_derive::impl_ui_crate;
-
-#[impl_ui_crate]
-impl TestLeaf {
-    /// Custom doc
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), rgb(0, 0, 0), None);
-    }
-
-    /// Outra fn
-    pub fn outro() {}
-}

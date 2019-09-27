@@ -1,6 +1,6 @@
 use super::{
     ChildValueKey, ChildValueKeyRef, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton,
-    MouseInput, NextUpdate, Ui, UiContainer, UiMouseMove, UiValues, VirtualKeyCode,
+    MouseInput, NextUpdate, Ui, impl_ui_crate, UiMouseMove, UiValues, VirtualKeyCode,
 };
 use std::cell::Cell;
 use std::fmt;
@@ -19,9 +19,10 @@ pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
     child: T,
     handler: F,
 }
-impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> UiContainer for OnKeyDown<T, F> {
-    delegate_child!(child, T);
 
+#[impl_ui_crate(child)]
+impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
+    #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
 
@@ -45,19 +46,16 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> UiContainer for OnKeyDown<T, F> 
     }
 }
 
-impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> Ui for OnKeyDown<T, F> {
-    delegate_ui_methods!(UiContainer);
-}
-
 #[derive(new)]
 pub struct OnKeyUp<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> {
     child: T,
     handler: F,
 }
 
-impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> UiContainer for OnKeyUp<T, F> {
-    delegate_child!(child, T);
+#[impl_ui_crate(child)]
+impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
 
+    #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
 
@@ -81,10 +79,6 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> UiContainer for OnKeyUp<T, F> {
     }
 }
 
-impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> Ui for OnKeyUp<T, F> {
-    delegate_ui_methods!(UiContainer);
-}
-
 pub trait KeyboardEvents: Ui + Sized {
     fn on_key_down<F: FnMut(KeyDown, &mut NextUpdate)>(self, handler: F) -> OnKeyDown<Self, F> {
         OnKeyDown::new(self, handler)
@@ -104,9 +98,10 @@ macro_rules! on_mouse {
             handler: F,
         }
 
-        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> UiContainer for $name<T, F> {
-            delegate_child!(child, T);
+        #[impl_ui_crate(child)]
+        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
 
+            #[Ui]
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
 
@@ -133,10 +128,6 @@ macro_rules! on_mouse {
                 }
             }
         }
-
-        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> Ui for $name<T, F> {
-            delegate_ui_methods!(UiContainer);
-        }
     };
 }
 
@@ -153,6 +144,7 @@ pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
     last_pressed: Instant,
 }
 
+#[impl_ui_crate(child)]
 impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
     fn call_handler(
         &mut self,
@@ -175,27 +167,13 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
         self.click_count = 0;
         self.last_pressed -= Duration::from_secs(30);
     }
-}
 
-#[cfg(target_os = "windows")]
-fn multi_click_time_ms() -> Duration {
-    Duration::from_millis(unsafe { winapi::um::winuser::GetDoubleClickTime() } as u64)
-}
-
-#[cfg(not(target_os = "windows"))]
-fn multi_click_time_ms() -> u32 {
-    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
-    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
-    Duration::from_millis(500)
-}
-
-impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnClick<T, F> {
-    delegate_child!(child, T);
-
-    fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
+    #[Ui]
+     fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
         self.interaction_outside();
     }
 
+    #[Ui]
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_input(input, hits, values, update);
         if values.child(*STOP_CLICK).is_some() {
@@ -242,8 +220,16 @@ impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> UiContainer for OnC
     }
 }
 
-impl<T: Ui + 'static, F: FnMut(ClickInput, &mut NextUpdate)> Ui for OnClick<T, F> {
-    delegate_ui_methods!(UiContainer);
+#[cfg(target_os = "windows")]
+fn multi_click_time_ms() -> Duration {
+    Duration::from_millis(unsafe { winapi::um::winuser::GetDoubleClickTime() } as u64)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn multi_click_time_ms() -> u32 {
+    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
+    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
+    Duration::from_millis(500)
 }
 
 #[derive(Clone, new)]
@@ -252,9 +238,9 @@ pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
     handler: F,
 }
 
-impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMouseMove<T, F> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)>  OnMouseMove<T, F> {
+    #[Ui]
     fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, values, update);
 
@@ -279,9 +265,6 @@ impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> UiContainer for OnMo
         }
     }
 }
-impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> Ui for OnMouseMove<T, F> {
-    delegate_ui_methods!(UiContainer);
-}
 
 macro_rules! on_mouse_enter_leave {
     ($Type: ident, $mouse_over: ident, $if_mouse_over: expr) => {
@@ -293,6 +276,7 @@ macro_rules! on_mouse_enter_leave {
             mouse_over: bool,
         }
 
+        #[impl_ui_crate(child)]
         impl<T: Ui, F: FnMut(&mut NextUpdate)> $Type<T, F> {
             fn set_mouse_over(&mut self, $mouse_over: bool, update: &mut NextUpdate) {
                 if self.mouse_over != $mouse_over {
@@ -302,23 +286,18 @@ macro_rules! on_mouse_enter_leave {
                     }
                 }
             }
-        }
 
-        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> UiContainer for $Type<T, F> {
-            delegate_child!(child, T);
-
+            #[Ui]
             fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_move(input, hits, values, update);
                 self.set_mouse_over(self.child.point_over(hits).is_some(), update);
             }
 
+            #[Ui]
             fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_left(values, update);
                 self.set_mouse_over(false, update);
             }
-        }
-        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
-            delegate_ui_methods!(UiContainer);
         }
     };
 }

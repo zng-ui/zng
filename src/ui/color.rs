@@ -1,6 +1,6 @@
 use super::{
-    ColorF, GradientStop, HitTag, Hits, IntoValue, LayoutPoint, LayoutRect, NextFrame, NextUpdate, Ui, UiContainer,
-    UiLeaf, UiValues, Value,
+    ColorF, GradientStop, HitTag, Hits, IntoValue, LayoutPoint, LayoutRect, NextFrame, NextUpdate, impl_ui_crate,
+     UiValues, Value, Ui,
 };
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
@@ -26,16 +26,18 @@ pub struct FillColor {
     hit_tag: HitTag,
 }
 
-impl UiLeaf for FillColor {
+#[impl_ui_crate]
+impl FillColor {
+    #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
     }
 }
-delegate_ui!(UiLeaf, FillColor);
 #[cfg(test)]
 mod fill_color_tests {
     use super::*;
@@ -55,11 +57,15 @@ pub struct FillGradient {
     #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
 }
-impl UiLeaf for FillGradient {
+
+#[impl_ui_crate]
+impl  FillGradient {
+    #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         let final_size = f.final_size();
         let mut start = self.start;
@@ -112,13 +118,14 @@ pub struct BackgroundColor<T: Ui, C: Value<ColorF>> {
     hit_tag: HitTag,
 }
 
-impl<T: Ui, C: Value<ColorF>> UiContainer for BackgroundColor<T, C> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui, C: Value<ColorF>>  BackgroundColor<T, C> {
+    #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
     }
 
+    #[Ui]
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.value_changed(values, update);
         if self.color.changed() {
@@ -126,13 +133,11 @@ impl<T: Ui, C: Value<ColorF>> UiContainer for BackgroundColor<T, C> {
         }
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
         self.child.render(f)
     }
-}
-impl<T: Ui, C: Value<ColorF>> Ui for BackgroundColor<T, C> {
-    delegate_ui_methods!(UiContainer);
 }
 
 pub fn background_color<T: Ui, C: Value<ColorF>>(child: T, color: C) -> BackgroundColor<T, C> {
@@ -145,6 +150,7 @@ pub struct BackgroundGradient<T> {
     gradient: FillGradient,
 }
 
+#[impl_ui_crate(child)]
 impl<T> BackgroundGradient<T> {
     pub fn new(child: T, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
         BackgroundGradient {
@@ -152,22 +158,18 @@ impl<T> BackgroundGradient<T> {
             gradient: FillGradient::new(start, end, stops),
         }
     }
-}
 
-impl<T: Ui> UiContainer for BackgroundGradient<T> {
-    delegate_child!(child, T);
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+    #[Ui]
+     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         Ui::point_over(&self.gradient, hits)
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         Ui::render(&self.gradient, f);
         self.child.render(f);
     }
 }
-
-delegate_ui!(UiContainer, BackgroundGradient<T>, T);
 
 pub fn background_gradient<T: Ui>(
     child: T,
