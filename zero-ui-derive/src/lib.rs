@@ -8,7 +8,8 @@ use quote::__rt::{Span, TokenStream as QTokenStream};
 use std::collections::HashSet;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, Expr, Ident, ImplItem, ItemImpl, Token};
+use syn::visit_mut::{self, VisitMut};
+use syn::{parse_macro_input, Attribute, Block, Expr, Ident, ImplItem, ImplItemMethod, ItemImpl, PatType, Token, Type};
 
 macro_rules! error {
     ($span: expr, $msg: expr) => {{
@@ -19,6 +20,195 @@ macro_rules! error {
 
         return TokenStream::from(error);
     }};
+}
+
+macro_rules! parse_quote {
+    ($($tt:tt)*) => {
+        syn::parse(quote!{$($tt)*}.into()).unwrap()
+    };
+}
+
+struct InlineEverything {
+    inline: Attribute,
+}
+
+impl InlineEverything {
+    pub fn new() -> Self {
+        let mut dummy: ImplItemMethod = parse_quote! {
+            #[inline]
+            fn dummy(&self) {}
+        };
+
+        InlineEverything {
+            inline: dummy.attrs.remove(0),
+        }
+    }
+}
+
+impl VisitMut for InlineEverything {
+    fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
+        if i.attrs
+            .iter()
+            .all(|a| a.path.get_ident() != self.inline.path.get_ident())
+        {
+            i.attrs.push(self.inline.clone());
+        }
+
+        visit_mut::visit_impl_item_method_mut(self, i);
+    }
+}
+
+struct CrateUiEverything {
+    crate_: QTokenStream,
+}
+
+impl CrateUiEverything {
+    pub fn new(crate_: QTokenStream) -> Self {
+        CrateUiEverything { crate_ }
+    }
+}
+
+impl VisitMut for CrateUiEverything {
+    fn visit_pat_type_mut(&mut self, i: &mut PatType) {
+        match i.ty.as_mut() {
+            Type::Path(p) => {
+                let path = &mut p.path;
+                if let Some(ident) = path.get_ident().clone() {
+                    let crate_ = self.crate_.clone();
+                    *path = parse_quote! { #crate_::ui::#ident };
+                }
+            }
+            _ => {}
+        }
+
+        visit_mut::visit_pat_type_mut(self, i);
+    }
+}
+
+fn ui_defaults(
+    crate_: QTokenStream,
+    user_mtds: HashSet<Ident>,
+    measure_default: impl Fn(Ident, Vec<Ident>) -> Block,
+    render_default: impl Fn(Ident, Vec<Ident>) -> Block,
+    point_over_default: impl Fn(Ident, Vec<Ident>) -> Block,
+    other_mtds: impl Fn(Ident, Vec<Ident>) -> Block,
+) -> Vec<ImplItem> {
+    let ui: ItemImpl = parse_quote! {
+        impl Ui for Dummy {
+            fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn measure(&mut self, available_size: LayoutSize) -> LayoutSize { LayoutSize::default() }
+            fn arrange(&mut self, final_size: LayoutSize) { }
+            fn render(&self, f: &mut NextFrame) { }
+            fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> { None }
+            fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
+        }
+    };
+
+    unimplemented!()
+}
+
+fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) {
+    ui_defaults(
+        crate_,
+        user_mtds,
+        /* measure */
+        |_, args| {
+            parse_quote! {{
+                let mut size = #(#args),*;
+
+                if size.width.is_infinite() {
+                    size.width = 0.0;
+                }
+
+                if size.height.is_infinite() {
+                    size.height = 0.0;
+                }
+
+                size
+            }}
+        },
+        /* render */
+        |_, _| parse_quote! {{}},
+        /* point_over */
+        |_, _| parse_quote! {{ None }},
+        /* other_mtds */
+        |_, _| parse_quote! {{}},
+    );
+}
+
+fn ui_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) {
+    ui_defaults(
+        crate_,
+        user_mtds,
+        /* measure */
+        |_, args| {
+            parse_quote! {{
+                let d = #borrow_mut;
+                d.measure(#(#args),*)
+            }}
+        },
+        /* render */
+        |_, args| parse_quote! {{
+            let d = #borrow;
+            d.render(#(#args),*)
+        }},
+        /* point_over */
+        |_, args| parse_quote! {{
+            let d = #borrow_mut;
+            d.point_over(#(#args),*)
+         }},
+        /* other_mtds */
+        |mtd, args| parse_quote! {{
+            let d = #borrow_mut;
+            d.#mtd(#(#args),*);
+        }},
+    );
+}
+
+fn ui_multi_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) {
+    ui_defaults(
+        crate_,
+        user_mtds,
+        /* measure */
+        |_, args| {
+            parse_quote! {{
+                let mut size = Default::default();
+                for d in #iter_mut {
+                   size = d.measure(#(#args),*).max(size);
+                }
+                size
+            }}
+        },
+        /* render */
+        |_, args| parse_quote! {{
+            for d in #iter {
+                d.render(#(#args),*);
+            }
+        }},
+        /* point_over */
+        |_, args| parse_quote! {{
+            for d in #iter {
+                if let Some(pt) = d.point_over(#(#args),*) {
+                    return Some(pt);
+                }
+            }
+            None
+         }},
+        /* other_mtds */
+        |mtd, args| parse_quote! {{
+            for d in #iter_mut {
+                d.#mtd(#(#args),*);
+            }
+        }},
+    );
 }
 
 fn ui_leaf(crate_: QTokenStream, user_mtds: HashSet<Ident>, ui_mtds: &mut Vec<ImplItem>) {

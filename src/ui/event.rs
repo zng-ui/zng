@@ -1,6 +1,6 @@
 use super::{
-    ChildValueKey, ChildValueKeyRef, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState, MouseButton,
-    MouseInput, NextUpdate, Ui, impl_ui_crate, UiMouseMove, UiValues, VirtualKeyCode,
+    impl_ui_crate, ChildValueKey, ChildValueKeyRef, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState,
+    MouseButton, MouseInput, NextUpdate, Ui, UiMouseMove, UiValues, VirtualKeyCode,
 };
 use std::cell::Cell;
 use std::fmt;
@@ -54,7 +54,6 @@ pub struct OnKeyUp<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> {
 
 #[impl_ui_crate(child)]
 impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
-
     #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
@@ -100,7 +99,6 @@ macro_rules! on_mouse {
 
         #[impl_ui_crate(child)]
         impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
-
             #[Ui]
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
@@ -169,7 +167,7 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
     }
 
     #[Ui]
-     fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
+    fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
         self.interaction_outside();
     }
 
@@ -239,7 +237,7 @@ pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)>  OnMouseMove<T, F> {
+impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
     #[Ui]
     fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, values, update);

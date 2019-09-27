@@ -1,6 +1,6 @@
 use super::{
-    ColorF, GradientStop, HitTag, Hits, IntoValue, LayoutPoint, LayoutRect, NextFrame, NextUpdate, impl_ui_crate,
-     UiValues, Value, Ui,
+    impl_ui_crate, ColorF, GradientStop, HitTag, Hits, IntoValue, LayoutPoint, LayoutRect, NextFrame, NextUpdate, Ui,
+    UiValues, Value,
 };
 
 pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
@@ -59,7 +59,7 @@ pub struct FillGradient {
 }
 
 #[impl_ui_crate]
-impl  FillGradient {
+impl FillGradient {
     #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
@@ -119,7 +119,7 @@ pub struct BackgroundColor<T: Ui, C: Value<ColorF>> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, C: Value<ColorF>>  BackgroundColor<T, C> {
+impl<T: Ui, C: Value<ColorF>> BackgroundColor<T, C> {
     #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
@@ -160,7 +160,7 @@ impl<T> BackgroundGradient<T> {
     }
 
     #[Ui]
-     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         Ui::point_over(&self.gradient, hits)
     }
 
