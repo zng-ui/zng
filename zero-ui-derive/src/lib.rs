@@ -24,7 +24,11 @@ macro_rules! error {
         return TokenStream::from(error);
     }};
 }
-
+macro_rules! dbg_parse_quote {
+    ($msg:expr, $($tt:tt)*) => {
+        syn::parse(quote!{$($tt)*}.into()).expect($msg)
+    };
+}
 macro_rules! parse_quote {
     ($($tt:tt)*) => {
         syn::parse(quote!{$($tt)*}.into()).unwrap()
@@ -290,235 +294,6 @@ fn ui_multi_container_defaults(
     )
 }
 
-fn ui_leaf(crate_: QTokenStream, user_mtds: HashSet<Ident>, ui_mtds: &mut Vec<ImplItem>) {
-    let n = quote!(#crate_::ui);
-
-    macro_rules! mtd {
-        ($mtd_name:ident $($mtd:tt)+) => {
-            let mtd_name = ident(stringify!($mtd_name));
-            if !user_mtds.contains(&mtd_name) {
-                ui_mtds.push(
-                    syn::parse(quote! {
-                        #[inline]
-                        fn #mtd_name $($mtd)+
-                    }.into())
-                    .unwrap(),
-                );
-            }
-        };
-    }
-
-    mtd!(init(&mut self, v: &mut #n::UiValues, u : &mut #n::NextUpdate) {});
-    mtd!(measure(&mut self, available_size: #n::LayoutSize) -> #n::LayoutSize {
-        let mut size = available_size;
-
-        if size.width.is_infinite() {
-            size.width = 0.0;
-        }
-
-        if size.height.is_infinite() {
-            size.height = 0.0;
-        }
-
-        size
-    });
-    mtd!(arrange(&mut self, _: #n::LayoutSize) {});
-    mtd!(render(&self, _: &mut #n::NextFrame) {});
-    mtd!(keyboard_input(&mut self, _: &#n::KeyboardInput, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(focused(&mut self, _: bool, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(mouse_input(&mut self, _: &#n::MouseInput, _: &#n::Hits, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(mouse_move(&mut self, _: &#n::UiMouseMove, _: &#n::Hits, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(mouse_entered(&mut self, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(mouse_left(&mut self, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(close_request(&mut self, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(point_over(&self, _: &#n::Hits) -> Option<#n::LayoutPoint> {None});
-    mtd!(value_changed(&mut self, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-    mtd!(parent_value_changed(&mut self, _: &mut #n::UiValues, _: &mut #n::NextUpdate) {});
-}
-
-fn ui_container(
-    crate_: QTokenStream,
-    borrow: Expr,
-    borrow_mut: Expr,
-    user_mtds: HashSet<Ident>,
-    ui_mtds: &mut Vec<ImplItem>,
-) {
-    let n = quote!(#crate_::ui);
-
-    macro_rules! mtd {
-        ($mtd_name:ident $($mtd:tt)+) => {
-            let mtd_name = ident(stringify!($mtd_name));
-            if !user_mtds.contains(&mtd_name) {
-                ui_mtds.push(
-                    syn::parse(quote! {
-                        #[inline]
-                        fn #mtd_name $($mtd)+
-                    }.into())
-                    .unwrap(),
-                );
-            }
-        };
-    }
-
-    mtd!(init(&mut self, v: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.init(v, u);
-    });
-    mtd!(measure(&mut self, available_size: #n::LayoutSize) -> #n::LayoutSize {
-        let d = #borrow_mut;
-        d.measure(available_size)
-    });
-    mtd!(arrange(&mut self, final_size: #n::LayoutSize) {
-        let d = #borrow_mut;
-        d.arrange(final_size);
-    });
-    mtd!(render(&self, f: &mut #n::NextFrame) {
-        let d = #borrow;
-        d.render(f);
-    });
-    mtd!(keyboard_input(&mut self, k: &#n::KeyboardInput, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.keyboard_input(k, uv, u);
-    });
-    mtd!(focused(&mut self, f: bool, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.focused(f, uv, u);
-    });
-    mtd!(mouse_input(&mut self, mi: &#n::MouseInput, h: &#n::Hits, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.mouse_input(mi, h, uv, u);
-    });
-    mtd!(mouse_move(&mut self, mv: &#n::UiMouseMove, h: &#n::Hits, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.mouse_move(mv, h, uv, u);
-    });
-    mtd!(mouse_entered(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.mouse_entered(uv, u);
-    });
-    mtd!(mouse_left(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.mouse_left(uv, u);
-    });
-    mtd!(close_request(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.close_request(uv, u);
-    });
-    mtd!(point_over(&self, h: &#n::Hits) -> Option<#n::LayoutPoint> {
-        let d = #borrow;
-        d.point_over(h)
-    });
-    mtd!(value_changed(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.value_changed(uv, u);
-    });
-    mtd!(parent_value_changed(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        let d = #borrow_mut;
-        d.parent_value_changed(uv, u);
-    });
-}
-
-fn ui_multi_container(
-    crate_: QTokenStream,
-    iter: Expr,
-    iter_mut: Expr,
-    user_mtds: HashSet<Ident>,
-    ui_mtds: &mut Vec<ImplItem>,
-) {
-    let n = quote!(#crate_::ui);
-
-    macro_rules! mtd {
-        ($mtd_name:ident $($mtd:tt)+) => {
-            let mtd_name = ident(stringify!($mtd_name));
-            if !user_mtds.contains(&mtd_name) {
-                ui_mtds.push(
-                    syn::parse(quote! {
-                        #[inline]
-                        fn #mtd_name $($mtd)+
-                    }.into())
-                    .unwrap(),
-                );
-            }
-        };
-    }
-
-    mtd!(init(&mut self, v: &mut #n::UiValues, u : &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.init(v, u);
-        }
-    });
-    mtd!(measure(&mut self, available_size: #n::LayoutSize) -> #n::LayoutSize {
-         let mut size = #n::LayoutSize::default();
-        for d in #iter_mut {
-            size = d.measure(available_size).max(size);
-        }
-        size
-    });
-    mtd!(arrange(&mut self, final_size: #n::LayoutSize) {
-        for d in #iter_mut {
-            d.arrange(final_size);
-        }
-    });
-    mtd!(render(&self, f: &mut #n::NextFrame) {
-        for d in #iter {
-            d.render(f);
-        }
-    });
-    mtd!(keyboard_input(&mut self, k: &#n::KeyboardInput, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.keyboard_input(k, uv, u);
-        }
-    });
-    mtd!(focused(&mut self, f: bool, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.focused(f, uv, u);
-        }
-    });
-    mtd!(mouse_input(&mut self, mi: &#n::MouseInput, h: &#n::Hits, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.mouse_input(mi, h, uv, u);
-        }
-    });
-    mtd!(mouse_move(&mut self, mv: &#n::UiMouseMove, h: &#n::Hits, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.mouse_move(mv, h, uv, u);
-        }
-    });
-    mtd!(mouse_entered(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.mouse_entered(uv, u);
-        }
-    });
-    mtd!(mouse_left(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.mouse_left(uv, u);
-        }
-    });
-    mtd!(close_request(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.close_request(uv, u);
-        }
-    });
-    mtd!(point_over(&self, h: &#n::Hits) -> Option<#n::LayoutPoint> {
-        for d in #iter {
-            if let Some(pt) = d.point_over(h) {
-                return Some(pt);
-            }
-        }
-        None
-    });
-    mtd!(value_changed(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.value_changed(uv, u);
-        }
-    });
-    mtd!(parent_value_changed(&mut self, uv: &mut #n::UiValues, u: &mut #n::NextUpdate) {
-        for d in #iter_mut {
-            d.parent_value_changed(uv, u);
-        }
-    });
-}
-
 enum Args {
     Leaf,
     Container {
@@ -540,13 +315,13 @@ impl Parse for Args {
 
             if arg0 == ident("child") {
                 Args::Container {
-                    delegate: syn::parse(quote!(&self.child).into()).unwrap(),
-                    delegate_mut: syn::parse(quote!(&mut self.child).into()).unwrap(),
+                    delegate: parse_quote!(&self.child),
+                    delegate_mut: parse_quote!(&mut self.child),
                 }
             } else if arg0 == ident("children") {
                 Args::MultiContainer {
-                    delegate_iter: syn::parse(quote!(self.children.iter()).into()).unwrap(),
-                    delegate_iter_mut: syn::parse(quote!(self.children.iter()).into()).unwrap(),
+                    delegate_iter: parse_quote!(self.children.iter()),
+                    delegate_iter_mut: parse_quote!(self.children.iter()),
                 }
             } else if arg0 == ident("delegate") {
                 args.parse::<Token![:]>()?;
@@ -650,6 +425,16 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     let generics = input.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let self_ty = input.self_ty;
+    println!("{:#?}", TokenStream::from(quote!{#self_ty});
+
+    let mut inline_all = InlineEverything::new();
+    let mut impl_ui = dbg_parse_quote!{"aaaaaaaaaaaaaaa",
+        impl #impl_generics #crate_::ui::Ui for #self_ty #ty_generics #where_clause {
+            #(#ui_items)*
+            #(#default_ui_items)*
+        }
+    };
+    inline_all.visit_item_impl_mut(&mut impl_ui);
 
     let result = quote! {
         #(#impl_attrs)*
@@ -657,9 +442,7 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
             #(#other_items)*
         }
 
-        impl #impl_generics #crate_::ui::Ui for #self_ty #ty_generics #where_clause {
-            #(#ui_items)*
-        }
+        #impl_ui
     };
 
     TokenStream::from(result)

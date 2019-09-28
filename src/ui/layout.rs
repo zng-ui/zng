@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer};
+use super::{LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, impl_ui_crate};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -9,15 +9,15 @@ pub struct UiSize<T: Ui> {
     child: T,
     size: LayoutSize,
 }
-impl<T: Ui> UiContainer for UiSize<T> {
-    delegate_child!(child, T);
 
+#[impl_ui_crate(child)]
+impl<T: Ui> UiSize<T> {
+    #[Ui]
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.child.measure(self.size);
         self.size
     }
 }
-delegate_ui!(UiContainer, UiSize<T>, T);
 
 pub fn size<T: Ui>(child: T, size: LayoutSize) -> UiSize<T> {
     UiSize::new(child, size)
@@ -28,9 +28,10 @@ pub struct UiWidth<T: Ui> {
     child: T,
     width: f32,
 }
-impl<T: Ui> UiContainer for UiWidth<T> {
-    delegate_child!(child, T);
 
+#[impl_ui_crate(child)]
+impl<T: Ui> UiWidth<T> {
+    #[Ui]
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.width = self.width;
         let mut child_size = self.child.measure(available_size);
@@ -38,7 +39,6 @@ impl<T: Ui> UiContainer for UiWidth<T> {
         child_size
     }
 }
-delegate_ui!(UiContainer, UiWidth<T>, T);
 
 pub fn width<T: Ui>(child: T, width: LayoutSize) -> UiSize<T> {
     UiSize::new(child, width)
@@ -49,9 +49,9 @@ pub struct UiHeight<T: Ui> {
     child: T,
     height: f32,
 }
-impl<T: Ui> UiContainer for UiHeight<T> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui> UiHeight<T> {
+    #[Ui]
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.height = self.height;
         let mut child_size = self.child.measure(available_size);
@@ -87,9 +87,9 @@ pub struct Center<T: Ui> {
     #[new(default)]
     child_rect: LayoutRect,
 }
-impl<T: Ui> UiContainer for Center<T> {
-    delegate_child!(child, T);
-
+#[impl_ui_crate(child)]
+impl<T: Ui> Center<T> {
+    #[Ui]
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -103,6 +103,7 @@ impl<T: Ui> UiContainer for Center<T> {
 
         available_size
     }
+    #[Ui]
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child_rect.size = self.child_rect.size.min(final_size);
         self.child.arrange(self.child_rect.size);
@@ -112,11 +113,11 @@ impl<T: Ui> UiContainer for Center<T> {
             (final_size.height - self.child_rect.size.height) / 2.,
         );
     }
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_child(&self.child, &self.child_rect);
     }
 }
-delegate_ui!(UiContainer, Center<T>, T);
 
 pub fn center<T: Ui>(child: T) -> Center<T> {
     Center::new(child)
@@ -136,6 +137,8 @@ pub struct UiMargin<T: Ui> {
     right: f32,
     bottom: f32,
 }
+
+#[impl_ui_crate(child)]
 impl<T: Ui> UiMargin<T> {
     pub fn uniform(child: T, uniform: f32) -> Self {
         Self::ltrb(child, uniform, uniform, uniform, uniform)
@@ -154,21 +157,21 @@ impl<T: Ui> UiMargin<T> {
             bottom,
         }
     }
-}
-impl<T: Ui> UiContainer for UiMargin<T> {
-    delegate_child!(child, T);
-
+    
+    #[Ui]
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut child_sz = self.child.measure(available_size);
         child_sz.width += self.left + self.right;
         child_sz.height += self.top + self.bottom;
         child_sz
     }
+    #[Ui]
     fn arrange(&mut self, mut final_size: LayoutSize) {
         final_size.width -= self.left + self.right;
         final_size.height -= self.top + self.bottom;
         self.child.arrange(final_size);
     }
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         let sz = f.final_size();
         let rect = euclid::rect(
@@ -180,8 +183,6 @@ impl<T: Ui> UiContainer for UiMargin<T> {
         f.push_child(&self.child, &rect);
     }
 }
-delegate_ui!(UiContainer, UiMargin<T>, T);
-
 pub trait Margin: Ui + Sized {
     fn margin(self, uniform: f32) -> UiMargin<Self> {
         UiMargin::uniform(self, uniform)

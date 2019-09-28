@@ -1,5 +1,4 @@
-use super::{HitTag, Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, UiContainer, UiMultiContainer};
-use std::iter::FromIterator;
+use super::{HitTag, LayoutRect, Ui, impl_ui_crate};
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
@@ -7,6 +6,7 @@ macro_rules! stack {
             children: Vec<StackSlot<T>>,
             hit_tag: HitTag,
         }
+        #[impl_ui_crate(children)]
         impl<T: Ui> $Stack<T> {
             pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
                 $Stack {
@@ -14,10 +14,8 @@ macro_rules! stack {
                     hit_tag: HitTag::new(),
                 }
             }
-        }
-        impl<'a, T: Ui + 'static> UiMultiContainer<'a> for $Stack<T> {
-            delegate_children!(children, StackSlot<T>);
 
+            #[Ui]
             fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
                 let mut total_size = LayoutSize::default();
 
@@ -31,6 +29,7 @@ macro_rules! stack {
                 total_size
             }
 
+            #[Ui]
             fn arrange(&mut self, final_size: LayoutSize) {
                 let mut $dimension = 0.0;
                 for c in self.children_mut() {
@@ -41,6 +40,7 @@ macro_rules! stack {
                 }
             }
 
+            #[Ui]
             fn render(&self, f: &mut NextFrame) {
                 f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size));
 
@@ -49,6 +49,7 @@ macro_rules! stack {
                 }
             }
 
+            #[Ui]
             fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
                 let r = hits.point_over(self.hit_tag);
                 if r.is_some() && self.children().any(|c| Ui::point_over(c, hits).is_some()) {
@@ -57,7 +58,6 @@ macro_rules! stack {
                 None
             }
         }
-        delegate_ui!(UiMultiContainer, $Stack<T>, T);
     };
 }
 
@@ -77,11 +77,7 @@ pub struct ZStack<T> {
     children: Vec<StackSlot<T>>,
 }
 
-impl<'a, T: Ui + 'static> UiMultiContainer<'a> for ZStack<T> {
-    delegate_children!(children, StackSlot<T>);
-}
-delegate_ui!(UiMultiContainer, ZStack<T>, T);
-
+#[impl_ui_crate(children)]
 impl<T: Ui> ZStack<T> {
     pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
         ZStack {
@@ -95,13 +91,6 @@ pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
     ZStack::new(children)
 }
 
-#[cfg(test)]
-mod z_stack_tests {
-    use super::*;
-
-    ui_multi_container_tests!(|c: Vec<TestChild>| z_stack(c));
-}
-
 /// A child in a stack container.
 #[derive(new)]
 pub struct StackSlot<T> {
@@ -110,31 +99,30 @@ pub struct StackSlot<T> {
     rect: LayoutRect,
 }
 
-impl<T> StackSlot<T> {
+#[impl_ui_crate(child)]
+impl<T: Ui> StackSlot<T> {
     /// The area taken by the child in the stack container.
     pub fn rect(&self) -> LayoutRect {
         self.rect
     }
-}
 
-impl<T: Ui> UiContainer for StackSlot<T> {
-    delegate_child!(child, T);
-
+    #[Ui]
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         self.rect.size = self.child.measure(available_size);
         self.rect.size
     }
 
+    #[Ui]
     fn arrange(&mut self, final_size: LayoutSize) {
         self.rect.size = final_size;
         self.child.arrange(final_size);
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_child(&self.child, &self.rect);
     }
 }
-delegate_ui!(UiContainer, StackSlot<T>, T);
 
 /// Helper trait for constructing stack containers.
 pub trait IntoStackSlots {

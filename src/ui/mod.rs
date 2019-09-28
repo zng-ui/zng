@@ -19,7 +19,6 @@ pub use layout::*;
 pub use stack::*;
 use std::any::Any;
 use std::cell::{Cell, RefCell};
-use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::num::NonZeroU64;
 use std::ops::Deref;

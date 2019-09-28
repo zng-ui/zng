@@ -1,6 +1,6 @@
 use super::{
     HitTag, Hits, IntoValue, LayoutSize, NextFrame, NextUpdate, ParentValue, ParentValueKey, ParentValueKeyRef,
-    SetParentValue, Ui, UiLeaf, UiValues,
+    SetParentValue, Ui, UiValues, impl_ui_crate
 };
 use webrender::api::*;
 
@@ -14,6 +14,7 @@ pub struct Text {
     color: ColorF,
 }
 
+#[impl_ui_crate]
 impl Text {
     pub fn new(text: &str) -> Self {
         //https://harfbuzz.github.io/
@@ -73,29 +74,28 @@ impl Text {
 
         self.color = *v.parent(*TEXT_COLOR).unwrap_or(&ColorF::BLACK);
     }
-}
-
-pub fn text(text: &str) -> Text {
-    Text::new(text)
-}
-
-impl UiLeaf for Text {
+    
+    #[Ui]
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.update(values, update);
     }
-
+    
+    #[Ui]
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.size
     }
 
+    #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
     }
 
+    #[Ui]
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.update(values, update);
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         if let Some(font) = self.font_instance_key {
             f.push_text(
@@ -108,7 +108,11 @@ impl UiLeaf for Text {
         }
     }
 }
-delegate_ui!(UiLeaf, Text);
+
+pub fn text(text: &str) -> Text {
+    Text::new(text)
+}
+
 
 pub static FONT_FAMILY: ParentValueKeyRef<String> = ParentValueKey::new_lazy();
 pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
