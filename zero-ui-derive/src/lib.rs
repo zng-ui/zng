@@ -9,7 +9,10 @@ use std::collections::HashSet;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
-use syn::{parse_macro_input, Attribute, Block, Expr, Ident, ImplItem, ImplItemMethod, ItemImpl, PatType, Token, Type};
+use syn::{
+    parse_macro_input, Attribute, Block, Expr, FnArg, Ident, ImplItem, ImplItemMethod, ItemImpl, Pat, PatType, Token,
+    Type,
+};
 
 macro_rules! error {
     ($span: expr, $msg: expr) => {{
@@ -93,7 +96,46 @@ struct MakeDefaults {
     other_mtds: Box<dyn Fn(Ident, Vec<Ident>) -> Block>,
 }
 
-impl VisitMut for MakeDefaults {}
+impl VisitMut for MakeDefaults {
+    fn visit_impl_item_mut(&mut self, i: &mut ImplItem) {
+        let mut rmv = false;
+        if let ImplItem::Method(m) = i {
+            if self.user_mtds.remove(&m.sig.ident) {
+                rmv = true;
+            } else {
+                if m.sig.ident == ident("measure") {
+                    m.block = self.measure_default.take().unwrap();
+                } else if m.sig.ident == ident("render") {
+                    m.block = self.render_default.take().unwrap();
+                } else if m.sig.ident == ident("point_over") {
+                    m.block = self.point_over_default.take().unwrap();
+                } else {
+                    m.block = (self.other_mtds)(
+                        m.sig.ident.clone(),
+                        m.sig
+                            .inputs
+                            .iter()
+                            .filter_map(|a| {
+                                if let FnArg::Typed(t) = a {
+                                    if let Pat::Ident(i) = t.pat.as_ref() {
+                                        return Some(i.ident.clone());
+                                    }
+                                }
+                                None
+                            })
+                            .collect(),
+                    );
+                }
+            }
+        }
+
+        if rmv {
+            *i = ImplItem::Verbatim(QTokenStream::new());
+        }
+
+        visit_mut::visit_impl_item_mut(self, i);
+    }
+}
 
 fn ui_defaults(
     crate_: QTokenStream,
@@ -144,7 +186,7 @@ fn ui_defaults(
         .collect()
 }
 
-fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) {
+fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     ui_defaults(
         crate_,
         user_mtds,
@@ -168,10 +210,15 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) {
         parse_quote! {{ None }},
         /* other_mtds */
         |_, _| parse_quote! {{}},
-    );
+    )
 }
 
-fn ui_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) {
+fn ui_container_defaults(
+    crate_: QTokenStream,
+    user_mtds: HashSet<Ident>,
+    borrow: Expr,
+    borrow_mut: Expr,
+) -> Vec<ImplItem> {
     ui_defaults(
         crate_,
         user_mtds,
@@ -197,10 +244,15 @@ fn ui_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, borrow
                 d.#mtd(#(#args),*);
             }}
         },
-    );
+    )
 }
 
-fn ui_multi_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) {
+fn ui_multi_container_defaults(
+    crate_: QTokenStream,
+    user_mtds: HashSet<Ident>,
+    iter: Expr,
+    iter_mut: Expr,
+) -> Vec<ImplItem> {
     ui_defaults(
         crate_,
         user_mtds,
@@ -235,7 +287,7 @@ fn ui_multi_container_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>, 
                 }
             }}
         },
-    );
+    )
 }
 
 fn ui_leaf(crate_: QTokenStream, user_mtds: HashSet<Ident>, ui_mtds: &mut Vec<ImplItem>) {
@@ -580,22 +632,16 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
         }
     }
 
-    match args {
-        Args::Leaf => ui_leaf(crate_.clone(), ui_item_names, &mut ui_items),
+    let default_ui_items = match args {
+        Args::Leaf => ui_leaf_defaults(crate_.clone(), ui_item_names),
         Args::Container { delegate, delegate_mut } => {
-            ui_container(crate_.clone(), delegate, delegate_mut, ui_item_names, &mut ui_items)
+            ui_container_defaults(crate_.clone(), ui_item_names, delegate, delegate_mut)
         }
         Args::MultiContainer {
             delegate_iter,
             delegate_iter_mut,
-        } => ui_multi_container(
-            crate_.clone(),
-            delegate_iter,
-            delegate_iter_mut,
-            ui_item_names,
-            &mut ui_items,
-        ),
-    }
+        } => ui_multi_container_defaults(crate_.clone(), ui_item_names, delegate_iter, delegate_iter_mut),
+    };
 
     let impl_ui = ident("impl_ui");
     let mut impl_attrs = input.attrs;
