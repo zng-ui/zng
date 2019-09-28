@@ -187,12 +187,13 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     impl_attrs.retain(|a| a.path.get_ident() != Some(&impl_ui));
 
     let generics = input.generics;
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
     let self_ty = input.self_ty;
 
     let mut inline_all = InlineEverything::new();
-    let mut impl_ui = dbg_parse_quote! {"aaaaaaaaaaaaaaa",
-        impl #impl_generics #crate_::ui::Ui for #self_ty #ty_generics #where_clause {
+
+    let mut impl_ui = parse_quote! {
+        impl #impl_generics #crate_::ui::Ui for #self_ty #where_clause {
             #(#ui_items)*
             #(#default_ui_items)*
         }
@@ -201,7 +202,7 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
 
     let result = quote! {
         #(#impl_attrs)*
-        impl #impl_generics #self_ty #ty_generics #where_clause {
+        impl #impl_generics #self_ty #where_clause {
             #(#other_items)*
         }
 
