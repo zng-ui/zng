@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui, impl_ui_crate};
+use super::{impl_ui_crate, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -157,7 +157,7 @@ impl<T: Ui> UiMargin<T> {
             bottom,
         }
     }
-    
+
     #[Ui]
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut child_sz = self.child.measure(available_size);

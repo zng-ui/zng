@@ -1,6 +1,6 @@
 use super::{
-    HitTag, Hits, IntoValue, LayoutSize, NextFrame, NextUpdate, ParentValue, ParentValueKey, ParentValueKeyRef,
-    SetParentValue, Ui, UiValues, impl_ui_crate
+    impl_ui_crate, HitTag, Hits, IntoValue, LayoutSize, NextFrame, NextUpdate, ParentValue, ParentValueKey,
+    ParentValueKeyRef, SetParentValue, Ui, UiValues,
 };
 use webrender::api::*;
 
@@ -74,12 +74,12 @@ impl Text {
 
         self.color = *v.parent(*TEXT_COLOR).unwrap_or(&ColorF::BLACK);
     }
-    
+
     #[Ui]
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.update(values, update);
     }
-    
+
     #[Ui]
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         self.size
@@ -112,7 +112,6 @@ impl Text {
 pub fn text(text: &str) -> Text {
     Text::new(text)
 }
-
 
 pub static FONT_FAMILY: ParentValueKeyRef<String> = ParentValueKey::new_lazy();
 pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();

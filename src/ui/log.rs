@@ -1,4 +1,4 @@
-use super::{LayoutSize, NextFrame, Ui, impl_ui_crate};
+use super::{impl_ui_crate, LayoutSize, NextFrame, Ui};
 use log::info;
 
 pub trait UiLog: Ui + Sized {

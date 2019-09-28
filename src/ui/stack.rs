@@ -1,4 +1,4 @@
-use super::{HitTag, LayoutRect, Ui, impl_ui_crate};
+use super::{impl_ui_crate, HitTag, LayoutRect, Ui};
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
