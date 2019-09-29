@@ -1,4 +1,4 @@
-use super::{impl_ui_crate, HitTag, LayoutRect, Ui};
+use super::{impl_ui_crate, HitTag, Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui};
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
@@ -20,7 +20,7 @@ macro_rules! stack {
                 let mut total_size = LayoutSize::default();
 
                 available_size.$stack_size = std::f32::INFINITY;
-                for c in self.children_mut() {
+                for c in self.children.iter_mut() {
                     Ui::measure(c, available_size);
                     total_size.$length_size = total_size.$length_size.max(c.rect.size.$length_size);
                     total_size.$stack_size += c.rect.size.$stack_size;
@@ -32,7 +32,7 @@ macro_rules! stack {
             #[Ui]
             fn arrange(&mut self, final_size: LayoutSize) {
                 let mut $dimension = 0.0;
-                for c in self.children_mut() {
+                for c in self.children.iter_mut() {
                     c.rect.origin.$dimension = $dimension;
                     c.rect.size.$length_size = c.rect.size.$length_size.min(final_size.$length_size);
                     $dimension += c.rect.size.$stack_size;
@@ -44,7 +44,7 @@ macro_rules! stack {
             fn render(&self, f: &mut NextFrame) {
                 f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size));
 
-                for c in self.children() {
+                for c in self.children.iter() {
                     f.push_child(&c.child, &c.rect);
                 }
             }
@@ -52,7 +52,7 @@ macro_rules! stack {
             #[Ui]
             fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
                 let r = hits.point_over(self.hit_tag);
-                if r.is_some() && self.children().any(|c| Ui::point_over(c, hits).is_some()) {
+                if r.is_some() && self.children.iter().any(|c| Ui::point_over(c, hits).is_some()) {
                     return r;
                 }
                 None

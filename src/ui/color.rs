@@ -38,12 +38,6 @@ impl FillColor {
         f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
     }
 }
-#[cfg(test)]
-mod fill_color_tests {
-    use super::*;
-
-    ui_leaf_tests!(FillColor::new(rgb(0, 0, 0)));
-}
 
 pub fn fill_color(color: ColorF) -> FillColor {
     FillColor::new(color)
@@ -84,26 +78,6 @@ impl FillGradient {
             Some(self.hit_tag),
         );
     }
-}
-delegate_ui!(UiLeaf, FillGradient);
-#[cfg(test)]
-mod fill_gradient_tests {
-    use super::*;
-
-    ui_leaf_tests!(FillGradient::new(
-        LayoutPoint::new(0., 0.),
-        LayoutPoint::new(1., 1.),
-        vec![
-            GradientStop {
-                offset: 0.,
-                color: rgb(0, 200, 0),
-            },
-            GradientStop {
-                offset: 1.,
-                color: rgb(200, 0, 0),
-            },
-        ]
-    ));
 }
 
 pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
@@ -151,7 +125,7 @@ pub struct BackgroundGradient<T> {
 }
 
 #[impl_ui_crate(child)]
-impl<T> BackgroundGradient<T> {
+impl<T: Ui> BackgroundGradient<T> {
     pub fn new(child: T, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
         BackgroundGradient {
             child,

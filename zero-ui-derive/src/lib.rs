@@ -11,10 +11,35 @@ use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
-/// Helper macro for implementing [Ui](zero_ui::ui::Ui). You implement only Ui the
+/// Helper macro for implementing [Ui](zero_ui::ui::Ui). You implement only the
 /// methods you need and the macro generates default implementations based on configuration.
 ///
 /// # Usage
+///
+/// In a inherent impl, anotate your custom `Ui` methods with `#[Ui]` and the impl block.
+///
+/// ```rust
+/// #[impl_ui]
+/// impl<C: Value<ColorF>> FillColor<C> {
+///     #[Ui]
+///     fn render(&self, f: &mut NextFrame) {
+///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
+///     }
+/// }
+/// ```
+///
+/// In a `Ui` trait impl block only implement your custom methods and anotate the impl block.
+///
+/// ```rust
+/// #[impl_ui]
+/// impl<C: Value<ColorF>> Ui for FillColor<C> {
+///     fn render(&self, f: &mut NextFrame) {
+///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
+///     }
+/// }
+/// ```
+///
+/// The generated defaults can be configurated in the macro.
 ///
 /// ## `#[impl_ui]`
 ///
@@ -132,19 +157,28 @@ macro_rules! parse_quote {
     };
 }
 
-/// Same as `parse_quote` but with an `expect` message.
-macro_rules! dbg_parse_quote {
-    ($msg:expr, $($tt:tt)*) => {
-        syn::parse(quote!{$($tt)*}.into()).expect($msg)
-    };
-}
+// /// Same as `parse_quote` but with an `expect` message.
+// macro_rules! dbg_parse_quote {
+//     ($msg:expr, $($tt:tt)*) => {
+//         syn::parse(quote!{$($tt)*}.into()).expect($msg)
+//     };
+// }
 
 fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> TokenStream {
     let args = parse_macro_input!(args as Args);
     let input = parse_macro_input!(input as ItemImpl);
 
+    let mut in_ui_impl = false;
     if let Some((_, trait_, _)) = input.trait_ {
-        error!(trait_.span(), "expected type impl found trait")
+        if let Some(seg) = trait_.segments.last() {
+            in_ui_impl = seg.ident == ident("Ui");
+        }
+        if !in_ui_impl {
+            error!(
+                trait_.span(),
+                "expected inherent impl or Ui trait impl, found another trait"
+            )
+        }
     }
 
     let ui_marker = ident("Ui");
@@ -157,7 +191,10 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
         let mut is_ui = false;
 
         if let ImplItem::Method(m) = &mut item {
-            if let Some(index) = m.attrs.iter().position(|a| a.path.get_ident() == Some(&ui_marker)) {
+            if in_ui_impl {
+                is_ui = true;
+                ui_item_names.insert(m.sig.ident.clone());
+            } else if let Some(index) = m.attrs.iter().position(|a| a.path.get_ident() == Some(&ui_marker)) {
                 m.attrs.remove(index);
                 is_ui = true;
                 ui_item_names.insert(m.sig.ident.clone());
@@ -200,18 +237,24 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     };
     inline_all.visit_item_impl_mut(&mut impl_ui);
 
-    let result = quote! {
-        #(#impl_attrs)*
-        impl #impl_generics #self_ty #where_clause {
-            #(#other_items)*
+    let result = if in_ui_impl {
+        quote! {
+            #impl_ui
         }
+    } else {
+        quote! {
+            #(#impl_attrs)*
+            impl #impl_generics #self_ty #where_clause {
+                #(#other_items)*
+            }
 
-        #impl_ui
+            #impl_ui
+        }
     };
 
-    let r = TokenStream::from(result);
-    println!("{:#}", r);//rustfmt https://github.com/rust-lang/rustfmt/issues/3257
-    r
+    //println!("{}", result);
+
+    TokenStream::from(result)
 }
 
 /// Parsed macro arguments.
@@ -220,10 +263,7 @@ enum Args {
     Leaf,
     /// `child` or `delegate=expr` and `delegate_mut=expr`. Impl is for
     /// an Ui that delegates each call to a single delegate.
-    Container {
-        delegate: Expr,
-        delegate_mut: Expr,
-    },
+    Container { delegate: Expr, delegate_mut: Expr },
     /// `children` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
     MultiContainer {
@@ -247,7 +287,7 @@ impl Parse for Args {
             } else if arg0 == ident("children") {
                 Args::MultiContainer {
                     delegate_iter: parse_quote!(self.children.iter()),
-                    delegate_iter_mut: parse_quote!(self.children.iter()),
+                    delegate_iter_mut: parse_quote!(self.children.iter_mut()),
                 }
             } else if arg0 == ident("delegate") {
                 // https://docs.rs/syn/1.0.5/syn/struct.ExprAssign.html
@@ -343,19 +383,21 @@ impl CrateUiEverything {
 }
 
 impl VisitMut for CrateUiEverything {
-    fn visit_pat_type_mut(&mut self, i: &mut PatType) {
-        match i.ty.as_mut() {
+    fn visit_type_mut(&mut self, i: &mut Type) {
+        match i {
             Type::Path(p) => {
                 let path = &mut p.path;
-                if let Some(ident) = path.get_ident().clone() {
-                    let crate_ = self.crate_.clone();
-                    *path = parse_quote! { #crate_::ui::#ident };
+                if let Some(tident) = path.get_ident() {
+                    if tident != &ident("bool") {
+                        let crate_ = self.crate_.clone();
+                        *path = parse_quote! { #crate_::ui::#tident };
+                    }
                 }
             }
             _ => {}
         }
 
-        visit_mut::visit_pat_type_mut(self, i);
+        visit_mut::visit_type_mut(self, i);
     }
 }
 
@@ -514,8 +556,8 @@ fn ui_container_defaults(
         }},
         /* point_over */
         parse_quote! {{
-           let d = #borrow_mut;
-           d.point_over(h)
+           let d = #borrow;
+           d.point_over(hits)
         }},
         /* other_mtds */
         move |mtd, args| {
@@ -553,7 +595,7 @@ fn ui_multi_container_defaults(
         /* point_over */
         parse_quote! {{
            for d in #iter {
-               if let Some(pt) = d.point_over(h) {
+               if let Some(pt) = d.point_over(hits) {
                    return Some(pt);
                }
            }

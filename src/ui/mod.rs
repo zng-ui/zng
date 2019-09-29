@@ -770,18 +770,14 @@ pub trait Ui {
 }
 
 #[impl_ui_crate(delegate: self.as_ref(), delegate_mut: self.as_mut())]
-impl Box<dyn Ui> {
-    #[Ui]
-    #[inline]
+impl Ui for Box<dyn Ui> {
     fn into_box(self) -> Box<dyn Ui> {
         self
     }
 }
 
 #[impl_ui_crate]
-impl () {
-    #[Ui]
-    #[inline]
+impl Ui for () {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         LayoutSize::default()
     }
