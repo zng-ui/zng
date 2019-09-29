@@ -33,6 +33,8 @@ pub use glutin::window::CursorIcon;
 use once_cell::sync::OnceCell;
 use webrender::api::*;
 pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
+
+#[doc(inline)]
 pub use zero_ui_derive::impl_ui;
 use zero_ui_derive::impl_ui_crate;
 
@@ -729,7 +731,7 @@ impl Hits {
 /// An UI component.
 ///
 /// # Implementers
-/// This is usually not implemented directly, consider using [UiContainer], [UiMultiContainer], [UiLeaf] and [delegate_ui] first.
+/// This is usually not implemented directly, consider using [impl_ui](attr.impl_ui.html) first.
 pub trait Ui {
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 

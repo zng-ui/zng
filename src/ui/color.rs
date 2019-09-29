@@ -20,14 +20,21 @@ pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
 }
 
 #[derive(Clone, new)]
-pub struct FillColor {
-    color: ColorF,
+pub struct FillColor<C: Value<ColorF>> {
+    color: C,
     #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
 }
 
 #[impl_ui_crate]
-impl FillColor {
+impl<C: Value<ColorF>> FillColor<C> {
+    #[Ui]
+    fn value_changed(&mut self, _: &mut UiValues, update: &mut NextUpdate) {
+        if self.color.changed() {
+            update.render_frame();
+        }
+    }
+
     #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
@@ -35,12 +42,12 @@ impl FillColor {
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
+        f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
     }
 }
 
-pub fn fill_color(color: ColorF) -> FillColor {
-    FillColor::new(color)
+pub fn fill_color<C: IntoValue<ColorF>>(color: C) -> FillColor<C::Value> {
+    FillColor::new(color.into_value())
 }
 
 #[derive(Clone, new)]

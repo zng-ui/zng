@@ -11,12 +11,11 @@ use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
-/// Helper macro for implementing [Ui](zero_ui::ui::Ui). You implement only the
-/// methods you need and the macro generates default implementations based on configuration.
+/// Generates default implementations of [Ui](zero_ui::ui::Ui) methods.
 ///
 /// # Usage
 ///
-/// In a inherent impl, anotate your custom `Ui` methods with `#[Ui]` and the impl block.
+/// In a inherent impl, anotate the impl block with `#[impl_ui]` and custom `Ui` methods with `#[Ui]`.
 ///
 /// ```rust
 /// #[impl_ui]
@@ -28,7 +27,7 @@ use syn::*;
 /// }
 /// ```
 ///
-/// In a `Ui` trait impl block only implement your custom methods and anotate the impl block.
+/// In a `Ui` trait impl block, anotate the impl block with `#[impl_ui]` and only implement custom methods.
 ///
 /// ```rust
 /// #[impl_ui]
@@ -43,26 +42,31 @@ use syn::*;
 ///
 /// ## `#[impl_ui]`
 ///
-/// Generates blank implementations for events, layout fills finite spaces and collapses in
-/// infinite spaces. This should only be used for Uis that don't have descendents.
+/// Generates defaults for UI components without descendents.
+///
+/// ### Defaults
+/// * Events: Does nothing, blank implementation.
+/// * Layout: Normal fill behavior, fills finite spaces, collapses in infinite spaces.
+/// * Render: Does nothing, blank implementation.
+/// * Hit-test: Not hit-testable, `point_over` is always `None`.
 ///
 /// ```rust
 /// # use zero_ui::ui::{Value, NextFrame, ColorF, LayoutSize, UiValues, NextUpdate};
 /// # pub struct FillColor<C: Value<ColorF>>(C);
-///
+/// #
 /// #[impl_ui]
 /// impl<C: Value<ColorF>> FillColor<C> {
 ///     pub fn new(color: C) -> Self {
 ///         FillColor(color)
 ///     }
-///
+///     /// Custom impl
 ///     #[Ui]
 ///     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
 ///         if self.0.changed() {
 ///             update.render_frame();
 ///         }
 ///     }
-///
+///     /// Custom impl
 ///     #[Ui]
 ///     fn render(&self, f: &mut NextFrame) {
 ///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
@@ -79,28 +83,97 @@ use syn::*;
 /// }
 ///
 /// impl<C: Value<ColorF>> zero_ui::ui::Ui for FillColor<C> {
-///
+///     /// Custom impl
+///     #[inline]
+///     fn render(&self, f: &mut NextFrame) {
+///         f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
+///     }
+///     /// Custom impl
+///     #[inline]
 ///     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
 ///         if self.0.changed() {
 ///             update.render_frame();
 ///         }
 ///     }
 ///
-///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(LayoutRect::from_size(f.final_size()), self.color, None);
+///     #[inline]
+///     fn measure(&mut self, available_size: zero_ui::ui::LayoutSize) -> zero_ui::ui::LayoutSize {
+///         let mut size = available_size;
+///         if size.width.is_infinite() {
+///             size.width = 0.0;
+///         }
+///         if size.height.is_infinite() {
+///             size.height = 0.0;
+///         }
+///         size
 ///     }
-///
-///     //TODO list all defaults here
+///     #[inline]
+///     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
+///         None
+///     }
+///     #[inline]
+///     fn init(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     #[inline]
+///     fn arrange(&mut self, final_size: zero_ui::ui::LayoutSize) {}
+///     #[inline]
+///     fn keyboard_input(
+///         &mut self,
+///         input: &zero_ui::ui::KeyboardInput,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
+///     #[inline]
+///     fn focused(&mut self, focused: bool, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {
+///     }
+///     #[inline]
+///     fn mouse_input(
+///         &mut self,
+///         input: &zero_ui::ui::MouseInput,
+///         hits: &zero_ui::ui::Hits,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
+///     #[inline]
+///     fn mouse_move(
+///         &mut self,
+///         input: &zero_ui::ui::UiMouseMove,
+///         hits: &zero_ui::ui::Hits,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
+///     #[inline]
+///     fn mouse_entered(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     #[inline]
+///     fn mouse_left(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     #[inline]
+///     fn close_request(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     #[inline]
+///     fn parent_value_changed(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
 /// }
 /// ```
 ///
 /// ## `#[impl_ui(child)]`
 ///
-/// Shorthand for `#[impl_ui(delegate: &self.child, delegate_mut: &mut self.child)]`.
+/// Shorthand for:
+/// ```rust
+/// #[impl_ui(
+///     delegate: &self.child,
+///     delegate_mut: &mut self.child
+/// )]
+/// ```
 ///
 /// ## `#[impl_ui(children)]`
 ///
-/// Shorthand for `#[impl_ui(delegate_iter: self.children.iter(), delegate_iter_mut: mut self.children.iter_mut())]`.
+/// Shorthand for:
+/// ```rust
+/// #[impl_ui(
+///     delegate_iter: self.children.iter(),
+///     delegate_iter_mut: mut self.children.iter_mut()
+/// )]
+/// ```
 ///
 /// ## Delegate
 ///
@@ -252,7 +325,10 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
         }
     };
 
-    //println!("{}", result);
+    //let test = format!("{}", result);
+    //if test.contains("FillColor") {
+    //    println!("{}", test);
+    //}
 
     TokenStream::from(result)
 }
