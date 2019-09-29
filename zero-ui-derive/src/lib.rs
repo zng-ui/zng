@@ -77,7 +77,7 @@ use syn::*;
 ///
 /// ```rust
 /// impl<C: Value<ColorF>> FillColor<C> {
-///     pub fn new(color: ColorF) -> Self {
+///     pub fn new(color: C) -> Self {
 ///         FillColor(color)
 ///     }
 /// }
@@ -86,7 +86,11 @@ use syn::*;
 ///     /// Custom impl
 ///     #[inline]
 ///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(LayoutRect::from_size(f.final_size()), self.color, Some(self.hit_tag));
+///         f.push_color(
+///             LayoutRect::from_size(f.final_size()),
+///             *self.0,
+///             None,
+///         );
 ///     }
 ///     /// Custom impl
 ///     #[inline]
@@ -124,7 +128,12 @@ use syn::*;
 ///     ) {
 ///     }
 ///     #[inline]
-///     fn focused(&mut self, focused: bool, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {
+///     fn focused(
+///         &mut self,
+///         focused: bool,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
 ///     }
 ///     #[inline]
 ///     fn mouse_input(
@@ -145,13 +154,33 @@ use syn::*;
 ///     ) {
 ///     }
 ///     #[inline]
-///     fn mouse_entered(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     fn mouse_entered(
+///         &mut self,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
 ///     #[inline]
-///     fn mouse_left(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     fn mouse_left(
+///         &mut self,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
 ///     #[inline]
-///     fn close_request(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     fn close_request(
+///         &mut self,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
 ///     #[inline]
-///     fn parent_value_changed(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     fn parent_value_changed(
+///         &mut self,
+///         values: &mut zero_ui::ui::UiValues,
+///         update: &mut zero_ui::ui::NextUpdate,
+///     ) {
+///     }
 /// }
 /// ```
 ///
@@ -175,19 +204,28 @@ use syn::*;
 /// )]
 /// ```
 ///
-/// ## Delegate
+/// ## `#[impl_ui(delegate: expr, delegate_mut: expr)]`
 ///
-/// Generates implementations for all missing `Ui` methods by delegating to a single descendent.
+/// Generates defaults by delegating the method calls to
+/// a reference of another Ui component.
+///
+/// Both arguments are required and in order.
 ///
 /// ```rust
 /// #[impl_ui(delegate: self.0.borrow(), delegate_mut: self.0.borrow_mut())]
 /// // TODO
 /// ```
 ///
-/// ## Delegate Iter
+/// ## `#[impl_ui(delegate_iter: expr, delegate_iter_mut: expr)]`
 ///
-/// Generates implementations for all missing `Ui` methods by delegating to multiple descendents. The default
-/// behavior is the same as `z_stack`.
+/// Generates defaults by delegating the method calls to
+/// all Ui component references provided by the iterators.
+///
+/// ### Defaults
+/// * Events: Calls the same event method for each `Ui` delegate provided by the iterator.
+/// * Layout: Measure all delegates the largest size is returned. Arranges all delegates with the default top-left alignment.
+/// * Render: Renders all delegates on top of each other in the iterator order.
+/// * Hit-test: Returns the first delegate hit or `None` if none hit.
 ///
 /// ```rust
 /// #[impl_ui(delegate_iter: self.0.iter(), delegate_iter_mut: self.0.iter_mut())]
@@ -622,24 +660,24 @@ fn ui_container_defaults(
         user_mtds,
         /* measure */
         parse_quote! {{
-            let d = #borrow_mut;
-            d.measure(available_size)
+            let delegate = #borrow_mut;
+            delegate.measure(available_size)
         }},
         /* render */
         parse_quote! {{
-            let d = #borrow;
-            d.render(f);
+            let delegate = #borrow;
+            delegate.render(f);
         }},
         /* point_over */
         parse_quote! {{
-           let d = #borrow;
-           d.point_over(hits)
+           let delegate = #borrow;
+           delegate.point_over(hits)
         }},
         /* other_mtds */
         move |mtd, args| {
             parse_quote! {{
-                let d = #borrow_mut;
-                d.#mtd(#(#args),*);
+                let delegate = #borrow_mut;
+                delegate.#mtd(#(#args),*);
             }}
         },
     )
