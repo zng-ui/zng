@@ -25,7 +25,6 @@ pub struct TestChildData {
 
 pub struct TestChild(Rc<RefCell<TestChildData>>);
 
-#[impl_ui_crate]
 impl TestChild {
     pub fn new() -> (TestChild, Rc<RefCell<TestChildData>>) {
         let data = Rc::new(RefCell::new(TestChildData::default()));
