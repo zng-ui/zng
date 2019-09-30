@@ -20,6 +20,7 @@ impl Text {
         //https://harfbuzz.github.io/
         //https://crates.io/crates/unicode-bidi
         //https://www.geeksforgeeks.org/word-wrap-problem-dp-19/
+        //https://gankra.github.io/blah/text-hates-you/
 
         Text {
             text: text.to_owned(),
