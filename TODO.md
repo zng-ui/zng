@@ -4,7 +4,6 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Better Ui related macros, reduce verbosity.
 * Focusable, keyboard events when focused, automatic TAB navigation.
 * Enabled/Disabled.
 * Images.
@@ -19,6 +18,7 @@ Things that must be done first because they influence the core API design that i
 * Modal Window.
 * Workers.
 * Diagnostics.
+* Better Ui related macros, reduce verbosity.
 
 ## Basic Layout
 

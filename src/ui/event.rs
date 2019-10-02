@@ -167,7 +167,7 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
     }
 
     #[Ui]
-    fn focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
+    fn window_focused(&mut self, _: bool, _: &mut UiValues, _: &mut NextUpdate) {
         self.interaction_outside();
     }
 

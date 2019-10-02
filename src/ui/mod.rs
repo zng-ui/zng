@@ -728,6 +728,13 @@ impl Hits {
     }
 }
 
+#[derive(PartialEq, Eq)]
+pub enum FocusStatus{
+    None,
+    Focused,
+    FocusWithin
+}
+
 /// An UI component.
 ///
 /// # Implementers
@@ -743,7 +750,7 @@ pub trait Ui {
 
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate);
+    fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate);
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 
@@ -754,6 +761,8 @@ pub trait Ui {
     fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+
+    fn focus_status(&self) -> FocusStatus;
 
     /// Gets the point over this UI element using a hit test result.
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint>;
@@ -854,9 +863,9 @@ impl<T: Ui, V: 'static, R: Value<V>> SetParentValue<T, V, R> {
     }
 
     #[Ui]
-    fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+    fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
-        values.with_parent_value(self.key, &self.value, |v| child.focused(focused, v, update));
+        values.with_parent_value(self.key, &self.value, |v| child.window_focused(focused, v, update));
     }
 
     #[Ui]
@@ -902,3 +911,30 @@ pub trait ParentValue: Ui + Sized {
     //TODO alias value
 }
 impl<T: Ui> ParentValue for T {}
+
+#[derive(new)]
+pub struct Focusable<C: Ui> {
+    child: C,
+    focused: bool,
+}
+#[impl_ui_crate(child)]
+impl<C: Ui> Focusable<C> {
+    #[Ui]
+    fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.window_focused(focused, values, update);
+    }
+
+    #[Ui]
+    fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.mouse_input(input, hits, values, update);
+
+        self.focused = input.state == ElementState::Pressed && self.point_over(hits).is_some();
+    }
+}
+
+pub trait FocusableExt: Ui + Sized {
+    fn focusable(self) -> Focusable<Self> {
+        Focusable::new(self, false)
+    }
+}
+impl<T: Ui> FocusableExt for T {}

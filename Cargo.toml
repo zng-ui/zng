@@ -1,7 +1,7 @@
 [package]
 name = "zero-ui"
 version = "0.1.0"
-authors = ["Well <well-r@hotmail.com>", "Sam <samu_rodrigues@hotmail.com>"]
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

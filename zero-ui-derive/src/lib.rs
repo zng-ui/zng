@@ -128,7 +128,7 @@ use syn::*;
 ///     ) {
 ///     }
 ///     #[inline]
-///     fn focused(
+///     fn window_focused(
 ///         &mut self,
 ///         focused: bool,
 ///         values: &mut zero_ui::ui::UiValues,
@@ -524,6 +524,8 @@ struct MakeDefaults {
     measure_default: Option<Block>,
     /// Default block for `render` method.
     render_default: Option<Block>,
+    /// Default block for `focus_status` method.
+    focus_status_default: Option<Block>,
     /// Default block for `point_over` method.
     point_over_default: Option<Block>,
     /// Function that generated default blocks for all other `Ui` methods.
@@ -543,7 +545,9 @@ impl VisitMut for MakeDefaults {
                     m.block = self.measure_default.take().unwrap();
                 } else if m.sig.ident == ident("render") {
                     m.block = self.render_default.take().unwrap();
-                } else if m.sig.ident == ident("point_over") {
+                } else if m.sig.ident == ident("focus_status") {
+                    m.block = self.focus_status_default.take().unwrap();
+                }else if m.sig.ident == ident("point_over") {
                     m.block = self.point_over_default.take().unwrap();
                 } else {
                     m.block = (self.other_mtds)(
@@ -578,19 +582,21 @@ fn ui_defaults(
     user_mtds: HashSet<Ident>,
     measure_default: Block,
     render_default: Block,
+    focus_status_default: Block,
     point_over_default: Block,
     other_mtds: impl Fn(Ident, Vec<Ident>) -> Block + 'static,
 ) -> Vec<ImplItem> {
     let mut ui: ItemImpl = parse_quote! {
         impl Ui for Dummy {
-            fn measure(&mut self, available_size: LayoutSize) -> LayoutSize { LayoutSize::default() }
+            fn measure(&mut self, available_size: LayoutSize) -> LayoutSize { }
             fn render(&self, f: &mut NextFrame) { }
+            fn focus_status(&self) -> FocusStatus { }
             fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> { None }
 
             fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
             fn arrange(&mut self, final_size: LayoutSize) { }
             fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) { }
-            fn focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
@@ -605,6 +611,7 @@ fn ui_defaults(
         user_mtds: user_mtds,
         measure_default: Some(measure_default),
         render_default: Some(render_default),
+        focus_status_default: Some(focus_status_default),
         point_over_default: Some(point_over_default),
         other_mtds: Box::new(other_mtds),
     };
@@ -642,6 +649,8 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<Impl
         }},
         /* render */
         parse_quote! {{}},
+        /* focus_status */
+        parse_quote! {{ FocusStatus::None }},
         /* point_over */
         parse_quote! {{ None }},
         /* other_mtds */
@@ -667,6 +676,11 @@ fn ui_container_defaults(
         parse_quote! {{
             let delegate = #borrow;
             delegate.render(f);
+        }},
+        /* focus_status */
+        parse_quote! {{ 
+           let delegate = #borrow;
+           delegate.focus_status()
         }},
         /* point_over */
         parse_quote! {{
@@ -705,6 +719,15 @@ fn ui_multi_container_defaults(
             for d in #iter {
                 d.render(f);
             }
+        }},
+        /* focus_status */
+        parse_quote! {{
+            for d in #iter {
+                if d.focus_status() != FocusStatus::None{
+                    return FocusStatus::FocusWithin;
+                }
+            }
+            FocusStatus::None
         }},
         /* point_over */
         parse_quote! {{

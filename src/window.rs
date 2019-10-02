@@ -245,7 +245,7 @@ impl Window {
                     self.key_down = None;
                 }
                 self.content
-                    .focused(focused, &mut self.ui_values, &mut self.next_update);
+                    .window_focused(focused, &mut self.ui_values, &mut self.next_update);
 
                 self.ui_values.clear_child_values();
             }

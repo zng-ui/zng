@@ -41,7 +41,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
 fn other_widow(_: &mut NextUpdate) -> impl Ui {
     h_stack(
         (0..4)
-            .map(|_| {
+            .map(|i| {
                 let bkg_color = Var::new(rgb(255, 255, 255));
 
                 text("Ola")
@@ -71,6 +71,8 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                             },
                         ],
                     )
+                    .focusable()
+                    .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
                     .width(200.)
                     .margin(2.)
             })

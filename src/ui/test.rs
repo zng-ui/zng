@@ -54,7 +54,7 @@ impl Ui for TestChild {
         self.0.borrow_mut().keyboard_input_calls.push(input.clone());
     }
 
-    fn focused(&mut self, focused: bool, _values: &mut UiValues, _update: &mut NextUpdate) {
+    fn window_focused(&mut self, focused: bool, _values: &mut UiValues, _update: &mut NextUpdate) {
         self.0.borrow_mut().focused_calls.push(focused);
     }
 
