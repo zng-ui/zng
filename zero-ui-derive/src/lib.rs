@@ -590,7 +590,7 @@ fn ui_defaults(
         impl Ui for Dummy {
             fn measure(&mut self, available_size: LayoutSize) -> LayoutSize { }
             fn render(&self, f: &mut NextFrame) { }
-            fn focus_status(&self) -> FocusStatus { }
+            fn focus_status(&self) -> Option<FocusStatus> { }
             fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> { None }
 
             fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
@@ -631,7 +631,7 @@ fn ui_defaults(
 
 fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     ui_defaults(
-        crate_.clone(),
+        crate_,
         user_mtds,
         /* measure */
         parse_quote! {{
@@ -650,7 +650,7 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<Impl
         /* render */
         parse_quote! {{}},
         /* focus_status */
-        parse_quote! {{ #crate_::ui::FocusStatus::None }},
+        parse_quote! {{ None }},
         /* point_over */
         parse_quote! {{ None }},
         /* other_mtds */
@@ -722,13 +722,12 @@ fn ui_multi_container_defaults(
         }},
         /* focus_status */
         parse_quote! {{
-            use #crate_::ui::FocusStatus as FS;
             for d in #iter {
-                if d.focus_status() != FS::None {
-                    return FS::FocusWithin;
+                if d.focus_status().is_some() {
+                    return Some(#crate_::ui::FocusStatus::FocusWithin);
                 }
             }
-            FS::None
+            None
         }},
         /* point_over */
         parse_quote! {{

@@ -4,7 +4,7 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Focusable, keyboard events when focused, automatic TAB navigation.
+* Focusable, keyboard events only when focused, automatic TAB navigation, focus events, user code focus.
 * Enabled/Disabled.
 * Images.
 * Raw OpenGL textures.

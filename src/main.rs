@@ -49,6 +49,11 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                     .font_size(90)
                     .background_color(Var::clone(&bkg_color))
                     .text_color(rgb(0, 150, 0))
+                    .focusable()
+                    .on_key_down(move |k, _| {
+                        println!("Key down @ text.{}: {}", i, k);
+                        //k.stop_propagation();
+                    })
                     .center()
                     .cursor(CursorIcon::Hand)
                     .on_mouse_enter(enclose! {(bkg_color) move |u| {

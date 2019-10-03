@@ -728,9 +728,8 @@ impl Hits {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum FocusStatus {
-    None,
     Focused,
     FocusWithin,
 }
@@ -762,7 +761,7 @@ pub trait Ui {
 
     fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
-    fn focus_status(&self) -> FocusStatus;
+    fn focus_status(&self) -> Option<FocusStatus>;
 
     /// Gets the point over this UI element using a hit test result.
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint>;
@@ -929,18 +928,18 @@ impl<C: Ui> Focusable<C> {
         self.child.mouse_input(input, hits, values, update);
 
         if input.state == ElementState::Pressed {
-            self.focused = self.child.focus_status() == FocusStatus::None && self.point_over(hits).is_some();
+            self.focused = self.child.focus_status().is_none() && self.point_over(hits).is_some();
         }
     }
 
     #[Ui]
-    fn focus_status(&self) -> FocusStatus {
+    fn focus_status(&self) -> Option<FocusStatus> {
         if self.focused {
-            FocusStatus::Focused
+            Some(FocusStatus::Focused)
         } else {
             match self.child.focus_status() {
-                FocusStatus::None => FocusStatus::None,
-                _ => FocusStatus::FocusWithin,
+                None => None,
+                _ => Some(FocusStatus::FocusWithin),
             }
         }
     }

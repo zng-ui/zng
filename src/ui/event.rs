@@ -27,16 +27,15 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
             return;
         }
 
-        if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
-            if let FocusStatus::None = self.child.focus_status() {
-                return;
-            }
-
+        if let (ElementState::Pressed, Some(key), Some(focus)) =
+            (input.state, input.virtual_keycode, self.child.focus_status())
+        {
             let stop = Rc::default();
             let input = KeyDown {
                 key,
                 modifiers: input.modifiers,
                 repeat: input.repeat,
+                focus,
                 stop_propagation: Rc::clone(&stop),
             };
             (self.handler)(input, update);
@@ -63,15 +62,14 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
             return;
         }
 
-        if let (ElementState::Released, Some(key)) = (input.state, input.virtual_keycode) {
-            if let FocusStatus::None = self.child.focus_status() {
-                return;
-            }
-
+        if let (ElementState::Released, Some(key), Some(focus)) =
+            (input.state, input.virtual_keycode, self.child.focus_status())
+        {
             let stop = Rc::default();
             let input = KeyUp {
                 key,
                 modifiers: input.modifiers,
+                focus,
                 stop_propagation: Rc::clone(&stop),
             };
             (self.handler)(input, update);
@@ -338,6 +336,7 @@ pub struct KeyDown {
     pub key: VirtualKeyCode,
     pub modifiers: ModifiersState,
     pub repeat: bool,
+    pub focus: FocusStatus,
     stop_propagation: Rc<Cell<bool>>,
 }
 
@@ -351,6 +350,7 @@ impl KeyDown {
 pub struct KeyUp {
     pub key: VirtualKeyCode,
     pub modifiers: ModifiersState,
+    pub focus: FocusStatus,
     stop_propagation: Rc<Cell<bool>>,
 }
 
@@ -403,9 +403,15 @@ impl fmt::Display for KeyDown {
                 write!(f, "{:?}", self.key)?;
             }
         }
-        if self.repeat {
+
+        if self.repeat && self.focus == FocusStatus::FocusWithin {
+            write!(f, " (repeat, focus-within)")?;
+        } else if self.repeat {
             write!(f, " (repeat)")?;
+        } else if self.focus == FocusStatus::FocusWithin {
+            write!(f, " (focus-within)")?;
         }
+
         Ok(())
     }
 }
@@ -418,12 +424,18 @@ impl fmt::Display for KeyUp {
             | VirtualKeyCode::LShift
             | VirtualKeyCode::RShift
             | VirtualKeyCode::LAlt
-            | VirtualKeyCode::RAlt => write!(f, "{:?}", self.key),
+            | VirtualKeyCode::RAlt => write!(f, "{:?}", self.key)?,
             _ => {
                 display_modifiers(&self.modifiers, f)?;
-                write!(f, "{:?}", self.key)
+                write!(f, "{:?}", self.key)?;
             }
         }
+
+        if self.focus == FocusStatus::FocusWithin {
+            write!(f, " (focus-within)")?;
+        }
+
+        Ok(())
     }
 }
 
