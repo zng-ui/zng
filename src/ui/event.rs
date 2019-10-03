@@ -1,7 +1,4 @@
-use super::{
-    impl_ui_crate, ChildValueKey, ChildValueKeyRef, ElementState, Hits, KeyboardInput, LayoutPoint, ModifiersState,
-    MouseButton, MouseInput, NextUpdate, Ui, UiMouseMove, UiValues, VirtualKeyCode,
-};
+use super::*;
 use std::cell::Cell;
 use std::fmt;
 use std::rc::Rc;
@@ -31,6 +28,10 @@ impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
         }
 
         if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
+            if let FocusStatus::None = self.child.focus_status() {
+                return;
+            }
+
             let stop = Rc::default();
             let input = KeyDown {
                 key,
@@ -63,8 +64,11 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
         }
 
         if let (ElementState::Released, Some(key)) = (input.state, input.virtual_keycode) {
-            let stop = Rc::default();
+            if let FocusStatus::None = self.child.focus_status() {
+                return;
+            }
 
+            let stop = Rc::default();
             let input = KeyUp {
                 key,
                 modifiers: input.modifiers,

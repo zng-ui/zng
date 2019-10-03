@@ -78,6 +78,10 @@ impl Ui for TestChild {
         self.0.borrow_mut().close_request_calls += 1;
     }
 
+    fn focus_status(&self) -> FocusStatus {
+        FocusStatus::None
+    }
+
     fn point_over(&self, _hits: &Hits) -> Option<LayoutPoint> {
         None
     }

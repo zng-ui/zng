@@ -729,10 +729,10 @@ impl Hits {
 }
 
 #[derive(PartialEq, Eq)]
-pub enum FocusStatus{
+pub enum FocusStatus {
     None,
     Focused,
-    FocusWithin
+    FocusWithin,
 }
 
 /// An UI component.
@@ -928,7 +928,21 @@ impl<C: Ui> Focusable<C> {
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_input(input, hits, values, update);
 
-        self.focused = input.state == ElementState::Pressed && self.point_over(hits).is_some();
+        if input.state == ElementState::Pressed {
+            self.focused = self.child.focus_status() == FocusStatus::None && self.point_over(hits).is_some();
+        }
+    }
+
+    #[Ui]
+    fn focus_status(&self) -> FocusStatus {
+        if self.focused {
+            FocusStatus::Focused
+        } else {
+            match self.child.focus_status() {
+                FocusStatus::None => FocusStatus::None,
+                _ => FocusStatus::FocusWithin,
+            }
+        }
     }
 }
 

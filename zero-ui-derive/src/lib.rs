@@ -547,24 +547,24 @@ impl VisitMut for MakeDefaults {
                     m.block = self.render_default.take().unwrap();
                 } else if m.sig.ident == ident("focus_status") {
                     m.block = self.focus_status_default.take().unwrap();
-                }else if m.sig.ident == ident("point_over") {
+                } else if m.sig.ident == ident("point_over") {
                     m.block = self.point_over_default.take().unwrap();
                 } else {
-                    m.block = (self.other_mtds)(
-                        m.sig.ident.clone(),
-                        m.sig
-                            .inputs
-                            .iter()
-                            .filter_map(|a| {
-                                if let FnArg::Typed(t) = a {
-                                    if let Pat::Ident(i) = t.pat.as_ref() {
-                                        return Some(i.ident.clone());
-                                    }
+                    let arg_names = m
+                        .sig
+                        .inputs
+                        .iter()
+                        .filter_map(|a| {
+                            if let FnArg::Typed(t) = a {
+                                if let Pat::Ident(i) = t.pat.as_ref() {
+                                    return Some(i.ident.clone());
                                 }
-                                None
-                            })
-                            .collect(),
-                    );
+                            }
+                            None
+                        })
+                        .collect();
+
+                    m.block = (self.other_mtds)(m.sig.ident.clone(), arg_names);
                 }
             }
         }
@@ -631,7 +631,7 @@ fn ui_defaults(
 
 fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     ui_defaults(
-        crate_,
+        crate_.clone(),
         user_mtds,
         /* measure */
         parse_quote! {{
@@ -650,7 +650,7 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<Impl
         /* render */
         parse_quote! {{}},
         /* focus_status */
-        parse_quote! {{ FocusStatus::None }},
+        parse_quote! {{ #crate_::ui::FocusStatus::None }},
         /* point_over */
         parse_quote! {{ None }},
         /* other_mtds */
@@ -678,7 +678,7 @@ fn ui_container_defaults(
             delegate.render(f);
         }},
         /* focus_status */
-        parse_quote! {{ 
+        parse_quote! {{
            let delegate = #borrow;
            delegate.focus_status()
         }},
@@ -704,7 +704,7 @@ fn ui_multi_container_defaults(
     iter_mut: Expr,
 ) -> Vec<ImplItem> {
     ui_defaults(
-        crate_,
+        crate_.clone(),
         user_mtds,
         /* measure */
         parse_quote! {{
@@ -722,12 +722,13 @@ fn ui_multi_container_defaults(
         }},
         /* focus_status */
         parse_quote! {{
+            use #crate_::ui::FocusStatus as FS;
             for d in #iter {
-                if d.focus_status() != FocusStatus::None{
-                    return FocusStatus::FocusWithin;
+                if d.focus_status() != FS::None {
+                    return FS::FocusWithin;
                 }
             }
-            FocusStatus::None
+            FS::None
         }},
         /* point_over */
         parse_quote! {{
