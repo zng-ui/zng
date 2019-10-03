@@ -32,7 +32,7 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use once_cell::sync::OnceCell;
 use webrender::api::*;
-pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize};
+pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize, GradientStop};
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;

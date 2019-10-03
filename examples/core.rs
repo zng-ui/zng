@@ -1,13 +1,6 @@
 //#![windows_subsystem = "windows"]
-#[macro_use]
-extern crate derive_new;
 
-pub mod app;
-pub mod ui;
-mod window;
-
-use ui::*;
-use webrender::api::{GradientStop, LayoutPoint};
+use zero_ui::{*, ui::*};
 
 fn main() {
     //start_logger_for("log_target");
