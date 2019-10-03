@@ -5,6 +5,8 @@
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
 * Focusable, keyboard events only when focused, automatic TAB navigation, focus events, user code focus.
+  * Focus scope, can nest, ESC returns to parent scope.
+  * Use FocusKey?
 * Enabled/Disabled.
 * Images.
 * Raw OpenGL textures.
