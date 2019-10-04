@@ -10,7 +10,7 @@ Things that must be done first because they influence the core API design that i
 * Enabled/Disabled.
 * Images.
 * Raw OpenGL textures.
-* Automatic screen reader integration.
+* Automatic screen reader integration (UI Automation).
 * Animation, transition and storyboarding.
 * Localization.
 * Theming.
@@ -18,6 +18,7 @@ Things that must be done first because they influence the core API design that i
 * Other DisplayListBuilder (iframe).
 * Drag-drop.
 * Modal Window.
+* Support for external input methods (IMEs).
 * Workers.
 * Diagnostics.
 * Better Ui related macros, reduce verbosity.
