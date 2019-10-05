@@ -664,6 +664,11 @@ impl NextFrame {
         self.focus_map.push_focusable(key, area);
     }
 
+    pub fn push_focus_area(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
+        // within area navigation config as parameter.
+        unimplemented!()
+    }
+
     pub fn final_size(&self) -> LayoutSize {
         self.final_size
     }
