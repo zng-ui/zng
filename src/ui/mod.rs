@@ -32,7 +32,7 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use once_cell::sync::OnceCell;
 use webrender::api::*;
-pub use webrender::api::{ColorF, LayoutPoint, LayoutRect, LayoutSize, GradientStop};
+pub use webrender::api::{ColorF, GradientStop, LayoutPoint, LayoutRect, LayoutSize};
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;
@@ -98,6 +98,9 @@ macro_rules! uid {
 uid! {
     /// Hit-test tag.
     pub struct HitTag(_);
+
+    /// Focusable unique identifier.
+    pub struct FocusKey(_);
 }
 
 mod private {
@@ -401,6 +404,19 @@ mod ui_values {
     }
 }
 
+pub enum FocusRequest {
+    /// Move focus to key.
+    Direct(FocusKey),
+    /// Move focus to next from current in screen, or to starting key.
+    Next,
+    /// Move focus to previous from current in screen, or to last in screen.
+    Prev,
+    Left,
+    Right,
+    Up,
+    Down
+}
+
 pub struct NextUpdate {
     pub(crate) api: RenderApi,
     pub(crate) document_id: DocumentId,
@@ -409,6 +425,7 @@ pub struct NextUpdate {
 
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
+    pub(crate) focus_request: Option<FocusRequest>,
     pub(crate) value_changes: Vec<Box<dyn VarChange>>,
     _request_close: bool,
 }
@@ -423,6 +440,7 @@ impl NextUpdate {
             update_layout: true,
             render_frame: true,
             value_changes: vec![],
+            focus_request: None,
             _request_close: false,
         }
     }
@@ -445,6 +463,10 @@ impl NextUpdate {
     }
     pub fn render_frame(&mut self) {
         self.render_frame = true;
+    }
+
+    pub fn focus(&mut self, request: FocusRequest) {
+        self.focus_request = Some(request);
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -543,6 +565,8 @@ pub struct NextFrame {
     final_size: LayoutSize,
     #[new(value = "CursorIcon::Default")]
     cursor: CursorIcon,
+    #[new(value = "FocusMap::new()")]
+    focus_map: FocusMap
 }
 
 impl NextFrame {
@@ -559,8 +583,12 @@ impl NextFrame {
             ReferenceFrameKind::Transform,
         );
 
+        self.focus_map.push_reference_frame(final_rect);
+
         child.render(self);
         self.builder.pop_reference_frame();
+
+        self.focus_map.pop_reference_frame(final_rect);
 
         self.final_size = final_size;
         self.spatial_id = spatial_id;
@@ -632,12 +660,76 @@ impl NextFrame {
             .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
     }
 
+    pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
+        self.focus_map.push_focusable(key, area);
+    }
+
     pub fn final_size(&self) -> LayoutSize {
         self.final_size
     }
 
     pub fn finalize(self) -> (PipelineId, LayoutSize, BuiltDisplayList) {
         self.builder.finalize()
+    }
+}
+
+pub enum FocusState {
+    NotFocused,
+    NotActive,
+    Active
+}
+
+#[derive(new)]
+pub(crate) struct FocusMap {
+    #[new(default)]
+    areas: Vec<(FocusKey, LayoutRect, FocusState)>,
+     #[new(default)]
+    offset: LayoutPoint
+}
+
+impl FocusMap {
+    pub fn push_reference_frame(&mut self, final_rect: &LayoutRect) {
+        self.offset += final_rect.origin.to_vector();
+    }
+
+    pub fn pop_reference_frame(&mut self, final_rect: &LayoutRect) {
+        self.offset -= final_rect.origin.to_vector();
+    }
+
+    pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
+        let mut area = area.clone();
+        area.origin += self.offset.to_vector();
+        self.areas.push((key, area, FocusState::NotFocused));
+    }
+
+    pub fn focus(&self, r: FocusRequest) -> Option<FocusKey> {
+        match r {
+            FocusRequest::Direct(k) => {
+                if self.areas.iter().any(|&(l,_ , _)|l == k) {
+                    Some(k)
+                } else {
+                    None
+                }
+            },
+            FocusRequest::Next => {
+                unimplemented!()
+            },
+            FocusRequest::Prev => {
+                unimplemented!()
+            },
+            FocusRequest::Left => {
+                unimplemented!()
+            },
+            FocusRequest::Right => {
+                unimplemented!()
+            },
+            FocusRequest::Up => {
+                unimplemented!()
+            },
+            FocusRequest::Down => {
+                unimplemented!()
+            }
+        }
     }
 }
 
