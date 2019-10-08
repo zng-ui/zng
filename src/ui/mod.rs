@@ -5,6 +5,7 @@ mod macros;
 #[macro_use]
 pub mod test;
 
+mod border;
 mod color;
 mod event;
 mod layout;
@@ -13,6 +14,7 @@ mod stack;
 mod text;
 
 pub use self::log::*;
+pub use border::*;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
@@ -32,7 +34,10 @@ pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, Vir
 pub use glutin::window::CursorIcon;
 use once_cell::sync::OnceCell;
 use webrender::api::*;
-pub use webrender::api::{ColorF, GradientStop, LayoutPoint, LayoutRect, LayoutSize};
+pub use webrender::api::{
+    BorderDetails, BorderRadius, BorderSide, BorderStyle, ColorF, GradientStop, LayoutPoint, LayoutRect,
+    LayoutSideOffsets, LayoutSize, NormalBorder,
+};
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;
@@ -414,7 +419,7 @@ pub enum FocusRequest {
     Left,
     Right,
     Up,
-    Down
+    Down,
 }
 
 pub struct NextUpdate {
@@ -566,7 +571,7 @@ pub struct NextFrame {
     #[new(value = "CursorIcon::Default")]
     cursor: CursorIcon,
     #[new(value = "FocusMap::new()")]
-    focus_map: FocusMap
+    focus_map: FocusMap,
 }
 
 impl NextFrame {
@@ -646,6 +651,18 @@ impl NextFrame {
             .push_gradient(&lpi, &sci, grad, final_rect.size, LayoutSize::default());
     }
 
+    pub fn push_border(
+        &mut self,
+        final_rect: LayoutRect,
+        widths: LayoutSideOffsets,
+        details: BorderDetails,
+        hit_tag: Option<HitTag>,
+    ) {
+        let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
+
+        self.builder.push_border(&lpi, &sci, widths, details);
+    }
+
     pub fn push_text(
         &mut self,
         final_rect: LayoutRect,
@@ -681,15 +698,15 @@ impl NextFrame {
 pub enum FocusState {
     NotFocused,
     NotActive,
-    Active
+    Active,
 }
 
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
     areas: Vec<(FocusKey, LayoutRect, FocusState)>,
-     #[new(default)]
-    offset: LayoutPoint
+    #[new(default)]
+    offset: LayoutPoint,
 }
 
 impl FocusMap {
@@ -710,30 +727,18 @@ impl FocusMap {
     pub fn focus(&self, r: FocusRequest) -> Option<FocusKey> {
         match r {
             FocusRequest::Direct(k) => {
-                if self.areas.iter().any(|&(l,_ , _)|l == k) {
+                if self.areas.iter().any(|&(l, _, _)| l == k) {
                     Some(k)
                 } else {
                     None
                 }
-            },
-            FocusRequest::Next => {
-                unimplemented!()
-            },
-            FocusRequest::Prev => {
-                unimplemented!()
-            },
-            FocusRequest::Left => {
-                unimplemented!()
-            },
-            FocusRequest::Right => {
-                unimplemented!()
-            },
-            FocusRequest::Up => {
-                unimplemented!()
-            },
-            FocusRequest::Down => {
-                unimplemented!()
             }
+            FocusRequest::Next => unimplemented!(),
+            FocusRequest::Prev => unimplemented!(),
+            FocusRequest::Left => unimplemented!(),
+            FocusRequest::Right => unimplemented!(),
+            FocusRequest::Up => unimplemented!(),
+            FocusRequest::Down => unimplemented!(),
         }
     }
 }

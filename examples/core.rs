@@ -69,6 +69,24 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                             },
                         ],
                     )
+                    .border(
+                        LayoutSideOffsets::new_all_same(3.0),
+                        BorderDetails::Normal({
+                            let border_side = BorderSide {
+                                color: rgb(255, 255, 255),
+                                style: BorderStyle::Ridge,
+                            };
+
+                            NormalBorder {
+                                left: border_side,
+                                right: border_side,
+                                top: border_side,
+                                bottom: border_side,
+                                radius: BorderRadius::zero(),
+                                do_aa: true,
+                            }
+                        }),
+                    )
                     .focusable()
                     .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
                     .width(200.)
