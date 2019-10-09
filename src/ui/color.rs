@@ -48,16 +48,16 @@ pub fn fill_color<C: IntoValue<ColorF>>(color: C) -> FillColor<C::Value> {
 }
 
 #[derive(Clone, new)]
-pub struct FillGradient {
-    start: LayoutPoint,
-    end: LayoutPoint,
-    stops: Vec<GradientStop>,
+pub struct FillGradient<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> {
+    start: A,
+    end: B,
+    stops: S,
     #[new(value = "HitTag::new()")]
     hit_tag: HitTag,
 }
 
 #[impl_ui_crate]
-impl FillGradient {
+impl<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> FillGradient<A, B, S> {
     #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag)
@@ -66,8 +66,8 @@ impl FillGradient {
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         let final_size = f.final_size();
-        let mut start = self.start;
-        let mut end = self.end;
+        let mut start = *self.start;
+        let mut end = *self.end;
 
         start.x *= final_size.width;
         start.y *= final_size.height;
@@ -84,92 +84,55 @@ impl FillGradient {
     }
 }
 
-pub fn fill_gradient(start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> FillGradient {
-    FillGradient::new(start, end, stops)
+pub fn fill_gradient<A: IntoValue<LayoutPoint>, B: IntoValue<LayoutPoint>, S: IntoValue<Vec<GradientStop>>>(
+    start: A,
+    end: B,
+    stops: S,
+) -> FillGradient<A::Value, B::Value, S::Value> {
+    FillGradient::new(start.into_value(), end.into_value(), stops.into_value())
 }
 
-#[derive(Clone, new)]
-pub struct BackgroundColor<T: Ui, C: Value<ColorF>> {
+#[derive(new)]
+pub struct Background<T: Ui, B: Ui> {
     child: T,
-    color: C,
-    #[new(value = "HitTag::new()")]
-    hit_tag: HitTag,
+    background: B,
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, C: Value<ColorF>> BackgroundColor<T, C> {
-    #[Ui]
+impl<T: Ui, B: Ui> Ui for Background<T, B> {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let available_size = self.child.measure(available_size);
+        self.background.measure(available_size);
+        available_size
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.background.arrange(final_size);
+        self.child.arrange(final_size);
+    }
+
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        hits.point_over(self.hit_tag)
+        self.child.point_over(hits).or_else(|| self.background.point_over(hits))
     }
 
-    #[Ui]
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child.value_changed(values, update);
-        if self.color.changed() {
-            update.render_frame();
-        }
-    }
-
-    #[Ui]
     fn render(&self, f: &mut NextFrame) {
-        f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
+        self.background.render(f);
         self.child.render(f)
     }
 }
 
-pub fn background_color<T: Ui, C: Value<ColorF>>(child: T, color: C) -> BackgroundColor<T, C> {
-    BackgroundColor::new(child, color)
-}
-
-#[derive(Clone)]
-pub struct BackgroundGradient<T> {
-    child: T,
-    gradient: FillGradient,
-}
-
-#[impl_ui_crate(child)]
-impl<T: Ui> BackgroundGradient<T> {
-    pub fn new(child: T, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) -> Self {
-        BackgroundGradient {
-            child,
-            gradient: FillGradient::new(start, end, stops),
-        }
+pub trait BackgroundExt: Ui + Sized {
+    fn background_color<C: IntoValue<ColorF>>(self, color: C) -> Background<Self, FillColor<C::Value>> {
+        Background::new(self, fill_color(color))
     }
 
-    #[Ui]
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        Ui::point_over(&self.gradient, hits)
-    }
-
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
-        Ui::render(&self.gradient, f);
-        self.child.render(f);
-    }
-}
-
-pub fn background_gradient<T: Ui>(
-    child: T,
-    start: LayoutPoint,
-    end: LayoutPoint,
-    stops: Vec<GradientStop>,
-) -> BackgroundGradient<T> {
-    BackgroundGradient::new(child, start, end, stops)
-}
-
-pub trait Background: Ui + Sized {
-    fn background_color<C: IntoValue<ColorF>>(self, color: C) -> BackgroundColor<Self, C::Value> {
-        BackgroundColor::new(self, color.into_value())
-    }
-
-    fn background_gradient(
+    fn background_gradient<A: IntoValue<LayoutPoint>, B: IntoValue<LayoutPoint>, S: IntoValue<Vec<GradientStop>>>(
         self,
-        start: LayoutPoint,
-        end: LayoutPoint,
-        stops: Vec<GradientStop>,
-    ) -> BackgroundGradient<Self> {
-        BackgroundGradient::new(self, start, end, stops)
+        start: A,
+        end: B,
+        stops: S,
+    ) -> Background<Self, FillGradient<A::Value, B::Value, S::Value>> {
+        Background::new(self, fill_gradient(start, end, stops))
     }
 }
-impl<T: Ui> Background for T {}
+impl<T: Ui> BackgroundExt for T {}

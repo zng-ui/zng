@@ -1,11 +1,9 @@
-use super::{
-    impl_ui_crate, HitTag, Hits, IntoValue, LayoutSize, NextFrame, NextUpdate, ParentValue, ParentValueKey,
-    ParentValueKeyRef, SetParentValue, Ui, UiValues,
-};
+use super::*;
+use std::borrow::Cow;
 use webrender::api::*;
 
-pub struct Text {
-    text: String,
+pub struct Text<T: Value<Cow<'static, str>>> {
+    text: T,
     hit_tag: HitTag,
 
     glyphs: Vec<GlyphInstance>,
@@ -15,15 +13,15 @@ pub struct Text {
 }
 
 #[impl_ui_crate]
-impl Text {
-    pub fn new(text: &str) -> Self {
+impl<T: Value<Cow<'static, str>>> Text<T> {
+    pub fn new(text: T) -> Self {
         //https://harfbuzz.github.io/
         //https://crates.io/crates/unicode-bidi
         //https://www.geeksforgeeks.org/word-wrap-problem-dp-19/
         //https://gankra.github.io/blah/text-hates-you/
 
         Text {
-            text: text.to_owned(),
+            text,
             hit_tag: HitTag::new(),
 
             glyphs: vec![],
@@ -92,6 +90,13 @@ impl Text {
     }
 
     #[Ui]
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        if self.text.changed() {
+            self.update(values, update);
+        }
+    }
+
+    #[Ui]
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         self.update(values, update);
     }
@@ -110,20 +115,20 @@ impl Text {
     }
 }
 
-pub fn text(text: &str) -> Text {
-    Text::new(text)
+pub fn text<T: IntoValue<Cow<'static, str>>>(text: T) -> Text<T::Value> {
+    Text::new(text.into_value())
 }
 
-pub static FONT_FAMILY: ParentValueKeyRef<String> = ParentValueKey::new_lazy();
+pub static FONT_FAMILY: ParentValueKeyRef<Cow<'static, str>> = ParentValueKey::new_lazy();
 pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
 pub static TEXT_COLOR: ParentValueKeyRef<ColorF> = ParentValueKey::new_lazy();
 
-pub type SetFontFamily<T, R> = SetParentValue<T, String, R>;
+pub type SetFontFamily<T, R> = SetParentValue<T, Cow<'static, str>, R>;
 pub type SetFontSize<T, R> = SetParentValue<T, u32, R>;
 pub type SetTextColor<T, R> = SetParentValue<T, ColorF, R>;
 
 pub trait TextVals: Ui + Sized {
-    fn font_family<V: IntoValue<String>>(self, font: V) -> SetFontFamily<Self, V::Value> {
+    fn font_family<V: IntoValue<Cow<'static, str>>>(self, font: V) -> SetFontFamily<Self, V::Value> {
         self.set_ctx_val(*FONT_FAMILY, font)
     }
     fn font_size<V: IntoValue<u32>>(self, size: V) -> SetFontSize<Self, V::Value> {

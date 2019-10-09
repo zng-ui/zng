@@ -32,8 +32,8 @@ fn item(i: usize) -> impl Ui {
             u.set(&bkg_color, rgb(255, 255, 255));
         })
         .background_gradient(
-            LayoutPoint::new(0., 0.),
-            LayoutPoint::new(1., 1.),
+            (0., 0.),
+            (1., 1.),
             vec![
                 GradientStop {
                     offset: 0.,
@@ -45,6 +45,20 @@ fn item(i: usize) -> impl Ui {
                 },
             ],
         )
+        .border(3.0, {
+            let border_side = BorderSide {
+                color: rgb(255, 255, 255),
+                style: BorderStyle::Ridge,
+            };
+
+            BorderDetails {
+                left: border_side,
+                right: border_side,
+                top: border_side,
+                bottom: border_side,
+                radius: BorderRadius::zero()
+            }
+        })
         .focusable()
         .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
         .width(200.)

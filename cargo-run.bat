@@ -1,1 +1,1 @@
-cargo run --example core
+cargo run --example focus

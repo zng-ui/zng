@@ -1,4 +1,4 @@
-use super::{impl_ui_crate, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui};
+use super::{impl_ui_crate, IntoValue, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, NextFrame, Ui, Value};
 use webrender::euclid;
 
 /// Constrain a child to a size.
@@ -129,79 +129,46 @@ pub trait Align: Ui + Sized {
 }
 impl<T: Ui> Align for T {}
 
-#[derive(Clone)]
-pub struct UiMargin<T: Ui> {
+#[derive(Clone, new)]
+pub struct Margin<T: Ui, M: Value<LayoutSideOffsets>> {
     child: T,
-    left: f32,
-    top: f32,
-    right: f32,
-    bottom: f32,
+    margin: M,
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui> UiMargin<T> {
-    pub fn uniform(child: T, uniform: f32) -> Self {
-        Self::ltrb(child, uniform, uniform, uniform, uniform)
-    }
-
-    pub fn lr_tb(child: T, left_right: f32, top_bottom: f32) -> Self {
-        Self::ltrb(child, left_right, top_bottom, left_right, top_bottom)
-    }
-
-    pub fn ltrb(child: T, left: f32, top: f32, right: f32, bottom: f32) -> Self {
-        UiMargin {
-            child,
-            left,
-            top,
-            right,
-            bottom,
-        }
-    }
-
+impl<T: Ui, M: Value<LayoutSideOffsets>> Margin<T, M> {
     #[Ui]
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let mut child_sz = self.child.measure(available_size);
-        child_sz.width += self.left + self.right;
-        child_sz.height += self.top + self.bottom;
+        child_sz.width += self.margin.left + self.margin.right;
+        child_sz.height += self.margin.top + self.margin.bottom;
         child_sz
     }
     #[Ui]
     fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size.width -= self.left + self.right;
-        final_size.height -= self.top + self.bottom;
+        final_size.width -= self.margin.left + self.margin.right;
+        final_size.height -= self.margin.top + self.margin.bottom;
         self.child.arrange(final_size);
     }
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         let sz = f.final_size();
         let rect = euclid::rect(
-            self.left,
-            self.top,
-            sz.width - self.left - self.right,
-            sz.height - self.top - self.bottom,
+            self.margin.left,
+            self.margin.top,
+            sz.width - self.margin.left - self.margin.right,
+            sz.height - self.margin.top - self.margin.bottom,
         );
         f.push_child(&self.child, &rect);
     }
 }
-pub trait Margin: Ui + Sized {
-    fn margin(self, uniform: f32) -> UiMargin<Self> {
-        UiMargin::uniform(self, uniform)
-    }
-    fn margin_lr_tb(self, left_right: f32, top_bottom: f32) -> UiMargin<Self> {
-        UiMargin::lr_tb(self, left_right, top_bottom)
-    }
-    fn margin_ltrb(self, left: f32, top: f32, right: f32, bottom: f32) -> UiMargin<Self> {
-        UiMargin::ltrb(self, left, top, right, bottom)
+pub trait MarginExt: Ui + Sized {
+    fn margin<M: IntoValue<LayoutSideOffsets>>(self, margin: M) -> Margin<Self, M::Value> {
+        Margin::new(self, margin.into_value())
     }
 }
-impl<T: Ui> Margin for T {}
+impl<T: Ui> MarginExt for T {}
 
-pub fn margin<T: Ui>(child: T, uniform: f32) -> UiMargin<T> {
-    UiMargin::uniform(child, uniform)
-}
-pub fn margin_lr_tb<T: Ui>(child: T, left_right: f32, top_bottom: f32) -> UiMargin<T> {
-    UiMargin::lr_tb(child, left_right, top_bottom)
-}
-pub fn margin_ltrb<T: Ui>(child: T, left: f32, top: f32, right: f32, bottom: f32) -> UiMargin<T> {
-    UiMargin::ltrb(child, left, top, right, bottom)
+pub fn margin<T: Ui, M: IntoValue<LayoutSideOffsets>>(child: T, margin: M) -> Margin<T, M::Value> {
+    Margin::new(child, margin.into_value())
 }

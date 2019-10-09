@@ -3,7 +3,7 @@
 use zero_ui::{ui::*, *};
 
 fn main() {
-    //start_logger_for("log_target");
+    //start_logger_for("gradient_text");
     app::run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), main_window);
 }
 
@@ -38,7 +38,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                 let bkg_color = Var::new(rgb(255, 255, 255));
 
                 text("Ola")
-                    .font_family("Arial".to_owned())
+                    .font_family("Arial")
                     .font_size(90)
                     .background_color(Var::clone(&bkg_color))
                     .text_color(rgb(0, 150, 0))
@@ -56,8 +56,8 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                         u.set(&bkg_color, rgb(255, 255, 255));
                     })
                     .background_gradient(
-                        LayoutPoint::new(0., 0.),
-                        LayoutPoint::new(1., 1.),
+                        (0., 0.),
+                        (1., 1.),
                         vec![
                             GradientStop {
                                 offset: 0.,
@@ -68,24 +68,6 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                                 color: rgb(200, 0, 0),
                             },
                         ],
-                    )
-                    .border(
-                        LayoutSideOffsets::new_all_same(3.0),
-                        BorderDetails::Normal({
-                            let border_side = BorderSide {
-                                color: rgb(255, 255, 255),
-                                style: BorderStyle::Ridge,
-                            };
-
-                            NormalBorder {
-                                left: border_side,
-                                right: border_side,
-                                top: border_side,
-                                bottom: border_side,
-                                radius: BorderRadius::zero(),
-                                do_aa: true,
-                            }
-                        }),
                     )
                     .focusable()
                     .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))

@@ -13,31 +13,29 @@ mod log;
 mod stack;
 mod text;
 
+use std::any::Any;
+use std::borrow::Cow;
+use std::cell::{Cell, RefCell};
+use std::marker::PhantomData;
+use std::num::NonZeroU64;
+use std::ops::Deref;
+use std::rc::Rc;
+use app_units::Au;
+use fnv::FnvHashMap;
+use font_loader::system_fonts;
+use once_cell::sync::OnceCell;
+use webrender::api as wapi;
+
 pub use self::log::*;
 pub use border::*;
 pub use color::*;
 pub use event::*;
 pub use layout::*;
 pub use stack::*;
-use std::any::Any;
-use std::cell::{Cell, RefCell};
-use std::marker::PhantomData;
-use std::num::NonZeroU64;
-use std::ops::Deref;
-use std::rc::Rc;
 pub use text::*;
-
-use app_units::Au;
-use fnv::FnvHashMap;
-use font_loader::system_fonts;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
 pub use glutin::window::CursorIcon;
-use once_cell::sync::OnceCell;
-use webrender::api::*;
-pub use webrender::api::{
-    BorderDetails, BorderRadius, BorderSide, BorderStyle, ColorF, GradientStop, LayoutPoint, LayoutRect,
-    LayoutSideOffsets, LayoutSize, NormalBorder,
-};
+pub use webrender::api::{FontKey, FontInstanceKey, BorderRadius, ColorF, GradientStop, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize};
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;
@@ -218,6 +216,82 @@ impl<T: 'static> IntoValue<T> for T {
 
     fn into_value(self) -> Owned<T> {
         Owned(self)
+    }
+}
+
+impl<'s> IntoValue<String> for &'s str {
+    type Value = Owned<String>;
+
+    fn into_value(self) -> Owned<String> {
+        Owned(self.to_owned())
+    }
+}
+
+impl IntoValue<Cow<'static, str>> for &'static str {
+    type Value = Owned<Cow<'static, str>>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(self.into())
+    }
+}
+
+impl IntoValue<Cow<'static, str>> for String {
+    type Value = Owned<Cow<'static, str>>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(self.into())
+    }
+}
+
+impl IntoValue<LayoutPoint> for (f32, f32) {
+    type Value = Owned<LayoutPoint>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(LayoutPoint::new(self.0, self.1))
+    }
+}
+
+impl IntoValue<LayoutSize> for (f32, f32) {
+    type Value = Owned<LayoutSize>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(LayoutSize::new(self.0, self.1))
+    }
+}
+
+impl IntoValue<Vec<GradientStop>> for Vec<(f32, ColorF)> {
+    type Value = Owned<Vec<GradientStop>>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(
+            self.into_iter()
+                .map(|(offset, color)| GradientStop { offset, color })
+                .collect(),
+        )
+    }
+}
+
+impl IntoValue<LayoutSideOffsets> for f32 {
+    type Value = Owned<LayoutSideOffsets>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(LayoutSideOffsets::new_all_same(self))
+    }
+}
+
+impl IntoValue<LayoutSideOffsets> for (f32, f32) {
+    type Value = Owned<LayoutSideOffsets>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(LayoutSideOffsets::new(self.0, self.0, self.1, self.1))
+    }
+}
+
+impl IntoValue<LayoutSideOffsets> for (f32, f32, f32, f32) {
+    type Value = Owned<LayoutSideOffsets>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(LayoutSideOffsets::new(self.0, self.1, self.2, self.3))
     }
 }
 
@@ -423,8 +497,8 @@ pub enum FocusRequest {
 }
 
 pub struct NextUpdate {
-    pub(crate) api: RenderApi,
-    pub(crate) document_id: DocumentId,
+    pub(crate) api: wapi::RenderApi,
+    pub(crate) document_id: wapi::DocumentId,
     fonts: FnvHashMap<String, FontInstances>,
     pub(crate) windows: Vec<NewWindow>,
 
@@ -435,7 +509,7 @@ pub struct NextUpdate {
     _request_close: bool,
 }
 impl NextUpdate {
-    pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
+    pub fn new(api: wapi::RenderApi, document_id: wapi::DocumentId) -> Self {
         NextUpdate {
             api,
             document_id,
@@ -497,7 +571,7 @@ impl NextUpdate {
             uncached_font = false;
         }
 
-        let mut txn = Transaction::new();
+        let mut txn = wapi::Transaction::new();
 
         if uncached_font {
             let property = system_fonts::FontPropertyBuilder::new().family(family).build();
@@ -565,8 +639,8 @@ impl NextUpdate {
 
 #[derive(new)]
 pub struct NextFrame {
-    builder: DisplayListBuilder,
-    spatial_id: SpatialId,
+    builder: wapi::DisplayListBuilder,
+    spatial_id: wapi::SpatialId,
     final_size: LayoutSize,
     #[new(value = "CursorIcon::Default")]
     cursor: CursorIcon,
@@ -583,9 +657,9 @@ impl NextFrame {
         self.spatial_id = self.builder.push_reference_frame(
             final_rect,
             self.spatial_id,
-            TransformStyle::Flat,
-            PropertyBinding::Value(LayoutTransform::default()),
-            ReferenceFrameKind::Transform,
+            wapi::TransformStyle::Flat,
+            wapi::PropertyBinding::Value(wapi::LayoutTransform::default()),
+            wapi::ReferenceFrameKind::Transform,
         );
 
         self.focus_map.push_reference_frame(final_rect);
@@ -615,12 +689,12 @@ impl NextFrame {
         &self,
         final_rect: LayoutRect,
         hit_tag: Option<HitTag>,
-    ) -> (LayoutPrimitiveInfo, SpaceAndClipInfo) {
-        let mut lpi = LayoutPrimitiveInfo::new(final_rect);
+    ) -> (wapi::LayoutPrimitiveInfo, wapi::SpaceAndClipInfo) {
+        let mut lpi = wapi::LayoutPrimitiveInfo::new(final_rect);
         lpi.tag = hit_tag.map(|v| (v.get(), self.cursor as u16));
-        let sci = SpaceAndClipInfo {
+        let sci = wapi::SpaceAndClipInfo {
             spatial_id: self.spatial_id,
-            clip_id: ClipId::root(self.spatial_id.pipeline_id()),
+            clip_id: wapi::ClipId::root(self.spatial_id.pipeline_id()),
         };
 
         (lpi, sci)
@@ -646,7 +720,7 @@ impl NextFrame {
     ) {
         let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
 
-        let grad = self.builder.create_gradient(start, end, stops, ExtendMode::Clamp);
+        let grad = self.builder.create_gradient(start, end, stops, wapi::ExtendMode::Clamp);
         self.builder
             .push_gradient(&lpi, &sci, grad, final_rect.size, LayoutSize::default());
     }
@@ -655,7 +729,7 @@ impl NextFrame {
         &mut self,
         final_rect: LayoutRect,
         widths: LayoutSideOffsets,
-        details: BorderDetails,
+        details: wapi::BorderDetails,
         hit_tag: Option<HitTag>,
     ) {
         let (lpi, sci) = self.layout_and_clip(final_rect, hit_tag);
@@ -666,7 +740,7 @@ impl NextFrame {
     pub fn push_text(
         &mut self,
         final_rect: LayoutRect,
-        glyphs: &[GlyphInstance],
+        glyphs: &[wapi::GlyphInstance],
         font_instance_key: FontInstanceKey,
         color: ColorF,
         hit_tag: Option<HitTag>,
@@ -681,7 +755,7 @@ impl NextFrame {
         self.focus_map.push_focusable(key, area);
     }
 
-    pub fn push_focus_area(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
+    pub fn push_focus_area(&mut self, _child: &impl Ui, _final_rect: &LayoutRect) {
         // within area navigation config as parameter.
         unimplemented!()
     }
@@ -690,7 +764,7 @@ impl NextFrame {
         self.final_size
     }
 
-    pub fn finalize(self) -> (PipelineId, LayoutSize, BuiltDisplayList) {
+    pub fn finalize(self) -> (wapi::PipelineId, LayoutSize, wapi::BuiltDisplayList) {
         self.builder.finalize()
     }
 }
@@ -793,7 +867,7 @@ pub struct Hits {
 }
 
 impl Hits {
-    pub fn new(hits: HitTestResult) -> Self {
+    pub fn new(hits: wapi::HitTestResult) -> Self {
         let cursor = hits
             .items
             .first()
