@@ -322,18 +322,16 @@ impl IntoValue<BorderDetails> for ColorF {
 
     fn into_value(self) -> Self::Value {
         let border_side = BorderSide {
-                color: self,
-                style: BorderStyle::Solid,
+            color: self,
+            style: BorderStyle::Solid,
         };
-        Owned(
-            BorderDetails {
-                left: border_side,
-                right: border_side,
-                top: border_side,
-                bottom: border_side,
-                radius: BorderRadius::zero(),
-            }
-        )
+        Owned(BorderDetails {
+            left: border_side,
+            right: border_side,
+            top: border_side,
+            bottom: border_side,
+            radius: BorderRadius::zero(),
+        })
     }
 }
 
@@ -342,18 +340,16 @@ impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
 
     fn into_value(self) -> Self::Value {
         let border_side = BorderSide {
-                color: self.0,
-                style: self.1,
+            color: self.0,
+            style: self.1,
         };
-        Owned(
-            BorderDetails {
-                left: border_side,
-                right: border_side,
-                top: border_side,
-                bottom: border_side,
-                radius: BorderRadius::zero(),
-            }
-        )
+        Owned(BorderDetails {
+            left: border_side,
+            right: border_side,
+            top: border_side,
+            bottom: border_side,
+            radius: BorderRadius::zero(),
+        })
     }
 }
 
