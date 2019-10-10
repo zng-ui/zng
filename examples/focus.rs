@@ -31,34 +31,8 @@ fn item(i: usize) -> impl Ui {
         .on_mouse_leave(move |u| {
             u.set(&bkg_color, rgb(255, 255, 255));
         })
-        .background_gradient(
-            (0., 0.),
-            (1., 1.),
-            vec![
-                GradientStop {
-                    offset: 0.,
-                    color: rgb(0, 200, 0),
-                },
-                GradientStop {
-                    offset: 1.,
-                    color: rgb(200, 0, 0),
-                },
-            ],
-        )
-        .border(3.0, {
-            let border_side = BorderSide {
-                color: rgb(255, 255, 255),
-                style: BorderStyle::Ridge,
-            };
-
-            BorderDetails {
-                left: border_side,
-                right: border_side,
-                top: border_side,
-                bottom: border_side,
-                radius: BorderRadius::zero()
-            }
-        })
+        .background_gradient((0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)])
+        .border(3.0, (rgb(255, 255, 255), BorderStyle::Ridge))
         .focusable()
         .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
         .width(200.)

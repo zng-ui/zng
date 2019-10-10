@@ -13,6 +13,10 @@ mod log;
 mod stack;
 mod text;
 
+use app_units::Au;
+use fnv::FnvHashMap;
+use font_loader::system_fonts;
+use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
@@ -20,22 +24,21 @@ use std::marker::PhantomData;
 use std::num::NonZeroU64;
 use std::ops::Deref;
 use std::rc::Rc;
-use app_units::Au;
-use fnv::FnvHashMap;
-use font_loader::system_fonts;
-use once_cell::sync::OnceCell;
 use webrender::api as wapi;
 
 pub use self::log::*;
 pub use border::*;
 pub use color::*;
 pub use event::*;
+pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
+pub use glutin::window::CursorIcon;
 pub use layout::*;
 pub use stack::*;
 pub use text::*;
-pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
-pub use glutin::window::CursorIcon;
-pub use webrender::api::{FontKey, FontInstanceKey, BorderRadius, ColorF, GradientStop, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize};
+pub use webrender::api::{
+    BorderRadius, ColorF, FontInstanceKey, FontKey, GradientStop, LayoutPoint, LayoutRect, LayoutSideOffsets,
+    LayoutSize,
+};
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;
@@ -271,6 +274,23 @@ impl IntoValue<Vec<GradientStop>> for Vec<(f32, ColorF)> {
     }
 }
 
+impl IntoValue<Vec<GradientStop>> for Vec<ColorF> {
+    type Value = Owned<Vec<GradientStop>>;
+
+    fn into_value(self) -> Self::Value {
+        let point = 1. / (self.len() as f32 - 1.);
+        Owned(
+            self.into_iter()
+                .enumerate()
+                .map(|(i, color)| GradientStop {
+                    offset: (i as f32) * point,
+                    color,
+                })
+                .collect(),
+        )
+    }
+}
+
 impl IntoValue<LayoutSideOffsets> for f32 {
     type Value = Owned<LayoutSideOffsets>;
 
@@ -279,19 +299,61 @@ impl IntoValue<LayoutSideOffsets> for f32 {
     }
 }
 
+///for (top-bottom, left-right)
 impl IntoValue<LayoutSideOffsets> for (f32, f32) {
     type Value = Owned<LayoutSideOffsets>;
 
     fn into_value(self) -> Self::Value {
-        Owned(LayoutSideOffsets::new(self.0, self.0, self.1, self.1))
+        Owned(LayoutSideOffsets::new(self.0, self.1, self.0, self.1))
     }
 }
 
+///for (top, right, bottom, left)
 impl IntoValue<LayoutSideOffsets> for (f32, f32, f32, f32) {
     type Value = Owned<LayoutSideOffsets>;
 
     fn into_value(self) -> Self::Value {
         Owned(LayoutSideOffsets::new(self.0, self.1, self.2, self.3))
+    }
+}
+
+impl IntoValue<BorderDetails> for ColorF {
+    type Value = Owned<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        let border_side = BorderSide {
+                color: self,
+                style: BorderStyle::Solid,
+        };
+        Owned(
+            BorderDetails {
+                left: border_side,
+                right: border_side,
+                top: border_side,
+                bottom: border_side,
+                radius: BorderRadius::zero(),
+            }
+        )
+    }
+}
+
+impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
+    type Value = Owned<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        let border_side = BorderSide {
+                color: self.0,
+                style: self.1,
+        };
+        Owned(
+            BorderDetails {
+                left: border_side,
+                right: border_side,
+                top: border_side,
+                bottom: border_side,
+                radius: BorderRadius::zero(),
+            }
+        )
     }
 }
 
