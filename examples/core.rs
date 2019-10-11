@@ -4,7 +4,7 @@ use zero_ui::{ui::*, *};
 
 fn main() {
     //start_logger_for("gradient_text");
-    app::run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), main_window);
+    app::run(rgb(0.1, 0.2, 0.3), LayoutSize::new(800., 600.), main_window);
 }
 
 fn main_window(_: &mut NextUpdate) -> impl Ui {
@@ -27,7 +27,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
     .font_family("Arial".to_owned())
     .font_size(14)
     .on_click(|_, u| {
-        u.create_window(rgbaf(0.3, 0.2, 0.1, 1.0), LayoutSize::new(1000., 800.), other_widow);
+        u.create_window(rgb(0.3, 0.2, 0.1), LayoutSize::new(1000., 800.), other_widow);
     })
 }
 

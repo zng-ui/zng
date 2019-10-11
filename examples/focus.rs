@@ -4,7 +4,7 @@ use zero_ui::{ui::*, *};
 
 fn main() {
     //start_logger_for("log_target");
-    app::run(rgbaf(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), widow);
+    app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), widow);
 }
 
 fn widow(_: &mut NextUpdate) -> impl Ui {

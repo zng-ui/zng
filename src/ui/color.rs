@@ -1,19 +1,26 @@
 use super::*;
 
-pub fn rgbf(r: f32, g: f32, b: f32) -> ColorF {
-    ColorF::new(r, g, b, 1.)
+pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
+    rgba(r, g, b, 1.0)
 }
 
-pub fn rgbaf(r: f32, g: f32, b: f32, a: f32) -> ColorF {
-    ColorF::new(r, g, b, a)
+pub fn rgba<C: Into<ColorFComponent>, A: Into<ColorFComponent>>(r: C, g: C, b: C, a: A) -> ColorF {
+    ColorF::new(r.into().0, g.into().0, b.into().0, a.into().0)
 }
 
-pub fn rgb(r: u8, g: u8, b: u8) -> ColorF {
-    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., 1.)
+/// `ColorF` component value.
+pub struct ColorFComponent(pub f32);
+
+impl From<f32> for ColorFComponent {
+    fn from(f: f32) -> Self {
+        ColorFComponent(f)
+    }
 }
 
-pub fn rgba(r: u8, g: u8, b: u8, a: u8) -> ColorF {
-    ColorF::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., a as f32 / 255.)
+impl From<u8> for ColorFComponent {
+    fn from(u: u8) -> Self {
+        ColorFComponent(u as f32 / 255.)
+    }
 }
 
 #[derive(Clone, new)]
