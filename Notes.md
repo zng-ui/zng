@@ -20,6 +20,9 @@
   * When focus is returned to the scope the focus inside it is restored
   * The saved focus inside the scope can look different even if the scope is not focused on
 
+* Support special navigation areas
+  * Areas that are only for TAB but not arrows
+
 ## API
 
 * FocusKey

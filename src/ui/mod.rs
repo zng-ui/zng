@@ -833,6 +833,25 @@ pub enum FocusState {
     Active,
 }
 
+pub enum KeyNavigation {
+    /// TAB goes to next in text reading order.
+    /// Capture: TAB in last item goes back to first.
+    /// Not capture: TAB in last item goes to next item after scope.
+    Tab,
+    /// Arrows goes to closest item in the arrow direction.
+    /// Capture: Arrow press into edge of scope loops back to begining of the same line or column.
+    ///    * Search next within a range to the same direction but in a parallel dimension?
+    ///    * Remember dimension that entered item when going back (instead of using middle)?
+    /// Not capture: Behaves like parent scope allows arrow navigation within this scope.
+    Arrows,
+    Both
+}
+
+pub struct FocusScope {
+   nav: KeyNavigation,
+   capture: bool,
+}
+
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
@@ -848,6 +867,10 @@ impl FocusMap {
 
     pub fn pop_reference_frame(&mut self, final_rect: &LayoutRect) {
         self.offset -= final_rect.origin.to_vector();
+    }
+
+    pub fn push_focus_scope(&mut self, area_type: FocusScope) {
+
     }
 
     pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
