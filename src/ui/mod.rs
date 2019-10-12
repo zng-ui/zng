@@ -844,23 +844,41 @@ pub enum KeyNavigation {
     ///    * Remember dimension that entered item when going back (instead of using middle)?
     /// Not capture: Behaves like parent scope allows arrow navigation within this scope.
     Arrows,
-    Both
+    Both,
 }
 
-pub struct FocusScope {
-   nav: KeyNavigation,
-   capture: bool,
+struct FocusScope {
+        navigation: KeyNavigation,
+        capture: bool,
+        len: usize,
+    }
+
+
+struct FocusObject2{
+    key: FocusKey,
+    rect: LayoutRect,
+    scope: Option<Box<FocusScope>>,
+}
+
+enum FocusObject {
+    Focusable(FocusKey, LayoutRect),
+    FocusScope {
+        navigation: KeyNavigation,
+        capture: bool,
+        len: usize,
+    },
 }
 
 //https://stackoverflow.com/questions/13420747/four-way-navigation-algorithm
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
-    areas: Vec<(FocusKey, LayoutRect, FocusState)>,
+    current_scope: Vec<usize>,
     #[new(default)]
     offset: LayoutPoint,
+    #[new(default)]
+    objects: Vec<FocusObject>,
 }
-
 impl FocusMap {
     pub fn push_reference_frame(&mut self, final_rect: &LayoutRect) {
         self.offset += final_rect.origin.to_vector();
@@ -870,31 +888,56 @@ impl FocusMap {
         self.offset -= final_rect.origin.to_vector();
     }
 
-    pub fn push_focus_scope(&mut self, area_type: FocusScope) {
+    pub fn push_focus_scope(&mut self, navigation: KeyNavigation, capture: bool) {
+        self.current_scope.push(self.objects.len());
+        self.objects.push(FocusObject::FocusScope {
+            navigation,
+            capture,
+            len: 0,
+        });
+    }
 
+    pub fn pop_fucus_scope(&mut self) {
+        let i = self.current_scope.pop().expect("Popped with no pushed FocusScope");
+        let scope_len = self.objects.len() - i;
+        if let FocusObject::FocusScope { len, .. } = &mut self.objects[i] {
+            *len = scope_len;
+        }
     }
 
     pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
-        let mut area = area.clone();
-        area.origin += self.offset.to_vector();
-        self.areas.push((key, area, FocusState::NotFocused));
+        self.objects.push(FocusObject::Focusable(key, *area));
     }
 
-    pub fn focus(&self, r: FocusRequest) -> Option<FocusKey> {
-        match r {
-            FocusRequest::Direct(k) => {
-                if self.areas.iter().any(|&(l, _, _)| l == k) {
-                    Some(k)
-                } else {
-                    None
-                }
-            }
-            FocusRequest::Next => unimplemented!(),
-            FocusRequest::Prev => unimplemented!(),
-            FocusRequest::Left => unimplemented!(),
-            FocusRequest::Right => unimplemented!(),
-            FocusRequest::Up => unimplemented!(),
-            FocusRequest::Down => unimplemented!(),
+    fn position(&self, focus_key: FocusKey) -> Option<usize> {
+        self.objects.iter().position(|o| match o {
+            FocusObject::Focusable(key, _) if *key == focus_key => true,
+            _ => false,
+        })
+    }
+
+    fn starting_point(&self) -> Option<FocusKey> {
+        unimplemented!()
+    }
+
+    fn next_towards(&self, direction: (f32, f32), key: FocusKey) -> FocusKey {
+        let i = self.position(key).unwrap();
+        //self.objects[i].rect
+        unimplemented!()
+    }
+
+    pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
+        match (r, focused) {
+            (FocusRequest::Direct(direct_key), _) => self.position(direct_key).map(|_| direct_key),
+            (_, None) => self.starting_point(),
+            //Tab - Shift+Tab
+            (FocusRequest::Next, Some(key)) => unimplemented!(),
+            (FocusRequest::Prev, Some(key)) => unimplemented!(),
+            //Arrow Keys
+            (FocusRequest::Left, Some(key)) => Some(self.next_towards((-1., 0.), key)),
+            (FocusRequest::Right, Some(key)) => Some(self.next_towards((1., 0.), key)),
+            (FocusRequest::Up, Some(key)) => Some(self.next_towards((0., -1.), key)),
+            (FocusRequest::Down, Some(key)) => Some(self.next_towards((0., 1.), key)),
         }
     }
 }
