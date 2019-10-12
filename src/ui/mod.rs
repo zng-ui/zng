@@ -854,20 +854,12 @@ struct FocusScope {
     }
 
 
-struct FocusObject2{
+struct FocusObject{
     key: FocusKey,
     rect: LayoutRect,
     scope: Option<Box<FocusScope>>,
 }
 
-enum FocusObject {
-    Focusable(FocusKey, LayoutRect),
-    FocusScope {
-        navigation: KeyNavigation,
-        capture: bool,
-        len: usize,
-    },
-}
 
 //https://stackoverflow.com/questions/13420747/four-way-navigation-algorithm
 #[derive(new)]
@@ -906,14 +898,11 @@ impl FocusMap {
     }
 
     pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
-        self.objects.push(FocusObject::Focusable(key, *area));
+        self.objects.push(FocusObject{key, rect:*area, scope: None});
     }
 
     fn position(&self, focus_key: FocusKey) -> Option<usize> {
-        self.objects.iter().position(|o| match o {
-            FocusObject::Focusable(key, _) if *key == focus_key => true,
-            _ => false,
-        })
+        self.objects.iter().position(|o| o.key == focus_key)
     }
 
     fn starting_point(&self) -> Option<FocusKey> {
