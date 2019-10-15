@@ -384,10 +384,6 @@ macro_rules! ui_value_key {
         uid! {struct $Id(_);}
 
         $(#[$outer])*
-        /// # Example
-        /// ```rust
-        /// pub static FOO: $KeyRef<String> = $Key<String>::new_lazy();
-        /// ```
         #[derive(Debug, PartialEq, Eq, Hash)]
         pub struct $Key<T> ($Id, PhantomData<T>);
 
@@ -399,7 +395,7 @@ macro_rules! ui_value_key {
 
         impl<T> Copy for $Key<T> {}
 
-        /// Dereferences to a $Key<T> that is generated on the first deref.
+        /// Dereferences to a key that is generated on the first deref.
         pub struct $KeyRef<T> (OnceCell<$Key<T>>);
 
         impl<T: 'static> $Key<T> {
@@ -410,11 +406,6 @@ macro_rules! ui_value_key {
 
             /// New lazy initialized unique key. Use this for public static
             /// variables.
-            ///
-            /// # Example
-            /// ```rust
-            /// pub static FOO: $KeyRef<String> = $Key<String>::new_lazy();
-            /// ```
             pub const fn new_lazy() -> $KeyRef<T> {
                 $KeyRef(OnceCell::new())
             }
