@@ -809,8 +809,8 @@ impl NextFrame {
             .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
     }
 
-    pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
-        self.focus_map.push_focusable(key, area);
+    pub fn push_focusable(&mut self, key: FocusKey, rect: &LayoutRect) {
+        self.focus_map.push_focusable(key, rect.center());
     }
 
     pub fn push_focus_area(&mut self, _child: &impl Ui, _final_rect: &LayoutRect) {
@@ -848,20 +848,19 @@ pub enum KeyNavigation {
 }
 
 struct FocusScope {
-        navigation: KeyNavigation,
-        capture: bool,
-        len: usize,
-    }
+    navigation: KeyNavigation,
+    capture: bool,
+    len: usize,
+}
 
-
-struct FocusObject{
+struct FocusEntry {
     key: FocusKey,
-    rect: LayoutRect,
+    origin: LayoutPoint,
     scope: Option<Box<FocusScope>>,
 }
 
-
 //https://stackoverflow.com/questions/13420747/four-way-navigation-algorithm
+//https://lcmccauley.wordpress.com/2014/04/24/2d-frustum-culling-tutorial-p1/
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
@@ -869,7 +868,7 @@ pub(crate) struct FocusMap {
     #[new(default)]
     offset: LayoutPoint,
     #[new(default)]
-    objects: Vec<FocusObject>,
+    entries: Vec<FocusEntry>,
 }
 impl FocusMap {
     pub fn push_reference_frame(&mut self, final_rect: &LayoutRect) {
@@ -880,29 +879,34 @@ impl FocusMap {
         self.offset -= final_rect.origin.to_vector();
     }
 
-    pub fn push_focus_scope(&mut self, navigation: KeyNavigation, capture: bool) {
-        self.current_scope.push(self.objects.len());
-        self.objects.push(FocusObject::FocusScope {
-            navigation,
-            capture,
-            len: 0,
+    pub fn push_focus_scope(&mut self, key: FocusKey, origin: LayoutPoint, navigation: KeyNavigation, capture: bool) {
+        self.current_scope.push(self.entries.len());
+        self.entries.push(FocusEntry {
+            key,
+            origin: origin + self.offset.to_vector(),
+            scope: Some(Box::new(FocusScope {
+                navigation,
+                capture,
+                len: 0,
+            })),
         });
     }
 
     pub fn pop_fucus_scope(&mut self) {
         let i = self.current_scope.pop().expect("Popped with no pushed FocusScope");
-        let scope_len = self.objects.len() - i;
-        if let FocusObject::FocusScope { len, .. } = &mut self.objects[i] {
-            *len = scope_len;
-        }
+        self.entries[i].scope.as_mut().unwrap().len = self.entries.len() - i;
     }
 
-    pub fn push_focusable(&mut self, key: FocusKey, area: &LayoutRect) {
-        self.objects.push(FocusObject{key, rect:*area, scope: None});
+    pub fn push_focusable(&mut self, key: FocusKey, origin: LayoutPoint) {
+        self.entries.push(FocusEntry {
+            key,
+            origin: origin + self.offset.to_vector(),
+            scope: None,
+        });
     }
 
     fn position(&self, focus_key: FocusKey) -> Option<usize> {
-        self.objects.iter().position(|o| o.key == focus_key)
+        self.entries.iter().position(|o| o.key == focus_key)
     }
 
     fn starting_point(&self) -> Option<FocusKey> {
@@ -910,9 +914,34 @@ impl FocusMap {
     }
 
     fn next_towards(&self, direction: (f32, f32), key: FocusKey) -> FocusKey {
-        let i = self.position(key).unwrap();
-        //self.objects[i].rect
-        unimplemented!()
+        // <-
+        let origin = self.entries.iter().filter(|o| o.key == key).next().unwrap().origin;
+
+        let mut candidates: Vec<_> = self
+            .entries
+            .iter()
+            .filter(|c| {
+                let o = c.origin;
+                if o.x < origin.x {
+                    if o.y >= origin.y {
+                        return o.y <= origin.y + (origin.x - o.x);
+                    } else {
+                        return o.y >= origin.y - (origin.x - o.x);
+                    }
+                }
+                false
+            })
+            .map(|c| {
+                let o = c.origin;
+                let a = (o.x - origin.x).powf(2.);
+                let b = (o.y - origin.y).powf(2.);
+                (a + b, c.key)
+            })
+            .collect();
+
+        candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+        candidates.first().map(|c| c.1).unwrap_or(key)
     }
 
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
@@ -1241,3 +1270,121 @@ pub trait FocusableExt: Ui + Sized {
     }
 }
 impl<T: Ui> FocusableExt for T {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use webrender::euclid::point2;
+
+    fn next_left(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        let o = candidate;
+        if o.x < origin.x {
+            if o.y >= origin.y {
+                return o.y <= origin.y + (origin.x - o.x);
+            } else {
+                return o.y >= origin.y - (origin.x - o.x);
+            }
+        }
+        false
+    }
+
+    fn next_right(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        let o = candidate;
+        if o.x > origin.x {
+            if o.y >= origin.y {
+                return o.y <= origin.y + (o.x - origin.x);
+            } else {
+                return o.y >= origin.y - (o.x - origin.x);
+            }
+        }
+        false
+    }
+
+    fn next_up(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        let o = candidate;
+        if o.y < origin.y {
+            if o.x >= origin.x {
+                return o.x <= origin.x + (origin.y - o.y);
+            } else {
+                return o.x >= origin.x - (origin.y - o.y);
+            }
+        }
+        false
+    }
+
+    fn next_down(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        let o = candidate;
+        if o.y > origin.y {
+            if o.x >= origin.x {
+                return o.x <= origin.x + (o.y - origin.y);
+            } else {
+                return o.x >= origin.x - (o.y - origin.y);
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn candidate_culling_left() {
+        assert!(!next_left(point2(10., 10.), point2(11., 10.)));
+        assert!(next_left(point2(10., 10.), point2(9., 10.)));
+
+        assert!(next_left(point2(10., 10.), point2(9., 11.)));
+        assert!(!next_left(point2(10., 10.), point2(9., 12.)));
+        assert!(next_left(point2(10., 10.), point2(5., 12.)));
+
+        assert!(next_left(point2(10., 10.), point2(9., 9.)));
+        assert!(!next_left(point2(10., 10.), point2(9., 8.)));
+        assert!(next_left(point2(10., 10.), point2(5., 8.)));
+
+        assert!(!next_left(point2(10., 10.), point2(10., 10.)));
+    }
+
+    #[test]
+    fn candidate_culling_right() {
+        assert!(!next_right(point2(10., 10.), point2(9., 10.)));
+        assert!(next_right(point2(10., 10.), point2(11., 10.)));
+
+        assert!(next_right(point2(10., 10.), point2(11., 11.)));
+        assert!(!next_right(point2(10., 10.), point2(11., 12.)));
+        assert!(next_right(point2(10., 10.), point2(15., 12.)));
+
+        assert!(next_right(point2(10., 10.), point2(11., 9.)));
+        assert!(!next_right(point2(10., 10.), point2(11., 8.)));
+        assert!(next_right(point2(10., 10.), point2(15., 8.)));
+
+        assert!(!next_right(point2(10., 10.), point2(10., 10.)));
+    }
+
+    #[test]
+    fn candidate_culling_up() {
+        assert!(!next_up(point2(10., 10.), point2(10., 11.)));
+        assert!(next_up(point2(10., 10.), point2(10., 9.)));
+
+        assert!(next_up(point2(10., 10.), point2(11., 9.)));
+        assert!(!next_up(point2(10., 10.), point2(12., 9.)));
+        assert!(next_up(point2(10., 10.), point2(12., 5.)));
+
+        assert!(next_up(point2(10., 10.), point2(9., 9.)));
+        assert!(!next_up(point2(10., 10.), point2(8., 9.)));
+        assert!(next_up(point2(10., 10.), point2(8., 5.)));
+
+        assert!(!next_up(point2(10., 10.), point2(10., 10.)));
+    }
+
+    #[test]
+    fn candidate_culling_down() {
+        assert!(!next_down(point2(10., 10.), point2(10., 9.)));
+        assert!(next_down(point2(10., 10.), point2(10., 11.)));
+
+        assert!(next_down(point2(10., 10.), point2(11., 11.)));
+        assert!(!next_down(point2(10., 10.), point2(12., 11.)));
+        assert!(next_down(point2(10., 10.), point2(12., 15.)));
+
+        assert!(next_down(point2(10., 10.), point2(9., 11.)));
+        assert!(!next_down(point2(10., 10.), point2(8., 11.)));
+        assert!(next_down(point2(10., 10.), point2(8., 15.)));
+
+        assert!(!next_down(point2(10., 10.), point2(10., 10.)));
+    }
+}
