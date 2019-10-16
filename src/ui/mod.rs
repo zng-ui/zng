@@ -39,6 +39,7 @@ pub use webrender::api::{
     BorderRadius, ColorF, FontInstanceKey, FontKey, GradientStop, LayoutPoint, LayoutRect, LayoutSideOffsets,
     LayoutSize,
 };
+use webrender::euclid::point2;
 
 #[doc(inline)]
 pub use zero_ui_derive::impl_ui;
@@ -532,6 +533,7 @@ mod ui_values {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum FocusRequest {
     /// Move focus to key.
     Direct(FocusKey),
@@ -686,18 +688,38 @@ impl NextUpdate {
     //}
 }
 
-#[derive(new)]
 pub struct NextFrame {
     builder: wapi::DisplayListBuilder,
     spatial_id: wapi::SpatialId,
     final_size: LayoutSize,
-    #[new(value = "CursorIcon::Default")]
     cursor: CursorIcon,
-    #[new(value = "FocusMap::new()")]
     focus_map: FocusMap,
 }
 
 impl NextFrame {
+    pub fn new(
+        builder: wapi::DisplayListBuilder,
+        root_spatial_id: wapi::SpatialId,
+        final_size: LayoutSize,
+        root_focus_key: FocusKey,
+    ) -> NextFrame {
+        let mut focus_map = FocusMap::new();
+        focus_map.push_focus_scope(
+            root_focus_key,
+            point2(final_size.width / 2., final_size.height / 2.),
+            KeyNavigation::Both,
+            true,
+        );
+
+        NextFrame {
+            builder,
+            spatial_id: root_spatial_id,
+            final_size,
+            cursor: CursorIcon::Default,
+            focus_map,
+        }
+    }
+
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
         let final_size = self.final_size;
         let spatial_id = self.spatial_id;
@@ -804,16 +826,27 @@ impl NextFrame {
         self.focus_map.push_focusable(key, rect.center());
     }
 
-    pub fn push_focus_area(&mut self, _child: &impl Ui, _final_rect: &LayoutRect) {
-        // within area navigation config as parameter.
-        unimplemented!()
+    pub fn push_focus_scope(
+        &mut self,
+        key: FocusKey,
+        rect: &LayoutRect,
+        navigation: KeyNavigation,
+        capture: bool,
+        child: &impl Ui,
+    ) {
+        self.focus_map.push_focus_scope(key, rect.center(), navigation, capture);
+
+        child.render(self);
+
+        self.focus_map.pop_fucus_scope();
     }
 
     pub fn final_size(&self) -> LayoutSize {
         self.final_size
     }
 
-    pub fn finalize(self) -> (wapi::PipelineId, LayoutSize, wapi::BuiltDisplayList) {
+    pub fn finalize(mut self) -> (wapi::PipelineId, LayoutSize, wapi::BuiltDisplayList) {
+        self.focus_map.pop_fucus_scope();
         self.builder.finalize()
     }
 }
@@ -824,6 +857,7 @@ pub enum FocusState {
     Active,
 }
 
+#[derive(Clone, Copy)]
 pub enum KeyNavigation {
     /// TAB goes to next in text reading order.
     /// Capture: TAB in last item goes back to first.
@@ -838,7 +872,7 @@ pub enum KeyNavigation {
     Both,
 }
 
-struct FocusScope {
+struct FocusScopeData {
     navigation: KeyNavigation,
     capture: bool,
     len: usize,
@@ -847,7 +881,8 @@ struct FocusScope {
 struct FocusEntry {
     key: FocusKey,
     origin: LayoutPoint,
-    scope: Option<Box<FocusScope>>,
+    parent_scope: usize,
+    scope: Option<Box<FocusScopeData>>,
 }
 
 //https://stackoverflow.com/questions/13420747/four-way-navigation-algorithm
@@ -855,7 +890,7 @@ struct FocusEntry {
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
-    current_scope: Vec<usize>,
+    current_scopes: Vec<usize>,
     #[new(default)]
     offset: LayoutPoint,
     #[new(default)]
@@ -871,11 +906,14 @@ impl FocusMap {
     }
 
     pub fn push_focus_scope(&mut self, key: FocusKey, origin: LayoutPoint, navigation: KeyNavigation, capture: bool) {
-        self.current_scope.push(self.entries.len());
+        let parent_scope = *self.current_scopes.last().unwrap_or(&0);
+
+        self.current_scopes.push(self.entries.len());
         self.entries.push(FocusEntry {
             key,
             origin: origin + self.offset.to_vector(),
-            scope: Some(Box::new(FocusScope {
+            parent_scope,
+            scope: Some(Box::new(FocusScopeData {
                 navigation,
                 capture,
                 len: 0,
@@ -884,7 +922,7 @@ impl FocusMap {
     }
 
     pub fn pop_fucus_scope(&mut self) {
-        let i = self.current_scope.pop().expect("Popped with no pushed FocusScope");
+        let i = self.current_scopes.pop().expect("Popped with no pushed FocusScope");
         self.entries[i].scope.as_mut().unwrap().len = self.entries.len() - i;
     }
 
@@ -892,6 +930,7 @@ impl FocusMap {
         self.entries.push(FocusEntry {
             key,
             origin: origin + self.offset.to_vector(),
+            parent_scope: *self.current_scopes.last().expect("Pushed Focusable without FocusScope"),
             scope: None,
         });
     }
@@ -904,24 +943,13 @@ impl FocusMap {
         unimplemented!()
     }
 
-    fn next_towards(&self, direction: (f32, f32), key: FocusKey) -> FocusKey {
-        // <-
+    fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
         let origin = self.entries.iter().filter(|o| o.key == key).next().unwrap().origin;
 
         let mut candidates: Vec<_> = self
             .entries
             .iter()
-            .filter(|c| {
-                let o = c.origin;
-                if o.x < origin.x {
-                    if o.y >= origin.y {
-                        return o.y <= origin.y + (origin.x - o.x);
-                    } else {
-                        return o.y >= origin.y - (origin.x - o.x);
-                    }
-                }
-                false
-            })
+            .filter(move |c| is_in_direction(direction, origin, c.origin))
             .map(|c| {
                 let o = c.origin;
                 let a = (o.x - origin.x).powf(2.);
@@ -943,12 +971,30 @@ impl FocusMap {
             (FocusRequest::Next, Some(key)) => unimplemented!(),
             (FocusRequest::Prev, Some(key)) => unimplemented!(),
             //Arrow Keys
-            (FocusRequest::Left, Some(key)) => Some(self.next_towards((-1., 0.), key)),
-            (FocusRequest::Right, Some(key)) => Some(self.next_towards((1., 0.), key)),
-            (FocusRequest::Up, Some(key)) => Some(self.next_towards((0., -1.), key)),
-            (FocusRequest::Down, Some(key)) => Some(self.next_towards((0., 1.), key)),
+            (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }
     }
+}
+
+fn is_in_direction(direction: FocusRequest, origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+    let (a, b, c, d) = match direction {
+        FocusRequest::Left => (candidate.x, origin.x, candidate.y, origin.y),
+        FocusRequest::Right => (origin.x, candidate.x, candidate.y, origin.y),
+        FocusRequest::Up => (candidate.y, origin.y, candidate.x, origin.x),
+        FocusRequest::Down => (origin.y, candidate.y, candidate.x, origin.x),
+        _ => unreachable!(),
+    };
+
+    //checks if the candidate point is in between two imaginary perpendicular lines parting from the origin point in the focus direction
+    if a < b {
+        if c >= d {
+            return c <= d + (b - a);
+        } else {
+            return c >= d - (b - a);
+        }
+    }
+
+    false
 }
 
 /// Describes a keyboard input event.
@@ -1262,120 +1308,114 @@ pub trait FocusableExt: Ui + Sized {
 }
 impl<T: Ui> FocusableExt for T {}
 
+#[derive(new)]
+pub struct FocusScope<C: Ui> {
+    child: C,
+    key: FocusKey,
+    navigation: KeyNavigation,
+    capture: bool,
+}
+#[impl_ui_crate(child)]
+impl<C: Ui> Ui for FocusScope<C> {
+    fn render(&self, f: &mut NextFrame) {
+        f.push_focus_scope(
+            self.key,
+            &LayoutRect::from_size(f.final_size()),
+            self.navigation,
+            self.capture,
+            &self.child,
+        );
+    }
+}
+
+pub trait FocusScopeExt: Ui + Sized {
+    fn focus_scope(self, navigation: KeyNavigation, capture: bool) -> FocusScope<Self> {
+        FocusScope::new(self, FocusKey::new(), navigation, capture)
+    }
+}
+impl<T: Ui> FocusScopeExt for T {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use webrender::euclid::point2;
 
-    fn next_left(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
-        let o = candidate;
-        if o.x < origin.x {
-            if o.y >= origin.y {
-                return o.y <= origin.y + (origin.x - o.x);
-            } else {
-                return o.y >= origin.y - (origin.x - o.x);
-            }
-        }
-        false
+    fn is_left(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        is_in_direction(FocusRequest::Left, origin, candidate)
     }
 
-    fn next_right(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
-        let o = candidate;
-        if o.x > origin.x {
-            if o.y >= origin.y {
-                return o.y <= origin.y + (o.x - origin.x);
-            } else {
-                return o.y >= origin.y - (o.x - origin.x);
-            }
-        }
-        false
+    fn is_right(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        is_in_direction(FocusRequest::Right, origin, candidate)
     }
 
-    fn next_up(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
-        let o = candidate;
-        if o.y < origin.y {
-            if o.x >= origin.x {
-                return o.x <= origin.x + (origin.y - o.y);
-            } else {
-                return o.x >= origin.x - (origin.y - o.y);
-            }
-        }
-        false
+    fn is_up(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        is_in_direction(FocusRequest::Up, origin, candidate)
     }
 
-    fn next_down(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
-        let o = candidate;
-        if o.y > origin.y {
-            if o.x >= origin.x {
-                return o.x <= origin.x + (o.y - origin.y);
-            } else {
-                return o.x >= origin.x - (o.y - origin.y);
-            }
-        }
-        false
+    fn is_down(origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+        is_in_direction(FocusRequest::Down, origin, candidate)
     }
 
     #[test]
     fn candidate_culling_left() {
-        assert!(!next_left(point2(10., 10.), point2(11., 10.)));
-        assert!(next_left(point2(10., 10.), point2(9., 10.)));
+        assert!(!is_left(point2(10., 10.), point2(11., 10.)));
+        assert!(is_left(point2(10., 10.), point2(9., 10.)));
 
-        assert!(next_left(point2(10., 10.), point2(9., 11.)));
-        assert!(!next_left(point2(10., 10.), point2(9., 12.)));
-        assert!(next_left(point2(10., 10.), point2(5., 12.)));
+        assert!(is_left(point2(10., 10.), point2(9., 11.)));
+        assert!(!is_left(point2(10., 10.), point2(9., 12.)));
+        assert!(is_left(point2(10., 10.), point2(5., 12.)));
 
-        assert!(next_left(point2(10., 10.), point2(9., 9.)));
-        assert!(!next_left(point2(10., 10.), point2(9., 8.)));
-        assert!(next_left(point2(10., 10.), point2(5., 8.)));
+        assert!(is_left(point2(10., 10.), point2(9., 9.)));
+        assert!(!is_left(point2(10., 10.), point2(9., 8.)));
+        assert!(is_left(point2(10., 10.), point2(5., 8.)));
 
-        assert!(!next_left(point2(10., 10.), point2(10., 10.)));
+        assert!(!is_left(point2(10., 10.), point2(10., 10.)));
     }
 
     #[test]
     fn candidate_culling_right() {
-        assert!(!next_right(point2(10., 10.), point2(9., 10.)));
-        assert!(next_right(point2(10., 10.), point2(11., 10.)));
+        assert!(!is_right(point2(10., 10.), point2(9., 10.)));
+        assert!(is_right(point2(10., 10.), point2(11., 10.)));
 
-        assert!(next_right(point2(10., 10.), point2(11., 11.)));
-        assert!(!next_right(point2(10., 10.), point2(11., 12.)));
-        assert!(next_right(point2(10., 10.), point2(15., 12.)));
+        assert!(is_right(point2(10., 10.), point2(11., 11.)));
+        assert!(!is_right(point2(10., 10.), point2(11., 12.)));
+        assert!(is_right(point2(10., 10.), point2(15., 12.)));
 
-        assert!(next_right(point2(10., 10.), point2(11., 9.)));
-        assert!(!next_right(point2(10., 10.), point2(11., 8.)));
-        assert!(next_right(point2(10., 10.), point2(15., 8.)));
+        assert!(is_right(point2(10., 10.), point2(11., 9.)));
+        assert!(!is_right(point2(10., 10.), point2(11., 8.)));
+        assert!(is_right(point2(10., 10.), point2(15., 8.)));
 
-        assert!(!next_right(point2(10., 10.), point2(10., 10.)));
+        assert!(!is_right(point2(10., 10.), point2(10., 10.)));
     }
 
     #[test]
     fn candidate_culling_up() {
-        assert!(!next_up(point2(10., 10.), point2(10., 11.)));
-        assert!(next_up(point2(10., 10.), point2(10., 9.)));
+        assert!(!is_up(point2(10., 10.), point2(10., 11.)));
+        assert!(is_up(point2(10., 10.), point2(10., 9.)));
 
-        assert!(next_up(point2(10., 10.), point2(11., 9.)));
-        assert!(!next_up(point2(10., 10.), point2(12., 9.)));
-        assert!(next_up(point2(10., 10.), point2(12., 5.)));
+        assert!(is_up(point2(10., 10.), point2(11., 9.)));
+        assert!(!is_up(point2(10., 10.), point2(12., 9.)));
+        assert!(is_up(point2(10., 10.), point2(12., 5.)));
 
-        assert!(next_up(point2(10., 10.), point2(9., 9.)));
-        assert!(!next_up(point2(10., 10.), point2(8., 9.)));
-        assert!(next_up(point2(10., 10.), point2(8., 5.)));
+        assert!(is_up(point2(10., 10.), point2(9., 9.)));
+        assert!(!is_up(point2(10., 10.), point2(8., 9.)));
+        assert!(is_up(point2(10., 10.), point2(8., 5.)));
 
-        assert!(!next_up(point2(10., 10.), point2(10., 10.)));
+        assert!(!is_up(point2(10., 10.), point2(10., 10.)));
     }
 
     #[test]
     fn candidate_culling_down() {
-        assert!(!next_down(point2(10., 10.), point2(10., 9.)));
-        assert!(next_down(point2(10., 10.), point2(10., 11.)));
+        assert!(!is_down(point2(10., 10.), point2(10., 9.)));
+        assert!(is_down(point2(10., 10.), point2(10., 11.)));
 
-        assert!(next_down(point2(10., 10.), point2(11., 11.)));
-        assert!(!next_down(point2(10., 10.), point2(12., 11.)));
-        assert!(next_down(point2(10., 10.), point2(12., 15.)));
+        assert!(is_down(point2(10., 10.), point2(11., 11.)));
+        assert!(!is_down(point2(10., 10.), point2(12., 11.)));
+        assert!(is_down(point2(10., 10.), point2(12., 15.)));
 
-        assert!(next_down(point2(10., 10.), point2(9., 11.)));
-        assert!(!next_down(point2(10., 10.), point2(8., 11.)));
-        assert!(next_down(point2(10., 10.), point2(8., 15.)));
+        assert!(is_down(point2(10., 10.), point2(9., 11.)));
+        assert!(!is_down(point2(10., 10.), point2(8., 11.)));
+        assert!(is_down(point2(10., 10.), point2(8., 15.)));
 
-        assert!(!next_down(point2(10., 10.), point2(10., 10.)));
+        assert!(!is_down(point2(10., 10.), point2(10., 10.)));
     }
 }

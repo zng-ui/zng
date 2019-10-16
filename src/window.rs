@@ -1,5 +1,5 @@
 use crate::ui::{
-    Hits, KeyboardInput, MouseInput, NewWindow, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange,
+    FocusKey, Hits, KeyboardInput, MouseInput, NewWindow, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange,
 };
 use gleam::gl;
 use glutin::dpi::LogicalSize;
@@ -46,6 +46,7 @@ pub(crate) struct Window {
     dpi_factor: f32,
     inner_size: LayoutSize,
 
+    focus_key: FocusKey,
     content: Box<dyn Ui>,
     content_size: LayoutSize,
 
@@ -132,6 +133,7 @@ impl Window {
             dpi_factor,
             inner_size,
 
+            focus_key: FocusKey::new(),
             content,
             content_size: LayoutSize::default(),
 
@@ -328,6 +330,7 @@ impl Window {
             DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
+            self.focus_key,
         );
 
         self.content.render(&mut frame);
