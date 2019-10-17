@@ -1,6 +1,4 @@
-use crate::ui::{
-    FocusKey, Hits, KeyboardInput, MouseInput, NewWindow, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange,
-};
+use super::{FocusKey, Hits, KeyboardInput, MouseInput, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -34,6 +32,12 @@ impl RenderNotifier for Notifier {
             .event_loop
             .send_event(WebRenderEvent::NewFrameReady(self.window_id));
     }
+}
+
+pub struct NewWindow {
+    pub content: Box<dyn FnOnce(&mut NextUpdate) -> Box<dyn Ui>>,
+    pub clear_color: ColorF,
+    pub inner_size: LayoutSize,
 }
 
 pub(crate) struct Window {

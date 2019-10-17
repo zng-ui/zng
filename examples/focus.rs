@@ -1,6 +1,6 @@
 //#![windows_subsystem = "windows"]
 
-use zero_ui::{ui::*, *};
+use zero_ui::{core::*, primitive::*, *};
 
 fn main() {
     //start_logger_for("log_target");

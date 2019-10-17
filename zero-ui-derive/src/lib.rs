@@ -11,7 +11,7 @@ use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
-/// Generates default implementations of [Ui](zero_ui::ui::Ui) methods.
+/// Generates default implementations of [Ui](zero_ui::core::Ui) methods.
 ///
 /// # Usage
 ///
@@ -51,7 +51,7 @@ use syn::*;
 /// * Hit-test: Not hit-testable, `point_over` is always `None`.
 ///
 /// ```rust
-/// # use zero_ui::ui::{Value, NextFrame, ColorF, LayoutSize, UiValues, NextUpdate};
+/// # use zero_ui::core::{Value, NextFrame, ColorF, LayoutSize, UiValues, NextUpdate};
 /// # pub struct FillColor<C: Value<ColorF>>(C);
 /// #
 /// #[impl_ui]
@@ -82,7 +82,7 @@ use syn::*;
 ///     }
 /// }
 ///
-/// impl<C: Value<ColorF>> zero_ui::ui::Ui for FillColor<C> {
+/// impl<C: Value<ColorF>> zero_ui::core::Ui for FillColor<C> {
 ///     /// Custom impl
 ///     #[inline]
 ///     fn render(&self, f: &mut NextFrame) {
@@ -101,7 +101,7 @@ use syn::*;
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::ui::LayoutSize) -> zero_ui::ui::LayoutSize {
+///     fn measure(&mut self, available_size: zero_ui::core::LayoutSize) -> zero_ui::core::LayoutSize {
 ///         let mut size = available_size;
 ///         if size.width.is_infinite() {
 ///             size.width = 0.0;
@@ -116,69 +116,69 @@ use syn::*;
 ///         None
 ///     }
 ///     #[inline]
-///     fn init(&mut self, values: &mut zero_ui::ui::UiValues, update: &mut zero_ui::ui::NextUpdate) {}
+///     fn init(&mut self, values: &mut zero_ui::core::UiValues, update: &mut zero_ui::core::NextUpdate) {}
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::ui::LayoutSize) {}
+///     fn arrange(&mut self, final_size: zero_ui::core::LayoutSize) {}
 ///     #[inline]
 ///     fn keyboard_input(
 ///         &mut self,
-///         input: &zero_ui::ui::KeyboardInput,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         input: &zero_ui::core::KeyboardInput,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn window_focused(
 ///         &mut self,
 ///         focused: bool,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn mouse_input(
 ///         &mut self,
-///         input: &zero_ui::ui::MouseInput,
-///         hits: &zero_ui::ui::Hits,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         input: &zero_ui::core::MouseInput,
+///         hits: &zero_ui::core::Hits,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn mouse_move(
 ///         &mut self,
-///         input: &zero_ui::ui::UiMouseMove,
-///         hits: &zero_ui::ui::Hits,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         input: &zero_ui::core::UiMouseMove,
+///         hits: &zero_ui::core::Hits,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn mouse_entered(
 ///         &mut self,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn mouse_left(
 ///         &mut self,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn close_request(
 ///         &mut self,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 ///     #[inline]
 ///     fn parent_value_changed(
 ///         &mut self,
-///         values: &mut zero_ui::ui::UiValues,
-///         update: &mut zero_ui::ui::NextUpdate,
+///         values: &mut zero_ui::core::UiValues,
+///         update: &mut zero_ui::core::NextUpdate,
 ///     ) {
 ///     }
 /// }
@@ -341,7 +341,7 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     let mut inline_all = InlineEverything::new();
 
     let mut impl_ui = parse_quote! {
-        impl #impl_generics #crate_::ui::Ui for #self_ty #where_clause {
+        impl #impl_generics #crate_::core::Ui for #self_ty #where_clause {
             #(#ui_items)*
             #(#default_ui_items)*
         }
@@ -485,7 +485,7 @@ impl VisitMut for InlineEverything {
     }
 }
 
-/// Visitor that prefixes every `PatType` with `#crate::ui::`.
+/// Visitor that prefixes every `PatType` with `#crate::core::`.
 struct CrateUiEverything {
     crate_: QTokenStream,
 }
@@ -504,7 +504,7 @@ impl VisitMut for CrateUiEverything {
                 if let Some(tident) = path.get_ident() {
                     if tident != &ident("bool") {
                         let crate_ = self.crate_.clone();
-                        *path = parse_quote! { #crate_::ui::#tident };
+                        *path = parse_quote! { #crate_::core::#tident };
                     }
                 }
             }
@@ -724,7 +724,7 @@ fn ui_multi_container_defaults(
         parse_quote! {{
             for d in #iter {
                 if d.focus_status().is_some() {
-                    return Some(#crate_::ui::FocusStatus::FocusWithin);
+                    return Some(#crate_::core::FocusStatus::FocusWithin);
                 }
             }
             None

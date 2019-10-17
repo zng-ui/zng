@@ -1,5 +1,4 @@
-use crate::ui::{NewWindow, NextUpdate, Ui};
-use crate::window::{WebRenderEvent, Window};
+use crate::core::{NewWindow, NextUpdate, Ui, WebRenderEvent, Window};
 use rayon::ThreadPoolBuilder;
 use std::sync::Arc;
 
@@ -9,6 +8,14 @@ use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use webrender::api::{ColorF, LayoutSize};
 
+/// Runs the application with arguments for creating the first window.
+///
+/// This function does not return, the process exits when the last window is closed.
+///
+/// # Arguments
+/// `clear_color`: First window background color.
+/// `inner_size`: First window size.
+/// `content`: First window content factory.
 pub fn run<C: Ui + 'static>(
     clear_color: ColorF,
     inner_size: LayoutSize,

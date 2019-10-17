@@ -1,5 +1,42 @@
-use super::*;
+use crate::core::*;
+pub use wapi::BorderRadius;
 use webrender::api as wapi;
+
+impl IntoValue<BorderDetails> for ColorF {
+    type Value = Owned<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        let border_side = BorderSide {
+            color: self,
+            style: BorderStyle::Solid,
+        };
+        Owned(BorderDetails {
+            left: border_side,
+            right: border_side,
+            top: border_side,
+            bottom: border_side,
+            radius: BorderRadius::zero(),
+        })
+    }
+}
+
+impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
+    type Value = Owned<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        let border_side = BorderSide {
+            color: self.0,
+            style: self.1,
+        };
+        Owned(BorderDetails {
+            left: border_side,
+            right: border_side,
+            top: border_side,
+            bottom: border_side,
+            radius: BorderRadius::zero(),
+        })
+    }
+}
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]

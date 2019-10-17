@@ -1,4 +1,4 @@
-use super::{impl_ui_crate, HitTag, Hits, LayoutPoint, LayoutRect, LayoutSize, NextFrame, Ui};
+use crate::core::*;
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
@@ -42,7 +42,7 @@ macro_rules! stack {
 
             #[Ui]
             fn render(&self, f: &mut NextFrame) {
-                f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size));
+                f.push_hit_test(self.hit_tag, LayoutRect::from_size(f.final_size()));
 
                 for c in self.children.iter() {
                     f.push_child(&c.child, &c.rect);

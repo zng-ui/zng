@@ -1,4 +1,5 @@
-use super::*;
+use crate::core::*;
+use crate::primitive::{SetParentValue, SetParentValueExt};
 use std::borrow::Cow;
 use webrender::api::*;
 
@@ -129,13 +130,13 @@ pub type SetTextColor<T, R> = SetParentValue<T, ColorF, R>;
 
 pub trait TextVals: Ui + Sized {
     fn font_family<V: IntoValue<Cow<'static, str>>>(self, font: V) -> SetFontFamily<Self, V::Value> {
-        self.set_ctx_val(*FONT_FAMILY, font)
+        self.set_parent_val(*FONT_FAMILY, font)
     }
     fn font_size<V: IntoValue<u32>>(self, size: V) -> SetFontSize<Self, V::Value> {
-        self.set_ctx_val(*FONT_SIZE, size)
+        self.set_parent_val(*FONT_SIZE, size)
     }
     fn text_color<V: IntoValue<ColorF>>(self, color: V) -> SetTextColor<Self, V::Value> {
-        self.set_ctx_val(*TEXT_COLOR, color)
+        self.set_parent_val(*TEXT_COLOR, color)
     }
 }
 impl<T: Ui> TextVals for T {}

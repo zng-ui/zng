@@ -1,4 +1,4 @@
-use super::*;
+use crate::core::*;
 
 pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
     rgba(r, g, b, 1.0)
@@ -20,6 +20,35 @@ impl From<f32> for ColorFComponent {
 impl From<u8> for ColorFComponent {
     fn from(u: u8) -> Self {
         ColorFComponent(u as f32 / 255.)
+    }
+}
+
+impl IntoValue<Vec<GradientStop>> for Vec<(f32, ColorF)> {
+    type Value = Owned<Vec<GradientStop>>;
+
+    fn into_value(self) -> Self::Value {
+        Owned(
+            self.into_iter()
+                .map(|(offset, color)| GradientStop { offset, color })
+                .collect(),
+        )
+    }
+}
+
+impl IntoValue<Vec<GradientStop>> for Vec<ColorF> {
+    type Value = Owned<Vec<GradientStop>>;
+
+    fn into_value(self) -> Self::Value {
+        let point = 1. / (self.len() as f32 - 1.);
+        Owned(
+            self.into_iter()
+                .enumerate()
+                .map(|(i, color)| GradientStop {
+                    offset: (i as f32) * point,
+                    color,
+                })
+                .collect(),
+        )
     }
 }
 
