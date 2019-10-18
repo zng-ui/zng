@@ -1,4 +1,4 @@
-use super::{FocusKey, Hits, KeyboardInput, MouseInput, NextFrame, NextUpdate, Ui, UiMouseMove, UiValues, VarChange};
+use super::*;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -51,6 +51,7 @@ pub(crate) struct Window {
     inner_size: LayoutSize,
 
     focus_key: FocusKey,
+    focus_map: FocusMap,
     content: Box<dyn Ui>,
     content_size: LayoutSize,
 
@@ -138,6 +139,7 @@ impl Window {
             inner_size,
 
             focus_key: FocusKey::new(),
+            focus_map: FocusMap::new(),
             content,
             content_size: LayoutSize::default(),
 
@@ -347,7 +349,10 @@ impl Window {
             next
         });
 
-        txn.set_display_list(self.latest_frame_id, None, self.inner_size, frame.finalize(), true);
+        let (display_list_data, focus_map) = frame.finalize();
+        self.focus_map = focus_map;
+
+        txn.set_display_list(self.latest_frame_id, None, self.inner_size, display_list_data, true);
         txn.set_root_pipeline(self.pipeline_id);
         txn.generate_frame();
         self.next_update.api.send_transaction(self.next_update.document_id, txn);

@@ -3,11 +3,11 @@ pub mod test;
 
 mod border;
 mod color;
-mod event;
 mod cursor;
+mod event;
+mod focus;
 mod layout;
 mod log;
-mod focus;
 mod parent_value;
 mod stack;
 mod text;

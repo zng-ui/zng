@@ -158,8 +158,8 @@ impl NextFrame {
         self.final_size
     }
 
-    pub fn finalize(mut self) -> (PipelineId, LayoutSize, BuiltDisplayList) {
+    pub(crate) fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FocusMap) {
         self.focus_map.pop_fucus_scope();
-        self.builder.finalize()
+        (self.builder.finalize(), self.focus_map)
     }
 }

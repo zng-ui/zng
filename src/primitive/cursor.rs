@@ -13,7 +13,7 @@ impl<T: Ui + 'static> Ui for Cursor<T> {
     }
 }
 
-pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) ->Cursor<T> {
+pub fn cursor<T: Ui>(child: T, cursor: CursorIcon) -> Cursor<T> {
     Cursor::new(child, cursor)
 }
 
@@ -23,4 +23,3 @@ pub trait CursorExt: Ui + Sized {
     }
 }
 impl<T: Ui> CursorExt for T {}
-

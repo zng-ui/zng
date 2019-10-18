@@ -7,7 +7,6 @@ pub mod app;
 pub mod core;
 pub mod primitive;
 
-
 ///The enclose macro for easier cloning
 #[macro_export]
 macro_rules! enclose {
