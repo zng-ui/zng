@@ -47,6 +47,8 @@ pub struct FocusScope<C: Ui> {
     key: FocusKey,
     navigation: KeyNavigation,
     capture: bool,
+    #[new(default)]
+    logical_focus: Option<FocusKey>,
 }
 #[impl_ui_crate(child)]
 impl<C: Ui> Ui for FocusScope<C> {

@@ -50,7 +50,7 @@ pub(crate) struct Window {
     dpi_factor: f32,
     inner_size: LayoutSize,
 
-    focus_key: FocusKey,
+    window_focus_key: FocusKey,
     focus_map: FocusMap,
     content: Box<dyn Ui>,
     content_size: LayoutSize,
@@ -67,6 +67,7 @@ pub(crate) struct Window {
     cursor: CursorIcon,
 
     ui_values: UiValues,
+    focused: Option<FocusKey>,
 }
 
 impl Window {
@@ -138,7 +139,7 @@ impl Window {
             dpi_factor,
             inner_size,
 
-            focus_key: FocusKey::new(),
+            window_focus_key: FocusKey::new(),
             focus_map: FocusMap::new(),
             content,
             content_size: LayoutSize::default(),
@@ -153,12 +154,15 @@ impl Window {
             mouse_pos: LayoutPoint::new(-1., -1.),
             key_down: None,
             cursor: CursorIcon::Default,
+            focused: None,
         }
     }
 
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
     pub fn event(&mut self, event: WindowEvent) -> bool {
-        let mut has_update = true;
+        // has update outsize of self.next_update.
+        let mut has_update = false;
+
         match event {
             WindowEvent::Resized(new_size) => {
                 // open issue on resize delay: https://github.com/servo/webrender/issues/1640
@@ -175,12 +179,20 @@ impl Window {
                     self.next_update.update_layout();
                 }
             }
-            WindowEvent::RedrawRequested => self.redraw = true,
-            WindowEvent::CloseRequested => self.close = true,
+            WindowEvent::RedrawRequested => {
+                self.redraw = true;
+                has_update = true;
+            }
+            WindowEvent::CloseRequested => {
+                self.close = true;
+                has_update = true;
+            }
 
             WindowEvent::KeyboardInput { input, .. } => {
+                let is_pressed = input.state == ElementState::Pressed;
+                // check if is auto repeat.
                 let mut repeat = false;
-                if input.state == ElementState::Pressed {
+                if is_pressed {
                     if self.key_down != Some(input.scancode) {
                         self.key_down = Some(input.scancode);
                     } else {
@@ -190,6 +202,7 @@ impl Window {
                     self.key_down = None;
                 }
 
+                // notify content
                 self.content.keyboard_input(
                     &KeyboardInput {
                         scancode: input.scancode,
@@ -202,6 +215,30 @@ impl Window {
                     &mut self.next_update,
                 );
 
+                // do default focus navigation
+                if is_pressed
+                    && self.next_update.focus_request.is_none()
+                    && self.ui_values.child(*FOCUS_HANDLED).is_none()
+                {
+                    let request = match input.virtual_keycode {
+                        Some(VirtualKeyCode::Tab) => Some(if input.modifiers.shift {
+                            FocusRequest::Next
+                        } else {
+                            FocusRequest::Prev
+                        }),
+                        Some(VirtualKeyCode::Left) => Some(FocusRequest::Left),
+                        Some(VirtualKeyCode::Right) => Some(FocusRequest::Right),
+                        Some(VirtualKeyCode::Up) => Some(FocusRequest::Up),
+                        Some(VirtualKeyCode::Down) => Some(FocusRequest::Down),
+                        Some(VirtualKeyCode::Escape) => Some(FocusRequest::Escape),
+                        _ => None,
+                    };
+                    if let Some(request) = request {
+                        self.next_update.focus(request);
+                    }
+                }
+
+                // clear all child values
                 self.ui_values.clear_child_values();
             }
             WindowEvent::CursorMoved {
@@ -257,10 +294,10 @@ impl Window {
 
                 self.ui_values.clear_child_values();
             }
-
-            _ => has_update = !self.next_update.value_changes.is_empty(),
+            _ => {}
         }
-        has_update
+
+        has_update || self.next_update.has_update
     }
 
     pub fn new_window_requests(&mut self) -> Vec<NewWindow> {
@@ -297,8 +334,21 @@ impl Window {
             self.content.value_changed(&mut self.ui_values, &mut self.next_update);
         }
 
-        self.update_layout();
-        self.send_render_frame();
+        if self.next_update.has_update {
+            self.next_update.has_update = false;
+            self.update_focus();
+            self.update_layout();
+            self.send_render_frame();
+        }
+    }
+
+    fn update_focus(&mut self) {
+        if let Some(request) = self.next_update.focus_request.take() {
+            let new_focused = self.focus_map.focus(self.focused, request);
+            if new_focused != self.focused {
+                self.focused = new_focused;
+            }
+        }
     }
 
     /// Updates the content layout and flags `render_frame`.
@@ -336,7 +386,7 @@ impl Window {
             DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
-            self.focus_key,
+            self.window_focus_key,
         );
 
         self.content.render(&mut frame);

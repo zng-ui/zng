@@ -1,9 +1,13 @@
-use super::{LayoutPoint, LayoutRect};
+use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect};
 
 uid! {
     /// Focusable unique identifier.
     pub struct FocusKey(_);
 }
+
+/// Custom focus navigation implementation must return this to stop
+/// the default implementation on `keyboard_input`.
+pub static FOCUS_HANDLED: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 
 #[derive(Clone, Copy)]
 pub enum FocusRequest {
@@ -13,6 +17,9 @@ pub enum FocusRequest {
     Next,
     /// Move focus to previous from current in screen, or to last in screen.
     Prev,
+    /// Move focus to parent focus scope.
+    Escape,
+
     Left,
     Right,
     Up,
@@ -87,7 +94,7 @@ impl FocusMap {
         });
     }
 
-    pub fn pop_fucus_scope(&mut self) {
+    pub fn pop_focus_scope(&mut self) {
         let i = self.current_scopes.pop().expect("Popped with no pushed FocusScope");
         self.entries[i].scope.as_mut().unwrap().len = self.entries.len() - i;
     }
@@ -129,6 +136,18 @@ impl FocusMap {
         candidates.first().map(|c| c.1).unwrap_or(key)
     }
 
+    fn escape(&self, key: FocusKey) -> FocusKey {
+        if let Some(i) = self.position(key) {
+            let scope_i = self.entries[i].parent_scope;
+            if let Some(scope) = &self.entries[scope_i].scope {
+                if scope.capture {
+
+                }
+            }
+        }
+        key
+    }
+
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
         match (r, focused) {
             (FocusRequest::Direct(direct_key), _) => self.position(direct_key).map(|_| direct_key),
@@ -136,6 +155,7 @@ impl FocusMap {
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => unimplemented!(),
             (FocusRequest::Prev, Some(key)) => unimplemented!(),
+            (FocusRequest::Escape, Some(key)) => Some(self.escape(key)),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }

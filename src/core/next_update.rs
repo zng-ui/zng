@@ -15,6 +15,8 @@ pub struct NextUpdate {
     pub(crate) focus_request: Option<FocusRequest>,
     pub(crate) value_changes: Vec<Box<dyn VarChange>>,
     _request_close: bool,
+
+    pub(crate) has_update: bool,
 }
 impl NextUpdate {
     pub fn new(api: RenderApi, document_id: DocumentId) -> Self {
@@ -29,6 +31,8 @@ impl NextUpdate {
             value_changes: vec![],
             focus_request: None,
             _request_close: false,
+
+            has_update: false,
         }
     }
 
@@ -42,18 +46,22 @@ impl NextUpdate {
             content: Box::new(move |c| content(c).into_box()),
             clear_color,
             inner_size,
-        })
+        });
+        self.has_update = true;
     }
 
     pub fn update_layout(&mut self) {
         self.update_layout = true;
+        self.has_update = true;
     }
     pub fn render_frame(&mut self) {
         self.render_frame = true;
+        self.has_update = true;
     }
 
     pub fn focus(&mut self, request: FocusRequest) {
         self.focus_request = Some(request);
+        self.has_update = true;
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
@@ -63,6 +71,7 @@ impl NextUpdate {
     pub fn change<T: 'static>(&mut self, value: &Var<T>, change: impl FnOnce(&mut T) + 'static) {
         value.change_value(change);
         self.value_changes.push(Box::new(value.clone()));
+        self.has_update = true;
     }
 
     pub fn font(&mut self, family: &str, size: u32) -> FontInstance {

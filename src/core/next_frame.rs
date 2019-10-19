@@ -151,7 +151,7 @@ impl NextFrame {
 
         child.render(self);
 
-        self.focus_map.pop_fucus_scope();
+        self.focus_map.pop_focus_scope();
     }
 
     pub fn final_size(&self) -> LayoutSize {
@@ -159,7 +159,7 @@ impl NextFrame {
     }
 
     pub(crate) fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FocusMap) {
-        self.focus_map.pop_fucus_scope();
+        self.focus_map.pop_focus_scope();
         (self.builder.finalize(), self.focus_map)
     }
 }
