@@ -141,7 +141,7 @@ impl FocusMap {
             let scope_i = self.entries[i].parent_scope;
             if let Some(scope) = &self.entries[scope_i].scope {
                 if scope.capture {
-
+                    // https://doc.qt.io/qt-5/qtquick-keyinteraction-example.html#
                 }
             }
         }
