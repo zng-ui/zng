@@ -3,22 +3,29 @@ use crate::core::*;
 #[derive(new)]
 pub struct Focusable<C: Ui> {
     child: C,
+    key: FocusKey,
     focused: bool,
 }
 #[impl_ui_crate(child)]
 impl<C: Ui> Focusable<C> {
     #[Ui]
-    fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child.window_focused(focused, values, update);
+    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.focus_changed(change, values, update);
+
+        self.focused = Some(self.key) == change.new_focus;
+
+        if self.focused {
+            println!("{:?}", self.key);
+        }
     }
 
     #[Ui]
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child.mouse_input(input, hits, values, update);
-
         if input.state == ElementState::Pressed {
-            self.focused = self.child.focus_status().is_none() && self.point_over(hits).is_some();
+            update.focus(FocusRequest::Direct(self.key));
         }
+
+        self.child.mouse_input(input, hits, values, update);
     }
 
     #[Ui]
@@ -36,7 +43,7 @@ impl<C: Ui> Focusable<C> {
 
 pub trait FocusableExt: Ui + Sized {
     fn focusable(self) -> Focusable<Self> {
-        Focusable::new(self, false)
+        Focusable::new(self, FocusKey::new(), false)
     }
 }
 impl<T: Ui> FocusableExt for T {}

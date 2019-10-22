@@ -2,7 +2,8 @@ pub use zero_ui_derive::impl_ui;
 pub(crate) use zero_ui_derive::impl_ui_crate;
 
 use super::{
-    FocusStatus, Hits, KeyboardInput, LayoutPoint, LayoutSize, MouseInput, NextFrame, NextUpdate, UiMouseMove, UiValues,
+    FocusChange, FocusStatus, Hits, KeyboardInput, LayoutPoint, LayoutSize, MouseInput, NextFrame, NextUpdate,
+    UiMouseMove, UiValues,
 };
 
 /// An UI component.
@@ -21,6 +22,8 @@ pub trait Ui {
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate);
 
     fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate);
+
+    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate);
 
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate);
 

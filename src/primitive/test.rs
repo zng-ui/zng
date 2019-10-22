@@ -14,7 +14,8 @@ pub struct TestChildData {
     pub render_calls: u32,
 
     pub keyboard_input_calls: Vec<KeyboardInput>,
-    pub focused_calls: Vec<bool>,
+    pub window_focused_calls: Vec<bool>,
+    pub focus_changed_calls: u32,
     pub mouse_input_calls: Vec<MouseInput>,
     pub mouse_move_calls: Vec<UiMouseMove>,
     pub mouse_entered_calls: u32,
@@ -57,7 +58,11 @@ impl Ui for TestChild {
     }
 
     fn window_focused(&mut self, focused: bool, _values: &mut UiValues, _update: &mut NextUpdate) {
-        self.0.borrow_mut().focused_calls.push(focused);
+        self.0.borrow_mut().window_focused_calls.push(focused);
+    }
+
+    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+        self.0.borrow_mut().focus_changed_calls += 1;
     }
 
     fn mouse_input(&mut self, input: &MouseInput, _hits: &Hits, _values: &mut UiValues, _update: &mut NextUpdate) {

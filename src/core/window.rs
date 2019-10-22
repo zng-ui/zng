@@ -97,7 +97,7 @@ impl Window {
         let gl = match context.get_api() {
             Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
             Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-            Api::WebGl => unimplemented!(),
+            Api::WebGl => panic!("WebGl is not supported"),
         };
 
         let dpi_factor = context.window().hidpi_factor() as f32;
@@ -286,7 +286,9 @@ impl Window {
                 self.ui_values.clear_child_values()
             }
             WindowEvent::Focused(focused) => {
-                if !focused {
+                if focused {
+                    self.next_update.focus(FocusRequest::Direct(self.window_focus_key));
+                } else {
                     self.key_down = None;
                 }
                 self.content
@@ -346,6 +348,11 @@ impl Window {
         if let Some(request) = self.next_update.focus_request.take() {
             let new_focused = self.focus_map.focus(self.focused, request);
             if new_focused != self.focused {
+                self.content.focus_changed(
+                    &FocusChange::new(self.focused, new_focused),
+                    &mut self.ui_values,
+                    &mut self.next_update,
+                );
                 self.focused = new_focused;
             }
         }

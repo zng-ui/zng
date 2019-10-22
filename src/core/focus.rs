@@ -26,6 +26,12 @@ pub enum FocusRequest {
     Down,
 }
 
+#[derive(new)]
+pub struct FocusChange {
+    pub old_focus: Option<FocusKey>,
+    pub new_focus: Option<FocusKey>,
+}
+
 pub enum FocusState {
     NotFocused,
     NotActive,
@@ -113,7 +119,7 @@ impl FocusMap {
     }
 
     fn starting_point(&self) -> Option<FocusKey> {
-        unimplemented!()
+        self.entries.first().map(|e| e.key)
     }
 
     fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
@@ -140,9 +146,7 @@ impl FocusMap {
         if let Some(i) = self.position(key) {
             let scope_i = self.entries[i].parent_scope;
             if let Some(scope) = &self.entries[scope_i].scope {
-                if scope.capture {
-                    // https://doc.qt.io/qt-5/qtquick-keyinteraction-example.html#
-                }
+                if scope.capture {}
             }
         }
         key

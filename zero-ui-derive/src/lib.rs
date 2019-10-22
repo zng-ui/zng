@@ -597,6 +597,7 @@ fn ui_defaults(
             fn arrange(&mut self, final_size: LayoutSize) { }
             fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) { }
             fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) { }
+            fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) { }
             fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) { }
