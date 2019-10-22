@@ -32,7 +32,7 @@ impl NextUpdate {
             focus_request: None,
             _request_close: false,
 
-            has_update: false,
+            has_update: true,
         }
     }
 

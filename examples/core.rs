@@ -42,7 +42,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                     .font_size(90)
                     .background_color(Var::clone(&bkg_color))
                     .text_color(rgb(0, 150, 0))
-                    //.focusable()
+                    .focusable()
                     .on_key_down(move |k, _| {
                         println!("Key down @ text.{}: {}", i, k);
                         //k.stop_propagation();
@@ -69,7 +69,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
                             },
                         ],
                     )
-                    //.focusable()
+                    .focusable()
                     .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
                     .width(200.)
                     .margin(2.)

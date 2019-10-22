@@ -7,28 +7,27 @@ pub struct Focusable<C: Ui> {
     focused: bool,
 }
 #[impl_ui_crate(child)]
-impl<C: Ui> Focusable<C> {
-    #[Ui]
+impl<C: Ui> Ui for Focusable<C> {
+    fn render(&self, f: &mut NextFrame){
+        f.push_focusable(self.key, &LayoutRect::from_size(f.final_size()));
+
+        self.child.render(f);
+    }
+
     fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.focus_changed(change, values, update);
 
         self.focused = Some(self.key) == change.new_focus;
-
-        if self.focused {
-            println!("{:?}", self.key);
-        }
     }
 
-    #[Ui]
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-        if input.state == ElementState::Pressed {
+        if input.state == ElementState::Pressed && self.child.point_over(hits).is_some() {
             update.focus(FocusRequest::Direct(self.key));
         }
 
         self.child.mouse_input(input, hits, values, update);
     }
 
-    #[Ui]
     fn focus_status(&self) -> Option<FocusStatus> {
         if self.focused {
             Some(FocusStatus::Focused)
