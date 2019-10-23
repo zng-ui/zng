@@ -331,6 +331,85 @@ pub trait MouseEvents: Ui + Sized {
 }
 impl<T: Ui + Sized> MouseEvents for T {}
 
+macro_rules! on_focus_events {
+    ($Type:ident, $focused: ident, $if_focused: expr) => {
+        #[derive(new)]
+        pub struct $Type<T: Ui, F: FnMut(&mut NextUpdate)> {
+            child: T,
+            handler: F,
+            #[new(default)]
+            was_focused: bool,
+        }
+
+        #[impl_ui_crate(child)]
+        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
+            fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+                self.child.focus_changed(change, values, update);
+
+                let $focused = self.child.focus_status() == Some(FocusStatus::Focused);
+
+                if $if_focused && self.was_focused != $focused {
+                    (self.handler)(update);
+                }
+
+                self.was_focused = $focused;
+            }
+        }
+    };
+}
+
+macro_rules! on_focus_within_events {
+    ($Type:ident, $is_in: ident, $if_is_in: expr) => {
+        #[derive(new)]
+        pub struct $Type<T: Ui, F: FnMut(&mut NextUpdate)> {
+            child: T,
+            handler: F,
+            #[new(default)]
+            was_in: bool,
+        }
+
+        #[impl_ui_crate(child)]
+        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
+            fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+                self.child.focus_changed(change, values, update);
+
+                let $is_in = self.child.focus_status().is_some();
+
+                if $if_is_in && self.was_in != $is_in {
+                    (self.handler)(update);
+                }
+
+                self.was_in = $is_in;
+            }
+        }
+    };
+}
+
+on_focus_events!(OnFocus, focused, focused);
+on_focus_events!(OnBlur, focused, !focused);
+
+on_focus_within_events!(OnFocusEnter, focused, focused);
+on_focus_within_events!(OnFocusLeave, focused, !focused);
+
+pub trait FocusEvents: Ui + Sized {
+    fn on_focus<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocus<Self, F> {
+        OnFocus::new(self, handler)
+    }
+
+    fn on_blur<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnBlur<Self, F> {
+        OnBlur::new(self, handler)
+    }
+
+    fn on_focus_enter<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocusEnter<Self, F> {
+        OnFocusEnter::new(self, handler)
+    }
+
+    fn on_focus_leave<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocusLeave<Self, F> {
+        OnFocusLeave::new(self, handler)
+    }
+}
+impl<T: Ui + Sized> FocusEvents for T {}
+
 #[derive(Debug)]
 pub struct KeyDown {
     pub key: VirtualKeyCode,

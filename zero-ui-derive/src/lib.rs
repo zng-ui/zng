@@ -364,7 +364,7 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     };
 
     //let test = format!("{}", result);
-    //if test.contains("FillColor") {
+    //if test.contains("FocusOnInit") {
     //    println!("{}", test);
     //}
 

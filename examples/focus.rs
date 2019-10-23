@@ -18,10 +18,13 @@ fn item(i: usize) -> impl Ui {
         .font_size(90)
         .background_color(Var::clone(&bkg_color))
         .text_color(rgb(0, 150, 0))
-        //.focusable()
-        .on_key_down(move |k, _| {
-            //println!("Key down @ text.{}: {}", i, k);
-            //k.stop_propagation();
+        .focusable()
+        .focused(i == 2)
+        .on_focus(move |_| {
+            println!("OnFocus: {}", i);
+        })
+        .on_blur(move |_| {
+            println!("OnBlur: {}", i);
         })
         .center()
         .cursor(CursorIcon::Hand)
@@ -34,7 +37,12 @@ fn item(i: usize) -> impl Ui {
         .background_gradient((0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)])
         .border(3.0, (rgb(255, 255, 255), BorderStyle::Ridge))
         .focusable()
-        //.on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
         .width(200.)
         .margin(2.)
+        .on_focus_enter(move |_| {
+            println!("OnFocusEnter: {}", i);
+        })
+        .on_focus_leave(move |_| {
+            println!("OnFocusLeave: {}", i);
+        })
 }
