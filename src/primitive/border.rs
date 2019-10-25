@@ -20,6 +20,26 @@ impl IntoValue<BorderDetails> for ColorF {
     }
 }
 
+impl IntoValue<BorderDetails> for Var<ColorF> {
+    type Value = Var<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        self.map(|color: &ColorF| {
+            let border_side = BorderSide {
+                color: *color,
+                style: BorderStyle::Solid,
+            };
+            BorderDetails {
+                left: border_side,
+                right: border_side,
+                top: border_side,
+                bottom: border_side,
+                radius: BorderRadius::zero(),
+            }
+        })
+    }
+}
+
 impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
     type Value = Owned<BorderDetails>;
 

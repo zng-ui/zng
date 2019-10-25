@@ -136,6 +136,11 @@ pub struct Background<T: Ui, B: Ui> {
 
 #[impl_ui_crate(child)]
 impl<T: Ui, B: Ui> Ui for Background<T, B> {
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.background.init(values, update);
+        self.child.init(values, update);
+    }
+
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         let available_size = self.child.measure(available_size);
         self.background.measure(available_size);
@@ -145,6 +150,16 @@ impl<T: Ui, B: Ui> Ui for Background<T, B> {
     fn arrange(&mut self, final_size: LayoutSize) {
         self.background.arrange(final_size);
         self.child.arrange(final_size);
+    }
+
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.background.value_changed(values, update);
+        self.child.value_changed(values, update);
+    }
+
+    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.background.parent_value_changed(values, update);
+        self.child.parent_value_changed(values, update);
     }
 
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {

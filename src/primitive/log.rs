@@ -9,6 +9,10 @@ pub trait UiLog: Ui + Sized {
     fn log_render(self, target: &'static str) -> LogRender<Self> {
         LogRender::new(self, target)
     }
+
+    fn log_value_changed(self, target: &'static str) -> LogValueChanged<Self> {
+        LogValueChanged::new(self, target)
+    }
 }
 impl<T: Ui> UiLog for T {}
 
@@ -54,6 +58,21 @@ impl<T: Ui> LogRender<T> {
     fn render(&self, f: &mut NextFrame) {
         self.child.render(f);
         info!(target: self.target, "render({})", f.final_size());
+    }
+}
+
+#[derive(new)]
+pub struct LogValueChanged<T: Ui> {
+    child: T,
+    target: &'static str,
+}
+
+#[impl_ui_crate(child)]
+impl<T: Ui> LogValueChanged<T> {
+    #[Ui]
+    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.value_changed(values, update);
+        info!(target: self.target, "value_changed");
     }
 }
 

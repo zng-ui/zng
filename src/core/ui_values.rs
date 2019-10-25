@@ -7,6 +7,7 @@ use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
+use retain_mut::*;
 
 macro_rules! ui_value_key {
     ($(
@@ -158,10 +159,23 @@ struct VarData<T> {
     value: RefCell<T>,
     pending: Cell<Box<dyn FnOnce(&mut T)>>,
     changed: Cell<bool>,
+    listeners: RefCell<Vec<Box<dyn FnMut(&T) -> ListenerStatus>>>,
+}
+
+#[derive(PartialEq, Eq)]
+enum ListenerStatus {
+    Alive,
+    Dead,
 }
 
 pub struct Var<T> {
     r: Rc<VarData<T>>,
+}
+
+impl<T> Clone for Var<T> {
+    fn clone(&self) -> Self {
+        Var { r: Rc::clone(&self.r) }
+    }
 }
 
 impl<T: 'static> Var<T> {
@@ -171,18 +185,30 @@ impl<T: 'static> Var<T> {
                 value: RefCell::new(value),
                 pending: Cell::new(Box::new(|_| {})),
                 changed: Cell::new(false),
+                listeners: Default::default(),
             }),
         }
     }
 
+    /// Gets a `Var<R>` that is set using a `map` function when this value changes.
+    pub fn map<R: 'static, F: FnMut(&T) -> R + 'static>(&self, mut map: F) -> Var<R> {
+        let target = Var::new(map(self));
+        let weak_target = Rc::downgrade(&target.r);
+
+        self.r.listeners.borrow_mut().push(Box::new(move |new_value| {
+            if let Some(live_target) = weak_target.upgrade() {
+                *live_target.value.borrow_mut() = map(new_value);
+                live_target.changed.set(true);
+                ListenerStatus::Alive
+            } else {
+                ListenerStatus::Dead
+            }
+        }));
+        target
+    }
+
     pub(crate) fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
         self.r.pending.set(Box::new(change));
-    }
-}
-
-impl<T> Clone for Var<T> {
-    fn clone(&self) -> Self {
-        Var { r: Rc::clone(&self.r) }
     }
 }
 
@@ -245,6 +271,10 @@ impl<T> VarChange for Var<T> {
         let change = self.r.pending.replace(Box::new(|_| {}));
         change(&mut self.r.value.borrow_mut());
         self.r.changed.set(true);
+
+        let new_value = self.r.value.borrow();
+
+        self.r.listeners.borrow_mut().retain_mut(|l|l(&new_value) == ListenerStatus::Alive);
     }
 
     fn reset_changed(&mut self) {

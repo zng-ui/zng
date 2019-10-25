@@ -3,7 +3,7 @@
 use zero_ui::{core::*, primitive::*, *};
 
 fn main() {
-    //start_logger_for("log_target");
+    //start_logger_for("test");
     app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), widow);
 }
 
@@ -13,6 +13,7 @@ fn widow(_: &mut NextUpdate) -> impl Ui {
 
 fn item(i: usize) -> impl Ui {
     let bkg_color = Var::new(rgb(255, 255, 255));
+    let border = Var::new(rgba(0, 0, 0, 0.0));
     text("Ola")
         .font_family("Arial".to_owned())
         .font_size(90)
@@ -35,14 +36,14 @@ fn item(i: usize) -> impl Ui {
             u.set(&bkg_color, rgb(255, 255, 255));
         })
         .background_gradient((0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)])
-        .border(3.0, (rgb(255, 255, 255), BorderStyle::Ridge))
-        .focusable()
-        .width(200.)
+        .border(4., Var::clone(&border))
         .margin(2.)
-        .on_focus_enter(move |_| {
-            println!("OnFocusEnter: {}", i);
-        })
-        .on_focus_leave(move |_| {
-            println!("OnFocusLeave: {}", i);
+        .width(200.)
+        .focusable()
+        .on_focus_enter(enclose! {(border)move |u| {
+            u.set(&border, rgb(145, 218, 255));
+        }})
+        .on_focus_leave(move |u| {
+            u.set(&border, rgba(0, 0, 0, 0.0));
         })
 }
