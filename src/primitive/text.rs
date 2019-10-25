@@ -92,7 +92,7 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 
     #[Ui]
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        if self.text.changed() {
+        if self.text.touched() {
             self.update(values, update);
         }
     }

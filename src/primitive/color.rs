@@ -63,7 +63,7 @@ pub struct FillColor<C: Value<ColorF>> {
 impl<C: Value<ColorF>> FillColor<C> {
     #[Ui]
     fn value_changed(&mut self, _: &mut UiValues, update: &mut NextUpdate) {
-        if self.color.changed() {
+        if self.color.touched() {
             update.render_frame();
         }
     }

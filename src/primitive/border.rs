@@ -145,11 +145,11 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
     }
 
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        if self.widths.changed() {
+        if self.widths.touched() {
             update.update_layout();
         }
 
-        if self.details.changed() {
+        if self.details.touched() {
             update.render_frame();
         }
 

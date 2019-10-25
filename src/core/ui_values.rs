@@ -127,15 +127,25 @@ mod private {
     pub trait Sealed {}
 }
 
+/// A value used in a `Ui`. Derefs to `T`.
+///
+/// Use this as a generic constrain to work with both [Owned] values and [Var] references.
+///
+/// ## See also
+/// * [IntoValue]: For making constructors.
 pub trait Value<T>: private::Sealed + Deref<Target = T> {
-    fn changed(&self) -> bool;
+    /// If the value was set in the last update.
+    fn touched(&self) -> bool;
 
-    /// Gets if `self` and `other` derefs to the same data.
-    fn is_same<O: Value<T>>(&self, other: &O) -> bool {
+    /// Gets if `self` and `other` point to the same data.
+    fn ptr_eq<O: Value<T>>(&self, other: &O) -> bool {
         std::ptr::eq(self.deref(), other.deref())
     }
 }
 
+/// An owned `'static` [Value].
+///
+/// This is used constructed by a [IntoValue].
 #[derive(Clone)]
 pub struct Owned<T>(pub T);
 
@@ -150,7 +160,8 @@ impl<T> Deref for Owned<T> {
 }
 
 impl<T: 'static> Value<T> for Owned<T> {
-    fn changed(&self) -> bool {
+    /// Always `false`.
+    fn touched(&self) -> bool {
         false
     }
 }
@@ -158,7 +169,7 @@ impl<T: 'static> Value<T> for Owned<T> {
 struct VarData<T> {
     value: RefCell<T>,
     pending: Cell<Box<dyn FnOnce(&mut T)>>,
-    changed: Cell<bool>,
+    touched: Cell<bool>,
     listeners: RefCell<Vec<Box<dyn FnMut(&T) -> ListenerStatus>>>,
 }
 
@@ -168,37 +179,40 @@ enum ListenerStatus {
     Dead,
 }
 
+/// A reference counted [Value] that can change.
 pub struct Var<T> {
     r: Rc<VarData<T>>,
 }
 
 impl<T> Clone for Var<T> {
+    /// Returns a new reference to the value.
     fn clone(&self) -> Self {
         Var { r: Rc::clone(&self.r) }
     }
 }
 
 impl<T: 'static> Var<T> {
+    /// New var with starting `value`.
     pub fn new(value: T) -> Self {
         Var {
             r: Rc::new(VarData {
                 value: RefCell::new(value),
                 pending: Cell::new(Box::new(|_| {})),
-                changed: Cell::new(false),
+                touched: Cell::new(false),
                 listeners: Default::default(),
             }),
         }
     }
 
-    /// Gets a `Var<R>` that is set using a `map` function when this value changes.
-    pub fn map<R: 'static, F: FnMut(&T) -> R + 'static>(&self, mut map: F) -> Var<R> {
+    /// Gets a `Var<B>` that is set using a `map` function every time this var changes.
+    pub fn map<B: 'static, F: FnMut(&T) -> B + 'static>(&self, mut map: F) -> Var<B> {
         let target = Var::new(map(self));
         let weak_target = Rc::downgrade(&target.r);
 
         self.r.listeners.borrow_mut().push(Box::new(move |new_value| {
             if let Some(live_target) = weak_target.upgrade() {
                 *live_target.value.borrow_mut() = map(new_value);
-                live_target.changed.set(true);
+                live_target.touched.set(true);
                 ListenerStatus::Alive
             } else {
                 ListenerStatus::Dead
@@ -207,6 +221,7 @@ impl<T: 'static> Var<T> {
         target
     }
 
+    /// Sets the pending value change for the next update.
     pub(crate) fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
         self.r.pending.set(Box::new(change));
     }
@@ -232,18 +247,20 @@ impl<T> Deref for Var<T> {
 impl<T> private::Sealed for Var<T> {}
 
 impl<T> Value<T> for Var<T> {
-    fn changed(&self) -> bool {
-        self.r.changed.get()
+    /// Gets if the var was set in the last update.
+    fn touched(&self) -> bool {
+        self.r.touched.get()
     }
 }
 
+/// Into `[Value]<T>`.
 pub trait IntoValue<T> {
     type Value: Value<T>;
 
     fn into_value(self) -> Self::Value;
 }
 
-/// Does nothing. `Var<T>` already implements `Value<T>`.
+/// Does nothing. `[Var]<T>` already implements `Value<T>`.
 impl<T> IntoValue<T> for Var<T> {
     type Value = Var<T>;
 
@@ -252,7 +269,7 @@ impl<T> IntoValue<T> for Var<T> {
     }
 }
 
-/// Wraps the value in an `Owned<T>` value.
+/// Wraps the value in an `[Owned]<T>` value.
 impl<T: 'static> IntoValue<T> for T {
     type Value = Owned<T>;
 
@@ -261,24 +278,27 @@ impl<T: 'static> IntoValue<T> for T {
     }
 }
 
+/// [Var] updating methods, separated to allow dynamic dispatch.
 pub(crate) trait VarChange {
+    /// Commits the pending value and set touched to `true`.
     fn commit(&mut self);
-    fn reset_changed(&mut self);
+    /// Resets touched to `false`.
+    fn reset_touched(&mut self);
 }
 
 impl<T> VarChange for Var<T> {
     fn commit(&mut self) {
         let change = self.r.pending.replace(Box::new(|_| {}));
         change(&mut self.r.value.borrow_mut());
-        self.r.changed.set(true);
+        self.r.touched.set(true);
 
         let new_value = self.r.value.borrow();
 
         self.r.listeners.borrow_mut().retain_mut(|l|l(&new_value) == ListenerStatus::Alive);
     }
 
-    fn reset_changed(&mut self) {
-        self.r.changed.set(false);
+    fn reset_touched(&mut self) {
+        self.r.touched.set(false);
     }
 }
 

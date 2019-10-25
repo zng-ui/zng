@@ -19,7 +19,7 @@ impl<T: Ui, V: 'static, R: Value<V>> SetParentValue<T, V, R> {
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
         let child = &mut self.child;
 
-        if self.value.changed() {
+        if self.value.touched() {
             values.with_parent_value(self.key, &self.value, |v| child.parent_value_changed(v, update));
         }
 

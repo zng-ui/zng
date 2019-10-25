@@ -114,7 +114,7 @@ pub fn run<C: Ui + 'static>(
             }
 
             for mut var in value_changes {
-                var.reset_changed();
+                var.reset_touched();
             }
 
             for window_id in to_remove {
