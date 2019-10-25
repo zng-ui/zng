@@ -3,7 +3,7 @@ use crate::core::*;
 #[derive(new)]
 pub struct FocusOnInit<C: Ui> {
     child: Focusable<C>,
-    request_focus: bool
+    request_focus: bool,
 }
 
 #[impl_ui_crate(child)]

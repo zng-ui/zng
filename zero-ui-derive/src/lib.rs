@@ -251,10 +251,13 @@ fn ident(name: &str) -> Ident {
 /// Returns a `TokenStream` with a `compile_error` in the given span with
 /// the given error message.
 macro_rules! error {
-    ($span: expr, $msg: expr) => {{
+    ($span: expr, $ ($ arg : tt) *) => {{
+        let span = $span;
+        let error = format!($($arg)*);
+        let error = LitStr::new(&error, span);
         let error = quote_spanned! {
-            $span=>
-            compile_error!(concat!("#[impl_ui] ", $msg));
+            span=>
+            compile_error!(concat!("#[impl_ui] ", #error));
         };
 
         return TokenStream::from(error);
@@ -280,14 +283,15 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
     let input = parse_macro_input!(input as ItemImpl);
 
     let mut in_ui_impl = false;
-    if let Some((_, trait_, _)) = input.trait_ {
-        if let Some(seg) = trait_.segments.last() {
+    if let Some((_, path, _)) = input.trait_ {
+        if let Some(seg) = path.segments.last() {
             in_ui_impl = seg.ident == ident("Ui");
         }
         if !in_ui_impl {
             error!(
-                trait_.span(),
-                "expected inherent impl or Ui trait impl, found another trait"
+                path.span(),
+                "expected inherent impl or Ui trait impl, found `{}`",
+                quote! {#path}
             )
         }
     }
