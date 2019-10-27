@@ -1,13 +1,13 @@
 use super::{LayoutPoint, LayoutSize};
 use fnv::FnvHashMap;
 use once_cell::sync::OnceCell;
+use retain_mut::*;
 use std::any::Any;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
-use retain_mut::*;
 
 macro_rules! ui_value_key {
     ($(
@@ -294,7 +294,10 @@ impl<T> VarChange for Var<T> {
 
         let new_value = self.r.value.borrow();
 
-        self.r.listeners.borrow_mut().retain_mut(|l|l(&new_value) == ListenerStatus::Alive);
+        self.r
+            .listeners
+            .borrow_mut()
+            .retain_mut(|l| l(&new_value) == ListenerStatus::Alive);
     }
 
     fn reset_touched(&mut self) {

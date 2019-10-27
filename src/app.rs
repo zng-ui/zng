@@ -7,6 +7,7 @@ use fnv::FnvHashMap;
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use webrender::api::{ColorF, LayoutSize};
+use std::time::Instant;
 
 /// Runs the application with arguments for creating the first window.
 ///
@@ -86,45 +87,47 @@ pub fn run<C: Ui + 'static>(
             _ => {}
         }
 
-        if !in_event_sequence && has_update {
-            has_update = false;
+        if !in_event_sequence {
+            while has_update {
+                has_update = false;
 
-            let mut to_remove = vec![];
-            let mut value_changes = vec![];
+                let mut to_remove = vec![];
+                let mut value_changes = vec![];
 
-            for win in windows.values_mut() {
-                value_changes.append(&mut win.value_changes());
-            }
-
-            for var in value_changes.iter_mut() {
-                var.commit();
-            }
-
-            for win in windows.values_mut() {
-                if win.close {
-                    to_remove.push(win.id());
-                    continue;
+                for win in windows.values_mut() {
+                    value_changes.append(&mut win.value_changes());
                 }
 
-                if win.redraw {
-                    win.redraw_and_swap_buffers();
+                for var in value_changes.iter_mut() {
+                    var.commit();
                 }
 
-                win.update(!value_changes.is_empty());
-            }
+                for win in windows.values_mut() {
+                    if win.close {
+                        to_remove.push(win.id());
+                        continue;
+                    }
 
-            for mut var in value_changes {
-                var.reset_touched();
-            }
+                    if win.redraw {
+                        win.redraw_and_swap_buffers();
+                    }
 
-            for window_id in to_remove {
-                let win = windows.remove(&window_id).unwrap();
-                win.deinit();
-            }
+                    has_update |= win.update(!value_changes.is_empty());
+                }
 
-            if windows.is_empty() {
-                *control_flow = ControlFlow::Exit;
-                return;
+                for mut var in value_changes {
+                    var.reset_touched();
+                }
+
+                for window_id in to_remove {
+                    let win = windows.remove(&window_id).unwrap();
+                    win.deinit();
+                }
+
+                if windows.is_empty() {
+                    *control_flow = ControlFlow::Exit;
+                    return;
+                }
             }
         }
     })

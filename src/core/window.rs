@@ -331,17 +331,21 @@ impl Window {
         }
     }
 
-    pub fn update(&mut self, values_changed: bool) {
-        if values_changed {
-            self.content.value_changed(&mut self.ui_values, &mut self.next_update);
-        }
-
-        if self.next_update.has_update {
+    pub fn update(&mut self, values_changed: bool) -> bool {
+        if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
+            if values_changed {
+                self.content.value_changed(&mut self.ui_values, &mut self.next_update);
+            }
             self.update_focus();
+            if self.next_update.has_update {
+                return true;
+            }
             self.update_layout();
             self.send_render_frame();
         }
+
+        false
     }
 
     fn update_focus(&mut self) {
