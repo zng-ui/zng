@@ -66,6 +66,8 @@ struct FocusEntry {
     scope: Option<Box<FocusScopeData>>,
 }
 
+const NO_PARENT_SCOPE: usize = usize::max_value();
+
 #[derive(new)]
 pub(crate) struct FocusMap {
     #[new(default)]
@@ -85,7 +87,7 @@ impl FocusMap {
     }
 
     pub fn push_focus_scope(&mut self, key: FocusKey, origin: LayoutPoint, navigation: KeyNavigation, capture: bool) {
-        let parent_scope = *self.current_scopes.last().unwrap_or(&0);
+        let parent_scope = *self.current_scopes.last().unwrap_or(&NO_PARENT_SCOPE);
 
         self.current_scopes.push(self.entries.len());
         self.entries.push(FocusEntry {
@@ -122,8 +124,40 @@ impl FocusMap {
         self.entries.first().map(|e| e.key)
     }
 
+    fn parent_data(&self, parent_scope: usize) -> Option<&Box<FocusScopeData>> {
+        if parent_scope == NO_PARENT_SCOPE {
+            None
+        } else {
+            self.entries[parent_scope].scope.as_ref()
+        }
+    }
+
+    fn query_capture_scope(&self, parent_scope: usize) -> Option<usize> {
+        if parent_scope == NO_PARENT_SCOPE {
+            None
+        } else {
+            let scope = self.entries[parent_scope].scope.as_ref().unwrap();
+            if scope.capture {
+                Some(parent_scope)
+            } else {
+                self.query_capture_scope(self.entries[parent_scope].parent_scope)
+            }
+        }
+    }
+
+    fn is_inside(&self, parent_scope: usize, scope: usize) -> bool {
+        if parent_scope == NO_PARENT_SCOPE {
+            false
+        } else if parent_scope == scope {
+            true
+        } else {
+            self.is_inside(self.entries[parent_scope].parent_scope, scope)
+        }
+    }
+
     fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
-        let origin = self.entries.iter().filter(|o| o.key == key).next().unwrap().origin;
+        let current = self.entries.iter().filter(|o| o.key == key).next().unwrap();
+        let origin = current.origin;
 
         let mut candidates: Vec<_> = self
             .entries
@@ -133,23 +167,23 @@ impl FocusMap {
                 let o = c.origin;
                 let a = (o.x - origin.x).powf(2.);
                 let b = (o.y - origin.y).powf(2.);
-                (a + b, c.key)
+                (a + b, c.key, c.parent_scope)
             })
             .collect();
 
         candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-        candidates.first().map(|c| c.1).unwrap_or(key)
-    }
-
-    fn escape(&self, key: FocusKey) -> FocusKey {
-        if let Some(i) = self.position(key) {
-            let scope_i = self.entries[i].parent_scope;
-            if let Some(scope) = &self.entries[scope_i].scope {
-                if scope.capture {}
+        if let Some(scope) = self.query_capture_scope(current.parent_scope) {
+            if let Some(c) = candidates.iter().filter(|c| self.is_inside(c.2, scope)).next() {
+                return c.1;
             }
         }
-        key
+
+        if let Some(c) = candidates.first() {
+            c.1
+        } else {
+            key
+        }
     }
 
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
@@ -159,7 +193,7 @@ impl FocusMap {
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => unimplemented!(),
             (FocusRequest::Prev, Some(key)) => unimplemented!(),
-            (FocusRequest::Escape, Some(key)) => Some(self.escape(key)),
+            (FocusRequest::Escape, Some(key)) => unimplemented!(),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }

@@ -6,8 +6,8 @@ use fnv::FnvHashMap;
 
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
-use webrender::api::{ColorF, LayoutSize};
 use std::time::Instant;
+use webrender::api::{ColorF, LayoutSize};
 
 /// Runs the application with arguments for creating the first window.
 ///
@@ -64,12 +64,6 @@ pub fn run<C: Ui + 'static>(
             Event::WindowEvent { window_id, event } => {
                 if let Some(win) = windows.get_mut(&window_id) {
                     has_update |= win.event(event);
-                    let wins = win.new_window_requests();
-                    for new_win in wins {
-                        let win = Window::new(new_win, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
-
-                        windows.insert(win.id(), win);
-                    }
                 }
             }
             Event::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
@@ -91,42 +85,59 @@ pub fn run<C: Ui + 'static>(
             while has_update {
                 has_update = false;
 
+                // windows creation/destruction updates
                 let mut to_remove = vec![];
-                let mut value_changes = vec![];
-
+                let mut new_windows = vec![];
                 for win in windows.values_mut() {
-                    value_changes.append(&mut win.value_changes());
-                }
+                    new_windows.append(&mut win.new_window_requests());
 
-                for var in value_changes.iter_mut() {
-                    var.commit();
-                }
-
-                for win in windows.values_mut() {
                     if win.close {
                         to_remove.push(win.id());
-                        continue;
                     }
-
-                    if win.redraw {
-                        win.redraw_and_swap_buffers();
-                    }
-
-                    has_update |= win.update(!value_changes.is_empty());
                 }
-
-                for mut var in value_changes {
-                    var.reset_touched();
+                for new_win in new_windows {
+                    let win = Window::new(new_win, &event_loop, event_loop_proxy.clone(), Arc::clone(&ui_threads));
+                    windows.insert(win.id(), win);
                 }
-
                 for window_id in to_remove {
                     let win = windows.remove(&window_id).unwrap();
                     win.deinit();
                 }
 
+                // if we have no window left.
                 if windows.is_empty() {
+                    // exit application.
                     *control_flow = ControlFlow::Exit;
                     return;
+                }
+
+                // value updates & window content updates
+
+                // value updates affect all windows, collect all changed vars
+                let mut value_changes = vec![];
+                for win in windows.values_mut() {
+                    value_changes.append(&mut win.value_changes());
+                }
+                // commit changes and set touched = true
+                for var in value_changes.iter_mut() {
+                    var.commit();
+                }
+
+                // do all window content updates.
+                for win in windows.values_mut() {
+                    // if a window has a frame ready to show
+                    if win.redraw {
+                        // show new frame
+                        win.redraw_and_swap_buffers();
+                    }
+
+                    // do content update, it can cause another update
+                    has_update |= win.update(!value_changes.is_empty());
+                }
+
+                // value updates done, reset touched flag.
+                for mut var in value_changes {
+                    var.reset_touched();
                 }
             }
         }
