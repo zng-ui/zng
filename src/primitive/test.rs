@@ -61,7 +61,7 @@ impl Ui for TestChild {
         self.0.borrow_mut().window_focused_calls.push(focused);
     }
 
-    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+    fn focus_changed(&mut self, _change: &FocusChange, _values: &mut UiValues, _update: &mut NextUpdate) {
         self.0.borrow_mut().focus_changed_calls += 1;
     }
 
@@ -109,7 +109,7 @@ pub fn test_next_frame() -> NextFrame {
     let builder = DisplayListBuilder::new(pipeline_id, size);
     let spatial_id = SpatialId::root_reference_frame(pipeline_id);
 
-    NextFrame::new(builder, spatial_id, size, FocusKey::new())
+    NextFrame::new(builder, spatial_id, size, FocusKey::new_unique())
 }
 
 pub fn test_next_update() -> NextUpdate {

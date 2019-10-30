@@ -105,12 +105,9 @@ macro_rules! on_mouse {
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
 
-                if values.child(*$stop_tag).is_some() {
-                    return;
-                }
-
-                if let Some(position) = self.child.point_over(hits) {
-                    if let ElementState::$state = input.state {
+                //child didn't stop propagation
+                if values.child(*$stop_tag).is_none() {
+                    if let (ElementState::$state, Some(position)) = (input.state, self.child.point_over(hits)) {
                         let stop = Rc::default();
 
                         let input = MouseButtonInput {
@@ -222,7 +219,7 @@ impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
 
 #[cfg(target_os = "windows")]
 fn multi_click_time_ms() -> Duration {
-    Duration::from_millis(unsafe { winapi::um::winuser::GetDoubleClickTime() } as u64)
+    Duration::from_millis(u64::from(unsafe { winapi::um::winuser::GetDoubleClickTime() }))
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -451,7 +448,7 @@ impl MouseMove {
     }
 }
 
-fn display_modifiers(m: &ModifiersState, f: &mut fmt::Formatter) -> fmt::Result {
+fn display_modifiers(m: ModifiersState, f: &mut fmt::Formatter) -> fmt::Result {
     if m.ctrl {
         write!(f, "Ctrl + ")?;
     }
@@ -478,7 +475,7 @@ impl fmt::Display for KeyDown {
             | VirtualKeyCode::LAlt
             | VirtualKeyCode::RAlt => write!(f, "{:?}", self.key)?,
             _ => {
-                display_modifiers(&self.modifiers, f)?;
+                display_modifiers(self.modifiers, f)?;
                 write!(f, "{:?}", self.key)?;
             }
         }
@@ -505,7 +502,7 @@ impl fmt::Display for KeyUp {
             | VirtualKeyCode::LAlt
             | VirtualKeyCode::RAlt => write!(f, "{:?}", self.key)?,
             _ => {
-                display_modifiers(&self.modifiers, f)?;
+                display_modifiers(self.modifiers, f)?;
                 write!(f, "{:?}", self.key)?;
             }
         }
@@ -548,14 +545,14 @@ impl ClickInput {
 
 impl fmt::Display for MouseButtonInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        display_modifiers(&self.modifiers, f)?;
+        display_modifiers(self.modifiers, f)?;
         write!(f, "{:?} {}", self.button, self.position)
     }
 }
 
 impl fmt::Display for ClickInput {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        display_modifiers(&self.modifiers, f)?;
+        display_modifiers(self.modifiers, f)?;
         write!(f, "{:?} {}", self.button, self.position)?;
         match self.click_count {
             0..=1 => {}

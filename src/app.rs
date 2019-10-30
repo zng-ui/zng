@@ -6,7 +6,6 @@ use fnv::FnvHashMap;
 
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
-use std::time::Instant;
 use webrender::api::{ColorF, LayoutSize};
 
 /// Runs the application with arguments for creating the first window.

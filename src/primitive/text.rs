@@ -23,7 +23,7 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 
         Text {
             text,
-            hit_tag: HitTag::new(),
+            hit_tag: HitTag::new_unique(),
 
             glyphs: vec![],
             size: LayoutSize::default(),

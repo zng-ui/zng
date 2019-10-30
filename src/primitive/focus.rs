@@ -66,7 +66,7 @@ impl<C: Ui> Focusable<C> {
 
 pub trait FocusableExt: Ui + Sized {
     fn focusable(self) -> Focusable<Self> {
-        Focusable::new(self, FocusKey::new())
+        Focusable::new(self, FocusKey::new_unique())
     }
 
     fn focusable_with_key(self, key: FocusKey) -> Focusable<Self> {
@@ -82,7 +82,7 @@ pub struct FocusScope<C: Ui> {
     navigation: KeyNavigation,
     capture: bool,
     #[new(default)]
-    logical_focus: Option<FocusKey>,
+    _logical_focus: Option<FocusKey>,
 }
 #[impl_ui_crate(child)]
 impl<C: Ui> Ui for FocusScope<C> {
@@ -99,7 +99,7 @@ impl<C: Ui> Ui for FocusScope<C> {
 
 pub trait FocusScopeExt: Ui + Sized {
     fn focus_scope(self, navigation: KeyNavigation, capture: bool) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new(), navigation, capture)
+        FocusScope::new(self, FocusKey::new_unique(), navigation, capture)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}

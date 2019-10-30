@@ -19,7 +19,7 @@ macro_rules! uid {
                 ///
                 /// # Panics
                 /// Panics if called more then `u64::max_value()` times.
-                pub fn new() -> Self {
+                pub fn new_unique() -> Self {
                     use std::sync::atomic::{AtomicU64, Ordering};
                     static NEXT: AtomicU64 = AtomicU64::new(1);
 

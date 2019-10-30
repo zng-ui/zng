@@ -11,7 +11,7 @@ macro_rules! stack {
             pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
                 $Stack {
                     children: children.into(),
-                    hit_tag: HitTag::new(),
+                    hit_tag: HitTag::new_unique(),
                 }
             }
 

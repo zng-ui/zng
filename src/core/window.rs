@@ -82,7 +82,10 @@ impl Window {
 
         let window_builder = WindowBuilder::new()
             .with_visible(false)
-            .with_inner_size(LogicalSize::new(inner_size.width as f64, inner_size.height as f64));
+            .with_inner_size(LogicalSize::new(
+                f64::from(inner_size.width),
+                f64::from(inner_size.height),
+            ));
 
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
@@ -100,7 +103,7 @@ impl Window {
             Api::WebGl => panic!("WebGl is not supported"),
         };
 
-        let dpi_factor = context.window().hidpi_factor() as f32;
+        let dpi_factor = dbg!(context.window().hidpi_factor()) as f32;
         let device_size = {
             let size: LayoutSize = inner_size * euclid::TypedScale::new(dpi_factor);
             DeviceIntSize::new(size.width as i32, size.height as i32)
@@ -139,7 +142,7 @@ impl Window {
             dpi_factor,
             inner_size,
 
-            window_focus_key: FocusKey::new(),
+            window_focus_key: FocusKey::new_unique(),
             focus_map: FocusMap::new(),
             content,
             content_size: LayoutSize::default(),
@@ -174,7 +177,7 @@ impl Window {
             }
             WindowEvent::HiDpiFactorChanged(new_dpi_factor) => {
                 let new_dpi_factor = new_dpi_factor as f32;
-                if self.dpi_factor != new_dpi_factor {
+                if (self.dpi_factor - new_dpi_factor).abs() > 0.01 {
                     self.dpi_factor = new_dpi_factor;
                     self.next_update.update_layout();
                 }

@@ -54,7 +54,7 @@ pub enum KeyNavigation {
 }
 
 struct FocusScopeData {
-    navigation: KeyNavigation,
+    _navigation: KeyNavigation,
     capture: bool,
     len: usize,
 }
@@ -95,7 +95,7 @@ impl FocusMap {
             origin: origin + self.offset.to_vector(),
             parent_scope,
             scope: Some(Box::new(FocusScopeData {
-                navigation,
+                _navigation: navigation,
                 capture,
                 len: 0,
             })),
@@ -124,14 +124,6 @@ impl FocusMap {
         self.entries.first().map(|e| e.key)
     }
 
-    fn parent_data(&self, parent_scope: usize) -> Option<&Box<FocusScopeData>> {
-        if parent_scope == NO_PARENT_SCOPE {
-            None
-        } else {
-            self.entries[parent_scope].scope.as_ref()
-        }
-    }
-
     fn query_capture_scope(&self, parent_scope: usize) -> Option<usize> {
         if parent_scope == NO_PARENT_SCOPE {
             None
@@ -156,7 +148,7 @@ impl FocusMap {
     }
 
     fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
-        let current = self.entries.iter().filter(|o| o.key == key).next().unwrap();
+        let current = self.entries.iter().find(|o| o.key == key).unwrap();
         let origin = current.origin;
 
         let mut candidates: Vec<_> = self
@@ -174,7 +166,7 @@ impl FocusMap {
         candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
         if let Some(scope) = self.query_capture_scope(current.parent_scope) {
-            if let Some(c) = candidates.iter().filter(|c| self.is_inside(c.2, scope)).next() {
+            if let Some(c) = candidates.iter().find(|c| self.is_inside(c.2, scope)) {
                 return c.1;
             }
         }
@@ -191,9 +183,9 @@ impl FocusMap {
             (FocusRequest::Direct(direct_key), _) => self.position(direct_key).map(|_| direct_key),
             (_, None) => self.starting_point(),
             //Tab - Shift+Tab
-            (FocusRequest::Next, Some(key)) => unimplemented!(),
-            (FocusRequest::Prev, Some(key)) => unimplemented!(),
-            (FocusRequest::Escape, Some(key)) => unimplemented!(),
+            (FocusRequest::Next, Some(_key)) => unimplemented!(),
+            (FocusRequest::Prev, Some(_key)) => unimplemented!(),
+            (FocusRequest::Escape, Some(_key)) => unimplemented!(),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }

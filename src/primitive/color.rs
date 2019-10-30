@@ -19,7 +19,7 @@ impl From<f32> for ColorFComponent {
 
 impl From<u8> for ColorFComponent {
     fn from(u: u8) -> Self {
-        ColorFComponent(u as f32 / 255.)
+        ColorFComponent(f32::from(u) / 255.)
     }
 }
 
@@ -55,7 +55,7 @@ impl IntoValue<Vec<GradientStop>> for Vec<ColorF> {
 #[derive(Clone, new)]
 pub struct FillColor<C: Value<ColorF>> {
     color: C,
-    #[new(value = "HitTag::new()")]
+    #[new(value = "HitTag::new_unique()")]
     hit_tag: HitTag,
 }
 
@@ -88,7 +88,7 @@ pub struct FillGradient<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<V
     start: A,
     end: B,
     stops: S,
-    #[new(value = "HitTag::new()")]
+    #[new(value = "HitTag::new_unique()")]
     hit_tag: HitTag,
 }
 
@@ -172,6 +172,14 @@ impl<T: Ui, B: Ui> Ui for Background<T, B> {
     }
 }
 
+///Background linear gradient.
+/// ## Type arguments
+/// * `T`: child type
+/// * `A`: line start point
+/// * `B`: line end point
+/// * `S`: gradient stops
+pub type BackgroundGradient<T, A, B, S> = Background<T, FillGradient<A, B, S>>;
+
 pub trait BackgroundExt: Ui + Sized {
     fn background_color<C: IntoValue<ColorF>>(self, color: C) -> Background<Self, FillColor<C::Value>> {
         Background::new(self, fill_color(color))
@@ -182,7 +190,7 @@ pub trait BackgroundExt: Ui + Sized {
         start: A,
         end: B,
         stops: S,
-    ) -> Background<Self, FillGradient<A::Value, B::Value, S::Value>> {
+    ) -> BackgroundGradient<Self, A::Value, B::Value, S::Value> {
         Background::new(self, fill_gradient(start, end, stops))
     }
 }

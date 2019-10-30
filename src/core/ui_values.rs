@@ -33,8 +33,8 @@ macro_rules! ui_value_key {
 
         impl<T: 'static> $Key<T> {
             /// New unique key.
-            pub fn new() -> Self {
-                $Key ($Id::new(), PhantomData)
+            pub fn new_unique() -> Self {
+                $Key ($Id::new_unique(), PhantomData)
             }
 
             /// New lazy initialized unique key. Use this for public static
@@ -51,7 +51,7 @@ macro_rules! ui_value_key {
         impl<T: 'static> Deref for $KeyRef<T> {
             type Target = $Key<T>;
             fn deref(&self) -> &Self::Target {
-                self.0.get_or_init(|| $Key::new())
+                self.0.get_or_init($Key::new_unique)
             }
         }
     )+};
@@ -166,11 +166,13 @@ impl<T: 'static> Value<T> for Owned<T> {
     }
 }
 
+type Listener<T> = Box<dyn FnMut(&T) -> ListenerStatus>;
+
 struct VarData<T> {
     value: RefCell<T>,
     pending: Cell<Box<dyn FnOnce(&mut T)>>,
     touched: Cell<bool>,
-    listeners: RefCell<Vec<Box<dyn FnMut(&T) -> ListenerStatus>>>,
+    listeners: RefCell<Vec<Listener<T>>>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -352,8 +354,8 @@ mod ui_values {
     #[test]
     fn with_parent_value() {
         let mut ui_values = UiValues::new();
-        let key1 = ParentValueKey::new();
-        let key2 = ParentValueKey::new();
+        let key1 = ParentValueKey::new_unique();
+        let key2 = ParentValueKey::new_unique();
 
         let val1: u32 = 10;
         let val2: u32 = 11;

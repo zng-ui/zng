@@ -120,7 +120,7 @@ pub struct Border<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> {
     child: T,
     widths: L,
     details: B,
-    #[new(value = "HitTag::new()")]
+    #[new(value = "HitTag::new_unique()")]
     hit_tag: HitTag,
 }
 
