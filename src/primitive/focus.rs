@@ -102,10 +102,8 @@ impl<C: Ui> Ui for FocusScope<C> {
             } else {
                 update.focus(FocusRequest::Next);
             }
-        } else {
-            if self.child.focus_status().is_some() {
-                self.logical_focus = change.new_focus;
-            }
+        } else if self.child.focus_status().is_some() {
+            self.logical_focus = change.new_focus;
         }
     }
 
