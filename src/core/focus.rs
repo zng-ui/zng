@@ -1,4 +1,4 @@
-use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect};
+use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect, LayoutSize};
 
 uid! {
     /// Focusable unique identifier.
@@ -56,6 +56,7 @@ pub enum KeyNavigation {
 struct FocusScopeData {
     _navigation: KeyNavigation,
     capture: bool,
+    size: LayoutSize,
     len: usize,
 }
 
@@ -86,17 +87,18 @@ impl FocusMap {
         self.offset -= final_rect.origin.to_vector();
     }
 
-    pub fn push_focus_scope(&mut self, key: FocusKey, origin: LayoutPoint, navigation: KeyNavigation, capture: bool) {
+    pub fn push_focus_scope(&mut self, key: FocusKey, rect: &LayoutRect, navigation: KeyNavigation, capture: bool) {
         let parent_scope = *self.current_scopes.last().unwrap_or(&NO_PARENT_SCOPE);
 
         self.current_scopes.push(self.entries.len());
         self.entries.push(FocusEntry {
             key,
-            origin: origin + self.offset.to_vector(),
+            origin: rect.center() + self.offset.to_vector(),
             parent_scope,
             scope: Some(Box::new(FocusScopeData {
                 _navigation: navigation,
                 capture,
+                size: rect.size,
                 len: 0,
             })),
         });
@@ -178,12 +180,53 @@ impl FocusMap {
         }
     }
 
+    fn next(&self, key: FocusKey) -> FocusKey {
+        // current focused index
+        let curr_i = self.entries.iter().position(|o| o.key == key).unwrap();
+
+        // if current is focus scope
+        if let Some(scope) = &self.entries[curr_i].scope {
+            // next is closest to top-left.
+
+            let mut anchor = self.entries[curr_i].origin;
+            anchor.x -= scope.size.width / 2.0;
+            anchor.y -= scope.size.height / 2.0;
+
+            let mut candidates: Vec<_> = self
+                .entries
+                .iter()
+                .filter(|e| e.parent_scope == curr_i)
+                .map(|c| {
+                    let o = c.origin;
+                    let a = (o.x - anchor.x).powf(2.);
+                    let b = (o.y - anchor.y).powf(2.);
+                    (a + b, c.key)
+                })
+                .collect();
+
+            candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            if let Some(c) = candidates.first() {
+                return c.1;
+            }
+        } else {
+            let next = self.next_towards(FocusRequest::Right, key);
+
+            if next != key {
+                return next;
+            } else {
+                unimplemented!("next line not implemented")
+            }
+        }
+        key
+    }
+
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
         match (r, focused) {
             (FocusRequest::Direct(direct_key), _) => self.position(direct_key).map(|_| direct_key),
             (_, None) => self.starting_point(),
             //Tab - Shift+Tab
-            (FocusRequest::Next, Some(_key)) => unimplemented!(),
+            (FocusRequest::Next, Some(key)) => Some(self.next(key)),
             (FocusRequest::Prev, Some(_key)) => unimplemented!(),
             (FocusRequest::Escape, Some(_key)) => unimplemented!(),
             //Arrow Keys

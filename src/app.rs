@@ -1,5 +1,8 @@
+use crate::core::FocusKey;
 use crate::core::{NewWindow, NextUpdate, Ui, WebRenderEvent, Window};
 use rayon::ThreadPoolBuilder;
+use std::cell::Cell;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use fnv::FnvHashMap;
@@ -48,6 +51,7 @@ pub fn run<C: Ui + 'static>(
 
     let mut in_event_sequence = false;
     let mut has_update = true;
+    let focused = Focused::default();
 
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -131,7 +135,7 @@ pub fn run<C: Ui + 'static>(
                     }
 
                     // do content update, it can cause another update
-                    has_update |= win.update(!value_changes.is_empty());
+                    has_update |= win.update(!value_changes.is_empty(), Rc::clone(&focused));
                 }
 
                 // value updates done, reset touched flag.
@@ -142,3 +146,5 @@ pub fn run<C: Ui + 'static>(
         }
     })
 }
+
+pub(crate) type Focused = Rc<Cell<Option<FocusKey>>>;

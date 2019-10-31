@@ -82,10 +82,33 @@ pub struct FocusScope<C: Ui> {
     navigation: KeyNavigation,
     capture: bool,
     #[new(default)]
-    _logical_focus: Option<FocusKey>,
+    logical_focus: Option<FocusKey>,
 }
+
+impl<C: Ui> FocusScope<C> {
+    pub(crate) fn key(&self) -> FocusKey {
+        self.key
+    }
+}
+
 #[impl_ui_crate(child)]
 impl<C: Ui> Ui for FocusScope<C> {
+    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.focus_changed(change, values, update);
+
+        if change.new_focus == Some(self.key) {
+            if let (true, Some(logical_focus)) = (self.capture, self.logical_focus) {
+                update.focus(FocusRequest::Direct(logical_focus));
+            } else {
+                update.focus(FocusRequest::Next);
+            }
+        } else {
+            if self.child.focus_status().is_some() {
+                self.logical_focus = change.new_focus;
+            }
+        }
+    }
+
     fn render(&self, f: &mut NextFrame) {
         f.push_focus_scope(
             self.key,

@@ -1,4 +1,6 @@
 use super::*;
+use crate::app::Focused;
+use crate::primitive::{FocusScope, FocusScopeExt};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -50,9 +52,8 @@ pub(crate) struct Window {
     dpi_factor: f32,
     inner_size: LayoutSize,
 
-    window_focus_key: FocusKey,
     focus_map: FocusMap,
-    content: Box<dyn Ui>,
+    content: FocusScope<Box<dyn Ui>>,
     content_size: LayoutSize,
 
     first_draw: bool,
@@ -67,7 +68,6 @@ pub(crate) struct Window {
     cursor: CursorIcon,
 
     ui_values: UiValues,
-    focused: Option<FocusKey>,
 }
 
 impl Window {
@@ -103,7 +103,7 @@ impl Window {
             Api::WebGl => panic!("WebGl is not supported"),
         };
 
-        let dpi_factor = dbg!(context.window().hidpi_factor()) as f32;
+        let dpi_factor = context.window().hidpi_factor() as f32;
         let device_size = {
             let size: LayoutSize = inner_size * euclid::TypedScale::new(dpi_factor);
             DeviceIntSize::new(size.width as i32, size.height as i32)
@@ -129,7 +129,7 @@ impl Window {
         let mut ui_values = UiValues::new();
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let mut content = (new_window.content)(&mut next_update);
+        let mut content = (new_window.content)(&mut next_update).focus_scope(KeyNavigation::Both, true);
         content.init(&mut ui_values, &mut next_update);
 
         Window {
@@ -142,7 +142,6 @@ impl Window {
             dpi_factor,
             inner_size,
 
-            window_focus_key: FocusKey::new_unique(),
             focus_map: FocusMap::new(),
             content,
             content_size: LayoutSize::default(),
@@ -157,7 +156,6 @@ impl Window {
             mouse_pos: LayoutPoint::new(-1., -1.),
             key_down: None,
             cursor: CursorIcon::Default,
-            focused: None,
         }
     }
 
@@ -225,9 +223,9 @@ impl Window {
                 {
                     let request = match input.virtual_keycode {
                         Some(VirtualKeyCode::Tab) => Some(if input.modifiers.shift {
-                            FocusRequest::Next
-                        } else {
                             FocusRequest::Prev
+                        } else {
+                            FocusRequest::Next
                         }),
                         Some(VirtualKeyCode::Left) => Some(FocusRequest::Left),
                         Some(VirtualKeyCode::Right) => Some(FocusRequest::Right),
@@ -290,7 +288,7 @@ impl Window {
             }
             WindowEvent::Focused(focused) => {
                 if focused {
-                    self.next_update.focus(FocusRequest::Direct(self.window_focus_key));
+                    self.next_update.focus(FocusRequest::Direct(self.content.key()));
                 } else {
                     self.key_down = None;
                 }
@@ -334,13 +332,13 @@ impl Window {
         }
     }
 
-    pub fn update(&mut self, values_changed: bool) -> bool {
+    pub fn update(&mut self, values_changed: bool, focused: Focused) -> bool {
         if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
             if values_changed {
                 self.content.value_changed(&mut self.ui_values, &mut self.next_update);
             }
-            self.update_focus();
+            self.update_focus(focused);
             if self.next_update.has_update {
                 return true;
             }
@@ -351,17 +349,31 @@ impl Window {
         false
     }
 
-    fn update_focus(&mut self) {
+    fn update_focus(&mut self, focused: Focused) {
         if let Some(request) = self.next_update.focus_request.take() {
-            let new_focused = self.focus_map.focus(self.focused, request);
-            if new_focused != self.focused {
+            let new_focused = self.focus_map.focus(focused.get(), request);
+            if new_focused != focused.get() {
+                self.activate();
                 self.content.focus_changed(
-                    &FocusChange::new(self.focused, new_focused),
+                    &FocusChange::new(focused.get(), new_focused),
                     &mut self.ui_values,
                     &mut self.next_update,
                 );
-                self.focused = new_focused;
+                focused.set(new_focused);
             }
+        }
+    }
+
+    /// Bring window to foreground.
+    pub fn activate(&self) {
+        use raw_window_handle::*;
+        use winapi::shared::windef::HWND;
+
+        match self.context.as_ref().unwrap().window().raw_window_handle() {
+            RawWindowHandle::Windows(h) => unsafe {
+                winapi::um::winuser::SetForegroundWindow(h.hwnd as HWND);
+            },
+            _ => unimplemented!("Activate window not implemented for this OS"),
         }
     }
 
@@ -400,7 +412,6 @@ impl Window {
             DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
-            self.window_focus_key,
         );
 
         self.content.render(&mut frame);

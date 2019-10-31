@@ -8,7 +8,9 @@ fn main() {
 }
 
 fn widow(_: &mut NextUpdate) -> impl Ui {
-    h_stack((0..4).map(item).collect::<Vec<_>>()).center()
+    h_stack((0..4).map(item).collect::<Vec<_>>())
+        .center()
+        .focus_scope(KeyNavigation::Both, true)
 }
 
 fn item(i: usize) -> impl Ui {

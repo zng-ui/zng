@@ -21,6 +21,7 @@ fnv = "1.0.6"
 derive-new = "0.5.8"
 zero-ui-derive = { path = "zero-ui-derive" }
 retain_mut = "0.1.0"
+raw-window-handle = "0.1.2"
 
 [dev-dependencies]
 bencher = "0.1.5"

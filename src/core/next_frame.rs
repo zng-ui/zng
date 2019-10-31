@@ -10,26 +10,13 @@ pub struct NextFrame {
 }
 
 impl NextFrame {
-    pub fn new(
-        builder: DisplayListBuilder,
-        root_spatial_id: SpatialId,
-        final_size: LayoutSize,
-        root_focus_key: FocusKey,
-    ) -> NextFrame {
-        let mut focus_map = FocusMap::new();
-        focus_map.push_focus_scope(
-            root_focus_key,
-            point2(final_size.width / 2., final_size.height / 2.),
-            KeyNavigation::Both,
-            true,
-        );
-
+    pub fn new(builder: DisplayListBuilder, root_spatial_id: SpatialId, final_size: LayoutSize) -> NextFrame {
         NextFrame {
             builder,
             spatial_id: root_spatial_id,
             final_size,
             cursor: CursorIcon::Default,
-            focus_map,
+            focus_map: FocusMap::new(),
         }
     }
 
@@ -147,7 +134,7 @@ impl NextFrame {
         capture: bool,
         child: &impl Ui,
     ) {
-        self.focus_map.push_focus_scope(key, rect.center(), navigation, capture);
+        self.focus_map.push_focus_scope(key, rect, navigation, capture);
 
         child.render(self);
 
@@ -158,8 +145,7 @@ impl NextFrame {
         self.final_size
     }
 
-    pub(crate) fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FocusMap) {
-        self.focus_map.pop_focus_scope();
+    pub(crate) fn finalize(self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FocusMap) {
         (self.builder.finalize(), self.focus_map)
     }
 }
