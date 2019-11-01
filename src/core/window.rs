@@ -129,7 +129,8 @@ impl Window {
         let mut ui_values = UiValues::new();
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let mut content = (new_window.content)(&mut next_update).focus_scope(KeyNavigation::Both, true);
+        let mut content =
+            (new_window.content)(&mut next_update).focus_scope(KeyNavigation::Both, Some(CaptureMode::Cycle));
         content.init(&mut ui_values, &mut next_update);
 
         Window {

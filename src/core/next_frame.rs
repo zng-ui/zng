@@ -131,7 +131,7 @@ impl NextFrame {
         key: FocusKey,
         rect: &LayoutRect,
         navigation: KeyNavigation,
-        capture: bool,
+        capture: Option<CaptureMode>,
         child: &impl Ui,
     ) {
         self.focus_map.push_focus_scope(key, rect, navigation, capture);

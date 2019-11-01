@@ -4,13 +4,11 @@ use zero_ui::{core::*, primitive::*, *};
 
 fn main() {
     //start_logger_for("test");
-    app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), widow);
+    app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), window);
 }
 
-fn widow(_: &mut NextUpdate) -> impl Ui {
-    h_stack((0..4).map(item).collect::<Vec<_>>())
-        .center()
-        .focus_scope(KeyNavigation::Both, true)
+fn window(_: &mut NextUpdate) -> impl Ui {
+    h_stack((0..4).map(item).collect::<Vec<_>>()).center()
 }
 
 fn item(i: usize) -> impl Ui {
@@ -23,18 +21,12 @@ fn item(i: usize) -> impl Ui {
         .text_color(rgb(0, 150, 0))
         .focusable()
         .focused(i == 2)
-        .on_focus(move |_| {
-            println!("OnFocus: {}", i);
-        })
-        .on_blur(move |_| {
-            println!("OnBlur: {}", i);
-        })
         .center()
         .cursor(CursorIcon::Hand)
-        .on_mouse_enter(enclose! {(bkg_color) move |u| {
+        .on_focus(enclose! {(bkg_color) move |u| {
             u.set(&bkg_color, rgb(100, 255, 255));
         }})
-        .on_mouse_leave(move |u| {
+        .on_blur(move |u| {
             u.set(&bkg_color, rgb(255, 255, 255));
         })
         .background_gradient((0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)])
@@ -42,10 +34,10 @@ fn item(i: usize) -> impl Ui {
         .margin(2.)
         .width(200.)
         .focusable()
-        .on_focus_enter(enclose! {(border)move |u| {
+        .on_focus(enclose! {(border)move |u| {
             u.set(&border, rgb(145, 218, 255));
         }})
-        .on_focus_leave(move |u| {
+        .on_blur(move |u| {
             u.set(&border, rgba(0, 0, 0, 0.0));
         })
 }

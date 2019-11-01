@@ -1,4 +1,5 @@
 use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect, LayoutSize};
+use std::cmp::Ordering;
 
 uid! {
     /// Focusable unique identifier.
@@ -53,10 +54,15 @@ pub enum KeyNavigation {
     Both,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum CaptureMode {
+    Capture,
+    Cycle,
+}
+
 struct FocusScopeData {
     _navigation: KeyNavigation,
-    capture: bool,
-    size: LayoutSize,
+    capture: Option<CaptureMode>,
     len: usize,
 }
 
@@ -87,7 +93,13 @@ impl FocusMap {
         self.offset -= final_rect.origin.to_vector();
     }
 
-    pub fn push_focus_scope(&mut self, key: FocusKey, rect: &LayoutRect, navigation: KeyNavigation, capture: bool) {
+    pub fn push_focus_scope(
+        &mut self,
+        key: FocusKey,
+        rect: &LayoutRect,
+        navigation: KeyNavigation,
+        capture: Option<CaptureMode>,
+    ) {
         let parent_scope = *self.current_scopes.last().unwrap_or(&NO_PARENT_SCOPE);
 
         self.current_scopes.push(self.entries.len());
@@ -98,7 +110,6 @@ impl FocusMap {
             scope: Some(Box::new(FocusScopeData {
                 _navigation: navigation,
                 capture,
-                size: rect.size,
                 len: 0,
             })),
         });
@@ -131,7 +142,7 @@ impl FocusMap {
             None
         } else {
             let scope = self.entries[parent_scope].scope.as_ref().unwrap();
-            if scope.capture {
+            if scope.capture.is_some() {
                 Some(parent_scope)
             } else {
                 self.query_capture_scope(self.entries[parent_scope].parent_scope)
@@ -180,45 +191,74 @@ impl FocusMap {
         }
     }
 
-    fn next(&self, key: FocusKey) -> FocusKey {
+    fn next(&self, current_focus: FocusKey) -> FocusKey {
         // current focused index
-        let curr_i = self.entries.iter().position(|o| o.key == key).unwrap();
+        let curr_i = self.entries.iter().position(|o| o.key == current_focus).unwrap();
 
         // if current is focus scope
         if let Some(scope) = &self.entries[curr_i].scope {
-            // next is closest to top-left.
+            let candidate = self.entries.iter().find(|e| e.parent_scope == curr_i);
 
-            let mut anchor = self.entries[curr_i].origin;
-            anchor.x -= scope.size.width / 2.0;
-            anchor.y -= scope.size.height / 2.0;
-
-            let mut candidates: Vec<_> = self
-                .entries
-                .iter()
-                .filter(|e| e.parent_scope == curr_i)
-                .map(|c| {
-                    let o = c.origin;
-                    let a = (o.x - anchor.x).powf(2.);
-                    let b = (o.y - anchor.y).powf(2.);
-                    (a + b, c.key)
-                })
-                .collect();
-
-            candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-
-            if let Some(c) = candidates.first() {
-                return c.1;
-            }
-        } else {
-            let next = self.next_towards(FocusRequest::Right, key);
-
-            if next != key {
-                return next;
-            } else {
-                unimplemented!("next line not implemented")
+            if let Some(c) = candidate {
+                return c.key;
+            } else if scope.capture.is_some() {
+                return current_focus;
             }
         }
-        key
+
+        let curr_scope = self.entries[curr_i].parent_scope;
+        match self.entries[curr_scope].scope.as_ref().unwrap().capture {
+            Some(CaptureMode::Cycle) => {
+                if let Some(next) = self.entries.get(curr_i + 1) {
+                    if next.parent_scope == curr_scope {
+                        return next.key;
+                    }
+                }
+                return self.next(self.entries[curr_scope].key);
+            }
+            Some(CaptureMode::Capture) => {
+                if let Some(next) = self.entries.get(curr_i + 1) {
+                    if next.parent_scope == curr_scope {
+                        return next.key;
+                    }
+                }
+                return current_focus;
+            }
+            None => {
+                if let Some(next) = self.entries.get(curr_i + 1) {
+                    if next.parent_scope == curr_scope {
+                        return next.key;
+                    }
+                    if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                        if next.parent_scope == capture_scope {
+                            return next.key;
+                        }
+                    }
+                }
+                //return self.test(current_focus, self.entries[curr_scope].parent_scope);
+            }
+        }
+
+        //if let Some(next) = self.entries.get(curr_i + 1) {
+        //    if next.parent_scope == curr_scope {
+        //        return next.key;
+        //    } else {
+        //        return self.test(current_focus, curr_scope);
+        //    }
+        //} else {
+        //}
+
+        current_focus
+    }
+    //fn test(&self, current_focus: FocusKey, curr_scope: usize) -> FocusKey {
+    //    match self.entries[curr_scope].scope.as_ref().unwrap().capture {
+    //        Some(CaptureMode::Cycle) => return self.next(self.entries[curr_scope].key),
+    //        Some(CaptureMode::Capture) => return current_focus,
+    //        None => return self.test(current_focus, self.entries[curr_scope].parent_scope),
+    //    }
+    //}
+    fn prev(&self, key: FocusKey) -> FocusKey {
+        unimplemented! {}
     }
 
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
@@ -227,7 +267,7 @@ impl FocusMap {
             (_, None) => self.starting_point(),
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => Some(self.next(key)),
-            (FocusRequest::Prev, Some(_key)) => unimplemented!(),
+            (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
             (FocusRequest::Escape, Some(_key)) => unimplemented!(),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
