@@ -1,5 +1,4 @@
-use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect, LayoutSize};
-use std::cmp::Ordering;
+use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect};
 
 uid! {
     /// Focusable unique identifier.
@@ -197,68 +196,186 @@ impl FocusMap {
 
         // if current is focus scope
         if let Some(scope) = &self.entries[curr_i].scope {
-            let candidate = self.entries.iter().find(|e| e.parent_scope == curr_i);
+            let first_inside = self.entries.iter().find(|e| e.parent_scope == curr_i);
 
-            if let Some(c) = candidate {
+            if let Some(c) = first_inside {
                 return c.key;
             } else if scope.capture.is_some() {
+                // capture scope that is empty, holds the focus.
                 return current_focus;
             }
         }
 
         let curr_scope = self.entries[curr_i].parent_scope;
         match self.entries[curr_scope].scope.as_ref().unwrap().capture {
-            Some(CaptureMode::Cycle) => {
-                if let Some(next) = self.entries.get(curr_i + 1) {
-                    if next.parent_scope == curr_scope {
-                        return next.key;
-                    }
+            Some(mode) => {
+                match self.entries.get(curr_i + 1) {
+                    // try to get the next item in the same scope.
+                    Some(next) if next.parent_scope == curr_scope => next.key,
+                    // did not find next, returns the..
+                    _ => match mode {
+                        //.. first item in scope.
+                        CaptureMode::Cycle => self.entries.iter().find(|e| e.parent_scope == curr_scope).unwrap().key,
+                        //.. last item in scope.
+                        CaptureMode::Capture => current_focus,
+                    },
                 }
-                return self.next(self.entries[curr_scope].key);
-            }
-            Some(CaptureMode::Capture) => {
-                if let Some(next) = self.entries.get(curr_i + 1) {
-                    if next.parent_scope == curr_scope {
-                        return next.key;
-                    }
-                }
-                return current_focus;
             }
             None => {
+                // try to get the next item.
                 if let Some(next) = self.entries.get(curr_i + 1) {
                     if next.parent_scope == curr_scope {
-                        return next.key;
+                        next.key
                     }
-                    if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
-                        if next.parent_scope == capture_scope {
-                            return next.key;
+                    // we need to check if next is valid in the context of
+                    // the scope's parent scope.
+
+                    // next is inside parent scope that captures.
+                    else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                        if self.is_inside(next.parent_scope, capture_scope) {
+                            next.key
+                        } else {
+                            // next was not inside parent scope that captures. returns
+                            match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                                // first item in scope that captures.
+                                CaptureMode::Cycle => {
+                                    self.entries
+                                        .iter()
+                                        .find(|e| e.parent_scope == capture_scope)
+                                        .unwrap()
+                                        .key
+                                }
+                                // last item in scope that captures.
+                                CaptureMode::Capture => current_focus,
+                            }
                         }
+                    } else {
+                        // next is outside current scope, but not inside any capturing scope
+                        next.key
                     }
+                } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                    // we are the last entry and have parent capturing scope.
+                    // return
+                    match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                        // first entry in scope that captures.
+                        CaptureMode::Cycle => {
+                            self.entries
+                                .iter()
+                                .find(|e| e.parent_scope == capture_scope)
+                                .unwrap()
+                                .key
+                        }
+                        // last entry in scope that captures.
+                        CaptureMode::Capture => current_focus,
+                    }
+                } else {
+                    // we are the last entry and have no parent capturing scope.
+                    self.entries[0].key
                 }
-                //return self.test(current_focus, self.entries[curr_scope].parent_scope);
+            }
+        }
+    }
+
+    fn prev(&self, current_focus: FocusKey) -> FocusKey {
+        // current focused index
+        let curr_i = self.entries.iter().position(|o| o.key == current_focus).unwrap();
+
+        // if current is focus scope
+        if let Some(scope) = &self.entries[curr_i].scope {
+            let last_inside = self.entries.iter().rev().find(|e| e.parent_scope == curr_i);
+
+            if let Some(c) = last_inside {
+                return c.key;
+            } else if scope.capture.is_some() {
+                // capture scope that is empty, holds the focus.
+                return current_focus;
             }
         }
 
-        //if let Some(next) = self.entries.get(curr_i + 1) {
-        //    if next.parent_scope == curr_scope {
-        //        return next.key;
-        //    } else {
-        //        return self.test(current_focus, curr_scope);
-        //    }
-        //} else {
-        //}
+        let curr_scope = self.entries[curr_i].parent_scope;
+        match self.entries[curr_scope].scope.as_ref().unwrap().capture {
+            Some(mode) => {
+                let prev = if curr_i > 0 {
+                    Some(&self.entries[curr_i - 1])
+                } else {
+                    None
+                };
+                match prev {
+                    // try to get the previous item in the same scope.
+                    Some(prev) if prev.parent_scope == curr_scope => prev.key,
+                    // did not find previous, returns the..
+                    _ => match mode {
+                        //.. last item in scope.
+                        CaptureMode::Cycle => {
+                            self.entries
+                                .iter()
+                                .rev()
+                                .find(|e| e.parent_scope == curr_scope)
+                                .unwrap()
+                                .key
+                        }
+                        //.. first item in scope.
+                        CaptureMode::Capture => current_focus,
+                    },
+                }
+            }
+            None => {
+                // try to get the previous item.
+                if curr_i > 0 {
+                    let prev = &self.entries[curr_i - 1];
 
-        current_focus
-    }
-    //fn test(&self, current_focus: FocusKey, curr_scope: usize) -> FocusKey {
-    //    match self.entries[curr_scope].scope.as_ref().unwrap().capture {
-    //        Some(CaptureMode::Cycle) => return self.next(self.entries[curr_scope].key),
-    //        Some(CaptureMode::Capture) => return current_focus,
-    //        None => return self.test(current_focus, self.entries[curr_scope].parent_scope),
-    //    }
-    //}
-    fn prev(&self, key: FocusKey) -> FocusKey {
-        unimplemented! {}
+                    if prev.parent_scope == curr_scope {
+                        prev.key
+                    }
+                    // we need to check if previous is valid in the context of
+                    // the scope's parent scope.
+
+                    // previous is inside parent scope that captures.
+                    else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                        if self.is_inside(prev.parent_scope, capture_scope) {
+                            prev.key
+                        } else {
+                            // previous was not inside parent scope that captures. returns
+                            match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                                // last item in scope that captures.
+                                CaptureMode::Cycle => {
+                                    self.entries
+                                        .iter()
+                                        .rev()
+                                        .find(|e| e.parent_scope == capture_scope)
+                                        .unwrap()
+                                        .key
+                                }
+                                // first item in scope that captures.
+                                CaptureMode::Capture => current_focus,
+                            }
+                        }
+                    } else {
+                        // prev is outside current scope, but not inside any capturing scope
+                        prev.key
+                    }
+                } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                    // we are the first entry and have parent capturing scope.
+                    // return
+                    match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                        // last entry in scope that captures.
+                        CaptureMode::Cycle => {
+                            self.entries
+                                .iter()
+                                .rev()
+                                .find(|e| e.parent_scope == capture_scope)
+                                .unwrap()
+                                .key
+                        }
+                        // first entry in scope that captures.
+                        CaptureMode::Capture => current_focus,
+                    }
+                } else {
+                    // we are the first entry and have no parent capturing scope.
+                    self.entries[self.entries.len() - 1].key
+                }
+            }
+        }
     }
 
     pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {

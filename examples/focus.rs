@@ -12,25 +12,26 @@ fn window(_: &mut NextUpdate) -> impl Ui {
 }
 
 fn item(i: usize) -> impl Ui {
-    let bkg_color = Var::new(rgb(255, 255, 255));
     let border = Var::new(rgba(0, 0, 0, 0.0));
+    let text_border = Var::new(rgba(0, 0, 0, 0.0));
     text("Ola")
         .font_family("Arial".to_owned())
         .font_size(90)
-        .background_color(Var::clone(&bkg_color))
-        .text_color(rgb(0, 150, 0))
+        .background_color(rgba(1., 1., 1., 0.5))
+        .border(4., (Var::clone(&text_border), BorderStyle::Dashed))
+        .text_color(rgb(0, 0, 0))
         .focusable()
         .focused(i == 2)
         .center()
         .cursor(CursorIcon::Hand)
-        .on_focus(enclose! {(bkg_color) move |u| {
-            u.set(&bkg_color, rgb(100, 255, 255));
+        .on_focus(enclose! {(text_border) move |u| {
+            u.set(&text_border,rgb(145, 218, 255));
         }})
         .on_blur(move |u| {
-            u.set(&bkg_color, rgb(255, 255, 255));
+            u.set(&text_border, rgba(0, 0, 0, 0.0));
         })
         .background_gradient((0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)])
-        .border(4., Var::clone(&border))
+        .border(4., (Var::clone(&border), BorderStyle::Dashed))
         .margin(2.)
         .width(200.)
         .focusable()

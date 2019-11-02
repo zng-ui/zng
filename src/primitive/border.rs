@@ -58,6 +58,24 @@ impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
     }
 }
 
+impl IntoValue<BorderDetails> for (Var<ColorF>, BorderStyle) {
+    type Value = Var<BorderDetails>;
+
+    fn into_value(self) -> Self::Value {
+        let style = self.1;
+        self.0.map(move |color: &ColorF| {
+            let border_side = BorderSide { color: *color, style };
+            BorderDetails {
+                left: border_side,
+                right: border_side,
+                top: border_side,
+                bottom: border_side,
+                radius: BorderRadius::zero(),
+            }
+        })
+    }
+}
+
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum BorderStyle {
