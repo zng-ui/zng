@@ -130,11 +130,12 @@ impl NextFrame {
         &mut self,
         key: FocusKey,
         rect: &LayoutRect,
-        navigation: KeyNavigation,
-        capture: Option<CaptureMode>,
+        capture: bool,
+        tab: Option<TabNav>,
+        directional: Option<DirectionalNav>,
         child: &impl Ui,
     ) {
-        self.focus_map.push_focus_scope(key, rect, navigation, capture);
+        self.focus_map.push_focus_scope(key, rect, capture, tab, directional);
 
         child.render(self);
 

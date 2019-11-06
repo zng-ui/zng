@@ -38,31 +38,34 @@ pub enum FocusState {
     Active,
 }
 
-#[derive(Clone, Copy)]
-pub enum KeyNavigation {
-    /// TAB goes to next in text reading order.
-    /// Capture: TAB in last item goes back to first.
-    /// Not capture: TAB in last item goes to next item after scope.
-    Tab,
-    /// Arrows goes to closest item in the arrow direction.
-    /// Capture: Arrow press into edge of scope loops back to begining of the same line or column.
-    ///    * Search next within a range to the same direction but in a parallel dimension?
-    ///    * Remember dimension that entered item when going back (instead of using middle)?
-    /// Not capture: Behaves like parent scope allows arrow navigation within this scope.
-    Arrows,
-    Both,
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TabNav {
+    Continue,
+    Contained,
+    Cycle,
+    Once,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum CaptureMode {
-    Capture,
+pub enum DirectionalNav {
+    Continue,
+    Contained,
     Cycle,
 }
 
 struct FocusScopeData {
-    _navigation: KeyNavigation,
-    capture: Option<CaptureMode>,
+    capture: bool,
+    tab: Option<TabNav>,
+    directional: Option<DirectionalNav>,
     len: usize,
+}
+impl FocusScopeData {
+    fn retains_tab(&self) -> bool {
+        match self.tab {
+            Some(TabNav::Cycle) | Some(TabNav::Contained) => true,
+            _ => false,
+        }
+    }
 }
 
 struct FocusEntry {
@@ -96,8 +99,9 @@ impl FocusMap {
         &mut self,
         key: FocusKey,
         rect: &LayoutRect,
-        navigation: KeyNavigation,
-        capture: Option<CaptureMode>,
+        capture: bool,
+        tab: Option<TabNav>,
+        directional: Option<DirectionalNav>,
     ) {
         let parent_scope = *self.current_scopes.last().unwrap_or(&NO_PARENT_SCOPE);
 
@@ -107,8 +111,9 @@ impl FocusMap {
             origin: rect.center() + self.offset.to_vector(),
             parent_scope,
             scope: Some(Box::new(FocusScopeData {
-                _navigation: navigation,
                 capture,
+                tab,
+                directional,
                 len: 0,
             })),
         });
@@ -141,7 +146,7 @@ impl FocusMap {
             None
         } else {
             let scope = self.entries[parent_scope].scope.as_ref().unwrap();
-            if scope.capture.is_some() {
+            if scope.retains_tab() {
                 Some(parent_scope)
             } else {
                 self.query_capture_scope(self.entries[parent_scope].parent_scope)
@@ -200,14 +205,14 @@ impl FocusMap {
 
             if let Some(c) = first_inside {
                 return c.key;
-            } else if scope.capture.is_some() {
+            } else if scope.retains_tab() {
                 // capture scope that is empty, holds the focus.
                 return current_focus;
             }
         }
 
         let curr_scope = self.entries[curr_i].parent_scope;
-        match self.entries[curr_scope].scope.as_ref().unwrap().capture {
+        match self.entries[curr_scope].scope.as_ref().unwrap().tab {
             Some(mode) => {
                 match self.entries.get(curr_i + 1) {
                     // try to get the next item in the same scope.
@@ -215,9 +220,10 @@ impl FocusMap {
                     // did not find next, returns the..
                     _ => match mode {
                         //.. first item in scope.
-                        CaptureMode::Cycle => self.entries.iter().find(|e| e.parent_scope == curr_scope).unwrap().key,
+                        TabNav::Cycle => self.entries.iter().find(|e| e.parent_scope == curr_scope).unwrap().key,
                         //.. last item in scope.
-                        CaptureMode::Capture => current_focus,
+                        TabNav::Contained => current_focus,
+                        _ => unimplemented!()
                     },
                 }
             }
@@ -235,10 +241,10 @@ impl FocusMap {
                         if self.is_inside(next.parent_scope, capture_scope) {
                             next.key
                         } else {
-                            // next was not inside parent scope that captures. returns
-                            match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                            // next was not inside parent scope that captures, returns
+                            match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
                                 // first item in scope that captures.
-                                CaptureMode::Cycle => {
+                                TabNav::Cycle => {
                                     self.entries
                                         .iter()
                                         .find(|e| e.parent_scope == capture_scope)
@@ -246,7 +252,8 @@ impl FocusMap {
                                         .key
                                 }
                                 // last item in scope that captures.
-                                CaptureMode::Capture => current_focus,
+                                TabNav::Contained => current_focus,
+                                _ => unimplemented!()
                             }
                         }
                     } else {
@@ -256,9 +263,9 @@ impl FocusMap {
                 } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
                     // we are the last entry and have parent capturing scope.
                     // return
-                    match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                    match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
                         // first entry in scope that captures.
-                        CaptureMode::Cycle => {
+                        TabNav::Cycle => {
                             self.entries
                                 .iter()
                                 .find(|e| e.parent_scope == capture_scope)
@@ -266,7 +273,8 @@ impl FocusMap {
                                 .key
                         }
                         // last entry in scope that captures.
-                        CaptureMode::Capture => current_focus,
+                        TabNav::Contained => current_focus,
+                        _ => unimplemented!()
                     }
                 } else {
                     // we are the last entry and have no parent capturing scope.
@@ -286,14 +294,14 @@ impl FocusMap {
 
             if let Some(c) = last_inside {
                 return c.key;
-            } else if scope.capture.is_some() {
+            } else if scope.retains_tab() {
                 // capture scope that is empty, holds the focus.
                 return current_focus;
             }
         }
 
         let curr_scope = self.entries[curr_i].parent_scope;
-        match self.entries[curr_scope].scope.as_ref().unwrap().capture {
+        match self.entries[curr_scope].scope.as_ref().unwrap().tab {
             Some(mode) => {
                 let prev = if curr_i > 0 {
                     Some(&self.entries[curr_i - 1])
@@ -306,7 +314,7 @@ impl FocusMap {
                     // did not find previous, returns the..
                     _ => match mode {
                         //.. last item in scope.
-                        CaptureMode::Cycle => {
+                        TabNav::Cycle => {
                             self.entries
                                 .iter()
                                 .rev()
@@ -315,7 +323,8 @@ impl FocusMap {
                                 .key
                         }
                         //.. first item in scope.
-                        CaptureMode::Capture => current_focus,
+                        TabNav::Contained => current_focus,
+                        _ => unimplemented!()
                     },
                 }
             }
@@ -336,9 +345,9 @@ impl FocusMap {
                             prev.key
                         } else {
                             // previous was not inside parent scope that captures. returns
-                            match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                            match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
                                 // last item in scope that captures.
-                                CaptureMode::Cycle => {
+                                TabNav::Cycle => {
                                     self.entries
                                         .iter()
                                         .rev()
@@ -347,7 +356,8 @@ impl FocusMap {
                                         .key
                                 }
                                 // first item in scope that captures.
-                                CaptureMode::Capture => current_focus,
+                                TabNav::Contained => current_focus,
+                                _ => unimplemented!()
                             }
                         }
                     } else {
@@ -357,9 +367,9 @@ impl FocusMap {
                 } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
                     // we are the first entry and have parent capturing scope.
                     // return
-                    match self.entries[capture_scope].scope.as_ref().unwrap().capture.unwrap() {
+                    match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
                         // last entry in scope that captures.
-                        CaptureMode::Cycle => {
+                        TabNav::Cycle => {
                             self.entries
                                 .iter()
                                 .rev()
@@ -368,7 +378,8 @@ impl FocusMap {
                                 .key
                         }
                         // first entry in scope that captures.
-                        CaptureMode::Capture => current_focus,
+                        TabNav::Contained => current_focus,
+                        _ => unimplemented!()
                     }
                 } else {
                     // we are the first entry and have no parent capturing scope.

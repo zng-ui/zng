@@ -79,8 +79,9 @@ impl<T: Ui> FocusableExt for T {}
 pub struct FocusScope<C: Ui> {
     child: C,
     key: FocusKey,
-    navigation: KeyNavigation,
-    capture: Option<CaptureMode>,
+    capture: bool,
+    tab: Option<TabNav>,
+    directional: Option<DirectionalNav>,
     #[new(default)]
     logical_focus: Option<FocusKey>,
 }
@@ -97,7 +98,7 @@ impl<C: Ui> Ui for FocusScope<C> {
         self.child.focus_changed(change, values, update);
 
         if change.new_focus == Some(self.key) {
-            if let (Some(_), Some(logical_focus)) = (self.capture, self.logical_focus) {
+            if let (true, Some(logical_focus)) = (self.capture, self.logical_focus) {
                 update.focus(FocusRequest::Direct(logical_focus));
             } else {
                 update.focus(FocusRequest::Next);
@@ -111,16 +112,17 @@ impl<C: Ui> Ui for FocusScope<C> {
         f.push_focus_scope(
             self.key,
             &LayoutRect::from_size(f.final_size()),
-            self.navigation,
             self.capture,
+            self.tab,
+            self.directional,
             &self.child,
         );
     }
 }
 
 pub trait FocusScopeExt: Ui + Sized {
-    fn focus_scope(self, navigation: KeyNavigation, capture: Option<CaptureMode>) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new_unique(), navigation, capture)
+    fn focus_scope(self, capture: bool, tab: Option<TabNav>, directional: Option<DirectionalNav>) -> FocusScope<Self> {
+        FocusScope::new(self, FocusKey::new_unique(), capture, tab, directional)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}

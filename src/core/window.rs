@@ -130,7 +130,7 @@ impl Window {
         let mut next_update = NextUpdate::new(api, document_id);
 
         let mut content =
-            (new_window.content)(&mut next_update).focus_scope(KeyNavigation::Both, Some(CaptureMode::Cycle));
+            (new_window.content)(&mut next_update).focus_scope(true, Some(TabNav::Cycle), Some(DirectionalNav::Cycle));
         content.init(&mut ui_values, &mut next_update);
 
         Window {
