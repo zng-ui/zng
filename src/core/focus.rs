@@ -1,4 +1,4 @@
-use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect};
+use super::{ChildValueKey, ChildValueKeyRef, LayoutPoint, LayoutRect, LayoutSize};
 
 uid! {
     /// Focusable unique identifier.
@@ -9,20 +9,29 @@ uid! {
 /// the default implementation on `keyboard_input`.
 pub static FOCUS_HANDLED: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 
+/// Focus change request.
 #[derive(Clone, Copy)]
 pub enum FocusRequest {
     /// Move focus to key.
     Direct(FocusKey),
+
     /// Move focus to next from current in screen, or to starting key.
     Next,
     /// Move focus to previous from current in screen, or to last in screen.
     Prev,
-    /// Move focus to parent focus scope.
-    Escape,
 
+    /// Move focus into the menu scope. TODO
+    EnterAlt,
+    /// Move focus to parent focus scope.
+    EscapeAlt,
+
+    /// Move focus to the left of current.
     Left,
+    /// Move focus to the right of current.
     Right,
+    /// Move focus above current.
     Up,
+    /// Move focus bellow current.
     Down,
 }
 
@@ -58,11 +67,19 @@ struct FocusScopeData {
     tab: Option<TabNav>,
     directional: Option<DirectionalNav>,
     len: usize,
+    size: LayoutSize,
 }
 impl FocusScopeData {
     fn retains_tab(&self) -> bool {
         match self.tab {
             Some(TabNav::Cycle) | Some(TabNav::Contained) => true,
+            _ => false,
+        }
+    }
+
+    fn retains_directional(&self) -> bool {
+        match self.directional {
+            Some(DirectionalNav::Cycle) | Some(DirectionalNav::Contained) => true,
             _ => false,
         }
     }
@@ -115,6 +132,7 @@ impl FocusMap {
                 tab,
                 directional,
                 len: 0,
+                size: rect.size,
             })),
         });
     }
@@ -141,19 +159,6 @@ impl FocusMap {
         self.entries.first().map(|e| e.key)
     }
 
-    fn query_capture_scope(&self, parent_scope: usize) -> Option<usize> {
-        if parent_scope == NO_PARENT_SCOPE {
-            None
-        } else {
-            let scope = self.entries[parent_scope].scope.as_ref().unwrap();
-            if scope.retains_tab() {
-                Some(parent_scope)
-            } else {
-                self.query_capture_scope(self.entries[parent_scope].parent_scope)
-            }
-        }
-    }
-
     fn is_inside(&self, parent_scope: usize, scope: usize) -> bool {
         if parent_scope == NO_PARENT_SCOPE {
             false
@@ -164,10 +169,21 @@ impl FocusMap {
         }
     }
 
-    fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
-        let current = self.entries.iter().find(|o| o.key == key).unwrap();
-        let origin = current.origin;
+    fn find_parent(&self, parent_scope: usize, predicate: impl Fn(&FocusScopeData) -> bool) -> Option<usize> {
+        if parent_scope == NO_PARENT_SCOPE {
+            None
+        } else {
+            let scope = self.entries[parent_scope].scope.as_ref().unwrap();
+            if predicate(&scope) {
+                Some(parent_scope)
+            } else {
+                self.find_parent(self.entries[parent_scope].parent_scope, predicate)
+            }
+        }
+    }
 
+    /// Returns vector of distance from `origin`, item, item parent scope.
+    fn candidates_towards(&self, direction: FocusRequest, origin: LayoutPoint) -> Vec<(f32, FocusKey, usize)> {
         let mut candidates: Vec<_> = self
             .entries
             .iter()
@@ -182,9 +198,61 @@ impl FocusMap {
 
         candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-        if let Some(scope) = self.query_capture_scope(current.parent_scope) {
-            if let Some(c) = candidates.iter().find(|c| self.is_inside(c.2, scope)) {
+        candidates
+    }
+
+    fn next_towards(&self, direction: FocusRequest, key: FocusKey) -> FocusKey {
+        // get candidates in direction from current focus.
+        let current = self.entries.iter().find(|o| o.key == key).unwrap();
+        let origin = current.origin;
+        let candidates = self.candidates_towards(direction, origin);
+
+        // if current focus is inside a scope that retains directional.
+        if let Some(scope_i) = self.find_parent(current.parent_scope, |s| s.retains_directional()) {
+            if let Some(c) = candidates.iter().find(|c| self.is_inside(c.2, scope_i)) {
+                // if any candidate is inside same focus.
                 return c.1;
+            } else {
+                // all candidates outside retaining scope, need to do retention.
+
+                let scope = &self.entries[scope_i];
+                let scope_data = scope.scope.as_ref().unwrap();
+                match scope_data.directional {
+                    // contained retention does not change focus, already is last in direction inside scope.
+                    Some(DirectionalNav::Contained) => return key,
+                    // cycling retention, finds closest to new origin that is
+                    // in the same line or column of current focus but on the other side
+                    // of the parent scope rectangle.
+                    Some(DirectionalNav::Cycle) => {
+                        let mut origin = origin;
+                        match direction {
+                            FocusRequest::Left => {
+                                origin.x = scope.origin.x + scope_data.size.width / 2.;
+                            }
+                            FocusRequest::Right => {
+                                origin.x = scope.origin.x - scope_data.size.width / 2.;
+                            }
+                            FocusRequest::Up => {
+                                origin.y = scope.origin.y + scope_data.size.height / 2.;
+                            }
+                            FocusRequest::Down => {
+                                origin.y = scope.origin.y - scope_data.size.height / 2.;
+                            }
+                            _ => unreachable!(),
+                        }
+
+                        let candidates = self.candidates_towards(direction, origin);
+                        if let Some(c) = candidates.iter().find(|c| self.is_inside(c.2, scope_i)) {
+                            // if can find candidate on other side.
+                            return c.1;
+                        } else {
+                            // else do the same as contained.
+                            // probably a bug, should have found the current focus again at least.
+                            return key;
+                        }
+                    }
+                    _ => unreachable!(),
+                }
             }
         }
 
@@ -223,7 +291,7 @@ impl FocusMap {
                         TabNav::Cycle => self.entries.iter().find(|e| e.parent_scope == curr_scope).unwrap().key,
                         //.. last item in scope.
                         TabNav::Contained => current_focus,
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     },
                 }
             }
@@ -237,7 +305,7 @@ impl FocusMap {
                     // the scope's parent scope.
 
                     // next is inside parent scope that captures.
-                    else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                    else if let Some(capture_scope) = self.find_parent(curr_scope, |s| s.retains_tab()) {
                         if self.is_inside(next.parent_scope, capture_scope) {
                             next.key
                         } else {
@@ -253,14 +321,14 @@ impl FocusMap {
                                 }
                                 // last item in scope that captures.
                                 TabNav::Contained => current_focus,
-                                _ => unimplemented!()
+                                _ => unimplemented!(),
                             }
                         }
                     } else {
                         // next is outside current scope, but not inside any capturing scope
                         next.key
                     }
-                } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                } else if let Some(capture_scope) = self.find_parent(curr_scope, |s| s.retains_tab()) {
                     // we are the last entry and have parent capturing scope.
                     // return
                     match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
@@ -274,7 +342,7 @@ impl FocusMap {
                         }
                         // last entry in scope that captures.
                         TabNav::Contained => current_focus,
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     }
                 } else {
                     // we are the last entry and have no parent capturing scope.
@@ -324,7 +392,7 @@ impl FocusMap {
                         }
                         //.. first item in scope.
                         TabNav::Contained => current_focus,
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     },
                 }
             }
@@ -340,7 +408,7 @@ impl FocusMap {
                     // the scope's parent scope.
 
                     // previous is inside parent scope that captures.
-                    else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                    else if let Some(capture_scope) = self.find_parent(curr_scope, |s| s.retains_tab()) {
                         if self.is_inside(prev.parent_scope, capture_scope) {
                             prev.key
                         } else {
@@ -357,14 +425,14 @@ impl FocusMap {
                                 }
                                 // first item in scope that captures.
                                 TabNav::Contained => current_focus,
-                                _ => unimplemented!()
+                                _ => unimplemented!(),
                             }
                         }
                     } else {
                         // prev is outside current scope, but not inside any capturing scope
                         prev.key
                     }
-                } else if let Some(capture_scope) = self.query_capture_scope(curr_scope) {
+                } else if let Some(capture_scope) = self.find_parent(curr_scope, |s| s.retains_tab()) {
                     // we are the first entry and have parent capturing scope.
                     // return
                     match self.entries[capture_scope].scope.as_ref().unwrap().tab.unwrap() {
@@ -379,7 +447,7 @@ impl FocusMap {
                         }
                         // first entry in scope that captures.
                         TabNav::Contained => current_focus,
-                        _ => unimplemented!()
+                        _ => unimplemented!(),
                     }
                 } else {
                     // we are the first entry and have no parent capturing scope.
@@ -389,14 +457,16 @@ impl FocusMap {
         }
     }
 
-    pub fn focus(&self, focused: Option<FocusKey>, r: FocusRequest) -> Option<FocusKey> {
-        match (r, focused) {
+    /// Gets next focus key  from a current `focused` and a change `request`.
+    pub fn focus(&self, focused: Option<FocusKey>, request: FocusRequest) -> Option<FocusKey> {
+        match (request, focused) {
             (FocusRequest::Direct(direct_key), _) => self.position(direct_key).map(|_| direct_key),
             (_, None) => self.starting_point(),
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => Some(self.next(key)),
             (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
-            (FocusRequest::Escape, Some(_key)) => unimplemented!(),
+            (FocusRequest::EnterAlt, Some(_key)) => unimplemented!(),
+            (FocusRequest::EscapeAlt, Some(_key)) => unimplemented!(),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }

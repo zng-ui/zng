@@ -4,11 +4,15 @@ use zero_ui::{core::*, primitive::*, *};
 
 fn main() {
     //start_logger_for("test");
-    app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 600.), window);
+    app::run(rgba(0.1, 0.2, 0.3, 1.0), LayoutSize::new(800., 800.), window);
 }
 
 fn window(_: &mut NextUpdate) -> impl Ui {
-    h_stack((0..4).map(item).collect::<Vec<_>>()).center()
+    v_stack((0..4).map(line).collect::<Vec<_>>())
+}
+
+fn line(_: usize) -> impl Ui {
+    h_stack((0..4).map(item).collect::<Vec<_>>()).height(200.)
 }
 
 fn item(i: usize) -> impl Ui {

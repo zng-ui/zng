@@ -222,19 +222,33 @@ impl Window {
                     && self.next_update.focus_request.is_none()
                     && self.ui_values.child(*FOCUS_HANDLED).is_none()
                 {
-                    let request = match input.virtual_keycode {
-                        Some(VirtualKeyCode::Tab) => Some(if input.modifiers.shift {
-                            FocusRequest::Prev
-                        } else {
-                            FocusRequest::Next
-                        }),
-                        Some(VirtualKeyCode::Left) => Some(FocusRequest::Left),
-                        Some(VirtualKeyCode::Right) => Some(FocusRequest::Right),
-                        Some(VirtualKeyCode::Up) => Some(FocusRequest::Up),
-                        Some(VirtualKeyCode::Down) => Some(FocusRequest::Down),
-                        Some(VirtualKeyCode::Escape) => Some(FocusRequest::Escape),
-                        _ => None,
+                    static SHIFT_ONLY: ModifiersState = ModifiersState {
+                        shift: true,
+                        alt: false,
+                        ctrl: false,
+                        logo: false,
                     };
+
+                    let request = if input.modifiers == ModifiersState::default() {
+                        match input.virtual_keycode {
+                            Some(VirtualKeyCode::Tab) => Some(FocusRequest::Next),
+                            Some(VirtualKeyCode::Left) => Some(FocusRequest::Left),
+                            Some(VirtualKeyCode::Right) => Some(FocusRequest::Right),
+                            Some(VirtualKeyCode::Up) => Some(FocusRequest::Up),
+                            Some(VirtualKeyCode::Down) => Some(FocusRequest::Down),
+                            Some(VirtualKeyCode::LAlt) | Some(VirtualKeyCode::RAlt) => Some(FocusRequest::EnterAlt),
+                            Some(VirtualKeyCode::Escape) => Some(FocusRequest::EscapeAlt),
+                            _ => None,
+                        }
+                    } else if input.modifiers == SHIFT_ONLY {
+                        match input.virtual_keycode {
+                            Some(VirtualKeyCode::Tab) => Some(FocusRequest::Prev),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+
                     if let Some(request) = request {
                         self.next_update.focus(request);
                     }
