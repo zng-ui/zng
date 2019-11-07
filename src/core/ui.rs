@@ -59,10 +59,3 @@ impl Ui for Box<dyn Ui> {
         self
     }
 }
-
-#[impl_ui_crate]
-impl Ui for () {
-    fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        LayoutSize::default()
-    }
-}
