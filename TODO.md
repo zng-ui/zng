@@ -20,6 +20,7 @@ Things that must be done first because they influence the core API design that i
 * Modal Window.
 * Support for external input methods (IMEs).
 * Workers.
+* Integrate thread_profiler.
 * Diagnostics.
 * Better Ui related macros, reduce verbosity.
 

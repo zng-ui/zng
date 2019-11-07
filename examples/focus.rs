@@ -22,7 +22,6 @@ fn item(i: usize) -> impl Ui {
         .text_color(rgb(0, 0, 0))
         .focusable()
         .focused(i == 2)
-        .on_key_down(move |k, _| println!("Key down @ {}: {}", i, k))
         .center()
         .cursor(CursorIcon::Hand)
         .on_focus(enclose! {(text_border) move |u| {
