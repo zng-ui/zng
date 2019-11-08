@@ -10,7 +10,7 @@ uid! {
 pub static FOCUS_HANDLED: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 
 /// Focus change request.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum FocusRequest {
     /// Move focus to key.
     Direct(FocusKey),
@@ -63,7 +63,7 @@ pub enum DirectionalNav {
 }
 
 struct FocusScopeData {
-    capture: bool,
+    menu: bool,
     tab: Option<TabNav>,
     directional: Option<DirectionalNav>,
     len: usize,
@@ -116,7 +116,7 @@ impl FocusMap {
         &mut self,
         key: FocusKey,
         rect: &LayoutRect,
-        capture: bool,
+        menu: bool,
         tab: Option<TabNav>,
         directional: Option<DirectionalNav>,
     ) {
@@ -128,7 +128,7 @@ impl FocusMap {
             origin: rect.center() + self.offset.to_vector(),
             parent_scope,
             scope: Some(Box::new(FocusScopeData {
-                capture,
+                menu,
                 tab,
                 directional,
                 len: 0,
@@ -155,8 +155,38 @@ impl FocusMap {
         self.entries.iter().position(|o| o.key == focus_key)
     }
 
+    ///Iterator over all entries that are not a menu inside the scope denoted by `scope_i`
+    fn skip_menu(&self, scope_i: usize) -> impl Iterator<Item = &FocusEntry> {
+        let mut skip_end = None;
+        let mut scope_end = None;
+        self.entries.iter().enumerate().filter(move |&(i, e)| {
+            if let Some(value) = scope_end {
+                if i == value {
+                    scope_end = None;
+                    return true;
+                }
+                if let Some(value) = skip_end {
+                    if i < value {
+                        return false;
+                    }
+                    skip_end = None;
+                }
+                if let Some(scope) = &e.scope {
+                    if scope.menu {
+                        skip_end = Some(i + scope.len);
+                        return false;
+                    }
+                }
+            } else if scope_i == i {
+                scope_end = Some(i + e.scope.as_ref().unwrap().len);
+                return true;
+            }
+            true
+        }).map(|(_,e)| e)
+    }
+
     fn starting_point(&self) -> Option<FocusKey> {
-        self.entries.first().map(|e| e.key)
+        self.skip_menu(0).next().map(|e| e.key)
     }
 
     fn is_inside(&self, parent_scope: usize, scope: usize) -> bool {
@@ -269,7 +299,7 @@ impl FocusMap {
 
         // if current is focus scope
         if let Some(scope) = &self.entries[curr_i].scope {
-            let first_inside = self.entries.iter().find(|e| e.parent_scope == curr_i);
+            let first_inside = self.skip_menu(curr_i).find(|e| e.parent_scope == curr_i);
 
             if let Some(c) = first_inside {
                 return c.key;
@@ -288,7 +318,7 @@ impl FocusMap {
                     // did not find next, returns the..
                     _ => match mode {
                         //.. first item in scope.
-                        TabNav::Cycle => self.entries.iter().find(|e| e.parent_scope == curr_scope).unwrap().key,
+                        TabNav::Cycle => self.skip_menu(curr_scope).find(|e| e.parent_scope == curr_scope).unwrap().key,
                         //.. last item in scope.
                         TabNav::Contained => current_focus,
                         _ => unimplemented!(),

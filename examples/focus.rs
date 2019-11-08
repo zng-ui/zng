@@ -8,7 +8,10 @@ fn main() {
 }
 
 fn window(_: &mut NextUpdate) -> impl Ui {
-    v_stack((0..4).map(line).collect::<Vec<_>>())
+    v_stack((
+        line(0).focus_scope(true, false, Some(TabNav::Cycle), Some(DirectionalNav::Cycle)),
+        v_stack((0..3).map(line).collect::<Vec<_>>()),
+    ))
 }
 
 fn line(_: usize) -> impl Ui {
