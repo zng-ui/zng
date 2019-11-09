@@ -156,33 +156,37 @@ impl FocusMap {
     }
 
     ///Iterator over all entries that are not a menu inside the scope denoted by `scope_i`
-    fn skip_menu(&self, scope_i: usize) -> impl Iterator<Item = &FocusEntry> {
+    fn skip_menu(&self, scope_i: usize) -> impl DoubleEndedIterator<Item = &FocusEntry> {
         let mut skip_end = None;
         let mut scope_end = None;
-        self.entries.iter().enumerate().filter(move |&(i, e)| {
-            if let Some(value) = scope_end {
-                if i == value {
-                    scope_end = None;
+        self.entries
+            .iter()
+            .enumerate()
+            .filter(move |&(i, e)| {
+                if let Some(value) = scope_end {
+                    if i == value {
+                        scope_end = None;
+                        return true;
+                    }
+                    if let Some(value) = skip_end {
+                        if i < value {
+                            return false;
+                        }
+                        skip_end = None;
+                    }
+                    if let Some(scope) = &e.scope {
+                        if scope.menu {
+                            skip_end = Some(i + scope.len);
+                            return false;
+                        }
+                    }
+                } else if scope_i == i {
+                    scope_end = Some(i + e.scope.as_ref().unwrap().len);
                     return true;
                 }
-                if let Some(value) = skip_end {
-                    if i < value {
-                        return false;
-                    }
-                    skip_end = None;
-                }
-                if let Some(scope) = &e.scope {
-                    if scope.menu {
-                        skip_end = Some(i + scope.len);
-                        return false;
-                    }
-                }
-            } else if scope_i == i {
-                scope_end = Some(i + e.scope.as_ref().unwrap().len);
-                return true;
-            }
-            true
-        }).map(|(_,e)| e)
+                true
+            })
+            .map(|(_, e)| e)
     }
 
     fn starting_point(&self) -> Option<FocusKey> {
@@ -318,7 +322,12 @@ impl FocusMap {
                     // did not find next, returns the..
                     _ => match mode {
                         //.. first item in scope.
-                        TabNav::Cycle => self.skip_menu(curr_scope).find(|e| e.parent_scope == curr_scope).unwrap().key,
+                        TabNav::Cycle => {
+                            self.skip_menu(curr_scope)
+                                .find(|e| e.parent_scope == curr_scope)
+                                .unwrap()
+                                .key
+                        }
                         //.. last item in scope.
                         TabNav::Contained => current_focus,
                         _ => unimplemented!(),
@@ -401,29 +410,29 @@ impl FocusMap {
         let curr_scope = self.entries[curr_i].parent_scope;
         match self.entries[curr_scope].scope.as_ref().unwrap().tab {
             Some(mode) => {
-                let prev = if curr_i > 0 {
-                    Some(&self.entries[curr_i - 1])
-                } else {
-                    None
-                };
-                match prev {
-                    // try to get the previous item in the same scope.
-                    Some(prev) if prev.parent_scope == curr_scope => prev.key,
-                    // did not find previous, returns the..
-                    _ => match mode {
-                        //.. last item in scope.
-                        TabNav::Cycle => {
-                            self.entries
-                                .iter()
-                                .rev()
-                                .find(|e| e.parent_scope == curr_scope)
-                                .unwrap()
-                                .key
+                // if has prev entry.
+                if curr_i > 0 {
+                    // if prev entry is current scope.
+                    if curr_i - 1 == curr_scope {
+                        match mode {
+                            //.. last item in scope.
+                            TabNav::Cycle => {
+                                self.skip_menu(curr_scope)
+                                    .rev()
+                                    .find(|e| e.parent_scope == curr_scope)
+                                    .unwrap()
+                                    .key
+                            }
+                            //.. first item in scope.
+                            TabNav::Contained => current_focus,
+                            TabNav::Continue => self.entries[curr_i - 1].key,
+                            TabNav::Once => unimplemented!()
                         }
-                        //.. first item in scope.
-                        TabNav::Contained => current_focus,
-                        _ => unimplemented!(),
-                    },
+                    } else {
+                        self.entries[curr_i - 1].key
+                    }
+                } else {
+                    unimplemented!()
                 }
             }
             None => {
