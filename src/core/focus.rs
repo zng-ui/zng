@@ -426,7 +426,7 @@ impl FocusMap {
                             //.. first item in scope.
                             TabNav::Contained => current_focus,
                             TabNav::Continue => self.entries[curr_i - 1].key,
-                            TabNav::Once => unimplemented!()
+                            TabNav::Once => unimplemented!(),
                         }
                     } else {
                         self.entries[curr_i - 1].key
