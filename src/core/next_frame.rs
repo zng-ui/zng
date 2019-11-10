@@ -10,13 +10,13 @@ pub struct NextFrame {
 }
 
 impl NextFrame {
-    pub fn new(builder: DisplayListBuilder, root_spatial_id: SpatialId, final_size: LayoutSize) -> NextFrame {
+    pub fn new(builder: DisplayListBuilder, root_spatial_id: SpatialId, final_size: LayoutSize, focus_map: FocusMap) -> NextFrame {
         NextFrame {
             builder,
             spatial_id: root_spatial_id,
             final_size,
             cursor: CursorIcon::Default,
-            focus_map: FocusMap::new(),
+            focus_map,
         }
     }
 
@@ -139,7 +139,7 @@ impl NextFrame {
 
         child.render(self);
 
-        self.focus_map.pop_focus_scope();
+        self.focus_map.pop_focus_scope(rect);
     }
 
     pub fn final_size(&self) -> LayoutSize {
