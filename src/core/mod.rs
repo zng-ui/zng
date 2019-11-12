@@ -2,7 +2,6 @@
 mod macros;
 
 mod focus;
-mod focus2;
 mod font;
 mod hittest;
 mod keyboard;

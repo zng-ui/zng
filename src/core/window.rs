@@ -147,7 +147,7 @@ impl Window {
             dpi_factor,
             inner_size,
 
-            focus_map: FocusMap::new(),
+            focus_map: FocusMap::empty(),
             content,
             content_size: LayoutSize::default(),
 
@@ -427,8 +427,7 @@ impl Window {
         self.next_update.render_frame = false;
 
         let mut txn = Transaction::new();
-        self.focus_map.clear();
-        
+
         let mut frame = NextFrame::new(
             DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),

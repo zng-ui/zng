@@ -1,4 +1,23 @@
-/// Declare and implement a unique ID type.
+/// Declare and implement a unique ID type. Optionally also declare
+/// a lazy initialization type for static variables.
+///
+/// # Examples
+/// ```
+/// uid! { pub struct PublicId(_); }
+/// uid! { struct PrivateId(_); }
+///
+/// let unique_id = PublicId::new_unique();
+/// let underlying_value = unique_id.get();
+/// ```
+///
+/// ## Lazy Initialization
+/// ```
+/// uid! { pub struct PublicId(_) { new_lazy() -> pub struct PublicIdRef } }
+///
+/// static UNIQUE_ID: PublicIdRef = PublicId::new_lazy();
+/// let unique_id = *UNIQUE_ID;
+/// assert_eq!(unique_id, *UNIQUE_ID);
+/// ```
 macro_rules! uid {
     ($(
         $(#[$outer:meta])*
@@ -41,4 +60,29 @@ macro_rules! uid {
             }
         )+
     };
+
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Type:ident (_) { new_lazy() -> $vis_ref:vis struct $TypeRef:ident };
+    )+) => {$(
+        uid! {$vis struct $Type(_);}
+
+        /// Dereferences to an unique ID that is generated on the first deref.
+        $vis_ref struct $TypeRef (once_cell::sync::OnceCell<$Type>);
+
+        impl $Type {
+            /// New lazy initialized unique key. Use this for static
+            /// variables.
+            pub const fn new_lazy() -> $TypeRef {
+                $TypeRef(once_cell::sync::OnceCell::new())
+            }
+        }
+
+        impl std::ops::Deref for $TypeRef {
+            type Target = $Type;
+            fn deref(&self) -> &Self::Target {
+                self.0.get_or_init($Type::new_unique)
+            }
+        }
+    )+};
 }

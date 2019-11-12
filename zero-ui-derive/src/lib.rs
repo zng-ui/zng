@@ -86,11 +86,7 @@ use syn::*;
 ///     /// Custom impl
 ///     #[inline]
 ///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(
-///             LayoutRect::from_size(f.final_size()),
-///             *self.0,
-///             None,
-///         );
+///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
 ///     }
 ///     /// Custom impl
 ///     #[inline]
@@ -154,26 +150,11 @@ use syn::*;
 ///     ) {
 ///     }
 ///     #[inline]
-///     fn mouse_entered(
-///         &mut self,
-///         values: &mut zero_ui::core::UiValues,
-///         update: &mut zero_ui::core::NextUpdate,
-///     ) {
-///     }
+///     fn mouse_entered(&mut self, values: &mut zero_ui::core::UiValues, update: &mut zero_ui::core::NextUpdate) {}
 ///     #[inline]
-///     fn mouse_left(
-///         &mut self,
-///         values: &mut zero_ui::core::UiValues,
-///         update: &mut zero_ui::core::NextUpdate,
-///     ) {
-///     }
+///     fn mouse_left(&mut self, values: &mut zero_ui::core::UiValues, update: &mut zero_ui::core::NextUpdate) {}
 ///     #[inline]
-///     fn close_request(
-///         &mut self,
-///         values: &mut zero_ui::core::UiValues,
-///         update: &mut zero_ui::core::NextUpdate,
-///     ) {
-///     }
+///     fn close_request(&mut self, values: &mut zero_ui::core::UiValues, update: &mut zero_ui::core::NextUpdate) {}
 ///     #[inline]
 ///     fn parent_value_changed(
 ///         &mut self,
