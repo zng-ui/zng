@@ -236,12 +236,19 @@ impl FocusMap {
 
     fn next(&self, current: FocusKey) -> FocusKey {
         let node = self.find_node(current).unwrap();
+        self.node_next(current, node, false)
+    }
 
-        if let Some(scope) = &node.value().scope {
+    fn node_next(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey{
+        if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.first_content_child() {
                 return first_child.value().key;
             } else if scope.retains_tab() {
                 return current;
+            }
+        }else  if let Some(parent_node) = node.parent(){
+            if parent_node.value().scope.as_ref().unwrap().tab == Some(TabNav::Once) {
+                return self.node_next(current, parent_node, true);
             }
         }
 
@@ -249,22 +256,23 @@ impl FocusMap {
             return next_same_scope.value().key;
         }
 
-        self.next_scoped(current, node)
+        self.scope_next(current, node)
     }
 
-    fn next_scoped(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
-        if let Some(parent_scope) = node.parent() {
-            match parent_scope.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => return parent_scope.first_content_child().unwrap().value().key,
+    ///Next, given the parent scope tab navigation, when the current is the last item in the scope
+    fn scope_next(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
+        if let Some(parent_node) = node.parent() {
+            match parent_node.value().scope.as_ref().unwrap().tab {
+                Some(TabNav::Cycle) => return parent_node.first_content_child().unwrap().value().key,
                 Some(TabNav::Contained) => return current,
                 Some(TabNav::Continue) => {
-                    if let Some(next) = parent_scope.next_content_sibling() {
+                    if let Some(next) = parent_node.next_content_sibling() {
                         return next.value().key;
                     } else {
-                        return self.next_scoped(current, parent_scope);
+                        return self.scope_next(current, parent_node);
                     }
                 }
-                Some(TabNav::Once) => unimplemented!(),
+                Some(TabNav::Once) => return self.node_next(current, parent_node, true),
                 None => unimplemented!(),
             }
         }
@@ -274,12 +282,19 @@ impl FocusMap {
 
     fn prev(&self, current: FocusKey) -> FocusKey {
         let node = self.find_node(current).unwrap();
+        self.node_prev(current, node, false)
+    }
 
-        if let Some(scope) = &node.value().scope {
+    fn node_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey{
+        if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.last_content_child() {
                 return first_child.value().key;
             } else if scope.retains_tab() {
                 return current;
+            }
+        }else  if let Some(parent_node) = node.parent(){
+            if parent_node.value().scope.as_ref().unwrap().tab == Some(TabNav::Once) {
+                return self.node_prev(current, parent_node, true);
             }
         }
 
@@ -287,22 +302,23 @@ impl FocusMap {
             return prev_same_scope.value().key;
         }
 
-        self.prev_scoped(current, node)
+        self.scope_prev(current, node)
     }
 
-    fn prev_scoped(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
-        if let Some(parent_scope) = node.parent() {
-            match parent_scope.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => return parent_scope.last_content_child().unwrap().value().key,
+    ///Previous, given the parent scope tab navigation, when the current is the first item in the scope
+    fn scope_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
+        if let Some(parent_node) = node.parent() {
+            match parent_node.value().scope.as_ref().unwrap().tab {
+                Some(TabNav::Cycle) => return parent_node.last_content_child().unwrap().value().key,
                 Some(TabNav::Contained) => return current,
                 Some(TabNav::Continue) => {
-                    if let Some(prev) = parent_scope.prev_content_sibling() {
+                    if let Some(prev) = parent_node.prev_content_sibling() {
                         return prev.value().key;
                     } else {
-                        return self.prev_scoped(current, parent_scope);
+                        return self.scope_prev(current, parent_node);
                     }
                 }
-                Some(TabNav::Once) => unimplemented!(),
+                Some(TabNav::Once) => return self.node_prev(current, parent_node, true),
                 None => unimplemented!(),
             }
         }
@@ -406,6 +422,7 @@ trait NodeExt<'a> {
     fn prev_content_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
     fn first_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
     fn last_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
+    fn parent_scope(&self) -> Option<&Box<FocusScopeData>>;
 }
 
 impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
@@ -466,6 +483,10 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
             return child;
         }
         None
+    }
+
+    fn parent_scope(&self) -> Option<&Box<FocusScopeData>> {
+        self.parent().map(|node| node.value().scope.as_ref().unwrap())
     }
 }
 
