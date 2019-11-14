@@ -16,7 +16,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
     clique nela e um botão de opções de layout será exibido ao lado.";
     v_stack(
         string
-            .split("\n")
+            .split('\n')
             .map(|l| {
                 text(l).background_color(rgb(255, 255, 255)).on_click(|_c, _| {
                     //c.stop_propagation();

@@ -122,14 +122,24 @@ impl<C: Ui> Ui for FocusScope<C> {
 }
 
 pub trait FocusScopeExt: Ui + Sized {
+    /// # Arguments
+    ///
+    /// * `skip`: Navigation does not move into this scope automatically, but automatic
+    /// navigation works if focus is within.
+    ///
+    /// * `rember_focus`: Focus returns the last focused descendent when this scope
+    /// is focused.
+    ///
+    /// * `tab_nav`: Optional automatic tab navigation inside this scope.
+    /// * `directional_nav`: Optional automatic arrow keys navigation inside this scope.
     fn focus_scope(
         self,
         skip: bool,
         remember_focus: bool,
-        tab: Option<TabNav>,
-        directional: Option<DirectionalNav>,
+        tab_nav: Option<TabNav>,
+        directional_nav: Option<DirectionalNav>,
     ) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new_unique(), skip, remember_focus, tab, directional)
+        FocusScope::new(self, FocusKey::new_unique(), skip, remember_focus, tab_nav, directional_nav)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}
