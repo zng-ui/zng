@@ -147,7 +147,7 @@ impl Window {
             dpi_factor,
             inner_size,
 
-            focus_map: FocusMap::empty(),
+            focus_map: FocusMap::new(),
             content,
             content_size: LayoutSize::default(),
 
@@ -240,8 +240,6 @@ impl Window {
                             Some(VirtualKeyCode::Right) => Some(FocusRequest::Right),
                             Some(VirtualKeyCode::Up) => Some(FocusRequest::Up),
                             Some(VirtualKeyCode::Down) => Some(FocusRequest::Down),
-                            Some(VirtualKeyCode::LAlt) | Some(VirtualKeyCode::RAlt) => Some(FocusRequest::EnterAlt),
-                            Some(VirtualKeyCode::Escape) => Some(FocusRequest::EscapeAlt),
                             _ => None,
                         }
                     } else if input.modifiers == SHIFT_ONLY {

@@ -23,11 +23,6 @@ pub enum FocusRequest {
     /// Move focus to previous from current in screen, or to last in screen.
     Prev,
 
-    /// Move focus into the menu scope. TODO
-    EnterAlt,
-    /// Move focus to parent focus scope.
-    EscapeAlt,
-
     /// Move focus to the left of current.
     Left,
     /// Move focus to the right of current.
@@ -66,7 +61,7 @@ pub enum FocusStatus {
 }
 
 struct FocusScopeData {
-    menu: bool,
+    skip: bool,
     tab: Option<TabNav>,
     directional: Option<DirectionalNav>,
     size: LayoutSize,
@@ -101,31 +96,7 @@ pub(crate) struct FocusMap {
 }
 
 impl FocusMap {
-    pub fn new(
-        window_scope_key: FocusKey,
-        window_scope_rect: &LayoutRect,
-        window_scope_tab: Option<TabNav>,
-        window_scope_directional: Option<DirectionalNav>,
-    ) -> Self {
-        let entries = Tree::new(FocusEntry {
-            key: window_scope_key,
-            origin: window_scope_rect.center(),
-            scope: Some(Box::new(FocusScopeData {
-                menu: false,
-                tab: window_scope_tab,
-                directional: window_scope_directional,
-                size: window_scope_rect.size,
-            })),
-        });
-
-        FocusMap {
-            offset: window_scope_rect.origin,
-            current_scope: entries.root().id(),
-            entries,
-        }
-    }
-
-    pub fn empty() -> Self {
+    pub fn new() -> Self {
         static EMPTY_KEY: FocusKeyRef = FocusKey::new_lazy();
 
         let entries = Tree::new(FocusEntry {
@@ -157,7 +128,7 @@ impl FocusMap {
         &mut self,
         key: FocusKey,
         rect: &LayoutRect,
-        menu: bool,
+        skip: bool,
         tab: Option<TabNav>,
         directional: Option<DirectionalNav>,
     ) {
@@ -165,7 +136,7 @@ impl FocusMap {
             key,
             origin: rect.center() + self.offset.to_vector(),
             scope: Some(Box::new(FocusScopeData {
-                menu,
+                skip,
                 tab,
                 directional,
                 size: rect.size,
@@ -214,9 +185,6 @@ impl FocusMap {
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => Some(self.next(key)),
             (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
-            // Alt - Esc
-            (FocusRequest::EnterAlt, Some(_key)) => unimplemented!(),
-            (FocusRequest::EscapeAlt, Some(_key)) => unimplemented!(),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
         }
@@ -239,14 +207,14 @@ impl FocusMap {
         self.node_next(current, node, false)
     }
 
-    fn node_next(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey{
+    fn node_next(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.first_content_child() {
                 return first_child.value().key;
             } else if scope.retains_tab() {
                 return current;
             }
-        }else  if let Some(parent_node) = node.parent(){
+        } else if let Some(parent_node) = node.parent() {
             if parent_node.value().scope.as_ref().unwrap().tab == Some(TabNav::Once) {
                 return self.node_next(current, parent_node, true);
             }
@@ -285,14 +253,14 @@ impl FocusMap {
         self.node_prev(current, node, false)
     }
 
-    fn node_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey{
+    fn node_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.last_content_child() {
                 return first_child.value().key;
             } else if scope.retains_tab() {
                 return current;
             }
-        }else  if let Some(parent_node) = node.parent(){
+        } else if let Some(parent_node) = node.parent() {
             if parent_node.value().scope.as_ref().unwrap().tab == Some(TabNav::Once) {
                 return self.node_prev(current, parent_node, true);
             }
@@ -397,7 +365,7 @@ impl FocusMap {
             .children()
             .filter(move |c| {
                 if let Some(scope) = &c.value().scope {
-                    if scope.menu {
+                    if scope.skip {
                         return false;
                     }
                 }
@@ -422,7 +390,7 @@ trait NodeExt<'a> {
     fn prev_content_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
     fn first_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
     fn last_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
-    fn parent_scope(&self) -> Option<&Box<FocusScopeData>>;
+    fn parent_scope(&self) -> Option<&FocusScopeData>;
 }
 
 impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
@@ -430,7 +398,7 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         let mut next = self.next_sibling();
         while let Some(n) = next {
             if let Some(scope) = &n.value().scope {
-                if scope.menu {
+                if scope.skip {
                     next = n.next_sibling();
                     continue;
                 }
@@ -445,7 +413,7 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         let mut prev = self.prev_sibling();
         while let Some(n) = prev {
             if let Some(scope) = &n.value().scope {
-                if scope.menu {
+                if scope.skip {
                     prev = n.prev_sibling();
                     continue;
                 }
@@ -460,7 +428,7 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         let child = self.first_child();
         if let Some(c) = child {
             if let Some(scope) = &c.value().scope {
-                if scope.menu {
+                if scope.skip {
                     return c.next_content_sibling();
                 }
             }
@@ -475,7 +443,7 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         let child = self.last_child();
         if let Some(c) = child {
             if let Some(scope) = &c.value().scope {
-                if scope.menu {
+                if scope.skip {
                     return c.prev_content_sibling();
                 }
             }
@@ -485,8 +453,8 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         None
     }
 
-    fn parent_scope(&self) -> Option<&Box<FocusScopeData>> {
-        self.parent().map(|node| node.value().scope.as_ref().unwrap())
+    fn parent_scope(&self) -> Option<&FocusScopeData> {
+        self.parent().map(|node| node.value().scope.as_ref().unwrap().as_ref())
     }
 }
 

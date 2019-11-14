@@ -79,7 +79,7 @@ impl<T: Ui> FocusableExt for T {}
 pub struct FocusScope<C: Ui> {
     child: C,
     key: FocusKey,
-    menu: bool,
+    skip: bool,
     remember_focus: bool,
     tab: Option<TabNav>,
     directional: Option<DirectionalNav>,
@@ -113,7 +113,7 @@ impl<C: Ui> Ui for FocusScope<C> {
         f.push_focus_scope(
             self.key,
             &LayoutRect::from_size(f.final_size()),
-            self.menu,
+            self.skip,
             self.tab,
             self.directional,
             &self.child,
@@ -124,12 +124,12 @@ impl<C: Ui> Ui for FocusScope<C> {
 pub trait FocusScopeExt: Ui + Sized {
     fn focus_scope(
         self,
-        menu: bool,
+        skip: bool,
         remember_focus: bool,
         tab: Option<TabNav>,
         directional: Option<DirectionalNav>,
     ) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new_unique(), menu, remember_focus, tab, directional)
+        FocusScope::new(self, FocusKey::new_unique(), skip, remember_focus, tab, directional)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}

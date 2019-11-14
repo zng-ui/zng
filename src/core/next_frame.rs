@@ -16,7 +16,7 @@ impl NextFrame {
             spatial_id: root_spatial_id,
             final_size,
             cursor: CursorIcon::Default,
-            focus_map: FocusMap::empty(),
+            focus_map: FocusMap::new(),
         }
     }
 
@@ -130,12 +130,12 @@ impl NextFrame {
         &mut self,
         key: FocusKey,
         rect: &LayoutRect,
-        menu: bool,
+        skip: bool,
         tab: Option<TabNav>,
         directional: Option<DirectionalNav>,
         child: &impl Ui,
     ) {
-        self.focus_map.push_focus_scope(key, rect, menu, tab, directional);
+        self.focus_map.push_focus_scope(key, rect, skip, tab, directional);
 
         child.render(self);
 
