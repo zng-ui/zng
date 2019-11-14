@@ -10,7 +10,7 @@ fn main() {
 fn window(_: &mut NextUpdate) -> impl Ui {
     v_stack((
         // menu
-        line(100., "menu").focus_scope(true, false, Some(TabNav::Cycle), Some(DirectionalNav::Cycle)),
+        line(100., "menu").alt_focus_scope(),
         // grid
         v_stack((0..3).map(|_| line(200., "Olá")).collect::<Vec<_>>()),
     ))

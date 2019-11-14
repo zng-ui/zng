@@ -1,3 +1,4 @@
+use super::event::STOP_KEY_DOWN;
 use crate::core::*;
 
 #[derive(new)]
@@ -23,6 +24,18 @@ pub struct Focusable<C: Ui> {
     #[new(default)]
     focused: bool,
 }
+
+fn focusable_status(focused: bool, child: &impl Ui) -> Option<FocusStatus> {
+    if focused {
+        Some(FocusStatus::Focused)
+    } else {
+        match child.focus_status() {
+            None => None,
+            _ => Some(FocusStatus::FocusWithin),
+        }
+    }
+}
+
 #[impl_ui_crate(child)]
 impl<C: Ui> Focusable<C> {
     pub fn focused(self, request_focus: bool) -> FocusOnInit<C> {
@@ -53,14 +66,7 @@ impl<C: Ui> Focusable<C> {
 
     #[Ui]
     fn focus_status(&self) -> Option<FocusStatus> {
-        if self.focused {
-            Some(FocusStatus::Focused)
-        } else {
-            match self.child.focus_status() {
-                None => None,
-                _ => Some(FocusStatus::FocusWithin),
-            }
-        }
+        focusable_status(self.focused, &self.child)
     }
 }
 
@@ -121,7 +127,83 @@ impl<C: Ui> Ui for FocusScope<C> {
     }
 }
 
+#[derive(new)]
+pub struct AltFocusScope<C: Ui> {
+    child: C,
+    key: FocusKey,
+    #[new(default)]
+    previous_focus: Option<FocusKey>,
+    #[new(default)]
+    focused: bool,
+}
+
+#[impl_ui_crate(child)]
+impl<C: Ui> Ui for AltFocusScope<C> {
+    fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+        let was_focused = self.focus_status().is_some();
+
+        self.child.focus_changed(change, values, update);
+
+        let is_focused = if change.new_focus == Some(self.key) {
+            update.focus(FocusRequest::Next);
+            self.focused = true;
+            true
+        } else {
+            self.focused = false;
+            self.focus_status().is_some()
+        };
+
+        if was_focused != is_focused {
+            if is_focused {
+                self.previous_focus = change.old_focus;
+            } else {
+                self.previous_focus = None;
+            }
+        }
+    }
+
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.keyboard_input(input, values, update);
+
+        if values.child(*STOP_KEY_DOWN).is_some() {
+            return;
+        }
+
+        if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
+            match key {
+                VirtualKeyCode::LAlt => {
+                    if self.focus_status().is_none() {
+                        update.focus(FocusRequest::Direct(self.key));
+                    }
+                }
+                VirtualKeyCode::Escape => {
+                    if let (Some(previous_focus), Some(_)) = (self.previous_focus, self.focus_status()) {
+                        update.focus(FocusRequest::Direct(previous_focus))
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn focus_status(&self) -> Option<FocusStatus> {
+        focusable_status(self.focused, &self.child)
+    }
+
+    fn render(&self, f: &mut NextFrame) {
+        f.push_focus_scope(
+            self.key,
+            &LayoutRect::from_size(f.final_size()),
+            true,
+            Some(TabNav::Cycle),
+            Some(DirectionalNav::Cycle),
+            &self.child,
+        );
+    }
+}
+
 pub trait FocusScopeExt: Ui + Sized {
+    ///
     /// # Arguments
     ///
     /// * `skip`: Navigation does not move into this scope automatically, but automatic
@@ -139,7 +221,21 @@ pub trait FocusScopeExt: Ui + Sized {
         tab_nav: Option<TabNav>,
         directional_nav: Option<DirectionalNav>,
     ) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new_unique(), skip, remember_focus, tab_nav, directional_nav)
+        FocusScope::new(
+            self,
+            FocusKey::new_unique(),
+            skip,
+            remember_focus,
+            tab_nav,
+            directional_nav,
+        )
+    }
+
+    /// Creates a skip focus scope with cycle navigation that is focused when ALT is pressed in
+    /// the window. When focus is within this scope ESC returns the focus to the previous focused element
+    /// outside this scope.
+    fn alt_focus_scope(self) -> AltFocusScope<Self> {
+        AltFocusScope::new(self, FocusKey::new_unique())
     }
 }
 impl<T: Ui> FocusScopeExt for T {}

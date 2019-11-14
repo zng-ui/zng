@@ -33,7 +33,7 @@ pub enum FocusRequest {
     Down,
 }
 
-#[derive(new)]
+#[derive(new, Debug)]
 pub struct FocusChange {
     pub old_focus: Option<FocusKey>,
     pub new_focus: Option<FocusKey>,
