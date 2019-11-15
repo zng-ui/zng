@@ -129,12 +129,11 @@ impl Window {
         let mut ui_values = UiValues::new();
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let mut content = (new_window.content)(&mut next_update).focus_scope(
-            false,
-            true,
-            Some(TabNav::Cycle),
-            Some(DirectionalNav::Cycle),
-        );
+        let mut content = (new_window.content)(&mut next_update)
+            .focus_scope()
+            .with_remember(true)
+            .with_tab_nav(Some(TabNav::Cycle))
+            .with_directional_nav(Some(DirectionalNav::Cycle));
         content.init(&mut ui_values, &mut next_update);
 
         Window {
