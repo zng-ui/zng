@@ -359,7 +359,7 @@ mod ui_values {
 
     #[test]
     fn with_parent_value() {
-        let mut ui_values = UiValues::new();
+        let mut ui_values = UiValues::new(FocusKey::new_unique());
         let key1 = ParentValueKey::new_unique();
         let key2 = ParentValueKey::new_unique();
 

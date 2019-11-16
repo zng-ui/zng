@@ -12,7 +12,7 @@ Things that must be done first because they influence the core API design that i
   * Let focusable know if it is the remembered return focus of a parent scope.
   * Focus on the closest existing sibling or parent in case the focused element is deleted.
   * Customizable focus indicators in focusable, (focused/remembered?/return target?/).
-    * ESC hides focus indicator? Use knologe of how focus was ateinged to show indicator?
+    * ESC hides focus indicator? Use knowledge of how focus was attained to show indicator?
   * Initial focus closest to mouse click?
 * Enabled/Disabled.
 * Images.
