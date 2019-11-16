@@ -126,14 +126,16 @@ impl Window {
         let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let mut ui_values = UiValues::new();
+        let mut ui_values = UiValues::new(FocusKey::new_unique());
         let mut next_update = NextUpdate::new(api, document_id);
 
-        let mut content = (new_window.content)(&mut next_update)
-            .focus_scope()
-            .with_remember(true)
-            .with_tab_nav(Some(TabNav::Cycle))
-            .with_directional_nav(Some(DirectionalNav::Cycle));
+        let mut content = (new_window.content)(&mut next_update).focus_scope(|s| {
+            s.tab_nav_cycle()
+                .directional_nav_cycle()
+                .remember_focus(true)
+                .key(ui_values.window_focus_key())
+        });
+
         content.init(&mut ui_values, &mut next_update);
 
         Window {
@@ -165,7 +167,7 @@ impl Window {
 
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
     pub fn event(&mut self, event: WindowEvent) -> bool {
-        // has update outsize of self.next_update.
+        // has update outside of self.next_update.
         let mut has_update = false;
 
         match event {
@@ -303,13 +305,17 @@ impl Window {
                 self.ui_values.clear_child_values()
             }
             WindowEvent::Focused(focused) => {
+                self.content
+                    .window_focused(focused, &mut self.ui_values, &mut self.next_update);
+
                 if focused {
-                    self.next_update.focus(FocusRequest::Direct(self.content.key()));
+                    if self.next_update.focus_request.is_none() {
+                        self.next_update
+                            .focus(FocusRequest::Direct(self.ui_values.window_focus_key()));
+                    }
                 } else {
                     self.key_down = None;
                 }
-                self.content
-                    .window_focused(focused, &mut self.ui_values, &mut self.next_update);
 
                 self.ui_values.clear_child_values();
             }
@@ -366,10 +372,15 @@ impl Window {
     }
 
     fn update_focus(&mut self, focused: Focused) {
+        if self.first_draw {
+            return;
+        }
+
         if let Some(request) = self.next_update.focus_request.take() {
             let new_focused = self.focus_map.focus(focused.get(), request);
+
             if new_focused != focused.get() {
-                self.activate();
+                //self.activate();// TODO only call when other app window is focused?
                 self.content.focus_changed(
                     &FocusChange::new(focused.get(), new_focused),
                     &mut self.ui_values,
@@ -381,6 +392,7 @@ impl Window {
     }
 
     /// Bring window to foreground.
+    #[allow(dead_code)]
     pub fn activate(&self) {
         use raw_window_handle::*;
         use winapi::shared::windef::HWND;

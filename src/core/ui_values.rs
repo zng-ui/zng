@@ -1,4 +1,4 @@
-use super::{LayoutPoint, LayoutSize};
+use super::{FocusKey, LayoutPoint, LayoutSize};
 use fnv::FnvHashMap;
 use once_cell::sync::OnceCell;
 use retain_mut::*;
@@ -78,6 +78,8 @@ pub struct UiValues {
     parent_values: FnvHashMap<ParentValueId, *const UntypedRef>,
     #[new(default)]
     child_values: FnvHashMap<ChildValueId, Box<dyn Any>>,
+
+    window_focus_key: FocusKey,
 }
 impl UiValues {
     pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<&T> {
@@ -120,6 +122,10 @@ impl UiValues {
 
     pub(crate) fn clear_child_values(&mut self) {
         self.child_values.clear()
+    }
+
+    pub fn window_focus_key(&self) -> FocusKey {
+        self.window_focus_key
     }
 }
 

@@ -2,22 +2,6 @@ use super::event::STOP_KEY_DOWN;
 use crate::core::*;
 
 #[derive(new)]
-pub struct FocusOnInit<C: Ui> {
-    child: Focusable<C>,
-    request_focus: bool,
-}
-
-#[impl_ui_crate(child)]
-impl<C: Ui> Ui for FocusOnInit<C> {
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child.init(values, update);
-        if self.request_focus {
-            update.focus(FocusRequest::Direct(self.child.key));
-        }
-    }
-}
-
-#[derive(new)]
 pub struct Focusable<C: Ui> {
     child: C,
     key: FocusKey,
@@ -38,8 +22,12 @@ fn focusable_status(focused: bool, child: &impl Ui) -> Option<FocusStatus> {
 
 #[impl_ui_crate(child)]
 impl<C: Ui> Focusable<C> {
-    pub fn focused(self, request_focus: bool) -> FocusOnInit<C> {
-        FocusOnInit::new(self, request_focus)
+    pub fn from_config(child: C, config: FocusableConfig) -> Self {
+        Focusable {
+            child,
+            key: config.key.unwrap_or_else(FocusKey::new_unique),
+            focused: false,
+        }
     }
 
     #[Ui]
@@ -71,15 +59,27 @@ impl<C: Ui> Focusable<C> {
 }
 
 pub trait FocusableExt: Ui + Sized {
-    fn focusable(self) -> Focusable<Self> {
-        Focusable::new(self, FocusKey::new_unique())
-    }
-
-    fn focusable_with_key(self, key: FocusKey) -> Focusable<Self> {
-        Focusable::new(self, key)
+    fn focusable(self, config: impl FnOnce(FocusableConfig) -> FocusableConfig) -> Focusable<Self> {
+        let c = config(FocusableConfig::new());
+        Focusable::from_config(self, c)
     }
 }
 impl<T: Ui> FocusableExt for T {}
+
+#[derive(new)]
+pub struct FocusableConfig {
+    #[new(default)]
+    key: Option<FocusKey>,
+}
+
+impl UiConfig for FocusableConfig {}
+
+impl FocusableConfig {
+    pub fn key(mut self, key: FocusKey) -> Self {
+        self.key = Some(key);
+        self
+    }
+}
 
 #[derive(new)]
 pub struct FocusScope<C: Ui> {
@@ -89,62 +89,49 @@ pub struct FocusScope<C: Ui> {
     focused: bool,
 
     key: FocusKey,
-    #[new(default)]
     skip: bool,
-    #[new(value = "Some(TabNav::Continue)")]
     tab: Option<TabNav>,
-    #[new(default)]
     directional: Option<DirectionalNav>,
 
-    #[new(default)]
     alt: bool,
     #[new(default)]
     return_focus: Option<FocusKey>,
 
-    #[new(default)]
     remember_focus: bool,
     #[new(default)]
     remembered_focus: Option<FocusKey>,
 }
 
 impl<C: Ui> FocusScope<C> {
-    pub(crate) fn key(&self) -> FocusKey {
-        self.key
-    }
+    pub fn from_config(child: C, config: FocusScopeConfig) -> Self {
+        let FocusScopeConfig {
+            key,
+            skip,
+            tab,
+            directional,
+            alt,
+            remember_focus,
+        } = config;
 
-    // Optionally navigation does not move into this scope automatically, but automatic navigation within it still works.
-    pub fn with_skip(mut self, skip: bool) -> Self {
-        self.skip = skip;
-        self
-    }
+        FocusScope {
+            child,
+            key: key.unwrap_or_else(FocusKey::new_unique),
+            skip,
+            tab,
+            directional,
+            alt,
+            remember_focus,
 
-    /// Optional automatic tab navigation inside this scope.
-    pub fn with_tab_nav(mut self, tab: Option<TabNav>) -> Self {
-        self.tab = tab;
-        self
-    }
-
-    /// Optional automatic arrow keys navigation inside this scope.
-    pub fn with_directional_nav(mut self, directional: Option<DirectionalNav>) -> Self {
-        self.directional = directional;
-        self
-    }
-
-    /// Optionally automatically focus in this scope when alt is pressed in window, returning focus on previous location when esc is pressed.
-    pub fn with_alt_nav(mut self, alt: bool) -> Self {
-        self.alt = alt;
-        self
-    }
-
-    ///Optionally remember the last focused location inside this scope and restore it when the scope is refocused again.
-    pub fn with_remember(mut self, remember: bool) -> Self {
-        self.remember_focus = remember;
-        self
+            focused: false,
+            return_focus: None,
+            remembered_focus: None,
+        }
     }
 }
 
 #[impl_ui_crate(child)]
-impl<C: Ui> Ui for FocusScope<C> {
+impl<C: Ui> FocusScope<C> {
+    #[Ui]
     fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
         let was_focused = self.focus_status().is_some();
 
@@ -178,6 +165,7 @@ impl<C: Ui> Ui for FocusScope<C> {
         }
     }
 
+    #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
 
@@ -193,19 +181,36 @@ impl<C: Ui> Ui for FocusScope<C> {
                     }
                 }
                 VirtualKeyCode::Escape => {
-                    if let (Some(return_focus), Some(_)) = (self.return_focus, self.focus_status()) {
-                        update.focus(FocusRequest::Direct(return_focus))
-                    }
+                    self.return_focus(values, update);
                 }
                 _ => {}
             }
         }
     }
 
+    #[Ui]
+    fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.window_focused(focused, values, update);
+
+        if !focused {
+            self.return_focus(values, update);
+        }
+    }
+
+    fn return_focus(&self, values: &mut UiValues, update: &mut NextUpdate) {
+        if self.alt && self.focus_status().is_some() {
+            update.focus(FocusRequest::Direct(
+                self.return_focus.unwrap_or_else(||values.window_focus_key()),
+            ));
+        }
+    }
+
+    #[Ui]
     fn focus_status(&self) -> Option<FocusStatus> {
         focusable_status(self.focused, &self.child)
     }
 
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_focus_scope(
             self.key,
@@ -220,13 +225,104 @@ impl<C: Ui> Ui for FocusScope<C> {
 
 pub trait FocusScopeExt: Ui + Sized {
     ///Creates a default FocusScope
-    fn focus_scope(self) -> FocusScope<Self> {
-        FocusScope::new(self, FocusKey::new_unique())
-    }
-
-    ///Creates a default FocusScope with a specific FocusKey
-    fn focus_scope_with_key(self, key: FocusKey) -> FocusScope<Self> {
-        FocusScope::new(self, key)
+    fn focus_scope(self, config: impl FnOnce(FocusScopeConfig) -> FocusScopeConfig) -> FocusScope<Self> {
+        let c = config(FocusScopeConfig::new());
+        FocusScope::from_config(self, c)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}
+
+#[derive(new)]
+pub struct FocusScopeConfig {
+    #[new(default)]
+    key: Option<FocusKey>,
+    #[new(default)]
+    skip: bool,
+
+    #[new(value = "Some(TabNav::Continue)")]
+    tab: Option<TabNav>,
+    #[new(default)]
+    directional: Option<DirectionalNav>,
+
+    #[new(default)]
+    alt: bool,
+    #[new(default)]
+    remember_focus: bool,
+}
+
+impl UiConfig for FocusScopeConfig {}
+
+impl FocusScopeConfig {
+    pub fn key(mut self, key: FocusKey) -> Self {
+        self.key = Some(key);
+        self
+    }
+
+    // Optionally navigation does not move into this scope automatically, but automatic navigation within it still works.
+    pub fn skip(mut self, skip: bool) -> Self {
+        self.skip = skip;
+        self
+    }
+
+    /// Optional automatic tab navigation inside this scope.
+    pub fn tab_nav(mut self, tab: Option<TabNav>) -> Self {
+        self.tab = tab;
+        self
+    }
+
+    /// Optional automatic arrow keys navigation inside this scope.
+    pub fn directional_nav(mut self, directional: Option<DirectionalNav>) -> Self {
+        self.directional = directional;
+        self
+    }
+
+    /// Optionally automatically focus in this scope when alt is pressed in
+    ///  window, returning focus on previous location when esc is pressed.
+    pub fn alt_nav(mut self, alt: bool) -> Self {
+        self.alt = alt;
+        self
+    }
+
+    ///Optionally remember the last focused location inside this scope and
+    /// restore it when the scope is refocused again.
+    pub fn remember_focus(mut self, remember_focus: bool) -> Self {
+        self.remember_focus = remember_focus;
+        self
+    }
+
+    pub fn tab_nav_cycle(self) -> Self {
+        self.tab_nav(Some(TabNav::Cycle))
+    }
+
+    pub fn tab_nav_contained(self) -> Self {
+        self.tab_nav(Some(TabNav::Contained))
+    }
+
+    pub fn tab_nav_continue(self) -> Self {
+        self.tab_nav(Some(TabNav::Continue))
+    }
+
+    pub fn tab_nav_once(self) -> Self {
+        self.tab_nav(Some(TabNav::Once))
+    }
+
+    pub fn directional_nav_cycle(self) -> Self {
+        self.directional_nav(Some(DirectionalNav::Cycle))
+    }
+
+    pub fn directional_nav_contained(self) -> Self {
+        self.directional_nav(Some(DirectionalNav::Contained))
+    }
+
+    pub fn directional_nav_continue(self) -> Self {
+        self.directional_nav(Some(DirectionalNav::Continue))
+    }
+
+    pub fn no_tab_nav(self) -> Self {
+        self.tab_nav(None)
+    }
+
+    pub fn menu(self) -> Self {
+        self.skip(true).alt_nav(true).tab_nav_cycle().directional_nav_cycle()
+    }
+}

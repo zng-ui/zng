@@ -59,3 +59,12 @@ impl Ui for Box<dyn Ui> {
         self
     }
 }
+
+/// Marker trait for a Ui configuration. Enables [default] for
+/// Ui optional configuration pattern.
+pub trait UiConfig {}
+
+/// Uses the default configuration.
+pub fn default<C: UiConfig>(config: C) -> C {
+    config
+}
