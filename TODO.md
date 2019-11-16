@@ -5,10 +5,15 @@
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
 * Focusable
-  * Manual focus order.
+  * Manual focus order (tab index).
   * Know how a focus event was generated (what type of request).
-  * ESC in alt scope without return focus on parent scope.
   * More focus request types.
+  * Only remember focus not inside `skip` child.
+  * Let focusable know if it is the remembered return focus of a parent scope.
+  * Focus on the closest existing sibling or parent in case the focused element is deleted.
+  * Customizable focus indicators in focusable, (focused/remembered?/return target?/).
+    * ESC hides focus indicator? Use knologe of how focus was ateinged to show indicator?
+  * Initial focus closest to mouse click?
 * Enabled/Disabled.
 * Images.
 * Raw OpenGL textures.
@@ -42,7 +47,7 @@ Things that must be done first because they influence the core API design that i
 ## Basic Widgets
 
 * Progress indicator.
-* Button (work button, default, primary, cancel, etc).
+* Button (work button, default, primary, cancel, etc.).
 * Validation.
 * TextInput.
 * CheckInput.
