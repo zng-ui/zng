@@ -101,7 +101,7 @@ impl FocusMap {
         static EMPTY_KEY: FocusKeyRef = FocusKey::new_lazy();
 
         let entries = Tree::new(FocusEntry {
-            tab_index: 0    ,
+            tab_index: 0,
             key: *EMPTY_KEY,
             origin: LayoutPoint::zero(),
             scope: None,
