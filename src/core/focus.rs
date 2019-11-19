@@ -84,6 +84,7 @@ impl FocusScopeData {
 }
 
 struct FocusEntry {
+    tab_index: u32,
     key: FocusKey,
     origin: LayoutPoint,
     scope: Option<Box<FocusScopeData>>,
@@ -100,6 +101,7 @@ impl FocusMap {
         static EMPTY_KEY: FocusKeyRef = FocusKey::new_lazy();
 
         let entries = Tree::new(FocusEntry {
+            tab_index: 0    ,
             key: *EMPTY_KEY,
             origin: LayoutPoint::zero(),
             scope: None,
@@ -126,13 +128,15 @@ impl FocusMap {
 
     pub fn push_focus_scope(
         &mut self,
+        tab_index: u32,
         key: FocusKey,
         rect: &LayoutRect,
         skip: bool,
         tab: Option<TabNav>,
         directional: Option<DirectionalNav>,
     ) {
-        let entry = FocusEntry {
+        let focus_entry = FocusEntry {
+            tab_index,
             key,
             origin: rect.center() + self.offset.to_vector(),
             scope: Some(Box::new(FocusScopeData {
@@ -144,9 +148,9 @@ impl FocusMap {
         };
 
         if self.is_empty() {
-            *self.entries.root_mut().value() = entry;
+            *self.entries.root_mut().value() = focus_entry;
         } else {
-            self.current_scope = self.entries.get_mut(self.current_scope).unwrap().append(entry).id();
+            self.current_scope = self.push_focus_entry(focus_entry);
         }
         self.push_reference_frame(rect);
     }
@@ -159,12 +163,15 @@ impl FocusMap {
         }
     }
 
-    pub fn push_focusable(&mut self, key: FocusKey, origin: LayoutPoint) {
-        self.entries.get_mut(self.current_scope).unwrap().append(FocusEntry {
+    pub fn push_focusable(&mut self, tab_index: u32, key: FocusKey, origin: LayoutPoint) {
+        let focus_entry = FocusEntry {
+            tab_index,
             key,
             origin: origin + self.offset.to_vector(),
             scope: None,
-        });
+        };
+
+        self.push_focus_entry(focus_entry);
     }
 
     /// Gets next focus key  from a current `focused` and a change `request`.
@@ -187,6 +194,31 @@ impl FocusMap {
             (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
             //Arrow Keys
             (direction, Some(key)) => Some(self.next_towards(direction, key)),
+        }
+    }
+
+    fn push_focus_entry(&mut self, focus_entry: FocusEntry) -> NodeId {
+        let prev_sibling = self
+            .entries
+            .get(self.current_scope)
+            .unwrap()
+            .children()
+            .rev()
+            .find(|node| node.value().tab_index <= focus_entry.tab_index)
+            .map(|node| node.id());
+
+        if let Some(prev_sibling) = prev_sibling {
+            self.entries
+                .get_mut(prev_sibling)
+                .unwrap()
+                .insert_after(focus_entry)
+                .id()
+        } else {
+            self.entries
+                .get_mut(self.current_scope)
+                .unwrap()
+                .append(focus_entry)
+                .id()
         }
     }
 

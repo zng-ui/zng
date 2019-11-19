@@ -4,6 +4,7 @@ use crate::core::*;
 #[derive(new)]
 pub struct Focusable<C: Ui> {
     child: C,
+    tab_index: u32,
     key: FocusKey,
     #[new(default)]
     focused: bool,
@@ -25,6 +26,7 @@ impl<C: Ui> Focusable<C> {
     pub fn from_config(child: C, config: FocusableConfig) -> Self {
         Focusable {
             child,
+            tab_index: config.tab_index,
             key: config.key.unwrap_or_else(FocusKey::new_unique),
             focused: false,
         }
@@ -32,7 +34,7 @@ impl<C: Ui> Focusable<C> {
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
-        f.push_focusable(self.key, &LayoutRect::from_size(f.final_size()));
+        f.push_focusable(self.tab_index, self.key, &LayoutRect::from_size(f.final_size()));
         self.child.render(f);
     }
 
@@ -68,6 +70,8 @@ impl<T: Ui> FocusableExt for T {}
 
 #[derive(new)]
 pub struct FocusableConfig {
+    #[new(value = "u32::max_value()")]
+    tab_index: u32,
     #[new(default)]
     key: Option<FocusKey>,
 }
@@ -75,36 +79,41 @@ pub struct FocusableConfig {
 impl UiConfig for FocusableConfig {}
 
 impl FocusableConfig {
+    /// Optionally set a custom tab navigation order inside the parent scope. The smallest index is navigated to first,
+    /// equal indexes are ordered by their order of creation. The default value for the tab_index is u32::max_value().
+    pub fn tab_index(mut self, tab_index: u32) -> Self {
+        self.tab_index = tab_index;
+        self
+    }
+
     pub fn key(mut self, key: FocusKey) -> Self {
         self.key = Some(key);
         self
     }
 }
 
-#[derive(new)]
 pub struct FocusScope<C: Ui> {
     child: C,
 
-    #[new(default)]
     focused: bool,
 
+    tab_index: u32,
     key: FocusKey,
     skip: bool,
     tab: Option<TabNav>,
     directional: Option<DirectionalNav>,
 
     alt: bool,
-    #[new(default)]
     return_focus: Option<FocusKey>,
 
     remember_focus: bool,
-    #[new(default)]
     remembered_focus: Option<FocusKey>,
 }
 
 impl<C: Ui> FocusScope<C> {
-    pub fn from_config(child: C, config: FocusScopeConfig) -> Self {
+    pub fn new(child: C, config: FocusScopeConfig) -> Self {
         let FocusScopeConfig {
+            tab_index,
             key,
             skip,
             tab,
@@ -115,15 +124,19 @@ impl<C: Ui> FocusScope<C> {
 
         FocusScope {
             child,
+
+            focused: false,
+
+            tab_index,
             key: key.unwrap_or_else(FocusKey::new_unique),
             skip,
             tab,
             directional,
-            alt,
-            remember_focus,
 
-            focused: false,
+            alt,
             return_focus: None,
+
+            remember_focus,
             remembered_focus: None,
         }
     }
@@ -200,7 +213,7 @@ impl<C: Ui> FocusScope<C> {
     fn return_focus(&self, values: &mut UiValues, update: &mut NextUpdate) {
         if self.alt && self.focus_status().is_some() {
             update.focus(FocusRequest::Direct(
-                self.return_focus.unwrap_or_else(||values.window_focus_key()),
+                self.return_focus.unwrap_or_else(|| values.window_focus_key()),
             ));
         }
     }
@@ -213,6 +226,7 @@ impl<C: Ui> FocusScope<C> {
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_focus_scope(
+            self.tab_index,
             self.key,
             &LayoutRect::from_size(f.final_size()),
             self.skip,
@@ -227,13 +241,15 @@ pub trait FocusScopeExt: Ui + Sized {
     ///Creates a default FocusScope
     fn focus_scope(self, config: impl FnOnce(FocusScopeConfig) -> FocusScopeConfig) -> FocusScope<Self> {
         let c = config(FocusScopeConfig::new());
-        FocusScope::from_config(self, c)
+        FocusScope::new(self, c)
     }
 }
 impl<T: Ui> FocusScopeExt for T {}
 
 #[derive(new)]
 pub struct FocusScopeConfig {
+    #[new(value = "u32::max_value()")]
+    tab_index: u32,
     #[new(default)]
     key: Option<FocusKey>,
     #[new(default)]
@@ -253,12 +269,19 @@ pub struct FocusScopeConfig {
 impl UiConfig for FocusScopeConfig {}
 
 impl FocusScopeConfig {
+    /// Optionally set a custom tab navigation order inside the parent scope. The smallest index is navigated to first,
+    /// equal indexes are ordered by their order of creation. The default value for the tab_index is u32::max_value().
+    pub fn tab_index(mut self, tab_index: u32) -> Self {
+        self.tab_index = tab_index;
+        self
+    }
+
     pub fn key(mut self, key: FocusKey) -> Self {
         self.key = Some(key);
         self
     }
 
-    // Optionally navigation does not move into this scope automatically, but automatic navigation within it still works.
+    /// Optionally navigation does not move into this scope automatically, but automatic navigation within it still works.
     pub fn skip(mut self, skip: bool) -> Self {
         self.skip = skip;
         self

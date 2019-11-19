@@ -122,12 +122,13 @@ impl NextFrame {
             .push_text(&lpi, &sci, &glyphs, font_instance_key, color, None);
     }
 
-    pub fn push_focusable(&mut self, key: FocusKey, rect: &LayoutRect) {
-        self.focus_map.push_focusable(key, rect.center());
+    pub fn push_focusable(&mut self, tab_index: u32, key: FocusKey, rect: &LayoutRect) {
+        self.focus_map.push_focusable(tab_index, key, rect.center());
     }
 
     pub fn push_focus_scope(
         &mut self,
+        tab_index: u32,
         key: FocusKey,
         rect: &LayoutRect,
         skip: bool,
@@ -135,7 +136,8 @@ impl NextFrame {
         directional: Option<DirectionalNav>,
         child: &impl Ui,
     ) {
-        self.focus_map.push_focus_scope(key, rect, skip, tab, directional);
+        self.focus_map
+            .push_focus_scope(tab_index, key, rect, skip, tab, directional);
 
         child.render(self);
 

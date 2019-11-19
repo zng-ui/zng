@@ -22,7 +22,8 @@ fn line(height: f32, text: &'static str) -> impl Ui {
     h_stack((0..4).map(|i| item(i, text)).collect::<Vec<_>>()).height(height)
 }
 
-fn item(_: usize, txt: &'static str) -> impl Ui {
+fn item(i: usize, txt: &'static str) -> impl Ui {
+    let i = i as u32;
     let border = Var::new(rgba(0, 0, 0, 0.0));
     let text_border = Var::new(rgba(0, 0, 0, 0.0));
     text(txt)
@@ -31,7 +32,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
         .background_color(rgba(1., 1., 1., 0.5))
         .border(4., (Var::clone(&text_border), BorderStyle::Dashed))
         .text_color(rgb(0, 0, 0))
-        .focusable(default)
+        .focusable(|f| f.tab_index(i))
         .center()
         .cursor(CursorIcon::Hand)
         .on_focus(enclose! {(text_border) move |u| {
@@ -44,7 +45,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
         .border(4., (Var::clone(&border), BorderStyle::Dashed))
         .margin(2.)
         .width(200.)
-        .focusable(default)
+        .focusable(|f| f.tab_index(i))
         .on_focus(enclose! {(border)move |u| {
             u.set(&border, rgb(145, 218, 255));
         }})
