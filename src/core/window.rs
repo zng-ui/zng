@@ -53,6 +53,11 @@ pub(crate) struct Window {
     inner_size: LayoutSize,
 
     focus_map: FocusMap,
+    focused_in_window: Option<FocusKey>,
+    // `focused_in_window` in the new frame. If it does not exist
+    // closest sibling or parent.
+    focused_in_window_coerced: Option<FocusKey>,
+
     content: FocusScope<Box<dyn Ui>>,
     content_size: LayoutSize,
 
@@ -149,6 +154,9 @@ impl Window {
             inner_size,
 
             focus_map: FocusMap::new(),
+            focused_in_window: None,
+            focused_in_window_coerced: None,
+
             content,
             content_size: LayoutSize::default(),
 
@@ -378,6 +386,8 @@ impl Window {
 
         if let Some(request) = self.next_update.focus_request.take() {
             let new_focused = self.focus_map.focus(focused.get(), request);
+            self.focused_in_window = new_focused;
+            self.focused_in_window_coerced = new_focused;
 
             if new_focused != focused.get() {
                 //self.activate();// TODO only call when other app window is focused?
@@ -387,6 +397,23 @@ impl Window {
                     &mut self.next_update,
                 );
                 focused.set(new_focused);
+            }
+        } else if self.focused_in_window.is_some() && focused.get() == self.focused_in_window {
+            // if window has focused element and global focused is that element.
+
+            if self.focused_in_window != self.focused_in_window_coerced {
+                // but the window new frame no longer contains that element.
+
+                // update to closest sibling or parent.
+
+                self.content.focus_changed(
+                    &FocusChange::new(self.focused_in_window, self.focused_in_window_coerced),
+                    &mut self.ui_values,
+                    &mut self.next_update,
+                );
+
+                focused.set(self.focused_in_window_coerced);
+                self.focused_in_window = self.focused_in_window_coerced;
             }
         }
     }
@@ -454,6 +481,10 @@ impl Window {
         });
 
         let (display_list_data, focus_map) = frame.finalize();
+
+        if let Some(f) = self.focused_in_window {
+            self.focused_in_window_coerced = self.focus_map.closest_existing(f, &focus_map);
+        }
         self.focus_map = focus_map;
 
         txn.set_display_list(self.latest_frame_id, None, self.inner_size, display_list_data, true);

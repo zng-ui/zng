@@ -178,13 +178,29 @@ impl FocusMap {
         self.push_focus_entry(focus_entry);
     }
 
+    pub fn closest_existing(&self, current: FocusKey, new_map: &FocusMap) -> Option<FocusKey> {
+        if new_map.contains(current) {
+            Some(current)
+        } else {
+            let node = self
+                .find_node(current)
+                .expect("closest_existing must be called on the old map");
+
+            node.next_siblings()
+                .chain(node.prev_siblings())
+                .chain(node.ancestors())
+                .find(|n| new_map.contains(n.value().f.key))
+                .map(|n| n.value().f.key)
+        }
+    }
+
     /// Gets next focus key  from a current `focused` and a change `request`.
-    pub fn focus(&self, focused: Option<FocusKey>, request: FocusRequest) -> Option<FocusKey> {
+    pub fn focus(&self, current: Option<FocusKey>, request: FocusRequest) -> Option<FocusKey> {
         if self.is_empty() {
             return None;
         }
 
-        match (request, focused) {
+        match (request, current) {
             (FocusRequest::Direct(direct_key), current) => {
                 if self.contains(direct_key) {
                     Some(direct_key)
@@ -194,10 +210,10 @@ impl FocusMap {
             }
             (_, None) => Some(self.entries.root().value().f.key),
             //Tab - Shift+Tab
-            (FocusRequest::Next, Some(key)) => Some(self.next(key)),
-            (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
+            (FocusRequest::Next, Some(current)) => Some(self.next(current)),
+            (FocusRequest::Prev, Some(current)) => Some(self.prev(current)),
             //Arrow Keys
-            (direction, Some(key)) => Some(self.next_towards(direction, key)),
+            (direction, Some(current)) => Some(self.next_towards(direction, current)),
         }
     }
 
@@ -226,16 +242,16 @@ impl FocusMap {
         }
     }
 
+    pub fn contains(&self, key: FocusKey) -> bool {
+        self.entries.root().descendants().any(|n| n.value().f.key == key)
+    }
+
     fn find_node(&self, key: FocusKey) -> Option<NodeRef<FocusEntry>> {
         self.entries.root().descendants().find(|n| n.value().f.key == key)
     }
 
     fn id_from_key(&self, key: FocusKey) -> Option<NodeId> {
         self.find_node(key).map(|n| n.id())
-    }
-
-    fn contains(&self, key: FocusKey) -> bool {
-        self.entries.root().descendants().any(|n| n.value().f.key == key)
     }
 
     fn next(&self, current: FocusKey) -> FocusKey {

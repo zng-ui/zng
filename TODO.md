@@ -5,7 +5,6 @@
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
 * Focusable
-  * Manual focus order (tab index).
   * Know how a focus event was generated (what type of request).
   * More focus request types.
   * Only remember focus not inside `skip` child.
