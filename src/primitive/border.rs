@@ -189,7 +189,7 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
         let mut size = f.final_size();
         size.width -= self.widths.left + self.widths.right;
         size.height -= self.widths.top + self.widths.bottom;
-        //border hit_test covers entire area, so if we want to draw the border over the child, 
+        //border hit_test covers entire area, so if we want to draw the border over the child,
         //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
         f.push_border(
             LayoutRect::from_size(f.final_size()),

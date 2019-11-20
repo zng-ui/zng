@@ -60,10 +60,12 @@ pub enum FocusStatus {
     FocusWithin,
 }
 
-struct FocusScopeData {
-    skip: bool,
-    tab: Option<TabNav>,
-    directional: Option<DirectionalNav>,
+#[derive(Clone, new)]
+pub struct FocusScopeData {
+    pub skip: bool,
+    pub tab: Option<TabNav>,
+    pub directional: Option<DirectionalNav>,
+    #[new(default)]
     size: LayoutSize,
 }
 
@@ -83,10 +85,16 @@ impl FocusScopeData {
     }
 }
 
-struct FocusEntry {
-    tab_index: u32,
-    key: FocusKey,
+#[derive(Clone, new)]
+pub struct FocusableData {
+    pub tab_index: u32,
+    pub key: FocusKey,
+    #[new(default)]
     origin: LayoutPoint,
+}
+
+struct FocusEntry {
+    f: FocusableData,
     scope: Option<Box<FocusScopeData>>,
 }
 
@@ -101,9 +109,11 @@ impl FocusMap {
         static EMPTY_KEY: FocusKeyRef = FocusKey::new_lazy();
 
         let entries = Tree::new(FocusEntry {
-            tab_index: 0,
-            key: *EMPTY_KEY,
-            origin: LayoutPoint::zero(),
+            f: FocusableData {
+                tab_index: 0,
+                key: *EMPTY_KEY,
+                origin: LayoutPoint::zero(),
+            },
             scope: None,
         });
 
@@ -128,23 +138,16 @@ impl FocusMap {
 
     pub fn push_focus_scope(
         &mut self,
-        tab_index: u32,
-        key: FocusKey,
         rect: &LayoutRect,
-        skip: bool,
-        tab: Option<TabNav>,
-        directional: Option<DirectionalNav>,
+        mut focusable_data: FocusableData,
+        mut scope_data: FocusScopeData,
     ) {
+        focusable_data.origin = rect.center() + self.offset.to_vector();
+        scope_data.size = rect.size;
+
         let focus_entry = FocusEntry {
-            tab_index,
-            key,
-            origin: rect.center() + self.offset.to_vector(),
-            scope: Some(Box::new(FocusScopeData {
-                skip,
-                tab,
-                directional,
-                size: rect.size,
-            })),
+            f: focusable_data,
+            scope: Some(Box::new(scope_data)),
         };
 
         if self.is_empty() {
@@ -152,6 +155,7 @@ impl FocusMap {
         } else {
             self.current_scope = self.push_focus_entry(focus_entry);
         }
+
         self.push_reference_frame(rect);
     }
 
@@ -163,11 +167,11 @@ impl FocusMap {
         }
     }
 
-    pub fn push_focusable(&mut self, tab_index: u32, key: FocusKey, origin: LayoutPoint) {
+    pub fn push_focusable(&mut self, rect: &LayoutRect, mut focusable_data: FocusableData) {
+        focusable_data.origin = rect.center() + self.offset.to_vector();
+
         let focus_entry = FocusEntry {
-            tab_index,
-            key,
-            origin: origin + self.offset.to_vector(),
+            f: focusable_data,
             scope: None,
         };
 
@@ -188,7 +192,7 @@ impl FocusMap {
                     current
                 }
             }
-            (_, None) => Some(self.entries.root().value().key),
+            (_, None) => Some(self.entries.root().value().f.key),
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(key)) => Some(self.next(key)),
             (FocusRequest::Prev, Some(key)) => Some(self.prev(key)),
@@ -204,7 +208,7 @@ impl FocusMap {
             .unwrap()
             .children()
             .rev()
-            .find(|node| node.value().tab_index <= focus_entry.tab_index)
+            .find(|node| node.value().f.tab_index <= focus_entry.f.tab_index)
             .map(|node| node.id());
 
         if let Some(prev_sibling) = prev_sibling {
@@ -223,7 +227,7 @@ impl FocusMap {
     }
 
     fn find_node(&self, key: FocusKey) -> Option<NodeRef<FocusEntry>> {
-        self.entries.root().descendants().find(|n| n.value().key == key)
+        self.entries.root().descendants().find(|n| n.value().f.key == key)
     }
 
     fn id_from_key(&self, key: FocusKey) -> Option<NodeId> {
@@ -231,7 +235,7 @@ impl FocusMap {
     }
 
     fn contains(&self, key: FocusKey) -> bool {
-        self.entries.root().descendants().any(|n| n.value().key == key)
+        self.entries.root().descendants().any(|n| n.value().f.key == key)
     }
 
     fn next(&self, current: FocusKey) -> FocusKey {
@@ -242,7 +246,7 @@ impl FocusMap {
     fn node_next(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.first_content_child() {
-                return first_child.value().key;
+                return first_child.value().f.key;
             } else if scope.retains_tab() {
                 return current;
             }
@@ -255,7 +259,7 @@ impl FocusMap {
         }
 
         if let Some(next_same_scope) = node.next_content_sibling() {
-            return next_same_scope.value().key;
+            return next_same_scope.value().f.key;
         }
 
         self.scope_next(current, node)
@@ -265,11 +269,11 @@ impl FocusMap {
     fn scope_next(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
         if let Some(parent_node) = node.parent() {
             match parent_node.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => parent_node.first_content_child().unwrap().value().key,
+                Some(TabNav::Cycle) => parent_node.first_content_child().unwrap().value().f.key,
                 Some(TabNav::Contained) => current,
                 Some(TabNav::Continue) => {
                     if let Some(next) = parent_node.next_content_sibling() {
-                        next.value().key
+                        next.value().f.key
                     } else {
                         self.scope_next(current, parent_node)
                     }
@@ -290,7 +294,7 @@ impl FocusMap {
     fn node_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
             if let Some(first_child) = node.last_content_child() {
-                return first_child.value().key;
+                return first_child.value().f.key;
             } else if scope.retains_tab() {
                 return current;
             }
@@ -303,7 +307,7 @@ impl FocusMap {
         }
 
         if let Some(prev_same_scope) = node.prev_content_sibling() {
-            return prev_same_scope.value().key;
+            return prev_same_scope.value().f.key;
         }
 
         self.scope_prev(current, node)
@@ -313,11 +317,11 @@ impl FocusMap {
     fn scope_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
         if let Some(parent_node) = node.parent() {
             match parent_node.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => parent_node.last_content_child().unwrap().value().key,
+                Some(TabNav::Cycle) => parent_node.last_content_child().unwrap().value().f.key,
                 Some(TabNav::Contained) => current,
                 Some(TabNav::Continue) => {
                     if let Some(prev) = parent_node.prev_content_sibling() {
-                        prev.value().key
+                        prev.value().f.key
                     } else {
                         self.scope_prev(current, parent_node)
                     }
@@ -339,10 +343,10 @@ impl FocusMap {
             return current;
         }
 
-        let candidates = self.nodes_towards(parent, node.value().origin, direction);
+        let candidates = self.nodes_towards(parent, node.value().f.origin, direction);
 
         if let Some((_, closest_in_scope)) = candidates.first() {
-            return closest_in_scope.value().key;
+            return closest_in_scope.value().f.key;
         }
 
         match parent_nav {
@@ -352,8 +356,8 @@ impl FocusMap {
             // in the same line or column of current focus but on the other side
             // of the parent scope rectangle.
             Some(DirectionalNav::Cycle) => {
-                let mut origin = node.value().origin;
-                let scope_origin = parent.value().origin;
+                let mut origin = node.value().f.origin;
+                let scope_origin = parent.value().f.origin;
                 let scope_size = parent.value().scope.as_ref().unwrap().size;
                 match direction {
                     FocusRequest::Left => {
@@ -374,7 +378,7 @@ impl FocusMap {
                 let candidates = self.nodes_towards(parent, origin, direction);
                 if let Some((_, c)) = candidates.first() {
                     // if can find candidate on other side.
-                    return c.value().key;
+                    return c.value().f.key;
                 } else {
                     // else do the same as contained.
                     // probably a bug, should have found the current focus again at least.
@@ -383,9 +387,9 @@ impl FocusMap {
             }
             Some(DirectionalNav::Continue) => {
                 if let Some(parent) = parent.parent() {
-                    let candidates = self.nodes_towards(parent, node.value().origin, direction);
+                    let candidates = self.nodes_towards(parent, node.value().f.origin, direction);
                     if let Some((_, c)) = candidates.first() {
-                        return c.value().key;
+                        return c.value().f.key;
                     }
                 }
             }
@@ -409,10 +413,10 @@ impl FocusMap {
                         return false;
                     }
                 }
-                is_in_direction(direction, origin, c.value().origin)
+                is_in_direction(direction, origin, c.value().f.origin)
             })
             .map(|c| {
-                let o = c.value().origin;
+                let o = c.value().f.origin;
                 let a = (o.x - origin.x).powf(2.);
                 let b = (o.y - origin.y).powf(2.);
                 (a + b, c)

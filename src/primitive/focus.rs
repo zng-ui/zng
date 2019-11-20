@@ -4,8 +4,7 @@ use crate::core::*;
 #[derive(new)]
 pub struct Focusable<C: Ui> {
     child: C,
-    tab_index: u32,
-    key: FocusKey,
+    data: FocusableData,
     #[new(default)]
     focused: bool,
 }
@@ -26,15 +25,14 @@ impl<C: Ui> Focusable<C> {
     pub fn from_config(child: C, config: FocusableConfig) -> Self {
         Focusable {
             child,
-            tab_index: config.tab_index,
-            key: config.key.unwrap_or_else(FocusKey::new_unique),
+            data: FocusableData::new(config.tab_index, config.key.unwrap_or_else(FocusKey::new_unique)),
             focused: false,
         }
     }
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
-        f.push_focusable(self.tab_index, self.key, &LayoutRect::from_size(f.final_size()));
+        f.push_focusable(&LayoutRect::from_size(f.final_size()), self.data.clone());
         self.child.render(f);
     }
 
@@ -42,13 +40,13 @@ impl<C: Ui> Focusable<C> {
     fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.focus_changed(change, values, update);
 
-        self.focused = Some(self.key) == change.new_focus;
+        self.focused = Some(self.data.key) == change.new_focus;
     }
 
     #[Ui]
     fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         if input.state == ElementState::Pressed && self.child.point_over(hits).is_some() {
-            update.focus(FocusRequest::Direct(self.key));
+            update.focus(FocusRequest::Direct(self.data.key));
         }
 
         self.child.mouse_input(input, hits, values, update);
@@ -94,14 +92,10 @@ impl FocusableConfig {
 
 pub struct FocusScope<C: Ui> {
     child: C,
-
     focused: bool,
 
-    tab_index: u32,
-    key: FocusKey,
-    skip: bool,
-    tab: Option<TabNav>,
-    directional: Option<DirectionalNav>,
+    focusable_data: FocusableData,
+    scope_data: FocusScopeData,
 
     alt: bool,
     return_focus: Option<FocusKey>,
@@ -125,15 +119,12 @@ impl<C: Ui> FocusScope<C> {
         FocusScope {
             child,
 
+            focusable_data: FocusableData::new(tab_index, key.unwrap_or_else(FocusKey::new_unique)),
+            scope_data: FocusScopeData::new(skip, tab, directional),
+            alt,
+
             focused: false,
 
-            tab_index,
-            key: key.unwrap_or_else(FocusKey::new_unique),
-            skip,
-            tab,
-            directional,
-
-            alt,
             return_focus: None,
 
             remember_focus,
@@ -150,7 +141,7 @@ impl<C: Ui> FocusScope<C> {
 
         self.child.focus_changed(change, values, update);
 
-        let is_focused = if change.new_focus == Some(self.key) {
+        let is_focused = if change.new_focus == Some(self.focusable_data.key) {
             update.focus(if self.remember_focus {
                 self.remembered_focus
                     .map(FocusRequest::Direct)
@@ -190,7 +181,7 @@ impl<C: Ui> FocusScope<C> {
             match key {
                 VirtualKeyCode::LAlt => {
                     if self.focus_status().is_none() {
-                        update.focus(FocusRequest::Direct(self.key));
+                        update.focus(FocusRequest::Direct(self.focusable_data.key));
                     }
                 }
                 VirtualKeyCode::Escape => {
@@ -226,12 +217,9 @@ impl<C: Ui> FocusScope<C> {
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_focus_scope(
-            self.tab_index,
-            self.key,
             &LayoutRect::from_size(f.final_size()),
-            self.skip,
-            self.tab,
-            self.directional,
+            self.focusable_data.clone(),
+            self.scope_data.clone(),
             &self.child,
         );
     }
