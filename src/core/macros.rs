@@ -86,3 +86,13 @@ macro_rules! uid {
         }
     )+};
 }
+
+
+#[macro_export]
+macro_rules! profile_scope {
+    ($($args:tt)+) => {
+        #[cfg(feature = "app_profiler")]
+        let _profile_scope =
+            $crate::core::profiler::ProfileScope::new(format!($($args)+));
+    };
+}

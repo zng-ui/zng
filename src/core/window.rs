@@ -175,6 +175,7 @@ impl Window {
 
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
     pub fn event(&mut self, event: WindowEvent) -> bool {
+
         // has update outside of self.next_update.
         let mut has_update = false;
 
@@ -183,6 +184,7 @@ impl Window {
                 // open issue on resize delay: https://github.com/servo/webrender/issues/1640
                 let new_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
                 if self.inner_size != new_size {
+                    profile_scope!("Resized: {:?}", new_size);
                     self.inner_size = new_size;
                     self.next_update.update_layout();
                 }
@@ -190,6 +192,7 @@ impl Window {
             WindowEvent::HiDpiFactorChanged(new_dpi_factor) => {
                 let new_dpi_factor = new_dpi_factor as f32;
                 if (self.dpi_factor - new_dpi_factor).abs() > 0.01 {
+                    profile_scope!("Dpi changed: {:?}", new_dpi_factor);
                     self.dpi_factor = new_dpi_factor;
                     self.next_update.update_layout();
                 }
@@ -216,16 +219,19 @@ impl Window {
                 } else {
                     self.key_down = None;
                 }
+                let keyboard_input = KeyboardInput {
+                    scancode: input.scancode,
+                    state: input.state,
+                    virtual_keycode: input.virtual_keycode,
+                    modifiers: input.modifiers,
+                    repeat,
+                };
+
+                profile_scope!("Keyboard input: {:?}", keyboard_input);
 
                 // notify content
                 self.content.keyboard_input(
-                    &KeyboardInput {
-                        scancode: input.scancode,
-                        state: input.state,
-                        virtual_keycode: input.virtual_keycode,
-                        modifiers: input.modifiers,
-                        repeat,
-                    },
+                    &keyboard_input,
                     &mut self.ui_values,
                     &mut self.next_update,
                 );
@@ -357,12 +363,14 @@ impl Window {
 
     fn set_cursor(&mut self, cursor: CursorIcon) {
         if self.cursor != cursor {
+            profile_scope!("Set cursor: {:?}", cursor);
             self.cursor = cursor;
             self.context.as_ref().unwrap().window().set_cursor_icon(cursor);
         }
     }
 
     pub fn update(&mut self, values_changed: bool, focused: Focused) -> bool {
+        profile_scope!("update");
         if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
             if values_changed {
@@ -380,6 +388,7 @@ impl Window {
     }
 
     fn update_focus(&mut self, focused: Focused) {
+        profile_scope!("update_focus");
         if self.first_draw {
             return;
         }
@@ -434,6 +443,7 @@ impl Window {
 
     /// Updates the content layout and flags `render_frame`.
     fn update_layout(&mut self) {
+        profile_scope!("update_layout");
         if !self.next_update.update_layout {
             return;
         }
@@ -457,6 +467,7 @@ impl Window {
     /// Generates window content display list and sends a new frame request to webrender.
     /// Webrender will request a redraw when the frame is done.
     fn send_render_frame(&mut self) {
+        profile_scope!("render");
         if !self.next_update.render_frame {
             return;
         }

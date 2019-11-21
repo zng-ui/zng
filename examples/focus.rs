@@ -14,7 +14,7 @@ fn window(u: &mut NextUpdate) -> impl Ui {
         // menu
         line(100., "menu").focus_scope(|s| s.menu().key(menu_fkey)),
         // grid
-        v_stack((0..3).map(|_| line(200., "Olá")).collect::<Vec<_>>()),
+        v_stack((0..355).map(|_| line(200., "Olá")).collect::<Vec<_>>()),
     ))
 }
 

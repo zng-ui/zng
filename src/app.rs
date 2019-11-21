@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 use fnv::FnvHashMap;
 
+#[cfg(feature = "app_profiler")]
+use crate::core::profiler::{register_thread_with_profiler, ProfileScope, write_profile};
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use webrender::api::{ColorF, LayoutSize};
@@ -24,11 +26,20 @@ pub fn run<C: Ui + 'static>(
     inner_size: LayoutSize,
     content: impl Fn(&mut NextUpdate) -> C + 'static,
 ) -> ! {
+    #[cfg(feature = "app_profiler")]
+    register_thread_with_profiler();
+
+    #[cfg(feature = "app_profiler")]
+    let mut app_scope = ProfileScope::new("app".to_owned());
     let event_loop = EventLoop::with_user_event();
     let mut windows = FnvHashMap::default();
     let ui_threads = Arc::new(
         ThreadPoolBuilder::new()
             .thread_name(|idx| format!("UI#{}", idx))
+            .start_handler(move |idx| {
+                #[cfg(feature = "app_profiler")]
+                register_thread_with_profiler();
+            })
             .build()
             .unwrap(),
     );
@@ -79,6 +90,12 @@ pub fn run<C: Ui + 'static>(
             Event::LoopDestroyed => {
                 for (_, win) in windows.drain() {
                     win.deinit();
+                }
+                #[cfg(feature = "app_profiler")]
+                {
+                    let output = "./profile.json";
+                    drop(std::mem::replace(&mut app_scope, ProfileScope::new(String::new())));
+                    write_profile(output);
                 }
             }
             _ => {}

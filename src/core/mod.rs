@@ -8,6 +8,7 @@ mod keyboard;
 mod mouse;
 mod next_frame;
 mod next_update;
+pub mod profiler;
 mod ui;
 mod ui_values;
 mod window;

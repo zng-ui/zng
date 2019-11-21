@@ -104,6 +104,7 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
+        profile_scope!("text_render");
         if let Some(font) = self.font_instance_key {
             f.push_text(
                 LayoutRect::from_size(self.size),
