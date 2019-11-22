@@ -10,13 +10,18 @@ pub struct NextFrame {
 }
 
 impl NextFrame {
-    pub(crate) fn new(builder: DisplayListBuilder, root_spatial_id: SpatialId, final_size: LayoutSize) -> NextFrame {
+    pub(crate) fn new(
+        builder: DisplayListBuilder,
+        root_spatial_id: SpatialId,
+        final_size: LayoutSize,
+        focus_map: FocusMap,
+    ) -> NextFrame {
         NextFrame {
             builder,
             spatial_id: root_spatial_id,
             final_size,
             cursor: CursorIcon::Default,
-            focus_map: FocusMap::new(),
+            focus_map,
         }
     }
 

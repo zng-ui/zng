@@ -475,6 +475,7 @@ impl Window {
             DisplayListBuilder::new(self.pipeline_id, self.inner_size),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
+            FocusMap::with_capacity(self.focus_map.len()),
         );
 
         self.content.render(&mut frame);

@@ -102,30 +102,43 @@ pub(crate) struct FocusMap {
     offset: LayoutPoint,
     current_scope: NodeId,
     entries: Tree<FocusEntry>,
+    len: usize,
 }
 
 impl FocusMap {
     pub fn new() -> Self {
+        FocusMap::with_capacity(1)
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
         static EMPTY_KEY: FocusKeyRef = FocusKey::new_lazy();
 
-        let entries = Tree::new(FocusEntry {
-            f: FocusableData {
-                tab_index: 0,
-                key: *EMPTY_KEY,
-                origin: LayoutPoint::zero(),
+        let entries = Tree::with_capacity(
+            FocusEntry {
+                f: FocusableData {
+                    tab_index: 0,
+                    key: *EMPTY_KEY,
+                    origin: LayoutPoint::zero(),
+                },
+                scope: None,
             },
-            scope: None,
-        });
+            capacity,
+        );
 
         FocusMap {
             offset: LayoutPoint::zero(),
             current_scope: entries.root().id(),
             entries,
+            len: 1,
         }
     }
 
     pub fn is_empty(&self) -> bool {
         self.entries.root().value().scope.is_none()
+    }
+
+    pub fn len(&self) -> usize {
+        self.len
     }
 
     pub fn push_reference_frame(&mut self, final_rect: &LayoutRect) {
@@ -154,6 +167,7 @@ impl FocusMap {
             *self.entries.root_mut().value() = focus_entry;
         } else {
             self.current_scope = self.push_focus_entry(focus_entry);
+            self.len += 1;
         }
 
         self.push_reference_frame(rect);
@@ -176,6 +190,7 @@ impl FocusMap {
         };
 
         self.push_focus_entry(focus_entry);
+        self.len += 1;
     }
 
     pub fn closest_existing(&self, current: FocusKey, new_map: &FocusMap) -> Option<FocusKey> {
@@ -218,28 +233,11 @@ impl FocusMap {
     }
 
     fn push_focus_entry(&mut self, focus_entry: FocusEntry) -> NodeId {
-        let prev_sibling = self
-            .entries
-            .get(self.current_scope)
+        self.entries
+            .get_mut(self.current_scope)
             .unwrap()
-            .children()
-            .rev()
-            .find(|node| node.value().f.tab_index <= focus_entry.f.tab_index)
-            .map(|node| node.id());
-
-        if let Some(prev_sibling) = prev_sibling {
-            self.entries
-                .get_mut(prev_sibling)
-                .unwrap()
-                .insert_after(focus_entry)
-                .id()
-        } else {
-            self.entries
-                .get_mut(self.current_scope)
-                .unwrap()
-                .append(focus_entry)
-                .id()
-        }
+            .append(focus_entry)
+            .id()
     }
 
     pub fn contains(&self, key: FocusKey) -> bool {
@@ -261,7 +259,7 @@ impl FocusMap {
 
     fn node_next(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
-            if let Some(first_child) = node.first_content_child() {
+            if let Some(first_child) = node.first_tab_child() {
                 return first_child.value().f.key;
             } else if scope.retains_tab() {
                 return current;
@@ -274,7 +272,7 @@ impl FocusMap {
             }
         }
 
-        if let Some(next_same_scope) = node.next_content_sibling() {
+        if let Some(next_same_scope) = node.next_tab_sibling() {
             return next_same_scope.value().f.key;
         }
 
@@ -285,10 +283,10 @@ impl FocusMap {
     fn scope_next(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
         if let Some(parent_node) = node.parent() {
             match parent_node.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => parent_node.first_content_child().unwrap().value().f.key,
+                Some(TabNav::Cycle) => parent_node.first_tab_child().unwrap().value().f.key,
                 Some(TabNav::Contained) => current,
                 Some(TabNav::Continue) => {
-                    if let Some(next) = parent_node.next_content_sibling() {
+                    if let Some(next) = parent_node.next_tab_sibling() {
                         next.value().f.key
                     } else {
                         self.scope_next(current, parent_node)
@@ -309,7 +307,7 @@ impl FocusMap {
 
     fn node_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>, from_scope: bool) -> FocusKey {
         if let (false, Some(scope)) = (from_scope, &node.value().scope) {
-            if let Some(first_child) = node.last_content_child() {
+            if let Some(first_child) = node.last_tab_child() {
                 return first_child.value().f.key;
             } else if scope.retains_tab() {
                 return current;
@@ -322,7 +320,7 @@ impl FocusMap {
             }
         }
 
-        if let Some(prev_same_scope) = node.prev_content_sibling() {
+        if let Some(prev_same_scope) = node.prev_tab_sibling() {
             return prev_same_scope.value().f.key;
         }
 
@@ -333,10 +331,10 @@ impl FocusMap {
     fn scope_prev(&self, current: FocusKey, node: NodeRef<FocusEntry>) -> FocusKey {
         if let Some(parent_node) = node.parent() {
             match parent_node.value().scope.as_ref().unwrap().tab {
-                Some(TabNav::Cycle) => parent_node.last_content_child().unwrap().value().f.key,
+                Some(TabNav::Cycle) => parent_node.last_tab_child().unwrap().value().f.key,
                 Some(TabNav::Contained) => current,
                 Some(TabNav::Continue) => {
-                    if let Some(prev) = parent_node.prev_content_sibling() {
+                    if let Some(prev) = parent_node.prev_tab_sibling() {
                         prev.value().f.key
                     } else {
                         self.scope_prev(current, parent_node)
@@ -446,30 +444,58 @@ impl FocusMap {
 }
 
 trait NodeExt<'a> {
-    fn next_content_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
-    fn prev_content_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
-    fn first_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
-    fn last_content_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
+    fn next_tab_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
+    fn prev_tab_sibling(&self) -> Option<NodeRef<'a, FocusEntry>>;
+    fn first_tab_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
+    fn last_tab_child(&self) -> Option<NodeRef<'a, FocusEntry>>;
     fn parent_scope(&self) -> Option<&FocusScopeData>;
 }
 
 impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
-    fn next_content_sibling(&self) -> Option<Self> {
-        let mut next = self.next_sibling();
-        while let Some(n) = next {
-            if let Some(scope) = &n.value().scope {
-                if scope.skip {
-                    next = n.next_sibling();
+    fn next_tab_sibling(&self) -> Option<Self> {
+        if let Some(parent) = self.parent() {
+            let mut found_self = false;
+            let self_tab_index = self.value().f.tab_index;
+
+            let mut smallest_index = u32::max_value();
+            let mut first_after = None;
+
+            for c in parent.children() {
+                let value = &c.value();
+
+                if !found_self && c.id() == self.id() {
+                    found_self = true;
                     continue;
+                }
+
+                // skips..
+                if let Some(scope) = &value.scope {
+                    if scope.skip {
+                        // ..when marked to skip
+                        continue;
+                    }
+                }
+                if value.f.tab_index < self_tab_index || (!found_self && value.f.tab_index == self_tab_index) {
+                    // ..when `c` is before current tab_index or is same tab_index, but before current
+                    // in render position.
+                    continue;
+                }
+
+                if value.f.tab_index < smallest_index {
+                    smallest_index = value.f.tab_index;
+                    first_after = Some(c);
+                } else if first_after.is_none() && value.f.tab_index == self_tab_index {
+                    first_after = Some(c);
                 }
             }
 
-            return next;
+            first_after
+        } else {
+            None
         }
-        None
     }
 
-    fn prev_content_sibling(&self) -> Option<Self> {
+    fn prev_tab_sibling(&self) -> Option<Self> {
         let mut prev = self.prev_sibling();
         while let Some(n) = prev {
             if let Some(scope) = &n.value().scope {
@@ -484,33 +510,52 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         None
     }
 
-    fn first_content_child(&self) -> Option<Self> {
-        let child = self.first_child();
-        if let Some(c) = child {
-            if let Some(scope) = &c.value().scope {
+    fn first_tab_child(&self) -> Option<Self> {
+        let mut smallest_index = u32::max_value();
+        let mut first = None;
+
+        for c in self.children() {
+            let value = &c.value();
+
+            if let Some(scope) = &value.scope {
                 if scope.skip {
-                    return c.next_content_sibling();
+                    continue;
                 }
             }
 
-            return child;
+            if value.f.tab_index < smallest_index {
+                smallest_index = value.f.tab_index;
+                first = Some(c);
+            } else if first.is_none() {
+                first = Some(c);
+            }
         }
 
-        None
+        first
     }
 
-    fn last_content_child(&self) -> Option<Self> {
-        let child = self.last_child();
-        if let Some(c) = child {
-            if let Some(scope) = &c.value().scope {
+    fn last_tab_child(&self) -> Option<Self> {
+        let mut largest_index = 0;
+        let mut last = None;
+
+        for c in self.children().rev() {
+            let value = &c.value();
+
+            if let Some(scope) = &value.scope {
                 if scope.skip {
-                    return c.prev_content_sibling();
+                    continue;
                 }
             }
 
-            return child;
+            if value.f.tab_index > largest_index {
+                largest_index = value.f.tab_index;
+                last = Some(c);
+            } else if last.is_none() {
+                last = Some(c);
+            }
         }
-        None
+
+        last
     }
 
     fn parent_scope(&self) -> Option<&FocusScopeData> {

@@ -32,7 +32,10 @@ impl<C: Ui> Focusable<C> {
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
-        f.push_focusable(&LayoutRect::from_size(f.final_size()), self.data.clone());
+        {
+            profile_scope!("focusable_render");
+            f.push_focusable(&LayoutRect::from_size(f.final_size()), self.data.clone());
+        }
         self.child.render(f);
     }
 

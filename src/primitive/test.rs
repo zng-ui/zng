@@ -109,7 +109,7 @@ pub fn test_next_frame() -> NextFrame {
     let builder = DisplayListBuilder::new(pipeline_id, size);
     let spatial_id = SpatialId::root_reference_frame(pipeline_id);
 
-    NextFrame::new(builder, spatial_id, size)
+    NextFrame::new(builder, spatial_id, size, FocusMap::new())
 }
 
 pub fn test_next_update() -> NextUpdate {

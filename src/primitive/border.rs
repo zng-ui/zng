@@ -185,20 +185,26 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
     }
 
     fn render(&self, f: &mut NextFrame) {
-        let offset = LayoutPoint::new(self.widths.left, self.widths.top);
-        let mut size = f.final_size();
-        size.width -= self.widths.left + self.widths.right;
-        size.height -= self.widths.top + self.widths.bottom;
-        //border hit_test covers entire area, so if we want to draw the border over the child,
-        //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
-        f.push_border(
-            LayoutRect::from_size(f.final_size()),
-            *self.widths,
-            (*self.details).into(),
-            Some(self.hit_tag),
-        );
+        let final_rect = {
+            profile_scope!("render_border");
 
-        f.push_child(&self.child, &LayoutRect::new(offset, size));
+            let offset = LayoutPoint::new(self.widths.left, self.widths.top);
+            let mut size = f.final_size();
+            size.width -= self.widths.left + self.widths.right;
+            size.height -= self.widths.top + self.widths.bottom;
+            //border hit_test covers entire area, so if we want to draw the border over the child,
+            //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
+            f.push_border(
+                LayoutRect::from_size(f.final_size()),
+                *self.widths,
+                (*self.details).into(),
+                Some(self.hit_tag),
+            );
+
+            LayoutRect::new(offset, size)
+        };
+
+        f.push_child(&self.child, &final_rect);
     }
 }
 

@@ -75,6 +75,7 @@ impl<C: Value<ColorF>> FillColor<C> {
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
+        profile_scope!("render_color");
         f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
     }
 }
@@ -101,6 +102,8 @@ impl<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> 
 
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
+        profile_scope!("render_gradient");
+
         let final_size = f.final_size();
         let mut start = *self.start;
         let mut end = *self.end;

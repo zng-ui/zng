@@ -130,7 +130,7 @@ pub struct ProfileScope {
 impl ProfileScope {
     pub fn new(name: String) -> ProfileScope {
         let t0 = precise_time_ns();
-        ProfileScope { name,  t0 }
+        ProfileScope { name, t0 }
     }
 }
 
