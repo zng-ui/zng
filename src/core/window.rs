@@ -175,7 +175,6 @@ impl Window {
 
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
     pub fn event(&mut self, event: WindowEvent) -> bool {
-
         // has update outside of self.next_update.
         let mut has_update = false;
 
@@ -230,11 +229,8 @@ impl Window {
                 profile_scope!("Keyboard input: {:?}", keyboard_input);
 
                 // notify content
-                self.content.keyboard_input(
-                    &keyboard_input,
-                    &mut self.ui_values,
-                    &mut self.next_update,
-                );
+                self.content
+                    .keyboard_input(&keyboard_input, &mut self.ui_values, &mut self.next_update);
 
                 // do default focus navigation
                 if is_pressed

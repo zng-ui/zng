@@ -6,16 +6,14 @@ use std::cell::RefCell;
 use std::fs::File;
 use std::io::BufWriter;
 use std::string::String;
-use std::sync::Mutex;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Mutex;
 use std::thread;
 use time::precise_time_ns;
 
 lazy_static! {
     static ref GLOBAL_PROFILER: Mutex<Profiler> = Mutex::new(Profiler::new());
 }
-
-
 
 thread_local!(static THREAD_PROFILER: RefCell<Option<ThreadProfiler>> = RefCell::new(None));
 
@@ -42,9 +40,9 @@ impl ThreadProfiler {
     fn push_sample(&self, name: String, t0: u64, t1: u64) {
         let sample = Sample {
             tid: self.id,
-            name: name,
-            t0: t0,
-            t1: t1,
+            name,
+            t0,
+            t1,
         };
         self.tx.send(sample).ok();
     }
@@ -61,8 +59,8 @@ impl Profiler {
         let (tx, rx) = channel();
 
         Profiler {
-            rx: rx,
-            tx: tx,
+            rx,
+            tx,
             threads: Vec::new(),
         }
     }
@@ -80,7 +78,7 @@ impl Profiler {
             assert!(profiler.borrow().is_none());
 
             let thread_profiler = ThreadProfiler {
-                id: id,
+                id,
                 tx: self.tx.clone(),
             };
 
@@ -132,7 +130,7 @@ pub struct ProfileScope {
 impl ProfileScope {
     pub fn new(name: String) -> ProfileScope {
         let t0 = precise_time_ns();
-        ProfileScope { name: name, t0: t0 }
+        ProfileScope { name,  t0 }
     }
 }
 

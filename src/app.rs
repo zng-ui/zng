@@ -8,7 +8,7 @@ use std::sync::Arc;
 use fnv::FnvHashMap;
 
 #[cfg(feature = "app_profiler")]
-use crate::core::profiler::{register_thread_with_profiler, ProfileScope, write_profile};
+use crate::core::profiler::{register_thread_with_profiler, write_profile, ProfileScope};
 use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use webrender::api::{ColorF, LayoutSize};
@@ -36,7 +36,7 @@ pub fn run<C: Ui + 'static>(
     let ui_threads = Arc::new(
         ThreadPoolBuilder::new()
             .thread_name(|idx| format!("UI#{}", idx))
-            .start_handler(move |idx| {
+            .start_handler(|_| {
                 #[cfg(feature = "app_profiler")]
                 register_thread_with_profiler();
             })

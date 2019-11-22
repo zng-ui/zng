@@ -87,7 +87,6 @@ macro_rules! uid {
     )+};
 }
 
-
 #[macro_export]
 macro_rules! profile_scope {
     ($($args:tt)+) => {
