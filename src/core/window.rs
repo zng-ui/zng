@@ -48,6 +48,7 @@ pub(crate) struct Window {
     latest_frame_id: Epoch,
     pipeline_id: PipelineId,
     renderer: webrender::Renderer,
+    prev_frame_data_len: usize,
 
     dpi_factor: f32,
     inner_size: LayoutSize,
@@ -149,6 +150,7 @@ impl Window {
             latest_frame_id,
             pipeline_id,
             renderer,
+            prev_frame_data_len: 0,
 
             dpi_factor,
             inner_size,
@@ -472,7 +474,7 @@ impl Window {
         let mut txn = Transaction::new();
 
         let mut frame = NextFrame::new(
-            DisplayListBuilder::new(self.pipeline_id, self.inner_size),
+            DisplayListBuilder::with_capacity(self.pipeline_id, self.inner_size, self.prev_frame_data_len),
             SpatialId::root_reference_frame(self.pipeline_id),
             self.content_size,
             FocusMap::with_capacity(self.focus_map.len()),
@@ -489,6 +491,7 @@ impl Window {
         });
 
         let (display_list_data, focus_map) = frame.finalize();
+        self.prev_frame_data_len = display_list_data.2.data().len();
 
         if let Some(f) = self.focused_in_window {
             self.focused_in_window_coerced = self.focus_map.closest_existing(f, &focus_map);

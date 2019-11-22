@@ -105,6 +105,28 @@ pub struct BorderDetails {
     pub radius: BorderRadius,
 }
 
+impl BorderSide {
+    pub fn visible(&self) -> bool {
+        self.color.a > 0.0
+    }
+}
+
+impl BorderDetails {
+    pub fn visible(&self) -> bool {
+        self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
+    }
+}
+
+trait LayoutSideOffsetsExt {
+    fn visible(&self) -> bool;
+}
+
+impl LayoutSideOffsetsExt for LayoutSideOffsets {
+    fn visible(&self) -> bool {
+        self.top > 0.0 || self.bottom > 0.0 || self.left > 0.0 || self.right > 0.0
+    }
+}
+
 impl From<BorderStyle> for wapi::BorderStyle {
     fn from(border_style: BorderStyle) -> Self {
         // SAFETY: WBorderStyle is also repr(u32)
@@ -140,10 +162,19 @@ pub struct Border<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> {
     details: B,
     #[new(value = "HitTag::new_unique()")]
     hit_tag: HitTag,
+    #[new(default)]
+    visible: bool,
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<T, L, B> {
+impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B> {
+    #[Ui]
+    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.init(values, update);
+        self.update_visible(update);
+    }
+
+    #[Ui]
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         available_size.width -= self.widths.left + self.widths.right;
         available_size.height -= self.widths.top + self.widths.bottom;
@@ -155,6 +186,7 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
         result
     }
 
+    #[Ui]
     fn arrange(&mut self, mut final_size: LayoutSize) {
         final_size.width -= self.widths.left + self.widths.right;
         final_size.height -= self.widths.top + self.widths.bottom;
@@ -162,18 +194,28 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
         self.child.arrange(final_size)
     }
 
+    #[Ui]
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        let mut update_visible = false;
+
         if self.widths.touched() {
             update.update_layout();
+            update_visible = true;
         }
 
         if self.details.touched() {
             update.render_frame();
+            update_visible = true;
+        }
+
+        if update_visible {
+            self.update_visible(update);
         }
 
         self.child.value_changed(values, update);
     }
 
+    #[Ui]
     fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
         hits.point_over(self.hit_tag).or_else(|| {
             self.child.point_over(hits).map(|mut lp| {
@@ -184,6 +226,16 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
         })
     }
 
+    fn update_visible(&mut self, update: &mut NextUpdate) {
+        let visible = self.details.visible() && self.widths.visible();
+
+        if self.visible != visible {
+            self.visible = visible;
+            update.render_frame();
+        }
+    }
+
+    #[Ui]
     fn render(&self, f: &mut NextFrame) {
         let final_rect = {
             profile_scope!("render_border");
@@ -192,14 +244,17 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Ui for Border<
             let mut size = f.final_size();
             size.width -= self.widths.left + self.widths.right;
             size.height -= self.widths.top + self.widths.bottom;
-            //border hit_test covers entire area, so if we want to draw the border over the child,
-            //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
-            f.push_border(
-                LayoutRect::from_size(f.final_size()),
-                *self.widths,
-                (*self.details).into(),
-                Some(self.hit_tag),
-            );
+
+            if self.visible {
+                //border hit_test covers entire area, so if we want to draw the border over the child,
+                //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
+                f.push_border(
+                    LayoutRect::from_size(f.final_size()),
+                    *self.widths,
+                    (*self.details).into(),
+                    Some(self.hit_tag),
+                );
+            }
 
             LayoutRect::new(offset, size)
         };
