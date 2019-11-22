@@ -454,9 +454,18 @@ trait NodeExt<'a> {
 impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
     fn next_tab_sibling(&self) -> Option<Self> {
         if let Some(parent) = self.parent() {
-            let mut found_self = false;
             let self_tab_index = self.value().f.tab_index;
 
+            // check for common case, next in render order with the same tab_index.
+            if let Some(next) = self.next_sibling() {
+                if next.value().f.tab_index == self_tab_index {
+                    return Some(next);
+                }
+            }
+
+            // did not find common case, search smallest tab_index greater then current.
+
+            let mut found_self = false;
             let mut smallest_index = u32::max_value();
             let mut first_after = None;
 
@@ -481,10 +490,13 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
                     continue;
                 }
 
+                if value.f.tab_index == self_tab_index {
+                    // found same tab_index after found_self.
+                    return Some(c);
+                }
+
                 if value.f.tab_index < smallest_index {
                     smallest_index = value.f.tab_index;
-                    first_after = Some(c);
-                } else if first_after.is_none() && value.f.tab_index == self_tab_index {
                     first_after = Some(c);
                 }
             }
