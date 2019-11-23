@@ -456,14 +456,16 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
         if let Some(parent) = self.parent() {
             let self_tab_index = self.value().f.tab_index;
 
-            // check for common case, next in render order with the same tab_index.
+            // check for common case, next in render order with the same tab_index and is not a skip scope.
             if let Some(next) = self.next_sibling() {
-                if next.value().f.tab_index == self_tab_index {
+                let value = &next.value();
+
+                if value.f.tab_index == self_tab_index && !value.scope.as_ref().map(|s| s.skip).unwrap_or(false) {
                     return Some(next);
                 }
             }
 
-            // did not find common case, search smallest tab_index greater then current.
+            // did not find common case, search for the smallest tab_index greater than or equal to the current tab_index.
 
             let mut found_self = false;
             let mut smallest_index = u32::max_value();
@@ -485,7 +487,7 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
                     }
                 }
                 if value.f.tab_index < self_tab_index || (!found_self && value.f.tab_index == self_tab_index) {
-                    // ..when `c` is before current tab_index or is same tab_index, but before current
+                    // ..when `c` is before current tab_index or has the same tab_index, but before current
                     // in render position.
                     continue;
                 }
@@ -498,6 +500,9 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
                 if value.f.tab_index < smallest_index {
                     smallest_index = value.f.tab_index;
                     first_after = Some(c);
+                } else if first_after.is_none() {
+                    debug_assert_eq!(value.f.tab_index, u32::max_value());
+                    first_after = Some(c);
                 }
             }
 
@@ -508,18 +513,63 @@ impl<'a> NodeExt<'a> for NodeRef<'a, FocusEntry> {
     }
 
     fn prev_tab_sibling(&self) -> Option<Self> {
-        let mut prev = self.prev_sibling();
-        while let Some(n) = prev {
-            if let Some(scope) = &n.value().scope {
-                if scope.skip {
-                    prev = n.prev_sibling();
-                    continue;
+        if let Some(parent) = self.parent() {
+            let self_tab_index = self.value().f.tab_index;
+
+            // check for common case, previous in render order with the same tab_index and is not a skip scope.
+            if let Some(prev) = self.prev_sibling() {
+                let value = &prev.value();
+
+                if value.f.tab_index == self_tab_index && !value.scope.as_ref().map(|s| s.skip).unwrap_or(false) {
+                    return Some(prev);
                 }
             }
 
-            return prev;
+            // did not find common case, search for the largest tab_index less than or equal to the current tab_index.
+
+            let mut found_self = false;
+            let mut largest_index = 0;
+            let mut first_before = None;
+
+            for c in parent.children().rev() {
+                let value = &c.value();
+
+                if !found_self && c.id() == self.id() {
+                    found_self = true;
+                    continue;
+                }
+
+                // skips..
+                if let Some(scope) = &value.scope {
+                    if scope.skip {
+                        // ..when marked to skip
+                        continue;
+                    }
+                }
+                if value.f.tab_index > self_tab_index || (!found_self && value.f.tab_index == self_tab_index) {
+                    // ..when `c` is after current tab_index or has the same tab_index, but after current
+                    // in render position.
+                    continue;
+                }
+
+                if value.f.tab_index == self_tab_index {
+                    // found same tab_index after found_self.
+                    return Some(c);
+                }
+
+                if value.f.tab_index > largest_index {
+                    largest_index = value.f.tab_index;
+                    first_before = Some(c);
+                } else if first_before.is_none() {
+                    debug_assert_eq!(value.f.tab_index, 0);
+                    first_before = Some(c);
+                }
+            }
+
+            first_before
+        } else {
+            None
         }
-        None
     }
 
     fn first_tab_child(&self) -> Option<Self> {

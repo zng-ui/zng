@@ -196,19 +196,18 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B
 
     #[Ui]
     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        let mut update_visible = false;
+        let widths_touched = self.widths.touched();
+        let details_touched = self.details.touched();
 
-        if self.widths.touched() {
+        if widths_touched {
             update.update_layout();
-            update_visible = true;
         }
-
-        if self.details.touched() {
+        
+        if details_touched {
             update.render_frame();
-            update_visible = true;
         }
 
-        if update_visible {
+        if widths_touched && details_touched {
             self.update_visible(update);
         }
 
