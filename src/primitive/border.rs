@@ -202,12 +202,12 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B
         if widths_touched {
             update.update_layout();
         }
-        
+
         if details_touched {
             update.render_frame();
         }
 
-        if widths_touched && details_touched {
+        if widths_touched || details_touched {
             self.update_visible(update);
         }
 
