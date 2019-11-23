@@ -28,17 +28,19 @@ impl NextFrame {
     pub fn push_child(&mut self, child: &impl Ui, final_rect: &LayoutRect) {
         let final_size = self.final_size;
         let spatial_id = self.spatial_id;
+        {
+            profile_scope!("push_reference_frame");
+            self.final_size = final_rect.size;
+            self.spatial_id = self.builder.push_reference_frame(
+                final_rect,
+                self.spatial_id,
+                TransformStyle::Flat,
+                PropertyBinding::Value(LayoutTransform::default()),
+                ReferenceFrameKind::Transform,
+            );
 
-        self.final_size = final_rect.size;
-        self.spatial_id = self.builder.push_reference_frame(
-            final_rect,
-            self.spatial_id,
-            TransformStyle::Flat,
-            PropertyBinding::Value(LayoutTransform::default()),
-            ReferenceFrameKind::Transform,
-        );
-
-        self.focus_map.push_reference_frame(final_rect);
+            self.focus_map.push_reference_frame(final_rect);
+        }
 
         child.render(self);
         self.builder.pop_reference_frame();
@@ -138,8 +140,10 @@ impl NextFrame {
         scope_data: FocusScopeData,
         child: &impl Ui,
     ) {
-        self.focus_map.push_focus_scope(rect, focusable_data, scope_data);
-
+        {
+            profile_scope!("focus_scope_render");
+            self.focus_map.push_focus_scope(rect, focusable_data, scope_data);
+        }
         child.render(self);
 
         self.focus_map.pop_focus_scope(rect);
