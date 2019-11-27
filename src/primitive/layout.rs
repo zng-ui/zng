@@ -163,6 +163,22 @@ impl<T: Ui, M: Value<LayoutSideOffsets>> Margin<T, M> {
     }
 }
 pub trait MarginExt: Ui + Sized {
+    /// Margin around `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use zero_ui::primitive::*;
+    ///
+    /// // Uniform Value
+    /// text("hello").margin(10.);
+    ///
+    /// // Top-Bottom, Left-Right
+    /// text("hello").margin((10., 5.));
+    ///
+    /// // Top, Right, Bottom, Left
+    /// text("hello").margin((10., 5., 0., 5.));
+    /// ```
     fn margin<M: IntoValue<LayoutSideOffsets>>(self, margin: M) -> Margin<Self, M::Value> {
         Margin::new(self, margin.into_value())
     }
