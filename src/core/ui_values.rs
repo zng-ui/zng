@@ -354,7 +354,7 @@ impl IntoValue<LayoutSize> for (f32, f32) {
 }
 
 #[cfg(test)]
-mod ui_values {
+mod tests {
     use super::*;
 
     #[test]
