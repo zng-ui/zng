@@ -147,7 +147,7 @@ impl<C: Ui> FocusScope<C> {
         let is_focused = if change.new_focus == Some(self.focusable_data.key) {
             update.focus(if self.remember_focus {
                 self.remembered_focus
-                    .map(FocusRequest::Direct)
+                    .map(FocusRequest::DirectSkip)
                     .unwrap_or(FocusRequest::Next)
             } else {
                 FocusRequest::Next

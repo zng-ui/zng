@@ -7,7 +7,7 @@ Things that must be done first because they influence the core API design that i
 * Focusable
   * Know how a focus event was generated (what type of request).
   * More focus request types.
-  * Only remember focus not inside `skip` child.
+  * Only remember focus not inside `skip` child for `remembered_focus`.
   * Let focusable know if it is the remembered return focus of a parent scope.
   * Focus on the closest existing sibling or parent in case the focused element is deleted.
   * Customizable focus indicators in focusable, (focused/remembered?/return target?/).

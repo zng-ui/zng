@@ -18,6 +18,10 @@ pub enum FocusRequest {
     /// Move focus to key.
     Direct(FocusKey),
 
+    /// * If key is not inside a skip scope, moves focus to the key.
+    /// * If current focus is not in the same skip scope moves focus to after the skip scope.
+    DirectSkip(FocusKey),
+
     /// Move focus to next from current in screen, or to starting key.
     Next,
     /// Move focus to previous from current in screen, or to last in screen.
@@ -223,6 +227,13 @@ impl FocusMap {
                     current
                 }
             }
+            (FocusRequest::DirectSkip(direct_key), current) => {
+                if self.contains(direct_key) {
+                    Some(self.direct_skip(direct_key))
+                } else {
+                    current
+                }
+            }
             (_, None) => Some(self.entries.root().value().f.key),
             //Tab - Shift+Tab
             (FocusRequest::Next, Some(current)) => Some(self.next(current)),
@@ -250,6 +261,19 @@ impl FocusMap {
 
     fn id_from_key(&self, key: FocusKey) -> Option<NodeId> {
         self.find_node(key).map(|n| n.id())
+    }
+
+    fn direct_skip(&self, direct: FocusKey) -> FocusKey {
+        let direct_node = self.find_node(direct).unwrap();
+
+        //let direct_skip_parent = direct_node.skip_parent();
+
+        //if let Some(direct_skip_parent) = direct_skip_parent {
+            //next(direct_skip_parent)
+        //} else {
+            //direct
+        //}
+        unimplemented!()
     }
 
     fn next(&self, current: FocusKey) -> FocusKey {
