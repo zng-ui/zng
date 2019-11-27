@@ -357,9 +357,9 @@ impl FocusMap {
             return current;
         }
 
-        let candidates = self.nodes_towards(parent, node.value().f.origin, direction);
+        let candidate = self.node_towards(parent, node, node.value().f.origin, direction);
 
-        if let Some((_, closest_in_scope)) = candidates.first() {
+        if let Some(closest_in_scope) = candidate {
             return closest_in_scope.value().f.key;
         }
 
@@ -389,8 +389,8 @@ impl FocusMap {
                     _ => unreachable!(),
                 }
 
-                let candidates = self.nodes_towards(parent, origin, direction);
-                if let Some((_, c)) = candidates.first() {
+                let candidate = self.node_towards(parent, node, origin, direction);
+                if let Some(c) = candidate {
                     // if can find candidate on other side.
                     return c.value().f.key;
                 } else {
@@ -401,8 +401,8 @@ impl FocusMap {
             }
             Some(DirectionalNav::Continue) => {
                 if let Some(parent) = parent.parent() {
-                    let candidates = self.nodes_towards(parent, node.value().f.origin, direction);
-                    if let Some((_, c)) = candidates.first() {
+                    let candidate = self.node_towards(parent, node, node.value().f.origin, direction);
+                    if let Some(c) = candidate {
                         return c.value().f.key;
                     }
                 }
@@ -412,13 +412,14 @@ impl FocusMap {
         current
     }
 
-    /// All content nodes in direction from origin inside a scope.
-    fn nodes_towards<'a>(
+    /// First content node in direction from origin inside a scope.
+    fn node_towards<'a>(
         &self,
         scope: NodeRef<'a, FocusEntry>,
+        current_node: NodeRef<'a, FocusEntry>,
         origin: LayoutPoint,
         direction: FocusRequest,
-    ) -> Vec<(f32, NodeRef<'a, FocusEntry>)> {
+    ) -> Option<NodeRef<'a, FocusEntry>> {
         let mut nodes: Vec<(f32, NodeRef<'a, FocusEntry>)> = scope
             .children()
             .filter(move |c| {
@@ -439,7 +440,17 @@ impl FocusMap {
 
         nodes.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-        nodes
+        let mut found_from = false;
+        for (dist, candate) in nodes {
+            if dist == 0.0 && !found_from {
+                found_from = candate.id() == current_node.id();
+                continue;
+            }
+
+            return Some(candate);
+        }
+
+        None
     }
 }
 
@@ -636,7 +647,7 @@ fn is_in_direction(direction: FocusRequest, origin: LayoutPoint, candidate: Layo
 
     // checks if the candidate point is in between two imaginary perpendicular lines parting from the
     // origin point in the focus direction
-    if a < b {
+    if a <= b {
         if c >= d {
             return c <= d + (b - a);
         } else {
