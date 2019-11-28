@@ -140,6 +140,8 @@ impl<C: Ui> FocusScope<C> {
 impl<C: Ui> FocusScope<C> {
     #[Ui]
     fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
+        static FOCUS_IN_ALT: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+
         let was_focused = self.focus_status().is_some();
 
         self.child.focus_changed(change, values, update);
@@ -147,7 +149,7 @@ impl<C: Ui> FocusScope<C> {
         let is_focused = if change.new_focus == Some(self.focusable_data.key) {
             update.focus(if self.remember_focus {
                 self.remembered_focus
-                    .map(FocusRequest::DirectSkip)
+                    .map(FocusRequest::Direct)
                     .unwrap_or(FocusRequest::Next)
             } else {
                 FocusRequest::Next
@@ -162,12 +164,13 @@ impl<C: Ui> FocusScope<C> {
 
         if self.alt && was_focused != is_focused {
             if is_focused {
+                values.set_child_value(*FOCUS_IN_ALT, ());
                 self.return_focus = change.old_focus;
             } else {
                 self.return_focus = None;
             }
         }
-        if self.remember_focus && is_focused {
+        if self.remember_focus && is_focused && values.child(*FOCUS_IN_ALT).is_none() {
             self.remembered_focus = change.new_focus;
         }
     }
@@ -180,18 +183,18 @@ impl<C: Ui> FocusScope<C> {
             return;
         }
 
-        if let (ElementState::Pressed, Some(key)) = (input.state, input.virtual_keycode) {
-            match key {
-                VirtualKeyCode::LAlt => {
-                    if self.focus_status().is_none() {
-                        update.focus(FocusRequest::Direct(self.focusable_data.key));
-                    }
-                }
-                VirtualKeyCode::Escape => {
+        match (input.state, input.virtual_keycode) {
+            (ElementState::Released, Some(VirtualKeyCode::LAlt)) => {
+                if self.focus_status().is_none() {
+                    update.focus(FocusRequest::Direct(self.focusable_data.key));
+                } else{
                     self.return_focus(values, update);
                 }
-                _ => {}
             }
+            (ElementState::Pressed, Some(VirtualKeyCode::Escape)) => {
+                self.return_focus(values, update);
+            }
+            _ => {}
         }
     }
 
