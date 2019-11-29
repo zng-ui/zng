@@ -113,7 +113,15 @@ pub fn test_next_frame() -> NextFrame {
 }
 
 pub fn test_next_update() -> NextUpdate {
-    unimplemented!()
+    use webrender::api::{channel::*, RenderApiSender};
+
+    let (msg_sender, _msg_receiver) = msg_channel().unwrap();
+    let (payload_sender, _payload_receiver) = payload_channel().unwrap();
+
+    let sender = RenderApiSender::new(msg_sender, payload_sender);
+    let _api = sender.create_api();
+
+    NextUpdate::new()
 }
 
 pub fn test_modifiers_state() -> ModifiersState {
