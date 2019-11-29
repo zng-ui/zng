@@ -220,7 +220,7 @@ impl FocusMap {
                 if self.contains(direct_key) {
                     Some(direct_key)
                 } else {
-                    current.or(Some(self.entries.root().value().f.key))
+                    current.or_else(|| Some(self.entries.root().value().f.key))
                 }
             }
             (_, None) => Some(self.entries.root().value().f.key),
