@@ -50,6 +50,9 @@ pub(crate) struct Window {
     renderer: webrender::Renderer,
     prev_frame_data_len: usize,
 
+    api: RenderApi,
+    document_id: DocumentId,
+
     dpi_factor: f32,
     inner_size: LayoutSize,
 
@@ -133,7 +136,7 @@ impl Window {
         let pipeline_id = PipelineId(0, 0);
 
         let mut ui_values = UiValues::new(FocusKey::new_unique());
-        let mut next_update = NextUpdate::new(api, document_id);
+        let mut next_update = NextUpdate::new();
 
         let mut content = (new_window.content)(&mut next_update).focus_scope(|s| {
             s.tab_nav_cycle()
@@ -151,6 +154,9 @@ impl Window {
             pipeline_id,
             renderer,
             prev_frame_data_len: 0,
+
+            api,
+            document_id,
 
             dpi_factor,
             inner_size,
@@ -346,8 +352,8 @@ impl Window {
     }
 
     fn hit_test(&self, point: LayoutPoint) -> Hits {
-        Hits::new(self.next_update.api.hit_test(
-            self.next_update.document_id,
+        Hits::new(self.api.hit_test(
+            self.document_id,
             Some(self.pipeline_id),
             WorldPoint::new(point.x, point.y),
             HitTestFlags::FIND_ALL,
@@ -371,6 +377,9 @@ impl Window {
         profile_scope!("update");
         if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
+
+            self.next_update.fonts.load_fonts(&self.api, self.document_id);
+
             if values_changed {
                 self.content.value_changed(&mut self.ui_values, &mut self.next_update);
             }
@@ -449,8 +458,8 @@ impl Window {
 
         let device_size = self.device_size();
 
-        self.next_update.api.set_window_parameters(
-            self.next_update.document_id,
+        self.api.set_window_parameters(
+            self.document_id,
             device_size,
             DeviceIntRect::from_size(device_size),
             self.dpi_factor,
@@ -501,7 +510,7 @@ impl Window {
         txn.set_display_list(self.latest_frame_id, None, self.inner_size, display_list_data, true);
         txn.set_root_pipeline(self.pipeline_id);
         txn.generate_frame();
-        self.next_update.api.send_transaction(self.next_update.document_id, txn);
+        self.api.send_transaction(self.document_id, txn);
     }
 
     /// Redraws the last ready frame and swaps buffers.

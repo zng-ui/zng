@@ -9,7 +9,7 @@ pub struct Text<T: Value<Cow<'static, str>>> {
 
     glyphs: Vec<GlyphInstance>,
     size: LayoutSize,
-    font_instance_key: Option<FontInstanceKey>,
+    font: Option<FontInstanceRef>,
     color: ColorF,
 }
 
@@ -27,52 +27,57 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 
             glyphs: vec![],
             size: LayoutSize::default(),
-            font_instance_key: None,
+            font: None,
             color: ColorF::BLACK,
         }
     }
 
     fn update(&mut self, v: &mut UiValues, u: &mut NextUpdate) {
         if let (Some(font_family), Some(font_size)) = (v.parent(*FONT_FAMILY), v.parent(*FONT_SIZE)) {
-            let font = u.font(&font_family, *font_size);
+            self.font = Some(u.font(&font_family, *font_size));
 
-            let indices: Vec<_> = u
-                .api
-                .get_glyph_indices(font.font_key, &self.text)
-                .into_iter()
-                .filter_map(|i| i)
-                .collect();
-            let dimensions = u.api.get_glyph_dimensions(font.instance_key, indices.clone());
-
-            let mut glyphs = Vec::with_capacity(indices.len());
-            let mut offset = 0.;
-
-            assert_eq!(indices.len(), dimensions.len());
-
-            for (index, dim) in indices.into_iter().zip(dimensions) {
-                if let Some(dim) = dim {
-                    glyphs.push(GlyphInstance {
-                        index,
-                        point: LayoutPoint::new(offset, font.size as f32),
-                    });
-
-                    offset += dim.advance as f32;
-                } else {
-                    offset += font.size as f32 / 4.;
-                }
-            }
-            glyphs.shrink_to_fit();
-
-            self.glyphs = glyphs;
-            self.size = LayoutSize::new(offset, font.size as f32 * 1.3);
-            self.font_instance_key = Some(font.instance_key);
-        } else {
-            self.glyphs = vec![];
-            self.size = LayoutSize::default();
-            self.font_instance_key = None;
+            // TODO get glyphs
         }
 
         self.color = *v.parent(*TEXT_COLOR).unwrap_or(&ColorF::BLACK);
+
+        //       let indices: Vec<_> = u
+        //           .api
+        //           .get_glyph_indices(font.font_key, &self.text)
+        //           .into_iter()
+        //           .filter_map(|i| i)
+        //           .collect();
+        //       let dimensions = u.api.get_glyph_dimensions(font.instance_key, indices.clone());
+
+        //       let mut glyphs = Vec::with_capacity(indices.len());
+        //       let mut offset = 0.;
+
+        //       assert_eq!(indices.len(), dimensions.len());
+
+        //       for (index, dim) in indices.into_iter().zip(dimensions) {
+        //           if let Some(dim) = dim {
+        //               glyphs.push(GlyphInstance {
+        //                   index,
+        //                   point: LayoutPoint::new(offset, font.size as f32),
+        //               });
+
+        //               offset += dim.advance as f32;
+        //           } else {
+        //               offset += font.size as f32 / 4.;
+        //           }
+        //       }
+        //       glyphs.shrink_to_fit();
+
+        //       self.glyphs = glyphs;
+        //       self.size = LayoutSize::new(offset, font.size as f32 * 1.3);
+        //       self.font_instance_key = Some(font.instance_key);
+        //   } else {
+        //       self.glyphs = vec![];
+        //       self.size = LayoutSize::default();
+        //       self.font_instance_key = None;
+        //   }
+
+        //   self.color = *v.parent(*TEXT_COLOR).unwrap_or(&ColorF::BLACK);
     }
 
     #[Ui]
@@ -105,11 +110,11 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         profile_scope!("text_render");
-        if let Some(font) = self.font_instance_key {
+        if let Some(font_instance_key) = self.font.as_ref().and_then(|f| f.instance_key()) {
             f.push_text(
                 LayoutRect::from_size(self.size),
                 &self.glyphs,
-                font,
+                font_instance_key,
                 self.color,
                 Some(self.hit_tag),
             )

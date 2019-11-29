@@ -187,7 +187,7 @@ impl<C: Ui> FocusScope<C> {
             (ElementState::Released, Some(VirtualKeyCode::LAlt)) => {
                 if self.focus_status().is_none() {
                     update.focus(FocusRequest::Direct(self.focusable_data.key));
-                } else{
+                } else {
                     self.return_focus(values, update);
                 }
             }
