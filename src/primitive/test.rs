@@ -119,9 +119,8 @@ pub fn test_next_update() -> NextUpdate {
     let (payload_sender, _payload_receiver) = payload_channel().unwrap();
 
     let sender = RenderApiSender::new(msg_sender, payload_sender);
-    let _api = sender.create_api();
 
-    NextUpdate::new()
+    NextUpdate::new(sender)
 }
 
 pub fn test_modifiers_state() -> ModifiersState {

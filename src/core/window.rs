@@ -136,7 +136,7 @@ impl Window {
         let pipeline_id = PipelineId(0, 0);
 
         let mut ui_values = UiValues::new(FocusKey::new_unique());
-        let mut next_update = NextUpdate::new();
+        let mut next_update = NextUpdate::new(sender);
 
         let mut content = (new_window.content)(&mut next_update).focus_scope(|s| {
             s.tab_nav_cycle()
@@ -377,8 +377,6 @@ impl Window {
         profile_scope!("update");
         if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
-
-            self.next_update.fonts.load_fonts(&self.api, self.document_id);
 
             if values_changed {
                 self.content.value_changed(&mut self.ui_values, &mut self.next_update);

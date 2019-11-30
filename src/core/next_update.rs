@@ -1,4 +1,5 @@
-use super::{ColorF, FocusRequest, FontCache, FontInstanceRef, LayoutSize, NewWindow, Ui, Var, VarChange};
+use super::{ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, Var, VarChange};
+use webrender::api::RenderApiSender;
 
 pub struct NextUpdate {
     pub(crate) fonts: FontCache,
@@ -14,10 +15,10 @@ pub struct NextUpdate {
     pub(crate) has_update: bool,
 }
 
-impl Default for NextUpdate {
-    fn default() -> Self {
+impl NextUpdate {
+    pub fn new(sender: RenderApiSender) -> Self {
         NextUpdate {
-            fonts: FontCache::default(),
+            fonts: FontCache::new(sender),
             windows: vec![],
 
             update_layout: true,
@@ -28,12 +29,6 @@ impl Default for NextUpdate {
 
             has_update: true,
         }
-    }
-}
-
-impl NextUpdate {
-    pub fn new() -> Self {
-        Self::default()
     }
 
     pub fn create_window<C: Ui + 'static>(
@@ -74,10 +69,8 @@ impl NextUpdate {
         self.has_update = true;
     }
 
-    pub fn font(&mut self, family: &str, size: u32) -> FontInstanceRef {
-        let font = self.fonts.get(family, size);
-        self.has_update |= self.fonts.has_load_requests();
-        font
+    pub fn font(&mut self, family: &str, size: u32) -> FontInstance {
+        self.fonts.get(family, size)
     }
 
     //-------idea---------
