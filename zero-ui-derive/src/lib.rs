@@ -357,6 +357,7 @@ fn impl_ui_impl(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> 
 }
 
 /// Parsed macro arguments.
+#[allow(clippy::large_enum_variant)]
 enum Args {
     /// No arguments. Impl is for a leaf in the Ui tree.
     Leaf,
@@ -483,17 +484,14 @@ impl CrateUiEverything {
 
 impl VisitMut for CrateUiEverything {
     fn visit_type_mut(&mut self, i: &mut Type) {
-        match i {
-            Type::Path(p) => {
-                let path = &mut p.path;
-                if let Some(tident) = path.get_ident() {
-                    if tident != &ident("bool") {
-                        let crate_ = self.crate_.clone();
-                        *path = parse_quote! { #crate_::core::#tident };
-                    }
+        if let Type::Path(p) = i {
+            let path = &mut p.path;
+            if let Some(tident) = path.get_ident() {
+                if tident != &ident("bool") {
+                    let crate_ = self.crate_.clone();
+                    *path = parse_quote! { #crate_::core::#tident };
                 }
             }
-            _ => {}
         }
 
         visit_mut::visit_type_mut(self, i);
@@ -525,32 +523,30 @@ impl VisitMut for MakeDefaults {
         if let ImplItem::Method(m) = i {
             if self.user_mtds.remove(&m.sig.ident) {
                 rmv = true;
+            } else if m.sig.ident == ident("measure") {
+                m.block = self.measure_default.take().unwrap();
+            } else if m.sig.ident == ident("render") {
+                m.block = self.render_default.take().unwrap();
+            } else if m.sig.ident == ident("focus_status") {
+                m.block = self.focus_status_default.take().unwrap();
+            } else if m.sig.ident == ident("point_over") {
+                m.block = self.point_over_default.take().unwrap();
             } else {
-                if m.sig.ident == ident("measure") {
-                    m.block = self.measure_default.take().unwrap();
-                } else if m.sig.ident == ident("render") {
-                    m.block = self.render_default.take().unwrap();
-                } else if m.sig.ident == ident("focus_status") {
-                    m.block = self.focus_status_default.take().unwrap();
-                } else if m.sig.ident == ident("point_over") {
-                    m.block = self.point_over_default.take().unwrap();
-                } else {
-                    let arg_names = m
-                        .sig
-                        .inputs
-                        .iter()
-                        .filter_map(|a| {
-                            if let FnArg::Typed(t) = a {
-                                if let Pat::Ident(i) = t.pat.as_ref() {
-                                    return Some(i.ident.clone());
-                                }
+                let arg_names = m
+                    .sig
+                    .inputs
+                    .iter()
+                    .filter_map(|a| {
+                        if let FnArg::Typed(t) = a {
+                            if let Pat::Ident(i) = t.pat.as_ref() {
+                                return Some(i.ident.clone());
                             }
-                            None
-                        })
-                        .collect();
+                        }
+                        None
+                    })
+                    .collect();
 
-                    m.block = (self.other_mtds)(m.sig.ident.clone(), arg_names);
-                }
+                m.block = (self.other_mtds)(m.sig.ident.clone(), arg_names);
             }
         }
 
@@ -594,7 +590,7 @@ fn ui_defaults(
     };
 
     let mut visitor = MakeDefaults {
-        user_mtds: user_mtds,
+        user_mtds,
         measure_default: Some(measure_default),
         render_default: Some(render_default),
         focus_status_default: Some(focus_status_default),
