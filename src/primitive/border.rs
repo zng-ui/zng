@@ -262,13 +262,10 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B
     }
 }
 
-pub trait BorderExtt: Ui + Sized {
-    fn border<L: IntoValue<LayoutSideOffsets>, B: IntoValue<BorderDetails>>(
-        self,
-        widths: L,
-        details: B,
-    ) -> Border<Self, L::Value, B::Value> {
-        Border::new(self, widths.into_value(), details.into_value())
-    }
+pub fn border(
+    child: impl Ui,
+    widths: impl IntoValue<LayoutSideOffsets>,
+    details: impl IntoValue<BorderDetails>,
+) -> impl Ui {
+    Border::new(child, widths.into_value(), details.into_value())
 }
-impl<T: Ui> BorderExtt for T {}

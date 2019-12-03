@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::Focused;
-use crate::primitive::{FocusScope, FocusScopeExt};
+use crate::primitive::{FocusScope, FocusScopeConfig};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event::{ElementState, ScanCode, WindowEvent};
@@ -138,12 +138,14 @@ impl Window {
         let mut ui_values = UiValues::new(FocusKey::new_unique());
         let mut next_update = NextUpdate::new(sender);
 
-        let mut content = (new_window.content)(&mut next_update).focus_scope(|s| {
-            s.tab_nav_cycle()
+        let mut content = FocusScope::new(
+            (new_window.content)(&mut next_update),
+            FocusScopeConfig::new()
+                .tab_nav_cycle()
                 .directional_nav_cycle()
                 .remember_focus(true)
-                .key(ui_values.window_focus_key())
-        });
+                .key(ui_values.window_focus_key()),
+        );
 
         content.init(&mut ui_values, &mut next_update);
 

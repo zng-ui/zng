@@ -123,11 +123,11 @@ impl<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> 
     }
 }
 
-pub fn fill_gradient<A: IntoValue<LayoutPoint>, B: IntoValue<LayoutPoint>, S: IntoValue<Vec<GradientStop>>>(
-    start: A,
-    end: B,
-    stops: S,
-) -> FillGradient<A::Value, B::Value, S::Value> {
+pub fn fill_gradient(
+    start: impl IntoValue<LayoutPoint>,
+    end: impl IntoValue<LayoutPoint>,
+    stops: impl IntoValue<Vec<GradientStop>>,
+) -> impl Ui {
     FillGradient::new(start.into_value(), end.into_value(), stops.into_value())
 }
 
@@ -175,26 +175,15 @@ impl<T: Ui, B: Ui> Ui for Background<T, B> {
     }
 }
 
-///Background linear gradient.
-/// ## Type arguments
-/// * `T`: child type
-/// * `A`: line start point
-/// * `B`: line end point
-/// * `S`: gradient stops
-pub type BackgroundGradient<T, A, B, S> = Background<T, FillGradient<A, B, S>>;
-
-pub trait BackgroundExt: Ui + Sized {
-    fn background_color<C: IntoValue<ColorF>>(self, color: C) -> Background<Self, FillColor<C::Value>> {
-        Background::new(self, fill_color(color))
-    }
-
-    fn background_gradient<A: IntoValue<LayoutPoint>, B: IntoValue<LayoutPoint>, S: IntoValue<Vec<GradientStop>>>(
-        self,
-        start: A,
-        end: B,
-        stops: S,
-    ) -> BackgroundGradient<Self, A::Value, B::Value, S::Value> {
-        Background::new(self, fill_gradient(start, end, stops))
-    }
+pub fn background_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
+    Background::new(child, fill_color(color))
 }
-impl<T: Ui> BackgroundExt for T {}
+
+pub fn background_gradient(
+    child: impl Ui,
+    start: impl IntoValue<LayoutPoint>,
+    end: impl IntoValue<LayoutPoint>,
+    stops: impl IntoValue<Vec<GradientStop>>,
+) -> impl Ui {
+    Background::new(child, fill_gradient(start, end, stops))
+}

@@ -10,7 +10,7 @@ use super::{
 ///
 /// # Implementers
 /// This is usually not implemented directly, consider using [impl_ui](attr.impl_ui.html) first.
-pub trait Ui {
+pub trait Ui: 'static {
     fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;

@@ -5,22 +5,19 @@ use webrender::euclid;
 /// # Constructors
 /// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](ExactSize::size).
 #[derive(Clone, new)]
-pub struct UiSize<T: Ui> {
+pub struct UiSize<T: Ui, S: Value<LayoutSize>> {
     child: T,
-    size: LayoutSize,
+    size: S,
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui> UiSize<T> {
+impl<T: Ui, S: Value<LayoutSize>> UiSize<T, S> {
     #[Ui]
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        self.child.measure(self.size);
-        self.size
+        let size = *self.size;
+        self.child.measure(size);
+        size
     }
-}
-
-pub fn size<T: Ui>(child: T, size: LayoutSize) -> UiSize<T> {
-    UiSize::new(child, size)
 }
 
 #[derive(Clone, new)]
@@ -40,10 +37,6 @@ impl<T: Ui> UiWidth<T> {
     }
 }
 
-pub fn width<T: Ui>(child: T, width: LayoutSize) -> UiSize<T> {
-    UiSize::new(child, width)
-}
-
 #[derive(Clone, new)]
 pub struct UiHeight<T: Ui> {
     child: T,
@@ -59,36 +52,32 @@ impl<T: Ui> UiHeight<T> {
         child_size
     }
 }
-pub fn height<T: Ui>(child: T, height: LayoutSize) -> UiSize<T> {
-    UiSize::new(child, height)
+
+pub fn width(child: impl Ui, width: f32) -> impl Ui {
+    UiWidth::new(child, width)
 }
-pub trait ExactSize: Ui + Sized {
-    fn width(self, width: f32) -> UiWidth<Self> {
-        UiWidth::new(self, width)
-    }
 
-    fn height(self, height: f32) -> UiHeight<Self> {
-        UiHeight::new(self, height)
-    }
-
-    fn size(self, size: LayoutSize) -> UiSize<Self> {
-        UiSize::new(self, size)
-    }
-
-    fn size_wh(self, width: f32, height: f32) -> UiSize<Self> {
-        UiSize::new(self, LayoutSize::new(width, height))
-    }
+pub fn height(child: impl Ui, height: f32) -> impl Ui {
+    UiHeight::new(child, height)
 }
-impl<T: Ui> ExactSize for T {}
+
+pub fn size(child: impl Ui, size: impl IntoValue<LayoutSize>) -> impl Ui {
+    UiSize::new(child, size.into_value())
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Alignment(pub f32, pub f32);
 
 #[derive(Clone, new)]
-pub struct Center<T: Ui> {
+pub struct Align<T: Ui, A: Value<Alignment>> {
     child: T,
+    alignment: A,
     #[new(default)]
     child_rect: LayoutRect,
 }
+
 #[impl_ui_crate(child)]
-impl<T: Ui> Center<T> {
+impl<T: Ui, A: Value<Alignment>> Align<T, A> {
     #[Ui]
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
@@ -103,31 +92,35 @@ impl<T: Ui> Center<T> {
 
         available_size
     }
+
     #[Ui]
     fn arrange(&mut self, final_size: LayoutSize) {
         self.child_rect.size = self.child_rect.size.min(final_size);
         self.child.arrange(self.child_rect.size);
 
+        let alignment = *self.alignment;
+
         self.child_rect.origin = LayoutPoint::new(
-            (final_size.width - self.child_rect.size.width) / 2.,
-            (final_size.height - self.child_rect.size.height) / 2.,
+            (final_size.width - self.child_rect.size.width) * alignment.0,
+            (final_size.height - self.child_rect.size.height) * alignment.1,
         );
     }
+
     #[Ui]
     fn render(&self, f: &mut NextFrame) {
         f.push_child(&self.child, &self.child_rect);
     }
 }
 
-pub fn center<T: Ui>(child: T) -> Center<T> {
-    Center::new(child)
+pub const CENTER: Alignment = Alignment(0.5, 0.5);
+
+pub fn center(child: impl Ui) -> impl Ui {
+    align(child, CENTER)
 }
-pub trait Align: Ui + Sized {
-    fn center(self) -> Center<Self> {
-        Center::new(self)
-    }
+
+pub fn align(child: impl Ui, alignment: impl IntoValue<Alignment>) -> impl Ui {
+    Align::new(child, alignment.into_value())
 }
-impl<T: Ui> Align for T {}
 
 #[derive(Clone, new)]
 pub struct Margin<T: Ui, M: Value<LayoutSideOffsets>> {
@@ -162,29 +155,7 @@ impl<T: Ui, M: Value<LayoutSideOffsets>> Margin<T, M> {
         f.push_child(&self.child, &rect);
     }
 }
-pub trait MarginExt: Ui + Sized {
-    /// Margin around `self`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use zero_ui::primitive::*;
-    ///
-    /// // Uniform Value
-    /// text("hello").margin(10.);
-    ///
-    /// // Top-Bottom, Left-Right
-    /// text("hello").margin((10., 5.));
-    ///
-    /// // Top, Right, Bottom, Left
-    /// text("hello").margin((10., 5., 0., 5.));
-    /// ```
-    fn margin<M: IntoValue<LayoutSideOffsets>>(self, margin: M) -> Margin<Self, M::Value> {
-        Margin::new(self, margin.into_value())
-    }
-}
-impl<T: Ui> MarginExt for T {}
 
-pub fn margin<T: Ui, M: IntoValue<LayoutSideOffsets>>(child: T, margin: M) -> Margin<T, M::Value> {
+pub fn margin(child: impl Ui, margin: impl IntoValue<LayoutSideOffsets>) -> impl Ui {
     Margin::new(child, margin.into_value())
 }

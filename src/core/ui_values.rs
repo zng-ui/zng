@@ -139,7 +139,7 @@ mod private {
 ///
 /// ## See also
 /// * [IntoValue]: For making constructors.
-pub trait Value<T>: private::Sealed + Deref<Target = T> {
+pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
     /// If the value was set in the last update.
     fn touched(&self) -> bool;
 
@@ -188,7 +188,7 @@ enum ListenerStatus {
 }
 
 /// A reference counted [Value] that can change.
-pub struct Var<T> {
+pub struct Var<T: 'static> {
     r: Rc<VarData<T>>,
 }
 
@@ -254,7 +254,7 @@ impl<T> Deref for Var<T> {
 
 impl<T> private::Sealed for Var<T> {}
 
-impl<T> Value<T> for Var<T> {
+impl<T: 'static> Value<T> for Var<T> {
     /// Gets if the var was set in the last update.
     fn touched(&self) -> bool {
         self.r.touched.get()
@@ -269,7 +269,7 @@ pub trait IntoValue<T> {
 }
 
 /// Does nothing. `[Var]<T>` already implements `Value<T>`.
-impl<T> IntoValue<T> for Var<T> {
+impl<T: 'static> IntoValue<T> for Var<T> {
     type Value = Var<T>;
 
     fn into_value(self) -> Self::Value {

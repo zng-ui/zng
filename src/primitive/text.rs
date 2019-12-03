@@ -1,5 +1,5 @@
 use crate::core::*;
-use crate::primitive::{SetParentValue, SetParentValueExt};
+use crate::primitive::set_parent_val;
 use std::borrow::Cow;
 use webrender::api::*;
 
@@ -115,19 +115,15 @@ pub static FONT_FAMILY: ParentValueKeyRef<Cow<'static, str>> = ParentValueKey::n
 pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
 pub static TEXT_COLOR: ParentValueKeyRef<ColorF> = ParentValueKey::new_lazy();
 
-pub type SetFontFamily<T, R> = SetParentValue<T, Cow<'static, str>, R>;
-pub type SetFontSize<T, R> = SetParentValue<T, u32, R>;
-pub type SetTextColor<T, R> = SetParentValue<T, ColorF, R>;
-
-pub trait TextVals: Ui + Sized {
-    fn font_family<V: IntoValue<Cow<'static, str>>>(self, font: V) -> SetFontFamily<Self, V::Value> {
-        self.set_parent_val(*FONT_FAMILY, font)
-    }
-    fn font_size<V: IntoValue<u32>>(self, size: V) -> SetFontSize<Self, V::Value> {
-        self.set_parent_val(*FONT_SIZE, size)
-    }
-    fn text_color<V: IntoValue<ColorF>>(self, color: V) -> SetTextColor<Self, V::Value> {
-        self.set_parent_val(*TEXT_COLOR, color)
-    }
+/// Sets the font family for all child Uis.
+pub fn font_family(child: impl Ui, font: impl IntoValue<Cow<'static, str>>) -> impl Ui {
+    set_parent_val(child, *FONT_FAMILY, font)
 }
-impl<T: Ui> TextVals for T {}
+
+pub fn font_size(child: impl Ui, size: impl IntoValue<u32>) -> impl Ui {
+    set_parent_val(child, *FONT_SIZE, size)
+}
+
+pub fn text_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
+    set_parent_val(child, *TEXT_COLOR, color)
+}

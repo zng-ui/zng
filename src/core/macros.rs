@@ -1,3 +1,14 @@
+///The enclose macro for easier cloning
+#[macro_export]
+macro_rules! enclose {
+    ( ($( $x:ident ),*) $y:expr ) => {
+        {
+            $(let $x = $x.clone();)*
+            $y
+        }
+    };
+}
+
 /// Declare and implement a unique ID type. Optionally also declare
 /// a lazy initialization type for static variables.
 ///
@@ -93,5 +104,16 @@ macro_rules! profile_scope {
         #[cfg(feature = "app_profiler")]
         let _profile_scope =
             $crate::core::profiler::ProfileScope::new(format!($($args)+));
+    };
+}
+
+#[macro_export]
+macro_rules! ui {
+    ($($mtd:ident: $($arg:expr),+;)+ => $child:expr) => {
+       {
+        let child = $child;
+        $(let child = $mtd(child, $($arg),+);)+
+        {child}
+       }
     };
 }

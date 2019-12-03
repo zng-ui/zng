@@ -61,13 +61,10 @@ impl<C: Ui> Focusable<C> {
     }
 }
 
-pub trait FocusableExt: Ui + Sized {
-    fn focusable(self, config: impl FnOnce(FocusableConfig) -> FocusableConfig) -> Focusable<Self> {
-        let c = config(FocusableConfig::new());
-        Focusable::from_config(self, c)
-    }
+pub fn focusable(child: impl Ui, config: impl FnOnce(FocusableConfig) -> FocusableConfig) -> impl Ui {
+    let c = config(FocusableConfig::new());
+    Focusable::from_config(child, c)
 }
-impl<T: Ui> FocusableExt for T {}
 
 #[derive(new)]
 pub struct FocusableConfig {
@@ -231,14 +228,10 @@ impl<C: Ui> FocusScope<C> {
     }
 }
 
-pub trait FocusScopeExt: Ui + Sized {
-    ///Creates a default FocusScope
-    fn focus_scope(self, config: impl FnOnce(FocusScopeConfig) -> FocusScopeConfig) -> FocusScope<Self> {
-        let c = config(FocusScopeConfig::new());
-        FocusScope::new(self, c)
-    }
+pub fn focus_scope(child: impl Ui, config: impl FnOnce(FocusScopeConfig) -> FocusScopeConfig) -> impl Ui {
+    let c = config(FocusScopeConfig::new());
+    FocusScope::new(child, c)
 }
-impl<T: Ui> FocusScopeExt for T {}
 
 #[derive(new)]
 pub struct FocusScopeConfig {

@@ -28,6 +28,7 @@ Things that must be done first because they influence the core API design that i
 * Integrate thread_profiler.
 * Diagnostics.
 * Better Ui related macros, reduce verbosity.
+* All events receive single args object.
 
 ## Basic Layout
 

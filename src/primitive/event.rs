@@ -18,7 +18,7 @@ pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> OnKeyDown<T, F> {
+impl<T: Ui, F: FnMut(KeyDown, &mut NextUpdate) + 'static> OnKeyDown<T, F> {
     #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
@@ -53,7 +53,7 @@ pub struct OnKeyUp<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
+impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate) + 'static> OnKeyUp<T, F> {
     #[Ui]
     fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.keyboard_input(input, values, update);
@@ -80,16 +80,13 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate)> OnKeyUp<T, F> {
     }
 }
 
-pub trait KeyboardEvents: Ui + Sized {
-    fn on_key_down<F: FnMut(KeyDown, &mut NextUpdate)>(self, handler: F) -> OnKeyDown<Self, F> {
-        OnKeyDown::new(self, handler)
-    }
-
-    fn on_key_up<F: FnMut(KeyUp, &mut NextUpdate)>(self, handler: F) -> OnKeyUp<Self, F> {
-        OnKeyUp::new(self, handler)
-    }
+pub fn on_key_down(child: impl Ui, handler: impl FnMut(KeyDown, &mut NextUpdate) + 'static) -> impl Ui {
+    OnKeyDown::new(child, handler)
 }
-impl<T: Ui + Sized> KeyboardEvents for T {}
+
+pub fn on_key_up(child: impl Ui, handler: impl FnMut(KeyUp, &mut NextUpdate) + 'static) -> impl Ui {
+    OnKeyUp::new(child, handler)
+}
 
 macro_rules! on_mouse {
     ($state: ident, $name: ident, $stop_tag: expr) => {
@@ -100,7 +97,7 @@ macro_rules! on_mouse {
         }
 
         #[impl_ui_crate(child)]
-        impl<T: Ui + 'static, F: FnMut(MouseButtonInput, &mut NextUpdate)> $name<T, F> {
+        impl<T: Ui, F: FnMut(MouseButtonInput, &mut NextUpdate) + 'static> $name<T, F> {
             #[Ui]
             fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.mouse_input(input, hits, values, update);
@@ -142,7 +139,7 @@ pub struct OnClick<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate)> OnClick<T, F> {
+impl<T: Ui, F: FnMut(ClickInput, &mut NextUpdate) + 'static> OnClick<T, F> {
     fn call_handler(
         &mut self,
         input: &MouseInput,
@@ -236,7 +233,7 @@ pub struct OnMouseMove<T: Ui, F: FnMut(MouseMove, &mut NextUpdate)> {
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui + 'static, F: FnMut(MouseMove, &mut NextUpdate)> OnMouseMove<T, F> {
+impl<T: Ui, F: FnMut(MouseMove, &mut NextUpdate) + 'static> OnMouseMove<T, F> {
     #[Ui]
     fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
         self.child.mouse_move(input, hits, values, update);
@@ -274,7 +271,7 @@ macro_rules! on_mouse_enter_leave {
         }
 
         #[impl_ui_crate(child)]
-        impl<T: Ui, F: FnMut(&mut NextUpdate)> $Type<T, F> {
+        impl<T: Ui, F: FnMut(&mut NextUpdate) + 'static> $Type<T, F> {
             fn set_mouse_over(&mut self, $mouse_over: bool, update: &mut NextUpdate) {
                 if self.mouse_over != $mouse_over {
                     self.mouse_over = $mouse_over;
@@ -301,32 +298,29 @@ macro_rules! on_mouse_enter_leave {
 on_mouse_enter_leave!(OnMouseEnter, mouse_over, mouse_over);
 on_mouse_enter_leave!(OnMouseLeave, mouse_over, !mouse_over);
 
-pub trait MouseEvents: Ui + Sized {
-    fn on_mouse_down<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnMouseDown<Self, F> {
-        OnMouseDown::new(self, handler)
-    }
-
-    fn on_mouse_up<F: FnMut(MouseButtonInput, &mut NextUpdate)>(self, handler: F) -> OnMouseUp<Self, F> {
-        OnMouseUp::new(self, handler)
-    }
-
-    fn on_click<F: FnMut(ClickInput, &mut NextUpdate)>(self, handler: F) -> OnClick<Self, F> {
-        OnClick::new(self, handler)
-    }
-
-    fn on_mouse_move<F: FnMut(MouseMove, &mut NextUpdate)>(self, handler: F) -> OnMouseMove<Self, F> {
-        OnMouseMove::new(self, handler)
-    }
-
-    fn on_mouse_enter<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnMouseEnter<Self, F> {
-        OnMouseEnter::new(self, handler)
-    }
-
-    fn on_mouse_leave<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnMouseLeave<Self, F> {
-        OnMouseLeave::new(self, handler)
-    }
+pub fn on_mouse_down(child: impl Ui, handler: impl FnMut(MouseButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
+    OnMouseDown::new(child, handler)
 }
-impl<T: Ui + Sized> MouseEvents for T {}
+
+pub fn on_mouse_up(child: impl Ui, handler: impl FnMut(MouseButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
+    OnMouseUp::new(child, handler)
+}
+
+pub fn on_click(child: impl Ui, handler: impl FnMut(ClickInput, &mut NextUpdate) + 'static) -> impl Ui {
+    OnClick::new(child, handler)
+}
+
+pub fn on_mouse_move(child: impl Ui, handler: impl FnMut(MouseMove, &mut NextUpdate) + 'static) -> impl Ui {
+    OnMouseMove::new(child, handler)
+}
+
+pub fn on_mouse_enter(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnMouseEnter::new(child, handler)
+}
+
+pub fn on_mouse_leave(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnMouseLeave::new(child, handler)
+}
 
 macro_rules! on_focus_events {
     ($Type:ident, $focused: ident, $if_focused: expr) => {
@@ -339,7 +333,7 @@ macro_rules! on_focus_events {
         }
 
         #[impl_ui_crate(child)]
-        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
+        impl<T: Ui, F: FnMut(&mut NextUpdate) + 'static> Ui for $Type<T, F> {
             fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.focus_changed(change, values, update);
 
@@ -366,7 +360,7 @@ macro_rules! on_focus_within_events {
         }
 
         #[impl_ui_crate(child)]
-        impl<T: Ui + 'static, F: FnMut(&mut NextUpdate)> Ui for $Type<T, F> {
+        impl<T: Ui, F: FnMut(&mut NextUpdate) + 'static> Ui for $Type<T, F> {
             fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
                 self.child.focus_changed(change, values, update);
 
@@ -388,24 +382,21 @@ on_focus_events!(OnBlur, focused, !focused);
 on_focus_within_events!(OnFocusEnter, focused, focused);
 on_focus_within_events!(OnFocusLeave, focused, !focused);
 
-pub trait FocusEvents: Ui + Sized {
-    fn on_focus<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocus<Self, F> {
-        OnFocus::new(self, handler)
-    }
-
-    fn on_blur<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnBlur<Self, F> {
-        OnBlur::new(self, handler)
-    }
-
-    fn on_focus_enter<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocusEnter<Self, F> {
-        OnFocusEnter::new(self, handler)
-    }
-
-    fn on_focus_leave<F: FnMut(&mut NextUpdate)>(self, handler: F) -> OnFocusLeave<Self, F> {
-        OnFocusLeave::new(self, handler)
-    }
+pub fn on_focus(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnFocus::new(child, handler)
 }
-impl<T: Ui + Sized> FocusEvents for T {}
+
+pub fn on_blur(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnBlur::new(child, handler)
+}
+
+pub fn on_focus_enter(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnFocusEnter::new(child, handler)
+}
+
+pub fn on_focus_leave(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
+    OnFocusLeave::new(child, handler)
+}
 
 #[derive(Debug)]
 pub struct KeyDown {

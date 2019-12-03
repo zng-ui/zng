@@ -75,15 +75,6 @@ impl<T: Ui, V: 'static, R: Value<V>> SetParentValue<T, V, R> {
     }
 }
 
-pub trait SetParentValueExt: Ui + Sized {
-    fn set_parent_val<T: 'static, V: IntoValue<T>>(
-        self,
-        key: ParentValueKey<T>,
-        value: V,
-    ) -> SetParentValue<Self, T, V::Value> {
-        SetParentValue::new(self, key, value.into_value())
-    }
-
-    //TODO alias value
+pub fn set_parent_val<T: 'static>(child: impl Ui, key: ParentValueKey<T>, value: impl IntoValue<T>) -> impl Ui {
+    SetParentValue::new(child, key, value.into_value())
 }
-impl<T: Ui> SetParentValueExt for T {}

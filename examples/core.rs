@@ -14,67 +14,60 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
      no local em que você precisa deles.
      Para alterar a maneira como uma imagem se ajusta ao seu documento,
     clique nela e um botão de opções de layout será exibido ao lado.";
-    v_stack(
+
+    let paragraph = v_stack(
         string
             .split('\n')
             .map(|l| {
-                text(l).background_color(rgb(255, 255, 255)).on_click(|_c, _| {
-                    //c.stop_propagation();
-                })
+                ui! {
+                    background_color: rgb(255, 255, 255);
+                    cursor: CursorIcon::Hand;
+
+                    on_click: |_c, _| {
+                        //c.stop_propagation();
+                    };
+                    => text(l)
+                }
             })
             .collect::<Vec<_>>(),
-    )
-    .font_family("Arial".to_owned())
-    .font_size(14)
-    .on_click(|_, u| {
-        u.create_window(rgb(0.3, 0.2, 0.1), LayoutSize::new(1000., 800.), other_widow);
-    })
+    );
+
+    ui! {
+        font_family: "Arial";
+        font_size: 14;
+        on_click: |_, u| {
+            u.create_window(rgb(0.3, 0.2, 0.1), LayoutSize::new(1000., 800.), other_widow);
+        };
+        => paragraph
+    }
 }
 
 fn other_widow(_: &mut NextUpdate) -> impl Ui {
-    h_stack(
-        (0..4)
-            .map(|i| {
-                let bkg_color = Var::new(rgb(255, 255, 255));
+    center(h_stack((0..4).map(item).collect::<Vec<_>>()))
+}
 
-                text("Ola")
-                    .font_family("Arial")
-                    .font_size(90)
-                    .background_color(Var::clone(&bkg_color))
-                    .text_color(rgb(0, 150, 0))
-                    .focusable(default)
-                    .on_key_down(move |k, _| {
-                        println!("Key down @ text.{}: {}", i, k);
-                        //k.stop_propagation();
-                    })
-                    .center()
-                    .cursor(CursorIcon::Hand)
-                    .on_mouse_enter(enclose! {(bkg_color) move |u| {
-                        u.set(&bkg_color, rgb(100, 255, 255));
-                    }})
-                    .on_mouse_leave(move |u| {
-                        u.set(&bkg_color, rgb(255, 255, 255));
-                    })
-                    .background_gradient(
-                        (0., 0.),
-                        (1., 1.),
-                        vec![
-                            GradientStop {
-                                offset: 0.,
-                                color: rgb(0, 200, 0),
-                            },
-                            GradientStop {
-                                offset: 1.,
-                                color: rgb(200, 0, 0),
-                            },
-                        ],
-                    )
-                    .focusable(default)
-                    .on_key_down(move |k, _| println!("Key down @ gradient.{}: {}", i, k))
-                    .width(200.)
-                    .margin(2.)
-            })
-            .collect::<Vec<_>>(),
-    )
-    .center()
+fn item(i: usize) -> impl Ui {
+    let box_border = Var::new(rgba(0, 0, 0, 0.0));
+    let text_border = Var::new(rgba(0, 0, 0, 0.0));
+
+    let text = ui! {
+        font_family: "Arial";
+        font_size: 60;
+        text_color: rgb(0, 0, 0);
+        background_color: rgba(1., 1., 1., 0.5);
+        border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
+        cursor: CursorIcon::Hand;
+
+        => text(format!("Item {}", i  + 1))
+    };
+
+    ui! {
+        background_gradient: (0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)];
+        border: 4., (Var::clone(&box_border), BorderStyle::Dashed);
+        focusable: default;
+        margin: 2.0;
+        width: 200.0;
+
+        => center(text)
+    }
 }
