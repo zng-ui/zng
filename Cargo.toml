@@ -22,7 +22,7 @@ winapi = "0.3.8"
 once_cell = "1.2.0"
 fnv = "1.0.6"
 derive-new = "0.5.8"
-zero-ui-derive = { path = "zero-ui-derive" }
+zero-ui-macros = { path = "zero-ui-macros" }
 retain_mut = "0.1.0"
 raw-window-handle = "0.1.2"
 ego-tree = "0.6.2"
@@ -35,6 +35,7 @@ proc-macro-hack = "0.5.11"
 bencher = "0.1.5"
 
 [workspace]
+members = ["zero-ui-macros"]
 
 #[[bench]]
 #name = "value_changed"

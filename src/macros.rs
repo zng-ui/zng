@@ -1,16 +1,13 @@
-pub(crate) use zero_ui_derive::impl_ui_crate;
-pub use zero_ui_derive::impl_ui; 
-
-use proc_macro_hack::proc_macro_hack;
-#[proc_macro_hack]
-pub use zero_ui_derive::ui;
-
-fn test() {
-    ui! {
-        focus_scope: move |s| s.menu().key(menu_fkey);
-        => line(100., "menu")
-    }
-}
+//#[macro_export]
+//macro_rules! ui {
+//    ($($mtd:ident: $($arg:expr),+;)+ => $child:expr) => {
+//        {
+//            let child = $child;
+//            $(let child = $mtd(child, $($arg),+);)+
+//            {child}
+//        }
+//    };
+//}
 
 ///The enclose macro for easier cloning
 #[macro_export]
