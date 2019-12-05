@@ -2,8 +2,6 @@ use crate::core::*;
 use webrender::euclid;
 
 /// Constrain a child to a size.
-/// # Constructors
-/// Can be initialized using [`size(child, size)` function](size) and [`child.size(size)`](ExactSize::size).
 #[derive(Clone, new)]
 pub struct UiSize<T: Ui, S: Value<LayoutSize>> {
     child: T,

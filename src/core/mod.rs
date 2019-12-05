@@ -1,6 +1,3 @@
-#[macro_use]
-mod macros;
-
 mod focus;
 mod font;
 mod hittest;
@@ -13,7 +10,6 @@ mod ui;
 mod ui_values;
 mod window;
 
-pub use macros::*;
 pub(crate) use zero_ui_macros::impl_ui_crate;
 
 pub use focus::*;
