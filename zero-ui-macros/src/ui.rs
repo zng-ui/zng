@@ -7,11 +7,14 @@ pub(crate) fn implementation(input: TokenStream) -> TokenStream {
     let properties = properties.into_iter().map(|Property { name, args, .. }| {
         let args = args.into_iter();
         quote! {
-            let child = #name(child, #(#args),*);
+            let child = current_module::#name(child, #(#args),*);
         }
     });
 
     let result = quote! {{
+        mod current_module {
+            pub(crate) use super::*;
+        }
         let child = #child;
         #(#properties)*
 
