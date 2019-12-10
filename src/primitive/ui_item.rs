@@ -1,6 +1,6 @@
 use crate::core::*;
 
-#[derive(new)]
+#[doc(hidden)]
 pub struct UiItem<U: Ui> {
     child: U,
     id: UiItemId,
@@ -70,6 +70,6 @@ impl<U: Ui> UiItem<U> {
 }
 
 /// Defines a group of nested Uis as a single element.
-pub fn ui_item<U: Ui>(id: UiItemId, child: U) -> UiItem<U> {
-    UiItem::new(child, id)
+pub fn ui_item(id: UiItemId, child: impl Ui) -> impl Ui {
+    UiItem { child, id }
 }

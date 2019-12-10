@@ -1,24 +1,36 @@
 use proc_macro::TokenStream;
+use quote::__rt::Span;
 use syn::{parse::*, punctuated::Punctuated, token::Token, *};
 
 pub(crate) fn implementation(input: TokenStream) -> TokenStream {
     let Input { properties, child, .. } = parse_macro_input!(input as Input);
 
-    let properties = properties.into_iter().map(|Property { name, args, .. }| {
-        let args = args.into_iter();
-        quote! {
-            let child = current_module::#name(child, #(#args),*);
+    let mut expanded_props = Vec::with_capacity(properties.len());
+    let mut id = quote! {$crate::core::UiItemId::new_unique()};
+
+    let id_name = Ident::new("id", Span::call_site());
+
+    for p in properties {
+        let name = p.name;
+        let args = p.args.into_iter();
+
+        if name == id_name {
+            id = quote!(#(#args),*);
+        } else {
+            expanded_props.push(quote! {
+                let child = current_module::#name(child, #(#args),*);
+            });
         }
-    });
+    }
 
     let result = quote! {{
         mod current_module {
             pub(crate) use super::*;
         }
         let child = #child;
-        #(#properties)*
+        #(#expanded_props)*
 
-        $crate::primitive::ui_item($crate::core::UiItemId::new_unique(), child)
+        $crate::primitive::ui_item(#id, child)
     }};
 
     TokenStream::from(result)

@@ -36,7 +36,10 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
     let box_border = Var::new(rgba(0, 0, 0, 0.0));
     let text_border = Var::new(rgba(0, 0, 0, 0.0));
 
+    let text_id = UiItemId::new_unique();
+
     let text = ui! {
+        id: text_id;
         font_family: "Arial";
         font_size: 60;
         text_color: rgb(0, 0, 0);
