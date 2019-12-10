@@ -1,16 +1,18 @@
 use crate::core::*;
+use std::iter::FromIterator;
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
         pub struct $Stack<T> {
-            children: Vec<StackSlot<T>>,
+            children: Vec<StackEntry<T>>,
             hit_tag: HitTag,
         }
         #[impl_ui_crate(children)]
         impl<T: Ui> $Stack<T> {
-            pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
+            #[inline]
+            pub fn new(children: Stack<T>) -> Self {
                 $Stack {
-                    children: children.into(),
+                    children: children.stack,
                     hit_tag: HitTag::new_unique(),
                 }
             }
@@ -67,46 +69,50 @@ macro_rules! stack {
 stack!(HStack, width, height, x);
 stack!(VStack, height, width, y);
 
-pub fn h_stack<B: IntoStackSlots>(children: B) -> HStack<B::Child> {
+/// Stack the children in a line (X). The first child at the begining (0, 0) the last child
+/// at the end (n, 0);
+pub fn h_stack<T: Ui>(children: Stack<T>) -> HStack<T> {
     HStack::new(children)
 }
 
-pub fn v_stack<B: IntoStackSlots>(children: B) -> VStack<B::Child> {
+/// Stacks the children in a column (Y). The first child at the top (0, 0) the last child at
+/// the bottom (0, n).
+pub fn v_stack<T: Ui>(children: Stack<T>) -> VStack<T> {
     VStack::new(children)
 }
 
 /// Stacks the children on top of each other. The first child at the bottom the last at the top.
 pub struct ZStack<T> {
-    children: Vec<StackSlot<T>>,
+    children: Vec<StackEntry<T>>,
 }
 
 #[impl_ui_crate(children)]
 impl<T: Ui> ZStack<T> {
-    pub fn new<B: IntoStackSlots<Child = T>>(children: B) -> Self {
+    pub fn new(children: Stack<T>) -> Self {
         ZStack {
-            children: children.into(),
+            children: children.stack,
         }
     }
 }
 
-/// Stacks the children on top of each other. The first child at the bottom the last at the top.
-pub fn z_stack<B: IntoStackSlots>(children: B) -> ZStack<B::Child> {
+/// Stacks the children on top of each other (Z-index). The first child at the bottom the last at the top.
+pub fn z_stack<T: Ui>(children: Stack<T>) -> ZStack<T> {
     ZStack::new(children)
 }
 
 /// A child in a stack container.
-#[derive(new)]
-pub struct StackSlot<T> {
+struct StackEntry<T> {
     child: T,
-    #[new(default)]
     rect: LayoutRect,
 }
 
 #[impl_ui_crate(child)]
-impl<T: Ui> StackSlot<T> {
-    /// The area taken by the child in the stack container.
-    pub fn rect(&self) -> LayoutRect {
-        self.rect
+impl<T: Ui> StackEntry<T> {
+    pub fn new(child: T) -> Self {
+        StackEntry {
+            child,
+            rect: LayoutRect::default(),
+        }
     }
 
     #[Ui]
@@ -127,32 +133,84 @@ impl<T: Ui> StackSlot<T> {
     }
 }
 
-/// Helper trait for constructing stack containers.
-pub trait IntoStackSlots {
-    type Child: Ui;
-    fn into(self) -> Vec<StackSlot<Self::Child>>;
+/// Stack children builder.
+pub struct Stack<U: Ui> {
+    stack: Vec<StackEntry<U>>,
 }
 
-impl<T: Ui + 'static> IntoStackSlots for Vec<T> {
-    type Child = T;
-    fn into(self) -> Vec<StackSlot<T>> {
-        self.into_iter().map(StackSlot::new).collect()
+impl<U: Ui> Default for Stack<U> {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<U: Ui> Stack<U> {
+    /// Constructs a new empty `Stack<U>`.
+    #[inline]
+    pub fn new() -> Self {
+        Stack { stack: Vec::new() }
+    }
+
+    /// Constructs a new, empty `Stack<T>` with the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Stack {
+            stack: Vec::with_capacity(capacity),
+        }
+    }
+
+    /// Appends a `child` to the stack, takes and returns `self`
+    /// for builder style initialization.
+    #[inline]
+    pub fn push(mut self, child: U) -> Self {
+        self.stack.push(StackEntry::new(child));
+        self
+    }
+}
+
+/// Stack children builder that can take any type of children.
+pub type BoxedStack = Stack<Box<dyn Ui>>;
+
+impl Stack<Box<dyn Ui>> {
+    /// Appends a `child` to the stack boxing it first.
+    /// Takes and returns `self` for builder style initialization.
+    #[inline]
+    pub fn push_box(mut self, child: impl Ui) -> Self {
+        self.stack.push(StackEntry::new(child.into_box()));
+        self
+    }
+}
+
+impl<U: Ui> FromIterator<U> for Stack<U> {
+    #[inline]
+    fn from_iter<T: IntoIterator<Item = U>>(iter: T) -> Self {
+        Stack {
+            stack: iter.into_iter().map(StackEntry::new).collect(),
+        }
+    }
+}
+
+impl<U: Ui> From<Vec<U>> for Stack<U> {
+    #[inline]
+    fn from(vec: Vec<U>) -> Self {
+        vec.into_iter().collect()
     }
 }
 
 macro_rules! impl_tuples {
     ($TH:ident, $TH2:ident, $($T:ident, )* ) => {
-        impl<$TH, $TH2, $($T, )*> IntoStackSlots for ($TH, $TH2, $($T,)*)
+        impl<$TH, $TH2, $($T, )*> From<($TH, $TH2, $($T,)*)> for Stack<Box<dyn Ui>>
         where $TH: Ui + 'static, $TH2: Ui + 'static, $($T: Ui + 'static, )*
         {
-            type Child = Box<dyn Ui>;
-
+            #[inline]
             #[allow(non_snake_case)]
-            fn into(self) -> Vec<StackSlot<Box<dyn Ui>>> {
-                let ($TH, $TH2, $($T,)*) = self;
-                vec![StackSlot::new($TH.into_box()), StackSlot::new($TH2.into_box()),  $(StackSlot::new($T.into_box()), )*]
+            fn from(($TH, $TH2, $($T,)*): ($TH, $TH2, $($T,)*)) -> Stack<Box<dyn Ui>> {
+                let stack = vec![StackEntry::new($TH.into_box()), StackEntry::new($TH2.into_box()),  $(StackEntry::new($T.into_box()), )*];
+                Stack { stack }
             }
         }
+
         impl_tuples!($( $T, )*);
     };
 

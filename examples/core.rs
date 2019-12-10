@@ -29,7 +29,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
                     => text(l)
                 }
             })
-            .collect::<Vec<_>>(),
+            .collect(),
     );
 
     ui! {
@@ -43,7 +43,7 @@ fn main_window(_: &mut NextUpdate) -> impl Ui {
 }
 
 fn other_widow(_: &mut NextUpdate) -> impl Ui {
-    center(h_stack((0..4).map(item).collect::<Vec<_>>()))
+    center(h_stack((0..4).map(item).collect()))
 }
 
 fn item(i: usize) -> impl Ui {

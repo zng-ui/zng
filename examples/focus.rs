@@ -10,21 +10,24 @@ fn main() {
 fn window(u: &mut NextUpdate) -> impl Ui {
     let menu_fkey = FocusKey::new_unique();
     u.focus(FocusRequest::Direct(menu_fkey));
-    v_stack((
-        // menu
-        ui! {
-            focus_scope: move |s| s.menu().key(menu_fkey);
-            => line(100., "menu")
-        },
-        // grid
-        v_stack((0..4).map(|_| line(200., "Olá")).collect::<Vec<_>>()),
-    ))
+    v_stack(
+        (
+            // menu
+            ui! {
+                focus_scope: move |s| s.menu().key(menu_fkey);
+                => line(100., "menu")
+            },
+            // grid
+            v_stack((0..4).map(|_| line(200., "Olá")).collect()),
+        )
+            .into(),
+    )
 }
 
 fn line(h: f32, text: &'static str) -> impl Ui {
     ui! {
         height: h;
-        => h_stack((0..4).map(|i| item(i, text)).collect::<Vec<_>>())
+        => h_stack((0..4).map(|i| item(i, text)).collect())
     }
 }
 

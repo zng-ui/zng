@@ -76,6 +76,7 @@ macro_rules! uid {
 
                 /// Retrieve the underlying `u64` value.
                 #[allow(dead_code)]
+                #[inline]
                 pub fn get(self) -> u64 {
                     self.0.get()
                 }
@@ -95,6 +96,7 @@ macro_rules! uid {
         impl $Type {
             /// New lazy initialized unique key. Use this for static
             /// variables.
+            #[inline]
             pub const fn new_lazy() -> $TypeRef {
                 $TypeRef(once_cell::sync::OnceCell::new())
             }
@@ -102,6 +104,7 @@ macro_rules! uid {
 
         impl std::ops::Deref for $TypeRef {
             type Target = $Type;
+            #[inline]
             fn deref(&self) -> &Self::Target {
                 self.0.get_or_init($Type::new_unique)
             }
