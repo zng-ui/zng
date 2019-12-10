@@ -1,6 +1,7 @@
 //#![windows_subsystem = "windows"]
+#![recursion_limit = "512"]
 
-use zero_ui::{core::*, primitive::*, *};
+use zero_ui::{core::*, primitive::*, widget::*, *};
 
 fn main() {
     //start_logger_for("test");
@@ -51,7 +52,9 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
             u.set(&text_border, rgba(0, 0, 0, 0.0));
         };
 
-        => text(txt)
+        => button(|bi, u|{
+            println!("button repeat: {}", bi.repeat())
+        }, text(txt))
     };
 
     ui! {

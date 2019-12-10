@@ -10,6 +10,7 @@ pub static STOP_MOUSE_UP: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 pub static STOP_MOUSE_MOVE: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 pub static STOP_KEY_DOWN: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 pub static STOP_KEY_UP: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
+pub static STOP_KEY_TAP: ChildValueKeyRef<()> = ChildValueKey::new_lazy();
 
 #[derive(new)]
 pub struct OnKeyDown<T: Ui, F: FnMut(KeyDown, &mut NextUpdate)> {
@@ -80,12 +81,62 @@ impl<T: Ui, F: FnMut(KeyUp, &mut NextUpdate) + 'static> OnKeyUp<T, F> {
     }
 }
 
+#[derive(new)]
+pub struct OnKeyTap<T: Ui, F: FnMut(KeyTap, &mut NextUpdate)> {
+    child: T,
+    handler: F,
+    #[new(default)]
+    key_pressed: Option<VirtualKeyCode>,
+}
+
+#[impl_ui_crate(child)]
+impl<T: Ui, F: FnMut(KeyTap, &mut NextUpdate) + 'static> OnKeyTap<T, F> {
+    #[Ui]
+    fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
+        self.child.keyboard_input(input, values, update);
+
+        if values.child(*STOP_KEY_TAP).is_some() {
+            return;
+        }
+
+        if let (Some(key), Some(focus)) = (input.virtual_keycode, self.child.focus_status()) {
+            match input.state {
+                ElementState::Pressed => self.key_pressed = Some(key),
+                ElementState::Released => {
+                    if self.key_pressed == Some(key) {
+                        self.key_pressed = None;
+
+                        let stop = Rc::default();
+                        let input = KeyTap {
+                            key,
+                            modifiers: input.modifiers,
+                            focus,
+                            stop_propagation: Rc::clone(&stop),
+                        };
+                        (self.handler)(input, update);
+                        if stop.get() {
+                            values.set_child_value(*STOP_KEY_TAP, ());
+                        }
+                    }
+                }
+            }
+        } else {
+            self.key_pressed = None;
+        }
+    }
+}
+
 pub fn on_key_down(child: impl Ui, handler: impl FnMut(KeyDown, &mut NextUpdate) + 'static) -> impl Ui {
     OnKeyDown::new(child, handler)
 }
 
 pub fn on_key_up(child: impl Ui, handler: impl FnMut(KeyUp, &mut NextUpdate) + 'static) -> impl Ui {
     OnKeyUp::new(child, handler)
+}
+
+/// Key pressed released on the same focusable.
+pub fn on_key_tap(child: impl Ui, handler: impl FnMut(KeyTap, &mut NextUpdate) + 'static) -> impl Ui {
+    OnKeyTap::new(child, handler)
 }
 
 macro_rules! on_mouse {
@@ -422,6 +473,20 @@ pub struct KeyUp {
 }
 
 impl KeyUp {
+    pub fn stop_propagation(&self) {
+        self.stop_propagation.set(true);
+    }
+}
+
+#[derive(Debug)]
+pub struct KeyTap {
+    pub key: VirtualKeyCode,
+    pub modifiers: ModifiersState,
+    pub focus: FocusStatus,
+    stop_propagation: Rc<Cell<bool>>,
+}
+
+impl KeyTap {
     pub fn stop_propagation(&self) {
         self.stop_propagation.set(true);
     }

@@ -12,5 +12,6 @@ pub use zero_ui_macros::ui;
 
 pub mod core;
 pub mod primitive;
+pub mod widget;
 
 pub mod app;
