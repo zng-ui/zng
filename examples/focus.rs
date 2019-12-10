@@ -53,7 +53,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
         };
 
         => button(|bi, u|{
-            println!("button repeat: {}", bi.repeat())
+            println!("button click {:?}", bi)
         }, text(txt))
     };
 

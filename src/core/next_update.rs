@@ -1,4 +1,4 @@
-use super::{ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, Var, VarChange};
+use super::{ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, UiItemId, Var, VarChange};
 use webrender::api::RenderApiSender;
 
 pub struct NextUpdate {
@@ -10,9 +10,17 @@ pub struct NextUpdate {
     pub(crate) render_frame: bool,
     pub(crate) focus_request: Option<FocusRequest>,
     pub(crate) value_changes: Vec<Box<dyn VarChange>>,
+
+    pub(crate) mouse_capture_request: Option<EventCaptureRequest>,
+
     _request_close: bool,
 
     pub(crate) has_update: bool,
+}
+
+pub(crate) enum EventCaptureRequest {
+    Capture(UiItemId),
+    Release(UiItemId),
 }
 
 impl NextUpdate {
@@ -25,6 +33,7 @@ impl NextUpdate {
             render_frame: true,
             value_changes: vec![],
             focus_request: None,
+            mouse_capture_request: None,
             _request_close: false,
 
             has_update: true,
@@ -57,6 +66,18 @@ impl NextUpdate {
     pub fn focus(&mut self, request: FocusRequest) {
         self.focus_request = Some(request);
         self.has_update = true;
+    }
+
+    /// On next update tries to capture mouse events. When captured
+    /// only mouse events inside `item` are invoked and mouse_move event is
+    /// received even when the mouse is not over the item.
+    pub fn capture_mouse(&mut self, item: UiItemId) {
+        self.mouse_capture_request = Some(EventCaptureRequest::Capture(item));
+    }
+
+    /// On next update releases mouse capture if it is captured by the same `item`.
+    pub fn release_mouse(&mut self, item: UiItemId) {
+        self.mouse_capture_request = Some(EventCaptureRequest::Release(item));
     }
 
     pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {

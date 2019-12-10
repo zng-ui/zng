@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 /// Arguments for [button] click event. A button click
 /// can be initiated by the mouse, keyboard or touch screen.
+#[derive(Debug)]
 pub enum ButtonInput {
     /// Mouse left button click.
     Mouse(ClickInput),

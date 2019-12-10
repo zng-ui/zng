@@ -11,6 +11,7 @@ mod log;
 mod parent_value;
 mod stack;
 mod text;
+mod ui_item;
 mod ui_n;
 mod view;
 
@@ -27,6 +28,7 @@ pub use layout::*;
 pub use parent_value::*;
 pub use stack::*;
 pub use text::*;
+pub use ui_item::*;
 pub use ui_n::*;
 pub use view::*;
 

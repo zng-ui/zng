@@ -69,19 +69,50 @@ ui_value_key! {
     };
 }
 
+uid! {
+    /// Identifies a group of nested Uis as a single element.
+    pub struct UiItemId(_) { new_lazy() -> pub struct UiItemIdRef };
+}
+
 enum UntypedRef {}
 
 /// Contains `ParentValueKey` values from call context and allows returning `ChildValueKey` values.
-#[derive(new)]
 pub struct UiValues {
-    #[new(default)]
     parent_values: FnvHashMap<ParentValueId, *const UntypedRef>,
-    #[new(default)]
     child_values: FnvHashMap<ChildValueId, Box<dyn Any>>,
 
+    item: UiItemId,
     window_focus_key: FocusKey,
+    mouse_capture_target: Option<UiItemId>,
 }
 impl UiValues {
+    pub fn new(window_item_id: UiItemId, window_focus_key: FocusKey, mouse_capture_target: Option<UiItemId>) -> Self {
+        UiValues {
+            parent_values: Default::default(),
+            child_values: Default::default(),
+
+            item: window_item_id,
+            window_focus_key,
+            mouse_capture_target,
+        }
+    }
+
+    /// Gets the current item.
+    #[inline]
+    pub fn item(&self) -> UiItemId {
+        self.item
+    }
+
+    /// Calls `action` with self, during that call [UiValues::item] is the `item` argument.
+    pub(crate) fn item_scope(&mut self, item: UiItemId, action: impl FnOnce(&mut UiValues)) {
+        let old_item = self.item;
+        self.item = item;
+        action(self);
+        self.item = old_item;
+    }
+
+    /// Gets a value set by a parent Ui.
+    #[inline]
     pub fn parent<T: 'static>(&self, key: ParentValueKey<T>) -> Option<&T> {
         // REFERENCE SAFETY: This is safe because parent_values are only inserted for the duration
         // of [with_parent_value] that holds the reference.
@@ -93,6 +124,9 @@ impl UiValues {
             .map(|pointer| unsafe { &*(*pointer as *const T) })
     }
 
+    /// Calls `action` with self, during that call [UiValues::parent] returns the value
+    /// set by `key` => `value`.
+    #[inline]
     pub fn with_parent_value<T: 'static>(
         &mut self,
         key: ParentValueKey<T>,
@@ -112,10 +146,12 @@ impl UiValues {
         }
     }
 
+    #[inline]
     pub fn child<T: 'static>(&self, key: ChildValueKey<T>) -> Option<&T> {
         self.child_values.get(&key.id()).map(|a| a.downcast_ref::<T>().unwrap())
     }
 
+    #[inline]
     pub fn set_child_value<T: 'static>(&mut self, key: ChildValueKey<T>, value: T) {
         self.child_values.insert(key.id(), Box::new(value));
     }
@@ -124,8 +160,16 @@ impl UiValues {
         self.child_values.clear()
     }
 
+    /// Gets the current window focus key.
+    #[inline]
     pub fn window_focus_key(&self) -> FocusKey {
         self.window_focus_key
+    }
+
+    /// Gets the Ui that is capturing mouse events.
+    #[inline]
+    pub fn mouse_capture_target(&self) -> Option<UiItemId> {
+        self.mouse_capture_target
     }
 }
 
@@ -359,7 +403,7 @@ mod tests {
 
     #[test]
     fn with_parent_value() {
-        let mut ui_values = UiValues::new(FocusKey::new_unique());
+        let mut ui_values = UiValues::new(UiItemId::new_unique(), FocusKey::new_unique(), None);
         let key1 = ParentValueKey::new_unique();
         let key2 = ParentValueKey::new_unique();
 

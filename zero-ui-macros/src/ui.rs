@@ -18,7 +18,7 @@ pub(crate) fn implementation(input: TokenStream) -> TokenStream {
         let child = #child;
         #(#properties)*
 
-        child
+        $crate::primitive::ui_item($crate::core::UiItemId::new_unique(), child)
     }};
 
     TokenStream::from(result)

@@ -135,7 +135,7 @@ impl Window {
         let latest_frame_id = Epoch(0);
         let pipeline_id = PipelineId(0, 0);
 
-        let mut ui_values = UiValues::new(FocusKey::new_unique());
+        let mut ui_values = UiValues::new(UiItemId::new_unique(), FocusKey::new_unique(), None);
         let mut next_update = NextUpdate::new(sender);
 
         let mut content = FocusScope::new(
