@@ -1,5 +1,4 @@
-use proc_macro::TokenStream;
-use quote::__rt::{Span, TokenStream as QTokenStream};
+use proc_macro2::{Span, TokenStream};
 use std::collections::HashSet;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
@@ -23,7 +22,7 @@ macro_rules! error {
             compile_error!(concat!("#[impl_ui] ", #error));
         };
 
-        return TokenStream::from(error);
+        return error.into();
     }};
 }
 
@@ -41,7 +40,11 @@ macro_rules! parse_quote {
 //     };
 // }
 
-pub(crate) fn implementation(args: TokenStream, input: TokenStream, crate_: QTokenStream) -> TokenStream {
+pub(crate) fn implementation(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+    crate_: TokenStream,
+) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
     let input = parse_macro_input!(input as ItemImpl);
 
@@ -135,7 +138,7 @@ pub(crate) fn implementation(args: TokenStream, input: TokenStream, crate_: QTok
     //    println!("{}", test);
     //}
 
-    TokenStream::from(result)
+    result.into()
 }
 
 /// Parsed macro arguments.
@@ -255,11 +258,11 @@ impl VisitMut for InlineEverything {
 
 /// Visitor that prefixes every `PatType` with `#crate::core::`.
 struct CrateUiEverything {
-    crate_: QTokenStream,
+    crate_: TokenStream,
 }
 
 impl CrateUiEverything {
-    pub fn new(crate_: QTokenStream) -> Self {
+    pub fn new(crate_: TokenStream) -> Self {
         CrateUiEverything { crate_ }
     }
 }
@@ -333,7 +336,7 @@ impl VisitMut for MakeDefaults {
         }
 
         if rmv {
-            *i = ImplItem::Verbatim(QTokenStream::new());
+            *i = ImplItem::Verbatim(TokenStream::new());
         }
 
         visit_mut::visit_impl_item_mut(self, i);
@@ -341,7 +344,7 @@ impl VisitMut for MakeDefaults {
 }
 
 fn ui_defaults(
-    crate_: QTokenStream,
+    crate_: TokenStream,
     user_mtds: HashSet<Ident>,
     measure_default: Block,
     render_default: Block,
@@ -393,7 +396,7 @@ fn ui_defaults(
         .collect()
 }
 
-fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
+fn ui_leaf_defaults(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     ui_defaults(
         crate_,
         user_mtds,
@@ -423,7 +426,7 @@ fn ui_leaf_defaults(crate_: QTokenStream, user_mtds: HashSet<Ident>) -> Vec<Impl
 }
 
 fn ui_container_defaults(
-    crate_: QTokenStream,
+    crate_: TokenStream,
     user_mtds: HashSet<Ident>,
     borrow: Expr,
     borrow_mut: Expr,
@@ -462,7 +465,7 @@ fn ui_container_defaults(
 }
 
 fn ui_multi_container_defaults(
-    crate_: QTokenStream,
+    crate_: TokenStream,
     user_mtds: HashSet<Ident>,
     iter: Expr,
     iter_mut: Expr,

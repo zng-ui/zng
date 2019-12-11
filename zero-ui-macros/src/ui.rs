@@ -1,8 +1,7 @@
-use proc_macro::TokenStream;
-use quote::__rt::Span;
+use proc_macro2::Span;
 use syn::{parse::*, punctuated::Punctuated, token::Token, *};
 
-pub(crate) fn implementation(input: TokenStream) -> TokenStream {
+pub(crate) fn implementation(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { properties, child, .. } = parse_macro_input!(input as Input);
 
     let mut expanded_props = Vec::with_capacity(properties.len());
@@ -33,7 +32,7 @@ pub(crate) fn implementation(input: TokenStream) -> TokenStream {
         $crate::primitive::ui_item(#id, child)
     }};
 
-    TokenStream::from(result)
+    result.into()
 }
 
 struct Property {
