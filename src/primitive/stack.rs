@@ -201,7 +201,7 @@ impl<U: Ui> From<Vec<U>> for Stack<U> {
 macro_rules! impl_tuples {
     ($TH:ident, $TH2:ident, $($T:ident, )* ) => {
         impl<$TH, $TH2, $($T, )*> From<($TH, $TH2, $($T,)*)> for Stack<Box<dyn Ui>>
-        where $TH: Ui + 'static, $TH2: Ui + 'static, $($T: Ui + 'static, )*
+        where $TH: Ui, $TH2: Ui, $($T: Ui, )*
         {
             #[inline]
             #[allow(non_snake_case)]

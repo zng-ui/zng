@@ -155,14 +155,13 @@ impl From<BorderDetails> for wapi::BorderDetails {
     }
 }
 
-#[derive(Clone, new)]
+#[derive(Clone)]
+#[doc(hidden)]
 pub struct Border<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> {
     child: T,
     widths: L,
     details: B,
-    #[new(value = "HitTag::new_unique()")]
     hit_tag: HitTag,
-    #[new(default)]
     visible: bool,
 }
 
@@ -262,10 +261,18 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B
     }
 }
 
+/// Property like Ui that draws a border.
+#[inline]
 pub fn border(
     child: impl Ui,
     widths: impl IntoValue<LayoutSideOffsets>,
     details: impl IntoValue<BorderDetails>,
 ) -> impl Ui {
-    Border::new(child, widths.into_value(), details.into_value())
+    Border {
+        child,
+        widths: widths.into_value(),
+        details: details.into_value(),
+        hit_tag: HitTag::new_unique(),
+        visible: false,
+    }
 }

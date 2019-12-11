@@ -40,7 +40,7 @@ impl NextUpdate {
         }
     }
 
-    pub fn create_window<C: Ui + 'static>(
+    pub fn create_window<C: Ui>(
         &mut self,
         clear_color: ColorF,
         inner_size: LayoutSize,

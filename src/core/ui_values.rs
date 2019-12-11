@@ -195,7 +195,7 @@ pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
 
 /// An owned `'static` [Value].
 ///
-/// This is used constructed by a [IntoValue].
+/// This is usually constructed by a [IntoValue].
 #[derive(Clone)]
 pub struct Owned<T>(pub T);
 

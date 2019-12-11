@@ -21,11 +21,7 @@ use webrender::api::{ColorF, LayoutSize};
 /// `clear_color`: First window background color.
 /// `inner_size`: First window size.
 /// `content`: First window content factory.
-pub fn run<C: Ui + 'static>(
-    clear_color: ColorF,
-    inner_size: LayoutSize,
-    content: impl Fn(&mut NextUpdate) -> C + 'static,
-) -> ! {
+pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(&mut NextUpdate) -> C + 'static) -> ! {
     #[cfg(feature = "app_profiler")]
     register_thread_with_profiler();
 
