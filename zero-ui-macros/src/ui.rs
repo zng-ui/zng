@@ -1,7 +1,7 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use syn::{parse::*, punctuated::Punctuated, token::Token, *};
 
-pub(crate) fn implementation(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { properties, child, .. } = parse_macro_input!(input as Input);
 
     let mut expanded_props = Vec::with_capacity(properties.len());
@@ -33,6 +33,66 @@ pub(crate) fn implementation(input: proc_macro::TokenStream) -> proc_macro::Toke
     }};
 
     result.into()
+}
+
+pub(crate) fn gen_derive_hack(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
+    let args = TokenStream::from(args);
+    let input = TokenStream::from(input);
+    // check if input is function
+    // check if is pub
+    // check if takes last param child: impl Ui -> impl Ui
+    //
+
+    /*
+    #[derive_ui_macro {
+            // optional, if not set does not wrap.
+            padding => margin(child, $args);
+            // or with default, if not set use value within ${}.
+            padding => margin(child, ${(5.0, 4.0)});
+
+            // can also any expression?
+            padding => ui! {margin: $args};
+            // or apply to function result?
+            spacing => margin($self, $args);
+        }]
+    */
+
+    let result = quote! {
+        #[doc(..)]
+        #[macro_export]// export if function is pub
+        macro_rules! button {
+            ($($tt:tt)*) => {
+                custom_ui! {
+                    // these two attributes are not real
+                    // they are just containers for custom_ui
+                    #[ui_meta {
+                       #args
+                    }]
+                    #[args($($tt)*)]
+                    // function to call, not an actual fn signature,
+                    // pattern is fn ident(list, of, parameter, idents);
+                    // child is the first parameter of the function and not
+                    // included in the pattern.
+                    fn button(on_click);
+                }
+            }
+        }
+
+        #[doc(hidden)]
+        #input
+    };
+
+    crate::enum_hack::wrap(result).into()
+}
+
+pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    // let ui_meta = parse;
+    // let args = parse;
+    // let fn = parse;
+    unimplemented!()
 }
 
 struct Property {

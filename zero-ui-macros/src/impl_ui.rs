@@ -40,7 +40,7 @@ macro_rules! parse_quote {
 //     };
 // }
 
-pub(crate) fn implementation(
+pub(crate) fn gen_impl_ui(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
     crate_: TokenStream,
