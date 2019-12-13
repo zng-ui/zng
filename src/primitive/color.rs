@@ -175,10 +175,12 @@ impl<T: Ui, B: Ui> Ui for Background<T, B> {
     }
 }
 
+#[ui_property]
 pub fn background_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
     Background::new(child, fill_color(color))
 }
 
+#[ui_property]
 pub fn background_gradient(
     child: impl Ui,
     start: impl IntoValue<LayoutPoint>,

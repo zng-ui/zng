@@ -51,14 +51,17 @@ impl<T: Ui> UiHeight<T> {
     }
 }
 
+#[ui_property]
 pub fn width(child: impl Ui, width: f32) -> impl Ui {
     UiWidth::new(child, width)
 }
 
+#[ui_property]
 pub fn height(child: impl Ui, height: f32) -> impl Ui {
     UiHeight::new(child, height)
 }
 
+#[ui_property]
 pub fn size(child: impl Ui, size: impl IntoValue<LayoutSize>) -> impl Ui {
     UiSize::new(child, size.into_value())
 }
@@ -112,10 +115,12 @@ impl<T: Ui, A: Value<Alignment>> Align<T, A> {
 
 pub const CENTER: Alignment = Alignment(0.5, 0.5);
 
+#[inline]
 pub fn center(child: impl Ui) -> impl Ui {
-    align(child, CENTER)
+    align::build(child, CENTER)
 }
 
+#[ui_property]
 pub fn align(child: impl Ui, alignment: impl IntoValue<Alignment>) -> impl Ui {
     Align::new(child, alignment.into_value())
 }
@@ -154,6 +159,7 @@ impl<T: Ui, M: Value<LayoutSideOffsets>> Margin<T, M> {
     }
 }
 
+#[ui_property]
 pub fn margin(child: impl Ui, margin: impl IntoValue<LayoutSideOffsets>) -> impl Ui {
     Margin::new(child, margin.into_value())
 }

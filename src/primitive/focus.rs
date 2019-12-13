@@ -61,6 +61,7 @@ impl<C: Ui> Focusable<C> {
     }
 }
 
+#[ui_property]
 pub fn focusable(child: impl Ui, config: impl FnOnce(FocusableConfig) -> FocusableConfig) -> impl Ui {
     let c = config(FocusableConfig::new());
     Focusable::from_config(child, c)
@@ -228,6 +229,7 @@ impl<C: Ui> FocusScope<C> {
     }
 }
 
+#[ui_property]
 pub fn focus_scope(child: impl Ui, config: impl FnOnce(FocusScopeConfig) -> FocusScopeConfig) -> impl Ui {
     let c = config(FocusScopeConfig::new());
     FocusScope::new(child, c)

@@ -36,9 +36,9 @@ impl<T: Ui, C: Value<CursorIcon>> Ui for Cursor<T, C> {
 ///     cursor: CursorIcon::Hand;
 ///     => text("Mouse over this text shows the hand cursor")
 /// }
-/// #}}
+/// # }}
 /// ```
-#[inline]
+#[ui_property]
 pub fn cursor(child: impl Ui, cursor: impl IntoValue<CursorIcon>) -> impl Ui {
     Cursor {
         child,

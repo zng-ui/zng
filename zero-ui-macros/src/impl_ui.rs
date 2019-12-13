@@ -5,41 +5,9 @@ use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
-/// `Ident` with call_site span.
-fn ident(name: &str) -> Ident {
-    Ident::new(name, Span::call_site())
-}
+include!("util.rs");
 
-/// Returns a `TokenStream` with a `compile_error` in the given span with
-/// the given error message.
-macro_rules! error {
-    ($span: expr, $ ($ arg : tt) *) => {{
-        let span = $span;
-        let error = format!($($arg)*);
-        let error = LitStr::new(&error, span);
-        let error = quote_spanned! {
-            span=>
-            compile_error!(concat!("#[impl_ui] ", #error));
-        };
-
-        return error.into();
-    }};
-}
-
-/// `syn::parse` `quote`
-macro_rules! parse_quote {
-    ($($tt:tt)*) => {
-        syn::parse(quote!{$($tt)*}.into()).unwrap()
-    };
-}
-
-// /// Same as `parse_quote` but with an `expect` message.
-// macro_rules! dbg_parse_quote {
-//     ($msg:expr, $($tt:tt)*) => {
-//         syn::parse(quote!{$($tt)*}.into()).expect($msg)
-//     };
-// }
-
+/// #[impl_ui] and #[impl_ui_crate] implementation.
 pub(crate) fn gen_impl_ui(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,

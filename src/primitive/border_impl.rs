@@ -262,7 +262,7 @@ impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B
 }
 
 /// Property like Ui that draws a border.
-#[inline]
+#[ui_property]
 pub fn border(
     child: impl Ui,
     widths: impl IntoValue<LayoutSideOffsets>,

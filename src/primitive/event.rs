@@ -126,14 +126,17 @@ impl<T: Ui, F: FnMut(KeyTap, &mut NextUpdate) + 'static> OnKeyTap<T, F> {
     }
 }
 
+#[ui_property]
 pub fn on_key_down(child: impl Ui, handler: impl FnMut(KeyDown, &mut NextUpdate) + 'static) -> impl Ui {
     OnKeyDown::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_key_up(child: impl Ui, handler: impl FnMut(KeyUp, &mut NextUpdate) + 'static) -> impl Ui {
     OnKeyUp::new(child, handler)
 }
 
+#[ui_property]
 /// Key pressed released on the same focusable.
 pub fn on_key_tap(child: impl Ui, handler: impl FnMut(KeyTap, &mut NextUpdate) + 'static) -> impl Ui {
     OnKeyTap::new(child, handler)
@@ -349,26 +352,32 @@ macro_rules! on_mouse_enter_leave {
 on_mouse_enter_leave!(OnMouseEnter, mouse_over, mouse_over);
 on_mouse_enter_leave!(OnMouseLeave, mouse_over, !mouse_over);
 
+#[ui_property]
 pub fn on_mouse_down(child: impl Ui, handler: impl FnMut(MouseButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
     OnMouseDown::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_mouse_up(child: impl Ui, handler: impl FnMut(MouseButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
     OnMouseUp::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_click(child: impl Ui, handler: impl FnMut(ClickInput, &mut NextUpdate) + 'static) -> impl Ui {
     OnClick::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_mouse_move(child: impl Ui, handler: impl FnMut(MouseMove, &mut NextUpdate) + 'static) -> impl Ui {
     OnMouseMove::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_mouse_enter(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnMouseEnter::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_mouse_leave(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnMouseLeave::new(child, handler)
 }
@@ -433,18 +442,22 @@ on_focus_events!(OnBlur, focused, !focused);
 on_focus_within_events!(OnFocusEnter, focused, focused);
 on_focus_within_events!(OnFocusLeave, focused, !focused);
 
+#[ui_property]
 pub fn on_focus(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnFocus::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_blur(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnBlur::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_focus_enter(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnFocusEnter::new(child, handler)
 }
 
+#[ui_property]
 pub fn on_focus_leave(child: impl Ui, handler: impl FnMut(&mut NextUpdate) + 'static) -> impl Ui {
     OnFocusLeave::new(child, handler)
 }

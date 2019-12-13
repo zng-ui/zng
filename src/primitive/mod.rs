@@ -1,9 +1,9 @@
 #[cfg(test)]
 pub mod test;
 
-mod border;
+mod border_impl;
 mod color;
-mod cursor;
+mod cursor_impl;
 mod event;
 mod focus;
 mod layout;
@@ -17,9 +17,9 @@ mod view;
 
 pub use self::log::*;
 use crate::core::{IntoValue, LayoutSideOffsets, Owned};
-pub use border::*;
+pub use border_impl::*;
 pub use color::*;
-pub use cursor::*;
+pub use cursor_impl::*;
 pub use event::*;
 pub use focus::*;
 pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};

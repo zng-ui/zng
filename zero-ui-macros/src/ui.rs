@@ -1,41 +1,11 @@
 use proc_macro2::{Span, TokenStream};
+use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, token::Token, *};
 
-pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let Input { properties, child, .. } = parse_macro_input!(input as Input);
+include!("util.rs");
 
-    let mut expanded_props = Vec::with_capacity(properties.len());
-    let mut id = quote! {$crate::core::UiItemId::new_unique()};
-
-    let id_name = Ident::new("id", Span::call_site());
-
-    for p in properties {
-        let name = p.name;
-        let args = p.args.into_iter();
-
-        if name == id_name {
-            id = quote!(#(#args),*);
-        } else {
-            expanded_props.push(quote! {
-                let child = current_module::#name(child, #(#args),*);
-            });
-        }
-    }
-
-    let result = quote! {{
-        mod current_module {
-            pub(crate) use super::*;
-        }
-        let child = #child;
-        #(#expanded_props)*
-
-        $crate::primitive::ui_item(#id, child)
-    }};
-
-    result.into()
-}
-
-pub(crate) fn gen_derive_hack(
+/// `#[ui_widget]` implementation.
+pub(crate) fn expand_ui_widget(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
@@ -88,17 +58,192 @@ pub(crate) fn gen_derive_hack(
     crate::enum_hack::wrap(result).into()
 }
 
-pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+/// `#[ui_property]` implementation.
+pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let mut fn_ = parse_macro_input!(input as ItemFn);
+    let ident = fn_.sig.ident.clone();
+    let vis = fn_.vis;
+
+    fn_.sig.ident = Ident::new("build", ident.span());
+    fn_.vis = Visibility::Public(VisPublic {
+        pub_token: syn::token::Pub {
+            span: Span::call_site(),
+        },
+    });
+
+    if fn_.sig.output == ReturnType::Default {
+        error!(Span::call_site(), "Function must return an Ui")
+    }
+
+    let mut arg_names = vec![];
+    let mut arg_gen_types = vec![];
+
+    if fn_.sig.inputs.len() < 2 {
+        error!(
+            Span::call_site(),
+            "Function must take a child: impl Ui first and at least one other argument."
+        );
+    } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
+        error!(Span::call_site(), "Function must free-standing.");
+    } else {
+        for arg in fn_.sig.inputs.iter().skip(1) {
+            if let FnArg::Typed(pat) = arg {
+                if let Pat::Ident(pat) = &*pat.pat {
+                    arg_names.push(pat.ident.clone());
+                    arg_gen_types.push(Ident::new(&format!("T{}", arg_gen_types.len() + 1), Span::call_site()))
+                } else {
+                    error!(arg.span(), "Property arguments does not support patten deconstruction.");
+                }
+            } else {
+                error!(arg.span(), "Unexpected `self`.");
+            }
+        }
+    }
+
+    let mut item_docs = vec![];
+    let mut other_attrs = vec![];
+
+    let doc_ident = Ident::new("doc", Span::call_site());
+    let inline_ident = Ident::new("inline", Span::call_site());
+
+    for attr in fn_.attrs.drain(..) {
+        if let Some(ident) = attr.path.get_ident() {
+            if ident == &doc_ident {
+                item_docs.push(attr);
+                continue;
+            } else if ident == &inline_ident {
+                continue;
+            }
+        }
+        other_attrs.push(attr);
+    }
+
+    expand_ui_property_output(item_docs, vis, ident, arg_gen_types, arg_names, other_attrs, fn_)
+}
+
+fn expand_ui_property_output(
+    item_docs: Vec<Attribute>,
+    vis: Visibility,
+    ident: Ident,
+    arg_gen_types: Vec<Ident>,
+    arg_names: Vec<Ident>,
+    other_attrs: Vec<Attribute>,
+    fn_: ItemFn,
+) -> proc_macro::TokenStream {
+    let build_doc = LitStr::new(
+        &format!(
+            "Builds the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
+            ident
+        ),
+        Span::call_site(),
+    );
+
+    let output = quote! {
+        #(#item_docs)*
+        #vis mod #ident {
+            use super::*;
+
+            #[doc(hidden)]
+            pub struct Args<#(#arg_gen_types),*> {
+                #(pub #arg_names: #arg_gen_types),*
+            }
+            impl<#(#arg_gen_types),*>  Args<#(#arg_gen_types),*> {
+                pub fn pop(self) -> (#(#arg_gen_types),*) {
+                    (#(self.#arg_names),*)
+                }
+            }
+
+            #(#other_attrs)*
+            #[doc=#build_doc]
+            #[inline]
+            #fn_
+        }
+    };
+
+    output.into()
+}
+
+/// `ui! {}` implementation.
+pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let Input { properties, child, .. } = parse_macro_input!(input as Input);
+
+    let mut expanded_props = Vec::with_capacity(properties.len());
+    let mut id = quote! {$crate::core::UiItemId::new_unique()};
+
+    let id_name = Ident::new("id", Span::call_site());
+
+    for p in properties {
+        let name = p.name;
+
+        match p.args {
+            PropertyArgs::Exprs(args) => {
+                let args = args.into_iter();
+
+                if name == id_name {
+                    id = quote!(#(#args),*);
+                } else {
+                    expanded_props.push(quote! {
+                        let child = #name::build(child, #(#args),*);
+                    });
+                }
+            }
+            PropertyArgs::Fields(fields) => {
+                let args: Vec<_> = (1..=fields.len()).map(|i| ident(&format!("arg_{}", i))).collect();
+
+                expanded_props.push(quote! {
+                    let child = {
+                        let (#(#args),*) = #name::Args {
+                            #fields
+                        }.pop();
+
+                        #name::build(child, #(#args),*)
+                    };
+                });
+            }
+        }
+    }
+
+    let result = quote! {{
+        let child = #child;
+        #(#expanded_props)*
+
+        $crate::primitive::ui_item(#id, child)
+    }};
+
+    result.into()
+}
+
+/// `custom_ui!` implementation.
+pub(crate) fn gen_custom_ui_init(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // let ui_meta = parse;
     // let args = parse;
     // let fn = parse;
     unimplemented!()
 }
 
+enum PropertyArgs {
+    Exprs(Punctuated<Expr, Token![,]>),
+    Fields(Punctuated<FieldValue, Token![,]>),
+}
+
+impl Parse for PropertyArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let r = if input.peek(token::Brace) {
+            let inner;
+            braced!(inner in input);
+            PropertyArgs::Fields(Punctuated::parse_separated_nonempty(&inner)?)
+        } else {
+            PropertyArgs::Exprs(Punctuated::parse_separated_nonempty(input)?)
+        };
+
+        Ok(r)
+    }
+}
+
 struct Property {
     name: Ident,
     _separator: Token![:],
-    args: Punctuated<Expr, Token![,]>,
+    args: PropertyArgs,
 }
 
 impl Parse for Property {
@@ -106,7 +251,7 @@ impl Parse for Property {
         Ok(Property {
             name: input.parse()?,
             _separator: input.parse()?,
-            args: Punctuated::parse_separated_nonempty(input)?,
+            args: input.parse()?,
         })
     }
 }
@@ -213,4 +358,26 @@ const T: &str = stringify! {
         // $self ui! like stuff here?
         {child}
     }
+
+    #[ui_property]
+    pub fn property(child: impl Ui, param: impl IntoValue<X>) -> impl Ui {
+        ..
+    }
+
+    // expands to:
+    mod property {
+        use super::*;
+
+        pub struct Args<T1> {
+            param: T1
+        }
+
+        pub fn build(child: impl Ui, param: impl IntoValue<X>) -> impl Ui {
+            ..
+        }
+    }
+
+    // calls expands to (if using named args):
+    let property_args = current_module::property::Args { #args };
+    let child = current_module::property::build(child, property_args.param);
 };

@@ -61,7 +61,11 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
     };
 
     ui! {
-        background_gradient: (0., 0.), (1., 1.), vec![rgb(0, 200, 0), rgb(200, 0, 0)];
+        background_gradient: {
+            start: (0., 0.),
+            end: (1., 1.),
+            stops: vec![rgb(0, 200, 0), rgb(200, 0, 0)]
+        };
         border: 4., (Var::clone(&box_border), BorderStyle::Dashed);
         focusable: default;
         margin: 2.0;

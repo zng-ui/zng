@@ -116,14 +116,18 @@ pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
 pub static TEXT_COLOR: ParentValueKeyRef<ColorF> = ParentValueKey::new_lazy();
 
 /// Sets the font family for all child Uis.
+#[ui_property]
 pub fn font_family(child: impl Ui, font: impl IntoValue<Cow<'static, str>>) -> impl Ui {
     set_parent_val(child, *FONT_FAMILY, font)
 }
 
+#[ui_property]
 pub fn font_size(child: impl Ui, size: impl IntoValue<u32>) -> impl Ui {
     set_parent_val(child, *FONT_SIZE, size)
 }
 
+/// Sets the text color for the Ui and its decendents.
+#[ui_property]
 pub fn text_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
     set_parent_val(child, *TEXT_COLOR, color)
 }

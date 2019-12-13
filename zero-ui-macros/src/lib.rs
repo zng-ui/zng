@@ -216,6 +216,21 @@ pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
 }
 
+#[proc_macro_hack]
+pub fn ui(input: TokenStream) -> TokenStream {
+    ui::gen_ui_init(input)
+}
+
+#[proc_macro_attribute]
+pub fn ui_widget(args: TokenStream, input: TokenStream) -> TokenStream {
+    ui::expand_ui_widget(args, input)
+}
+
+#[proc_macro_attribute]
+pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
+    ui::expand_ui_property(input)
+}
+
 /// Same as `impl_ui` but with type paths using the keyword `crate::` instead of `zero_ui::`.
 #[doc(hidden)]
 #[proc_macro_attribute]
@@ -223,24 +238,14 @@ pub fn impl_ui_crate(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(crate))
 }
 
+#[doc(hidden)]
 #[proc_macro_hack]
-pub fn ui(input: TokenStream) -> TokenStream {
-    ui::gen_ui_init(input)
+pub fn custom_ui(input: TokenStream) -> TokenStream {
+    ui::gen_custom_ui_init(input)
 }
 
 #[doc(hidden)]
 #[proc_macro_derive(EnumHack)]
 pub fn enum_hack(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     enum_hack::extract(input)
-}
-
-///
-#[proc_macro_attribute]
-pub fn derive_ui_macro(args: TokenStream, input: TokenStream) -> TokenStream {
-    ui::gen_derive_hack(args, input)
-}
-
-#[proc_macro_hack]
-pub fn custom_ui(input: TokenStream) -> TokenStream {
-    ui::gen_custom_ui_init(input)
 }
