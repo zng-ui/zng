@@ -7,6 +7,7 @@ mod next_frame;
 mod next_update;
 pub mod profiler;
 mod ui;
+mod ui_root;
 mod ui_values;
 mod window;
 
@@ -23,6 +24,7 @@ pub use mouse::*;
 pub use next_frame::*;
 pub use next_update::*;
 pub use ui::*;
+pub use ui_root::*;
 pub use ui_values::*;
 pub use webrender::api::{
     ColorF, FontInstanceKey, FontKey, GradientStop, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,

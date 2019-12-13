@@ -49,7 +49,7 @@ fn other_widow(_: &mut NextUpdate) -> impl Ui {
 fn item(i: usize) -> impl Ui {
     let box_border = Var::new(rgba(0, 0, 0, 0.0));
     let text_border = Var::new(rgba(0, 0, 0, 0.0));
-    
+
     let text = ui! {
         font_family: "Arial";
         font_size: 60;

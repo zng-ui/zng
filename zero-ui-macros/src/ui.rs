@@ -17,11 +17,11 @@ pub(crate) fn expand_ui_widget(
 
     let vis = match fn_.vis {
         Visibility::Public(_) => {
-            quote!{
+            quote! {
                 #[macro_export]
             }
         }
-        _ => { TokenStream::new() }
+        _ => TokenStream::new(),
     };
     let ident = fn_.sig.ident.clone();
     let mut arg_names = vec![];
@@ -47,8 +47,7 @@ pub(crate) fn expand_ui_widget(
         }
     }
 
-
-    let result = quote!{
+    let result = quote! {
         #(#docs_attrs)*
         #vis
         macro_rules! #ident {
@@ -66,7 +65,7 @@ pub(crate) fn expand_ui_widget(
          #(#other_attrs)*
         #fn_
     };
-    
+
     crate::enum_hack::wrap(result).into()
 }
 
@@ -113,7 +112,6 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
     }
 
     let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
-    
 
     expand_ui_property_output(docs_attrs, vis, ident, arg_gen_types, arg_names, other_attrs, fn_)
 }

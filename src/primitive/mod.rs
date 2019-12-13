@@ -1,6 +1,3 @@
-#[cfg(test)]
-pub mod test;
-
 mod border_impl;
 mod color;
 mod cursor_impl;

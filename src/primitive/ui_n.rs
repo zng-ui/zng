@@ -10,7 +10,6 @@ macro_rules! ui_n {
         ///
         /// # Example
         /// ```
-        /// # mod example {
         /// # use zero_ui::{core::*, primitive::*, *};
         /// # fn restart_btn() -> impl Ui { text("Restart") }
         /// #
@@ -24,10 +23,9 @@ macro_rules! ui_n {
         ///                 => text("Congratulations!!")
         ///             },
         ///             restart_btn()
-        ///         )))
+        ///         ).into()))
         ///     }
         /// }
-        /// # }
         /// ```
         pub enum $UiEnum<$($Ui: Ui),+> {
             $($Ui($Ui)),+

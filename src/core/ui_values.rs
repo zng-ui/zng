@@ -331,7 +331,7 @@ impl<T: 'static> IntoValue<T> for T {
 }
 
 /// [Var] updating methods, separated to allow dynamic dispatch.
-pub(crate) trait VarChange {
+pub trait VarChange {
     /// Commits the pending value and set touched to `true`.
     fn commit(&mut self);
     /// Resets touched to `false`.

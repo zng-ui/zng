@@ -26,17 +26,18 @@ impl<T: Ui, C: Value<CursorIcon>> Ui for Cursor<T, C> {
 /// This function can be used as a property in ui! macros.
 ///
 /// # Arguments
-/// * `child`: The cursor target.
 /// * `cursor`: The cursor to use for `child`, can be a direct [value](CursorIcon) or a [variable](zero_ui::core::Var).
 ///
 /// # Example
 /// ```
-/// # mod example { use zero_ui::primitive::text; fn doc() {
+/// # use zero_ui::primitive::{text, cursor};
+/// # use zero_ui::core::CursorIcon;
+/// # use zero_ui::ui;
 /// ui! {
 ///     cursor: CursorIcon::Hand;
 ///     => text("Mouse over this text shows the hand cursor")
 /// }
-/// # }}
+/// # ;
 /// ```
 #[ui_property]
 pub fn cursor(child: impl Ui, cursor: impl IntoValue<CursorIcon>) -> impl Ui {

@@ -9,7 +9,7 @@ pub struct NextUpdate {
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
     pub(crate) focus_request: Option<FocusRequest>,
-    pub(crate) value_changes: Vec<Box<dyn VarChange>>,
+    pub(crate) var_changes: Vec<Box<dyn VarChange>>,
 
     pub(crate) mouse_capture_request: Option<EventCaptureRequest>,
 
@@ -31,7 +31,7 @@ impl NextUpdate {
 
             update_layout: true,
             render_frame: true,
-            value_changes: vec![],
+            var_changes: vec![],
             focus_request: None,
             mouse_capture_request: None,
             _request_close: false,
@@ -86,7 +86,7 @@ impl NextUpdate {
 
     pub fn change<T: 'static>(&mut self, value: &Var<T>, change: impl FnOnce(&mut T) + 'static) {
         value.change_value(change);
-        self.value_changes.push(Box::new(value.clone()));
+        self.var_changes.push(Box::new(value.clone()));
         self.has_update = true;
     }
 

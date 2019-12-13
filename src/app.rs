@@ -105,7 +105,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                 let mut to_remove = vec![];
                 let mut new_windows = vec![];
                 for win in windows.values_mut() {
-                    new_windows.append(&mut win.new_window_requests());
+                    new_windows.append(&mut win.take_new_window_requests());
 
                     if win.close {
                         to_remove.push(win.id());
@@ -132,7 +132,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                 // value updates affect all windows, collect all changed vars
                 let mut value_changes = vec![];
                 for win in windows.values_mut() {
-                    value_changes.append(&mut win.value_changes());
+                    value_changes.append(&mut win.take_var_changes());
                 }
                 // commit changes and set touched = true
                 for var in value_changes.iter_mut() {

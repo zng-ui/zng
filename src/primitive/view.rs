@@ -58,8 +58,7 @@ impl<D: 'static, U: Ui, P: FnMut(&Var<D>, &mut NextUpdate) -> ViewUi<U> + 'stati
 ///
 /// # Example
 /// ```
-/// # mod example {
-/// # use crate::primitive::*;
+/// # use zero_ui::{core::*, primitive::*, *};
 /// fn countdown(n: Var<usize>) -> impl Ui {
 ///     enum State {
 ///         Blank,
@@ -88,7 +87,6 @@ impl<D: 'static, U: Ui, P: FnMut(&Var<D>, &mut NextUpdate) -> ViewUi<U> + 'stati
 ///         State::End => ViewUi::Same,
 ///     })
 /// }
-/// # }
 /// ```
 pub fn view<D: 'static, U: Ui, P: FnMut(&Var<D>, &mut NextUpdate) -> ViewUi<U> + 'static>(
     data: Var<D>,
