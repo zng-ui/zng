@@ -55,9 +55,9 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
             u.set(&text_border, rgba(0, 0, 0, 0.0));
         };
 
-        => button(|bi, u|{
+        => button(text(txt), |bi, u|{
             println!("button click {:?}", bi)
-        }, text(txt))
+        })
     };
 
     ui! {

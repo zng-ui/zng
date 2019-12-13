@@ -31,11 +31,12 @@ impl ButtonInput {
     }
 }
 
+#[ui_widget]
 /// Button widget.
 /// # Arguments
 /// * `on_click`: Button click event handler.
 /// * `child`: Button content.
-pub fn button(on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static, child: impl Ui) -> impl Ui {
+pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
     let on_click = Rc::new(RefCell::new(on_click));
     ui! {
         focusable: default;

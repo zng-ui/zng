@@ -10,51 +10,63 @@ pub(crate) fn expand_ui_widget(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let args = TokenStream::from(args);
-    let input = TokenStream::from(input);
-    // check if input is function
-    // check if is pub
-    // check if takes last param child: impl Ui -> impl Ui
-    //
 
-    /*
-    #[derive_ui_macro {
-            // optional, if not set does not wrap.
-            padding => margin(child, $args);
-            // or with default, if not set use value within ${}.
-            padding => margin(child, ${(5.0, 4.0)});
+    let mut fn_ = parse_macro_input!(input as ItemFn);
 
-            // can also any expression?
-            padding => ui! {margin: $args};
-            // or apply to function result?
-            spacing => margin($self, $args);
-        }]
-    */
+    let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
 
-    let result = quote! {
-        #[doc(..)]
-        #[macro_export]// export if function is pub
-        macro_rules! button {
-            ($($tt:tt)*) => {
-                custom_ui! {
-                    // these two attributes are not real
-                    // they are just containers for custom_ui
-                    #[ui_meta {
-                       #args
-                    }]
-                    #[args($($tt)*)]
-                    // function to call, not an actual fn signature,
-                    // pattern is fn ident(list, of, parameter, idents);
-                    // child is the first parameter of the function and not
-                    // included in the pattern.
-                    fn button(on_click);
-                }
+    let vis = match fn_.vis {
+        Visibility::Public(_) => {
+            quote!{
+                #[macro_export]
             }
+        }
+        _ => { TokenStream::new() }
+    };
+    let ident = fn_.sig.ident.clone();
+    let mut arg_names = vec![];
+
+    if fn_.sig.inputs.is_empty() {
+        error!(
+            Span::call_site(),
+            "Function must take a child: impl Ui first and at least one other argument."
+        );
+    } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
+        error!(Span::call_site(), "Function must free-standing.");
+    } else {
+        for arg in fn_.sig.inputs.iter().skip(1) {
+            if let FnArg::Typed(pat) = arg {
+                if let Pat::Ident(pat) = &*pat.pat {
+                    arg_names.push(pat.ident.clone());
+                } else {
+                    error!(arg.span(), "Widget arguments does not support patten deconstruction.");
+                }
+            } else {
+                error!(arg.span(), "Unexpected `self`.");
+            }
+        }
+    }
+
+
+    let result = quote!{
+        #(#docs_attrs)*
+        #vis
+        macro_rules! #ident {
+            ($($tt:tt)*) => {
+                custom_ui!{
+                    #[ui_meta{#args}]
+                    #[args($($tt)*)]
+                    fn #ident(#(#arg_names),*)
+                }
+            };
         }
 
         #[doc(hidden)]
-        #input
+        #[inline]
+         #(#other_attrs)*
+        #fn_
     };
-
+    
     crate::enum_hack::wrap(result).into()
 }
 
@@ -100,16 +112,24 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
         }
     }
 
-    let mut item_docs = vec![];
+    let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
+    
+
+    expand_ui_property_output(docs_attrs, vis, ident, arg_gen_types, arg_names, other_attrs, fn_)
+}
+
+///-> (docs, other_attrs)
+fn extract_attributes(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
+    let mut docs = vec![];
     let mut other_attrs = vec![];
 
     let doc_ident = Ident::new("doc", Span::call_site());
     let inline_ident = Ident::new("inline", Span::call_site());
 
-    for attr in fn_.attrs.drain(..) {
+    for attr in attrs.drain(..) {
         if let Some(ident) = attr.path.get_ident() {
             if ident == &doc_ident {
-                item_docs.push(attr);
+                docs.push(attr);
                 continue;
             } else if ident == &inline_ident {
                 continue;
@@ -118,7 +138,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
         other_attrs.push(attr);
     }
 
-    expand_ui_property_output(item_docs, vis, ident, arg_gen_types, arg_names, other_attrs, fn_)
+    (docs, other_attrs)
 }
 
 fn expand_ui_property_output(
@@ -218,6 +238,20 @@ pub(crate) fn gen_custom_ui_init(_input: proc_macro::TokenStream) -> proc_macro:
     // let ui_meta = parse;
     // let args = parse;
     // let fn = parse;
+
+    /*
+    #[derive_ui_macro {
+            // optional, if not set does not wrap.
+            padding => margin(child, $args);
+            // or with default, if not set use value within ${}.
+            padding => margin(child, ${(5.0, 4.0)});
+
+            // can also any expression?
+            padding => ui! {margin: $args};
+            // or apply to function result?
+            spacing => margin($self, $args);
+        }]
+    */
     unimplemented!()
 }
 

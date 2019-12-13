@@ -11,7 +11,7 @@ mod ui_values;
 mod window;
 
 pub(crate) use zero_ui_macros::impl_ui_crate;
-pub use zero_ui_macros::ui_property;
+pub use zero_ui_macros::{ui_property, ui_widget};
 
 pub use focus::*;
 pub use font::*;
