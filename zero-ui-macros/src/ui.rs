@@ -4,14 +4,12 @@ use syn::{parse::*, punctuated::Punctuated, token::Token, *};
 
 include!("util.rs");
 
-/// `#[ui_widget]` implementation.
-pub(crate) fn expand_ui_widget(
-    args: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-    let args = TokenStream::from(args);
+/// `ui_widget!` implementation.
+pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as UiWidgetInput);
+    let args = TokenStream::new();
 
-    let mut fn_ = parse_macro_input!(input as ItemFn);
+    let mut fn_ = input.fn_;
 
     let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
 
@@ -183,7 +181,7 @@ fn expand_ui_property_output(
 
 /// `ui! {}` implementation.
 pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let Input { properties, child, .. } = parse_macro_input!(input as Input);
+    let UiInput { properties, child, .. } = parse_macro_input!(input as UiInput);
 
     let mut expanded_props = Vec::with_capacity(properties.len());
     let mut id = quote! {$crate::core::UiItemId::new_unique()};
@@ -232,7 +230,8 @@ pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenSt
 }
 
 /// `custom_ui!` implementation.
-pub(crate) fn gen_custom_ui_init(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as CustomUiInput);
     // let ui_meta = parse;
     // let args = parse;
     // let fn = parse;
@@ -288,18 +287,130 @@ impl Parse for Property {
     }
 }
 
-struct Input {
+struct UiInput {
     properties: Punctuated<Property, Token![;]>,
-    _separator: Token![=>],
     child: Expr,
 }
 
-impl Parse for Input {
+impl Parse for UiInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Input {
-            properties: parse_properties(input)?,
-            _separator: input.parse()?,
-            child: input.parse()?,
+        let properties = parse_properties(input)?;
+        input.parse::<Token![=>]>()?;
+        let child =input.parse()?;
+
+        Ok(UiInput {
+            properties,
+            child
+        })
+    }
+}
+
+struct CustomUiProperty {
+    ident: Ident,
+    default_value: Option<Expr>,
+    maps_to: Option<Ident>,
+}
+
+impl Parse for CustomUiProperty {
+    fn parse(input: ParseStream) -> Result<Self> {
+        // property: DEFAULT -> actual_property;
+        // OR
+        // property -> actual_property;
+        // OR
+        // property: DEFAULT;
+
+        let ident = input.parse()?;
+
+        let default_value = if input.peek(Token![:]) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
+        let maps_to = if input.peek(Token![->]) {
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
+        input.parse::<Token![;]>()?;
+
+        Ok(CustomUiProperty {
+            ident,
+            default_value,
+            maps_to,
+        })
+    }
+}
+
+struct CustomUiProperties {
+    ident: Ident,
+    properties: Punctuated<CustomUiProperty, Token![;]>
+}
+
+impl Parse for CustomUiProperties {
+    fn parse(input: ParseStream) -> Result<Self> {
+        // child_properties { CustomUiProperty }
+
+        let ident = input.parse()?;
+
+        let inner;
+        braced!(inner in input);
+
+        let properties = inner.parse()?;
+
+        Ok(CustomUiProperties {
+            ident,
+            properties
+        })
+    }
+}
+
+struct UiWidgetInput {
+    child_properties: CustomUiProperties,
+    self_properties: CustomUiProperties,
+    fn_: ItemFn,
+}
+
+impl Parse for UiWidgetInput {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let child_properties = input.parse()?;
+        let self_properties = input.parse()?;
+        let fn_ = input.parse();
+
+        Ok(UiWidgetInput {
+            child_properties, self_properties, fn_
+        })
+    }
+}
+
+struct CustomUiInput {
+    child_properties: CustomUiProperties,
+    self_properties: CustomUiProperties,
+    args: Punctuated<Property, Token![;]>,
+    fn_name: Ident,
+    fn_arg_names: Punctuated<Ident, Token![,]>,
+}
+
+impl Parse for CustomUiInput {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let child_properties = input.parse()?;
+        let self_properties = input.parse()?;
+        let args = parse_properties(input)?;
+        input.parse::<Token![fn]>()?;
+        let fn_name = input.parse()?;
+
+        let inner;
+        parenthesized!(inner in input);
+
+        let fn_arg_names = inner.parse()?;
+
+        Ok(CustomUiInput {
+            child_properties,
+            self_properties,
+            args,
+            fn_name,
+            fn_arg_names
         })
     }
 }
@@ -323,7 +434,7 @@ fn parse_properties(input: ParseStream) -> Result<Punctuated<Property, Token![;]
 #[allow(unused)]
 const T: &str = stringify! {
     // declared like:
-    #[derive_ui_macro {
+    #[ui_widget {
         // optional, if not set does not wrap.
         padding => margin(child, $args);
         // or with default, if not set use value within ${}.
@@ -339,6 +450,27 @@ const T: &str = stringify! {
             background_color: rgb(100, 100, 100);
             on_click: on_click;
             => child
+        }
+    }
+
+    ui_widget! {
+         // optional, if not set does not wrap.
+         padding => margin(child, $args);
+         // or with default, if not set use value within ${}.
+         padding => margin(child, ${(5.0, 4.0)});
+
+         // can also any expression?
+         padding => ui! {margin: $args};
+         // or apply to function result?
+         spacing => margin($self, $args);
+        =>
+        /// docs
+        fn button(on_click: impl FnMut(&ClickArgs), child: impl Ui) -> impl Ui {
+            ui! {
+                background_color: rgb(100, 100, 100);
+                on_click: on_click;
+                => child
+            }
         }
     }
 

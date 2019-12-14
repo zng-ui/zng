@@ -221,9 +221,9 @@ pub fn ui(input: TokenStream) -> TokenStream {
     ui::gen_ui_init(input)
 }
 
-#[proc_macro_attribute]
-pub fn ui_widget(args: TokenStream, input: TokenStream) -> TokenStream {
-    ui::expand_ui_widget(args, input)
+#[proc_macro]
+pub fn ui_widget(input: TokenStream) -> TokenStream {
+    ui::expand_ui_widget(input)
 }
 
 #[proc_macro_attribute]
