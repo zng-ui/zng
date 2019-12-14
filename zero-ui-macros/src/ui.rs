@@ -296,12 +296,9 @@ impl Parse for UiInput {
     fn parse(input: ParseStream) -> Result<Self> {
         let properties = parse_properties(input)?;
         input.parse::<Token![=>]>()?;
-        let child =input.parse()?;
+        let child = input.parse()?;
 
-        Ok(UiInput {
-            properties,
-            child
-        })
+        Ok(UiInput { properties, child })
     }
 }
 
@@ -345,7 +342,7 @@ impl Parse for CustomUiProperty {
 
 struct CustomUiProperties {
     ident: Ident,
-    properties: Punctuated<CustomUiProperty, Token![;]>
+    properties: Punctuated<CustomUiProperty, Token![;]>,
 }
 
 impl Parse for CustomUiProperties {
@@ -359,10 +356,7 @@ impl Parse for CustomUiProperties {
 
         let properties = inner.parse()?;
 
-        Ok(CustomUiProperties {
-            ident,
-            properties
-        })
+        Ok(CustomUiProperties { ident, properties })
     }
 }
 
@@ -376,10 +370,12 @@ impl Parse for UiWidgetInput {
     fn parse(input: ParseStream) -> Result<Self> {
         let child_properties = input.parse()?;
         let self_properties = input.parse()?;
-        let fn_ = input.parse();
+        let fn_ = input.parse()?;
 
         Ok(UiWidgetInput {
-            child_properties, self_properties, fn_
+            child_properties,
+            self_properties,
+            fn_,
         })
     }
 }
@@ -410,7 +406,7 @@ impl Parse for CustomUiInput {
             self_properties,
             args,
             fn_name,
-            fn_arg_names
+            fn_arg_names,
         })
     }
 }
