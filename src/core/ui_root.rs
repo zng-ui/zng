@@ -270,7 +270,12 @@ impl UiRoot {
 
     #[inline]
     pub fn take_set_cursor(&mut self) -> Option<CursorIcon> {
-        self.set_cursor.take()
+        if let Some(cursor) = self.set_cursor.take() {
+            self.cursor = cursor;
+            Some(cursor)
+        } else {
+            None
+        }
     }
 
     /// Applies all Ui updates and send a new frame request.
