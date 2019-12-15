@@ -270,7 +270,13 @@ impl<T: 'static> Var<T> {
                 ListenerStatus::Dead
             }
         }));
+
         target
+    }
+
+    /// Gets a `Var<B>` that is set using a `map` function every time this var changes.
+    pub fn map_var<B: 'static, F: FnMut(&T) -> Var<B> + 'static>(&self, map: F) -> MapVar<B> {
+        MapVar { var: self.map(map) }
     }
 
     /// Sets the pending value change for the next update.
@@ -305,6 +311,27 @@ impl<T: 'static> Value<T> for Var<T> {
     }
 }
 
+/// [Var::map_var] result.
+pub struct MapVar<T: 'static> {
+    var: Var<Var<T>>,
+}
+
+impl<T> Deref for MapVar<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.var.deref()
+    }
+}
+
+impl<T> private::Sealed for MapVar<T> {}
+
+impl<T: 'static> Value<T> for MapVar<T> {
+    fn touched(&self) -> bool {
+        Var::<Var<T>>::touched(&self.var) || Var::<T>::touched(&*self.var)
+    }
+}
+
 /// Into `[Value]<T>`.
 pub trait IntoValue<T> {
     type Value: Value<T>;
@@ -327,6 +354,15 @@ impl<T: 'static> IntoValue<T> for T {
 
     fn into_value(self) -> Owned<T> {
         Owned(self)
+    }
+}
+
+/// Does nothing. `[MapVar]<T>` already implements `Value<T>`.
+impl<T: 'static> IntoValue<T> for MapVar<T> {
+    type Value = MapVar<T>;
+
+    fn into_value(self) -> Self::Value {
+        self
     }
 }
 
