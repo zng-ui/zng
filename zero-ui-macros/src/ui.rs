@@ -354,7 +354,7 @@ impl Parse for CustomUiProperties {
         let inner;
         braced!(inner in input);
 
-        let properties = inner.parse()?;
+        let properties = Punctuated::parse_terminated(input)?;
 
         Ok(CustomUiProperties { ident, properties })
     }
@@ -399,7 +399,7 @@ impl Parse for CustomUiInput {
         let inner;
         parenthesized!(inner in input);
 
-        let fn_arg_names = inner.parse()?;
+        let fn_arg_names = Punctuated::parse_separated_nonempty(&inner)?;
 
         Ok(CustomUiInput {
             child_properties,
