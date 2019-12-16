@@ -181,6 +181,15 @@ fn expand_ui_property_output(
 
 /// `ui! {}` implementation.
 pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    gen_ui_impl(input, false)
+}
+
+/// `ui_part!{}` implementation.
+pub(crate) fn gen_ui_part_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    gen_ui_impl(input, true)
+}
+
+fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::TokenStream {
     let UiInput { properties, child, .. } = parse_macro_input!(input as UiInput);
 
     let mut expanded_props = Vec::with_capacity(properties.len());
@@ -196,6 +205,10 @@ pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenSt
                 let args = args.into_iter();
 
                 if name == id_name {
+                    if is_ui_part {
+                        error!(name.span(), "cannot set `id` in `ui_part`");
+                    }
+
                     id = quote!(#(#args),*);
                 } else {
                     expanded_props.push(quote! {
@@ -219,12 +232,19 @@ pub(crate) fn gen_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenSt
         }
     }
 
-    let result = quote! {{
-        let child = #child;
-        #(#expanded_props)*
-
-        $crate::primitive::ui_item(#id, child)
-    }};
+    let result = if is_ui_part {
+        quote! {{
+            let child = #child;
+            #(#expanded_props)*
+            child
+        }}
+    } else {
+        quote! {{
+            let child = #child;
+            #(#expanded_props)*
+            $crate::primitive::ui_item(#id, child)
+        }}
+    };
 
     result.into()
 }

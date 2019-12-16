@@ -216,9 +216,15 @@ pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
 }
 
+// proc_macro_hack must be documented in the rexport.
 #[proc_macro_hack]
 pub fn ui(input: TokenStream) -> TokenStream {
     ui::gen_ui_init(input)
+}
+
+#[proc_macro_hack]
+pub fn ui_part(input: TokenStream) -> TokenStream {
+    ui::gen_ui_part_init(input)
 }
 
 #[proc_macro]
