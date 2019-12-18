@@ -1,5 +1,5 @@
-use proc_macro2::TokenTree;
 use proc_macro2::{Punct, Spacing, Span, TokenStream};
+use proc_macro_error::*;
 use quote::{ToTokens, TokenStreamExt};
 use syn::spanned::Spanned;
 use syn::{
@@ -31,22 +31,19 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     let mut arg_names = vec![];
 
     if fn_.sig.inputs.is_empty() {
-        error!(
-            Span::call_site(),
-            "Function must take a child: impl Ui first and at least one other argument."
-        );
+        abort_call_site!("Function must take a child: impl Ui first and at least one other argument.");
     } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
-        error!(Span::call_site(), "Function must free-standing.");
+        abort_call_site!("Function must free-standing.");
     } else {
         for arg in fn_.sig.inputs.iter().skip(1) {
             if let FnArg::Typed(pat) = arg {
                 if let Pat::Ident(pat) = &*pat.pat {
                     arg_names.push(pat.ident.clone());
                 } else {
-                    error!(arg.span(), "Widget arguments does not support patten deconstruction.");
+                    abort!(arg.span(), "Widget arguments does not support patten deconstruction.");
                 }
             } else {
-                error!(arg.span(), "Unexpected `self`.");
+                abort!(arg.span(), "Unexpected `self`.");
             }
         }
     }
@@ -54,11 +51,15 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     let child_properties = input.child_properties;
     let self_properties = input.self_properties;
 
+    let macro_args = quote_spanned! {ident.span()=>
+        ($($tt:tt)*)
+    };
+
     let result = quote! {
         #(#docs_attrs)*
         #vis
         macro_rules! #ident {
-            ($($tt:tt)*) => {
+            #macro_args => {
                 custom_ui!{
                     #child_properties
                     #self_properties
@@ -91,30 +92,27 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
     });
 
     if fn_.sig.output == ReturnType::Default {
-        error!(Span::call_site(), "Function must return an Ui")
+        abort_call_site!("Function must return an Ui")
     }
 
     let mut arg_names = vec![];
     let mut arg_gen_types = vec![];
 
     if fn_.sig.inputs.len() < 2 {
-        error!(
-            Span::call_site(),
-            "Function must take a child: impl Ui first and at least one other argument."
-        );
+        abort_call_site!("Function must take a child: impl Ui first and at least one other argument.");
     } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
-        error!(Span::call_site(), "Function must free-standing.");
+        abort_call_site!("Function must free-standing.");
     } else {
         for arg in fn_.sig.inputs.iter().skip(1) {
             if let FnArg::Typed(pat) = arg {
                 if let Pat::Ident(pat) = &*pat.pat {
                     arg_names.push(pat.ident.clone());
-                    arg_gen_types.push(Ident::new(&format!("T{}", arg_gen_types.len() + 1), Span::call_site()))
+                    arg_gen_types.push(self::ident(&format!("T{}", arg_gen_types.len() + 1)))
                 } else {
-                    error!(arg.span(), "Property arguments does not support patten deconstruction.");
+                    abort!(arg.span(), "Property arguments does not support patten deconstruction.");
                 }
             } else {
-                error!(arg.span(), "Unexpected `self`.");
+                abort!(arg.span(), "Unexpected `self`.");
             }
         }
     }
@@ -129,8 +127,8 @@ fn extract_attributes(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attrib
     let mut docs = vec![];
     let mut other_attrs = vec![];
 
-    let doc_ident = Ident::new("doc", Span::call_site());
-    let inline_ident = Ident::new("inline", Span::call_site());
+    let doc_ident = ident("doc");
+    let inline_ident = ident("inline");
 
     for attr in attrs.drain(..) {
         if let Some(ident) = attr.path.get_ident() {
@@ -205,7 +203,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
     let mut expanded_props = Vec::with_capacity(properties.len());
     let mut id = quote! {$crate::core::UiItemId::new_unique()};
 
-    let id_name = Ident::new("id", Span::call_site());
+    let id_name = ident("id");
 
     for p in properties {
         let name = p.name;
@@ -216,7 +214,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
 
                 if name == id_name {
                     if is_ui_part {
-                        error!(name.span(), "cannot set `id` in `ui_part`");
+                        abort!(name.span(), "cannot set `id` in `ui_part`");
                     }
 
                     id = quote!(#(#args),*);

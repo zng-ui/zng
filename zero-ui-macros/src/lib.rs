@@ -4,6 +4,7 @@ extern crate proc_macro;
 extern crate quote;
 
 use proc_macro::TokenStream;
+use proc_macro_error::*;
 use proc_macro_hack::proc_macro_hack;
 
 mod enum_hack;
@@ -212,27 +213,32 @@ mod ui;
 /// // TODO
 /// ```
 #[proc_macro_attribute]
+#[proc_macro_error]
 pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
 }
 
 // proc_macro_hack must be documented in the rexport.
 #[proc_macro_hack]
+#[proc_macro_error]
 pub fn ui(input: TokenStream) -> TokenStream {
     ui::gen_ui_init(input)
 }
 
 #[proc_macro_hack]
+#[proc_macro_error]
 pub fn ui_part(input: TokenStream) -> TokenStream {
     ui::gen_ui_part_init(input)
 }
 
 #[proc_macro]
+#[proc_macro_error]
 pub fn ui_widget(input: TokenStream) -> TokenStream {
     ui::expand_ui_widget(input)
 }
 
 #[proc_macro_attribute]
+#[proc_macro_error]
 pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
     ui::expand_ui_property(input)
 }
@@ -240,18 +246,21 @@ pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
 /// Same as `impl_ui` but with type paths using the keyword `crate::` instead of `zero_ui::`.
 #[doc(hidden)]
 #[proc_macro_attribute]
+#[proc_macro_error]
 pub fn impl_ui_crate(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(crate))
 }
 
 #[doc(hidden)]
 #[proc_macro_hack]
+#[proc_macro_error]
 pub fn custom_ui(input: TokenStream) -> TokenStream {
     ui::gen_custom_ui_init(input)
 }
 
 #[doc(hidden)]
 #[proc_macro_derive(EnumHack)]
+#[proc_macro_error]
 pub fn enum_hack(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     enum_hack::extract(input)
 }

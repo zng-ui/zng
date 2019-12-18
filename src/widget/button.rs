@@ -39,7 +39,7 @@ ui_widget! {
         // If set applies margin to child.
         padding -> margin;
         // Same with default value.
-        content_align -> align: CENTER ;
+        content_align -> align: CENTER;
         // Default value of background_color property that is applied to child.
         background_color: rgb(0, 0, 0);
     }

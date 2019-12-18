@@ -1,4 +1,5 @@
 use proc_macro2::{Span, TokenStream};
+use proc_macro_error::*;
 use std::collections::HashSet;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;
@@ -22,7 +23,7 @@ pub(crate) fn gen_impl_ui(
             in_ui_impl = seg.ident == ident("Ui");
         }
         if !in_ui_impl {
-            error!(
+            abort!(
                 path.span(),
                 "expected inherent impl or Ui trait impl, found `{}`",
                 quote! {#path}
