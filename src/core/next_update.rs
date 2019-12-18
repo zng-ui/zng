@@ -1,4 +1,6 @@
-use super::{ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, UiItemId, Var, VarChange};
+use super::{
+    ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, UiItemId, ValueMut, ValueMutCommit,
+};
 use webrender::api::RenderApiSender;
 
 pub struct NextUpdate {
@@ -9,7 +11,7 @@ pub struct NextUpdate {
     pub(crate) update_layout: bool,
     pub(crate) render_frame: bool,
     pub(crate) focus_request: Option<FocusRequest>,
-    pub(crate) var_changes: Vec<Box<dyn VarChange>>,
+    pub(crate) var_changes: Vec<Box<dyn ValueMutCommit>>,
 
     pub(crate) mouse_capture_request: Option<EventCaptureRequest>,
 
@@ -80,11 +82,11 @@ impl NextUpdate {
         self.mouse_capture_request = Some(EventCaptureRequest::Release(item));
     }
 
-    pub fn set<T: 'static>(&mut self, value: &Var<T>, new_value: T) {
+    pub fn set<T: 'static>(&mut self, value: &impl ValueMut<T>, new_value: T) {
         self.change(value, |v| *v = new_value);
     }
 
-    pub fn change<T: 'static>(&mut self, value: &Var<T>, change: impl FnOnce(&mut T) + 'static) {
+    pub fn change<T: 'static>(&mut self, value: &impl ValueMut<T>, change: impl FnOnce(&mut T) + 'static) {
         value.change_value(change);
         self.var_changes.push(Box::new(value.clone()));
         self.has_update = true;

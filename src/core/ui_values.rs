@@ -175,11 +175,23 @@ impl UiValues {
 
 mod private {
     pub trait Sealed {}
+    pub trait ValueMutSet<T> {
+        /// Sets the change to commit.
+        fn change_value(&self, change: impl FnOnce(&mut T) + 'static);
+    }
+}
+
+/// Commits a [ValueMut] change.
+pub trait ValueMutCommit {
+    /// Commits the pending value and set touched to `true`.
+    fn commit(&self);
+    /// Resets touched to `false`.
+    fn reset_touched(&self);
 }
 
 /// A value used in a `Ui`. Derefs to `T`.
 ///
-/// Use this as a generic constrain to work with both [Owned] values and [Var] references.
+/// Use this as a generic constrain to work with both [Owned] values and [Var] or [SwitchVar] references.
 ///
 /// ## See also
 /// * [IntoValue]: For making constructors.
@@ -192,6 +204,11 @@ pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
         std::ptr::eq(self.deref(), other.deref())
     }
 }
+
+/// A [value] that can be set.
+///
+/// Use this a generic constrain to work with [Var] or [SwitchVar] references.
+pub trait ValueMut<T>: Value<T> + private::ValueMutSet<T> + ValueMutCommit + Clone + 'static {}
 
 /// An owned `'static` [Value].
 ///
@@ -278,11 +295,6 @@ impl<T: 'static> Var<T> {
     pub fn map_var<B: 'static, F: FnMut(&T) -> Var<B> + 'static>(&self, map: F) -> MapVar<B> {
         MapVar { var: self.map(map) }
     }
-
-    /// Sets the pending value change for the next update.
-    pub(crate) fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
-        self.r.pending.set(Box::new(change));
-    }
 }
 
 impl<T> Deref for Var<T> {
@@ -310,6 +322,33 @@ impl<T: 'static> Value<T> for Var<T> {
         self.r.touched.get()
     }
 }
+
+impl<T: 'static> private::ValueMutSet<T> for Var<T> {
+    fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
+        self.r.pending.set(Box::new(change));
+    }
+}
+
+impl<T: 'static> ValueMutCommit for Var<T> {
+    fn commit(&self) {
+        let change = self.r.pending.replace(Box::new(|_| {}));
+        change(&mut self.r.value.borrow_mut());
+        self.r.touched.set(true);
+
+        let new_value = self.r.value.borrow();
+
+        self.r
+            .listeners
+            .borrow_mut()
+            .retain_mut(|l| l(&new_value) == ListenerStatus::Alive);
+    }
+
+    fn reset_touched(&self) {
+        self.r.touched.set(false);
+    }
+}
+
+impl<T: 'static> ValueMut<T> for Var<T> {}
 
 /// [Var::map_var] result.
 pub struct MapVar<T: 'static> {
@@ -366,33 +405,6 @@ impl<T: 'static> IntoValue<T> for MapVar<T> {
     }
 }
 
-/// [Var] updating methods, separated to allow dynamic dispatch.
-pub trait VarChange {
-    /// Commits the pending value and set touched to `true`.
-    fn commit(&mut self);
-    /// Resets touched to `false`.
-    fn reset_touched(&mut self);
-}
-
-impl<T> VarChange for Var<T> {
-    fn commit(&mut self) {
-        let change = self.r.pending.replace(Box::new(|_| {}));
-        change(&mut self.r.value.borrow_mut());
-        self.r.touched.set(true);
-
-        let new_value = self.r.value.borrow();
-
-        self.r
-            .listeners
-            .borrow_mut()
-            .retain_mut(|l| l(&new_value) == ListenerStatus::Alive);
-    }
-
-    fn reset_touched(&mut self) {
-        self.r.touched.set(false);
-    }
-}
-
 impl<'s> IntoValue<String> for &'s str {
     type Value = Owned<String>;
 
@@ -430,6 +442,121 @@ impl IntoValue<LayoutSize> for (f32, f32) {
 
     fn into_value(self) -> Self::Value {
         Owned(LayoutSize::new(self.0, self.1))
+    }
+}
+
+pub trait SwitchVar {
+    fn index(&self) -> usize;
+    fn len(&self) -> usize;
+}
+
+struct SwitchVar2Data<T: 'static, V0: Value<T>, V1: Value<T>> {
+    t: PhantomData<T>,
+
+    index: Cell<usize>,
+    pending: Cell<usize>,
+    touched: Cell<bool>,
+    listeners: RefCell<Vec<Listener<T>>>,
+
+    v0: V0,
+    v1: V1,
+}
+
+pub struct SwitchVar2<T: 'static, V0: Value<T>, V1: Value<T>> {
+    r: Rc<SwitchVar2Data<T, V0, V1>>,
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar2<T, V0, V1> {
+    pub fn new(index: usize, v0: V0, v1: V1) -> Self {
+        assert!(index < 2);
+
+        SwitchVar2 {
+            r: Rc::new(SwitchVar2Data {
+                t: PhantomData,
+                index: Cell::new(index),
+                pending: Cell::new(index),
+                touched: Cell::default(),
+                listeners: RefCell::default(),
+
+                v0,
+                v1,
+            }),
+        }
+    }
+
+    pub(crate) fn change_index(&self, new_value: usize) {
+        self.r.pending.set(new_value);
+    }
+}
+
+impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> private::ValueMutSet<T> for SwitchVar2<T, V0, V1> {
+    fn change_value(&self, change: impl FnOnce(&mut T) + 'static) {
+        match self.index() {
+            0 => self.r.v0.change_value(change),
+            1 => self.r.v1.change_value(change),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> Clone for SwitchVar2<T, V0, V1> {
+    fn clone(&self) -> Self {
+        SwitchVar2 { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMutCommit for SwitchVar2<T, V0, V1> {
+    fn commit(&self) {
+        match self.index() {
+            0 => self.r.v0.commit(),
+            1 => self.r.v1.commit(),
+            _ => unreachable!(),
+        }
+    }
+
+    fn reset_touched(&self) {
+        match self.index() {
+            0 => self.r.v0.reset_touched(),
+            1 => self.r.v1.reset_touched(),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMut<T> for SwitchVar2<T, V0, V1> {}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar for SwitchVar2<T, V0, V1> {
+    fn index(&self) -> usize {
+        self.r.index.get()
+    }
+
+    fn len(&self) -> usize {
+        2
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> Deref for SwitchVar2<T, V0, V1> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        match self.index() {
+            0 => &*self.r.v0,
+            1 => &*self.r.v1,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> private::Sealed for SwitchVar2<T, V0, V1> {}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> Value<T> for SwitchVar2<T, V0, V1> {
+    fn touched(&self) -> bool {
+        self.r.touched.get()
+            || match self.index() {
+                0 => self.r.v0.touched(),
+                1 => self.r.v1.touched(),
+                _ => unreachable!(),
+            }
     }
 }
 

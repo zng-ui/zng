@@ -264,7 +264,7 @@ impl UiRoot {
     }
 
     #[inline]
-    pub fn take_var_changes(&mut self) -> Vec<Box<dyn VarChange>> {
+    pub fn take_var_changes(&mut self) -> Vec<Box<dyn ValueMutCommit>> {
         std::mem::replace(&mut self.next_update.var_changes, vec![])
     }
 

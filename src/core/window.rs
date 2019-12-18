@@ -116,7 +116,7 @@ impl Window {
         self.root.take_new_window_requests()
     }
 
-    pub fn take_var_changes(&mut self) -> Vec<Box<dyn VarChange>> {
+    pub fn take_var_changes(&mut self) -> Vec<Box<dyn ValueMutCommit>> {
         self.root.take_var_changes()
     }
 

@@ -135,7 +135,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                     value_changes.append(&mut win.take_var_changes());
                 }
                 // commit changes and set touched = true
-                for var in value_changes.iter_mut() {
+                for var in value_changes.iter() {
                     var.commit();
                 }
 
@@ -152,7 +152,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                 }
 
                 // value updates done, reset touched flag.
-                for mut var in value_changes {
+                for var in value_changes {
                     var.reset_touched();
                 }
             }
