@@ -31,55 +31,55 @@ impl ButtonInput {
     }
 }
 
-/*
+// Declares a button! {} macro.
+ui_widget! {
+    // Properties applied to child before calling widget fn.
+    child_properties {
+        // Property declaration without default value, if not set does not apply.
+        // If set applies margin to child.
+        padding -> margin;
+        // Same with default value.
+        content_align -> align: CENTER ;
+        // Default value of background_color property that is applied to child.
+        background_color: rgb(0, 0, 0);
+    }
 
-// // Declares a button! {} macro.
-// ui_widget! {
-//     // Properties applied to child before calling widget fn.
-//     child_properties {
-//         // Property declaration without default value, if not set does not apply.
-//         // If set applies margin to child.
-//         padding -> margin,
-//         // Same with default value.
-//         content_align: CENTER -> align,
-//         // Default value of background_color property that is applied to child.
-//         background_color: rgb(0, 0, 0),
-//     },
-//
-//
-//     // Properties applied to return of widget fn. Same sintax as
-//     // child_properties.
-//     self_properties {
-//         border: border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
-//     },
-//
-//     // widget signature, must name the parameters after child,
-//     // they behave like required properties in the declared button! macro.
-//
-//     /// Button widget.
-//     /// # Arguments
-//     /// * `on_click`: Required button click event handler.
-//     /// * `padding`: Margin around the button content.
-//     /// * `background_color`:
-//     /// * `border`:
-//     pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
-//         let on_click = Rc::new(RefCell::new(on_click));
-//         ui! {
-//             focusable: default;
-//             on_click: enclose! ((on_click) move |ci, n|{
-//                 if ci.button == MouseButton::Left {
-//                     (&mut *on_click.borrow_mut())(ButtonInput::Mouse(ci), n);
-//                 }
-//             });
-//             on_key_tap: move |kt, n|{
-//                 if kt.key == VirtualKeyCode::Return || kt.key == VirtualKeyCode::Space {
-//                     (&mut *on_click.borrow_mut())(ButtonInput::Keyboard(kt), n);
-//                 }
-//             };
-//             => child
-//         }
-//     }
-// }
+
+    // Properties applied to return of widget fn. Same sintax as
+    // child_properties.
+    self_properties {
+        border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
+    }
+
+    // widget signature, must name the parameters after child,
+    // they behave like required properties in the declared button! macro.
+
+    /// Button widget.
+    /// # Arguments
+    /// * `on_click`: Required button click event handler.
+    /// * `padding`: Margin around the button content.
+    /// * `background_color`:
+    /// * `border`:
+    pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
+        let on_click = Rc::new(RefCell::new(on_click));
+        ui! {
+            focusable: default;
+            on_click: enclose! ((on_click) move |ci, n|{
+                if ci.button == MouseButton::Left {
+                    (&mut *on_click.borrow_mut())(ButtonInput::Mouse(ci), n);
+                }
+            });
+            on_key_tap: move |kt, n|{
+                if kt.key == VirtualKeyCode::Return || kt.key == VirtualKeyCode::Space {
+                    (&mut *on_click.borrow_mut())(ButtonInput::Keyboard(kt), n);
+                }
+            };
+            => child
+        }
+    }
+}
+
+/*
 //
 // /// Button widget.
 // /// # Arguments

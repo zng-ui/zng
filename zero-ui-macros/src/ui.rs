@@ -1,13 +1,19 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenTree;
+use proc_macro2::{Punct, Spacing, Span, TokenStream};
+use quote::{ToTokens, TokenStreamExt};
 use syn::spanned::Spanned;
-use syn::{parse::*, punctuated::Punctuated, token::Token, *};
+use syn::{
+    parse::*,
+    punctuated::Punctuated,
+    token::{Brace, Token},
+    *,
+};
 
 include!("util.rs");
 
 /// `ui_widget!` implementation.
 pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as UiWidgetInput);
-    let args = TokenStream::new();
 
     let mut fn_ = input.fn_;
 
@@ -45,14 +51,18 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
         }
     }
 
+    let child_properties = input.child_properties;
+    let self_properties = input.self_properties;
+
     let result = quote! {
         #(#docs_attrs)*
         #vis
         macro_rules! #ident {
             ($($tt:tt)*) => {
                 custom_ui!{
-                    #[ui_meta{#args}]
-                    #[args($($tt)*)]
+                    #child_properties
+                    #self_properties
+                    args {$($tt)*}
                     fn #ident(#(#arg_names),*)
                 }
             };
@@ -273,8 +283,8 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
 }
 
 enum PropertyArgs {
-    Exprs(Punctuated<Expr, Token![,]>),
     Fields(Punctuated<FieldValue, Token![,]>),
+    Exprs(Punctuated<Expr, Token![,]>),
 }
 
 impl Parse for PropertyArgs {
@@ -288,6 +298,17 @@ impl Parse for PropertyArgs {
         };
 
         Ok(r)
+    }
+}
+
+impl ToTokens for PropertyArgs {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            PropertyArgs::Fields(fields) => {
+                Brace { span: fields.span() }.surround(tokens, |t| fields.to_tokens(t));
+            }
+            PropertyArgs::Exprs(args) => args.to_tokens(tokens),
+        }
     }
 }
 
@@ -324,13 +345,13 @@ impl Parse for UiInput {
 
 struct CustomUiProperty {
     ident: Ident,
-    default_value: Option<Expr>,
     maps_to: Option<Ident>,
+    default_value: Option<PropertyArgs>,
 }
 
 impl Parse for CustomUiProperty {
     fn parse(input: ParseStream) -> Result<Self> {
-        // property: DEFAULT -> actual_property;
+        // property-> actual_property: DEFAULT ;
         // OR
         // property -> actual_property;
         // OR
@@ -338,25 +359,42 @@ impl Parse for CustomUiProperty {
 
         let ident = input.parse()?;
 
-        let default_value = if input.peek(Token![:]) {
-            Some(input.parse()?)
-        } else {
-            None
-        };
-
         let maps_to = if input.peek(Token![->]) {
+            input.parse::<Token![->]>()?;
             Some(input.parse()?)
         } else {
             None
         };
 
-        input.parse::<Token![;]>()?;
+        let default_value = if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
 
         Ok(CustomUiProperty {
             ident,
             default_value,
             maps_to,
         })
+    }
+}
+impl ToTokens for CustomUiProperty {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ident.to_tokens(tokens);
+
+        if let Some(maps_to) = &self.maps_to {
+            tokens.append(Punct::new('-', Spacing::Joint));
+            tokens.append(Punct::new('>', Spacing::Alone));
+
+            maps_to.to_tokens(tokens);
+        }
+
+        if let Some(default_value) = &self.default_value {
+            tokens.append(Punct::new(':', Spacing::Alone));
+            default_value.to_tokens(tokens);
+        }
     }
 }
 
@@ -374,9 +412,19 @@ impl Parse for CustomUiProperties {
         let inner;
         braced!(inner in input);
 
-        let properties = Punctuated::parse_terminated(input)?;
+        let properties = Punctuated::parse_terminated(&inner)?;
 
         Ok(CustomUiProperties { ident, properties })
+    }
+}
+
+impl ToTokens for CustomUiProperties {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.ident.to_tokens(tokens);
+        Brace {
+            span: self.properties.span(),
+        }
+        .surround(tokens, |t| self.properties.to_tokens(t));
     }
 }
 
