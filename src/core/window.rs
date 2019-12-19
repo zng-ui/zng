@@ -120,6 +120,10 @@ impl Window {
         self.root.take_var_changes()
     }
 
+    pub fn take_switch_changes(&mut self) -> Vec<Box<dyn SwitchCommit>> {
+        self.root.take_switch_changes()
+    }
+
     /// Processes window event, no action is done in this method, just sets flags of what needs to be done.
     pub fn event(&mut self, event: WindowEvent) -> bool {
         let mut has_update = false;

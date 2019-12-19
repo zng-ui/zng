@@ -269,6 +269,11 @@ impl UiRoot {
     }
 
     #[inline]
+    pub fn take_switch_changes(&mut self) -> Vec<Box<dyn SwitchCommit>> {
+        std::mem::replace(&mut self.next_update.switch_changes, vec![])
+    }
+
+    #[inline]
     pub fn take_set_cursor(&mut self) -> Option<CursorIcon> {
         if let Some(cursor) = self.set_cursor.take() {
             self.cursor = cursor;

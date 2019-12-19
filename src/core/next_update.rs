@@ -1,5 +1,6 @@
 use super::{
-    ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, Ui, UiItemId, ValueMut, ValueMutCommit,
+    ColorF, FocusRequest, FontCache, FontInstance, LayoutSize, NewWindow, SwitchCommit, SwitchValue, Ui, UiItemId,
+    ValueMut, ValueMutCommit,
 };
 use webrender::api::RenderApiSender;
 
@@ -12,6 +13,7 @@ pub struct NextUpdate {
     pub(crate) render_frame: bool,
     pub(crate) focus_request: Option<FocusRequest>,
     pub(crate) var_changes: Vec<Box<dyn ValueMutCommit>>,
+    pub(crate) switch_changes: Vec<Box<dyn SwitchCommit>>,
 
     pub(crate) mouse_capture_request: Option<EventCaptureRequest>,
 
@@ -34,6 +36,7 @@ impl NextUpdate {
             update_layout: true,
             render_frame: true,
             var_changes: vec![],
+            switch_changes: vec![],
             focus_request: None,
             mouse_capture_request: None,
             _request_close: false,
@@ -82,13 +85,22 @@ impl NextUpdate {
         self.mouse_capture_request = Some(EventCaptureRequest::Release(item));
     }
 
+    /// On the next update sets the `value` to `new_value`.
     pub fn set<T: 'static>(&mut self, value: &impl ValueMut<T>, new_value: T) {
         self.change(value, |v| *v = new_value);
     }
 
+    /// On the next update applies the `change` to `value`.
     pub fn change<T: 'static>(&mut self, value: &impl ValueMut<T>, change: impl FnOnce(&mut T) + 'static) {
         value.change_value(change);
         self.var_changes.push(Box::new(value.clone()));
+        self.has_update = true;
+    }
+
+    /// On the next update switches the `value` to `new_index` after applying `ValueMut` changes.
+    pub fn switch(&mut self, value: &impl SwitchValue, new_index: usize) {
+        value.change_index(new_index);
+        self.switch_changes.push(Box::new(value.clone()));
         self.has_update = true;
     }
 

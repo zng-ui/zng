@@ -131,12 +131,18 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
 
                 // value updates affect all windows, collect all changed vars
                 let mut value_changes = vec![];
+                let mut switch_changes = vec![];
+
                 for win in windows.values_mut() {
                     value_changes.append(&mut win.take_var_changes());
+                    switch_changes.append(&mut win.take_switch_changes());
                 }
                 // commit changes and set touched = true
                 for var in value_changes.iter() {
                     var.commit();
+                }
+                for switch in switch_changes.iter() {
+                    switch.commit();
                 }
 
                 // do all window content updates.
@@ -154,6 +160,9 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                 // value updates done, reset touched flag.
                 for var in value_changes {
                     var.reset_touched();
+                }
+                for switch in switch_changes {
+                    switch.reset_touched();
                 }
             }
         }

@@ -176,8 +176,10 @@ impl UiValues {
 mod private {
     pub trait Sealed {}
     pub trait ValueMutSet<T> {
-        /// Sets the change to commit.
         fn change_value(&self, change: impl FnOnce(&mut T) + 'static);
+    }
+    pub trait SwitchSet {
+        fn change_index(&self, new_index: usize);
     }
 }
 
@@ -186,6 +188,14 @@ pub trait ValueMutCommit {
     /// Commits the pending value and set touched to `true`.
     fn commit(&self);
     /// Resets touched to `false`.
+    fn reset_touched(&self);
+}
+
+/// Comits a [SwitchVar] change.
+pub trait SwitchCommit {
+    /// Commits the pending index change and set touched to `true`.
+    fn commit(&self);
+    /// Resets index change touched to `false`.
     fn reset_touched(&self);
 }
 
@@ -445,17 +455,36 @@ impl IntoValue<LayoutSize> for (f32, f32) {
     }
 }
 
-pub trait SwitchVar {
+///
+#[allow(clippy::len_without_is_empty)]
+pub trait SwitchValue: private::SwitchSet + SwitchCommit + Clone + 'static {
+    /// Current variable.
     fn index(&self) -> usize;
+
+    /// Switch table length.
     fn len(&self) -> usize;
 }
 
 struct SwitchVar2Data<T: 'static, V0: Value<T>, V1: Value<T>> {
     t: PhantomData<T>,
 
-    index: Cell<usize>,
-    pending: Cell<usize>,
-    touched: Cell<bool>,
+    index: Cell<u8>,
+    pending_index: Cell<u8>,
+
+    /// Previous index, same as index if no commit happen or if touched reseted.
+    ///
+    /// We need this because of the order [ValueMutCommit] and
+    /// [SwitchCommit] are applied.
+    ///
+    /// * First value changes are commited so the value touched flag is set.
+    /// * Then switch changes are commited so [index] potentially no longer points to
+    ///   a value with touched flat set.
+    /// * After change notification, ValueMutCommits that where commited get touched flag reset
+    ///   requests, so we use this index to find the right value.
+    /// * Then switchs commited get the switch flag reset, this is when we set
+    ///   this to be equal to `index`.
+    prev_index: Cell<u8>,
+
     listeners: RefCell<Vec<Listener<T>>>,
 
     v0: V0,
@@ -467,15 +496,15 @@ pub struct SwitchVar2<T: 'static, V0: Value<T>, V1: Value<T>> {
 }
 
 impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar2<T, V0, V1> {
-    pub fn new(index: usize, v0: V0, v1: V1) -> Self {
+    pub fn new(index: u8, v0: V0, v1: V1) -> Self {
         assert!(index < 2);
 
         SwitchVar2 {
             r: Rc::new(SwitchVar2Data {
                 t: PhantomData,
                 index: Cell::new(index),
-                pending: Cell::new(index),
-                touched: Cell::default(),
+                pending_index: Cell::new(index),
+                prev_index: Cell::new(index),
                 listeners: RefCell::default(),
 
                 v0,
@@ -484,8 +513,39 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar2<T, V0, V1> {
         }
     }
 
-    pub(crate) fn change_index(&self, new_value: usize) {
-        self.r.pending.set(new_value);
+    fn index_impl(&self) -> u8 {
+        self.r.index.get()
+    }
+
+    fn touched_impl(&self) -> bool {
+        self.r.index.get() != self.r.prev_index.get()
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> private::SwitchSet for SwitchVar2<T, V0, V1> {
+    fn change_index(&self, new_value: usize) {
+        self.r.pending_index.set(new_value as u8);
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchCommit for SwitchVar2<T, V0, V1> {
+    fn commit(&self) {
+        self.r.prev_index.set(self.r.index.get());
+        self.r.index.set(self.r.pending_index.get());
+    }
+
+    fn reset_touched(&self) {
+        self.r.prev_index.set(self.r.index.get());
+    }
+}
+
+impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchValue for SwitchVar2<T, V0, V1> {
+    fn index(&self) -> usize {
+        self.index_impl() as usize
+    }
+
+    fn len(&self) -> usize {
+        2
     }
 }
 
@@ -507,7 +567,7 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> Clone for SwitchVar2<T, V0, V1> {
 
 impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMutCommit for SwitchVar2<T, V0, V1> {
     fn commit(&self) {
-        match self.index() {
+        match self.index_impl() {
             0 => self.r.v0.commit(),
             1 => self.r.v1.commit(),
             _ => unreachable!(),
@@ -515,7 +575,7 @@ impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMutCommit for SwitchVar2
     }
 
     fn reset_touched(&self) {
-        match self.index() {
+        match self.r.prev_index.get() {
             0 => self.r.v0.reset_touched(),
             1 => self.r.v1.reset_touched(),
             _ => unreachable!(),
@@ -525,21 +585,11 @@ impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMutCommit for SwitchVar2
 
 impl<T: 'static, V0: ValueMut<T>, V1: ValueMut<T>> ValueMut<T> for SwitchVar2<T, V0, V1> {}
 
-impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar for SwitchVar2<T, V0, V1> {
-    fn index(&self) -> usize {
-        self.r.index.get()
-    }
-
-    fn len(&self) -> usize {
-        2
-    }
-}
-
 impl<T: 'static, V0: Value<T>, V1: Value<T>> Deref for SwitchVar2<T, V0, V1> {
     type Target = T;
 
     fn deref(&self) -> &T {
-        match self.index() {
+        match self.index_impl() {
             0 => &*self.r.v0,
             1 => &*self.r.v1,
             _ => unreachable!(),
@@ -551,7 +601,7 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> private::Sealed for SwitchVar2<T, V
 
 impl<T: 'static, V0: Value<T>, V1: Value<T>> Value<T> for SwitchVar2<T, V0, V1> {
     fn touched(&self) -> bool {
-        self.r.touched.get()
+        self.touched_impl()
             || match self.index() {
                 0 => self.r.v0.touched(),
                 1 => self.r.v1.touched(),
