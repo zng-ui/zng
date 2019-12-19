@@ -3,7 +3,7 @@ use crate::primitive::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Arguments for [button] click event. A button click
+/// Arguments for [button!] click event. A button click
 /// can be initiated by the mouse, keyboard or touch screen.
 #[derive(Debug)]
 pub enum ButtonInput {

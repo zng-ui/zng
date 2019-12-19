@@ -191,7 +191,7 @@ pub trait ValueMutCommit {
     fn reset_touched(&self);
 }
 
-/// Comits a [SwitchVar] change.
+/// Comits a [SwitchValue] change.
 pub trait SwitchCommit {
     /// Commits the pending index change and set touched to `true`.
     fn commit(&self);
@@ -201,7 +201,7 @@ pub trait SwitchCommit {
 
 /// A value used in a `Ui`. Derefs to `T`.
 ///
-/// Use this as a generic constrain to work with both [Owned] values and [Var] or [SwitchVar] references.
+/// Use this as a generic constrain to work with both [Owned] values and [Var] or [SwitchValue] references.
 ///
 /// ## See also
 /// * [IntoValue]: For making constructors.
@@ -215,9 +215,9 @@ pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
     }
 }
 
-/// A [value] that can be set.
+/// A [Value] that can be set.
 ///
-/// Use this a generic constrain to work with [Var] or [SwitchVar] references.
+/// Use this a generic constrain to work with [Var] or [SwitchValue] references.
 pub trait ValueMut<T>: Value<T> + private::ValueMutSet<T> + ValueMutCommit + Clone + 'static {}
 
 /// An owned `'static` [Value].
