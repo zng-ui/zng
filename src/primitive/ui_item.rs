@@ -60,6 +60,6 @@ impl<U: Ui> Ui for UiItem<U> {
 }
 
 /// Defines a group of nested Uis as a single element.
-pub fn ui_item(id: UiItemId, child: impl Ui) -> impl Ui {
+pub fn ui_item(child: impl Ui, id: UiItemId) -> impl Ui {
     UiItem { child, id }
 }

@@ -41,14 +41,14 @@ ui_widget! {
         // Same with default value.
         content_align -> align: CENTER;
         // Default value of background_color property that is applied to child.
-        background_color: rgb(0, 0, 0);
+        background_color: rgb(255, 255, 255);
     }
 
 
     // Properties applied to return of widget fn. Same sintax as
     // child_properties.
     self_properties {
-        border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
+        border: 4., (rgba(0, 0, 0, 0.0), BorderStyle::Dashed);
     }
 
     // widget signature, must name the parameters after child,
@@ -80,35 +80,6 @@ ui_widget! {
 }
 
 /*
-//
-// /// Button widget.
-// /// # Arguments
-// /// * `on_click`: Required button click event handler.
-// /// * `padding`: Margin around the button content.
-// /// * `background_color`:
-// /// * `border`:
-// #[allow(unused)]
-// macro_rules! button {
-//     ($($tt:tt)*) => {
-//         custom_ui! {
-//             child_properties {
-//                 padding -> margin;
-//                 content_align: CENTER -> align;
-//                 background_color: rgb(0, 0, 0);
-//             }
-//
-//             self_properties {
-//                 border: border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
-//             }
-//
-//             args {
-//                 $($tt)*
-//             }
-//
-//             fn button(on_click);
-//         }
-//     };
-// }
 //
 // fn button_callsite() -> impl Ui {
 //     button! {

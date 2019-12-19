@@ -1,6 +1,7 @@
 use proc_macro2::{Punct, Spacing, Span, TokenStream};
 use proc_macro_error::*;
 use quote::{ToTokens, TokenStreamExt};
+use std::collections::HashMap;
 use syn::spanned::Spanned;
 use syn::{
     parse::*,
@@ -17,6 +18,10 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
 
     let mut fn_ = input.fn_;
 
+    if fn_.sig.output == ReturnType::Default {
+        abort!(fn_.sig.span(), "Function must return an Ui")
+    }
+
     let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
 
     let vis = match fn_.vis {
@@ -31,9 +36,12 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     let mut arg_names = vec![];
 
     if fn_.sig.inputs.is_empty() {
-        abort_call_site!("Function must take a child: impl Ui first and at least one other argument.");
+        abort!(
+            fn_.sig.span(),
+            "Function must take a child: impl Ui first and at least one other argument."
+        );
     } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
-        abort_call_site!("Function must free-standing.");
+        abort!(fn_.span(), "Function must free-standing.");
     } else {
         for arg in fn_.sig.inputs.iter().skip(1) {
             if let FnArg::Typed(pat) = arg {
@@ -225,17 +233,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
                 }
             }
             PropertyArgs::Fields(fields) => {
-                let args: Vec<_> = (1..=fields.len()).map(|i| ident(&format!("arg_{}", i))).collect();
-
-                expanded_props.push(quote! {
-                    let child = {
-                        let (#(#args),*) = #name::Args {
-                            #fields
-                        }.pop();
-
-                        #name::build(child, #(#args),*)
-                    };
-                });
+                expanded_props.push(expand_property_args_fields(name, fields));
             }
         }
     }
@@ -250,7 +248,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
         quote! {{
             let child = #child;
             #(#expanded_props)*
-            $crate::primitive::ui_item(#id, child)
+            $crate::primitive::ui_item(child, #id)
         }}
     };
 
@@ -259,25 +257,142 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
 
 /// `custom_ui!` implementation.
 pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as CustomUiInput);
-    // let ui_meta = parse;
-    // let args = parse;
-    // let fn = parse;
+    let CustomUiInput {
+        child,
+        fn_name,
+        child_properties,
+        self_properties,
+        args,
+        fn_arg_names,
+        ..
+    } = parse_macro_input!(input as CustomUiInput);
 
-    /*
-    #[derive_ui_macro {
-            // optional, if not set does not wrap.
-            padding => margin(child, $args);
-            // or with default, if not set use value within ${}.
-            padding => margin(child, ${(5.0, 4.0)});
+    let mut args: HashMap<_, _> = args.into_iter().map(|p| (p.name.clone(), p)).collect();
 
-            // can also any expression?
-            padding => ui! {margin: $args};
-            // or apply to function result?
-            spacing => margin($self, $args);
-        }]
-    */
-    unimplemented!()
+    // takes required arguments.
+    let expanded_fn_args: Vec<_> = fn_arg_names
+        .into_iter()
+        .map(|a| {
+            if let Some(p) = args.remove(&a) {
+                if let PropertyArgs::Exprs(exprs) = p.args {
+                    if exprs.len() > 1 {
+                        // arg: 10, 20;
+                        abort!(p.name.span(), "expected single unamed argument for `{}`", p.name);
+                    } else {
+                        // arg: 10;
+                        exprs.into_iter().next().unwrap()
+                    }
+                } else {
+                    // arg: {
+                    //     sub_arg: 10;
+                    // };
+                    abort!(p.name.span(), "expected single unamed argument for `{}`", p.name);
+                }
+            } else {
+                abort_call_site!("missing required parameter `{}`", a)
+            }
+        })
+        .collect();
+
+    // takes or generates properties.
+    let child_properties = take_properties(&mut args, child_properties.properties);
+    let self_properties = take_properties(&mut args, self_properties.properties);
+
+    let mut expanded_child_props = Vec::with_capacity(child_properties.len());
+    let mut expanded_props = Vec::with_capacity(self_properties.len() + args.len());
+
+    let mut id = quote! {$crate::core::UiItemId::new_unique()};
+    let id_name = ident("id");
+
+    for p in child_properties {
+        let name = p.name;
+
+        match p.args {
+            PropertyArgs::Exprs(args) => {
+                let args = args.into_iter();
+
+                expanded_child_props.push(quote! {
+                    let child = #name::build(child, #(#args),*);
+                });
+            }
+            PropertyArgs::Fields(fields) => {
+                expanded_child_props.push(expand_property_args_fields(name, fields));
+            }
+        }
+    }
+
+    for p in self_properties.into_iter().chain(args.into_iter().map(|(_, v)| v)) {
+        let name = p.name;
+
+        match p.args {
+            PropertyArgs::Exprs(args) => {
+                let args = args.into_iter();
+
+                if name == id_name {
+                    id = quote!(#(#args),*);
+                } else {
+                    expanded_props.push(quote! {
+                        let child = #name::build(child, #(#args),*);
+                    });
+                }
+            }
+            PropertyArgs::Fields(fields) => {
+                expanded_props.push(expand_property_args_fields(name, fields));
+            }
+        }
+    }
+
+    // let child = text("Hello");
+    // let child = margin::set(child, 4.0);
+    // let child = prop::set(child, 4.0);
+
+    let result = quote! {
+        let child = #child;
+        #(#expanded_child_props)*
+        let child = #fn_name(child, #(#expanded_fn_args),*);
+        #(#expanded_props)*
+        $crate::primitive::ui_item(child, #id)
+    };
+
+    result.into()
+}
+
+fn expand_property_args_fields(property_name: Ident, fields: Punctuated<FieldValue, Token![,]>) -> TokenStream {
+    let args: Vec<_> = (1..=fields.len()).map(|i| ident(&format!("arg_{}", i))).collect();
+
+    quote! {
+        let child = {
+            let (#(#args),*) = #property_name::Args {
+                #fields
+            }.pop();
+
+            #property_name::build(child, #(#args),*)
+        };
+    }
+}
+
+fn take_properties(
+    args: &mut HashMap<Ident, Property>,
+    properties: Punctuated<CustomUiProperty, Token![;]>,
+) -> Vec<Property> {
+    properties
+        .into_iter()
+        .filter_map(|pd| {
+            if let Some(p) = args.remove(&pd.ident) {
+                Some(Property {
+                    name: pd.maps_to.unwrap_or(pd.ident),
+                    args: p.args,
+                })
+            } else if let Some(default_value) = pd.default_value {
+                Some(Property {
+                    name: pd.maps_to.unwrap_or(pd.ident),
+                    args: default_value,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 enum PropertyArgs {
@@ -312,17 +427,15 @@ impl ToTokens for PropertyArgs {
 
 struct Property {
     name: Ident,
-    _separator: Token![:],
     args: PropertyArgs,
 }
 
 impl Parse for Property {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Property {
-            name: input.parse()?,
-            _separator: input.parse()?,
-            args: input.parse()?,
-        })
+        let name = input.parse()?;
+        input.parse::<Token![:]>()?;
+        let args = input.parse()?;
+        Ok(Property { name, args })
     }
 }
 
@@ -349,7 +462,7 @@ struct CustomUiProperty {
 
 impl Parse for CustomUiProperty {
     fn parse(input: ParseStream) -> Result<Self> {
-        // property-> actual_property: DEFAULT ;
+        // property -> actual_property: DEFAULT;
         // OR
         // property -> actual_property;
         // OR
@@ -452,13 +565,39 @@ struct CustomUiInput {
     args: Punctuated<Property, Token![;]>,
     fn_name: Ident,
     fn_arg_names: Punctuated<Ident, Token![,]>,
+    child: Expr,
 }
 
 impl Parse for CustomUiInput {
     fn parse(input: ParseStream) -> Result<Self> {
+        // child_properties {
+        //     padding -> margin;
+        //     content_align -> align: CENTER;
+        //     background_color: rgb(0, 0, 0);
+        // }
+        //
+        // self_properties {
+        //     border: border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
+        // }
+        //
+        // args {
+        //     // same as ui!{..}
+        //     ident: expr;
+        //     => expr
+        // }
+        //
+        // fn button(on_click);
+
         let child_properties = input.parse()?;
         let self_properties = input.parse()?;
-        let args = parse_properties(input)?;
+
+        input.parse::<Ident>()?; // args { #same_as_ui! }
+        let inner;
+        braced!(inner in input);
+        let args = parse_properties(&inner)?;
+        inner.parse::<Token![=>]>()?;
+        let child = inner.parse()?;
+
         input.parse::<Token![fn]>()?;
         let fn_name = input.parse()?;
 
@@ -473,6 +612,7 @@ impl Parse for CustomUiInput {
             args,
             fn_name,
             fn_arg_names,
+            child,
         })
     }
 }

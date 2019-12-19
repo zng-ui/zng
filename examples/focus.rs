@@ -38,12 +38,21 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
 
     let text_id = UiItemId::new_unique();
 
+    let button = button! {
+        padding: 4.;
+        on_click: |bi, u|{
+            println!("button click {:?}", bi)
+        };
+
+        => text(txt)
+    };
+
     let text = ui! {
         id: text_id;
         font_family: "Arial";
         font_size: 60;
         text_color: rgb(0, 0, 0);
-        background_color: rgba(1., 1., 1., 0.5);
+        //background_color: rgba(1., 1., 1., 0.5);
         border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
         focusable: default;
         cursor: CursorIcon::Hand;
@@ -55,14 +64,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
             u.set(&text_border, rgba(0, 0, 0, 0.0));
         };
 
-        => text(txt) /*button! {
-            padding: 4.;
-            on_click: |bi, u|{
-                println!("button click {:?}", bi)
-            };
-
-            => text(txt)
-        }*/
+        => button
     };
 
     ui! {
