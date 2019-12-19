@@ -7,7 +7,6 @@ use proc_macro::TokenStream;
 use proc_macro_error::*;
 use proc_macro_hack::proc_macro_hack;
 
-mod enum_hack;
 mod impl_ui;
 mod ui;
 
@@ -256,11 +255,4 @@ pub fn impl_ui_crate(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_error]
 pub fn custom_ui(input: TokenStream) -> TokenStream {
     ui::gen_custom_ui_init(input)
-}
-
-#[doc(hidden)]
-#[proc_macro_derive(EnumHack)]
-#[proc_macro_error]
-pub fn enum_hack(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    enum_hack::extract(input)
 }

@@ -83,7 +83,7 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
         #fn_
     };
 
-    crate::enum_hack::wrap(result).into()
+    result.into()
 }
 
 /// `#[ui_property]` implementation.
