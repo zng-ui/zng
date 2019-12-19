@@ -89,7 +89,7 @@ ui_widget! {
 //     };
 //
 //     let child = text("Click Me!");
-//     let child = margin::build(child, 5.);
+//     let child = margin::set(child, 5.);
 //     let child = align(child, CENTER);
 //     let child = background_color(rgb(0, 0, 0));
 //

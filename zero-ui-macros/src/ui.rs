@@ -92,7 +92,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
     let ident = fn_.sig.ident.clone();
     let vis = fn_.vis;
 
-    fn_.sig.ident = Ident::new("build", ident.span());
+    fn_.sig.ident = Ident::new("set", ident.span());
     fn_.vis = Visibility::Public(VisPublic {
         pub_token: syn::token::Pub {
             span: Span::call_site(),
@@ -164,7 +164,7 @@ fn expand_ui_property_output(
 ) -> proc_macro::TokenStream {
     let build_doc = LitStr::new(
         &format!(
-            "Builds the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
+            "Sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
             ident
         ),
         Span::call_site(),
@@ -228,7 +228,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
                     id = quote!(#(#args),*);
                 } else {
                     expanded_props.push(quote! {
-                        let child = #name::build(child, #(#args),*);
+                        let child = #name::set(child, #(#args),*);
                     });
                 }
             }
@@ -312,7 +312,7 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
                 let args = args.into_iter();
 
                 expanded_child_props.push(quote! {
-                    let child = #name::build(child, #(#args),*);
+                    let child = #name::set(child, #(#args),*);
                 });
             }
             PropertyArgs::Fields(fields) => {
@@ -332,7 +332,7 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
                     id = quote!(#(#args),*);
                 } else {
                     expanded_props.push(quote! {
-                        let child = #name::build(child, #(#args),*);
+                        let child = #name::set(child, #(#args),*);
                     });
                 }
             }
@@ -366,7 +366,7 @@ fn expand_property_args_fields(property_name: Ident, fields: Punctuated<FieldVal
                 #fields
             }.pop();
 
-            #property_name::build(child, #(#args),*)
+            #property_name::set(child, #(#args),*)
         };
     }
 }
@@ -632,118 +632,3 @@ fn parse_properties(input: ParseStream) -> Result<Punctuated<Property, Token![;]
 
     Ok(punctuated)
 }
-
-#[allow(unused)]
-const T: &str = stringify! {
-    // declared like:
-    #[ui_widget {
-        // optional, if not set does not wrap.
-        padding => margin(child, $args);
-        // or with default, if not set use value within ${}.
-        padding => margin(child, ${(5.0, 4.0)});
-
-        // can also any expression?
-        padding => ui! {margin: $args};
-        // or apply to function result?
-        spacing => margin($self, $args);
-    }]
-    fn button(on_click: impl FnMut(&ClickArgs), child: impl Ui) -> impl Ui {
-        ui! {
-            background_color: rgb(100, 100, 100);
-            on_click: on_click;
-            => child
-        }
-    }
-
-    ui_widget! {
-         // optional, if not set does not wrap.
-         padding => margin(child, $args);
-         // or with default, if not set use value within ${}.
-         padding => margin(child, ${(5.0, 4.0)});
-
-         // can also any expression?
-         padding => ui! {margin: $args};
-         // or apply to function result?
-         spacing => margin($self, $args);
-        =>
-        /// docs
-        fn button(on_click: impl FnMut(&ClickArgs), child: impl Ui) -> impl Ui {
-            ui! {
-                background_color: rgb(100, 100, 100);
-                on_click: on_click;
-                => child
-            }
-        }
-    }
-
-    // expands to:
-
-    /// function docs?
-    #[macro_export]// export if function is pub
-    macro_rules! button {
-        ($($tt:tt)*) => {
-            custom_ui! {
-                // these two attributes are not real
-                // they are just containers for custom_ui
-                #[ui_meta {
-                    // derive_ui_macro contents.
-                    padding => margin(child, $args);
-                    spacing => margin($self, $args);
-                }]
-                #[args($($tt)*)]
-                // function to call, not an actual fn signature,
-                // pattern is fn ident(list, of, parameter, idents);
-                // child is the first parameter of the function and not
-                // included in the pattern.
-                fn button(on_click);
-            }
-        }
-    }
-    // same function
-    fn button(..){..}
-
-    // called like:
-    button! {
-        on_click: |_| {};// required, fn button arg.
-        padding: (5.0, 2.0); // optional, maps to margin around child.
-        text_color: rgb(255, 0, 0); // optional, same as ui!{}, around button.
-        // parameters can be in any order but are expanded in declaration order.
-        => text("content")
-    }
-
-    // expands to:
-    {
-        mod current_module {
-            pub(crate) use super::*;
-        }
-
-        let child = text("content"); // => content
-        let child = margin(child, (5.0, 2.0));// padding expression
-        let child = current_module::text_color(child, rgb(255, 0, 0));// ui! like parameter.
-        let child = button(_|{}, child);// button call with on_click args.
-        // $self ui! like stuff here?
-        {child}
-    }
-
-    #[ui_property]
-    pub fn property(child: impl Ui, param: impl IntoValue<X>) -> impl Ui {
-        ..
-    }
-
-    // expands to:
-    mod property {
-        use super::*;
-
-        pub struct Args<T1> {
-            param: T1
-        }
-
-        pub fn build(child: impl Ui, param: impl IntoValue<X>) -> impl Ui {
-            ..
-        }
-    }
-
-    // calls expands to (if using named args):
-    let property_args = current_module::property::Args { #args };
-    let child = current_module::property::build(child, property_args.param);
-};

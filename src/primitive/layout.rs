@@ -117,7 +117,7 @@ pub const CENTER: Alignment = Alignment(0.5, 0.5);
 
 #[inline]
 pub fn center(child: impl Ui) -> impl Ui {
-    align::build(child, CENTER)
+    align::set(child, CENTER)
 }
 
 #[ui_property]
