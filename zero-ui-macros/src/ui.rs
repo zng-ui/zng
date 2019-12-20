@@ -4,6 +4,7 @@ use quote::{ToTokens, TokenStreamExt};
 use std::collections::HashMap;
 use syn::spanned::Spanned;
 use syn::{
+    ext::IdentExt,
     parse::*,
     punctuated::Punctuated,
     token::{Brace, Token},
@@ -514,6 +515,15 @@ struct CustomUiProperties {
     properties: Punctuated<CustomUiProperty, Token![;]>,
 }
 
+impl CustomUiProperties {
+    fn empty(ident: Ident) -> Self {
+        CustomUiProperties {
+            ident,
+            properties: Punctuated::new(),
+        }
+    }
+}
+
 impl Parse for CustomUiProperties {
     fn parse(input: ParseStream) -> Result<Self> {
         // child_properties { CustomUiProperty }
@@ -538,6 +548,10 @@ impl ToTokens for CustomUiProperties {
         .surround(tokens, |t| self.properties.to_tokens(t));
     }
 }
+mod keyword {
+    syn::custom_keyword!(child_properties);
+    syn::custom_keyword!(self_properties);
+}
 
 struct UiWidgetInput {
     child_properties: CustomUiProperties,
@@ -547,15 +561,48 @@ struct UiWidgetInput {
 
 impl Parse for UiWidgetInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let child_properties = input.parse()?;
-        let self_properties = input.parse()?;
-        let fn_ = input.parse()?;
+        let mut child_properties = None;
+        let mut self_properties = None;
+        let mut fn_ = None;
 
-        Ok(UiWidgetInput {
-            child_properties,
-            self_properties,
-            fn_,
-        })
+        while !input.is_empty() {
+            if input.peek(keyword::child_properties) {
+                if child_properties.is_some() {
+                    let span = input.parse::<Ident>()?.span();
+                    return Err(Error::new(span, "`child_properties` is defined multiple times"));
+                }
+                child_properties = Some(input.parse()?)
+            } else if input.peek(keyword::self_properties) {
+                if self_properties.is_some() {
+                    let span = input.parse::<Ident>()?.span();
+                    return Err(Error::new(span, "`self_properties` is defined multiple times"));
+                }
+                self_properties = Some(input.parse()?)
+            } else {
+                let item = input.parse::<Item>()?;
+                match item {
+                    Item::Fn(f) => {
+                        if fn_.is_some() {
+                            return Err(Error::new(f.span(), "ui_widget! only supports one function"));
+                        }
+                        fn_ = Some(f)
+                    },
+                    Item::Use(u) => { todo!()}
+                    item => return Err(Error::new(item.span(), "unexpected token")),
+                }
+            }
+        }
+
+        if let Some(fn_) = fn_ {
+            Ok(UiWidgetInput {
+                child_properties: child_properties
+                    .unwrap_or_else(|| CustomUiProperties::empty(ident("child_properties"))),
+                self_properties: self_properties.unwrap_or_else(|| CustomUiProperties::empty(ident("self_properties"))),
+                fn_,
+            })
+        } else {
+            Err(Error::new(Span::call_site(), "expected a function declaration"))
+        }
     }
 }
 

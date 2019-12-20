@@ -38,15 +38,6 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
 
     let text_id = UiItemId::new_unique();
 
-    let button = button! {
-        padding: 4.;
-        on_click: |bi, u|{
-            println!("button click {:?}", bi)
-        };
-
-        => text(txt)
-    };
-
     let text = ui! {
         id: text_id;
         font_family: "Arial";
@@ -64,7 +55,14 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
             u.set(&text_border, rgba(0, 0, 0, 0.0));
         };
 
-        => button
+        => button! {
+            padding: 4.;
+            on_click: |bi, u|{
+                println!("button click {:?}", bi)
+            };
+
+            => text(txt)
+        }
     };
 
     ui! {
