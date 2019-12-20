@@ -285,7 +285,13 @@ impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> Deref for
                 s.cached_version.set(source_version);
             }
         }
-        // TODO safe?
+
+        // SAFETY: This is safe because references cannot be kept
+        // across source updates.
+        //
+        // TODO: References can be kept across source updates in custom
+        // value change implementations. Should we block the `commit` methods from
+        // outside the crate?
         unsafe { &*self.r.cached.as_ptr() }
     }
 }
