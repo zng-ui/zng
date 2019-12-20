@@ -308,13 +308,10 @@ impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> Value<B> 
         if self.r.source.is_some() {
             ValueMap::with_source(Self::clone(self), map)
         } else {
-            // TODO not safe? [deref] can be called inside map?
-            let cached = unsafe { map(&*self.r.cached.as_ptr()) };
-
             ValueMap {
                 r: Rc::new(ValueMapData {
                     source: None,
-                    cached: Cell::new(cached),
+                    cached: Cell::new(map(&*self)),
                 }),
             }
         }

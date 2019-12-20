@@ -586,8 +586,8 @@ impl Parse for UiWidgetInput {
                             return Err(Error::new(f.span(), "ui_widget! only supports one function"));
                         }
                         fn_ = Some(f)
-                    },
-                    Item::Use(u) => { todo!()}
+                    }
+                    Item::Use(u) => todo!(),
                     item => return Err(Error::new(item.span(), "unexpected token")),
                 }
             }
