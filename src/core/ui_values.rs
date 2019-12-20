@@ -1,7 +1,6 @@
 use super::{FocusKey, LayoutPoint, LayoutSize};
 use fnv::FnvHashMap;
 use once_cell::sync::OnceCell;
-use retain_mut::*;
 use std::any::Any;
 use std::borrow::Cow;
 use std::cell::{Cell, RefCell};
@@ -209,9 +208,116 @@ pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
     /// If the value was set in the last update.
     fn touched(&self) -> bool;
 
+    /// Gets the value version. It is different every time the value gets [touched].
+    fn version(&self) -> u64;
+
+    /// Returns a maping `Value<B>` that stays in sync with this `Value<T>`.
+    fn map<B, M: FnMut(&T) -> B>(&self, f: M) -> ValueMap<T, Self, B, M>
+    where
+        Self: Sized;
+
     /// Gets if `self` and `other` point to the same data.
     fn ptr_eq<O: Value<T>>(&self, other: &O) -> bool {
         std::ptr::eq(self.deref(), other.deref())
+    }
+}
+
+struct ValueMapSource<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> {
+    _t: PhantomData<T>,
+    source: V,
+    map: RefCell<M>,
+    cached_version: Cell<u64>,
+}
+
+struct ValueMapData<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> {
+    source: Option<Box<ValueMapSource<T, V, B, M>>>,
+    cached: Cell<B>,
+}
+
+/// Result of [Value::map]. Implements [Value].
+pub struct ValueMap<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> {
+    r: Rc<ValueMapData<T, V, B, M>>,
+}
+
+impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> ValueMap<T, V, B, M> {
+    fn with_source(source: V, mut map: M) -> Self {
+        let cached = map(&*source);
+        let cached_version = source.version();
+        ValueMap {
+            r: Rc::new(ValueMapData {
+                source: Some(Box::new(ValueMapSource {
+                    _t: PhantomData,
+                    source,
+                    map: RefCell::new(map),
+                    cached_version: Cell::new(cached_version),
+                })),
+                cached: Cell::new(cached),
+            }),
+        }
+    }
+
+    fn once(source: &V, mut map: M) -> Self {
+        ValueMap {
+            r: Rc::new(ValueMapData {
+                source: None,
+                cached: Cell::new(map(&*source)),
+            }),
+        }
+    }
+}
+
+impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> private::Sealed for ValueMap<T, V, B, M> {}
+
+impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> Clone for ValueMap<T, V, B, M> {
+    fn clone(&self) -> Self {
+        ValueMap { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> Deref for ValueMap<T, V, B, M> {
+    type Target = B;
+
+    fn deref(&self) -> &B {
+        if let Some(s) = &self.r.source {
+            let source_version = s.source.version();
+            if source_version != s.cached_version.get() {
+                self.r.cached.set((&mut *s.map.borrow_mut())(&*s.source));
+                s.cached_version.set(source_version);
+            }
+        }
+        // TODO safe?
+        unsafe { &*self.r.cached.as_ptr() }
+    }
+}
+
+impl<T: 'static, V: Value<T>, B: 'static, M: FnMut(&T) -> B + 'static> Value<B> for ValueMap<T, V, B, M> {
+    fn touched(&self) -> bool {
+        self.r.source.as_ref().map(|s| s.source.touched()).unwrap_or_default()
+    }
+
+    fn version(&self) -> u64 {
+        self.r.source.as_ref().map(|s| s.source.version()).unwrap_or_default()
+    }
+
+    /// Returns a follow up mapping. If `self` stayed in sync with original source this
+    /// map also syncs.
+    fn map<C, N: FnMut(&B) -> C>(&self, mut map: N) -> ValueMap<B, Self, C, N>
+    where
+        Self: Sized,
+    {
+        if self.r.source.is_some() {
+            ValueMap::with_source(Self::clone(self), map)
+        } else {
+            // TODO not safe? [deref] can be called inside map?
+            let cached = unsafe { map(&*self.r.cached.as_ptr()) };
+
+            ValueMap {
+                r: Rc::new(ValueMapData {
+                    source: None,
+                    cached: Cell::new(cached),
+                }),
+            }
+        }
     }
 }
 
@@ -241,21 +347,24 @@ impl<T: 'static> Value<T> for Owned<T> {
     fn touched(&self) -> bool {
         false
     }
-}
 
-type Listener<T> = Box<dyn FnMut(&T) -> ListenerStatus>;
+    /// Always `0`.
+    fn version(&self) -> u64 {
+        0
+    }
+
+    /// Returns an instance of [ValueMap] that does not `self` or `map` in memory.
+    /// The function is called imediatly only once.
+    fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
+        ValueMap::once(self, map)
+    }
+}
 
 struct VarData<T> {
     value: RefCell<T>,
     pending: Cell<Box<dyn FnOnce(&mut T)>>,
     touched: Cell<bool>,
-    listeners: RefCell<Vec<Listener<T>>>,
-}
-
-#[derive(PartialEq, Eq)]
-enum ListenerStatus {
-    Alive,
-    Dead,
+    version: Cell<u64>,
 }
 
 /// A reference counted [Value] that can change.
@@ -278,32 +387,9 @@ impl<T: 'static> Var<T> {
                 value: RefCell::new(value),
                 pending: Cell::new(Box::new(|_| {})),
                 touched: Cell::new(false),
-                listeners: Default::default(),
+                version: Cell::new(0),
             }),
         }
-    }
-
-    /// Gets a `Var<B>` that is set using a `map` function every time this var changes.
-    pub fn map<B: 'static, F: FnMut(&T) -> B + 'static>(&self, mut map: F) -> Var<B> {
-        let target = Var::new(map(self));
-        let weak_target = Rc::downgrade(&target.r);
-
-        self.r.listeners.borrow_mut().push(Box::new(move |new_value| {
-            if let Some(live_target) = weak_target.upgrade() {
-                *live_target.value.borrow_mut() = map(new_value);
-                live_target.touched.set(true);
-                ListenerStatus::Alive
-            } else {
-                ListenerStatus::Dead
-            }
-        }));
-
-        target
-    }
-
-    /// Gets a `Var<B>` that is set using a `map` function every time this var changes.
-    pub fn map_var<B: 'static, F: FnMut(&T) -> Var<B> + 'static>(&self, map: F) -> MapVar<B> {
-        MapVar { var: self.map(map) }
     }
 }
 
@@ -331,6 +417,17 @@ impl<T: 'static> Value<T> for Var<T> {
     fn touched(&self) -> bool {
         self.r.touched.get()
     }
+
+    /// Gets the var value version.
+    fn version(&self) -> u64 {
+        self.r.version.get()
+    }
+
+    /// Returns an instance of [ValueMap] that holds a strong reference to this
+    /// variable and applies the `map` function every time this variable is [touched].
+    fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
+        ValueMap::with_source(Var::clone(self), map)
+    }
 }
 
 impl<T: 'static> private::ValueMutSet<T> for Var<T> {
@@ -343,14 +440,11 @@ impl<T: 'static> ValueMutCommit for Var<T> {
     fn commit(&self) {
         let change = self.r.pending.replace(Box::new(|_| {}));
         change(&mut self.r.value.borrow_mut());
+
         self.r.touched.set(true);
 
-        let new_value = self.r.value.borrow();
-
-        self.r
-            .listeners
-            .borrow_mut()
-            .retain_mut(|l| l(&new_value) == ListenerStatus::Alive);
+        let version = self.r.version.get();
+        self.r.version.set(version.wrapping_add(1));
     }
 
     fn reset_touched(&self) {
@@ -359,27 +453,6 @@ impl<T: 'static> ValueMutCommit for Var<T> {
 }
 
 impl<T: 'static> ValueMut<T> for Var<T> {}
-
-/// [Var::map_var] result.
-pub struct MapVar<T: 'static> {
-    var: Var<Var<T>>,
-}
-
-impl<T> Deref for MapVar<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        self.var.deref()
-    }
-}
-
-impl<T> private::Sealed for MapVar<T> {}
-
-impl<T: 'static> Value<T> for MapVar<T> {
-    fn touched(&self) -> bool {
-        Var::<Var<T>>::touched(&self.var) || Var::<T>::touched(&*self.var)
-    }
-}
 
 /// Into `[Value]<T>`.
 pub trait IntoValue<T> {
@@ -390,7 +463,7 @@ pub trait IntoValue<T> {
 
 /// Does nothing. `[Var]<T>` already implements `Value<T>`.
 impl<T: 'static> IntoValue<T> for Var<T> {
-    type Value = Var<T>;
+    type Value = Self;
 
     fn into_value(self) -> Self::Value {
         self
@@ -406,9 +479,9 @@ impl<T: 'static> IntoValue<T> for T {
     }
 }
 
-/// Does nothing. `[MapVar]<T>` already implements `Value<T>`.
-impl<T: 'static> IntoValue<T> for MapVar<T> {
-    type Value = MapVar<T>;
+/// Does nothing. `[SwitchVar2]<T>` already implements `Value<T>`.
+impl<T: 'static, V0: Value<T>, V1: Value<T>> IntoValue<T> for SwitchVar2<T, V0, V1> {
+    type Value = Self;
 
     fn into_value(self) -> Self::Value {
         self
@@ -485,8 +558,6 @@ struct SwitchVar2Data<T: 'static, V0: Value<T>, V1: Value<T>> {
     ///   this to be equal to `index`.
     prev_index: Cell<u8>,
 
-    listeners: RefCell<Vec<Listener<T>>>,
-
     v0: V0,
     v1: V1,
 }
@@ -505,7 +576,6 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> SwitchVar2<T, V0, V1> {
                 index: Cell::new(index),
                 pending_index: Cell::new(index),
                 prev_index: Cell::new(index),
-                listeners: RefCell::default(),
 
                 v0,
                 v1,
@@ -607,6 +677,27 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> Value<T> for SwitchVar2<T, V0, V1> 
                 1 => self.r.v1.touched(),
                 _ => unreachable!(),
             }
+    }
+
+    fn version(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::Hasher;
+
+        let mut version = DefaultHasher::new();
+        let index = self.index();
+        version.write_usize(index);
+        version.write_u64(match index {
+            0 => self.r.v0.version(),
+            1 => self.r.v1.version(),
+            _ => unreachable!(),
+        });
+        version.finish()
+    }
+
+    /// Returns an instance of [ValueMap] that holds a strong reference to this
+    /// variable and applies the `map` function every time this variable is [touched].
+    fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
+        ValueMap::with_source(Self::clone(self), map)
     }
 }
 

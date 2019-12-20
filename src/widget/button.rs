@@ -62,7 +62,7 @@ ui_widget! {
     /// * `border`:
     pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
         let on_click = Rc::new(RefCell::new(on_click));
-        ui! {
+        ui_part! {
             focusable: default;
             on_click: enclose! ((on_click) move |ci, n|{
                 if ci.button == MouseButton::Left {

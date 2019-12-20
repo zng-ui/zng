@@ -20,11 +20,12 @@ impl IntoValue<BorderDetails> for ColorF {
     }
 }
 
-impl IntoValue<BorderDetails> for Var<ColorF> {
-    type Value = Var<BorderDetails>;
+impl<V: Value<ColorF>> IntoValue<BorderDetails> for V {
+    #[allow(clippy::type_complexity)]
+    type Value = ValueMap<ColorF, Self, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
 
     fn into_value(self) -> Self::Value {
-        self.map(|color: &ColorF| {
+        self.map(Box::new(|color: &ColorF| {
             let border_side = BorderSide {
                 color: *color,
                 style: BorderStyle::Solid,
@@ -36,7 +37,7 @@ impl IntoValue<BorderDetails> for Var<ColorF> {
                 bottom: border_side,
                 radius: BorderRadius::zero(),
             }
-        })
+        }))
     }
 }
 
@@ -58,12 +59,13 @@ impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
     }
 }
 
-impl IntoValue<BorderDetails> for (Var<ColorF>, BorderStyle) {
-    type Value = Var<BorderDetails>;
+impl<V: Value<ColorF>> IntoValue<BorderDetails> for (V, BorderStyle) {
+    #[allow(clippy::type_complexity)]
+    type Value = ValueMap<ColorF, V, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
 
     fn into_value(self) -> Self::Value {
         let style = self.1;
-        self.0.map(move |color: &ColorF| {
+        self.0.map(Box::new(move |color: &ColorF| {
             let border_side = BorderSide { color: *color, style };
             BorderDetails {
                 left: border_side,
@@ -72,7 +74,7 @@ impl IntoValue<BorderDetails> for (Var<ColorF>, BorderStyle) {
                 bottom: border_side,
                 radius: BorderRadius::zero(),
             }
-        })
+        }))
     }
 }
 
