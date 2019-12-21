@@ -208,7 +208,7 @@ pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
     /// If the value was set in the last update.
     fn touched(&self) -> bool;
 
-    /// Gets the value version. It is different every time the value gets [touched].
+    /// Gets the value version. It is different every time the value gets [touched](Value::touched).
     fn version(&self) -> u64;
 
     /// Returns a maping `Value<B>` that stays in sync with this `Value<T>`.
@@ -427,7 +427,7 @@ impl<T: 'static> Value<T> for Var<T> {
     }
 
     /// Returns an instance of [ValueMap] that holds a strong reference to this
-    /// variable and applies the `map` function every time this variable is [touched].
+    /// variable and applies the `map` function every time this variable is [touched](Value::touched).
     fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
         ValueMap::with_source(Var::clone(self), map)
     }
@@ -698,7 +698,7 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> Value<T> for SwitchVar2<T, V0, V1> 
     }
 
     /// Returns an instance of [ValueMap] that holds a strong reference to this
-    /// variable and applies the `map` function every time this variable is [touched].
+    /// variable and applies the `map` function every time this variable is [touched](Value::touched).
     fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
         ValueMap::with_source(Self::clone(self), map)
     }

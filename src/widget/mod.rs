@@ -1,3 +1,4 @@
-mod button;
+mod button_impl;
 
-pub use button::*;
+#[macro_use]
+pub use button_impl::*;

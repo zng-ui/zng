@@ -3,8 +3,8 @@ use proc_macro_error::*;
 use quote::{ToTokens, TokenStreamExt};
 use std::collections::HashMap;
 use syn::spanned::Spanned;
+use syn::visit_mut::VisitMut;
 use syn::{
-    ext::IdentExt,
     parse::*,
     punctuated::Punctuated,
     token::{Brace, Token},
@@ -15,17 +15,19 @@ include!("util.rs");
 
 /// `ui_widget!` implementation.
 pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as UiWidgetInput);
+    let mut input = parse_macro_input!(input as UiWidgetInput);
 
     let mut fn_ = input.fn_;
+    let uses = input.uses;
 
     if fn_.sig.output == ReturnType::Default {
         abort!(fn_.sig.span(), "Function must return an Ui")
     }
 
-    let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
+    let (doc_attrs, other_attrs) = extract_attributes(&mut input.attrs);
+    let (_, fn_other_attrs) = extract_attributes(&mut fn_.attrs);
 
-    let vis = match fn_.vis {
+    let macro_vis = match fn_.vis {
         Visibility::Public(_) => {
             quote! {
                 #[macro_export]
@@ -34,6 +36,10 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
         _ => TokenStream::new(),
     };
     let ident = fn_.sig.ident.clone();
+    fn_.sig.ident = Ident::new("new", ident.span());
+    let vis = fn_.vis;
+    fn_.vis = pub_vis();
+
     let mut arg_names = vec![];
 
     if fn_.sig.inputs.is_empty() {
@@ -65,11 +71,14 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     };
 
     let result = quote! {
-        #(#docs_attrs)*
-        #vis
+        #(#doc_attrs)*
+        #(#other_attrs)*
+        #macro_vis
         macro_rules! #ident {
             #macro_args => {
                 custom_ui!{
+                    $crate
+                    #(#uses)*
                     #child_properties
                     #self_properties
                     args {$($tt)*}
@@ -78,13 +87,25 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
             };
         }
 
-        #[doc(hidden)]
-        #[inline]
-         #(#other_attrs)*
-        #fn_
+        #vis mod #ident {
+            #(#uses)*
+            use super::*;
+
+            #[inline]
+            #(#fn_other_attrs)*
+            #fn_
+        }
     };
 
     result.into()
+}
+
+fn pub_vis() -> Visibility {
+    Visibility::Public(VisPublic {
+        pub_token: syn::token::Pub {
+            span: Span::call_site(),
+        },
+    })
 }
 
 /// `#[ui_property]` implementation.
@@ -94,11 +115,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
     let vis = fn_.vis;
 
     fn_.sig.ident = Ident::new("set", ident.span());
-    fn_.vis = Visibility::Public(VisPublic {
-        pub_token: syn::token::Pub {
-            span: Span::call_site(),
-        },
-    });
+    fn_.vis = pub_vis();
 
     if fn_.sig.output == ReturnType::Default {
         abort_call_site!("Function must return an Ui")
@@ -256,17 +273,40 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
     result.into()
 }
 
+struct CrateToCrateName {
+    crate_ident: Ident,
+}
+
+impl VisitMut for CrateToCrateName {
+    fn visit_ident_mut(&mut self, i: &mut Ident) {
+        if i == &ident("crate") {
+            *i = self.crate_ident.clone();
+        }
+    }
+}
+
 /// `custom_ui!` implementation.
+#[allow(clippy::cognitive_complexity)]
 pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let CustomUiInput {
+        crate_ident,
         child,
         fn_name,
         child_properties,
         self_properties,
         args,
         fn_arg_names,
+        mut uses,
         ..
     } = parse_macro_input!(input as CustomUiInput);
+
+    if !uses.is_empty() && crate_ident != ident("crate") {
+        let mut crate_visitor = CrateToCrateName { crate_ident };
+
+        for use_ in uses.iter_mut() {
+            crate_visitor.visit_use_tree_mut(&mut use_.tree);
+        }
+    }
 
     let mut args: HashMap<_, _> = args.into_iter().map(|p| (p.name.clone(), p)).collect();
 
@@ -347,13 +387,15 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
     // let child = margin::set(child, 4.0);
     // let child = prop::set(child, 4.0);
 
-    let result = quote! {
+    let result = quote! {{
+        #(#uses);*
+
         let child = #child;
         #(#expanded_child_props)*
-        let child = #fn_name(child, #(#expanded_fn_args),*);
+        let child = #fn_name::new(child, #(#expanded_fn_args),*);
         #(#expanded_props)*
         $crate::primitive::ui_item(child, #id)
-    };
+    }};
 
     result.into()
 }
@@ -557,27 +599,33 @@ struct UiWidgetInput {
     child_properties: CustomUiProperties,
     self_properties: CustomUiProperties,
     fn_: ItemFn,
+    uses: Vec<ItemUse>,
+    attrs: Vec<Attribute>,
 }
 
 impl Parse for UiWidgetInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut child_properties = None;
-        let mut self_properties = None;
+        let mut child_props = None;
+        let mut self_props = None;
         let mut fn_ = None;
+        let mut attrs = vec![];
+        let mut uses = vec![];
 
         while !input.is_empty() {
+            attrs.extend(Attribute::parse_inner(input)?);
+
             if input.peek(keyword::child_properties) {
-                if child_properties.is_some() {
+                if child_props.is_some() {
                     let span = input.parse::<Ident>()?.span();
                     return Err(Error::new(span, "`child_properties` is defined multiple times"));
                 }
-                child_properties = Some(input.parse()?)
+                child_props = Some(input.parse()?)
             } else if input.peek(keyword::self_properties) {
-                if self_properties.is_some() {
+                if self_props.is_some() {
                     let span = input.parse::<Ident>()?.span();
                     return Err(Error::new(span, "`self_properties` is defined multiple times"));
                 }
-                self_properties = Some(input.parse()?)
+                self_props = Some(input.parse()?)
             } else {
                 let item = input.parse::<Item>()?;
                 match item {
@@ -587,7 +635,7 @@ impl Parse for UiWidgetInput {
                         }
                         fn_ = Some(f)
                     }
-                    Item::Use(u) => todo!(),
+                    Item::Use(u) => uses.push(u),
                     item => return Err(Error::new(item.span(), "unexpected token")),
                 }
             }
@@ -595,10 +643,11 @@ impl Parse for UiWidgetInput {
 
         if let Some(fn_) = fn_ {
             Ok(UiWidgetInput {
-                child_properties: child_properties
-                    .unwrap_or_else(|| CustomUiProperties::empty(ident("child_properties"))),
-                self_properties: self_properties.unwrap_or_else(|| CustomUiProperties::empty(ident("self_properties"))),
+                child_properties: child_props.unwrap_or_else(|| CustomUiProperties::empty(ident("child_properties"))),
+                self_properties: self_props.unwrap_or_else(|| CustomUiProperties::empty(ident("self_properties"))),
                 fn_,
+                attrs,
+                uses,
             })
         } else {
             Err(Error::new(Span::call_site(), "expected a function declaration"))
@@ -607,6 +656,8 @@ impl Parse for UiWidgetInput {
 }
 
 struct CustomUiInput {
+    crate_ident: Ident,
+    uses: Vec<ItemUse>,
     child_properties: CustomUiProperties,
     self_properties: CustomUiProperties,
     args: Punctuated<Property, Token![;]>,
@@ -617,6 +668,10 @@ struct CustomUiInput {
 
 impl Parse for CustomUiInput {
     fn parse(input: ParseStream) -> Result<Self> {
+        // $crate
+        //
+        // use x;
+        //
         // child_properties {
         //     padding -> margin;
         //     content_align -> align: CENTER;
@@ -634,6 +689,13 @@ impl Parse for CustomUiInput {
         // }
         //
         // fn button(on_click);
+
+        let crate_ident = input.parse()?;
+
+        let mut uses = vec![];
+        while input.peek(Token![use]) {
+            uses.push(input.parse()?);
+        }
 
         let child_properties = input.parse()?;
         let self_properties = input.parse()?;
@@ -654,6 +716,8 @@ impl Parse for CustomUiInput {
         let fn_arg_names = Punctuated::parse_separated_nonempty(&inner)?;
 
         Ok(CustomUiInput {
+            crate_ident,
+            uses,
             child_properties,
             self_properties,
             args,

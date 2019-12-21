@@ -56,6 +56,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
         };
 
         => button! {
+            // TODO better error when there is no property set.
             padding: 4.;
             on_click: |bi, u|{
                 println!("button click {:?}", bi)
