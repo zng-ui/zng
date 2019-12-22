@@ -1,5 +1,4 @@
 use proc_macro2::{Span, TokenStream};
-use proc_macro_error::*;
 use std::collections::HashSet;
 use syn::parse::{Parse, ParseStream, Result};
 use syn::spanned::Spanned;

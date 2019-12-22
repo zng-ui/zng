@@ -1,5 +1,4 @@
 use proc_macro2::{Punct, Spacing, Span, TokenStream};
-use proc_macro_error::*;
 use quote::{ToTokens, TokenStreamExt};
 use std::collections::HashMap;
 use syn::spanned::Spanned;
@@ -311,29 +310,28 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
     let mut args: HashMap<_, _> = args.into_iter().map(|p| (p.name.clone(), p)).collect();
 
     // takes required arguments.
-    let expanded_fn_args: Vec<_> = fn_arg_names
-        .into_iter()
-        .map(|a| {
-            if let Some(p) = args.remove(&a) {
-                if let PropertyArgs::Exprs(exprs) = p.args {
-                    if exprs.len() > 1 {
-                        // arg: 10, 20;
-                        abort!(p.name.span(), "expected single unamed argument for `{}`", p.name);
-                    } else {
-                        // arg: 10;
-                        exprs.into_iter().next().unwrap()
-                    }
-                } else {
-                    // arg: {
-                    //     sub_arg: 10;
-                    // };
+    let mut expanded_fn_args = Vec::with_capacity(fn_arg_names.len());
+
+    for a in fn_arg_names {
+        if let Some(p) = args.remove(&a) {
+            if let PropertyArgs::Exprs(exprs) = p.args {
+                if exprs.len() > 1 {
+                    // arg: 10, 20;
                     abort!(p.name.span(), "expected single unamed argument for `{}`", p.name);
+                } else {
+                    // arg: 10;
+                    expanded_fn_args.push(exprs.into_iter().next().unwrap())
                 }
             } else {
-                abort_call_site!("missing required parameter `{}`", a)
+                // arg: {
+                //     sub_arg: 10;
+                // };
+                abort!(p.name.span(), "expected single unamed argument for `{}`", p.name);
             }
-        })
-        .collect();
+        } else {
+            abort_call_site!("missing required parameter `{}`", a)
+        }
+    }
 
     // takes or generates properties.
     let child_properties = take_properties(&mut args, child_properties.properties);
@@ -731,14 +729,11 @@ impl Parse for CustomUiInput {
 fn parse_properties(input: ParseStream) -> Result<Punctuated<Property, Token![;]>> {
     let mut punctuated = Punctuated::new();
 
-    loop {
+    while !input.is_empty() && !<Token![=>]>::peek(input.cursor()) {
         let value = input.parse()?;
         punctuated.push_value(value);
         let punct = input.parse()?;
         punctuated.push_punct(punct);
-        if <Token![=>]>::peek(input.cursor()) {
-            break;
-        }
     }
 
     Ok(punctuated)
