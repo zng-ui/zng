@@ -1,3 +1,5 @@
+//! Utilities for testing Uis.
+
 use crate::core::*;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -122,6 +124,44 @@ pub fn test_next_update() -> NextUpdate {
 
     NextUpdate::new(sender)
 }
+
+pub fn test_ui_root(
+    initial_size: LayoutSize,
+    initial_dpi_factor: f32,
+    init: Box<dyn FnOnce(&mut NextUpdate) -> Box<dyn Ui>>,
+) -> (FakeRenderer, UiRoot) {
+    use std::thread;
+    use webrender::api::{channel::*, ApiMsg, IdNamespace, RenderApiSender};
+
+    let (msg_sender, msg_receiver) = msg_channel().unwrap();
+    let (payload_sender, _payload_receiver) = payload_channel().unwrap();
+
+    let fake_server = thread::spawn(move || loop {
+        match msg_receiver.recv().expect("fake renderer error") {
+            ApiMsg::CloneApi(r) => r.send(IdNamespace(1)).expect("fake renderer error"),
+            ApiMsg::AddDocument(_id, _initial_size, _layer) => {}
+            ApiMsg::UpdateDocument(_id, _msg) => {}
+            ApiMsg::UpdateResources(_updates) => {}
+            ApiMsg::GetGlyphIndices(_font_key, _text, tx) => tx.send(vec![]).expect("fake renderer error"),
+            ApiMsg::GetGlyphDimensions(_instance_key, _glyph_indices, tx) => {
+                tx.send(vec![]).expect("fake renderer error")
+            }
+            other => panic!("fake renderer error, does not handle `{:?}`", other),
+        }
+        //let _ = payload_receiver.recv().expect("fake renderer error");
+    });
+
+    let sender = RenderApiSender::new(msg_sender, payload_sender);
+    let api = sender.create_api();
+
+    (
+        FakeRenderer(fake_server),
+        UiRoot::new(api, sender, initial_size, initial_dpi_factor, init),
+    )
+}
+
+/// Fake render API backend, must be kept alive for the duration of the test.
+pub struct FakeRenderer(std::thread::JoinHandle<std::io::Result<()>>);
 
 pub fn test_modifiers_state() -> ModifiersState {
     ModifiersState {
