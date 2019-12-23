@@ -204,6 +204,7 @@ pub trait SwitchCommit {
 ///
 /// ## See also
 /// * [IntoValue]: For making constructors.
+/// * [MergeValues2]: For combining values.
 pub trait Value<T>: private::Sealed + Deref<Target = T> + 'static {
     /// If the value was set in the last update.
     fn touched(&self) -> bool;
@@ -700,6 +701,96 @@ impl<T: 'static, V0: Value<T>, V1: Value<T>> Value<T> for SwitchVar2<T, V0, V1> 
     /// Returns an instance of [ValueMap] that holds a strong reference to this
     /// variable and applies the `map` function every time this variable is [touched](Value::touched).
     fn map<B, M: FnMut(&T) -> B>(&self, map: M) -> ValueMap<T, Self, B, M> {
+        ValueMap::with_source(Self::clone(self), map)
+    }
+}
+
+struct MergeValues2Data<T1, T2, R, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R> {
+    _t1: PhantomData<T1>,
+    _t2: PhantomData<T2>,
+    v1: V1,
+    v2: V2,
+    merge: RefCell<M>,
+    cached_version: Cell<u64>,
+    cached: Cell<R>,
+}
+
+/// [Value] produced by two other values. Stays in sync with source values.
+pub struct MergeValues2<T1, T2, R, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R> {
+    r: Rc<MergeValues2Data<T1, T2, R, V1, V2, M>>,
+}
+
+impl<T1: 'static, T2: 'static, R: 'static, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R + 'static>
+    MergeValues2<T1, T2, R, V1, V2, M>
+{
+    pub fn new(v1: V1, v2: V2, mut merge: M) -> Self {
+        let r = merge(&*v1, &*v2);
+        let r = MergeValues2 {
+            r: Rc::new(MergeValues2Data {
+                _t1: PhantomData,
+                _t2: PhantomData,
+                v1,
+                v2,
+                merge: RefCell::new(merge),
+                cached: Cell::new(r),
+                cached_version: Cell::new(0),
+            }),
+        };
+        r.r.cached_version.set(r.version());
+        r
+    }
+}
+
+impl<T1, T2, R, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R> Clone for MergeValues2<T1, T2, R, V1, V2, M> {
+    fn clone(&self) -> Self {
+        MergeValues2 { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T1: 'static, T2: 'static, R: 'static, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R + 'static> Deref
+    for MergeValues2<T1, T2, R, V1, V2, M>
+{
+    type Target = R;
+
+    fn deref(&self) -> &R {
+        let source_version = self.version();
+        if source_version != self.r.cached_version.get() {
+            self.r
+                .cached
+                .set((&mut *self.r.merge.borrow_mut())(&*self.r.v1, &*self.r.v2));
+            self.r.cached_version.set(source_version);
+        }
+
+        unsafe { &*self.r.cached.as_ptr() }
+    }
+}
+
+impl<T1, T2, R, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R> private::Sealed
+    for MergeValues2<T1, T2, R, V1, V2, M>
+{
+}
+
+impl<T1: 'static, T2: 'static, R: 'static, V1: Value<T1>, V2: Value<T2>, M: FnMut(&T1, &T2) -> R + 'static> Value<R>
+    for MergeValues2<T1, T2, R, V1, V2, M>
+{
+    fn touched(&self) -> bool {
+        self.r.v1.touched() || self.r.v2.touched()
+    }
+
+    /// Gets the value version. It is different every time the value gets [touched](Value::touched).
+    fn version(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::Hasher;
+
+        let mut version = DefaultHasher::new();
+        version.write_u64(self.r.v1.version());
+        version.write_u64(self.r.v2.version());
+        version.finish()
+    }
+
+    /// Returns an instance of [ValueMap] that holds a strong reference to this
+    /// variable and applies the `map` function every time this variable is [touched](Value::touched).
+    fn map<B, N: FnMut(&R) -> B>(&self, map: N) -> ValueMap<R, Self, B, N> {
         ValueMap::with_source(Self::clone(self), map)
     }
 }
