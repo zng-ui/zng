@@ -142,6 +142,7 @@ pub fn test_ui_root(
             ApiMsg::AddDocument(_id, _initial_size, _layer) => {}
             ApiMsg::UpdateDocument(_id, _msg) => {}
             ApiMsg::UpdateResources(_updates) => {}
+            ApiMsg::ClearNamespace(_) => {}
             ApiMsg::GetGlyphIndices(_font_key, _text, tx) => tx.send(vec![]).expect("fake renderer error"),
             ApiMsg::GetGlyphDimensions(_instance_key, _glyph_indices, tx) => {
                 tx.send(vec![]).expect("fake renderer error")
