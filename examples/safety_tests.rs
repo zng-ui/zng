@@ -5,6 +5,7 @@ fn main() {
     custom_run();
 }
 
+#[allow(unused)]
 fn normal_run() {
     let data = Var::new(vec![0; 1024]);
     let bad = &*data;
@@ -26,9 +27,10 @@ fn normal_run() {
         }
     });
 
-    println!("dangling: {:?}", bad[0]);
+    //println!("dangling: {:?}", bad[0]);
 }
 
+#[allow(unused)]
 fn custom_run() {
     let data = Var::new(vec![0; 1024]);
     let bad = &*data;
