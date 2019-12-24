@@ -30,7 +30,7 @@ impl<T: Ui, C: Value<CursorIcon>> Ui for Cursor<T, C> {
 ///
 /// # Example
 /// ```
-/// # use zero_ui::primitive::{text, cursor};
+/// # use zero_ui::properties::{text, cursor};
 /// # use zero_ui::core::CursorIcon;
 /// # use zero_ui::ui;
 /// ui! {

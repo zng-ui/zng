@@ -1,7 +1,10 @@
 //#![windows_subsystem = "windows"]
 #![recursion_limit = "512"]
 
-use zero_ui::{core::*, primitive::*, widget::*, *};
+#[macro_use]
+extern crate zero_ui;
+
+use zero_ui::prelude::*;
 
 fn main() {
     //start_logger_for("test");
@@ -58,7 +61,7 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
         => button! {
             padding: 4.;
             on_click: |bi, u|{
-                println!("button click {:?}", bi)
+                teste_panic();
             };
 
             => text(txt)
@@ -85,4 +88,9 @@ fn item(_: usize, txt: &'static str) -> impl Ui {
 
         => center(text)
     }
+}
+
+#[inline(never)]
+fn teste_panic() {
+    panic!("button click");
 }

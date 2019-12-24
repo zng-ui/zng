@@ -70,8 +70,7 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     };
 
     let result = quote! {
-        #(#doc_attrs)*
-        #(#other_attrs)*
+        #[doc(hidden)]
         #macro_vis
         macro_rules! #ident {
             #macro_args => {
@@ -86,6 +85,8 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
             };
         }
 
+        #(#doc_attrs)*
+        #(#other_attrs)*
         #vis mod #ident {
             #(#uses)*
             use super::*;
@@ -265,7 +266,7 @@ fn gen_ui_impl(input: proc_macro::TokenStream, is_ui_part: bool) -> proc_macro::
         quote! {{
             let child = #child;
             #(#expanded_props)*
-            $crate::primitive::ui_item(child, #id)
+            $crate::properties::ui_item(child, #id)
         }}
     };
 
@@ -392,7 +393,7 @@ pub(crate) fn gen_custom_ui_init(input: proc_macro::TokenStream) -> proc_macro::
         #(#expanded_child_props)*
         let child = #fn_name::new(child, #(#expanded_fn_args),*);
         #(#expanded_props)*
-        $crate::primitive::ui_item(child, #id)
+        $crate::properties::ui_item(child, #id)
     }};
 
     result.into()
@@ -610,7 +611,12 @@ impl Parse for UiWidgetInput {
         let mut uses = vec![];
 
         while !input.is_empty() {
-            attrs.extend(Attribute::parse_inner(input)?);
+            attrs.extend(Attribute::parse_inner(input)?
+                .into_iter()
+                .map(|mut a| {
+                    a.style = AttrStyle::Outer;
+                    a
+                }));
 
             if input.peek(keyword::child_properties) {
                 if child_props.is_some() {

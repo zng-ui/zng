@@ -115,11 +115,6 @@ impl<T: Ui, A: Value<Alignment>> Align<T, A> {
 
 pub const CENTER: Alignment = Alignment(0.5, 0.5);
 
-#[inline]
-pub fn center(child: impl Ui) -> impl Ui {
-    align::set(child, CENTER)
-}
-
 #[ui_property]
 pub fn align(child: impl Ui, alignment: impl IntoValue<Alignment>) -> impl Ui {
     Align::new(child, alignment.into_value())

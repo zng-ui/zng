@@ -103,6 +103,7 @@ impl UiValues {
     }
 
     /// Calls `action` with self, during that call [UiValues::item] is the `item` argument.
+    #[inline]
     pub(crate) fn item_scope(&mut self, item: UiItemId, action: impl FnOnce(&mut UiValues)) {
         let old_item = self.item;
         self.item = item;

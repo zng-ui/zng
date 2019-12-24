@@ -58,7 +58,7 @@ impl<D: 'static, U: Ui, P: FnMut(&Var<D>, &mut NextUpdate) -> ViewUi<U> + 'stati
 ///
 /// # Example
 /// ```
-/// # use zero_ui::{core::*, primitive::*, *};
+/// # use zero_ui::{core::*, properties::*, *};
 /// fn countdown(n: Var<usize>) -> impl Ui {
 ///     enum State {
 ///         Blank,

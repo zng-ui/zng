@@ -1,4 +1,10 @@
-use zero_ui::{core::*, primitive::*, widget::*, *};
+#![recursion_limit="256"]
+
+#[macro_use]
+extern crate zero_ui;
+
+use zero_ui::prelude::*;
+use zero_ui::test;
 
 fn main() {
     //normal_run();

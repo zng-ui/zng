@@ -1,6 +1,6 @@
 use super::*;
 use crate::app::Focused;
-use crate::primitive::{FocusScope, FocusScopeConfig};
+use crate::properties::{FocusScope, FocusScopeConfig};
 use webrender::api::*;
 
 /// Root of an [Ui] tree. This is usually only used internally,

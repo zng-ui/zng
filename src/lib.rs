@@ -1,5 +1,15 @@
 #![warn(unused_extern_crates)]
 
+//! Zero-Ui is a pure Rust UI framework.
+//!
+//! # Example
+//! ```
+//! #[macro_use]
+//! extern crate zero_ui;
+//!
+//! use zero_ui::prelude::*;
+//! ```
+
 #[macro_use]
 extern crate derive_new;
 
@@ -22,7 +32,7 @@ pub use zero_ui_macros::custom_ui;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::{ui, primitive::*};
+/// # use zero_ui::{ui, properties::*};
 /// #
 /// let item = ui! {
 ///     font_family: "serif";
@@ -41,7 +51,7 @@ pub use zero_ui_macros::ui;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::{ui_part, primitive::*};
+/// # use zero_ui::{ui_part, properties::*};
 /// # let message = "message";
 /// #
 /// let msg_part = ui_part! {
@@ -54,9 +64,18 @@ pub use zero_ui_macros::ui;
 pub use zero_ui_macros::ui_part;
 
 pub mod core;
-pub mod primitive;
-pub mod widget;
+pub mod layouts;
+pub mod properties;
+pub mod widgets;
 
 pub mod app;
 
 pub mod test;
+
+pub mod prelude {
+    pub use crate::app;
+    pub use crate::core::*;
+    pub use crate::layouts::*;
+    pub use crate::properties::*;
+    pub use crate::widgets::*;
+}

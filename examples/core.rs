@@ -1,6 +1,9 @@
 //#![windows_subsystem = "windows"]
 
-use zero_ui::{core::*, primitive::*, *};
+#[macro_use]
+extern crate zero_ui;
+
+use zero_ui::prelude::*;
 
 fn main() {
     //start_logger_for("gradient_text");

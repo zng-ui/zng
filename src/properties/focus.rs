@@ -1,4 +1,4 @@
-use super::event::STOP_KEY_DOWN;
+use super::events::STOP_KEY_DOWN;
 use crate::core::*;
 
 #[derive(new)]

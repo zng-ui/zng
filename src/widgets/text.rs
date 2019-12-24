@@ -1,5 +1,5 @@
 use crate::core::*;
-use crate::primitive::set_parent_val;
+use crate::properties::set_parent_val;
 use std::borrow::Cow;
 use webrender::api::*;
 

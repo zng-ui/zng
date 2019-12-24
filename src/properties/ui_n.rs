@@ -10,7 +10,7 @@ macro_rules! ui_n {
         ///
         /// # Example
         /// ```
-        /// # use zero_ui::{core::*, primitive::*, *};
+        /// # use zero_ui::{core::*, properties::*, *};
         /// # fn restart_btn() -> impl Ui { text("Restart") }
         /// #
         /// fn countdown(n: usize) -> impl Ui {

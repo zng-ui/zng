@@ -1,5 +1,5 @@
 use crate::core::*;
-use crate::primitive::*;
+use crate::properties::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -33,7 +33,24 @@ impl ButtonInput {
 
 // Declares a button! {} macro.
 ui_widget! {
-    //use crate::primitive::*;
+    //! Button widget.
+    //! # Arguments
+    //! * `on_click`: Required button click event handler.
+    //! * `padding`: Margin around the button content.
+    //! * `background_color`:
+    //! * `border`:
+    //!
+    //! # Examples
+    //! ```
+    //! use crate::widgets::text;
+    //!
+    //! button! {
+    //!     on_click: |_, _| { println!("Button clicked!") };
+    //!     => text("Click Me!")
+    //! }
+    //! ```
+
+    use crate::properties::*;
 
     // Properties applied to child before calling widget fn.
     child_properties {
@@ -56,12 +73,6 @@ ui_widget! {
     // widget signature, must name the parameters after child,
     // they behave like required properties in the declared button! macro.
 
-    /// Button widget.
-    /// # Arguments
-    /// * `on_click`: Required button click event handler.
-    /// * `padding`: Margin around the button content.
-    /// * `background_color`:
-    /// * `border`:
     pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
         let on_click = Rc::new(RefCell::new(on_click));
         ui_part! {
@@ -91,7 +102,7 @@ ui_widget! {
     //! * `background_color`:
     //! * `border`:
 
-    use $crate::primitive::*;
+    use $crate::properties::*;
 
      // Properties applied to child before calling widget fn.
      properties(child) {
