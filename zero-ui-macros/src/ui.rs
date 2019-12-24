@@ -611,12 +611,10 @@ impl Parse for UiWidgetInput {
         let mut uses = vec![];
 
         while !input.is_empty() {
-            attrs.extend(Attribute::parse_inner(input)?
-                .into_iter()
-                .map(|mut a| {
-                    a.style = AttrStyle::Outer;
-                    a
-                }));
+            attrs.extend(Attribute::parse_inner(input)?.into_iter().map(|mut a| {
+                a.style = AttrStyle::Outer;
+                a
+            }));
 
             if input.peek(keyword::child_properties) {
                 if child_props.is_some() {
