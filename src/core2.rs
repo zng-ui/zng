@@ -82,15 +82,14 @@ impl<T> StrongUpdateNotifier<T> {
             is_high_pressure,
         });
 
-        StrongUpdateNotifier{note}
+        StrongUpdateNotifier { note }
     }
-    pub fn listener(&self) -> UpdateNotice<T>{
-        UpdateNotice{
-            note: Rc::clone(&self.note)
+    pub fn listener(&self) -> UpdateNotice<T> {
+        UpdateNotice {
+            note: Rc::clone(&self.note),
         }
     }
 }
-
 
 /// [UpdateSender] has no linked [UpdateListener] alive so the channel was droped.
 #[derive(Debug)]
@@ -408,13 +407,13 @@ impl EventNotifier for MouseDown {
 }
 
 pub struct MouseEvents {
-    mouse_down: StrongUpdateNotifier<MouseDownArgs>
+    mouse_down: StrongUpdateNotifier<MouseDownArgs>,
 }
 
 impl Default for MouseEvents {
     fn default() -> Self {
         MouseEvents {
-            mouse_down: StrongUpdateNotifier::new(false, MouseDownArgs{})
+            mouse_down: StrongUpdateNotifier::new(false, MouseDownArgs {}),
         }
     }
 }
@@ -498,7 +497,7 @@ impl<E: AppExtension> App<E> {
                 _ => {}
             }
 
-            if !in_event_sequence{
+            if !in_event_sequence {
                 let updates = event_update.apply();
 
                 if updates.contains(UpdateFlags::UPDATE) {

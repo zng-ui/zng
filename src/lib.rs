@@ -66,6 +66,7 @@ pub use zero_ui_macros::ui;
 pub use zero_ui_macros::ui_part;
 
 pub mod core;
+pub mod core2;
 pub mod layouts;
 pub mod properties;
 pub mod widgets;
