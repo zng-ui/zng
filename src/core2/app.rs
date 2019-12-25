@@ -1,10 +1,12 @@
 use super::{EventUpdate, KeyboardEvents, MouseEvents, UpdateFlags, UpdateNotice};
 use crate::core::WebRenderEvent;
 use fnv::FnvHashMap;
-use glutin::event::{DeviceEvent, DeviceId, Event, WindowEvent};
+use glutin::event::Event;
 use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowId;
 use std::any::{Any, TypeId};
+
+pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
+pub use glutin::window::WindowId;
 
 #[derive(Default)]
 pub struct AppRegister {

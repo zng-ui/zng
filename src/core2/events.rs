@@ -1,6 +1,4 @@
-use super::{AppExtension, AppRegister, EventNotifier, EventUpdate, UpdateNotifier};
-use glutin::event::{DeviceEvent, DeviceId, Event, WindowEvent};
-use glutin::window::WindowId;
+use super::{AppExtension, AppRegister, EventNotifier, EventUpdate, UpdateNotifier, WindowEvent, WindowId};
 
 pub struct MouseDownArgs {}
 pub struct MouseDown {}

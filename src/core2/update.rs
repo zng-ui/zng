@@ -87,7 +87,7 @@ impl<T> UpdateNotifier<T> {
 bitflags! {
     /// What to pump in a Ui tree after an update is applied.
     #[derive(Default)]
-    pub struct UpdateFlags: u8 {
+    pub(crate) struct UpdateFlags: u8 {
         const UPDATE = 0b0000_0001;
         const UPD_HP = 0b0000_0010;
         const LAYOUT = 0b0000_0100;
@@ -128,7 +128,7 @@ impl EventUpdate {
 
     /// Returns what updates where applied.
     #[inline]
-    pub fn apply(&mut self) -> UpdateFlags {
+    pub(crate) fn apply(&mut self) -> UpdateFlags {
         std::mem::replace(&mut self.update, UpdateFlags::empty())
     }
 }

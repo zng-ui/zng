@@ -1,5 +1,7 @@
 use super::NextUpdate;
-use crate::core::{LayoutSize, NextFrame, UiValues};
+use crate::core::{NextFrame, UiValues};
+
+pub use webrender::api::LayoutSize;
 
 /// An Ui tree node.
 pub trait UiNode: 'static {
