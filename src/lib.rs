@@ -12,6 +12,8 @@
 
 #[macro_use]
 extern crate derive_new;
+#[macro_use]
+extern crate bitflags;
 
 #[macro_use]
 mod macros;

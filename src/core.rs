@@ -1,3 +1,4 @@
+mod core2;
 mod focus;
 mod font;
 mod hittest;
@@ -10,6 +11,10 @@ mod ui;
 mod ui_root;
 mod ui_values;
 mod window;
+
+pub mod so_anoying {
+    pub use super::core2::*;
+}
 
 pub(crate) use zero_ui_macros::impl_ui_crate;
 pub use zero_ui_macros::{ui_property, ui_widget};
