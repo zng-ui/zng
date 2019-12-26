@@ -1,6 +1,10 @@
 use super::{AppExtension, AppRegister, EventNotifier, EventUpdate, UpdateNotifier, WindowEvent, WindowId};
 
+/// [MouseDown] event args.
+#[derive(Debug, Clone)]
 pub struct MouseDownArgs {}
+
+/// Mouse down event.
 pub struct MouseDown {}
 
 impl EventNotifier for MouseDown {
@@ -14,7 +18,7 @@ pub struct MouseEvents {
 impl Default for MouseEvents {
     fn default() -> Self {
         MouseEvents {
-            mouse_down: UpdateNotifier::new(false, MouseDownArgs {}),
+            mouse_down: UpdateNotifier::new(false),
         }
     }
 }

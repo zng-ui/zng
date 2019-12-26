@@ -51,7 +51,7 @@ impl<T: 'static> Var<T> for UpdateNotice<T> {
     type RefType = Self;
 
     fn borrow(&self) -> Ref<T> {
-        UpdateNotice::last_update(self)
+        UpdateNotice::last_update(self).expect("no `last_update` found in `Var` context")
     }
 
     fn is_new(&self) -> bool {

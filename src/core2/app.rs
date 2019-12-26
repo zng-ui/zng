@@ -1,4 +1,4 @@
-use super::{EventUpdate, KeyboardEvents, MouseEvents, UpdateFlags, UpdateNotice};
+use super::{EventUpdate, KeyboardEvents, MouseEvents, UpdateFlags, UpdateNotice, WindowsExt};
 use crate::core::WebRenderEvent;
 use fnv::FnvHashMap;
 use glutin::event::Event;
@@ -11,6 +11,7 @@ pub use glutin::window::WindowId;
 #[derive(Default)]
 pub struct AppRegister {
     events: FnvHashMap<TypeId, Box<dyn Any>>,
+    services: FnvHashMap<TypeId, Box<dyn Any>>,
 }
 
 impl AppRegister {
@@ -18,12 +19,34 @@ impl AppRegister {
         self.events.insert(TypeId::of::<E>(), Box::new(listener));
     }
 
-    pub fn listener<E: EventNotifier>(&self) -> Option<UpdateNotice<E::Args>> {
+    pub fn register_service<S: Service>(&mut self, service: S) {
+        self.services.insert(TypeId::of::<S>(), Box::new(service));
+    }
+
+    pub fn try_listen<E: EventNotifier>(&self) -> Option<UpdateNotice<E::Args>> {
         if let Some(any) = self.events.get(&TypeId::of::<E>()) {
             any.downcast_ref::<UpdateNotice<E::Args>>().cloned()
         } else {
             None
         }
+    }
+
+    pub fn listen<E: EventNotifier>(&self) -> UpdateNotice<E::Args> {
+        self.try_listen::<E>()
+            .unwrap_or_else(|| panic!("event `{}` is required", std::any::type_name::<E>()))
+    }
+
+    pub fn try_service<S: Service>(&self) -> Option<&S> {
+        if let Some(any) = self.events.get(&TypeId::of::<S>()) {
+            any.downcast_ref::<S>()
+        } else {
+            None
+        }
+    }
+
+    pub fn service<S: Service>(&self) -> &S {
+        self.try_service::<S>()
+            .unwrap_or_else(|| panic!("service `{}` is required", std::any::type_name::<S>()))
     }
 }
 
@@ -63,9 +86,13 @@ impl AppExtension for () {
 /// Identifies an event type.
 pub trait EventNotifier: 'static {
     /// Event arguments.
-    type Args: 'static;
+    type Args: std::fmt::Debug + Clone + 'static;
 }
 
+/// Identifies a service type.
+pub trait Service: Clone + 'static {}
+
+/// Defines and runs an application.
 pub struct App<Exts: AppExtension> {
     extensions: Exts,
 }
@@ -92,13 +119,14 @@ impl<E: AppExtension> App<E> {
 
     /// Runs the application.
     pub fn run(self) -> ! {
-        let App { mut extensions } = self;
+        let mut extensions = (WindowsExt::default(), self.extensions);
 
         let mut register = AppRegister::default();
         extensions.register(&mut register);
 
         let event_loop = EventLoop::with_user_event();
         let mut in_event_sequence = false;
+        let mut event_squence_update = UpdateFlags::empty();
         let mut event_update = EventUpdate::default();
 
         event_loop.run(move |event, event_loop, control_flow| {
@@ -121,21 +149,27 @@ impl<E: AppExtension> App<E> {
                 _ => {}
             }
 
-            if !in_event_sequence {
-                let updates = event_update.apply();
+            let mut event_update = event_update.apply();
+            if event_update.contains(UpdateFlags::UPDATE) {
+                event_update.remove(UpdateFlags::UPDATE);
+                todo!();
+            }
+            if event_update.contains(UpdateFlags::UPD_HP) {
+                event_update.remove(UpdateFlags::UPD_HP);
+                todo!();
+            }
 
-                if updates.contains(UpdateFlags::UPDATE) {
+            event_squence_update |= event_update;
+
+            if !in_event_sequence {
+                if event_squence_update.contains(UpdateFlags::LAYOUT) {
                     todo!();
                 }
-                if updates.contains(UpdateFlags::UPD_HP) {
+                if event_squence_update.contains(UpdateFlags::RENDER) {
                     todo!();
                 }
-                if updates.contains(UpdateFlags::LAYOUT) {
-                    todo!();
-                }
-                if updates.contains(UpdateFlags::RENDER) {
-                    todo!();
-                }
+
+                event_squence_update = UpdateFlags::empty();
             }
         })
     }
