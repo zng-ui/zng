@@ -120,3 +120,29 @@ macro_rules! profile_scope {
             $crate::core::profiler::ProfileScope::new(format!($($args)+));
     };
 }
+
+/// Declares new [VisitedVar] types.
+#[macro_export]
+macro_rules! visited_var {
+    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty)+) => {$(
+        $(#[&outer])*
+        $vis enum $ident {}
+
+        impl $crate::core2::VisitedVar for $ident {
+            type Type = $type;
+        }
+    )+};
+}
+
+/// Declares new [ContextVar] types.
+#[macro_export]
+macro_rules! context_var {
+    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty;)+) => {$(
+        $(#[$outer])*
+        $vis struct $ident;
+
+        impl $crate::core2::ContextVar for $ident {
+            type Type = $type;
+        }
+    )+};
+}

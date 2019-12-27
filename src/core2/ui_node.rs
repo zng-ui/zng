@@ -1,21 +1,21 @@
-use super::NextUpdate;
-use crate::core::{NextFrame, UiValues};
+use super::AppContext;
+use crate::core::NextFrame;
 
 pub use webrender::api::LayoutSize;
 
 /// An Ui tree node.
 pub trait UiNode: 'static {
     /// Called every time the node is plugged in an Ui tree.
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+    fn init(&mut self, ctx: &mut AppContext);
 
     /// Called every time the node is unplugged from an Ui tree.
-    fn deinit(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+    fn deinit(&mut self, ctx: &mut AppContext);
 
     /// Called every time a low pressure event update happens.
     ///
     /// # Event Pressure
     /// See [update_hp] for more information about event pressure rate.
-    fn update(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+    fn update(&mut self, ctx: &mut AppContext);
 
     /// Called every time a high pressure event update happens.
     ///
@@ -24,7 +24,7 @@ pub trait UiNode: 'static {
     /// event source may choose to be propagated in the this hight pressure lane.
     ///
     /// Event sources that are high pressure mention this in their documentation.
-    fn update_hp(&mut self, values: &mut UiValues, update: &mut NextUpdate);
+    fn update_hp(&mut self, ctx: &mut AppContext);
 
     /// Called every time a layout update is needed.
     ///
