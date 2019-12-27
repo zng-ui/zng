@@ -1,9 +1,10 @@
-use super::{ContextVar, KeyboardEvents, MouseEvents, SharedVar, UpdateNotice, UpdateNotifier, VisitedVar, WindowsExt};
+use super::{
+    ContextVar, Event, EventEmitter, EventListener, KeyboardEvents, MouseEvents, SharedVar, VisitedVar, WindowsExt,
+};
 use fnv::FnvHashMap;
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, Any, TypeId};
-use std::rc::Rc;
 
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
 pub use glutin::window::WindowId;
@@ -34,18 +35,8 @@ pub struct EventContext {
     ctx: AppContext,
 }
 
-impl EventContext {
-    pub fn new(ctx: AppContext) -> Self {
-        EventContext { ctx }
-    }
-
-    fn into_inner(self) -> AppContext {
-        self.ctx
-    }
-}
-
 impl AppRegister {
-    pub fn register_event<E: Event>(&mut self, listener: UpdateNotice<E::Args>) {
+    pub fn register_event<E: Event>(&mut self, listener: EventListener<E::Args>) {
         self.ctx.events.insert(TypeId::of::<E>(), Box::new(listener));
     }
 
@@ -79,17 +70,6 @@ bitflags! {
     }
 }
 
-/// Error caused by a call to `[notify_reuse](NextUpdate::notify_reuse)` when
-/// the notifier has no previous update.
-#[derive(Debug)]
-pub struct NoLastUpdate;
-impl std::error::Error for NoLastUpdate {}
-impl std::fmt::Display for NoLastUpdate {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "no `last_update`")
-    }
-}
-
 /// Provides access to app events and services.
 pub struct AppContext {
     id: AppContextId,
@@ -110,15 +90,15 @@ impl AppContext {
         self.id
     }
 
-    pub fn try_listen<E: Event>(&self) -> Option<UpdateNotice<E::Args>> {
+    pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
         if let Some(any) = self.events.get(&TypeId::of::<E>()) {
-            any.downcast_ref::<UpdateNotice<E::Args>>().cloned()
+            any.downcast_ref::<EventListener<E::Args>>().cloned()
         } else {
             None
         }
     }
 
-    pub fn listen<E: Event>(&self) -> UpdateNotice<E::Args> {
+    pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
     }
@@ -222,57 +202,24 @@ impl AppContext {
 
     /// Schedules a variable modification for the next update.
     pub fn push_change<T>(&mut self, var: SharedVar<T>, modify: impl FnOnce(&mut T) + 'static) {
+        self.update.insert(UpdateFlags::UPDATE);
+
         let self_id = self.id;
         self.updates
             .push(Box::new(move |cleanup| var.modify(self_id, modify, cleanup)));
     }
 
     /// Schedules an update notification.
-    pub fn push_notify<T: 'static>(&mut self, sender: &UpdateNotifier<T>, new_update: T) {
-        let note = Rc::clone(&sender.n.note);
-
-        self.update.insert(if note.is_high_pressure {
+    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, new_update: T) {
+        self.update.insert(if sender.is_high_pressure() {
             UpdateFlags::UPD_HP
         } else {
             UpdateFlags::UPDATE
         });
 
-        self.updates.push(Box::new(move |cleanup| {
-            *note.last_update.borrow_mut() = Some(new_update);
-            note.is_new.set(true);
-            cleanup.push(Box::new(move || note.is_new.set(false)));
-        }));
-    }
-
-    /// Schedules an update notification that only modifies the previous notification.
-    pub fn push_notify_reuse<T: 'static>(
-        &mut self,
-        sender: &UpdateNotifier<T>,
-        modify_update: impl FnOnce(&mut T) + 'static,
-    ) -> Result<(), NoLastUpdate> {
-        if sender.n.note.last_update.borrow().is_none() {
-            return Err(NoLastUpdate);
-        }
-
-        let note = Rc::clone(&sender.n.note);
-
-        self.update.insert(if note.is_high_pressure {
-            UpdateFlags::UPD_HP
-        } else {
-            UpdateFlags::UPDATE
-        });
-
-        self.updates.push(Box::new(move |cleanup| {
-            if let Some(note) = note.last_update.borrow_mut().as_mut() {
-                modify_update(note);
-            } else {
-                panic!("{}", NoLastUpdate)
-            }
-            note.is_new.set(true);
-            cleanup.push(Box::new(move || note.is_new.set(false)));
-        }));
-
-        Ok(())
+        let self_id = self.id;
+        self.updates
+            .push(Box::new(move |cleanup| sender.notify(self_id, new_update, cleanup)));
     }
 
     /// Cleanup the previous update and applies the new one.
@@ -332,12 +279,6 @@ impl AppExtension for () {
     fn register(&mut self, _: &mut AppRegister) {}
 }
 
-/// Identifies an event type.
-pub trait Event: 'static {
-    /// Event arguments.
-    type Args: std::fmt::Debug + Clone + 'static;
-}
-
 /// Identifies a service type.
 pub trait Service: Clone + 'static {}
 
@@ -381,7 +322,7 @@ impl<E: AppExtension> App<E> {
         let event_loop = EventLoop::with_user_event();
         let mut in_event_sequence = false;
         let mut event_squence_update = UpdateFlags::empty();
-        let mut context = EventContext::new(register.ctx);
+        let mut context = EventContext { ctx: register.ctx };
 
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;

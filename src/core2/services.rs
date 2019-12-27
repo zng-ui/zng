@@ -1,4 +1,6 @@
-use super::{AppContext, AppExtension, AppRegister, Event, Service, UiRoot, UpdateNotice, UpdateNotifier, WindowId};
+use super::{
+    AppContext, AppExtension, AppRegister, Event, EventArgs, EventEmitter, EventListener, Service, UiRoot, WindowId,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
@@ -9,8 +11,14 @@ pub struct NewWindow;
 /// [NewWindow] event args.
 #[derive(Debug, Clone)]
 pub struct NewWindowArgs {
-    pub time_stamp: Instant,
+    pub timestamp: Instant,
     pub window_id: WindowId,
+}
+
+impl EventArgs for NewWindowArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
 }
 
 impl Event for NewWindow {
@@ -19,14 +27,14 @@ impl Event for NewWindow {
 
 pub(crate) struct WindowsExt {
     service: Windows,
-    new_window: UpdateNotifier<NewWindowArgs>,
+    new_window: EventEmitter<NewWindowArgs>,
 }
 
 impl Default for WindowsExt {
     fn default() -> Self {
         WindowsExt {
             service: Windows::default(),
-            new_window: UpdateNotifier::new(false),
+            new_window: EventEmitter::new(false),
         }
     }
 }
@@ -40,7 +48,7 @@ impl AppExtension for WindowsExt {
 
 struct NewWindowRequest {
     new: Box<dyn FnOnce(&mut AppContext) -> UiRoot>,
-    notifier: UpdateNotifier<NewWindowArgs>,
+    notifier: EventEmitter<NewWindowArgs>,
 }
 
 /// Windows service.
@@ -57,10 +65,10 @@ impl Windows {
     pub fn new_window(
         &self,
         new_window: impl FnOnce(&mut AppContext) -> UiRoot + 'static,
-    ) -> UpdateNotice<NewWindowArgs> {
+    ) -> EventListener<NewWindowArgs> {
         let request = NewWindowRequest {
             new: Box::new(new_window),
-            notifier: UpdateNotifier::new(false),
+            notifier: EventEmitter::new(false),
         };
         let notice = request.notifier.listener();
         self.requests.borrow_mut().push(request);

@@ -20,6 +20,15 @@ pub trait Var<T: 'static> {
     /// The current value.
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T;
 
+    /// [get] if [is_new] or none.
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+        if self.is_new(ctx) {
+            Some(self.get(ctx))
+        } else {
+            None
+        }
+    }
+
     /// If the value changed this update.
     fn is_new(&self, ctx: &AppContext) -> bool;
 }
@@ -27,6 +36,10 @@ pub trait Var<T: 'static> {
 impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         ctx.get::<V>()
+    }
+
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+        ctx.try_get_new::<V>()
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
@@ -40,6 +53,10 @@ pub struct OwnedVar<T: 'static>(pub T);
 impl<T: 'static> Var<T> for OwnedVar<T> {
     fn get(&self, _: &AppContext) -> &T {
         &self.0
+    }
+
+    fn update<'a>(&'a self, _: &'a AppContext) -> Option<&'a T> {
+        None
     }
 
     fn is_new(&self, _: &AppContext) -> bool {
@@ -68,7 +85,7 @@ impl<T: 'static> SharedVar<T> {
         if let Some(ctx_id) = self.r.borrowed.get() {
             if ctx_id != mut_ctx_id {
                 panic!(
-                    "cannot set `Var<{}>` because it is borrowed in a different context",
+                    "cannot set `SharedVar<{}>` because it is borrowed in a different context",
                     type_name::<T>()
                 )
             }
