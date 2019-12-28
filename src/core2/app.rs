@@ -1,6 +1,4 @@
-use super::{
-    ContextVar, Event, EventEmitter, EventListener, KeyboardEvents, MouseEvents, SharedVar, VisitedVar, WindowsExt,
-};
+use super::*;
 use fnv::FnvHashMap;
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -33,6 +31,12 @@ impl Default for AppRegister {
 
 pub struct EventContext {
     ctx: AppContext,
+}
+
+impl EventContext {
+    pub fn app_context(&self) -> &AppContext {
+        &self.ctx
+    }
 }
 
 impl AppRegister {
@@ -116,24 +120,27 @@ impl AppContext {
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
     }
 
-    /// Get the context var value and if it is new or none if its not set.
-    pub fn try_get<V: ContextVar>(&self) -> Option<&V::Type> {
+    /// Get the context var value or default.
+    pub fn get<V: ContextVar>(&self) -> &V::Type {
         if let Some(ctx_var) = self.context_vars.get(&TypeId::of::<V>()) {
             // REFERENCE SAFETY: This is safe because context_vars are only inserted for the duration
             // of [with_var] that holds the reference.
-            Some(unsafe { &*(ctx_var.pointer as *const V::Type) })
+            unsafe { &*(ctx_var.pointer as *const V::Type) }
         } else {
-            None
+            V::default()
         }
     }
 
-    /// Gets if the context var value is new or none if its not set.
-    pub fn try_get_is_new<V: ContextVar>(&self) -> Option<bool> {
-        self.context_vars.get(&TypeId::of::<V>()).map(|v| v.is_new)
+    /// Gets if the context var value is new.
+    pub fn get_is_new<V: ContextVar>(&self) -> bool {
+        self.context_vars
+            .get(&TypeId::of::<V>())
+            .map(|v| v.is_new)
+            .unwrap_or_default()
     }
 
-    /// Get the context var value or none if its not set or is not new.
-    pub fn try_get_new<V: ContextVar>(&self) -> Option<&V::Type> {
+    /// Gets the context var value if it is new.
+    pub fn get_new<V: ContextVar>(&self) -> Option<&V::Type> {
         if let Some(ctx_var) = self.context_vars.get(&TypeId::of::<V>()) {
             if ctx_var.is_new {
                 // REFERENCE SAFETY: This is safe because context_vars are only inserted for the duration
@@ -156,26 +163,19 @@ impl AppContext {
         }
     }
 
-    /// Get the context var value and if it is new or panics if its not set.
-    pub fn get<V: ContextVar>(&self) -> &V::Type {
-        self.try_get::<V>()
-            .unwrap_or_else(|| panic!("context var `{}` is required", type_name::<V>()))
-    }
-
-    /// Gets if the context var value is new or panics if its not set.
-    pub fn get_is_new<V: ContextVar>(&self) -> bool {
-        self.try_get_is_new::<V>()
-            .unwrap_or_else(|| panic!("context var `{}` is required", type_name::<V>()))
-    }
-
     /// Get the visited var value or panics if its not set.
     pub fn get_visited<V: VisitedVar>(&self) -> &V::Type {
         self.try_get_visited::<V>()
             .unwrap_or_else(|| panic!("visited var `{}` is required", type_name::<V>()))
     }
 
+    /// Sets the visited var value for the rest of the update.
+    pub fn set_visited<V: VisitedVar>(&mut self, value: V::Type) {
+        self.visited_vars.insert(TypeId::of::<V>(), Box::new(value));
+    }
+
     /// Runs a function with the context var.
-    pub fn with_var<V: ContextVar>(&mut self, value: &V::Type, is_new: bool, f: impl FnOnce(&mut AppContext)) {
+    pub fn with_var<V: ContextVar>(&mut self, _: V, value: &V::Type, is_new: bool, f: impl FnOnce(&mut AppContext)) {
         let type_id = TypeId::of::<V>();
 
         let prev = self.context_vars.insert(
@@ -193,6 +193,19 @@ impl AppContext {
         } else {
             self.context_vars.remove(&type_id);
         }
+    }
+
+    /// Runs a function with the context var set from another var.
+    pub fn with_var_bind<V: ContextVar>(
+        &mut self,
+        context_var: V,
+        var: &impl Var<V::Type>,
+        f: impl FnOnce(&mut AppContext),
+    ) {
+        let value = var.get(self);
+        let is_new = var.is_new(self);
+        todo!();
+        //self.with_var(context_var, value, is_new, f)
     }
 
     /// Schedules a variable change for the next update.
@@ -234,6 +247,8 @@ impl AppContext {
             update(&mut self.cleanup);
         }
 
+        self.visited_vars.clear();
+
         std::mem::replace(&mut self.update, UpdateFlags::empty())
     }
 }
@@ -250,7 +265,7 @@ pub trait AppExtension: 'static {
     fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut EventContext) {}
 
     /// Called every update after the Ui update.
-    fn respond(&mut self) {}
+    fn respond(&mut self, _ctx: &mut EventContext) {}
 }
 
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
@@ -269,9 +284,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self) {
-        self.0.respond();
-        self.1.respond();
+    fn respond(&mut self, ctx: &mut EventContext) {
+        self.0.respond(ctx);
+        self.1.respond(ctx);
     }
 }
 
@@ -314,12 +329,13 @@ impl<E: AppExtension> App<E> {
 
     /// Runs the application.
     pub fn run(self) -> ! {
-        let mut extensions = (WindowsExt::default(), self.extensions);
+        let event_loop = EventLoop::with_user_event();
+
+        let mut extensions = (AppWindows::new(event_loop.create_proxy()), self.extensions);
 
         let mut register = AppRegister::default();
         extensions.register(&mut register);
 
-        let event_loop = EventLoop::with_user_event();
         let mut in_event_sequence = false;
         let mut event_squence_update = UpdateFlags::empty();
         let mut context = EventContext { ctx: register.ctx };
@@ -366,6 +382,9 @@ impl<E: AppExtension> App<E> {
 
                 event_squence_update = UpdateFlags::empty();
             }
+
+            extensions.0.new_windows(event_loop, &mut context);
+            extensions.respond(&mut context);
         })
     }
 }

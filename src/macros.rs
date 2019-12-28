@@ -137,12 +137,17 @@ macro_rules! visited_var {
 /// Declares new [ContextVar] types.
 #[macro_export]
 macro_rules! context_var {
-    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty;)+) => {$(
+    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty = $default:expr;)+) => {$(
         $(#[$outer])*
         $vis struct $ident;
 
         impl $crate::core2::ContextVar for $ident {
             type Type = $type;
+
+            fn default() -> &'static Self::Type {
+                static DEFAULT: Self::Type = $default;
+                &DEFAULT
+            }
         }
     )+};
 }

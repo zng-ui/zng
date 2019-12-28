@@ -7,6 +7,9 @@ use std::rc::Rc;
 pub trait ContextVar: 'static {
     /// The variable type.
     type Type: 'static;
+
+    /// Default value, used when the variable is not set in the context.
+    fn default() -> &'static Self::Type;
 }
 
 /// A variable value that is set by the previously visited UiNodes during the call.
@@ -33,13 +36,16 @@ pub trait Var<T: 'static> {
     fn is_new(&self, ctx: &AppContext) -> bool;
 }
 
+/// Boxed [Var].
+pub type BoxVar<T> = Box<dyn Var<T>>;
+
 impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         ctx.get::<V>()
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
-        ctx.try_get_new::<V>()
+        ctx.get_new::<V>()
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
