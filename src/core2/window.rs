@@ -16,7 +16,7 @@ use webrender::api::{DocumentId, RenderNotifier};
 pub use webrender::api::ColorF;
 
 /// New window event.
-pub struct NewWindow;
+pub enum NewWindow {}
 
 /// [NewWindow] event args.
 #[derive(Debug, Clone)]

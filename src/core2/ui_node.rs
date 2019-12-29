@@ -1,6 +1,7 @@
 use super::AppContext;
 use crate::core::NextFrame;
 
+use zero_ui_macros::impl_ui_node_crate;
 pub use webrender::api::LayoutSize;
 
 /// An Ui tree node.
@@ -55,5 +56,12 @@ pub trait UiNode: 'static {
         Self: Sized + 'static,
     {
         Box::new(self)
+    }
+}
+
+#[impl_ui_node_crate(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+impl UiNode for Box<dyn UiNode> {
+    fn into_box(self) -> Box<dyn UiNode> {
+        self
     }
 }

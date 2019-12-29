@@ -14,6 +14,7 @@ macro_rules! dbg_parse_quote {
     };
 }
 
+#[allow(unused)]
 macro_rules! abort {
     ($span:expr, $($tt:tt)*) => {{
         let error = format!($($tt)*);
