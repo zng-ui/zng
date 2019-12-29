@@ -18,8 +18,32 @@ pub trait VisitedVar: 'static {
     type Type: 'static;
 }
 
-/// Abstraction over [ContextVar], [SharedVar] or [OwnedVar].
-pub trait Var<T: 'static> {
+pub(crate) mod protected {
+    use super::AppContext;
+    use std::any::TypeId;
+
+    pub enum BindInfo<'a, T: 'static> {
+        /// Owned or SharedVar.
+        ///
+        /// * `&'a T` is a reference to the value borrowed in the context.
+        /// * `bool` is the is_new flag.
+        Var(&'a T, bool),
+        /// ContextVar.
+        ///
+        /// * `TypeId` of self.
+        /// * `&'static T` is the ContextVar::default value of self.
+        ContextVar(TypeId, &'static T),
+    }
+
+    /// pub(crate) part of Var.
+    pub trait Var<T: 'static> {
+        fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> BindInfo<'a, T>;
+    }
+}
+
+/// Abstraction over [ContextVar], [SharedVar] or [OwnedVar], cannot be implemented outside of
+/// zero-ui crate.
+pub trait Var<T: 'static>: protected::Var<T> {
     /// The current value.
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T;
 
@@ -39,6 +63,12 @@ pub trait Var<T: 'static> {
 /// Boxed [Var].
 pub type BoxVar<T> = Box<dyn Var<T>>;
 
+impl<T: 'static, V: ContextVar<Type = T>> protected::Var<T> for V {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+        protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default())
+    }
+}
+
 impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         ctx.get::<V>()
@@ -55,6 +85,12 @@ impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
 
 /// [Var] implementer that owns the value.
 pub struct OwnedVar<T: 'static>(pub T);
+
+impl<T: 'static> protected::Var<T> for OwnedVar<T> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+        protected::BindInfo::Var(&self.0, false)
+    }
+}
 
 impl<T: 'static> Var<T> for OwnedVar<T> {
     fn get(&self, _: &AppContext) -> &T {
@@ -105,6 +141,24 @@ impl<T: 'static> SharedVar<T> {
 
         cleanup.push(Box::new(move || self.r.is_new.set(false)));
     }
+
+    fn borrow(&self, ctx_id: AppContextId) -> &T {
+        if let Some(borrowed_id) = self.r.borrowed.get() {
+            if ctx_id != borrowed_id {
+                panic!(
+                    "`SharedVar<{}>` is already borrowed in a different `AppContext`",
+                    type_name::<T>()
+                )
+            }
+        } else {
+            self.r.borrowed.set(Some(ctx_id));
+        }
+
+        // SAFETY: This is safe because borrows are bound to a context that
+        // is the only place where the value can be changed and this change is
+        // only applied when the context is mut.
+        unsafe { &*self.r.data.get() }
+    }
 }
 
 impl<T: 'static> Clone for SharedVar<T> {
@@ -113,24 +167,15 @@ impl<T: 'static> Clone for SharedVar<T> {
     }
 }
 
+impl<T: 'static> protected::Var<T> for SharedVar<T> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+        protected::BindInfo::Var(self.borrow(ctx.id()), self.r.is_new.get())
+    }
+}
+
 impl<T: 'static> Var<T> for SharedVar<T> {
     fn get(&self, ctx: &AppContext) -> &T {
-        let id = ctx.id();
-        if let Some(ctx_id) = self.r.borrowed.get() {
-            if ctx_id != id {
-                panic!(
-                    "`SharedVar<{}>` is already borrowed in a different `AppContext`",
-                    type_name::<T>()
-                )
-            }
-        } else {
-            self.r.borrowed.set(Some(id));
-        }
-
-        // SAFETY: This is safe because borrows are bound to a context that
-        // is the only place where the value can be changed and this change is
-        // only applied when the context is mut.
-        unsafe { &*self.r.data.get() }
+        self.borrow(ctx.id())
     }
 
     fn is_new(&self, _: &AppContext) -> bool {
