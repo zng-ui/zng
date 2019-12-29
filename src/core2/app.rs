@@ -237,7 +237,7 @@ impl AppContext {
                 };
 
                 if circular_binding {
-                    eprintln!("circular binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
+                    eprintln!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
                 } else {
                     self.with_var_impl(type_id, ContextVarEntry::ContextVar(var, UntypedRef::pack(default)), f)
                 }
