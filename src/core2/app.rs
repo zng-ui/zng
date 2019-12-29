@@ -189,9 +189,8 @@ impl AppContext {
         self.visited_vars.insert(TypeId::of::<V>(), Box::new(value));
     }
 
-    fn with_var_impl<V: ContextVar>(&mut self, _: V, value: ContextVarEntry, f: impl FnOnce(&mut AppContext)) {
-        let type_id = TypeId::of::<V>();
-
+    #[inline]
+    fn with_var_impl(&mut self, type_id: TypeId, value: ContextVarEntry, f: impl FnOnce(&mut AppContext)) {
         let prev = self.context_vars.insert(type_id, value);
 
         f(self);
@@ -204,32 +203,45 @@ impl AppContext {
     }
 
     /// Runs a function with the context var.
-    pub fn with_var<V: ContextVar>(
-        &mut self,
-        context_var: V,
-        value: &V::Type,
-        is_new: bool,
-        f: impl FnOnce(&mut AppContext),
-    ) {
-        self.with_var_impl(context_var, ContextVarEntry::Value(UntypedRef::pack(value), is_new), f)
+    pub fn with_var<V: ContextVar>(&mut self, _: V, value: &V::Type, is_new: bool, f: impl FnOnce(&mut AppContext)) {
+        self.with_var_impl(
+            TypeId::of::<V>(),
+            ContextVarEntry::Value(UntypedRef::pack(value), is_new),
+            f,
+        )
     }
 
     /// Runs a function with the context var set from another var.
-    pub fn with_var_bind<V: ContextVar>(
+    pub fn with_var_bind<V: ContextVar, O: Var<V::Type>>(
         &mut self,
         context_var: V,
-        var: &impl Var<V::Type>,
+        var: &O,
         f: impl FnOnce(&mut AppContext),
     ) {
         use crate::core2::protected::BindInfo;
 
         match var.bind_info(self) {
             BindInfo::Var(value, is_new) => self.with_var(context_var, value, is_new, f),
-            BindInfo::ContextVar(var, default) => self.with_var_impl(
-                context_var,
-                ContextVarEntry::ContextVar(var, UntypedRef::pack(default)),
-                f,
-            ),
+            BindInfo::ContextVar(var, default) => {
+                let type_id = TypeId::of::<V>();
+                let mut bind_to = var;
+                let circular_binding = loop {
+                    if let Some(ContextVarEntry::ContextVar(var, _)) = self.context_vars.get(&bind_to) {
+                        bind_to = *var;
+                        if bind_to == type_id {
+                            break true;
+                        }
+                    } else {
+                        break false;
+                    }
+                };
+
+                if circular_binding {
+                    eprintln!("circular binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
+                } else {
+                    self.with_var_impl(type_id, ContextVarEntry::ContextVar(var, UntypedRef::pack(default)), f)
+                }
+            }
         }
     }
 
