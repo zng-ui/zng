@@ -139,6 +139,7 @@ macro_rules! visited_var {
 macro_rules! context_var {
     ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty = $default:expr;)+) => {$(
         $(#[$outer])*
+        #[derive(Clone, Copy)]
         $vis struct $ident;
 
         impl $crate::core2::ContextVar for $ident {

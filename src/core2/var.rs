@@ -4,7 +4,7 @@ use std::cell::{Cell, UnsafeCell};
 use std::rc::Rc;
 
 /// A variable value that is set by the ancestors of an UiNode.
-pub trait ContextVar: 'static {
+pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: 'static;
 
@@ -22,6 +22,7 @@ pub(crate) mod protected {
     use super::AppContext;
     use std::any::TypeId;
 
+    /// Infor for context var binding.
     pub enum BindInfo<'a, T: 'static> {
         /// Owned or SharedVar.
         ///
@@ -41,35 +42,51 @@ pub(crate) mod protected {
     }
 }
 
-/// Abstraction over [ContextVar], [SharedVar] or [OwnedVar], cannot be implemented outside of
-/// zero-ui crate.
-pub trait Var<T: 'static>: protected::Var<T> {
+/// Part of [Var] that can be boxed.
+pub trait SizedVar<T: 'static>: protected::Var<T> + 'static {
     /// The current value.
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T;
 
     /// [get] if [is_new] or none.
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
-        if self.is_new(ctx) {
-            Some(self.get(ctx))
-        } else {
-            None
-        }
-    }
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T>;
 
     /// If the value changed this update.
     fn is_new(&self, ctx: &AppContext) -> bool;
+
+    /// Box the variable. This disables mapping.
+    fn into_box(self) -> BoxVar<T>
+    where
+        Self: std::marker::Sized,
+    {
+        Box::new(self)
+    }
 }
 
 /// Boxed [Var].
-pub type BoxVar<T> = Box<dyn Var<T>>;
+pub type BoxVar<T> = Box<dyn SizedVar<T>>;
+
+/// Abstraction over [ContextVar], [SharedVar] or [OwnedVar].
+///
+/// This is the complete generic trait, the non-generic methods are defined in [SizedVar]
+/// to support boxing.
+///
+/// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
+/// support dinamic values in property definitions.
+pub trait Var<T: 'static>: SizedVar<T> {
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, f: M) -> MapVar<T, O, M, Self>
+    where
+        Self: Sized;
+
+    //TODO merge, switch
+}
 
 impl<T: 'static, V: ContextVar<Type = T>> protected::Var<T> for V {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
         protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default())
     }
 }
 
-impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
+impl<T: 'static, V: ContextVar<Type = T>> SizedVar<T> for V {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         ctx.get::<V>()
     }
@@ -83,16 +100,22 @@ impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
     }
 }
 
+impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, mut f: M) -> MapVar<T, O, M, Self> {
+        MapVar::new(self.clone(), f, ctx)
+    }
+}
+
 /// [Var] implementer that owns the value.
 pub struct OwnedVar<T: 'static>(pub T);
 
 impl<T: 'static> protected::Var<T> for OwnedVar<T> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
         protected::BindInfo::Var(&self.0, false)
     }
 }
 
-impl<T: 'static> Var<T> for OwnedVar<T> {
+impl<T: 'static> SizedVar<T> for OwnedVar<T> {
     fn get(&self, _: &AppContext) -> &T {
         &self.0
     }
@@ -103,6 +126,12 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
 
     fn is_new(&self, _: &AppContext) -> bool {
         false
+    }
+}
+
+impl<T: 'static> Var<T> for OwnedVar<T> {
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, mut f: M) -> MapVar<T, O, M, Self> {
+        MapVar::owned(f(self.get(ctx)))
     }
 }
 
@@ -173,13 +202,105 @@ impl<T: 'static> protected::Var<T> for SharedVar<T> {
     }
 }
 
-impl<T: 'static> Var<T> for SharedVar<T> {
+impl<T: 'static> SizedVar<T> for SharedVar<T> {
     fn get(&self, ctx: &AppContext) -> &T {
         self.borrow(ctx.id())
     }
 
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+        if self.r.is_new.get() {
+            Some(self.get(ctx))
+        } else {
+            None
+        }
+    }
+
     fn is_new(&self, _: &AppContext) -> bool {
         self.r.is_new.get()
+    }
+}
+
+impl<T: 'static> Var<T> for SharedVar<T> {
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, f: M) -> MapVar<T, O, M, Self> {
+        MapVar::new(self.clone(), f, ctx)
+    }
+}
+
+enum MapVarInner<O, M, S> {
+    Owned(O),
+    Full(S, M, Cell<O>),
+}
+
+/// [Var] that maps other vars.
+pub struct MapVar<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> {
+    _t: std::marker::PhantomData<T>,
+    inner: Rc<MapVarInner<O, M, S>>,
+}
+
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar<T, O, M, S> {
+    fn owned(output: O) -> Self {
+        MapVar {
+            _t: std::marker::PhantomData,
+            inner: Rc::new(MapVarInner::Owned(output)),
+        }
+    }
+
+    fn new(source: S, mut map: M, ctx: &AppContext) -> Self {
+        let output = map(source.get(ctx));
+        MapVar {
+            _t: std::marker::PhantomData,
+            inner: Rc::new(MapVarInner::Full(source, map, Cell::new(output))),
+        }
+    }
+}
+
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> protected::Var<O> for MapVar<T, O, M, S> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+        match &*self.inner {
+            MapVarInner::Owned(o) => protected::BindInfo::Var(o, false),
+            MapVarInner::Full(_, _, o) => todo!(),
+        }
+    }
+}
+
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> SizedVar<O> for MapVar<T, O, M, S> {
+    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+        match &*self.inner {
+            MapVarInner::Owned(o) => o,
+            MapVarInner::Full(_, _, o) => todo!(),
+        }
+    }
+
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+        match &*self.inner {
+            MapVarInner::Owned(o) => None,
+            MapVarInner::Full(_, _, o) => todo!(),
+        }
+    }
+
+    fn is_new(&self, ctx: &AppContext) -> bool {
+        match &*self.inner {
+            MapVarInner::Owned(_) => false,
+            MapVarInner::Full(source, _, _) => source.is_new(ctx),
+        }
+    }
+}
+
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Clone for MapVar<T, O, M, S> {
+    fn clone(&self) -> Self {
+        MapVar {
+            _t: std::marker::PhantomData,
+            inner: Rc::clone(&self.inner),
+        }
+    }
+}
+
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Var<O> for MapVar<T, O, M, S> {
+    fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, ctx: &AppContext, mut f: M2) -> MapVar<O, O2, M2, Self> {
+        match &*self.inner {
+            MapVarInner::Owned(o) => MapVar::owned(f(o)),
+            MapVarInner::Full(_, _, o) => MapVar::new(self.clone(), f, ctx),
+        }
     }
 }
 
