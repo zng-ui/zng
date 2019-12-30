@@ -63,26 +63,26 @@ impl AppWindows {
             new_window: EventEmitter::new(false),
         }
     }
-
-    pub fn new_windows(&mut self, event_loop: &EventLoopWindowTarget<WebRenderEvent>, r: &mut EventContext) {
-        let requests = std::mem::replace(&mut *self.service.requests.borrow_mut(), Vec::default());
-
-        for request in requests {
-            let w = GlWindow::new(
-                request.new,
-                r.app_context(),
-                event_loop,
-                self.event_loop_proxy.clone(),
-                Arc::clone(&self.ui_threads),
-            );
-        }
-    }
 }
 
 impl AppExtension for AppWindows {
     fn register(&mut self, r: &mut AppRegister) {
         r.register_service::<Windows>(self.service.clone());
         r.register_event::<NewWindow>(self.new_window.listener());
+    }
+
+    fn respond(&mut self, r: &mut EventContext) {
+        let requests = std::mem::replace(&mut *self.service.requests.borrow_mut(), Vec::default());
+
+        for request in requests {
+            let w = GlWindow::new(
+                request.new,
+                r.app_ctx(),
+                r.event_loop(),
+                self.event_loop_proxy.clone(),
+                Arc::clone(&self.ui_threads),
+            );
+        }
     }
 }
 

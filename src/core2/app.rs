@@ -2,6 +2,7 @@ use super::*;
 use fnv::FnvHashMap;
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use std::any::{type_name, Any, TypeId};
 
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
@@ -29,13 +30,18 @@ impl Default for AppRegister {
     }
 }
 
-pub struct EventContext {
-    ctx: AppContext,
+pub struct EventContext<'a> {
+    ctx: &'a mut AppContext,
+    event_loop: &'a EventLoopWindowTarget<WebRenderEvent>,
 }
 
-impl EventContext {
-    pub fn app_context(&self) -> &AppContext {
-        &self.ctx
+impl<'a> EventContext<'a> {
+    pub fn app_ctx(&self) -> &AppContext {
+        self.ctx
+    }
+
+    pub(crate) fn event_loop(&self) -> &EventLoopWindowTarget<WebRenderEvent> {
+        self.event_loop
     }
 }
 
@@ -237,7 +243,11 @@ impl AppContext {
                 };
 
                 if circular_binding {
-                    eprintln!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
+                    eprintln!(
+                        "circular context var binding `{}`=`{}` ignored",
+                        type_name::<V>(),
+                        type_name::<O>()
+                    );
                 } else {
                     self.with_var_impl(type_id, ContextVarEntry::ContextVar(var, UntypedRef::pack(default)), f)
                 }
@@ -375,9 +385,14 @@ impl<E: AppExtension> App<E> {
 
         let mut in_event_sequence = false;
         let mut event_squence_update = UpdateFlags::empty();
-        let mut context = EventContext { ctx: register.ctx };
+        let mut ctx = register.ctx;
 
         event_loop.run(move |event, event_loop, control_flow| {
+            let mut context = EventContext {
+                ctx: &mut ctx,
+                event_loop,
+            };
+
             *control_flow = ControlFlow::Wait;
             match event {
                 GEvent::NewEvents(_) => {
@@ -420,7 +435,6 @@ impl<E: AppExtension> App<E> {
                 event_squence_update = UpdateFlags::empty();
             }
 
-            extensions.0.new_windows(event_loop, &mut context);
             extensions.respond(&mut context);
         })
     }
