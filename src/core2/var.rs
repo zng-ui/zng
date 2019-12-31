@@ -1,7 +1,7 @@
-use super::{AppContext, AppContextId};
+use super::{AppContext, AppContextId, AppRegister, AppExtension, Service, EventContext};
 use std::any::type_name;
-use std::cell::{Cell, UnsafeCell};
-use std::rc::Rc;
+use std::cell::{Cell, UnsafeCell, RefCell};
+use std::rc::{Rc, Weak};
 
 /// A variable value that is set by the ancestors of an UiNode.
 pub trait ContextVar: Clone + Copy + 'static {
@@ -135,7 +135,7 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
     }
 }
 
-struct SharedVarData<T> {
+struct SharedVarInner<T> {
     data: UnsafeCell<T>,
     borrowed: Cell<Option<AppContextId>>,
     is_new: Cell<bool>,
@@ -143,7 +143,7 @@ struct SharedVarData<T> {
 
 /// [Var] Rc implementer.
 pub struct SharedVar<T: 'static> {
-    r: Rc<SharedVarData<T>>,
+    r: Rc<SharedVarInner<T>>,
 }
 
 impl<T: 'static> SharedVar<T> {
@@ -234,29 +234,31 @@ enum MapVarInner<O, M, S> {
 /// [Var] that maps other vars.
 pub struct MapVar<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> {
     _t: std::marker::PhantomData<T>,
-    inner: Rc<MapVarInner<O, M, S>>,
+    r: Rc<MapVarInner<O, M, S>>,
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar<T, O, M, S> {
     fn owned(output: O) -> Self {
         MapVar {
             _t: std::marker::PhantomData,
-            inner: Rc::new(MapVarInner::Owned(output)),
+            r: Rc::new(MapVarInner::Owned(output)),
         }
     }
 
     fn new(source: S, mut map: M, ctx: &AppContext) -> Self {
         let output = map(source.get(ctx));
+        let inner = Rc::new(MapVarInner::Full(source, map, Cell::new(output)));
+        ctx.service::<MapVarUpdate>().register(Rc::downgrade(&inner));
         MapVar {
             _t: std::marker::PhantomData,
-            inner: Rc::new(MapVarInner::Full(source, map, Cell::new(output))),
+            r: inner,
         }
     }
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> protected::Var<O> for MapVar<T, O, M, S> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        match &*self.inner {
+        match &*self.r {
             MapVarInner::Owned(o) => protected::BindInfo::Var(o, false),
             MapVarInner::Full(_, _, o) => todo!(),
         }
@@ -265,21 +267,21 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> protec
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> SizedVar<O> for MapVar<T, O, M, S> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
-        match &*self.inner {
+        match &*self.r {
             MapVarInner::Owned(o) => o,
             MapVarInner::Full(_, _, o) => todo!(),
         }
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
-        match &*self.inner {
+        match &*self.r {
             MapVarInner::Owned(o) => None,
             MapVarInner::Full(_, _, o) => todo!(),
         }
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        match &*self.inner {
+        match &*self.r {
             MapVarInner::Owned(_) => false,
             MapVarInner::Full(source, _, _) => source.is_new(ctx),
         }
@@ -290,17 +292,60 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Clone 
     fn clone(&self) -> Self {
         MapVar {
             _t: std::marker::PhantomData,
-            inner: Rc::clone(&self.inner),
+            r: Rc::clone(&self.r),
         }
     }
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Var<O> for MapVar<T, O, M, S> {
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, ctx: &AppContext, mut f: M2) -> MapVar<O, O2, M2, Self> {
-        match &*self.inner {
+        match &*self.r {
             MapVarInner::Owned(o) => MapVar::owned(f(o)),
             MapVarInner::Full(_, _, o) => MapVar::new(self.clone(), f, ctx),
         }
+    }
+}
+
+/// Updates the MapVar is required, returns if should retain the eval function.
+type MapVarEval = Box<dyn Fn(&AppContext) -> bool>;
+
+/// [MapVar] management app extension.
+#[derive(Default, Clone)]
+pub(crate) struct MapVarUpdate {
+    r: Rc<RefCell<Vec<MapVarEval>>>
+}
+
+impl AppExtension for MapVarUpdate {
+    fn register(&mut self, r: &mut AppRegister) {
+        r.register_service(self.clone());
+    }
+
+    fn respond(&mut self, r: &mut EventContext) {
+        self.r.borrow_mut().retain(|f| f(r.app_ctx()));
+    }
+}
+
+impl Service for MapVarUpdate { }
+
+impl MapVarUpdate {
+    fn register<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>>(&self, map: Weak<MapVarInner<O, M, S>>) {
+        let eval = move |ctx: &AppContext| {
+            if let Some(map) = map.upgrade() {
+                match &*map {
+                    MapVarInner::Full(source, map, output) => {
+                        if let Some(source) = source.update(ctx) {
+                            todo!()
+                        }
+                    },
+                    _ => unreachable!()
+                }
+                true
+            } else {
+                false
+            }
+        };
+
+        self.r.borrow_mut().push(Box::new(eval));
     }
 }
 
