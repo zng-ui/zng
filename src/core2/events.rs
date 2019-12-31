@@ -1,11 +1,11 @@
 use super::*;
+use glutin::event::ElementState;
+pub use glutin::event::{ModifiersState, MouseButton};
 use std::any::type_name;
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
-use glutin::event::ElementState;
-pub use glutin::event::{MouseButton, ModifiersState};
 
 /// [Event] arguments.
 pub trait EventArgs: Debug + Clone + 'static {
@@ -211,7 +211,7 @@ pub struct MouseDownArgs {
     pub window_id: WindowId,
     pub device_id: DeviceId,
     pub button: MouseButton,
-    pub modifiers: ModifiersState
+    pub modifiers: ModifiersState,
 }
 impl EventArgs for MouseDownArgs {
     fn timestamp(&self) -> Instant {
@@ -249,26 +249,22 @@ impl AppExtension for MouseEvents {
                 state,
                 device_id,
                 button,
-                modifiers
-            } => {
-                match state {
-                    ElementState::Pressed => {
-                        let args = MouseDownArgs {
-                            timestamp: Instant::now(),
-                            window_id,
-                            device_id,
-                            button,
-                            modifiers
-                        };
+                modifiers,
+            } => match state {
+                ElementState::Pressed => {
+                    let args = MouseDownArgs {
+                        timestamp: Instant::now(),
+                        window_id,
+                        device_id,
+                        button,
+                        modifiers,
+                    };
 
-                        ctx.push_notify(self.mouse_down.clone(), args);
-                    },
-                    ElementState::Released => {
-                        todo!()
-                    }
+                    ctx.push_notify(self.mouse_down.clone(), args);
                 }
+                ElementState::Released => todo!(),
             },
-            WindowEvent::CursorMoved {..} => {},
+            WindowEvent::CursorMoved { .. } => {}
             _ => {}
         }
     }

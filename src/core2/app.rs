@@ -73,7 +73,7 @@ impl UntypedRef {
     }
 }
 enum ContextVarEntry {
-    Value(*const UntypedRef, bool),
+    Value(*const UntypedRef, bool, u32),
     ContextVar(TypeId, *const UntypedRef),
 }
 type UpdateOnce = Box<dyn FnOnce(&mut Vec<Box<dyn FnOnce()>>)>;
@@ -142,14 +142,14 @@ impl AppContext {
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
     }
 
-    fn get_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool) {
+    fn get_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool, u32) {
         if let Some(ctx_var) = self.context_vars.get(&var) {
             match ctx_var {
-                ContextVarEntry::Value(pointer, is_new) => {
+                ContextVarEntry::Value(pointer, is_new, version) => {
                     // SAFETY: This is safe because context_vars are only inserted for the duration
                     // of [with_var] that holds the reference.
                     let value = unsafe { UntypedRef::unpack(*pointer) };
-                    (value, *is_new)
+                    (value, *is_new, *version)
                 }
                 ContextVarEntry::ContextVar(var, default) => {
                     // SAFETY: This is safe because default is a &'static T.
@@ -157,7 +157,7 @@ impl AppContext {
                 }
             }
         } else {
-            (default, false)
+            (default, false, 0)
         }
     }
 
@@ -171,9 +171,14 @@ impl AppContext {
         self.get_impl(TypeId::of::<V>(), V::default()).1
     }
 
+    /// Gets the context var value version.
+    pub fn get_version<V: ContextVar>(&self) -> u32 {
+        self.get_impl(TypeId::of::<V>(), V::default()).2
+    }
+
     /// Gets the context var value if it is new.
     pub fn get_new<V: ContextVar>(&self) -> Option<&V::Type> {
-        let (value, is_new) = self.get_impl(TypeId::of::<V>(), V::default());
+        let (value, is_new, _) = self.get_impl(TypeId::of::<V>(), V::default());
 
         if is_new {
             Some(value)
@@ -216,10 +221,17 @@ impl AppContext {
     }
 
     /// Runs a function with the context var.
-    pub fn with_var<V: ContextVar>(&mut self, _: V, value: &V::Type, is_new: bool, f: impl FnOnce(&mut AppContext)) {
+    pub fn with_var<V: ContextVar>(
+        &mut self,
+        _: V,
+        value: &V::Type,
+        is_new: bool,
+        version: u32,
+        f: impl FnOnce(&mut AppContext),
+    ) {
         self.with_var_impl(
             TypeId::of::<V>(),
-            ContextVarEntry::Value(UntypedRef::pack(value), is_new),
+            ContextVarEntry::Value(UntypedRef::pack(value), is_new, version),
             f,
         )
     }
@@ -234,7 +246,7 @@ impl AppContext {
         use crate::core2::protected::BindInfo;
 
         match var.bind_info(self) {
-            BindInfo::Var(value, is_new) => self.with_var(context_var, value, is_new, f),
+            BindInfo::Var(value, is_new, version) => self.with_var(context_var, value, is_new, version, f),
             BindInfo::ContextVar(var, default) => {
                 let type_id = TypeId::of::<V>();
                 let mut bind_to = var;
