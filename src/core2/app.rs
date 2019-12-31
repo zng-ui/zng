@@ -41,6 +41,11 @@ impl<'a> EventContext<'a> {
         self.ctx
     }
 
+    /// Schedules an update notification.
+    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
+        self.ctx.push_notify(sender, args);
+    }
+
     pub(crate) fn event_loop(&self) -> &EventLoopWindowTarget<WebRenderEvent> {
         self.event_loop
     }
@@ -272,7 +277,7 @@ impl AppContext {
     }
 
     /// Schedules an update notification.
-    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, new_update: T) {
+    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
         self.update.insert(if sender.is_high_pressure() {
             UpdateFlags::UPD_HP
         } else {
@@ -281,7 +286,7 @@ impl AppContext {
 
         let self_id = self.id;
         self.updates
-            .push(Box::new(move |cleanup| sender.notify(self_id, new_update, cleanup)));
+            .push(Box::new(move |cleanup| sender.notify(self_id, args, cleanup)));
     }
 
     /// Schedules a layout update.

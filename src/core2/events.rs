@@ -1,9 +1,11 @@
-use super::{AppContext, AppContextId, AppExtension, AppRegister, EventContext, VisitedVar, WindowEvent, WindowId};
+use super::*;
 use std::any::type_name;
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
+use glutin::event::ElementState;
+pub use glutin::event::{MouseButton, ModifiersState};
 
 /// [Event] arguments.
 pub trait EventArgs: Debug + Clone + 'static {
@@ -206,6 +208,10 @@ impl<T: 'static> EventEmitter<T> {
 #[derive(Debug, Clone)]
 pub struct MouseDownArgs {
     pub timestamp: Instant,
+    pub window_id: WindowId,
+    pub device_id: DeviceId,
+    pub button: MouseButton,
+    pub modifiers: ModifiersState
 }
 impl EventArgs for MouseDownArgs {
     fn timestamp(&self) -> Instant {
@@ -238,7 +244,33 @@ impl AppExtension for MouseEvents {
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
-        //update.notify(sender: &UpdateNotifier<T>, new_update: T)
+        match event {
+            &WindowEvent::MouseInput {
+                state,
+                device_id,
+                button,
+                modifiers
+            } => {
+                match state {
+                    ElementState::Pressed => {
+                        let args = MouseDownArgs {
+                            timestamp: Instant::now(),
+                            window_id,
+                            device_id,
+                            button,
+                            modifiers
+                        };
+
+                        ctx.push_notify(self.mouse_down.clone(), args);
+                    },
+                    ElementState::Released => {
+                        todo!()
+                    }
+                }
+            },
+            WindowEvent::CursorMoved {..} => {},
+            _ => {}
+        }
     }
 }
 
