@@ -1,6 +1,6 @@
-use super::{AppContext, AppContextId, AppRegister, AppExtension, Service, EventContext};
+use super::{AppContext, AppContextId, AppExtension, AppRegister, EventContext, Service};
 use std::any::type_name;
-use std::cell::{Cell, UnsafeCell, RefCell};
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::rc::{Rc, Weak};
 
 /// A variable value that is set by the ancestors of an UiNode.
@@ -312,7 +312,7 @@ type MapVarEval = Box<dyn Fn(&AppContext) -> bool>;
 /// [MapVar] management app extension.
 #[derive(Default, Clone)]
 pub(crate) struct MapVarUpdate {
-    r: Rc<RefCell<Vec<MapVarEval>>>
+    r: Rc<RefCell<Vec<MapVarEval>>>,
 }
 
 impl AppExtension for MapVarUpdate {
@@ -325,10 +325,13 @@ impl AppExtension for MapVarUpdate {
     }
 }
 
-impl Service for MapVarUpdate { }
+impl Service for MapVarUpdate {}
 
 impl MapVarUpdate {
-    fn register<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>>(&self, map: Weak<MapVarInner<O, M, S>>) {
+    fn register<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>>(
+        &self,
+        map: Weak<MapVarInner<O, M, S>>,
+    ) {
         let eval = move |ctx: &AppContext| {
             if let Some(map) = map.upgrade() {
                 match &*map {
@@ -336,8 +339,8 @@ impl MapVarUpdate {
                         if let Some(source) = source.update(ctx) {
                             todo!()
                         }
-                    },
-                    _ => unreachable!()
+                    }
+                    _ => unreachable!(),
                 }
                 true
             } else {
