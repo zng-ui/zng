@@ -23,6 +23,7 @@ impl Default for AppRegister {
                 visited_vars: FnvHashMap::default(),
 
                 update: UpdateFlags::empty(),
+                window_update: UpdateFlags::empty(),
                 updates: Vec::default(),
                 cleanup: Vec::default(),
             },
@@ -98,6 +99,7 @@ pub struct AppContext {
     visited_vars: AnyMap,
 
     update: UpdateFlags,
+    window_update: UpdateFlags,
     updates: Vec<UpdateOnce>,
     cleanup: Vec<CleanupOnce>,
 }
@@ -218,7 +220,7 @@ impl AppContext {
     }
 
     /// Runs a function with the context var set from another var.
-    pub fn with_var_bind<V: ContextVar, O: Var<V::Type>>(
+    pub fn with_var_bind<V: ContextVar, O: SizedVar<V::Type>>(
         &mut self,
         context_var: V,
         var: &O,
@@ -280,6 +282,27 @@ impl AppContext {
         let self_id = self.id;
         self.updates
             .push(Box::new(move |cleanup| sender.notify(self_id, new_update, cleanup)));
+    }
+
+    /// Schedules a layout update.
+    pub fn push_layout(&mut self) {
+        self.window_update |= UpdateFlags::LAYOUT;
+        self.update |= UpdateFlags::LAYOUT;
+    }
+
+    /// Schedules a new render.
+    pub fn push_frame(&mut self) {
+        self.window_update |= UpdateFlags::RENDER;
+        self.update |= UpdateFlags::RENDER;
+    }
+
+    /// Applies a window update collecting the window specific [UpdateFlags]
+    pub(crate) fn window_update(&mut self, update: impl FnOnce(&mut AppContext)) -> UpdateFlags {
+        self.window_update = UpdateFlags::empty();
+
+        update(self);
+
+        std::mem::replace(&mut self.window_update, UpdateFlags::empty())
     }
 
     /// Cleanup the previous update and applies the new one.
@@ -383,8 +406,8 @@ impl<E: AppExtension> App<E> {
         let mut register = AppRegister::default();
         extensions.register(&mut register);
 
-        let mut in_event_sequence = false;
-        let mut event_squence_update = UpdateFlags::empty();
+        let mut in_sequence = false;
+        let mut sequence_update = UpdateFlags::empty();
         let mut ctx = register.ctx;
 
         event_loop.run(move |event, event_loop, control_flow| {
@@ -396,16 +419,18 @@ impl<E: AppExtension> App<E> {
             *control_flow = ControlFlow::Wait;
             match event {
                 GEvent::NewEvents(_) => {
-                    in_event_sequence = true;
+                    in_sequence = true;
                 }
                 GEvent::EventsCleared => {
-                    in_event_sequence = false;
+                    in_sequence = false;
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
                     extensions.on_window_event(window_id, &event, &mut context);
                 }
-                GEvent::UserEvent(WebRenderEvent::NewFrameReady(_window_id)) => {}
+                GEvent::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
+                    extensions.0.new_frame_ready(window_id);
+                }
                 GEvent::DeviceEvent { device_id, event } => {
                     extensions.on_device_event(device_id, &event, &mut context);
                 }
@@ -413,29 +438,32 @@ impl<E: AppExtension> App<E> {
             }
 
             let mut event_update = context.ctx.apply_updates();
-            if event_update.contains(UpdateFlags::UPDATE) {
-                event_update.remove(UpdateFlags::UPDATE);
-                todo!();
-            }
+
             if event_update.contains(UpdateFlags::UPD_HP) {
                 event_update.remove(UpdateFlags::UPD_HP);
-                todo!();
+                extensions.0.update_hp(context.ctx);
+            }
+            if event_update.contains(UpdateFlags::UPDATE) {
+                event_update.remove(UpdateFlags::UPDATE);
+                extensions.0.update(context.ctx);
             }
 
-            event_squence_update |= event_update;
+            let ui_node_update = context.ctx.apply_updates();
 
-            if !in_event_sequence {
-                if event_squence_update.contains(UpdateFlags::LAYOUT) {
-                    todo!();
-                }
-                if event_squence_update.contains(UpdateFlags::RENDER) {
-                    todo!();
-                }
-
-                event_squence_update = UpdateFlags::empty();
-            }
+            sequence_update |= event_update | ui_node_update;
 
             extensions.respond(&mut context);
+
+            if !in_sequence {
+                if sequence_update.contains(UpdateFlags::LAYOUT) {
+                    extensions.0.layout();
+                }
+                if sequence_update.contains(UpdateFlags::RENDER) {
+                    extensions.0.render();
+                }
+
+                sequence_update = UpdateFlags::empty();
+            }
         })
     }
 }

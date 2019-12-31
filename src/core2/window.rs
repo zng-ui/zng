@@ -63,12 +63,57 @@ impl AppWindows {
             new_window: EventEmitter::new(false),
         }
     }
+
+    pub fn update_hp(&mut self, ctx: &mut AppContext) {
+        for window in self.windows.iter_mut() {
+            window.update_hp(ctx);
+        }
+    }
+
+    pub fn update(&mut self, ctx: &mut AppContext) {
+        for window in self.windows.iter_mut() {
+            window.update(ctx);
+        }
+    }
+
+    pub fn layout(&mut self) {
+        for window in self.windows.iter_mut() {
+            window.layout();
+        }
+    }
+
+    pub fn render(&mut self) {
+        for window in self.windows.iter_mut() {
+            window.render();
+        }
+    }
+
+    pub fn new_frame_ready(&mut self, window_id: WindowId) {
+        // TODO do we need a hash_map?
+        for window in self.windows.iter_mut() {
+            if window.id() == window_id {
+                window.request_redraw();
+                break;
+            }
+        }
+    }
 }
 
 impl AppExtension for AppWindows {
     fn register(&mut self, r: &mut AppRegister) {
         r.register_service::<Windows>(self.service.clone());
         r.register_event::<NewWindow>(self.new_window.listener());
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut EventContext) {
+        if let WindowEvent::RedrawRequested = event {
+            for window in self.windows.iter_mut() {
+                if window.id() == window_id {
+                    window.redraw();
+                    break;
+                }
+            }
+        }
     }
 
     fn respond(&mut self, r: &mut EventContext) {
@@ -82,6 +127,8 @@ impl AppExtension for AppWindows {
                 self.event_loop_proxy.clone(),
                 Arc::clone(&self.ui_threads),
             );
+
+            todo!()
         }
     }
 }
@@ -137,6 +184,8 @@ struct GlWindow {
     renderer: webrender::Renderer,
 
     root: UiRoot,
+    update: UpdateFlags,
+    first_draw: bool,
 }
 
 impl GlWindow {
@@ -192,14 +241,77 @@ impl GlWindow {
         todo!()
     }
 
-    pub fn update(&mut self, ctx: &mut AppContext) {
-        let window = self.context.as_ref().unwrap().window();
+    pub fn id(&self) -> WindowId {
+        self.context.as_ref().unwrap().window().id()
+    }
 
+    pub fn update_hp(&mut self, ctx: &mut AppContext) {
+        let update = ctx.window_update(|ctx| self.root.child.update_hp(ctx));
+        self.update |= update;
+    }
+
+    pub fn update(&mut self, ctx: &mut AppContext) {
+        // do winit window updates
+        let window = self.context.as_ref().unwrap().window();
         if let Some(title) = self.root.title.update(&ctx) {
             window.set_title(title);
         }
 
-        self.root.child.update(ctx);
+        // do UiNode updates
+        let update = ctx.window_update(|ctx| self.root.child.update(ctx));
+        self.update |= update;
+    }
+
+    pub fn layout(&mut self) {
+        if self.update.contains(UpdateFlags::LAYOUT) {
+            self.update.remove(UpdateFlags::LAYOUT);
+
+            //self.root.child.measure()
+            todo!()
+        }
+    }
+
+    pub fn render(&mut self) {
+        if self.update.contains(UpdateFlags::RENDER) {
+            self.update.remove(UpdateFlags::RENDER);
+
+            todo!()
+        }
+    }
+
+    /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
+    /// from the OS after calling this.
+    pub fn request_redraw(&mut self) {
+        let context = self.context.as_ref().unwrap();
+        if self.first_draw {
+            context.window().set_visible(true); // OS generates a RequestRedraw here
+            self.first_draw = false;
+        } else {
+            context.window().request_redraw();
+        }
+    }
+
+    /// Redraws the last ready frame and swaps buffers.
+    ///
+    /// **`swap_buffers` Warning**: if you enabled vsync, this function will block until the
+    /// next time the screen is refreshed. However drivers can choose to
+    /// override your vsync settings, which means that you can't know in
+    /// advance whether `swap_buffers` will block or not.
+    pub fn redraw(&mut self) {
+        let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
+
+        self.renderer.update();
+
+        let size = context.window().inner_size();
+        let dpi = context.window().hidpi_factor();
+        let device_size = webrender::api::DeviceIntSize::new((size.width * dpi) as i32, (size.height * dpi) as i32);
+
+        self.renderer.render(device_size).unwrap();
+        let _ = self.renderer.flush_pipeline_info();
+
+        context.swap_buffers().ok();
+
+        self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
 }
 
@@ -210,16 +322,17 @@ pub struct UiRoot {
     child: Box<dyn UiNode>,
 }
 
-fn window(
-    child: impl UiNode,
-    title: impl IntoVar<Cow<'static, str>>,
-    size: impl Into<SharedVar<LayoutSize>>,
-    background_color: impl IntoVar<ColorF>,
-) -> UiRoot {
-    UiRoot {
-        title: Box::new(title.into_var()),
-        size: size.into(),
-        background_color: Box::new(background_color.into_var()),
-        child: Box::new(child),
-    }
-}
+// TODO widget like window! macro
+//fn window(
+//    child: impl UiNode,
+//    title: impl IntoVar<Cow<'static, str>>,
+//    size: impl Into<SharedVar<LayoutSize>>,
+//    background_color: impl IntoVar<ColorF>,
+//) -> UiRoot {
+//    UiRoot {
+//        title: Box::new(title.into_var()),
+//        size: size.into(),
+//        background_color: Box::new(background_color.into_var()),
+//        child: Box::new(child),
+//    }
+//}
