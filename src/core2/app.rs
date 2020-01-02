@@ -1,8 +1,8 @@
 use super::*;
 use fnv::FnvHashMap;
 use glutin::event::Event as GEvent;
+use glutin::event_loop::EventLoopWindowTarget;
 use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
 use std::any::{type_name, Any, TypeId};
 
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
@@ -19,6 +19,9 @@ impl Default for AppRegister {
                 id: AppContextId::new_unique(),
                 events: FnvHashMap::default(),
                 services: FnvHashMap::default(),
+
+                window_id: None,
+                widget_id: None,
                 context_vars: FnvHashMap::default(),
                 visited_vars: FnvHashMap::default(),
 
@@ -82,6 +85,9 @@ type CleanupOnce = Box<dyn FnOnce()>;
 uid! {
    /// Unique id of an [AppContext] instance.
    pub struct AppContextId(_);
+
+   /// Unique id of a widget.
+   pub struct WidgetId(_);
 }
 
 bitflags! {
@@ -100,6 +106,9 @@ pub struct AppContext {
     id: AppContextId,
     events: AnyMap,
     services: AnyMap,
+
+    window_id: Option<WindowId>,
+    widget_id: Option<WidgetId>,
     context_vars: FnvHashMap<TypeId, ContextVarEntry>,
     visited_vars: AnyMap,
 
@@ -159,6 +168,16 @@ impl AppContext {
         } else {
             (default, false, 0)
         }
+    }
+
+    /// Gets the current window ID.
+    pub fn window_id(&self) -> WindowId {
+        self.window_id.expect("not in window")
+    }
+
+    /// Gets the current widget ID.
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_id.expect("not in widget")
     }
 
     /// Get the context var value or default.
@@ -314,12 +333,25 @@ impl AppContext {
     }
 
     /// Applies a window update collecting the window specific [UpdateFlags]
-    pub(crate) fn window_update(&mut self, update: impl FnOnce(&mut AppContext)) -> UpdateFlags {
+    pub(crate) fn window_update(&mut self, window_id: WindowId, root_id: WidgetId, update: impl FnOnce(&mut AppContext)) -> UpdateFlags {
         self.window_update = UpdateFlags::empty();
+        self.window_id = Some(window_id);
+        self.widget_id = Some(root_id);
 
         update(self);
 
+        self.window_id = None;
+        self.widget_id = None;
         std::mem::replace(&mut self.window_update, UpdateFlags::empty())
+    }
+
+    /// Applies a widget update.
+    pub(crate) fn widget_update(&mut self, id: WidgetId, update: impl FnOnce(&mut AppContext)) {
+        let parent_id = std::mem::replace(&mut self.widget_id, Some(id));
+
+        update(self);
+
+        self.widget_id = parent_id;
     }
 
     /// Cleanup the previous update and applies the new one.

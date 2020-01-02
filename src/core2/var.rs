@@ -1,7 +1,7 @@
-use super::{AppContext, AppContextId, AppExtension, AppRegister, EventContext, Service};
+use super::{AppContext, AppContextId};
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 /// A variable value that is set by the ancestors of an UiNode.
 pub trait ContextVar: Clone + Copy + 'static {
@@ -108,8 +108,8 @@ impl<T: 'static, V: ContextVar<Type = T>> SizedVar<T> for V {
 }
 
 impl<T: 'static, V: ContextVar<Type = T>> Var<T> for V {
-    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, mut f: M) -> MapVar<T, O, M, Self> {
-        MapVar::new(self.clone(), f, ctx)
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, f: M) -> MapVar<T, O, M, Self> {
+        MapVar::new(*self, f, ctx)
     }
 }
 
@@ -243,94 +243,128 @@ impl<T: 'static> Var<T> for SharedVar<T> {
     }
 }
 
-enum MapVarInner<O, M, S> {
-    Owned(O),
-    Full {
-        source: S,
-        map: RefCell<M>,
-        output: Cell<O>,
-        output_version: Cell<u32>,
-    },
+struct MapVarSource<M, S> {
+    is_contextual: bool,
+    source: S,
+    map: RefCell<M>,
+    borrowed: Cell<Option<AppContextId>>,
+    output_version: Cell<u32>,
+}
+
+struct MapVarData<O, M, S> {
+    source: Option<Box<MapVarSource<M, S>>>,
+    output: UnsafeCell<O>,
 }
 
 /// [Var] that maps other vars.
 pub struct MapVar<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> {
     _t: std::marker::PhantomData<T>,
-    r: Rc<MapVarInner<O, M, S>>,
+    r: Rc<MapVarData<O, M, S>>,
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar<T, O, M, S> {
     fn owned(output: O) -> Self {
         MapVar {
             _t: std::marker::PhantomData,
-            r: Rc::new(MapVarInner::Owned(output)),
+            r: Rc::new(MapVarData {
+                source: None,
+                output: UnsafeCell::new(output),
+            }),
         }
     }
 
     fn new(source: S, mut map: M, ctx: &AppContext) -> Self {
-        let output = Cell::new(map(source.get(ctx)));
+        let output = UnsafeCell::new(map(source.get(ctx)));
         let output_version = Cell::new(source.version(ctx));
         let map = RefCell::new(map);
-        let inner = Rc::new(MapVarInner::Full {
-            source,
-            map,
+        let inner = Rc::new(MapVarData {
+            source: Some(Box::new(MapVarSource {
+                is_contextual: false,
+                source,
+                map,
+                borrowed: Cell::default(),
+                output_version,
+            })),
             output,
-            output_version,
         });
         MapVar {
             _t: std::marker::PhantomData,
             r: inner,
         }
     }
+
+    fn borrow(&self, ctx: &AppContext) -> &O {
+        if let Some(s) = &self.r.source {
+            // 1 - borrow
+            let ctx_id = ctx.id();
+            if let Some(borrowed_id) = s.borrowed.get() {
+                if ctx_id != borrowed_id {
+                    panic!(
+                        "`MapVar<{}>` is already borrowed in a different `AppContext`",
+                        type_name::<T>()
+                    )
+                }
+            } else {
+                s.borrowed.set(Some(ctx_id));
+            }
+
+            // 2 - update output
+            let source_version = s.source.version(ctx);
+            if s.output_version.get() != source_version {
+                let value = (&mut *s.map.borrow_mut())(s.source.get(ctx));
+                unsafe { *self.r.output.get() = value }
+                s.output_version.set(source_version);
+            }
+        }
+
+        // SAFETY:
+        // If we don't have a source we own the output and it is imutable.
+        // If we have a source borrow validation was done in the `if` above.
+        unsafe { &*self.r.output.get() }
+    }
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> protected::Var<O> for MapVar<T, O, M, S> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        match &*self.r {
-            MapVarInner::Owned(o) => protected::BindInfo::Var(o, false, 0),
-            MapVarInner::Full { .. } => todo!(),
+        if let Some(s) = &self.r.source {
+            if s.is_contextual {
+                todo!()
+            } else {
+                protected::BindInfo::Var(self.borrow(ctx), s.source.is_new(ctx), s.source.version(ctx))
+            }
+        } else {
+            // SAFETY: safe because without a source we are owned.
+            protected::BindInfo::Var(unsafe { &*self.r.output.get() }, false, 0)
         }
     }
 }
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> SizedVar<O> for MapVar<T, O, M, S> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
-        match &*self.r {
-            MapVarInner::Owned(o) => o,
-            MapVarInner::Full {
-                source,
-                map,
-                output,
-                output_version,
-            } => {
-                let source_version = source.version(ctx);
-                if source_version != output_version.get() {
-                    output.set((&mut *map.borrow_mut())(source.get(ctx)));
-                    output_version.set(source_version);
-                }
-                todo!()
-            }
-        }
+        self.borrow(ctx)
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
-        match &*self.r {
-            MapVarInner::Owned(o) => None,
-            MapVarInner::Full { .. } => todo!(),
+        if self.is_new(ctx) {
+            Some(self.borrow(ctx))
+        } else {
+            None
         }
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        match &*self.r {
-            MapVarInner::Owned(_) => false,
-            MapVarInner::Full { source, .. } => source.is_new(ctx),
+        if let Some(s) = &self.r.source {
+            s.source.is_new(ctx)
+        } else {
+            false
         }
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        match &*self.r {
-            MapVarInner::Owned(_) => 0,
-            MapVarInner::Full { source, .. } => source.version(ctx),
+        if let Some(s) = &self.r.source {
+            s.source.version(ctx)
+        } else {
+            0
         }
     }
 }
@@ -346,9 +380,15 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Clone 
 
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Var<O> for MapVar<T, O, M, S> {
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, ctx: &AppContext, mut f: M2) -> MapVar<O, O2, M2, Self> {
-        match &*self.r {
-            MapVarInner::Owned(o) => MapVar::owned(f(o)),
-            MapVarInner::Full { source, .. } => MapVar::new(self.clone(), f, ctx),
+        if let Some(s) = &self.r.source {
+            if s.is_contextual {
+                todo!()
+            } else {
+                MapVar::new(self.clone(), f, ctx)
+            }
+        } else {
+            // SAFETY: safe because without a source we are owned.
+            MapVar::owned(f(unsafe { &*self.r.output.get() }))
         }
     }
 }

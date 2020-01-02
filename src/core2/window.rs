@@ -246,7 +246,7 @@ impl GlWindow {
     }
 
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        let update = ctx.window_update(|ctx| self.root.child.update_hp(ctx));
+        let update = ctx.window_update(self.id(), self.root.id, |ctx| self.root.child.update_hp(ctx));
         self.update |= update;
     }
 
@@ -258,7 +258,7 @@ impl GlWindow {
         }
 
         // do UiNode updates
-        let update = ctx.window_update(|ctx| self.root.child.update(ctx));
+        let update = ctx.window_update(self.id(), self.root.id, |ctx| self.root.child.update(ctx));
         self.update |= update;
     }
 
@@ -316,6 +316,7 @@ impl GlWindow {
 }
 
 pub struct UiRoot {
+    id: WidgetId,
     title: BoxVar<Cow<'static, str>>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,
