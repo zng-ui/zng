@@ -333,7 +333,12 @@ impl AppContext {
     }
 
     /// Applies a window update collecting the window specific [UpdateFlags]
-    pub(crate) fn window_update(&mut self, window_id: WindowId, root_id: WidgetId, update: impl FnOnce(&mut AppContext)) -> UpdateFlags {
+    pub(crate) fn window_update(
+        &mut self,
+        window_id: WindowId,
+        root_id: WidgetId,
+        update: impl FnOnce(&mut AppContext),
+    ) -> UpdateFlags {
         self.window_update = UpdateFlags::empty();
         self.window_id = Some(window_id);
         self.widget_id = Some(root_id);
