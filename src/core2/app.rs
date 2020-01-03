@@ -170,12 +170,34 @@ impl AppContext {
         }
     }
 
+    /// Gets the current window ID. Can be none if we are not in a window.
+    pub fn try_window_id(&self) -> Option<WindowId> {
+        self.window_id
+    }
+
+    /// Gets the current widget ID. Can be none if we are not in a widget.
+    pub fn try_widget_id(&self) -> Option<WidgetId> {
+        self.widget_id
+    }
+
     /// Gets the current window ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are not in a window.
+    ///
+    /// Code inside an [UiNode] method should assume that this does not panic.
     pub fn window_id(&self) -> WindowId {
         self.window_id.expect("not in window")
     }
 
     /// Gets the current widget ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are not in a widget.
+    ///
+    /// Code inside an [UiNode] method should assume that this does not panic.
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id.expect("not in widget")
     }

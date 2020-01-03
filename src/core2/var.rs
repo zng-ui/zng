@@ -1,4 +1,5 @@
-use super::{AppContext, AppContextId};
+use super::{AppContext, AppContextId, WidgetId};
+use fnv::FnvHashMap;
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::rc::Rc;
@@ -19,7 +20,7 @@ pub trait VisitedVar: 'static {
 }
 
 pub(crate) mod protected {
-    use super::{AppContext, AppContextId};
+    use super::AppContext;
     use std::any::TypeId;
 
     /// Infor for context var binding.
@@ -39,6 +40,7 @@ pub(crate) mod protected {
     /// pub(crate) part of Var.
     pub trait Var<T: 'static> {
         fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> BindInfo<'a, T>;
+        fn is_context_var(&self) -> bool;
     }
 
     /// pub(crate) part of SwitchVar.
@@ -92,6 +94,10 @@ impl<T: 'static, V: ContextVar<Type = T>> protected::Var<T> for V {
     fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
         protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default())
     }
+
+    fn is_context_var(&self) -> bool {
+        true
+    }
 }
 
 impl<T: 'static, V: ContextVar<Type = T>> SizedVar<T> for V {
@@ -124,6 +130,10 @@ pub struct OwnedVar<T: 'static>(pub T);
 impl<T: 'static> protected::Var<T> for OwnedVar<T> {
     fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
         protected::BindInfo::Var(&self.0, false, 0)
+    }
+
+    fn is_context_var(&self) -> bool {
+        false
     }
 }
 
@@ -218,6 +228,10 @@ impl<T: 'static> protected::Var<T> for SharedVar<T> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
         protected::BindInfo::Var(self.borrow(ctx.id()), self.r.is_new.get(), self.r.version.get())
     }
+
+    fn is_context_var(&self) -> bool {
+        false
+    }
 }
 
 impl<T: 'static> SizedVar<T> for SharedVar<T> {
@@ -249,15 +263,20 @@ impl<T: 'static> Var<T> for SharedVar<T> {
 }
 
 struct MapVarSource<M, S> {
-    is_contextual: bool,
     source: S,
     map: RefCell<M>,
     borrowed: Cell<Option<AppContextId>>,
     output_version: Cell<u32>,
 }
 
+struct MapVarContextSource<O> {
+    output_context: Option<WidgetId>,
+    other_outputs: RefCell<FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>>,
+}
+
 struct MapVarInner<O, M, S> {
     source: Option<Box<MapVarSource<M, S>>>,
+    context_var_source: Option<Box<MapVarContextSource<O>>>,
     output: UnsafeCell<O>,
 }
 
@@ -273,6 +292,7 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
             _t: std::marker::PhantomData,
             r: Rc::new(MapVarInner {
                 source: None,
+                context_var_source: None,
                 output: UnsafeCell::new(output),
             }),
         }
@@ -282,14 +302,22 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
         let output = UnsafeCell::new(map(source.get(ctx)));
         let output_version = Cell::new(source.version(ctx));
         let map = RefCell::new(map);
+        let context_var_source = if source.is_context_var() {
+            Some(Box::new(MapVarContextSource {
+                output_context: ctx.try_widget_id(),
+                other_outputs: RefCell::default(),
+            }))
+        } else {
+            None
+        };
         let inner = Rc::new(MapVarInner {
             source: Some(Box::new(MapVarSource {
-                is_contextual: false,
                 source,
                 map,
                 borrowed: Cell::default(),
                 output_version,
             })),
+            context_var_source,
             output,
         });
         MapVar {
@@ -314,23 +342,52 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
             }
 
             // 2 - update output
-            if s.is_contextual {
-                todo!()
-            } else {
-                let source_version = s.source.version(ctx);
-                if s.output_version.get() != source_version {
-                    let value = (&mut *s.map.borrow_mut())(s.source.get(ctx));
-                    // SAFETY: This is safe because it only happens before the first borrow
-                    // of this update.
-                    unsafe { *self.r.output.get() = value }
-                    s.output_version.set(source_version);
+            let source_version = s.source.version(ctx);
+            if let Some(ctx_source) = &self.r.context_var_source {
+                let widget_id = ctx.try_widget_id();
+
+                if ctx_source.output_context != widget_id {
+                    // Used in different context, values of different contexts
+                    // are kept in a hash_map.
+
+                    use std::collections::hash_map::Entry::{Occupied, Vacant};
+                    let mut other_outputs = ctx_source.other_outputs.borrow_mut();
+                    let output = match other_outputs.entry(widget_id) {
+                        Occupied(entry) => {
+                            let (output, output_version) = entry.into_mut();
+                            if *output_version != source_version {
+                                let value = (&mut *s.map.borrow_mut())(s.source.get(ctx));
+                                // SAFETY: This is safe because it only happens before the first borrow
+                                // of this update.
+                                unsafe { *output.get() = value }
+                                *output_version = source_version;
+                            }
+                            output
+                        }
+                        Vacant(entry) => {
+                            let value = (&mut *s.map.borrow_mut())(s.source.get(ctx));
+                            let (output, _) = entry.insert((UnsafeCell::new(value), source_version));
+                            output
+                        }
+                    };
+
+                    // SAFETY: Borrow validation was done in "1 - borrow" above.
+                    return unsafe { &*output.get() };
                 }
+            }
+
+            if s.output_version.get() != source_version {
+                let value = (&mut *s.map.borrow_mut())(s.source.get(ctx));
+                // SAFETY: This is safe because it only happens before the first borrow
+                // of this update.
+                unsafe { *self.r.output.get() = value }
+                s.output_version.set(source_version);
             }
         }
 
         // SAFETY:
         // If we don't have a source we own the output and it is imutable.
-        // If we have a source borrow validation was done in the `if` above.
+        // If we have a source borrow validation was done in "1 - borrow" above.
         unsafe { &*self.r.output.get() }
     }
 }
@@ -338,15 +395,15 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> protected::Var<O> for MapVar<T, O, M, S> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
         if let Some(s) = &self.r.source {
-            if s.is_contextual {
-                todo!()
-            } else {
-                protected::BindInfo::Var(self.borrow(ctx), s.source.is_new(ctx), s.source.version(ctx))
-            }
+            protected::BindInfo::Var(self.borrow(ctx), s.source.is_new(ctx), s.source.version(ctx))
         } else {
             // SAFETY: safe because without a source we are owned.
             protected::BindInfo::Var(unsafe { &*self.r.output.get() }, false, 0)
         }
+    }
+
+    fn is_context_var(&self) -> bool {
+        false
     }
 }
 
@@ -461,6 +518,10 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::Var<T> for SwitchVar2<T, V0,
             protected::BindInfo::Var(value, _, _) => protected::BindInfo::Var(value, is_new, version),
             protected::BindInfo::ContextVar(_var_id, _default) => todo!(),
         }
+    }
+
+    fn is_context_var(&self) -> bool {
+        false
     }
 }
 
