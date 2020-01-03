@@ -77,7 +77,7 @@ impl UntypedRef {
 }
 enum ContextVarEntry {
     Value(*const UntypedRef, bool, u32),
-    ContextVar(TypeId, *const UntypedRef),
+    ContextVar(TypeId, *const UntypedRef, Option<(bool, u32)>),
 }
 type UpdateOnce = Box<dyn FnOnce(&mut Vec<Box<dyn FnOnce()>>)>;
 type CleanupOnce = Box<dyn FnOnce()>;
@@ -160,9 +160,14 @@ impl AppContext {
                     let value = unsafe { UntypedRef::unpack(*pointer) };
                     (value, *is_new, *version)
                 }
-                ContextVarEntry::ContextVar(var, default) => {
+                ContextVarEntry::ContextVar(var, default, meta_override) => {
                     // SAFETY: This is safe because default is a &'static T.
-                    self.get_impl(*var, unsafe { UntypedRef::unpack(*default) })
+                    let r = self.get_impl(*var, unsafe { UntypedRef::unpack(*default) });
+                    if let Some((is_new, version)) = *meta_override {
+                        (r.0, is_new, version)
+                    } else {
+                        r
+                    }
                 }
             }
         } else {
@@ -288,11 +293,11 @@ impl AppContext {
 
         match var.bind_info(self) {
             BindInfo::Var(value, is_new, version) => self.with_var(context_var, value, is_new, version, f),
-            BindInfo::ContextVar(var, default) => {
+            BindInfo::ContextVar(var, default, meta) => {
                 let type_id = TypeId::of::<V>();
                 let mut bind_to = var;
                 let circular_binding = loop {
-                    if let Some(ContextVarEntry::ContextVar(var, _)) = self.context_vars.get(&bind_to) {
+                    if let Some(ContextVarEntry::ContextVar(var, _, _)) = self.context_vars.get(&bind_to) {
                         bind_to = *var;
                         if bind_to == type_id {
                             break true;
@@ -309,7 +314,11 @@ impl AppContext {
                         type_name::<O>()
                     );
                 } else {
-                    self.with_var_impl(type_id, ContextVarEntry::ContextVar(var, UntypedRef::pack(default)), f)
+                    self.with_var_impl(
+                        type_id,
+                        ContextVarEntry::ContextVar(var, UntypedRef::pack(default), meta),
+                        f,
+                    )
                 }
             }
         }

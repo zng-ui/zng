@@ -34,7 +34,8 @@ pub(crate) mod protected {
         ///
         /// * `TypeId` of self.
         /// * `&'static T` is the ContextVar::default value of self.
-        ContextVar(TypeId, &'static T),
+        /// * `Option<(bool, u32)>` optional is_new and version override.
+        ContextVar(TypeId, &'static T, Option<(bool, u32)>),
     }
 
     /// pub(crate) part of Var.
@@ -92,7 +93,7 @@ pub trait Var<T: 'static>: SizedVar<T> {
 
 impl<T: 'static, V: ContextVar<Type = T>> protected::Var<T> for V {
     fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
-        protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default())
+        protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default(), None)
     }
 
     fn is_context_var(&self) -> bool {
@@ -516,7 +517,9 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::Var<T> for SwitchVar2<T, V0,
 
         match inner_info {
             protected::BindInfo::Var(value, _, _) => protected::BindInfo::Var(value, is_new, version),
-            protected::BindInfo::ContextVar(_var_id, _default) => todo!(),
+            protected::BindInfo::ContextVar(var_id, default, _) => {
+                protected::BindInfo::ContextVar(var_id, default, Some((is_new, version)))
+            }
         }
     }
 
