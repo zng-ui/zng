@@ -19,7 +19,7 @@ pub trait VisitedVar: 'static {
 }
 
 pub(crate) mod protected {
-    use super::AppContext;
+    use super::{AppContext, AppContextId};
     use std::any::TypeId;
 
     /// Infor for context var binding.
@@ -39,6 +39,11 @@ pub(crate) mod protected {
     /// pub(crate) part of Var.
     pub trait Var<T: 'static> {
         fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> BindInfo<'a, T>;
+    }
+
+    /// pub(crate) part of SwitchVar.
+    pub trait SwitchVar<T: 'static>: Var<T> {
+        fn modify(self, new_index: usize, cleanup: &mut Vec<Box<dyn FnOnce()>>);
     }
 }
 
@@ -395,7 +400,160 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> Var<O>
     }
 }
 
-//TODO merge, switch
+/// A variable that can be one of many variables at a time, determined by
+/// a its index.
+#[allow(clippy::len_without_is_empty)]
+pub trait SwitchVar<T: 'static>: Var<T> + protected::SwitchVar<T> {
+    /// Current variable index.
+    fn index(&self) -> usize;
+
+    /// Number of variables that can be indexed.
+    fn len(&self) -> usize;
+}
+
+struct SwitchVar2Inner<T: 'static, V0: Var<T>, V1: Var<T>> {
+    _t: std::marker::PhantomData<T>,
+    v0: V0,
+    v1: V1,
+
+    index: Cell<u8>,
+
+    v0_version: Cell<u32>,
+    v1_version: Cell<u32>,
+
+    version: Cell<u32>,
+    is_new: Cell<bool>,
+}
+
+pub struct SwitchVar2<T: 'static, V0: Var<T>, V1: Var<T>> {
+    r: Rc<SwitchVar2Inner<T, V0, V1>>,
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar2<T, V0, V1> {
+    pub fn new(index: u8, v0: V0, v1: V1, ctx: &AppContext) -> Self {
+        assert!(index < 2);
+        SwitchVar2 {
+            r: Rc::new(SwitchVar2Inner {
+                _t: std::marker::PhantomData,
+                index: Cell::new(index),
+                v0_version: Cell::new(v0.version(ctx)),
+                v1_version: Cell::new(v1.version(ctx)),
+                version: Cell::new(0),
+                is_new: Cell::new(false),
+                v0,
+                v1,
+            }),
+        }
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::Var<T> for SwitchVar2<T, V0, V1> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+        let is_new = self.is_new(ctx);
+        let version = self.version(ctx);
+        let inner_info = match self.r.index.get() {
+            0 => self.r.v0.bind_info(ctx),
+            1 => self.r.v1.bind_info(ctx),
+            _ => unreachable!(),
+        };
+
+        match inner_info {
+            protected::BindInfo::Var(value, _, _) => protected::BindInfo::Var(value, is_new, version),
+            protected::BindInfo::ContextVar(_var_id, _default) => todo!(),
+        }
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> SizedVar<T> for SwitchVar2<T, V0, V1> {
+    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+        match self.r.index.get() {
+            0 => self.r.v0.get(ctx),
+            1 => self.r.v1.get(ctx),
+            _ => unreachable!(),
+        }
+    }
+
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+        if self.r.is_new.get() {
+            Some(self.get(ctx))
+        } else {
+            match self.r.index.get() {
+                0 => self.r.v0.update(ctx),
+                1 => self.r.v1.update(ctx),
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    fn is_new(&self, ctx: &AppContext) -> bool {
+        self.r.is_new.get()
+            || match self.r.index.get() {
+                0 => self.r.v0.is_new(ctx),
+                1 => self.r.v1.is_new(ctx),
+                _ => unreachable!(),
+            }
+    }
+
+    fn version(&self, ctx: &AppContext) -> u32 {
+        match self.r.index.get() {
+            0 => {
+                let v0_version = self.r.v0.version(ctx);
+                if v0_version != self.r.v0_version.get() {
+                    self.r.v0_version.set(v0_version);
+                    self.r.version.set(self.r.version.get().wrapping_add(1));
+                }
+            }
+            1 => {
+                let v1_version = self.r.v1.version(ctx);
+                if v1_version != self.r.v1_version.get() {
+                    self.r.v1_version.set(v1_version);
+                    self.r.version.set(self.r.version.get().wrapping_add(1));
+                }
+            }
+            _ => unreachable!(),
+        }
+        self.r.version.get()
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> Clone for SwitchVar2<T, V0, V1> {
+    fn clone(&self) -> Self {
+        SwitchVar2 { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> Var<T> for SwitchVar2<T, V0, V1> {
+    fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, ctx: &AppContext, map: M) -> MapVar<T, O, M, Self> {
+        MapVar::new(self.clone(), map, ctx)
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::SwitchVar<T> for SwitchVar2<T, V0, V1> {
+    fn modify(self, new_index: usize, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
+        debug_assert!(new_index < 2);
+        let new_index = new_index as u8;
+
+        if new_index != self.r.index.get() {
+            self.r.index.set(new_index as u8);
+            self.r.is_new.set(true);
+            self.r.version.set(self.r.version.get().wrapping_add(1));
+
+            cleanup.push(Box::new(move || self.r.is_new.set(false)));
+        }
+    }
+}
+
+impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar<T> for SwitchVar2<T, V0, V1> {
+    fn index(&self) -> usize {
+        self.r.index.get() as usize
+    }
+
+    fn len(&self) -> usize {
+        2
+    }
+}
+
+//TODO merge
 
 pub trait IntoVar<T: 'static> {
     type Var: Var<T> + 'static;

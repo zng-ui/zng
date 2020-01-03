@@ -320,6 +320,13 @@ impl AppContext {
             .push(Box::new(move |cleanup| sender.notify(self_id, args, cleanup)));
     }
 
+    /// Schedules a switch variable index change for the next update.
+    pub fn push_switch<T: 'static>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
+        self.update.insert(UpdateFlags::UPDATE);
+        self.updates
+            .push(Box::new(move |cleanup| var.modify(new_index, cleanup)));
+    }
+
     /// Schedules a layout update.
     pub fn push_layout(&mut self) {
         self.window_update |= UpdateFlags::LAYOUT;
