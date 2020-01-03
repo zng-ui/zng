@@ -619,14 +619,33 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar<T> for SwitchVar2<T, V0, V1> 
 
 //TODO merge
 
+/// A value-to-[var](Var) conversion that consumes the value.
 pub trait IntoVar<T: 'static> {
     type Var: Var<T> + 'static;
 
     fn into_var(self) -> Self::Var;
 }
 
-/// Does nothing. `[Var]<T>` already implements `Value<T>`.
+/// Already is var.
 impl<T: 'static> IntoVar<T> for SharedVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+/// Already is var.
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVar<O> for MapVar<T, O, M, S> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+/// Already is var.
+impl<T: 'static, V0: Var<T>, V1: Var<T>> IntoVar<T> for SwitchVar2<T, V0, V1> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
