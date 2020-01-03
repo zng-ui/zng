@@ -1,5 +1,4 @@
 use super::*;
-use glutin::event::ElementState;
 pub use glutin::event::{ModifiersState, MouseButton};
 use std::any::type_name;
 use std::cell::{Cell, UnsafeCell};
@@ -202,84 +201,4 @@ impl<T: 'static> EventEmitter<T> {
     pub(crate) fn notify(self, mut_ctx_id: AppContextId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.chan.notify(mut_ctx_id, new_update, cleanup);
     }
-}
-
-/// [MouseDown] event args.
-#[derive(Debug, Clone)]
-pub struct MouseDownArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    pub device_id: DeviceId,
-    pub button: MouseButton,
-    pub modifiers: ModifiersState,
-}
-impl EventArgs for MouseDownArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-}
-
-/// Mouse down event.
-pub struct MouseDown;
-
-impl Event for MouseDown {
-    type Args = MouseDownArgs;
-}
-
-pub struct MouseEvents {
-    mouse_down: EventEmitter<MouseDownArgs>,
-}
-
-impl Default for MouseEvents {
-    fn default() -> Self {
-        MouseEvents {
-            mouse_down: EventEmitter::new(false),
-        }
-    }
-}
-
-impl AppExtension for MouseEvents {
-    fn register(&mut self, r: &mut AppRegister) {
-        r.register_event::<MouseDown>(self.mouse_down.listener())
-    }
-
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
-        match event {
-            &WindowEvent::MouseInput {
-                state,
-                device_id,
-                button,
-                modifiers,
-            } => match state {
-                ElementState::Pressed => {
-                    let args = MouseDownArgs {
-                        timestamp: Instant::now(),
-                        window_id,
-                        device_id,
-                        button,
-                        modifiers,
-                    };
-
-                    ctx.push_notify(self.mouse_down.clone(), args);
-                }
-                ElementState::Released => todo!(),
-            },
-            WindowEvent::CursorMoved { .. } => {}
-            _ => {}
-        }
-    }
-}
-
-pub struct KeyboardEvents {}
-
-impl Default for KeyboardEvents {
-    fn default() -> Self {
-        KeyboardEvents {}
-    }
-}
-
-impl AppExtension for KeyboardEvents {
-    fn register(&mut self, r: &mut AppRegister) {}
-
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {}
 }
