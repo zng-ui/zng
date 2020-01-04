@@ -270,9 +270,11 @@ struct MapVarSource<M, S> {
     output_version: Cell<u32>,
 }
 
+type MapContextVarOutputs<O> = FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>;
+
 struct MapVarContextSource<O> {
     output_context: Option<WidgetId>,
-    other_outputs: RefCell<FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>>,
+    other_outputs: RefCell<MapContextVarOutputs<O>>,
 }
 
 struct MapVarInner<O, M, S> {
