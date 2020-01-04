@@ -19,12 +19,12 @@ impl FrameBuilder {
         (self.widget_id.get(), self.cursor as u16)
     }
 
-    pub(crate) fn push_widget(&mut self, id: WidgetId, content: &impl UiNode) {
+    pub(crate) fn push_widget(&mut self, id: WidgetId, child: &impl UiNode) {
         let widget_hit = (id, u16::max_value());
         // self.push_hit_rect(widget_hit);
 
         let parent = std::mem::replace(&mut self.widget_id, id);
-        content.render(self);
+        child.render(self);
         self.widget_id = parent;
     }
 

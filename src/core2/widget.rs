@@ -25,3 +25,23 @@ impl<T: UiNode> UiNode for Widget<T> {
 pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
     Widget { id, child }
 }
+
+struct Cursor<T: UiNode, C: Var<CursorIcon>> {
+    cursor: C,
+    child: T,
+}
+
+#[impl_ui_node_crate]
+impl<T: UiNode, C: Var<CursorIcon>> UiNode for Cursor<T, C> {
+    fn render(&self, frame: &mut FrameBuilder) {
+        //frame.push_cursor(self.cursor, &self.child);
+    }
+}
+
+//#[property]
+pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
+    Cursor {
+        cursor: cursor.into_var(),
+        child,
+    }
+}
