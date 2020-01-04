@@ -40,6 +40,8 @@ fn is_widget(raw: u16) -> bool {
 }
 
 fn unpack_cursor(raw: u16) -> CursorIcon {
+    debug_assert!(raw <= CursorIcon::RowResize as u16);
+
     if raw <= CursorIcon::RowResize as u16 {
         unsafe { std::mem::transmute(raw as u8) }
     } else {
