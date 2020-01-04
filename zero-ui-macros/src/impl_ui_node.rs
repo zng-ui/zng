@@ -156,7 +156,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 
         [fn update_hp(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
 
-        [fn render(&self, f: &mut #crate_::core2::NextFrame) { }]
+        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) { }]
 
         [fn arrange(&mut self, final_size: #crate_::core2::LayoutSize) { }]
 
@@ -199,9 +199,9 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
             child.update_hp(ctx)
         }]
 
-        [fn render(&self, f: &mut #crate_::core2::NextFrame) {
+        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) {
             let child = {#borrow};
-            child.render(f)
+            child.render(frame)
         }]
 
         [fn arrange(&mut self, final_size: #crate_::core2::LayoutSize) {
@@ -243,9 +243,9 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
             }
         }]
 
-        [fn render(&self, f: &mut #crate_::core2::NextFrame) {
+        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) {
             for child in {#iter} {
-                child.render(f)
+                child.render(frame)
             }
         }]
 

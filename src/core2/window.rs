@@ -275,6 +275,9 @@ impl GlWindow {
         if self.update.contains(UpdateFlags::RENDER) {
             self.update.remove(UpdateFlags::RENDER);
 
+            let mut frame = FrameBuilder::new(self.root.id);
+            self.root.child.render(&mut frame);
+
             todo!()
         }
     }
@@ -313,6 +316,8 @@ impl GlWindow {
 
         self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
+
+    pub fn hit_test(&self, point: LayoutPoint) {}
 }
 
 pub struct UiRoot {

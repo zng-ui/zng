@@ -1,5 +1,4 @@
-use super::AppContext;
-use crate::core::NextFrame;
+use super::{AppContext, FrameBuilder};
 
 pub use webrender::api::LayoutSize;
 use zero_ui_macros::impl_ui_node_crate;
@@ -47,8 +46,8 @@ pub trait UiNode: 'static {
     /// Called every time a new frame must be rendered.
     ///
     /// # Arguments
-    /// * `f`: Contains the next frame draw instructions.
-    fn render(&self, f: &mut NextFrame);
+    /// * `frame`: Contains the next frame draw instructions.
+    fn render(&self, frame: &mut FrameBuilder);
 
     /// Box this component, unless it is already `Box<dyn UiNode>`.
     fn into_box(self) -> Box<dyn UiNode>
