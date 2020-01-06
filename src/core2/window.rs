@@ -120,19 +120,11 @@ impl AppExtension for AppWindows {
                 if let Some(window) = self.window_mut(window_id) {
                     window.redraw();
                 }
-            },
-            WindowEvent::Resized(new_size) => {
-                todo!()
-            },
-            WindowEvent::Moved(new_position) => {
-                todo!()
             }
-            WindowEvent::CloseRequested => {
-                todo!()
-            },
-            WindowEvent::HiDpiFactorChanged => {
-                todo!()
-            }
+            WindowEvent::Resized(_new_size) => todo!(),
+            WindowEvent::Moved(_new_position) => todo!(),
+            WindowEvent::CloseRequested => todo!(),
+            WindowEvent::HiDpiFactorChanged(_new_dpi) => todo!(),
             _ => {}
         }
     }
