@@ -415,6 +415,29 @@ impl AppContext {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct AppContextOwnership {
+    id: std::cell::Cell<Option<AppContextId>>,
+}
+
+impl AppContextOwnership {
+    pub fn new(context: AppContextId) -> Self {
+        AppContextOwnership {
+            id: std::cell::Cell::new(Some(context)),
+        }
+    }
+
+    pub fn check(&self, id: AppContextId, already_owned_error: std::fmt::Arguments) {
+        if let Some(ctx_id) = self.id.get() {
+            if ctx_id != id {
+                panic!("{}", already_owned_error)
+            }
+        } else {
+            self.id.set(Some(id));
+        }
+    }
+}
+
 /// An [App] extension.
 pub trait AppExtension: 'static {
     /// Register this extension.

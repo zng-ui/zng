@@ -1,4 +1,4 @@
-use super::{AppContext, AppContextId, WidgetId};
+use super::{AppContext, AppContextId, AppContextOwnership, WidgetId};
 use fnv::FnvHashMap;
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -164,7 +164,7 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
 
 struct SharedVarInner<T> {
     data: UnsafeCell<T>,
-    borrowed: Cell<Option<AppContextId>>,
+    context: AppContextOwnership,
     is_new: Cell<bool>,
     version: Cell<u32>,
 }
@@ -181,15 +181,13 @@ impl<T: 'static> SharedVar<T> {
         modify: impl FnOnce(&mut T) + 'static,
         cleanup: &mut Vec<Box<dyn FnOnce()>>,
     ) {
-        if let Some(ctx_id) = self.r.borrowed.get() {
-            if ctx_id != mut_ctx_id {
-                panic!(
-                    "cannot set `SharedVar<{}>` because it is borrowed in a different context",
-                    type_name::<T>()
-                )
-            }
-            self.r.borrowed.set(None);
-        }
+        self.r.context.check(
+            mut_ctx_id,
+            format_args!(
+                "cannot set `SharedVar<{}>` because it is borrowed in a different context",
+                type_name::<T>()
+            ),
+        );
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
@@ -201,16 +199,13 @@ impl<T: 'static> SharedVar<T> {
     }
 
     fn borrow(&self, ctx_id: AppContextId) -> &T {
-        if let Some(borrowed_id) = self.r.borrowed.get() {
-            if ctx_id != borrowed_id {
-                panic!(
-                    "`SharedVar<{}>` is already borrowed in a different `AppContext`",
-                    type_name::<T>()
-                )
-            }
-        } else {
-            self.r.borrowed.set(Some(ctx_id));
-        }
+        self.r.context.check(
+            ctx_id,
+            format_args!(
+                "`SharedVar<{}>` is already borrowed in a different `AppContext`",
+                type_name::<T>()
+            ),
+        );
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
@@ -266,7 +261,7 @@ impl<T: 'static> Var<T> for SharedVar<T> {
 struct MapVarSource<M, S> {
     source: S,
     map: RefCell<M>,
-    borrowed: Cell<Option<AppContextId>>,
+    context: AppContextOwnership,
     output_version: Cell<u32>,
 }
 
@@ -317,7 +312,7 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
             source: Some(Box::new(MapVarSource {
                 source,
                 map,
-                borrowed: Cell::default(),
+                context: AppContextOwnership::new(ctx.id()),
                 output_version,
             })),
             context_var_source,
@@ -332,17 +327,13 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
     fn borrow(&self, ctx: &AppContext) -> &O {
         if let Some(s) = &self.r.source {
             // 1 - borrow
-            let ctx_id = ctx.id();
-            if let Some(borrowed_id) = s.borrowed.get() {
-                if ctx_id != borrowed_id {
-                    panic!(
-                        "`MapVar<{}>` is already borrowed in a different `AppContext`",
-                        type_name::<T>()
-                    )
-                }
-            } else {
-                s.borrowed.set(Some(ctx_id));
-            }
+            s.context.check(
+                ctx.id(),
+                format_args!(
+                    "`MapVar<{}>` is already borrowed in a different `AppContext`",
+                    type_name::<T>()
+                ),
+            );
 
             // 2 - update output
             let source_version = s.source.version(ctx);

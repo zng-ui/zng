@@ -27,9 +27,8 @@ impl<E: Event> VisitedVar for Stop<E> {
 }
 
 struct EventData<T> {
-    data: UnsafeCell<Option<T>>,
-    borrowed: Cell<Option<AppContextId>>,
-    is_new: Cell<bool>,
+    data: UnsafeCell<Vec<T>>,
+    context: AppContextOwnership,
     is_high_pressure: bool,
 }
 
@@ -43,60 +42,42 @@ impl<T: 'static> Clone for EventChannel<T> {
 }
 impl<T: 'static> EventChannel<T> {
     pub(crate) fn notify(self, mut_ctx_id: AppContextId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        if let Some(ctx_id) = self.r.borrowed.get() {
-            if ctx_id != mut_ctx_id {
-                panic!(
-                    "cannot update `EventChannel<{}>` because it is borrowed in a different context",
-                    type_name::<T>()
-                )
-            }
-            self.r.borrowed.set(None);
-        }
+        self.r.context.check(
+            mut_ctx_id,
+            format_args!(
+                "cannot update `EventChannel<{}>` because it is borrowed in a different context",
+                type_name::<T>()
+            ),
+        );
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
         // only applied when the context is mut.
-        unsafe {
-            *self.r.data.get() = Some(new_update);
-        }
+        let data = unsafe { &mut *self.r.data.get() };
+        data.push(new_update);
 
-        cleanup.push(Box::new(move || self.r.is_new.set(false)));
+        if data.len() == 1 {
+            // register for cleanup once
+            cleanup.push(Box::new(move || {
+                unsafe { &mut *self.r.data.get() }.clear();
+            }))
+        }
     }
 
-    /// Gets a reference to the last event arguments.
-    pub fn last_update(&self, ctx: &AppContext) -> Option<&T> {
-        let id = ctx.id();
-        if let Some(ctx_id) = self.r.borrowed.get() {
-            if ctx_id != id {
-                panic!(
-                    "`EventChannel<{}>` is already borrowed in a different `AppContext`",
-                    type_name::<T>()
-                )
-            }
-        } else {
-            self.r.borrowed.set(Some(id));
-        }
+    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
+    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+        self.r.context.check(
+            ctx.id(),
+            format_args!(
+                "cannot read `EventChannel<{}>` because it is borrowed in a different context",
+                type_name::<T>()
+            ),
+        );
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
         // only applied when the context is mut.
         unsafe { &*self.r.data.get() }.as_ref()
-    }
-
-    /// Gets a reference to [last_update] if [is_new].
-    pub fn update(&self, ctx: &AppContext) -> Option<&T> {
-        if self.r.is_new.get() {
-            self.last_update(ctx)
-        } else {
-            None
-        }
-    }
-
-    /// Gets if the [last_update](EventChannel::last_update) is new.
-    ///
-    /// This flag stays true only for one update cicle.
-    pub fn is_new(&self) -> bool {
-        self.r.is_new.get()
     }
 
     /// Gets if this update is notified using the [UiNode::update_hp] method.
@@ -117,21 +98,9 @@ impl<T: 'static> Clone for EventListener<T> {
     }
 }
 impl<T: 'static> EventListener<T> {
-    /// Gets a reference to the last event arguments.
-    pub fn last_update(&self, ctx: &AppContext) -> Option<&T> {
-        self.chan.last_update(ctx)
-    }
-
-    /// Gets a reference to [last_update] if [is_new].
-    pub fn update(&self, ctx: &AppContext) -> Option<&T> {
-        self.chan.update(ctx)
-    }
-
-    /// Gets if the [last_update](EventChannel::last_update) is new.
-    ///
-    /// This flag stays true only for one update cicle.
-    pub fn is_new(&self) -> bool {
-        self.chan.is_new()
+    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
+    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+        self.chan.updates(ctx)
     }
 
     /// Gets if this update is notified using the [UiNode::update_hp] method.
@@ -161,29 +130,16 @@ impl<T: 'static> EventEmitter<T> {
             chan: EventChannel {
                 r: Rc::new(EventData {
                     data: UnsafeCell::default(),
-                    borrowed: Cell::default(),
-                    is_new: Cell::default(),
+                    context: AppContextOwnership::default(),
                     is_high_pressure,
                 }),
             },
         }
     }
 
-    /// Gets a reference to the last event arguments.
-    pub fn last_update(&self, ctx: &AppContext) -> Option<&T> {
-        self.chan.last_update(ctx)
-    }
-
-    /// Gets a reference to [last_update] if [is_new].
-    pub fn update(&self, ctx: &AppContext) -> Option<&T> {
-        self.chan.update(ctx)
-    }
-
-    /// Gets if the [last_update](EventChannel::last_update) is new.
-    ///
-    /// This flag stays true only for one update cicle.
-    pub fn is_new(&self) -> bool {
-        self.chan.is_new()
+    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
+    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+        self.chan.updates(ctx)
     }
 
     /// Gets if this event is notified using the [UiNode::update_hp] method.
