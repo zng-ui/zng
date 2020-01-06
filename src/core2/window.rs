@@ -128,7 +128,13 @@ impl AppExtension for AppWindows {
                 Arc::clone(&self.ui_threads),
             );
 
-            todo!()
+            let args = NewWindowArgs {
+                timestamp: Instant::now(),
+                window_id: w.id(),
+            };
+
+            r.push_notify(request.notifier, args.clone());
+            r.push_notify(self.new_window.clone(), args.clone());
         }
     }
 }
