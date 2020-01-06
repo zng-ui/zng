@@ -17,17 +17,21 @@ use webrender::api::{DocumentId, RenderNotifier};
 pub use webrender::api::ColorF;
 
 /// New window event.
-pub enum NewWindow {}
+pub enum WindowOpen {}
 
-pub enum ResizedWindow{}
+/// Window resized event.
+pub enum WindowResize {}
+
+/// Window moved event.
+pub enum WindowMove {}
 
 /// Closing window event.
-pub enum ClosingWindow {}
+pub enum WindowClosing {}
 
 /// Closed window event.
-pub enum ClosedWindow {}
+pub enum WindowClose {}
 
-/// [NewWindow], [ClosedWindow] event args.
+/// [WindowOpen], [WindowClose] event args.
 #[derive(Debug, Clone)]
 pub struct WindowArgs {
     pub timestamp: Instant,
@@ -42,46 +46,48 @@ impl EventArgs for WindowArgs {
 
 /// [NewWindow] event args.
 #[derive(Debug, Clone)]
-pub struct ClosingWindowArgs {
+pub struct WindowClosingArgs {
     pub timestamp: Instant,
     pub window_id: WindowId,
     cancel: Cell<bool>,
 }
 
-impl ClosingWindowArgs {
+impl WindowClosingArgs {
     pub fn new(window_id: WindowId) -> Self {
-        ClosingWindowArgs {
+        WindowClosingArgs {
             timestamp: Instant::now(),
             window_id,
             cancel: Cell::new(false),
         }
     }
 
+    /// Gets if a handler canceled the window close.
     pub fn cancel_requested(&self) -> bool {
         self.cancel.get()
     }
 
+    /// Cancel the window close.
     pub fn cancel(&self) {
         self.cancel.set(true);
     }
 }
 
-impl EventArgs for ClosingWindowArgs {
+impl EventArgs for WindowClosingArgs {
     fn timestamp(&self) -> Instant {
         self.timestamp
     }
 }
 
-impl Event for NewWindow {
+impl Event for WindowOpen {
     type Args = WindowArgs;
 }
 
-impl Event for ClosedWindow {
+impl Event for WindowClose {
     type Args = WindowArgs;
 }
 
-impl Event for ClosingWindow {
-    type Args = ClosingWindowArgs;
+impl Event for WindowClosing {
+    type Args = WindowClosingArgs;
 }
 
 /// Windows management [AppExtension].
@@ -90,9 +96,9 @@ pub(crate) struct AppWindows {
     ui_threads: Arc<ThreadPool>,
     service: Windows,
     windows: Vec<GlWindow>,
-    new_window: EventEmitter<WindowArgs>,
-    closing_window: EventEmitter<ClosingWindowArgs>,
-    closed_window: EventEmitter<WindowArgs>,
+    window_open: EventEmitter<WindowArgs>,
+    window_closing: EventEmitter<WindowClosingArgs>,
+    window_close: EventEmitter<WindowArgs>,
 }
 
 impl AppWindows {
@@ -113,9 +119,9 @@ impl AppWindows {
             ui_threads,
             service: Windows::default(),
             windows: Vec::with_capacity(1),
-            new_window: EventEmitter::new(false),
-            closing_window: EventEmitter::new(false),
-            closed_window: EventEmitter::new(false),
+            window_open: EventEmitter::new(false),
+            window_closing: EventEmitter::new(false),
+            window_close: EventEmitter::new(false),
         }
     }
 
@@ -166,7 +172,7 @@ impl AppWindows {
 impl AppExtension for AppWindows {
     fn register(&mut self, r: &mut AppRegister) {
         r.register_service::<Windows>(self.service.clone());
-        r.register_event::<NewWindow>(self.new_window.listener());
+        r.register_event::<WindowOpen>(self.window_open.listener());
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut EventContext) {
@@ -202,7 +208,7 @@ impl AppExtension for AppWindows {
             };
 
             r.push_notify(request.notifier, args.clone());
-            r.push_notify(self.new_window.clone(), args.clone());
+            r.push_notify(self.window_open.clone(), args.clone());
         }
     }
 }
