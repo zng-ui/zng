@@ -7,6 +7,7 @@ use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -18,19 +19,69 @@ pub use webrender::api::ColorF;
 /// New window event.
 pub enum NewWindow {}
 
-/// [NewWindow] event args.
+pub enum ResizedWindow{}
+
+/// Closing window event.
+pub enum ClosingWindow {}
+
+/// Closed window event.
+pub enum ClosedWindow {}
+
+/// [NewWindow], [ClosedWindow] event args.
 #[derive(Debug, Clone)]
-pub struct NewWindowArgs {
+pub struct WindowArgs {
     pub timestamp: Instant,
     pub window_id: WindowId,
 }
-impl EventArgs for NewWindowArgs {
+
+impl EventArgs for WindowArgs {
     fn timestamp(&self) -> Instant {
         self.timestamp
     }
 }
+
+/// [NewWindow] event args.
+#[derive(Debug, Clone)]
+pub struct ClosingWindowArgs {
+    pub timestamp: Instant,
+    pub window_id: WindowId,
+    cancel: Cell<bool>,
+}
+
+impl ClosingWindowArgs {
+    pub fn new(window_id: WindowId) -> Self {
+        ClosingWindowArgs {
+            timestamp: Instant::now(),
+            window_id,
+            cancel: Cell::new(false),
+        }
+    }
+
+    pub fn cancel_requested(&self) -> bool {
+        self.cancel.get()
+    }
+
+    pub fn cancel(&self) {
+        self.cancel.set(true);
+    }
+}
+
+impl EventArgs for ClosingWindowArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+}
+
 impl Event for NewWindow {
-    type Args = NewWindowArgs;
+    type Args = WindowArgs;
+}
+
+impl Event for ClosedWindow {
+    type Args = WindowArgs;
+}
+
+impl Event for ClosingWindow {
+    type Args = ClosingWindowArgs;
 }
 
 /// Windows management [AppExtension].
@@ -39,7 +90,9 @@ pub(crate) struct AppWindows {
     ui_threads: Arc<ThreadPool>,
     service: Windows,
     windows: Vec<GlWindow>,
-    new_window: EventEmitter<NewWindowArgs>,
+    new_window: EventEmitter<WindowArgs>,
+    closing_window: EventEmitter<ClosingWindowArgs>,
+    closed_window: EventEmitter<WindowArgs>,
 }
 
 impl AppWindows {
@@ -61,6 +114,8 @@ impl AppWindows {
             service: Windows::default(),
             windows: Vec::with_capacity(1),
             new_window: EventEmitter::new(false),
+            closing_window: EventEmitter::new(false),
+            closed_window: EventEmitter::new(false),
         }
     }
 
@@ -141,7 +196,7 @@ impl AppExtension for AppWindows {
                 Arc::clone(&self.ui_threads),
             );
 
-            let args = NewWindowArgs {
+            let args = WindowArgs {
                 timestamp: Instant::now(),
                 window_id: w.id(),
             };
@@ -154,7 +209,7 @@ impl AppExtension for AppWindows {
 
 struct NewWindowRequest {
     new: Box<dyn FnOnce(&AppContext) -> UiRoot>,
-    notifier: EventEmitter<NewWindowArgs>,
+    notifier: EventEmitter<WindowArgs>,
 }
 
 /// Windows service.
@@ -168,7 +223,7 @@ impl Service for Windows {}
 impl Windows {
     /// Requests a new window. Returns a notice that gets updated once
     /// when the window is launched.
-    pub fn new_window(&self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<NewWindowArgs> {
+    pub fn new_window(&self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowArgs> {
         let request = NewWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),
