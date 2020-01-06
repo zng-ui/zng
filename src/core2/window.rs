@@ -97,6 +97,15 @@ impl AppWindows {
             }
         }
     }
+
+    fn window_mut(&mut self, window_id: WindowId) -> Option<&mut GlWindow> {
+        for window in self.windows.iter_mut() {
+            if window.id() == window_id {
+                return Some(window);
+            }
+        }
+        None
+    }
 }
 
 impl AppExtension for AppWindows {
@@ -106,13 +115,25 @@ impl AppExtension for AppWindows {
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut EventContext) {
-        if let WindowEvent::RedrawRequested = event {
-            for window in self.windows.iter_mut() {
-                if window.id() == window_id {
+        match event {
+            WindowEvent::RedrawRequested => {
+                if let Some(window) = self.window_mut(window_id) {
                     window.redraw();
-                    break;
                 }
+            },
+            WindowEvent::Resized(new_size) => {
+                todo!()
+            },
+            WindowEvent::Moved(new_position) => {
+                todo!()
             }
+            WindowEvent::CloseRequested => {
+                todo!()
+            },
+            WindowEvent::HiDpiFactorChanged => {
+                todo!()
+            }
+            _ => {}
         }
     }
 
@@ -244,7 +265,19 @@ impl GlWindow {
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
 
-        todo!()
+        let mut r = GlWindow {
+            context: Some(unsafe { context.make_not_current().unwrap() }),
+            renderer,
+
+            root,
+            update: UpdateFlags::LAYOUT | UpdateFlags::RENDER,
+            first_draw: true,
+        };
+
+        r.layout();
+        r.render();
+
+        r
     }
 
     pub fn id(&self) -> WindowId {
@@ -272,8 +305,14 @@ impl GlWindow {
         if self.update.contains(UpdateFlags::LAYOUT) {
             self.update.remove(UpdateFlags::LAYOUT);
 
-            //self.root.child.measure()
-            todo!()
+            let available_size = self.context.as_ref().unwrap().window().inner_size();
+            let available_size = LayoutSize::new(available_size.width as f32, available_size.height as f32);
+
+            let desired_size = self.root.child.measure(available_size);
+
+            let final_size = desired_size.min(available_size);
+
+            self.root.child.arrange(final_size);
         }
     }
 
@@ -324,6 +363,12 @@ impl GlWindow {
     }
 
     pub fn hit_test(&self, point: LayoutPoint) {}
+
+    pub(crate) fn deinit(mut self) {
+        let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
+        self.renderer.deinit();
+        unsafe { context.make_not_current().unwrap() };
+    }
 }
 
 pub struct UiRoot {
