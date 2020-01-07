@@ -56,8 +56,7 @@ pub(crate) fn expand_property(
 
     let mut sorted_sets = vec![];
     let arg_nils = arg_names.iter().map(|_| quote! {()});
-    let quoted_arg_nills = quote!{#(#arg_nils),*};
-    let mut found_priority = false;
+    let quoted_arg_nills = quote! {#(#arg_nils),*};
 
     let mut set_pre: ItemFn = parse_quote! {
         #[doc(hidden)]
@@ -83,14 +82,47 @@ pub(crate) fn expand_property(
     };
 
     match priority {
-        Priority::ContextVar => { set_priority.sig.ident = ident("set_context_var"); sorted_sets.push(set_priority); todo!() }
-        Priority::Event => {}
-        Priority::Outer => {}
-        Priority::Inner => {}
+        Priority::ContextVar => {
+            set_priority.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_priority);
+            set_pos.sig.ident = ident("set_event");
+            sorted_sets.push(set_pos.clone());
+            set_pos.sig.ident = ident("set_outer");
+            sorted_sets.push(set_pos.clone());
+            set_pos.sig.ident = ident("set_inner");
+            sorted_sets.push(set_pos);
+        }
+        Priority::Event => {
+            set_pre.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_pre);
+            set_priority.sig.ident = ident("set_event");
+            sorted_sets.push(set_priority);
+            set_pos.sig.ident = ident("set_outer");
+            sorted_sets.push(set_pos.clone());
+            set_pos.sig.ident = ident("set_inner");
+            sorted_sets.push(set_pos);
+        }
+        Priority::Outer => {
+            set_pre.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_pre.clone());
+            set_pre.sig.ident = ident("set_event");
+            sorted_sets.push(set_pre);
+            set_priority.sig.ident = ident("set_outer");
+            sorted_sets.push(set_priority);
+            set_pos.sig.ident = ident("set_inner");
+            sorted_sets.push(set_pos);
+        }
+        Priority::Inner => {
+            set_pre.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_pre.clone());
+            set_pre.sig.ident = ident("set_event");
+            sorted_sets.push(set_pre.clone());
+            set_pre.sig.ident = ident("set_outer");
+            sorted_sets.push(set_pre);
+            set_priority.sig.ident = ident("set_inner");
+            sorted_sets.push(set_priority);
+        }
     }
-   
-
-
 
     let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
 
@@ -127,9 +159,6 @@ pub(crate) fn expand_property(
 
     output.into()
 }
-
-
-
 
 #[derive(PartialEq)]
 enum Priority {
