@@ -100,21 +100,13 @@ pub(crate) fn expand_ui_widget(input: proc_macro::TokenStream) -> proc_macro::To
     result.into()
 }
 
-fn pub_vis() -> Visibility {
-    Visibility::Public(VisPublic {
-        pub_token: syn::token::Pub {
-            span: Span::call_site(),
-        },
-    })
-}
-
 /// `#[ui_property]` implementation.
 pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut fn_ = parse_macro_input!(input as ItemFn);
-    let ident = fn_.sig.ident.clone();
+    let prop_ident = fn_.sig.ident.clone();
     let vis = fn_.vis;
 
-    fn_.sig.ident = Ident::new("set", ident.span());
+    fn_.sig.ident = Ident::new("set", prop_ident.span());
     fn_.vis = pub_vis();
 
     if fn_.sig.output == ReturnType::Default {
@@ -133,7 +125,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
             if let FnArg::Typed(pat) = arg {
                 if let Pat::Ident(pat) = &*pat.pat {
                     arg_names.push(pat.ident.clone());
-                    arg_gen_types.push(self::ident(&format!("T{}", arg_gen_types.len() + 1)))
+                    arg_gen_types.push(ident(&format!("T{}", arg_gen_types.len() + 1)))
                 } else {
                     abort!(arg.span(), "Property arguments does not support patten deconstruction.");
                 }
@@ -145,30 +137,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
 
     let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
 
-    expand_ui_property_output(docs_attrs, vis, ident, arg_gen_types, arg_names, other_attrs, fn_)
-}
-
-///-> (docs, other_attrs)
-fn extract_attributes(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
-    let mut docs = vec![];
-    let mut other_attrs = vec![];
-
-    let doc_ident = ident("doc");
-    let inline_ident = ident("inline");
-
-    for attr in attrs.drain(..) {
-        if let Some(ident) = attr.path.get_ident() {
-            if ident == &doc_ident {
-                docs.push(attr);
-                continue;
-            } else if ident == &inline_ident {
-                continue;
-            }
-        }
-        other_attrs.push(attr);
-    }
-
-    (docs, other_attrs)
+    expand_ui_property_output(docs_attrs, vis, prop_ident, arg_gen_types, arg_names, other_attrs, fn_)
 }
 
 fn expand_ui_property_output(

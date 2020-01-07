@@ -8,6 +8,7 @@ use proc_macro_hack::proc_macro_hack;
 
 mod impl_ui;
 mod impl_ui_node;
+mod property;
 mod ui;
 
 /// Generates default implementations of [Ui](zero_ui::core::Ui) methods.
@@ -240,6 +241,11 @@ pub fn ui_widget(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
     ui::expand_ui_property(input)
+}
+
+#[proc_macro_attribute]
+pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
+    property::expand_property(args, input)
 }
 
 /// Same as `impl_ui`, but with type paths using the keyword `crate::` instead of `zero_ui::`.
