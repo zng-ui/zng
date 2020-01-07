@@ -29,12 +29,21 @@ pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
 struct Cursor<T: UiNode, C: Var<CursorIcon>> {
     cursor: C,
     child: T,
+    render_cursor: CursorIcon,
 }
 
 #[impl_ui_node_crate]
 impl<T: UiNode, C: Var<CursorIcon>> UiNode for Cursor<T, C> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.render_cursor = *self.cursor.get(&ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.render_cursor = *self.cursor.get(&ctx);
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
-        //frame.push_cursor(self.cursor, &self.child);
+        frame.push_cursor(self.render_cursor, &self.child);
     }
 }
 
@@ -43,6 +52,7 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
     Cursor {
         cursor: cursor.into_var(),
         child,
+        render_cursor: CursorIcon::Default,
     }
 }
 
@@ -54,6 +64,7 @@ pub mod my_layout_property {
         Cursor {
             cursor: cursor.into_var(),
             child,
+            render_cursor: CursorIcon::Default,
         }
     }
 
