@@ -36,58 +36,68 @@ fn line(h: f32, text: &'static str) -> impl Ui {
 }
 
 fn item(_: usize, txt: &'static str) -> impl Ui {
-    let box_border = Var::new(rgba(0, 0, 0, 0.0));
-    let text_border = Var::new(rgba(0, 0, 0, 0.0));
+    use zero_ui::core2::new_button;
 
-    let text_id = UiItemId::new_unique();
+    let btn = new_button! {
+        padding: 4.;
+        on_click: 340;
 
-    let text = ui! {
-        id: text_id;
-        font_family: "Arial";
-        font_size: 60;
-        text_color: rgb(0, 0, 0);
-        //background_color: rgba(1., 1., 1., 0.5);
-        border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
-        focusable: default;
-        cursor: CursorIcon::Hand;
-
-        on_focus: enclose! {(text_border) move |u| {
-            u.set(&text_border, rgb(145, 218, 255));
-        }};
-        on_blur: move |u| {
-            u.set(&text_border, rgba(0, 0, 0, 0.0));
-        };
-
-        => button! {
-            padding: 4.;
-            on_click: |bi, u|{
-                teste_panic();
-            };
-
-            => text(txt)
-        }
+        => panic!("missing child")
     };
 
-    ui! {
-        background_gradient: {
-            start: (0., 0.),
-            end: (1., 1.),
-            stops: vec![rgb(0, 200, 0), rgb(200, 0, 0)]
-        };
-        border: 4., (Var::clone(&box_border), BorderStyle::Dashed);
-        focusable: default;
-        margin: 2.0;
-        width: 200.0;
-
-        on_focus: enclose! {(box_border)move |u| {
-            u.set(&box_border, rgb(145, 218, 255));
-        }};
-        on_blur: move |u| {
-            u.set(&box_border, rgba(0, 0, 0, 0.0));
-        };
-
-        => center(text)
-    }
+    todo!()
+    //let box_border = Var::new(rgba(0, 0, 0, 0.0));
+    //let text_border = Var::new(rgba(0, 0, 0, 0.0));
+//
+    //let text_id = UiItemId::new_unique();
+//
+    //let text = ui! {
+    //    id: text_id;
+    //    font_family: "Arial";
+    //    font_size: 60;
+    //    text_color: rgb(0, 0, 0);
+    //    //background_color: rgba(1., 1., 1., 0.5);
+    //    border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
+    //    focusable: default;
+    //    cursor: CursorIcon::Hand;
+//
+    //    on_focus: enclose! {(text_border) move |u| {
+    //        u.set(&text_border, rgb(145, 218, 255));
+    //    }};
+    //    on_blur: move |u| {
+    //        u.set(&text_border, rgba(0, 0, 0, 0.0));
+    //    };
+//
+    //    => button! {
+    //        padding: 4.;
+    //        on_click: |bi, u|{
+    //            teste_panic();
+    //        };
+//
+    //        => text(txt)
+    //    }
+    //};
+//
+    //ui! {
+    //    background_gradient: {
+    //        start: (0., 0.),
+    //        end: (1., 1.),
+    //        stops: vec![rgb(0, 200, 0), rgb(200, 0, 0)]
+    //    };
+    //    border: 4., (Var::clone(&box_border), BorderStyle::Dashed);
+    //    focusable: default;
+    //    margin: 2.0;
+    //    width: 200.0;
+//
+    //    on_focus: enclose! {(box_border)move |u| {
+    //        u.set(&box_border, rgb(145, 218, 255));
+    //    }};
+    //    on_blur: move |u| {
+    //        u.set(&box_border, rgba(0, 0, 0, 0.0));
+    //    };
+//
+    //    => center(text)
+    //}
 }
 
 #[inline(never)]

@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use syn::spanned::Spanned;
-use syn::{parse::*, punctuated::Punctuated, *};
+use syn::{parse::*, *};
 
 include!("util.rs");
 

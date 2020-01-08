@@ -61,10 +61,11 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
 
 // widget code expands to
 pub const NOTE: &str = stringify! {
-    let property1_arg = #expr;
+    let property1_arg0 = #expr;
+    let property1_arg1 = #expr;
     let property2_arg = #expr;
 
-    let (child, property1_arg) = property1::set_context_var(child, property1_arg);
+    let (child, property1_arg, pa1) = property1::set_context_var(child, property1_arg0, property1_arg1);
     let (child, property2_arg) = property1::set_context_var(child, property2_arg);
 
     let (child, property1_arg) = property1::set_event(child, property1_arg);
@@ -78,3 +79,52 @@ pub const NOTE: &str = stringify! {
     let (child, property1_arg) = property1::set_inner(child, property1_arg);
     let (child, property2_arg) = property1::set_inner(child, property2_arg);
 };
+
+use crate::widget;
+
+widget! {
+    //! Button widget.
+    //! # Arguments
+    //! * `on_click`: Required button click event handler.
+    //! * `padding`: Margin around the button content.
+    //! * `background_color`:
+    //! * `border`:
+    //!
+    //! # Examples
+    //! ```
+    //! use crate::widgets::text;
+    //!
+    //! button! {
+    //!     on_click: |_, _| { println!("Button clicked!") };
+    //!     => text("Click Me!")
+    //! }
+    //! ```
+
+    use crate::properties::*;
+
+    // Properties applied to child before calling widget fn.
+    child_properties {
+        // Property declaration without default value, if not set does not apply.
+        // If set applies margin to child.
+        padding -> margin;
+        // Same with default value.
+        content_align -> align: CENTER;
+        // Default value of background_color property that is applied to child.
+        background_color: rgb(255, 255, 255);
+    }
+
+
+    // Properties applied to return of widget fn. Same sintax as
+    // child_properties.
+    self_properties {
+        border: 4., (rgba(0, 0, 0, 0.0), BorderStyle::Dashed);
+    }
+
+    // widget signature, must name the parameters after child,
+    // they behave like required properties in the declared button! macro.
+
+    pub fn new_button(child: impl UiNode, on_click: u32) -> impl UiNode {
+        println!("does things");
+        child
+    }
+}

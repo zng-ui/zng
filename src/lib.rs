@@ -20,13 +20,17 @@ mod macros;
 
 pub use zero_ui_macros::{impl_ui, ui_property, ui_widget};
 
-pub use zero_ui_macros::{impl_ui_node, property};
+pub use zero_ui_macros::{impl_ui_node, property, widget};
 
 use proc_macro_hack::proc_macro_hack;
 
 #[doc(hidden)]
 #[proc_macro_hack(support_nested)]
 pub use zero_ui_macros::custom_ui;
+
+#[doc(hidden)]
+#[proc_macro_hack(support_nested)]
+pub use zero_ui_macros::widget_new;
 
 /// Defines an item widget made entirely of property behavior.
 ///

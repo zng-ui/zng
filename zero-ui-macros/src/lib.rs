@@ -10,6 +10,7 @@ mod impl_ui;
 mod impl_ui_node;
 mod property;
 mod ui;
+mod widget;
 
 /// Generates default implementations of [Ui](zero_ui::core::Ui) methods.
 ///
@@ -238,6 +239,11 @@ pub fn ui_widget(input: TokenStream) -> TokenStream {
     ui::expand_ui_widget(input)
 }
 
+#[proc_macro]
+pub fn widget(input: TokenStream) -> TokenStream {
+    widget::expand_widget(input)
+}
+
 #[proc_macro_attribute]
 pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
     ui::expand_ui_property(input)
@@ -266,4 +272,10 @@ pub fn impl_ui_node_crate(args: TokenStream, input: TokenStream) -> TokenStream 
 #[proc_macro_hack]
 pub fn custom_ui(input: TokenStream) -> TokenStream {
     ui::gen_custom_ui_init(input)
+}
+
+#[doc(hidden)]
+#[proc_macro_hack]
+pub fn widget_new(input: TokenStream) -> TokenStream {
+    widget::expand_widget_new(input)
 }
