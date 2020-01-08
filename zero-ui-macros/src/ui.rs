@@ -127,7 +127,10 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
                     arg_names.push(pat.ident.clone());
                     arg_gen_types.push(ident(&format!("T{}", arg_gen_types.len() + 1)))
                 } else {
-                    abort!(arg.span(), "Property arguments does not support patten deconstruction.");
+                    abort!(
+                        arg.span(),
+                        "Property arguments does not support pattern deconstruction."
+                    );
                 }
             } else {
                 abort!(arg.span(), "Unexpected `self`.");

@@ -1,4 +1,5 @@
 use super::*;
+use crate::property;
 use zero_ui_macros::impl_ui_node_crate;
 
 struct Widget<T: UiNode> {
@@ -39,7 +40,9 @@ impl<T: UiNode, C: Var<CursorIcon>> UiNode for Cursor<T, C> {
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
-        self.render_cursor = *self.cursor.get(&ctx);
+        if let Some(cursor) = self.cursor.update(&ctx) {
+            self.render_cursor = *cursor;
+        }
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -47,56 +50,12 @@ impl<T: UiNode, C: Var<CursorIcon>> UiNode for Cursor<T, C> {
     }
 }
 
-//#[property]
+#[property(context_var)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
     Cursor {
         cursor: cursor.into_var(),
         child,
         render_cursor: CursorIcon::Default,
-    }
-}
-
-// #[property(outer)] expands to:
-pub mod my_layout_property {
-    use super::*;
-
-    pub fn set(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
-        Cursor {
-            cursor: cursor.into_var(),
-            child,
-            render_cursor: CursorIcon::Default,
-        }
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn set_context_var(
-        child: impl UiNode,
-        cursor: impl IntoVar<CursorIcon>,
-    ) -> (impl UiNode, impl IntoVar<CursorIcon>) {
-        // not #[property(context_var)], pass through, return types copied from `set` argument types.
-        (child, cursor)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn set_event(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> (impl UiNode, impl IntoVar<CursorIcon>) {
-        // not #[property(event)], pass through
-        (child, cursor)
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn set_outer(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> (impl UiNode, ()) {
-        // is #[property(outer)], pass through, consume arguments, return type is (impl UiNone, <repeat () for `set`.args.count - 1>)
-        (set(child, cursor), ())
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn set_inner(child: impl UiNode, _: ()) -> (impl UiNode, ()) {
-        // not #[property(inner)], after argument consumption,  pass through child, input and outputs are blanks
-        (child, ())
     }
 }
 

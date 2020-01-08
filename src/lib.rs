@@ -20,6 +20,8 @@ mod macros;
 
 pub use zero_ui_macros::{impl_ui, ui_property, ui_widget};
 
+pub use zero_ui_macros::{impl_ui_node, property};
+
 use proc_macro_hack::proc_macro_hack;
 
 #[doc(hidden)]

@@ -1,14 +1,6 @@
-use proc_macro2::{Punct, Spacing, Span, TokenStream};
-use quote::{ToTokens, TokenStreamExt};
-use std::collections::HashMap;
+use proc_macro2::{Span, TokenStream};
 use syn::spanned::Spanned;
-use syn::visit_mut::VisitMut;
-use syn::{
-    parse::*,
-    punctuated::Punctuated,
-    token::{Brace, Token},
-    *,
-};
+use syn::{parse::*, punctuated::Punctuated, *};
 
 include!("util.rs");
 
@@ -27,7 +19,7 @@ pub(crate) fn expand_property(
     fn_.vis = pub_vis();
 
     if fn_.sig.output == ReturnType::Default {
-        abort_call_site!("Function must return an UiNode")
+        abort_call_site!("function must return an `UiNode`")
     }
 
     let mut arg_names = vec![];
@@ -35,9 +27,9 @@ pub(crate) fn expand_property(
     let mut arg_types = vec![];
 
     if fn_.sig.inputs.len() < 2 {
-        abort_call_site!("Function must take a child: impl UiNode first and at least one other argument.");
+        abort_call_site!("function must take a `child: impl UiNode` first and at least one other argument");
     } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
-        abort_call_site!("Function must free-standing.");
+        abort_call_site!("function must free-standing");
     } else {
         for arg in fn_.sig.inputs.iter().skip(1) {
             if let FnArg::Typed(pat) = arg {
@@ -46,38 +38,50 @@ pub(crate) fn expand_property(
                     arg_names.push(pat.ident.clone());
                     arg_gen_types.push(ident(&format!("T{}", arg_gen_types.len() + 1)))
                 } else {
-                    abort!(arg.span(), "Property arguments does not support patten deconstruction.");
+                    abort!(arg.span(), "property arguments does not support pattern deconstruction");
                 }
             } else {
-                abort!(arg.span(), "Unexpected `self`.");
+                abort!(arg.span(), "unexpected `self`");
             }
         }
     }
 
     let mut sorted_sets = vec![];
-    let arg_nils = arg_names.iter().map(|_| quote! {()});
-    let quoted_arg_nills = quote! {#(#arg_nils),*};
+    let arg_nils: Vec<_> = arg_names.iter().map(|_| quote! {()}).collect();
+    let gen_tys = if let Some(gen_lt) = fn_.sig.generics.lt_token {
+        let gen_tys = fn_.sig.generics.type_params();
+        let gen_gt = fn_.sig.generics.gt_token;
+
+        quote! {
+            #gen_lt
+            #(#gen_tys),*
+            #gen_gt
+        }
+    } else {
+        TokenStream::new()
+    };
+    let where_ = fn_.sig.generics.where_clause.clone();
 
     let mut set_pre: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_pre(child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_types),*) {
+        pub fn set_pre #gen_tys (child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_types),*) #where_ {
             (child, #(#arg_names),*)
         }
     };
     let mut set_priority: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_priority(child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_types),*) {
-            (set(child, #(#arg_names)*),#quoted_arg_nills)
+        pub fn set_priority #gen_tys (child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_nils),*) #where_ {
+            (set(child, #(#arg_names),*), #(#arg_nils),*)
         }
     };
 
-    let mut set_pos: ItemFn = parse_quote! {
+    let mut set_post: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_pos(child: impl UiNode, #(_: #arg_types),*) -> (impl UiNode, #(#arg_types),*) {
-            (child, #quoted_arg_nills)
+        pub fn set_pos(child: impl UiNode, #(_: #arg_nils),*) -> (impl UiNode, #(#arg_nils),*) {
+            (child, #(#arg_nils),*)
         }
     };
 
@@ -85,22 +89,22 @@ pub(crate) fn expand_property(
         Priority::ContextVar => {
             set_priority.sig.ident = ident("set_context_var");
             sorted_sets.push(set_priority);
-            set_pos.sig.ident = ident("set_event");
-            sorted_sets.push(set_pos.clone());
-            set_pos.sig.ident = ident("set_outer");
-            sorted_sets.push(set_pos.clone());
-            set_pos.sig.ident = ident("set_inner");
-            sorted_sets.push(set_pos);
+            set_post.sig.ident = ident("set_event");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_outer");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_inner");
+            sorted_sets.push(set_post);
         }
         Priority::Event => {
             set_pre.sig.ident = ident("set_context_var");
             sorted_sets.push(set_pre);
             set_priority.sig.ident = ident("set_event");
             sorted_sets.push(set_priority);
-            set_pos.sig.ident = ident("set_outer");
-            sorted_sets.push(set_pos.clone());
-            set_pos.sig.ident = ident("set_inner");
-            sorted_sets.push(set_pos);
+            set_post.sig.ident = ident("set_outer");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_inner");
+            sorted_sets.push(set_post);
         }
         Priority::Outer => {
             set_pre.sig.ident = ident("set_context_var");
@@ -109,8 +113,8 @@ pub(crate) fn expand_property(
             sorted_sets.push(set_pre);
             set_priority.sig.ident = ident("set_outer");
             sorted_sets.push(set_priority);
-            set_pos.sig.ident = ident("set_inner");
-            sorted_sets.push(set_pos);
+            set_post.sig.ident = ident("set_inner");
+            sorted_sets.push(set_post);
         }
         Priority::Inner => {
             set_pre.sig.ident = ident("set_context_var");
