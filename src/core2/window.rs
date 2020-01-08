@@ -94,7 +94,6 @@ impl Event for WindowClosing {
 pub(crate) struct AppWindows {
     event_loop_proxy: EventLoopProxy<WebRenderEvent>,
     ui_threads: Arc<ThreadPool>,
-    service: Windows,
     windows: Vec<GlWindow>,
     window_open: EventEmitter<WindowArgs>,
     window_closing: EventEmitter<WindowClosingArgs>,
@@ -117,7 +116,6 @@ impl AppWindows {
         AppWindows {
             event_loop_proxy,
             ui_threads,
-            service: Windows::new(),
             windows: Vec::with_capacity(1),
             window_open: EventEmitter::new(false),
             window_closing: EventEmitter::new(false),
@@ -171,7 +169,7 @@ impl AppWindows {
 
 impl AppExtension for AppWindows {
     fn register(&mut self, r: &mut AppRegister) {
-        r.register_service::<Windows>(self.service.clone());
+        r.register_service::<Windows>(Windows::new());
         r.register_event::<WindowOpen>(self.window_open.listener());
     }
 
@@ -191,9 +189,7 @@ impl AppExtension for AppWindows {
     }
 
     fn respond(&mut self, r: &mut EventContext) {
-        let requests = std::mem::replace(&mut *self.service.requests.borrow_mut(), Vec::default());
-
-        for request in requests {
+        for request in r.service::<Windows>().take_requests() {
             let w = GlWindow::new(
                 request.new,
                 r.app_ctx(),
@@ -219,29 +215,35 @@ struct NewWindowRequest {
 }
 
 /// Windows service.
-#[derive(Clone)]
 pub struct Windows {
-    requests: Rc<RefCell<Vec<NewWindowRequest>>>,
+    requests: Vec<NewWindowRequest>,
 }
 
 impl Service for Windows {}
 
 impl Windows {
-    pub(crate) fn new() -> Self {
+    fn new() -> Self {
         Windows {
-            requests: Rc::default(),
+            requests: Vec::default(),
         }
+    }
+
+    fn take_requests(&mut self) -> Vec<NewWindowRequest> {
+        std::mem::replace(&mut self.requests, Vec::default())
     }
 
     /// Requests a new window. Returns a notice that gets updated once
     /// when the window is launched.
-    pub fn new_window(&self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowArgs> {
+    pub fn new_window(
+        &mut self,
+        new_window: impl FnOnce(&AppContext) -> UiRoot + 'static,
+    ) -> EventListener<WindowArgs> {
         let request = NewWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),
         };
         let notice = request.notifier.listener();
-        self.requests.borrow_mut().push(request);
+        self.requests.push(request);
         notice
     }
 }

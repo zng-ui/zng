@@ -49,16 +49,31 @@ impl<'a> EventContext<'a> {
         self.ctx.push_notify(sender, args);
     }
 
+    /// Gets a service reference if the service is registered in the application.
+    pub fn try_service<S: Service>(&mut self) -> Option<&mut S> {
+        self.ctx.try_service::<S>()
+    }
+
+    /// Gets a service reference.
+    ///
+    /// # Panics
+    /// If  the service is not registered in application.
+    pub fn service<S: Service>(&mut self) -> &mut S {
+        self.ctx.service::<S>()
+    }
+
     pub(crate) fn event_loop(&self) -> &EventLoopWindowTarget<WebRenderEvent> {
         self.event_loop
     }
 }
 
 impl AppRegister {
+    /// Register a new event for the duration of the application context.
     pub fn register_event<E: Event>(&mut self, listener: EventListener<E::Args>) {
         self.ctx.events.insert(TypeId::of::<E>(), Box::new(listener));
     }
 
+    /// Register a new service for the duration of the application context.
     pub fn register_service<S: Service>(&mut self, service: S) {
         self.ctx.services.insert(TypeId::of::<S>(), Box::new(service));
     }
@@ -118,6 +133,19 @@ pub struct AppContext {
     cleanup: Vec<CleanupOnce>,
 }
 
+trait AnyExt {
+    #[inline]
+    unsafe fn downcast_ref_unchecked<T: 'static>(&self) -> &T {
+        &*(self as *const Self as *const T)
+    }
+
+    #[inline]
+    unsafe fn downcast_mut_unchecked<T: 'static>(&mut self) -> &mut T {
+        &mut *(self as *mut Self as *mut T)
+    }
+}
+impl AnyExt for Box<dyn Any> {}
+
 impl AppContext {
     /// Gets this context instance id. There is usually a single context
     /// per application but more then one context can happen in tests.
@@ -128,7 +156,9 @@ impl AppContext {
     /// Creates an event listener if the event is registered in the application.
     pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
         if let Some(any) = self.events.get(&TypeId::of::<E>()) {
-            any.downcast_ref::<EventListener<E::Args>>().cloned()
+            // SAFETY: This is safe because args are always the same type as key in
+            // `AppRegister::register_event` witch is the only place where insertion occurs.
+            Some(unsafe { any.downcast_ref_unchecked::<EventListener<E::Args>>().clone() })
         } else {
             None
         }
@@ -144,9 +174,11 @@ impl AppContext {
     }
 
     /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&self) -> Option<&S> {
-        if let Some(any) = self.events.get(&TypeId::of::<S>()) {
-            any.downcast_ref::<S>()
+    pub fn try_service<S: Service>(&mut self) -> Option<&mut S> {
+        if let Some(any) = self.events.get_mut(&TypeId::of::<S>()) {
+            // SAFETY: This is safe because services are always the same type as key in
+            // `AppRegister::register_service` witch is the only place where insertion occurs.
+            Some(unsafe { any.downcast_mut_unchecked::<S>() })
         } else {
             None
         }
@@ -156,7 +188,7 @@ impl AppContext {
     ///
     /// # Panics
     /// If  the service is not registered in application.
-    pub fn service<S: Service>(&self) -> &S {
+    pub fn service<S: Service>(&mut self) -> &mut S {
         self.try_service::<S>()
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
     }
@@ -490,7 +522,7 @@ impl AppExtension for () {
 }
 
 /// Identifies a service type.
-pub trait Service: Clone + 'static {}
+pub trait Service: 'static {}
 
 /// Defines and runs an application.
 pub struct App<Exts: AppExtension> {
