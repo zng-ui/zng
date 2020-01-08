@@ -117,7 +117,7 @@ impl AppWindows {
         AppWindows {
             event_loop_proxy,
             ui_threads,
-            service: Windows::default(),
+            service: Windows::new(),
             windows: Vec::with_capacity(1),
             window_open: EventEmitter::new(false),
             window_closing: EventEmitter::new(false),
@@ -219,7 +219,7 @@ struct NewWindowRequest {
 }
 
 /// Windows service.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Windows {
     requests: Rc<RefCell<Vec<NewWindowRequest>>>,
 }
@@ -227,6 +227,12 @@ pub struct Windows {
 impl Service for Windows {}
 
 impl Windows {
+    pub(crate) fn new() -> Self {
+        Windows {
+            requests: Rc::default(),
+        }
+    }
+
     /// Requests a new window. Returns a notice that gets updated once
     /// when the window is launched.
     pub fn new_window(&self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowArgs> {

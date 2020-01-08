@@ -152,10 +152,10 @@ impl AppContext {
         }
     }
 
-     /// Gets a service reference.
-     ///
-     /// # Panics
-     /// If  the service is not registered in application.
+    /// Gets a service reference.
+    ///
+    /// # Panics
+    /// If  the service is not registered in application.
     pub fn service<S: Service>(&self) -> &S {
         self.try_service::<S>()
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
