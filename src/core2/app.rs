@@ -125,6 +125,7 @@ impl AppContext {
         self.id
     }
 
+    /// Creates an event listener if the event is registered in the application.
     pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
         if let Some(any) = self.events.get(&TypeId::of::<E>()) {
             any.downcast_ref::<EventListener<E::Args>>().cloned()
@@ -133,11 +134,16 @@ impl AppContext {
         }
     }
 
+    /// Creates an event listener.
+    ///
+    /// # Panics
+    /// If the event is not registered in the application.
     pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
     }
 
+    /// Gets a service reference if the service is registered in the application.
     pub fn try_service<S: Service>(&self) -> Option<&S> {
         if let Some(any) = self.events.get(&TypeId::of::<S>()) {
             any.downcast_ref::<S>()
@@ -146,6 +152,10 @@ impl AppContext {
         }
     }
 
+     /// Gets a service reference.
+     ///
+     /// # Panics
+     /// If  the service is not registered in application.
     pub fn service<S: Service>(&self) -> &S {
         self.try_service::<S>()
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
