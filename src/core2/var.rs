@@ -184,7 +184,7 @@ impl<T: 'static> SharedVar<T> {
         self.r.context.check(
             mut_ctx_id,
             format_args!(
-                "cannot set `SharedVar<{}>` because it is borrowed in a different context",
+                "cannot set `SharedVar<{}>` because it is bound to a different `AppContext`",
                 type_name::<T>()
             ),
         );
@@ -202,7 +202,7 @@ impl<T: 'static> SharedVar<T> {
         self.r.context.check(
             ctx_id,
             format_args!(
-                "`SharedVar<{}>` is already borrowed in a different `AppContext`",
+                "cannot borrow `SharedVar<{}>` because it is bound to a different `AppContext`",
                 type_name::<T>()
             ),
         );
@@ -330,7 +330,7 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> MapVar
             s.context.check(
                 ctx.id(),
                 format_args!(
-                    "`MapVar<{}>` is already borrowed in a different `AppContext`",
+                    "cannot borrow `MapVar<{}>` because it is already bound to a different `AppContext`",
                     type_name::<T>()
                 ),
             );
