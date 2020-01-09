@@ -1,10 +1,12 @@
 use super::*;
 pub use glutin::window::CursorIcon;
 use webrender::api::*;
+pub use webrender::api::{GradientStop, LayoutRect, LayoutSideOffsets};
 
 pub struct FrameBuilder {
     widget_id: WidgetId,
     cursor: CursorIcon,
+    final_size: LayoutSize,
 }
 
 impl FrameBuilder {
@@ -12,11 +14,16 @@ impl FrameBuilder {
         FrameBuilder {
             widget_id: root_id,
             cursor: CursorIcon::default(),
+            final_size: LayoutSize::zero(),
         }
     }
 
     fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
+    }
+
+    pub fn final_size(&self) -> LayoutSize {
+        self.final_size
     }
 
     pub(crate) fn push_widget(&mut self, id: WidgetId, child: &impl UiNode) {
@@ -28,10 +35,28 @@ impl FrameBuilder {
         self.widget_id = parent;
     }
 
+    pub fn push_ui_node(&mut self, child: &impl UiNode, rect: &LayoutRect) {
+        todo!()
+    }
+
     pub fn push_cursor(&mut self, cursor: CursorIcon, node: &impl UiNode) {
         let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
         node.render(self);
         self.cursor = parent_cursor;
+    }
+
+    pub fn push_fill_color(&mut self, rect: LayoutRect, color: ColorF) {
+        todo!()
+    }
+
+    pub fn push_fill_gradient(
+        &mut self,
+        rect: LayoutRect,
+        start: LayoutPoint,
+        end: LayoutPoint,
+        stops: Vec<GradientStop>,
+    ) {
+        todo!()
     }
 }
 

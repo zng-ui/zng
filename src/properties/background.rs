@@ -1,4 +1,6 @@
-use crate::core::*;
+use crate::core2::*;
+use crate::property;
+use zero_ui_macros::impl_ui_node_crate;
 
 pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
     rgba(r, g, b, 1.0)
@@ -23,11 +25,11 @@ impl From<u8> for ColorFComponent {
     }
 }
 
-impl IntoValue<Vec<GradientStop>> for Vec<(f32, ColorF)> {
-    type Value = Owned<Vec<GradientStop>>;
+impl IntoVar<Vec<GradientStop>> for Vec<(f32, ColorF)> {
+    type Var = OwnedVar<Vec<GradientStop>>;
 
-    fn into_value(self) -> Self::Value {
-        Owned(
+    fn into_var(self) -> Self::Var {
+        OwnedVar(
             self.into_iter()
                 .map(|(offset, color)| GradientStop { offset, color })
                 .collect(),
@@ -35,12 +37,12 @@ impl IntoValue<Vec<GradientStop>> for Vec<(f32, ColorF)> {
     }
 }
 
-impl IntoValue<Vec<GradientStop>> for Vec<ColorF> {
-    type Value = Owned<Vec<GradientStop>>;
+impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
+    type Var = OwnedVar<Vec<GradientStop>>;
 
-    fn into_value(self) -> Self::Value {
+    fn into_var(self) -> Self::Var {
         let point = 1. / (self.len() as f32 - 1.);
-        Owned(
+        OwnedVar(
             self.into_iter()
                 .enumerate()
                 .map(|(i, color)| GradientStop {
@@ -52,96 +54,137 @@ impl IntoValue<Vec<GradientStop>> for Vec<ColorF> {
     }
 }
 
-#[derive(Clone, new)]
-pub struct FillColor<C: Value<ColorF>> {
+struct FillColor<C: Var<ColorF>> {
     color: C,
-    #[new(value = "HitTag::new_unique()")]
-    hit_tag: HitTag,
+    render_color: ColorF,
 }
 
-#[impl_ui_crate]
-impl<C: Value<ColorF>> FillColor<C> {
-    #[Ui]
-    fn value_changed(&mut self, _: &mut UiValues, update: &mut NextUpdate) {
-        if self.color.touched() {
-            update.render_frame();
+#[impl_ui_node_crate]
+impl<C: Var<ColorF>> UiNode for FillColor<C> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.render_color = *self.color.get(ctx);
+    }
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(color) = self.color.update(ctx) {
+            self.render_color = *color;
+            ctx.push_frame();
         }
     }
-
-    #[Ui]
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        hits.point_over(self.hit_tag)
-    }
-
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
+    fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_color");
-        f.push_color(LayoutRect::from_size(f.final_size()), *self.color, Some(self.hit_tag));
+        frame.push_fill_color(LayoutRect::from_size(frame.final_size()), self.render_color);
     }
 }
 
-pub fn fill_color<C: IntoValue<ColorF>>(color: C) -> FillColor<C::Value> {
-    FillColor::new(color.into_value())
+pub fn fill_color<C: IntoVar<ColorF>>(color: C) -> impl UiNode {
+    FillColor {
+        color: color.into_var(),
+        render_color: ColorF::BLACK,
+    }
 }
 
-#[derive(Clone, new)]
-pub struct FillGradient<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> {
+struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> {
     start: A,
     end: B,
     stops: S,
-    #[new(value = "HitTag::new_unique()")]
-    hit_tag: HitTag,
+    render_start: LayoutPoint,
+    render_end: LayoutPoint,
+    render_stops: Vec<GradientStop>,
+    final_size: LayoutSize,
 }
 
-#[impl_ui_crate]
-impl<A: Value<LayoutPoint>, B: Value<LayoutPoint>, S: Value<Vec<GradientStop>>> FillGradient<A, B, S> {
-    #[Ui]
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        hits.point_over(self.hit_tag)
+#[impl_ui_node_crate]
+impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.render_start = *self.start.get(ctx);
+        self.render_end = *self.end.get(ctx);
+        self.render_stops = self.stops.get(ctx).clone();
     }
 
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(start) = self.start.update(ctx) {
+            self.render_start = *start;
+            self.render_start.x *= self.final_size.width;
+            self.render_start.y *= self.final_size.height;
+            ctx.push_frame();
+        }
+        if let Some(end) = self.end.update(ctx) {
+            self.render_end = *end;
+            self.render_end.x *= self.final_size.width;
+            self.render_end.y *= self.final_size.height;
+            ctx.push_frame();
+        }
+        if let Some(stops) = self.stops.update(ctx) {
+            self.render_stops = stops.clone();
+            ctx.push_frame();
+        }
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.render_start.x /= self.final_size.width;
+        self.render_start.y /= self.final_size.height;
+        self.render_end.x /= self.final_size.width;
+        self.render_end.y /= self.final_size.height;
+
+        self.final_size = final_size;
+
+        self.render_start.x *= self.final_size.width;
+        self.render_start.y *= self.final_size.height;
+        self.render_end.x *= self.final_size.width;
+        self.render_end.y *= self.final_size.height;
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_gradient");
 
-        let final_size = f.final_size();
-        let mut start = *self.start;
-        let mut end = *self.end;
-
-        start.x *= final_size.width;
-        start.y *= final_size.height;
-        end.x *= final_size.width;
-        end.y *= final_size.height;
-
-        f.push_gradient(
-            LayoutRect::from_size(final_size),
-            start,
-            end,
-            self.stops.clone(),
-            Some(self.hit_tag),
+        frame.push_fill_gradient(
+            LayoutRect::from_size(self.final_size),
+            self.render_start,
+            self.render_end,
+            self.render_stops.clone(),
         );
     }
 }
 
 pub fn fill_gradient(
-    start: impl IntoValue<LayoutPoint>,
-    end: impl IntoValue<LayoutPoint>,
-    stops: impl IntoValue<Vec<GradientStop>>,
-) -> impl Ui {
-    FillGradient::new(start.into_value(), end.into_value(), stops.into_value())
+    start: impl IntoVar<LayoutPoint>,
+    end: impl IntoVar<LayoutPoint>,
+    stops: impl IntoVar<Vec<GradientStop>>,
+) -> impl UiNode {
+    FillGradient {
+        start: start.into_var(),
+        end: end.into_var(),
+        stops: stops.into_var(),
+        render_start: LayoutPoint::zero(),
+        render_end: LayoutPoint::zero(),
+        render_stops: Vec::default(),
+        final_size: LayoutSize::zero(),
+    }
 }
 
-#[derive(new)]
-pub struct Background<T: Ui, B: Ui> {
+struct Background<T: UiNode, B: UiNode> {
     child: T,
     background: B,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, B: Ui> Ui for Background<T, B> {
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.background.init(values, update);
-        self.child.init(values, update);
+impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.background.init(ctx);
+        self.child.init(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        self.background.deinit(ctx);
+        self.child.deinit(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.background.update(ctx);
+        self.child.update(ctx);
+    }
+    fn update_hp(&mut self, ctx: &mut AppContext) {
+        self.background.update_hp(ctx);
+        self.child.update_hp(ctx);
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
@@ -155,37 +198,34 @@ impl<T: Ui, B: Ui> Ui for Background<T, B> {
         self.child.arrange(final_size);
     }
 
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.background.value_changed(values, update);
-        self.child.value_changed(values, update);
-    }
-
-    fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.background.parent_value_changed(values, update);
-        self.child.parent_value_changed(values, update);
-    }
-
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        self.child.point_over(hits).or_else(|| self.background.point_over(hits))
-    }
-
-    fn render(&self, f: &mut NextFrame) {
-        self.background.render(f);
-        self.child.render(f)
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.background.render(frame);
+        self.child.render(frame);
     }
 }
 
-#[ui_property]
-pub fn background_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
-    Background::new(child, fill_color(color))
+#[property(inner)]
+pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
+    Background { child, background }
 }
 
-#[ui_property]
+#[property(inner)]
+pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
+    Background {
+        child,
+        background: fill_color(color),
+    }
+}
+
+#[property(inner)]
 pub fn background_gradient(
-    child: impl Ui,
-    start: impl IntoValue<LayoutPoint>,
-    end: impl IntoValue<LayoutPoint>,
-    stops: impl IntoValue<Vec<GradientStop>>,
-) -> impl Ui {
-    Background::new(child, fill_gradient(start, end, stops))
+    child: impl UiNode,
+    start: impl IntoVar<LayoutPoint>,
+    end: impl IntoVar<LayoutPoint>,
+    stops: impl IntoVar<Vec<GradientStop>>,
+) -> impl UiNode {
+    Background {
+        child,
+        background: fill_gradient(start, end, stops),
+    }
 }
