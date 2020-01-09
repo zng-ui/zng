@@ -211,7 +211,16 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
                 all_arg_names.push(arg_names);
             }
             PropertyArgs::Fields(fields) => {
-                //expanded_child_props.push(expand_property_args_fields(name, fields));
+                let arg_names: Vec<_> = (0..fields.len())
+                    .map(|i| ident(&format!("__{}{}", quote! {#name}, i)))
+                    .collect();
+                let_args.push(quote! {
+                    let (#(#arg_names),*) = #name::Args {
+                        #fields
+                    }.pop();
+                });
+
+                all_arg_names.push(arg_names);
             }
         }
     }
@@ -227,20 +236,6 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
     }
 
     (let_args, expanded_props, custom_id)
-}
-
-fn expand_property_args_fields(property_name: Ident, fields: Punctuated<FieldValue, Token![,]>) -> TokenStream {
-    let args: Vec<_> = (1..=fields.len()).map(|i| ident(&format!("arg_{}", i))).collect();
-
-    quote! {
-        let child = {
-            let (#(#args),*) = #property_name::Args {
-                #fields
-            }.pop();
-
-            #property_name::set(child, #(#args),*)
-        };
-    }
 }
 
 fn take_properties(
