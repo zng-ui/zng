@@ -2,6 +2,7 @@ use super::{AppContext, AppContextId, AppContextOwnership, WidgetId};
 use fnv::FnvHashMap;
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
+use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
 
@@ -359,16 +360,13 @@ impl<T: 'static> Var<T> for SharedVar<T> {
 /// This `struct` is created by the [as_read_only](Var::as_read_only) method in variables
 /// that are not `always_read_only`.
 pub struct ReadOnlyVar<T: 'static, V: Var<T> + Clone> {
-    _t: std::marker::PhantomData<T>,
+    _t: PhantomData<T>,
     var: V,
 }
 
 impl<T: 'static, V: Var<T> + Clone> ReadOnlyVar<T, V> {
     fn new(var: V) -> Self {
-        ReadOnlyVar {
-            _t: std::marker::PhantomData,
-            var,
-        }
+        ReadOnlyVar { _t: PhantomData, var }
     }
 }
 
@@ -402,7 +400,7 @@ impl<T: 'static, V: Var<T> + Clone> SizedVar<T> for ReadOnlyVar<T, V> {
 impl<T: 'static, V: Var<T> + Clone> Clone for ReadOnlyVar<T, V> {
     fn clone(&self) -> Self {
         ReadOnlyVar {
-            _t: std::marker::PhantomData,
+            _t: PhantomData,
             var: self.var.clone(),
         }
     }
@@ -432,7 +430,7 @@ enum MapVarInner<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
 
 /// A variable that maps the value of another variable.
 struct MapSharedVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
-    _t: std::marker::PhantomData<T>,
+    _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
     output: UnsafeCell<MaybeUninit<O>>,
@@ -443,7 +441,7 @@ struct MapSharedVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
 impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S, O, M> {
     fn new(source: S, map: M, prev_version: u32) -> Self {
         MapSharedVar {
-            _t: std::marker::PhantomData,
+            _t: PhantomData,
             source,
             map: RefCell::new(map),
             output: UnsafeCell::new(MaybeUninit::uninit()),
@@ -531,7 +529,7 @@ type MapContextVarOutputs<O> = FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)
 
 /// A variable that maps the value of a context variable.
 struct MapContextVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
-    _t: std::marker::PhantomData<T>,
+    _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
     outputs: RefCell<MapContextVarOutputs<O>>,
@@ -541,7 +539,7 @@ struct MapContextVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> 
 impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S, O, M> {
     fn new(source: S, map: M) -> Self {
         MapContextVar {
-            _t: std::marker::PhantomData,
+            _t: PhantomData,
             source,
             map: RefCell::new(map),
             outputs: RefCell::default(),
@@ -568,6 +566,8 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T,
                 let (output, output_version) = entry.into_mut();
                 if *output_version != source_version {
                     let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
+                    // TODO UNSAFE: Same context var can be set twice in same widget.
+
                     // SAFETY: This is safe because it only happens before the first borrow
                     // of this update.
                     unsafe { *output.get() = value }
@@ -716,7 +716,7 @@ pub trait SwitchVar<T: 'static>: Var<T> + protected::SwitchVar<T> {
 }
 
 struct SwitchVar2Inner<T: 'static, V0: Var<T>, V1: Var<T>> {
-    _t: std::marker::PhantomData<T>,
+    _t: PhantomData<T>,
     v0: V0,
     v1: V1,
 
@@ -738,7 +738,7 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar2<T, V0, V1> {
         assert!(index < 2);
         SwitchVar2 {
             r: Rc::new(SwitchVar2Inner {
-                _t: std::marker::PhantomData,
+                _t: PhantomData,
                 index: Cell::new(index),
                 v0_version: Cell::new(v0.version(ctx)),
                 v1_version: Cell::new(v1.version(ctx)),
@@ -901,7 +901,107 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar<T> for SwitchVar2<T, V0, V1> 
     }
 }
 
-//TODO merge
+struct MergeVar2Inner<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> {
+    _t0: PhantomData<T0>,
+    _t1: PhantomData<T1>,
+    v0: V0,
+    v1: V1,
+    v0_version: Cell<u32>,
+    v1_version: Cell<u32>,
+    merge: RefCell<M>,
+    output: UnsafeCell<MaybeUninit<O>>,
+    version: Cell<u32>,
+    context: AppContextOwnership,
+}
+
+pub struct MergeVar2<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> {
+    r: Rc<MergeVar2Inner<T0, T1, V0, V1, O, M>>,
+}
+
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O>
+    MergeVar2<T0, T1, V0, V1, O, M>
+{
+    pub fn new(v0: V0, v1: V1, merge: M) -> Self {
+        MergeVar2 {
+            r: Rc::new(MergeVar2Inner {
+                _t0: PhantomData,
+                _t1: PhantomData,
+                v0_version: Cell::new(0), // TODO prev_version
+                v1_version: Cell::new(0),
+                v0,
+                v1,
+                merge: RefCell::new(merge),
+                output: UnsafeCell::new(MaybeUninit::uninit()),
+                version: Cell::new(0),
+                context: AppContextOwnership::default(),
+            }),
+        }
+    }
+
+    fn borrow(&self, ctx: &AppContext) -> &O {
+        todo!()
+    }
+
+    fn any_is_new(&self, ctx: &AppContext) -> bool {
+        self.r.v0.is_new(ctx) | self.r.v1.is_new(ctx)
+    }
+}
+
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> Clone
+    for MergeVar2<T0, T1, V0, V1, O, M>
+{
+    fn clone(&self) -> Self {
+        MergeVar2 { r: Rc::clone(&self.r) }
+    }
+}
+
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> protected::Var<O>
+    for MergeVar2<T0, T1, V0, V1, O, M>
+{
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+        protected::BindInfo::Var(self.borrow(ctx), self.any_is_new(ctx), self.r.version.get())
+    }
+}
+
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> SizedVar<O>
+    for MergeVar2<T0, T1, V0, V1, O, M>
+{
+    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+        self.borrow(ctx)
+    }
+
+    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+        if self.any_is_new(ctx) {
+            Some(self.borrow(ctx))
+        } else {
+            None
+        }
+    }
+
+    fn is_new(&self, ctx: &AppContext) -> bool {
+        self.any_is_new(ctx)
+    }
+
+    fn version(&self, ctx: &AppContext) -> u32 {
+        self.r.version.get()
+    }
+}
+
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> Var<O>
+    for MergeVar2<T0, T1, V0, V1, O, M>
+{
+    type AsReadOnly = Self;
+
+    fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+        todo!()
+    }
+
+    fn as_read_only(self) -> Self {
+        self
+    }
+}
+
+//TODO map_bidi, merge
 
 /// A value-to-[var](Var) conversion that consumes the value.
 pub trait IntoVar<T: 'static> {
@@ -948,6 +1048,17 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVa
 
 /// Already is var.
 impl<T: 'static, V0: Var<T>, V1: Var<T>> IntoVar<T> for SwitchVar2<T, V0, V1> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+/// Already is var.
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> IntoVar<O>
+    for MergeVar2<T0, T1, V0, V1, O, M>
+{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
