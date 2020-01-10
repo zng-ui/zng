@@ -86,26 +86,6 @@ pub(crate) fn expand_property(
     };
 
     match priority {
-        Priority::ContextVar => {
-            set_priority.sig.ident = ident("set_context_var");
-            sorted_sets.push(set_priority);
-            set_post.sig.ident = ident("set_event");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_outer");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_inner");
-            sorted_sets.push(set_post);
-        }
-        Priority::Event => {
-            set_pre.sig.ident = ident("set_context_var");
-            sorted_sets.push(set_pre);
-            set_priority.sig.ident = ident("set_event");
-            sorted_sets.push(set_priority);
-            set_post.sig.ident = ident("set_outer");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_inner");
-            sorted_sets.push(set_post);
-        }
         Priority::Outer => {
             set_pre.sig.ident = ident("set_context_var");
             sorted_sets.push(set_pre.clone());
@@ -125,6 +105,26 @@ pub(crate) fn expand_property(
             sorted_sets.push(set_pre);
             set_priority.sig.ident = ident("set_inner");
             sorted_sets.push(set_priority);
+        }
+        Priority::Event => {
+            set_pre.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_pre);
+            set_priority.sig.ident = ident("set_event");
+            sorted_sets.push(set_priority);
+            set_post.sig.ident = ident("set_outer");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_inner");
+            sorted_sets.push(set_post);
+        }
+        Priority::ContextVar => {
+            set_priority.sig.ident = ident("set_context_var");
+            sorted_sets.push(set_priority);
+            set_post.sig.ident = ident("set_event");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_outer");
+            sorted_sets.push(set_post.clone());
+            set_post.sig.ident = ident("set_inner");
+            sorted_sets.push(set_post);
         }
     }
 
@@ -174,23 +174,30 @@ enum Priority {
 
 impl Parse for Priority {
     fn parse(input: ParseStream) -> Result<Self> {
-        let parsed: Ident = input.parse()?;
+        if input.peek(Ident) {
+            let parsed: Ident = input.parse()?;
 
-        if parsed == ident("context_var") {
-            Ok(Priority::ContextVar)
-        } else if parsed == ident("event") {
-            Ok(Priority::Event)
-        } else if parsed == ident("outer") {
-            Ok(Priority::Outer)
-        } else if parsed == ident("inner") {
-            Ok(Priority::Inner)
+            if parsed == ident("outer") {
+                Ok(Priority::Outer)
+            } else if parsed == ident("inner") {
+                Ok(Priority::Inner)
+            } else if parsed == ident("event") {
+                Ok(Priority::Event)
+            } else if parsed == ident("context_var") {
+                Ok(Priority::ContextVar)
+            } else {
+                Err(Error::new(
+                    parsed.span(),
+                    format!(
+                        "expected `context_var`, `event`, `outer` or `inner` found `{}`",
+                        quote!(#parsed)
+                    ),
+                ))
+            }
         } else {
             Err(Error::new(
-                parsed.span(),
-                format!(
-                    "expected `context_var`, `event`, `outer` or `inner` found `{}`",
-                    quote!(#parsed)
-                ),
+                Span::call_site(),
+                "missing macro argument, expected `context_var`, `event`, `outer` or `inner`",
             ))
         }
     }
