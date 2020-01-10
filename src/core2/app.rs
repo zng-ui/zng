@@ -367,17 +367,22 @@ impl AppContext {
     }
 
     /// Schedules a variable change for the next update.
-    pub fn push_set<T>(&mut self, var: SharedVar<T>, new_value: T) {
-        self.push_change(var, move |value| *value = new_value);
+    pub fn push_set<T: 'static>(&mut self, var: &impl SizedVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
+        var.push_set(new_value, self)
     }
 
     /// Schedules a variable modification for the next update.
-    pub fn push_change<T>(&mut self, var: SharedVar<T>, modify: impl FnOnce(&mut T) + 'static) {
-        self.update.insert(UpdateFlags::UPDATE);
+    pub fn push_modify<T: 'static>(
+        &mut self,
+        var: impl Var<T>,
+        modify: impl FnOnce(&mut T) + 'static,
+    ) -> Result<(), VarIsReadOnly> {
+        var.push_modify(modify, self)
+    }
 
-        let self_id = self.id;
-        self.updates
-            .push(Box::new(move |cleanup| var.modify(self_id, modify, cleanup)));
+    pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vec<CleanupOnce>) + 'static) {
+        self.update.insert(UpdateFlags::UPDATE);
+        self.updates.push(Box::new(modify));
     }
 
     /// Schedules an update notification.
