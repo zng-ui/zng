@@ -230,6 +230,17 @@ pub struct SharedVar<T: 'static> {
 }
 
 impl<T: 'static> SharedVar<T> {
+    pub fn new(initial_value: T) -> Self {
+        SharedVar {
+            r: Rc::new(SharedVarInner {
+                data: UnsafeCell::new(initial_value),
+                context: AppContextOwnership::default(),
+                is_new: Cell::new(false),
+                version: Cell::new(0),
+            }),
+        }
+    }
+
     pub(crate) fn modify(
         self,
         mut_ctx_id: AppContextId,
@@ -715,51 +726,299 @@ pub trait SwitchVar<T: 'static>: Var<T> + protected::SwitchVar<T> {
     fn len(&self) -> usize;
 }
 
-struct SwitchVar2Inner<T: 'static, V0: Var<T>, V1: Var<T>> {
+macro_rules! impl_switch_vars {
+    ($($SwitchVar:ident<$N:expr,$($VN:ident),+> {
+        $SwitchVarInner:ident {
+            $($n:expr => $vn:ident, $version: ident;)+
+        }
+    })+) => {$(
+        struct $SwitchVarInner<T: 'static, $($VN: Var<T>),+> {
+            _t: PhantomData<T>,
+            $($vn: $VN,)+
+
+            index: Cell<u8>,
+
+            $($version: Cell<u32>,)+
+
+            version: Cell<u32>,
+            is_new: Cell<bool>
+        }
+
+        /// A fixed-size set of variables that can be switched on. See [switch_var!] for
+        /// the full documentation.
+        pub struct $SwitchVar<T: 'static, $($VN: Var<T>),+> {
+            r: Rc<$SwitchVarInner<T, $($VN),+>>,
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> $SwitchVar<T, $($VN),+> {
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(index: u8, $($vn: $VN),+) -> Self {
+                assert!(index < $N);
+                $SwitchVar {
+                    r: Rc::new($SwitchVarInner {
+                        _t: PhantomData,
+                        index: Cell::new(index),
+                        $($version: Cell::new(0),)+
+                        version: Cell::new(0),
+                        is_new: Cell::new(false),
+                        $($vn,)+
+                    })
+                }
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> protected::Var<T> for $SwitchVar<T, $($VN),+> {
+            fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+                let is_new = self.is_new(ctx);
+                let version = self.version(ctx);
+                let inner_info = match self.r.index.get() {
+                    $($n => self.r.$vn.bind_info(ctx),)+
+                    _ => unreachable!(),
+                };
+
+                match inner_info {
+                    protected::BindInfo::Var(value, _, _) => protected::BindInfo::Var(value, is_new, version),
+                    protected::BindInfo::ContextVar(var_id, default, _) => {
+                        protected::BindInfo::ContextVar(var_id, default, Some((is_new, version)))
+                    }
+                }
+            }
+
+            fn read_only_prev_version(&self) -> u32 {
+                self.r.version.get().wrapping_sub(1)
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> SizedVar<T> for $SwitchVar<T, $($VN),+> {
+            fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+                match self.r.index.get() {
+                    $($n => self.r.$vn.get(ctx),)+
+                    _ => unreachable!(),
+                }
+            }
+
+            fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+                if self.r.is_new.get() {
+                    Some(self.get(ctx))
+                } else {
+                    match self.r.index.get() {
+                        $($n => self.r.$vn.update(ctx),)+
+                        _ => unreachable!(),
+                    }
+                }
+            }
+
+            fn is_new(&self, ctx: &AppContext) -> bool {
+                self.r.is_new.get()
+                    || match self.r.index.get() {
+                        $($n => self.r.$vn.is_new(ctx),)+
+                        _ => unreachable!(),
+                    }
+            }
+
+            fn version(&self, ctx: &AppContext) -> u32 {
+                match self.r.index.get() {
+                    $($n => {
+                        let $version = self.r.$vn.version(ctx);
+                        if $version != self.r.$version.get() {
+                            self.r.$version.set($version);
+                            self.r.version.set(self.r.version.get().wrapping_add(1));
+                        }
+                    },)+
+                    _ => unreachable!(),
+                }
+                self.r.version.get()
+            }
+
+            fn read_only(&self) -> bool {
+                match self.r.index.get() {
+                    $($n => self.r.$vn.read_only(),)+
+                    _ => unreachable!(),
+                }
+            }
+
+            fn always_read_only(&self) -> bool {
+                $(self.r.$vn.always_read_only()) && +
+            }
+
+            fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+                match self.r.index.get() {
+                    $($n => self.r.$vn.push_set(new_value, ctx),)+
+                    _ => unreachable!(),
+                }
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> Clone for $SwitchVar<T, $($VN),+> {
+            fn clone(&self) -> Self {
+                $SwitchVar { r: Rc::clone(&self.r) }
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> Var<T> for $SwitchVar<T, $($VN),+> {
+            type AsReadOnly = ReadOnlyVar<T, Self>;
+
+            fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+                match self.r.index.get() {
+                    $($n => self.r.$vn.push_modify(modify, ctx),)+
+                    _ => unreachable!(),
+                }
+            }
+
+            fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, map: M) -> MapVar<T, Self, O, M> {
+                MapVar::new(MapVarInner::Shared(MapSharedVar::new(
+                    self.clone(),
+                    map,
+                    self.r.version.get().wrapping_sub(1),
+                )))
+            }
+
+            fn as_read_only(self) -> Self::AsReadOnly {
+                ReadOnlyVar::new(self)
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> protected::SwitchVar<T> for $SwitchVar<T, $($VN),+> {
+            fn modify(self, new_index: usize, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
+                debug_assert!(new_index < $N);
+                let new_index = new_index as u8;
+
+                if new_index != self.r.index.get() {
+                    self.r.index.set(new_index as u8);
+                    self.r.is_new.set(true);
+                    self.r.version.set(self.r.version.get().wrapping_add(1));
+
+                    cleanup.push(Box::new(move || self.r.is_new.set(false)));
+                }
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> SwitchVar<T> for $SwitchVar<T, $($VN),+> {
+            fn index(&self) -> usize {
+                self.r.index.get() as usize
+            }
+
+            fn len(&self) -> usize {
+                $N
+            }
+        }
+
+        impl<T: 'static, $($VN: Var<T>),+> IntoVar<T> for $SwitchVar<T, $($VN),+> {
+            type Var = Self;
+
+            fn into_var(self) -> Self::Var {
+                self
+            }
+        }
+    )+};
+}
+
+impl_switch_vars! {
+    SwitchVar2<2, V0, V1> {
+        SwitchVar2Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+        }
+    }
+    SwitchVar3<3, V0, V1, V2> {
+        SwitchVar3Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+        }
+    }
+    SwitchVar4<4, V0, V1, V2, V3> {
+        SwitchVar4Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+            3 => v3, v3_version;
+        }
+    }
+    SwitchVar5<5, V0, V1, V2, V3, V4> {
+        SwitchVar5Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+            3 => v3, v3_version;
+            4 => v4, v4_version;
+        }
+    }
+    SwitchVar6<6, V0, V1, V2, V3, V4, V5> {
+        SwitchVar6Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+            3 => v3, v3_version;
+            4 => v4, v4_version;
+            5 => v5, v5_version;
+        }
+    }
+    SwitchVar7<7, V0, V1, V2, V3, V4, V5, V6> {
+        SwitchVar7Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+            3 => v3, v3_version;
+            4 => v4, v4_version;
+            5 => v5, v5_version;
+            6 => v6, v6_version;
+        }
+    }
+    SwitchVar8<8, V0, V1, V2, V3, V4, V5, V6, V7> {
+        SwitchVar8Inner {
+            0 => v0, v0_version;
+            1 => v1, v1_version;
+            2 => v2, v2_version;
+            3 => v3, v3_version;
+            4 => v4, v4_version;
+            5 => v5, v5_version;
+            6 => v6, v6_version;
+            7 => v7, v7_version;
+        }
+    }
+}
+
+struct SwitchVarDynInner<T: 'static> {
     _t: PhantomData<T>,
-    v0: V0,
-    v1: V1,
+    vars: Vec<Box<dyn SizedVar<T>>>,
+    versions: Vec<Cell<u32>>,
 
-    index: Cell<u8>,
-
-    v0_version: Cell<u32>,
-    v1_version: Cell<u32>,
+    index: Cell<usize>,
 
     version: Cell<u32>,
     is_new: Cell<bool>,
 }
 
-pub struct SwitchVar2<T: 'static, V0: Var<T>, V1: Var<T>> {
-    r: Rc<SwitchVar2Inner<T, V0, V1>>,
+/// A dynamically-sized set of variables that can be switched on. See [switch_var!] for
+/// the full documentation.
+pub struct SwitchVarDyn<T: 'static> {
+    r: Rc<SwitchVarDynInner<T>>,
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar2<T, V0, V1> {
-    pub fn new(index: u8, v0: V0, v1: V1, ctx: &AppContext) -> Self {
-        assert!(index < 2);
-        SwitchVar2 {
-            r: Rc::new(SwitchVar2Inner {
+impl<T: 'static> SwitchVarDyn<T> {
+    pub fn new(index: usize, vars: Vec<Box<dyn SizedVar<T>>>) -> Self {
+        assert!(!vars.is_empty());
+        assert!(index < vars.len());
+
+        SwitchVarDyn {
+            r: Rc::new(SwitchVarDynInner {
                 _t: PhantomData,
                 index: Cell::new(index),
-                v0_version: Cell::new(v0.version(ctx)),
-                v1_version: Cell::new(v1.version(ctx)),
+                versions: vec![Cell::new(0); vars.len()],
                 version: Cell::new(0),
                 is_new: Cell::new(false),
-                v0,
-                v1,
+                vars,
             }),
         }
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::Var<T> for SwitchVar2<T, V0, V1> {
+impl<T: 'static> protected::Var<T> for SwitchVarDyn<T> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
         let is_new = self.is_new(ctx);
         let version = self.version(ctx);
-        let inner_info = match self.r.index.get() {
-            0 => self.r.v0.bind_info(ctx),
-            1 => self.r.v1.bind_info(ctx),
-            _ => unreachable!(),
-        };
+        let inner_info = self.r.vars[self.r.index.get()].bind_info(ctx);
 
         match inner_info {
             protected::BindInfo::Var(value, _, _) => protected::BindInfo::Var(value, is_new, version),
@@ -774,93 +1033,57 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::Var<T> for SwitchVar2<T, V0,
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> SizedVar<T> for SwitchVar2<T, V0, V1> {
+impl<T: 'static> SizedVar<T> for SwitchVarDyn<T> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
-        match self.r.index.get() {
-            0 => self.r.v0.get(ctx),
-            1 => self.r.v1.get(ctx),
-            _ => unreachable!(),
-        }
+        self.r.vars[self.r.index.get()].get(ctx)
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
         if self.r.is_new.get() {
             Some(self.get(ctx))
         } else {
-            match self.r.index.get() {
-                0 => self.r.v0.update(ctx),
-                1 => self.r.v1.update(ctx),
-                _ => unreachable!(),
-            }
+            self.r.vars[self.r.index.get()].update(ctx)
         }
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        self.r.is_new.get()
-            || match self.r.index.get() {
-                0 => self.r.v0.is_new(ctx),
-                1 => self.r.v1.is_new(ctx),
-                _ => unreachable!(),
-            }
+        self.r.is_new.get() || self.r.vars[self.r.index.get()].is_new(ctx)
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        match self.r.index.get() {
-            0 => {
-                let v0_version = self.r.v0.version(ctx);
-                if v0_version != self.r.v0_version.get() {
-                    self.r.v0_version.set(v0_version);
-                    self.r.version.set(self.r.version.get().wrapping_add(1));
-                }
-            }
-            1 => {
-                let v1_version = self.r.v1.version(ctx);
-                if v1_version != self.r.v1_version.get() {
-                    self.r.v1_version.set(v1_version);
-                    self.r.version.set(self.r.version.get().wrapping_add(1));
-                }
-            }
-            _ => unreachable!(),
+        let index = self.r.index.get();
+        let version = self.r.vars[index].version(ctx);
+        if version != self.r.versions[index].get() {
+            self.r.versions[index].set(version);
+            self.r.version.set(self.r.version.get().wrapping_add(1));
         }
         self.r.version.get()
     }
 
     fn read_only(&self) -> bool {
-        match self.r.index.get() {
-            0 => self.r.v0.read_only(),
-            1 => self.r.v1.read_only(),
-            _ => unreachable!(),
-        }
+        self.r.vars[self.r.index.get()].read_only()
     }
 
     fn always_read_only(&self) -> bool {
-        self.r.v0.always_read_only() && self.r.v1.always_read_only()
+        self.r.vars.iter().all(|v| v.always_read_only())
     }
 
     fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        match self.r.index.get() {
-            0 => self.r.v0.push_set(new_value, ctx),
-            1 => self.r.v1.push_set(new_value, ctx),
-            _ => unreachable!(),
-        }
+        self.r.vars[self.r.index.get()].push_set(new_value, ctx)
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> Clone for SwitchVar2<T, V0, V1> {
+impl<T: 'static> Clone for SwitchVarDyn<T> {
     fn clone(&self) -> Self {
-        SwitchVar2 { r: Rc::clone(&self.r) }
+        SwitchVarDyn { r: Rc::clone(&self.r) }
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> Var<T> for SwitchVar2<T, V0, V1> {
+impl<T: 'static> Var<T> for SwitchVarDyn<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
 
     fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        match self.r.index.get() {
-            0 => self.r.v0.push_modify(modify, ctx),
-            1 => self.r.v1.push_modify(modify, ctx),
-            _ => unreachable!(),
-        }
+        todo!()
     }
 
     fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, map: M) -> MapVar<T, Self, O, M> {
@@ -876,13 +1099,12 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> Var<T> for SwitchVar2<T, V0, V1> {
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::SwitchVar<T> for SwitchVar2<T, V0, V1> {
+impl<T: 'static> protected::SwitchVar<T> for SwitchVarDyn<T> {
     fn modify(self, new_index: usize, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        debug_assert!(new_index < 2);
-        let new_index = new_index as u8;
+        debug_assert!(new_index < self.r.vars.len());
 
         if new_index != self.r.index.get() {
-            self.r.index.set(new_index as u8);
+            self.r.index.set(new_index);
             self.r.is_new.set(true);
             self.r.version.set(self.r.version.get().wrapping_add(1));
 
@@ -891,13 +1113,21 @@ impl<T: 'static, V0: Var<T>, V1: Var<T>> protected::SwitchVar<T> for SwitchVar2<
     }
 }
 
-impl<T: 'static, V0: Var<T>, V1: Var<T>> SwitchVar<T> for SwitchVar2<T, V0, V1> {
+impl<T: 'static> SwitchVar<T> for SwitchVarDyn<T> {
     fn index(&self) -> usize {
         self.r.index.get() as usize
     }
 
     fn len(&self) -> usize {
-        2
+        self.r.vars.len()
+    }
+}
+
+impl<T: 'static> IntoVar<T> for SwitchVarDyn<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
     }
 }
 
@@ -1047,15 +1277,6 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVa
 }
 
 /// Already is var.
-impl<T: 'static, V0: Var<T>, V1: Var<T>> IntoVar<T> for SwitchVar2<T, V0, V1> {
-    type Var = Self;
-
-    fn into_var(self) -> Self::Var {
-        self
-    }
-}
-
-/// Already is var.
 impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> IntoVar<O>
     for MergeVar2<T0, T1, V0, V1, O, M>
 {
@@ -1072,5 +1293,47 @@ impl<T: 'static> IntoVar<T> for T {
 
     fn into_var(self) -> OwnedVar<T> {
         OwnedVar(self)
+    }
+}
+
+/// Initializes a new `SharedVar`.
+pub fn var<T>(initial_value: T) -> SharedVar<T> {
+    SharedVar::new(initial_value)
+}
+
+/// Initializes a switch var.
+///
+/// # Example
+/// ```
+/// let var0 = var("Read-write");
+/// let var1 = "Read-only";
+///
+/// let switch_var = switch_var!(0, var0, var1);
+/// ```
+#[macro_export]
+macro_rules! switch_var {
+    ($index: expr, $v0: expr, $v1: expr) => {
+        $crate::core2::SwitchVar2::new($index, $v0, $v1)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
+        $crate::core2::SwitchVar3::new($index, $v0, $v1, $v2)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
+        $crate::core2::SwitchVar4::new($index, $v0, $v1, $v2)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
+        $crate::core2::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
+        $crate::core2::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
+        $crate::core2::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
+        $crate::core2::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
+    };
+    ($index: expr, $($v:expr),+) => {
+        $crate::core2::SwitchVarDyn::new($index, vec![$($v.into_box()),+])
     }
 }
