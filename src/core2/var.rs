@@ -1365,5 +1365,8 @@ macro_rules! switch_var {
     };
     ($index: expr, $($v:expr),+) => {
         $crate::core2::SwitchVarDyn::new($index, vec![$($v.into_box()),+])
-    }
+    };
+    ($($_:tt)*) => {
+        compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
+    };
 }
