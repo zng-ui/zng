@@ -1385,7 +1385,7 @@ macro_rules! switch_var {
 /// All arguments are separated by comma like a function call.
 ///
 /// * `var0..N`: A list of [vars](Var), minimal 2.
-/// * `merge`: A function that merges produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
+/// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
 /// # Example
 /// ```
