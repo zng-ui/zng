@@ -100,6 +100,15 @@ pub trait SizedVar<T: 'static>: protected::Var<T> + 'static {
         Err(VarIsReadOnly)
     }
 
+    /// Schedules a variable modification for the next update using a boxed closure.
+    fn push_modify_boxed(
+        &self,
+        _modify: Box<dyn FnOnce(&mut T) + 'static>,
+        _ctx: &mut AppContext,
+    ) -> Result<(), VarIsReadOnly> {
+        Err(VarIsReadOnly)
+    }
+
     /// Box the variable. This disables mapping.
     fn into_box(self) -> BoxVar<T>
     where
@@ -338,12 +347,24 @@ impl<T: 'static> SizedVar<T> for SharedVar<T> {
         });
         Ok(())
     }
+
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        ctx: &mut AppContext,
+    ) -> Result<(), VarIsReadOnly> {
+        let var = self.clone();
+        let ctx_id = ctx.id();
+        ctx.push_modify_impl(move |cleanup| {
+            var.modify(ctx_id, |v| modify(v), cleanup);
+        });
+        Ok(())
+    }
 }
 
 impl<T: 'static> Var<T> for SharedVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
 
-    /// Schedules a variable modification for the next update.
     fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         let ctx_id = ctx.id();
@@ -847,6 +868,13 @@ macro_rules! impl_switch_vars {
                     _ => unreachable!(),
                 }
             }
+
+            fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+                match self.r.index.get() {
+                    $($n => self.r.$vn.push_modify_boxed(modify, ctx),)+
+                    _ => unreachable!(),
+                }
+            }
         }
 
         impl<T: 'static, $($VN: Var<T>),+> Clone for $SwitchVar<T, $($VN),+> {
@@ -1071,6 +1099,10 @@ impl<T: 'static> SizedVar<T> for SwitchVarDyn<T> {
     fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
         self.r.vars[self.r.index.get()].push_set(new_value, ctx)
     }
+
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T)>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+        self.r.vars[self.r.index.get()].push_modify_boxed(modify, ctx)
+    }
 }
 
 impl<T: 'static> Clone for SwitchVarDyn<T> {
@@ -1083,7 +1115,7 @@ impl<T: 'static> Var<T> for SwitchVarDyn<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
 
     fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        todo!()
+        self.push_modify_boxed(Box::new(modify), ctx)
     }
 
     fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, map: M) -> MapVar<T, Self, O, M> {
