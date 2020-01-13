@@ -325,7 +325,7 @@ impl AppContext {
     }
 
     /// Runs a function with the context var set from another var.
-    pub fn with_var_bind<V: ContextVar, O: SizedVar<V::Type>>(
+    pub fn with_var_bind<V: ContextVar, O: ObjVar<V::Type>>(
         &mut self,
         context_var: V,
         var: &O,
@@ -367,7 +367,7 @@ impl AppContext {
     }
 
     /// Schedules a variable change for the next update.
-    pub fn push_set<T: 'static>(&mut self, var: &impl SizedVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
+    pub fn push_set<T: 'static>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
         var.push_set(new_value, self)
     }
 

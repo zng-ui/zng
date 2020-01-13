@@ -40,7 +40,7 @@ pub(crate) mod protected {
         ContextVar(TypeId, &'static T, Option<(bool, u32)>),
     }
 
-    /// pub(crate) part of `SizedVar`.
+    /// pub(crate) part of `ObjVar`.
     pub trait Var<T: 'static> {
         fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> BindInfo<'a, T>;
 
@@ -71,8 +71,8 @@ impl std::fmt::Display for VarIsReadOnly {
 
 impl std::error::Error for VarIsReadOnly {}
 
-/// Part of [Var] that can be boxed.
-pub trait SizedVar<T: 'static>: protected::Var<T> + 'static {
+/// Part of [Var] that can be boxed (object safe).
+pub trait ObjVar<T: 'static>: protected::Var<T> + 'static {
     /// The current value.
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T;
 
@@ -118,17 +118,17 @@ pub trait SizedVar<T: 'static>: protected::Var<T> + 'static {
     }
 }
 
-/// Boxed [SizedVar].
-pub type BoxVar<T> = Box<dyn SizedVar<T>>;
+/// Boxed [ObjVar].
+pub type BoxVar<T> = Box<dyn ObjVar<T>>;
 
 /// A value that can change. Can [own the value](OwnedVar) or be a [reference](SharedVar).
 ///
-/// This is the complete generic trait, the non-generic methods are defined in [SizedVar]
+/// This is the complete generic trait, the non-generic methods are defined in [ObjVar]
 /// to support boxing.
 ///
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
 /// support dinamic values in property definitions.
-pub trait Var<T: 'static>: SizedVar<T> {
+pub trait Var<T: 'static>: ObjVar<T> {
     /// Return type of [as_read_only].
     type AsReadOnly: Var<T>;
 
@@ -157,7 +157,7 @@ impl<T: 'static, V: ContextVar<Type = T>> protected::Var<T> for V {
     }
 }
 
-impl<T: 'static, V: ContextVar<Type = T>> SizedVar<T> for V {
+impl<T: 'static, V: ContextVar<Type = T>> ObjVar<T> for V {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         ctx.get::<V>()
     }
@@ -196,7 +196,7 @@ impl<T: 'static> protected::Var<T> for OwnedVar<T> {
     }
 }
 
-impl<T: 'static> SizedVar<T> for OwnedVar<T> {
+impl<T: 'static> ObjVar<T> for OwnedVar<T> {
     fn get(&self, _: &AppContext) -> &T {
         &self.0
     }
@@ -233,7 +233,7 @@ struct SharedVarInner<T> {
     version: Cell<u32>,
 }
 
-/// [Var] Rc implementer.
+/// A reference-counting [Var].
 pub struct SharedVar<T: 'static> {
     r: Rc<SharedVarInner<T>>,
 }
@@ -310,7 +310,7 @@ impl<T: 'static> protected::Var<T> for SharedVar<T> {
     }
 }
 
-impl<T: 'static> SizedVar<T> for SharedVar<T> {
+impl<T: 'static> ObjVar<T> for SharedVar<T> {
     fn get(&self, ctx: &AppContext) -> &T {
         self.borrow(ctx.id())
     }
@@ -408,7 +408,7 @@ impl<T: 'static, V: Var<T> + Clone> protected::Var<T> for ReadOnlyVar<T, V> {
     }
 }
 
-impl<T: 'static, V: Var<T> + Clone> SizedVar<T> for ReadOnlyVar<T, V> {
+impl<T: 'static, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         self.var.get(ctx)
     }
@@ -454,14 +454,14 @@ impl<T: 'static, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
     }
 }
 
-enum MapVarInner<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
+enum MapVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     Owned(OwnedVar<O>),
     Shared(MapSharedVar<T, S, O, M>),
     Context(MapContextVar<T, S, O, M>),
 }
 
 /// A variable that maps the value of another variable.
-struct MapSharedVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
+struct MapSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -470,7 +470,7 @@ struct MapSharedVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
     context: AppContextOwnership,
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S, O, M> {
     fn new(source: S, map: M, prev_version: u32) -> Self {
         MapSharedVar {
             _t: PhantomData,
@@ -514,15 +514,13 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, 
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protected::Var<O>
-    for MapSharedVar<T, S, O, M>
-{
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protected::Var<O> for MapSharedVar<T, S, O, M> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(ctx), self.is_new(ctx), self.version(ctx))
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedVar<O> for MapSharedVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O> for MapSharedVar<T, S, O, M> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
         self.borrow(ctx)
     }
@@ -544,7 +542,7 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedV
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapSharedVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapSharedVar<T, S, O, M> {
     type AsReadOnly = Self;
 
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, _map: M2) -> MapVar<O, Self, O2, M2> {
@@ -560,7 +558,7 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O>
 type MapContextVarOutputs<O> = FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>;
 
 /// A variable that maps the value of a context variable.
-struct MapContextVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
+struct MapContextVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -568,7 +566,7 @@ struct MapContextVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> 
     context: AppContextOwnership,
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S, O, M> {
     fn new(source: S, map: M) -> Self {
         MapContextVar {
             _t: PhantomData,
@@ -620,13 +618,13 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T,
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> protected::Var<O> for MapContextVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> protected::Var<O> for MapContextVar<T, S, O, M> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(ctx), self.source.is_new(ctx), self.source.version(ctx))
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedVar<O> for MapContextVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O> for MapContextVar<T, S, O, M> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
         self.borrow(ctx)
     }
@@ -648,7 +646,7 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedV
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapContextVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapContextVar<T, S, O, M> {
     type AsReadOnly = Self;
 
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, _map: M2) -> MapVar<O, Self, O2, M2> {
@@ -664,17 +662,17 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O>
 ///
 /// This `struct` is created by the [map](Var::map) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
-pub struct MapVar<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> {
+pub struct MapVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     r: Rc<MapVarInner<T, S, O, M>>,
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O> MapVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapVar<T, S, O, M> {
     fn new(inner: MapVarInner<T, S, O, M>) -> Self {
         MapVar { r: Rc::new(inner) }
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protected::Var<O> for MapVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protected::Var<O> for MapVar<T, S, O, M> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
         match &*self.r {
             MapVarInner::Owned(o) => o.bind_info(ctx),
@@ -684,7 +682,7 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protec
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedVar<O> for MapVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O> for MapVar<T, S, O, M> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
         match &*self.r {
             MapVarInner::Owned(o) => o.get(ctx),
@@ -718,13 +716,13 @@ impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> SizedV
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Clone for MapVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Clone for MapVar<T, S, O, M> {
     fn clone(&self) -> Self {
         MapVar { r: Rc::clone(&self.r) }
     }
 }
 
-impl<T: 'static, S: SizedVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapVar<T, S, O, M> {
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> for MapVar<T, S, O, M> {
     type AsReadOnly = Self;
 
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
@@ -810,7 +808,7 @@ macro_rules! impl_switch_vars {
             }
         }
 
-        impl<T: 'static, $($VN: Var<T>),+> SizedVar<T> for $SwitchVar<T, $($VN),+> {
+        impl<T: 'static, $($VN: Var<T>),+> ObjVar<T> for $SwitchVar<T, $($VN),+> {
             fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
                 match self.r.index.get() {
                     $($n => self.r.$vn.get(ctx),)+
@@ -1009,7 +1007,7 @@ impl_switch_vars! {
 
 struct SwitchVarDynInner<T: 'static> {
     _t: PhantomData<T>,
-    vars: Vec<Box<dyn SizedVar<T>>>,
+    vars: Vec<Box<dyn ObjVar<T>>>,
     versions: Vec<Cell<u32>>,
 
     index: Cell<usize>,
@@ -1025,7 +1023,7 @@ pub struct SwitchVarDyn<T: 'static> {
 }
 
 impl<T: 'static> SwitchVarDyn<T> {
-    pub fn new(index: usize, vars: Vec<Box<dyn SizedVar<T>>>) -> Self {
+    pub fn new(index: usize, vars: Vec<Box<dyn ObjVar<T>>>) -> Self {
         assert!(!vars.is_empty());
         assert!(index < vars.len());
 
@@ -1061,7 +1059,7 @@ impl<T: 'static> protected::Var<T> for SwitchVarDyn<T> {
     }
 }
 
-impl<T: 'static> SizedVar<T> for SwitchVarDyn<T> {
+impl<T: 'static> ObjVar<T> for SwitchVarDyn<T> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
         self.r.vars[self.r.index.get()].get(ctx)
     }
@@ -1225,7 +1223,7 @@ impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T
     }
 }
 
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> SizedVar<O>
+impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> ObjVar<O>
     for MergeVar2<T0, T1, V0, V1, O, M>
 {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
@@ -1282,7 +1280,7 @@ impl<T: 'static> IntoVar<T> for SharedVar<T> {
 }
 
 /// Already is var.
-impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVar<O> for MapSharedVar<T, S, O, M> {
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<O> for MapSharedVar<T, S, O, M> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1291,7 +1289,7 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVa
 }
 
 /// Already is var.
-impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVar<O> for MapContextVar<T, S, O, M> {
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<O> for MapContextVar<T, S, O, M> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1300,7 +1298,7 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVa
 }
 
 /// Already is var.
-impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: SizedVar<T>> IntoVar<O> for MapVar<T, S, O, M> {
+impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<O> for MapVar<T, S, O, M> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
