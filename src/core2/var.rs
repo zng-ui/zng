@@ -1333,6 +1333,13 @@ pub fn var<T>(initial_value: T) -> SharedVar<T> {
 
 /// Initializes a switch var.
 ///
+/// # Arguments
+///
+/// All arguments are separated by comma like a function call.
+///
+/// * `index`: A positive integer that is the initial switch index.
+/// * `var0..N`: A list of [vars](ObjVar), minimal 2, [SwitchVarDyn] is used for more then 8 variables.
+///
 /// # Example
 /// ```
 /// let var0 = var("Read-write");
@@ -1368,5 +1375,33 @@ macro_rules! switch_var {
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
+    };
+}
+
+/// Initializes a merge var.
+///
+/// # Arguments
+///
+/// All arguments are separated by comma like a function call.
+///
+/// * `var0..N`: A list of [vars](Var), minimal 2.
+/// * `merge`: A function that merges produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
+///
+/// # Example
+/// ```
+/// let var0 = var("Hello");
+/// let var1 = "World";
+///
+/// let merge_var = merge_var!(var0, var1, |a, b|format!("{} {}!", a, b));
+///
+/// assert_eq!("Hello World!", merge_var.get(ctx));
+/// ```
+#[macro_export]
+macro_rules! merge_var {
+    ($v0: expr, $v1: expr, $merge: expr) => {
+        $crate::core2::MergeVar2::new($v0, $v1, $merge)
+    };
+    ($($_:tt)*) => {
+        compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")
     };
 }
