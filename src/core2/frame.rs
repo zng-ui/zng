@@ -39,19 +39,23 @@ impl FrameBuilder {
         todo!()
     }
 
+    pub fn push_border(&mut self, rect: &LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        todo!()
+    }
+
     pub fn push_cursor(&mut self, cursor: CursorIcon, node: &impl UiNode) {
         let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
         node.render(self);
         self.cursor = parent_cursor;
     }
 
-    pub fn push_fill_color(&mut self, rect: LayoutRect, color: ColorF) {
+    pub fn push_fill_color(&mut self, rect: &LayoutRect, color: ColorF) {
         todo!()
     }
 
     pub fn push_fill_gradient(
         &mut self,
-        rect: LayoutRect,
+        rect: &LayoutRect,
         start: LayoutPoint,
         end: LayoutPoint,
         stops: Vec<GradientStop>,

@@ -1,85 +1,196 @@
-use crate::core::*;
-use webrender::euclid;
+use crate::core2::*;
+use crate::property;
+use zero_ui_macros::impl_ui_node_crate;
 
-/// Constrain a child to a size.
-#[derive(Clone, new)]
-pub struct UiSize<T: Ui, S: Value<LayoutSize>> {
+struct MinSize<T: UiNode, S: Var<LayoutSize>> {
+    child: T,
+    min_size: S,
+    curr_min_size: LayoutSize,
+    final_size: LayoutSize,
+}
+
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, S: Var<LayoutSize>> UiNode for MinSize<T, S> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.curr_min_size = *self.min_size.get(ctx);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(min_size) = self.min_size.update(ctx) {
+            self.curr_min_size = *min_size;
+            ctx.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.child.measure(self.curr_min_size.max(available_size))
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.final_size = self.curr_min_size.max(final_size);
+        self.child.arrange(self.final_size);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
+    }
+}
+
+#[property(outer)]
+pub fn min_size(child: impl UiNode, min_size: impl IntoVar<LayoutSize>) -> impl UiNode {
+    MinSize {
+        child,
+        min_size: min_size.into_var(),
+        curr_min_size: LayoutSize::zero(),
+        final_size: LayoutSize::zero(),
+    }
+}
+
+struct MaxSize<T: UiNode, S: Var<LayoutSize>> {
+    child: T,
+    max_size: S,
+    curr_max_size: LayoutSize,
+    final_size: LayoutSize,
+}
+
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, S: Var<LayoutSize>> UiNode for MaxSize<T, S> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.curr_max_size = *self.max_size.get(ctx);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(max_size) = self.max_size.update(ctx) {
+            self.curr_max_size = *max_size;
+            ctx.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.child.measure(self.curr_max_size.min(available_size))
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.final_size = self.curr_max_size.min(final_size);
+        self.child.arrange(self.final_size);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
+    }
+}
+
+#[property(outer)]
+pub fn max_size(child: impl UiNode, max_size: impl IntoVar<LayoutSize>) -> impl UiNode {
+    MaxSize {
+        child,
+        max_size: max_size.into_var(),
+        curr_max_size: LayoutSize::zero(),
+        final_size: LayoutSize::zero(),
+    }
+}
+
+struct ExactSize<T: UiNode, S: Var<LayoutSize>> {
     child: T,
     size: S,
+    curr_size: LayoutSize,
+    final_size: LayoutSize,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, S: Value<LayoutSize>> UiSize<T, S> {
-    #[Ui]
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, S: Var<LayoutSize>> UiNode for ExactSize<T, S> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.curr_size = *self.size.get(ctx);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(size) = self.size.update(ctx) {
+            self.curr_size = *size;
+            ctx.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        let size = *self.size;
-        self.child.measure(size);
-        size
+        self.child.measure(self.curr_size)
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child.arrange(self.curr_size);
+        self.final_size = final_size.min(self.curr_size);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
     }
 }
 
-#[derive(Clone, new)]
-pub struct UiWidth<T: Ui> {
-    child: T,
-    width: f32,
-}
-
-#[impl_ui_crate(child)]
-impl<T: Ui> UiWidth<T> {
-    #[Ui]
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        available_size.width = self.width;
-        let mut child_size = self.child.measure(available_size);
-        child_size.width = self.width;
-        child_size
+#[property(outer)]
+pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
+    ExactSize {
+        child,
+        size: size.into_var(),
+        curr_size: LayoutSize::zero(),
+        final_size: LayoutSize::zero(),
     }
 }
 
-#[derive(Clone, new)]
-pub struct UiHeight<T: Ui> {
-    child: T,
-    height: f32,
-}
-#[impl_ui_crate(child)]
-impl<T: Ui> UiHeight<T> {
-    #[Ui]
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        available_size.height = self.height;
-        let mut child_size = self.child.measure(available_size);
-        child_size.height = self.height;
-        child_size
-    }
-}
-
-#[ui_property]
-pub fn width(child: impl Ui, width: f32) -> impl Ui {
-    UiWidth::new(child, width)
-}
-
-#[ui_property]
-pub fn height(child: impl Ui, height: f32) -> impl Ui {
-    UiHeight::new(child, height)
-}
-
-#[ui_property]
-pub fn size(child: impl Ui, size: impl IntoValue<LayoutSize>) -> impl Ui {
-    UiSize::new(child, size.into_value())
-}
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Alignment(pub f32, pub f32);
 
-#[derive(Clone, new)]
-pub struct Align<T: Ui, A: Value<Alignment>> {
+impl Alignment {
+    pub const TOP_LEFT: Alignment = Alignment(0.0, 0.0);
+    pub const TOP_CENTER: Alignment = Alignment(0.0, 0.5);
+    pub const TOP_RIGHT: Alignment = Alignment(0.0, 1.0);
+
+    pub const CENTER_LEFT: Alignment = Alignment(0.0, 0.5);
+    pub const CENTER: Alignment = Alignment(0.5, 0.5);
+    pub const CENTER_RIGHT: Alignment = Alignment(1.0, 0.5);
+
+    pub const BOTTOM_LEFT: Alignment = Alignment(0.0, 1.0);
+    pub const BOTTOM_CENTER: Alignment = Alignment(0.5, 1.0);
+    pub const BOTTOM_RIGHT: Alignment = Alignment(1.0, 1.0);
+}
+
+struct Align<T: UiNode, A: Var<Alignment>> {
     child: T,
     alignment: A,
-    #[new(default)]
+
+    curr_alignment: Alignment,
+    final_size: LayoutSize,
     child_rect: LayoutRect,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, A: Value<Alignment>> Align<T, A> {
-    #[Ui]
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, A: Var<Alignment>> UiNode for Align<T, A> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.curr_alignment = *self.alignment.get(ctx);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(alignment) = self.alignment.update(ctx) {
+            self.curr_alignment = *alignment;
+
+            self.child_rect.origin = LayoutPoint::new(
+                (self.final_size.width - self.child_rect.size.width) * self.curr_alignment.0,
+                (self.final_size.height - self.child_rect.size.height) * self.curr_alignment.1,
+            );
+
+            ctx.push_frame();
+        }
+
+        self.child.update(ctx);
+    }
+
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
@@ -94,67 +205,81 @@ impl<T: Ui, A: Value<Alignment>> Align<T, A> {
         available_size
     }
 
-    #[Ui]
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.child_rect.size = self.child_rect.size.min(final_size);
+        self.final_size = final_size;
+        self.child_rect.size = final_size.min(self.child_rect.size);
         self.child.arrange(self.child_rect.size);
 
-        let alignment = *self.alignment;
-
         self.child_rect.origin = LayoutPoint::new(
-            (final_size.width - self.child_rect.size.width) * alignment.0,
-            (final_size.height - self.child_rect.size.height) * alignment.1,
+            (final_size.width - self.child_rect.size.width) * self.curr_alignment.0,
+            (final_size.height - self.child_rect.size.height) * self.curr_alignment.1,
         );
     }
 
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
-        f.push_child(&self.child, &self.child_rect);
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_ui_node(&self.child, &self.child_rect);
     }
 }
 
-pub const CENTER: Alignment = Alignment(0.5, 0.5);
-
-#[ui_property]
-pub fn align(child: impl Ui, alignment: impl IntoValue<Alignment>) -> impl Ui {
-    Align::new(child, alignment.into_value())
+#[property(outer)]
+pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
+    Align {
+        child,
+        alignment: alignment.into_var(),
+        curr_alignment: Alignment::TOP_LEFT,
+        final_size: LayoutSize::zero(),
+        child_rect: LayoutRect::zero(),
+    }
 }
 
-#[derive(Clone, new)]
-pub struct Margin<T: Ui, M: Value<LayoutSideOffsets>> {
+struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
     child: T,
     margin: M,
+    size_increment: LayoutSize,
+    child_rect: LayoutRect,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, M: Value<LayoutSideOffsets>> Margin<T, M> {
-    #[Ui]
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let mut child_sz = self.child.measure(available_size);
-        child_sz.width += self.margin.left + self.margin.right;
-        child_sz.height += self.margin.top + self.margin.bottom;
-        child_sz
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        let margin = self.margin.get(ctx);
+        self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
+        self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
+
+        self.child.init(ctx);
     }
-    #[Ui]
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(margin) = self.margin.update(ctx) {
+            self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
+            self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
+            ctx.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.child.measure(available_size - self.size_increment) + self.size_increment
+    }
+
     fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size.width -= self.margin.left + self.margin.right;
-        final_size.height -= self.margin.top + self.margin.bottom;
+        final_size = final_size - self.size_increment;
+        self.child_rect.size = final_size;
         self.child.arrange(final_size);
     }
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
-        let sz = f.final_size();
-        let rect = euclid::rect(
-            self.margin.left,
-            self.margin.top,
-            sz.width - self.margin.left - self.margin.right,
-            sz.height - self.margin.top - self.margin.bottom,
-        );
-        f.push_child(&self.child, &rect);
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_ui_node(&self.child, &self.child_rect);
     }
 }
 
-#[ui_property]
-pub fn margin(child: impl Ui, margin: impl IntoValue<LayoutSideOffsets>) -> impl Ui {
-    Margin::new(child, margin.into_value())
+#[property(outer)]
+pub fn margin(child: impl UiNode, margin: impl IntoVar<LayoutSideOffsets>) -> impl UiNode {
+    Margin {
+        child,
+        margin: margin.into_var(),
+        size_increment: LayoutSize::zero(),
+        child_rect: LayoutRect::zero(),
+    }
 }

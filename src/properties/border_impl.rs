@@ -1,16 +1,18 @@
-use crate::core::*;
+use crate::core2::*;
+use crate::property;
 pub use wapi::BorderRadius;
 use webrender::api as wapi;
+use zero_ui_macros::impl_ui_node_crate;
 
-impl IntoValue<BorderDetails> for ColorF {
-    type Value = Owned<BorderDetails>;
+impl IntoVar<BorderDetails> for ColorF {
+    type Var = OwnedVar<BorderDetails>;
 
-    fn into_value(self) -> Self::Value {
+    fn into_var(self) -> Self::Var {
         let border_side = BorderSide {
             color: self,
             style: BorderStyle::Solid,
         };
-        Owned(BorderDetails {
+        OwnedVar(BorderDetails {
             left: border_side,
             right: border_side,
             top: border_side,
@@ -20,11 +22,11 @@ impl IntoValue<BorderDetails> for ColorF {
     }
 }
 
-impl<V: Value<ColorF>> IntoValue<BorderDetails> for V {
+impl<V: Var<ColorF>> IntoVar<BorderDetails> for V {
     #[allow(clippy::type_complexity)]
-    type Value = ValueMap<ColorF, Self, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
+    type Var = MapVar<ColorF, Self, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
 
-    fn into_value(self) -> Self::Value {
+    fn into_var(self) -> Self::Var {
         self.map(Box::new(|color: &ColorF| {
             let border_side = BorderSide {
                 color: *color,
@@ -41,15 +43,15 @@ impl<V: Value<ColorF>> IntoValue<BorderDetails> for V {
     }
 }
 
-impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
-    type Value = Owned<BorderDetails>;
+impl IntoVar<BorderDetails> for (ColorF, BorderStyle) {
+    type Var = OwnedVar<BorderDetails>;
 
-    fn into_value(self) -> Self::Value {
+    fn into_var(self) -> Self::Var {
         let border_side = BorderSide {
             color: self.0,
             style: self.1,
         };
-        Owned(BorderDetails {
+        OwnedVar(BorderDetails {
             left: border_side,
             right: border_side,
             top: border_side,
@@ -59,11 +61,11 @@ impl IntoValue<BorderDetails> for (ColorF, BorderStyle) {
     }
 }
 
-impl<V: Value<ColorF>> IntoValue<BorderDetails> for (V, BorderStyle) {
+impl<V: Var<ColorF>> IntoVar<BorderDetails> for (V, BorderStyle) {
     #[allow(clippy::type_complexity)]
-    type Value = ValueMap<ColorF, V, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
+    type Var = MapVar<ColorF, V, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
 
-    fn into_value(self) -> Self::Value {
+    fn into_var(self) -> Self::Var {
         let style = self.1;
         self.0.map(Box::new(move |color: &ColorF| {
             let border_side = BorderSide { color: *color, style };
@@ -77,6 +79,7 @@ impl<V: Value<ColorF>> IntoValue<BorderDetails> for (V, BorderStyle) {
         }))
     }
 }
+
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
@@ -97,6 +100,11 @@ pub struct BorderSide {
     pub color: ColorF,
     pub style: BorderStyle,
 }
+impl BorderSide {
+    pub fn visible(&self) -> bool {
+        self.color.a > 0.0
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderDetails {
@@ -106,13 +114,6 @@ pub struct BorderDetails {
     pub bottom: BorderSide,
     pub radius: BorderRadius,
 }
-
-impl BorderSide {
-    pub fn visible(&self) -> bool {
-        self.color.a > 0.0
-    }
-}
-
 impl BorderDetails {
     pub fn visible(&self) -> bool {
         self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
@@ -157,124 +158,119 @@ impl From<BorderDetails> for wapi::BorderDetails {
     }
 }
 
-#[derive(Clone)]
-#[doc(hidden)]
-pub struct Border<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> {
+struct Border<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> {
     child: T,
     widths: L,
     details: B,
-    hit_tag: HitTag,
+    render_widths: LayoutSideOffsets,
+    render_details: wapi::BorderDetails,
+    child_rect: LayoutRect,
+    final_size: LayoutSize,
     visible: bool,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, L: Value<LayoutSideOffsets>, B: Value<BorderDetails>> Border<T, L, B> {
-    #[Ui]
-    fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        self.child.init(values, update);
-        self.update_visible(update);
+#[impl_ui_node_crate(child)]
+impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.child.init(ctx);
+
+        let widths = *self.widths.get(ctx);
+        let details = *self.details.get(ctx);
+
+        self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
+        self.visible = widths.visible() && details.visible();
+
+        self.render_widths = widths;
+        self.render_details = details.into();
     }
 
-    #[Ui]
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        available_size.width -= self.widths.left + self.widths.right;
-        available_size.height -= self.widths.top + self.widths.bottom;
+    fn update(&mut self, ctx: &mut AppContext) {
+        self.child.update(ctx);
 
-        let mut result = self.child.measure(available_size);
-        result.width += self.widths.left + self.widths.right;
-        result.height += self.widths.top + self.widths.bottom;
-
-        result
-    }
-
-    #[Ui]
-    fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size.width -= self.widths.left + self.widths.right;
-        final_size.height -= self.widths.top + self.widths.bottom;
-
-        self.child.arrange(final_size)
-    }
-
-    #[Ui]
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        let widths_touched = self.widths.touched();
-        let details_touched = self.details.touched();
-
-        if widths_touched {
-            update.update_layout();
+        let mut visible = false;
+        if let Some(&widths) = self.widths.update(ctx) {
+            visible |= widths.visible();
+            self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
+            self.render_widths = widths;
+            ctx.push_layout();
         }
-
-        if details_touched {
-            update.render_frame();
+        if let Some(&details) = self.details.update(ctx) {
+            visible |= details.visible();
+            self.render_details = details.into();
+            ctx.push_frame();
         }
-
-        if widths_touched || details_touched {
-            self.update_visible(update);
-        }
-
-        self.child.value_changed(values, update);
+        self.visible = visible;
     }
 
-    #[Ui]
-    fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-        hits.point_over(self.hit_tag).or_else(|| {
-            self.child.point_over(hits).map(|mut lp| {
-                lp.x += self.widths.left;
-                lp.y += self.widths.top;
-                lp
-            })
-        })
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        self.child.measure(available_size - self.size_increment()) + self.size_increment()
     }
 
-    fn update_visible(&mut self, update: &mut NextUpdate) {
-        let visible = self.details.visible() && self.widths.visible();
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child_rect.size = final_size - self.size_increment();
+        self.final_size = final_size;
+        self.child.arrange(self.child_rect.size);
+    }
 
-        if self.visible != visible {
-            self.visible = visible;
-            update.render_frame();
+    fn render(&self, frame: &mut FrameBuilder) {
+        if self.visible {
+            frame.push_border(
+                &LayoutRect::from_size(self.final_size),
+                self.render_widths,
+                self.render_details,
+            );
         }
-    }
-
-    #[Ui]
-    fn render(&self, f: &mut NextFrame) {
-        let final_rect = {
-            profile_scope!("render_border");
-
-            let offset = LayoutPoint::new(self.widths.left, self.widths.top);
-            let mut size = f.final_size();
-            size.width -= self.widths.left + self.widths.right;
-            size.height -= self.widths.top + self.widths.bottom;
-
-            if self.visible {
-                //border hit_test covers entire area, so if we want to draw the border over the child,
-                //it cannot have a hit_tag and transparent hit areas must be drawn for each border segment
-                f.push_border(
-                    LayoutRect::from_size(f.final_size()),
-                    *self.widths,
-                    (*self.details).into(),
-                    Some(self.hit_tag),
-                );
-            }
-
-            LayoutRect::new(offset, size)
-        };
-
-        f.push_child(&self.child, &final_rect);
+        frame.push_ui_node(&self.child, &self.child_rect);
     }
 }
 
-/// Property like Ui that draws a border.
-#[ui_property]
+impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T, L, B> {
+    fn size_increment(&self) -> LayoutSize {
+        LayoutSize::new(
+            self.render_widths.left + self.render_widths.right,
+            self.render_widths.top + self.render_widths.bottom,
+        )
+    }
+}
+
+/// Border property
+#[property(outer)]
 pub fn border(
-    child: impl Ui,
-    widths: impl IntoValue<LayoutSideOffsets>,
-    details: impl IntoValue<BorderDetails>,
-) -> impl Ui {
+    child: impl UiNode,
+    widths: impl IntoVar<LayoutSideOffsets>,
+    details: impl IntoVar<BorderDetails>,
+) -> impl UiNode {
     Border {
         child,
-        widths: widths.into_value(),
-        details: details.into_value(),
-        hit_tag: HitTag::new_unique(),
+        widths: widths.into_var(),
+        details: details.into_var(),
+        render_widths: LayoutSideOffsets::zero(),
+        render_details: border_details_none(),
+        child_rect: LayoutRect::zero(),
+        final_size: LayoutSize::zero(),
         visible: false,
     }
+}
+
+fn border_details_none() -> wapi::BorderDetails {
+    let side_none = wapi::BorderSide {
+        color: ColorF::BLACK,
+        style: wapi::BorderStyle::None,
+    };
+
+    wapi::BorderDetails::Normal(wapi::NormalBorder {
+        left: side_none,
+        right: side_none,
+        top: side_none,
+        bottom: side_none,
+        radius: {
+            wapi::BorderRadius {
+                top_left: LayoutSize::zero(),
+                top_right: LayoutSize::zero(),
+                bottom_left: LayoutSize::zero(),
+                bottom_right: LayoutSize::zero(),
+            }
+        },
+        do_aa: true,
+    })
 }

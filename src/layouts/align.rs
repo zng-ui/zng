@@ -1,7 +1,6 @@
-use crate::core::Ui;
-use crate::properties::{align, CENTER};
+use crate::core2::UiNode;
+use crate::properties::{align, Alignment};
 
-#[inline]
-pub fn center(child: impl Ui) -> impl Ui {
-    align::set(child, CENTER)
+pub fn center(child: impl UiNode) -> impl UiNode {
+    align::set(child, Alignment::CENTER)
 }
