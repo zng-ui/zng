@@ -9,11 +9,11 @@ struct Widget<T: UiNode> {
 
 #[impl_ui_node_crate]
 impl<T: UiNode> UiNode for Widget<T> {
-    fn init(&mut self, ctx: &mut AppContext){
+    fn init(&mut self, ctx: &mut AppContext) {
         ctx.widget_scope(self.id, |ctx| self.child.init(ctx));
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext){
+    fn deinit(&mut self, ctx: &mut AppContext) {
         ctx.widget_scope(self.id, |ctx| self.child.deinit(ctx));
     }
 

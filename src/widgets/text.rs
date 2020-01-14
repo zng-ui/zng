@@ -7,7 +7,6 @@ use zero_ui_macros::impl_ui_node_crate;
 use std::borrow::Cow;
 use webrender::api::*;
 
-
 pub struct Text<T: Value<Cow<'static, str>>> {
     text: T,
     hit_tag: HitTag,
@@ -115,7 +114,7 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 pub fn text<T: IntoValue<Cow<'static, str>>>(text: T) -> Text<T::Value> {
     Text::new(text.into_value())
 }
-context_var!{
+context_var! {
     pub FontFamily: Cow<'static, str> = "sans-serif".into();
     pub FontSize: u32 = 14;
     pub TextColor: ColorF = ColorF::BLACK;

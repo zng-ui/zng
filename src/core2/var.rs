@@ -256,13 +256,12 @@ impl<T: 'static> SharedVar<T> {
         modify: impl FnOnce(&mut T) + 'static,
         cleanup: &mut Vec<Box<dyn FnOnce()>>,
     ) {
-        self.r.context.check(
-            mut_ctx_id,
-            format_args!(
+        self.r.context.check(mut_ctx_id, || {
+            format!(
                 "cannot set `SharedVar<{}>` because it is bound to a different `AppContext`",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
@@ -274,13 +273,12 @@ impl<T: 'static> SharedVar<T> {
     }
 
     fn borrow(&self, ctx_id: AppContextId) -> &T {
-        self.r.context.check(
-            ctx_id,
-            format_args!(
+        self.r.context.check(ctx_id, || {
+            format!(
                 "cannot borrow `SharedVar<{}>` because it is bound to a different `AppContext`",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
@@ -483,13 +481,12 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S,
     }
 
     fn borrow(&self, ctx: &AppContext) -> &O {
-        self.context.check(
-            ctx.id(),
-            format_args!(
+        self.context.check(ctx.id(), || {
+            format!(
                 "cannot borrow `MapVar<{}>` because it is already bound to a different `AppContext`",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         let source_version = self.source.version(ctx);
         if self.output_version.get() != source_version {
@@ -578,13 +575,12 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
     }
 
     fn borrow(&self, ctx: &AppContext) -> &O {
-        self.context.check(
-            ctx.id(),
-            format_args!(
+        self.context.check(ctx.id(), || {
+            format!(
                 "cannot borrow `MapVar<{}>` because it is already bound to a different `AppContext`",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         use std::collections::hash_map::Entry::{Occupied, Vacant};
         let mut outputs = self.outputs.borrow_mut();
@@ -1161,158 +1157,208 @@ impl<T: 'static> IntoVar<T> for SwitchVarDyn<T> {
     }
 }
 
-struct MergeVar2Inner<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> {
-    _t0: PhantomData<T0>,
-    _t1: PhantomData<T1>,
-    v0: V0,
-    v1: V1,
-    v0_version: Cell<u32>,
-    v1_version: Cell<u32>,
-    merge: RefCell<M>,
-    output: UnsafeCell<MaybeUninit<O>>,
-    version: Cell<u32>,
-    context: AppContextOwnership,
-}
-
-pub struct MergeVar2<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> {
-    r: Rc<MergeVar2Inner<T0, T1, V0, V1, O, M>>,
-}
-
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O>
-    MergeVar2<T0, T1, V0, V1, O, M>
-{
-    pub fn new(v0: V0, v1: V1, merge: M) -> Self {
-        MergeVar2 {
-            r: Rc::new(MergeVar2Inner {
-                _t0: PhantomData,
-                _t1: PhantomData,
-                v0_version: Cell::new(0), // TODO prev_version
-                v1_version: Cell::new(0),
-                v0,
-                v1,
-                merge: RefCell::new(merge),
-                output: UnsafeCell::new(MaybeUninit::uninit()),
-                version: Cell::new(0),
-                context: AppContextOwnership::default(),
-            }),
+macro_rules! impl_merge_vars {
+    ($($MergeVar:ident<$($VN:ident),+> {
+        $MergeVarInner:ident<$($TN:ident),+> {
+            _t: $($_t: ident),+;
+            v: $($vn:ident),+;
+            version: $($version:ident),+;
         }
-    }
-
-    fn sync(&self, ctx: &AppContext) {
-        self.r.context.check(
-            ctx.id(),
-            format_args!(
-                "cannot borrow `{}<({}, {}) -> {}>` because it is already bound to a different `AppContext`",
-                stringify!(MergeVar2),
-                type_name::<T0>(),
-                type_name::<T1>(),
-                type_name::<O>(),
-            ),
-        );
-
-        let mut sync = false;
-
-        let version = self.r.v0.version(ctx);
-        if version != self.r.v0_version.get() {
-            sync = true;
-            self.r.v0_version.set(version);
+    })+) => {$(
+        struct $MergeVarInner<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O> {
+            $($_t: PhantomData<$TN>,)+
+            $($vn: $VN,)+
+            $($version: Cell<u32>,)+
+            merge: RefCell<M>,
+            output: UnsafeCell<MaybeUninit<O>>,
+            version: Cell<u32>,
+            context: AppContextOwnership
         }
 
-        let version = self.r.v1.version(ctx);
-        if version != self.r.v1_version.get() {
-            sync = true;
-            self.r.v1_version.set(version);
+        pub struct $MergeVar<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O> {
+            r: Rc<$MergeVarInner<$($TN,)+ $($VN,)+ O, M>>
         }
 
-        if sync {
-            self.r.version.set(self.r.version.get().wrapping_add(1));
-            let value = (&mut *self.r.merge.borrow_mut())(self.r.v0.get(ctx), self.r.v1.get(ctx));
-            // SAFETY: This is safe because it only happens before the first borrow
-            // of this update, and borrows cannot exist across updates because source
-            // vars require a &mut AppContext for changing version.
-            unsafe {
-                let m_uninit = &mut *self.r.output.get();
-                m_uninit.as_mut_ptr().write(value);
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O> $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            pub fn new($($vn: $VN,)+ merge: M) -> Self {
+                $MergeVar {
+                    r: Rc::new($MergeVarInner {
+                        $($_t: PhantomData,)+
+                        $($version: Cell::new(0),)+ // TODO prev_version
+                        $($vn,)+
+                        merge: RefCell::new(merge),
+                        output: UnsafeCell::new(MaybeUninit::uninit()),
+                        version: Cell::new(0),
+                        context: AppContextOwnership::default(),
+                    })
+                }
+            }
+
+            fn sync(&self, ctx: &AppContext) {
+                self.r.context.check(
+                    ctx.id(),
+                    ||format!(
+                        "cannot borrow `{}<({}) -> {}>` because it is already bound to a different `AppContext`",
+                        stringify!($MergeVar),
+                        vec![$(type_name::<$TN>()),+].join(", "),
+                        type_name::<O>(),
+                    ),
+                );
+
+                let mut sync = false;
+
+                $(
+                    let version = self.r.$vn.version(ctx);
+                    if version != self.r.$version.get() {
+                        sync = true;
+                        self.r.$version.set(version);
+                    }
+                )+
+
+                if sync {
+                    self.r.version.set(self.r.version.get().wrapping_add(1));
+                    let value = (&mut *self.r.merge.borrow_mut())($(self.r.$vn.get(ctx)),+);
+
+                    // SAFETY: This is safe because it only happens before the first borrow
+                    // of this update, and borrows cannot exist across updates because source
+                    // vars require a &mut AppContext for changing version.
+                    unsafe {
+                        let m_uninit = &mut *self.r.output.get();
+                        m_uninit.as_mut_ptr().write(value);
+                    }
+                }
+            }
+
+            fn borrow(&self, ctx: &AppContext) -> &O {
+                self.sync(ctx);
+                // SAFETY:
+                // borrow validation was done in sync.
+                // memory is initialized here because we start from the prev_version.
+                unsafe {
+                    let inited = &*self.r.output.get();
+                    &*inited.as_ptr()
+                }
+            }
+
+            fn any_is_new(&self, ctx: &AppContext) -> bool {
+                 $(self.r.$vn.is_new(ctx))||+
             }
         }
-    }
 
-    fn borrow(&self, ctx: &AppContext) -> &O {
-        self.sync(ctx);
-        // SAFETY:
-        // borrow validation was done in sync.
-        // memory is initialized here because we start from the prev_version.
-        unsafe {
-            let inited = &*self.r.output.get();
-            &*inited.as_ptr()
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O> Clone for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            fn clone(&self) -> Self {
+                $MergeVar { r: Rc::clone(&self.r) }
+            }
+        }
+
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O> protected::Var<O> for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+                protected::BindInfo::Var(self.borrow(ctx), self.any_is_new(ctx), self.r.version.get())
+            }
+        }
+
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O + 'static> ObjVar<O> for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+                self.borrow(ctx)
+            }
+
+            fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+                if self.any_is_new(ctx) {
+                    Some(self.borrow(ctx))
+                } else {
+                    None
+                }
+            }
+
+            fn is_new(&self, ctx: &AppContext) -> bool {
+                self.any_is_new(ctx)
+            }
+
+            fn version(&self, ctx: &AppContext) -> u32 {
+                self.sync(ctx);
+                self.r.version.get()
+            }
+        }
+
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O + 'static> Var<O> for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            type AsReadOnly = Self;
+
+            fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+                MapVar::new(MapVarInner::Shared(MapSharedVar::new(
+                    self.clone(),
+                    map,
+                    self.r.version.get().wrapping_sub(1),
+                )))
+            }
+
+            fn as_read_only(self) -> Self {
+                self
+            }
+        }
+
+        impl<$($TN: 'static,)+ $($VN: Var<$TN>,)+ O: 'static, M: FnMut($(&$TN),+) -> O + 'static> IntoVar<O> for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            type Var = Self;
+
+            fn into_var(self) -> Self::Var {
+                self
+            }
+        }
+    )+}
+}
+
+impl_merge_vars! {
+    MergeVar2<V0, V1> {
+        MergeVar2Inner<T0, T1> {
+            _t: _t0, _t1;
+            v: v0, v1;
+            version: v0_version, v1_version;
         }
     }
-
-    fn any_is_new(&self, ctx: &AppContext) -> bool {
-        self.r.v0.is_new(ctx) | self.r.v1.is_new(ctx)
-    }
-}
-
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> Clone
-    for MergeVar2<T0, T1, V0, V1, O, M>
-{
-    fn clone(&self) -> Self {
-        MergeVar2 { r: Rc::clone(&self.r) }
-    }
-}
-
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O> protected::Var<O>
-    for MergeVar2<T0, T1, V0, V1, O, M>
-{
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        protected::BindInfo::Var(self.borrow(ctx), self.any_is_new(ctx), self.r.version.get())
-    }
-}
-
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> ObjVar<O>
-    for MergeVar2<T0, T1, V0, V1, O, M>
-{
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
-        self.borrow(ctx)
-    }
-
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
-        if self.any_is_new(ctx) {
-            Some(self.borrow(ctx))
-        } else {
-            None
+    MergeVar3<V0, V1, V2> {
+        MergeVar3Inner<T0, T1, T2> {
+            _t: _t0, _t1, _t2;
+            v: v0, v1, v2;
+            version: v0_version, v1_version, v2_version;
         }
     }
-
-    fn is_new(&self, ctx: &AppContext) -> bool {
-        self.any_is_new(ctx)
+    MergeVar4<V0, V1, V2, V3> {
+        MergeVar4Inner<T0, T1, T2, T3> {
+            _t: _t0, _t1, _t2, _t3;
+            v: v0, v1, v2, v3;
+            version: v0_version, v1_version, v2_version, v3_version;
+        }
     }
-
-    fn version(&self, ctx: &AppContext) -> u32 {
-        self.sync(ctx);
-        self.r.version.get()
+    MergeVar5<V0, V1, V2, V3, V4> {
+        MergeVar5Inner<T0, T1, T2, T3, T4> {
+            _t: _t0, _t1, _t2, _t3, _t4;
+            v: v0, v1, v2, v3, v4;
+            version: v0_version, v1_version, v2_version, v3_version, v4_version;
+        }
+    }
+    MergeVar6<V0, V1, V2, V3, V4, V5> {
+        MergeVar6Inner<T0, T1, T2, T3, T4, T5> {
+            _t: _t0, _t1, _t2, _t3, _t4, _t5;
+            v: v0, v1, v2, v3, v4, v5;
+            version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version;
+        }
+    }
+    MergeVar7<V0, V1, V2, V3, V4, V5, V6> {
+        MergeVar7Inner<T0, T1, T2, T3, T4, T5, T6> {
+            _t: _t0, _t1, _t2, _t3, _t4, _t5, _t6;
+            v: v0, v1, v2, v3, v4, v5, v6;
+            version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version, v6_version;
+        }
+    }
+    MergeVar8<V0, V1, V2, V3, V4, V5, V6, V7> {
+        MergeVar8Inner<T0, T1, T2, T3, T4, T5, T6, T7> {
+            _t: _t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7;
+            v: v0, v1, v2, v3, v4, v5, v6, v7;
+            version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version, v6_version, v7_version;
+        }
     }
 }
 
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> Var<O>
-    for MergeVar2<T0, T1, V0, V1, O, M>
-{
-    type AsReadOnly = Self;
-
-    fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.r.version.get().wrapping_sub(1),
-        )))
-    }
-
-    fn as_read_only(self) -> Self {
-        self
-    }
-}
-
-//TODO map_bidi, merge
+//TODO map_bidi
 
 /// A value-to-[var](Var) conversion that consumes the value.
 pub trait IntoVar<T: 'static> {
@@ -1350,17 +1396,6 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<
 
 /// Already is var.
 impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<O> for MapVar<T, S, O, M> {
-    type Var = Self;
-
-    fn into_var(self) -> Self::Var {
-        self
-    }
-}
-
-/// Already is var.
-impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T0, &T1) -> O + 'static> IntoVar<O>
-    for MergeVar2<T0, T1, V0, V1, O, M>
-{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1451,6 +1486,27 @@ macro_rules! switch_var {
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
         $crate::core2::MergeVar2::new($v0, $v1, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
+        $crate::core2::MergeVar3::new($v0, $v1, $v2, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
+        $crate::core2::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
+        $crate::core2::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
+        $crate::core2::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
+        $crate::core2::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
+        $crate::core2::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
+    };
+    ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:ident),+) => {
+        compile_error!("merge_var is only implemented to a maximum of 8 variables")
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")

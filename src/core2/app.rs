@@ -474,10 +474,10 @@ impl AppContextOwnership {
         }
     }
 
-    pub fn check(&self, id: AppContextId, already_owned_error: std::fmt::Arguments) {
+    pub fn check(&self, id: AppContextId, already_owned_error: impl FnOnce() -> String) {
         if let Some(ctx_id) = self.id.get() {
             if ctx_id != id {
-                panic!("{}", already_owned_error)
+                panic!("{}", already_owned_error())
             }
         } else {
             self.id.set(Some(id));

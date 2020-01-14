@@ -33,5 +33,9 @@ pub fn set_context_var<T: 'static>(
     var: impl ContextVar<Type = T>,
     value: impl IntoVar<T>,
 ) -> impl UiNode {
-    SetContextVar { child, var, value: value.into_var() }
+    SetContextVar {
+        child,
+        var,
+        value: value.into_var(),
+    }
 }
