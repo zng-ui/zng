@@ -500,11 +500,28 @@ enum MapVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     Context(MapContextVar<T, S, O, M>),
 }
 
-/// A variable that maps the value of another variable.
+enum MapVarBiDiInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+    Owned(OwnedVar<O>),
+    Shared(MapBiDiSharedVar<T, S, O, M, N>),
+    Context(MapContextVar<T, S, O, M>),
+}
+
+/// A read-only variable that maps the value of another variable.
 struct MapSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
+    output: UnsafeCell<MaybeUninit<O>>,
+    output_version: Cell<u32>,
+    context: AppContextOwnership,
+}
+
+/// A variable that maps the value of another variable.
+struct MapBiDiSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+    _t: PhantomData<T>,
+    source: S,
+    map: RefCell<M>,
+    map_back: RefCell<N>,
     output: UnsafeCell<MaybeUninit<O>>,
     output_version: Cell<u32>,
     context: AppContextOwnership,
@@ -801,8 +818,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> f
 /// This `struct` is created by the [map_bidi](Var::map_bidi) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
 pub struct MapVarBiDi<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
-    _todo: PhantomData<N>,
-    r: Rc<MapVarInner<T, S, O, M>>,
+    r: Rc<MapVarBiDiInner<T, S, O, M, N>>,
 }
 
 /// A variable that can be one of many variables at a time, determined by
