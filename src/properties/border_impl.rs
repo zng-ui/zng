@@ -80,7 +80,6 @@ impl<V: Var<ColorF>> IntoVar<BorderDetails> for (V, BorderStyle) {
     }
 }
 
-
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum BorderStyle {

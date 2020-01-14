@@ -2,7 +2,6 @@ use crate::core2::*;
 use crate::property;
 use zero_ui_macros::impl_ui_node_crate;
 
-
 struct Cursor<T: UiNode, C: Var<CursorIcon>> {
     cursor: C,
     child: T,

@@ -435,11 +435,11 @@ impl AppContext {
         std::mem::replace(&mut self.window_update, UpdateFlags::empty())
     }
 
-    /// Applies a widget update.
-    pub(crate) fn widget_update(&mut self, id: WidgetId, update: impl FnOnce(&mut AppContext)) {
+    /// Widget id scope.
+    pub(crate) fn widget_scope(&mut self, id: WidgetId, f: impl FnOnce(&mut AppContext)) {
         let parent_id = std::mem::replace(&mut self.widget_id, Some(id));
 
-        update(self);
+        f(self);
 
         self.widget_id = parent_id;
     }

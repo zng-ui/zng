@@ -9,12 +9,20 @@ struct Widget<T: UiNode> {
 
 #[impl_ui_node_crate]
 impl<T: UiNode> UiNode for Widget<T> {
+    fn init(&mut self, ctx: &mut AppContext){
+        ctx.widget_scope(self.id, |ctx| self.child.init(ctx));
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext){
+        ctx.widget_scope(self.id, |ctx| self.child.deinit(ctx));
+    }
+
     fn update(&mut self, ctx: &mut AppContext) {
-        ctx.widget_update(self.id, |ctx| self.child.update(ctx));
+        ctx.widget_scope(self.id, |ctx| self.child.update(ctx));
     }
 
     fn update_hp(&mut self, ctx: &mut AppContext) {
-        ctx.widget_update(self.id, |ctx| self.child.update_hp(ctx));
+        ctx.widget_scope(self.id, |ctx| self.child.update_hp(ctx));
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

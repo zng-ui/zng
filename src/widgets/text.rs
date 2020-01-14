@@ -1,7 +1,12 @@
 use crate::core::*;
-use crate::properties::set_parent_val;
+use crate::core2::*;
+use crate::properties::set_context_var;
+use crate::property;
+use zero_ui_macros::impl_ui_node_crate;
+
 use std::borrow::Cow;
 use webrender::api::*;
+
 
 pub struct Text<T: Value<Cow<'static, str>>> {
     text: T,
@@ -110,24 +115,25 @@ impl<T: Value<Cow<'static, str>>> Text<T> {
 pub fn text<T: IntoValue<Cow<'static, str>>>(text: T) -> Text<T::Value> {
     Text::new(text.into_value())
 }
-
-pub static FONT_FAMILY: ParentValueKeyRef<Cow<'static, str>> = ParentValueKey::new_lazy();
-pub static FONT_SIZE: ParentValueKeyRef<u32> = ParentValueKey::new_lazy();
-pub static TEXT_COLOR: ParentValueKeyRef<ColorF> = ParentValueKey::new_lazy();
-
-/// Sets the font family for all child Uis.
-#[ui_property]
-pub fn font_family(child: impl Ui, font: impl IntoValue<Cow<'static, str>>) -> impl Ui {
-    set_parent_val(child, *FONT_FAMILY, font)
+context_var!{
+    pub FontFamily: Cow<'static, str> = "sans-serif".into();
+    pub FontSize: u32 = 14;
+    pub TextColor: ColorF = ColorF::BLACK;
 }
 
-#[ui_property]
-pub fn font_size(child: impl Ui, size: impl IntoValue<u32>) -> impl Ui {
-    set_parent_val(child, *FONT_SIZE, size)
+/// Sets the font family for all child Uis.
+#[property(context_var)]
+pub fn font_family(child: impl UiNode, font: impl IntoVar<Cow<'static, str>>) -> impl UiNode {
+    set_context_var::set(child, FontFamily, font)
+}
+
+#[property(context_var)]
+pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
+    set_context_var::set(child, FontSize, size)
 }
 
 /// Sets the text color for the Ui and its decendents.
-#[ui_property]
-pub fn text_color(child: impl Ui, color: impl IntoValue<ColorF>) -> impl Ui {
-    set_parent_val(child, *TEXT_COLOR, color)
+#[property(context_var)]
+pub fn text_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
+    set_context_var::set(child, TextColor, color)
 }
