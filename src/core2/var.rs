@@ -1198,8 +1198,54 @@ impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T
         }
     }
 
+    fn sync(&self, ctx: &AppContext) {
+        self.r.context.check(
+            ctx.id(),
+            format_args!(
+                "cannot borrow `{}<({}, {}) -> {}>` because it is already bound to a different `AppContext`",
+                stringify!(MergeVar2),
+                type_name::<T0>(),
+                type_name::<T1>(),
+                type_name::<O>(),
+            ),
+        );
+
+        let mut sync = false;
+
+        let version = self.r.v0.version(ctx);
+        if version != self.r.v0_version.get() {
+            sync = true;
+            self.r.v0_version.set(version);
+        }
+
+        let version = self.r.v1.version(ctx);
+        if version != self.r.v1_version.get() {
+            sync = true;
+            self.r.v1_version.set(version);
+        }
+
+        if sync {
+            self.r.version.set(self.r.version.get().wrapping_add(1));
+            let value = (&mut *self.r.merge.borrow_mut())(self.r.v0.get(ctx), self.r.v1.get(ctx));
+            // SAFETY: This is safe because it only happens before the first borrow
+            // of this update, and borrows cannot exist across updates because source
+            // vars require a &mut AppContext for changing version.
+            unsafe {
+                let m_uninit = &mut *self.r.output.get();
+                m_uninit.as_mut_ptr().write(value);
+            }
+        }
+    }
+
     fn borrow(&self, ctx: &AppContext) -> &O {
-        todo!()
+        self.sync(ctx);
+        // SAFETY:
+        // borrow validation was done in sync.
+        // memory is initialized here because we start from the prev_version.
+        unsafe {
+            let inited = &*self.r.output.get();
+            &*inited.as_ptr()
+        }
     }
 
     fn any_is_new(&self, ctx: &AppContext) -> bool {
@@ -1243,6 +1289,7 @@ impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
+        self.sync(ctx);
         self.r.version.get()
     }
 }
@@ -1253,7 +1300,11 @@ impl<T0: 'static, T1: 'static, V0: Var<T0>, V1: Var<T1>, O: 'static, M: FnMut(&T
     type AsReadOnly = Self;
 
     fn map<O2: 'static, M2: FnMut(&O) -> O2 + 'static>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
-        todo!()
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
+            self.clone(),
+            map,
+            self.r.version.get().wrapping_sub(1),
+        )))
     }
 
     fn as_read_only(self) -> Self {
