@@ -1,29 +1,34 @@
-use crate::core::*;
+use crate::core2::*;
+use crate::property;
+use zero_ui_macros::impl_ui_node_crate;
 
-#[doc(hidden)]
-pub struct Cursor<T: Ui, C: Value<CursorIcon>> {
-    child: T,
+
+struct Cursor<T: UiNode, C: Var<CursorIcon>> {
     cursor: C,
+    child: T,
+    render_cursor: CursorIcon,
 }
 
-#[impl_ui_crate(child)]
-impl<T: Ui, C: Value<CursorIcon>> Ui for Cursor<T, C> {
-    fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-        if self.cursor.touched() {
-            update.render_frame();
+#[impl_ui_node_crate]
+impl<T: UiNode, C: Var<CursorIcon>> UiNode for Cursor<T, C> {
+    fn init(&mut self, ctx: &mut AppContext) {
+        self.render_cursor = *self.cursor.get(&ctx);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut AppContext) {
+        if let Some(cursor) = self.cursor.update(&ctx) {
+            self.render_cursor = *cursor;
+            ctx.push_frame();
         }
-
-        self.child.value_changed(values, update);
     }
 
-    fn render(&self, f: &mut NextFrame) {
-        f.push_cursor(*self.cursor, &self.child)
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_cursor(self.render_cursor, &self.child);
     }
 }
 
-/// Property like Ui that sets the cursor.
-///
-/// This function can be used as a property in ui! macros.
+/// Cursor property that sets the cursor.
 ///
 /// # Arguments
 /// * `cursor`: The cursor to use for `child`, can be a direct [value](CursorIcon) or a [variable](zero_ui::core::Var).
@@ -39,10 +44,11 @@ impl<T: Ui, C: Value<CursorIcon>> Ui for Cursor<T, C> {
 /// }
 /// # ;
 /// ```
-#[ui_property]
-pub fn cursor(child: impl Ui, cursor: impl IntoValue<CursorIcon>) -> impl Ui {
+#[property(context_var)]
+pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
     Cursor {
+        cursor: cursor.into_var(),
         child,
-        cursor: cursor.into_value(),
+        render_cursor: CursorIcon::Default,
     }
 }
