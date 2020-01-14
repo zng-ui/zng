@@ -42,13 +42,12 @@ impl<T: 'static> Clone for EventChannel<T> {
 }
 impl<T: 'static> EventChannel<T> {
     pub(crate) fn notify(self, mut_ctx_id: AppContextId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        self.r.context.check(
-            mut_ctx_id,
-            format_args!(
+        self.r.context.check(mut_ctx_id, || {
+            format!(
                 "cannot update `EventChannel<{}>` because it is borrowed in a different context",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
@@ -66,13 +65,12 @@ impl<T: 'static> EventChannel<T> {
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
     pub fn updates(&self, ctx: &AppContext) -> &[T] {
-        self.r.context.check(
-            ctx.id(),
-            format_args!(
+        self.r.context.check(ctx.id(), || {
+            format!(
                 "cannot read `EventChannel<{}>` because it is borrowed in a different context",
                 type_name::<T>()
-            ),
-        );
+            )
+        });
 
         // SAFETY: This is safe because borrows are bound to a context that
         // is the only place where the value can be changed and this change is
