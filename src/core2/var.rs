@@ -1912,7 +1912,7 @@ impl_merge_vars! {
 
 // #endregion MergeVar2..MergeVar8
 
-/// Initializes a new `[SharedVar`.
+/// Initializes a new `[SharedVar]`.
 pub fn var<T>(initial_value: T) -> SharedVar<T> {
     SharedVar::new(initial_value)
 }
@@ -2011,4 +2011,65 @@ macro_rules! merge_var {
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestApp {
+        ctx: AppContext,
+    }
+
+    impl TestApp {
+        fn new() -> Self {
+            todo!()
+        }
+
+        fn update<R>(&mut self, f: impl FnOnce(&mut AppContext) -> R) -> R {
+            f(&mut self.ctx)
+        }
+
+        fn finish_update(&mut self) {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn owned_var_get() {
+        let var: OwnedVar<&'static str> = "value".into_var();
+
+        let mut test = TestApp::new();
+
+        let value = test.update(move |ctx| *var.get(ctx));
+
+        assert_eq!("value", value)
+    }
+
+    #[test]
+    fn owned_var_set() {
+        let var = OwnedVar("value");
+
+        assert!(var.always_read_only());
+        assert!(var.read_only());
+
+        let mut test = TestApp::new();
+
+        test.update(move |ctx| {
+            assert_eq!(0, var.version(ctx));
+            assert!(!var.is_new(ctx));
+
+            assert!(var.push_set("new value", ctx).is_err());
+        });
+    }
+
+    #[test]
+    fn shared_var_get() {
+        todo!()
+    }
+
+    #[test]
+    fn shared_var_set() {
+        todo!()
+    }
 }
