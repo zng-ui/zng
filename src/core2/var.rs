@@ -914,7 +914,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
                 output
             }
             Vacant(entry) => {
-                let value = (map.borrow_mut())(self.source.get(ctx));
+                let value = (self.map.borrow_mut())(self.source.get(ctx));
                 let (output, _) = entry.insert((UnsafeCell::new(value), source_version));
                 output
             }
