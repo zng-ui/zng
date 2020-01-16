@@ -8,8 +8,6 @@ use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::borrow::Cow;
 use std::cell::Cell;
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use webrender::api::{DocumentId, RenderNotifier};
@@ -271,6 +269,7 @@ impl RenderNotifier for Notifier {
 struct GlWindow {
     context: Option<WindowedContext<NotCurrent>>,
     renderer: webrender::Renderer,
+    services: AnyCellMap,
 
     root: UiRoot,
     update: UpdateFlags,
@@ -330,6 +329,7 @@ impl GlWindow {
         let mut r = GlWindow {
             context: Some(unsafe { context.make_not_current().unwrap() }),
             renderer,
+            services: ctx.new_window_services(),
 
             root,
             update: UpdateFlags::LAYOUT | UpdateFlags::RENDER,
@@ -347,7 +347,7 @@ impl GlWindow {
     }
 
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        let update = ctx.window_update(self.id(), self.root.id, |ctx| self.root.child.update_hp(ctx));
+        let update = ctx.window_scope(self.id(), self.root.id, |ctx| self.root.child.update_hp(ctx));
         self.update |= update;
     }
 
@@ -359,7 +359,7 @@ impl GlWindow {
         }
 
         // do UiNode updates
-        let update = ctx.window_update(self.id(), self.root.id, |ctx| self.root.child.update(ctx));
+        let update = ctx.window_scope(self.id(), self.root.id, |ctx| self.root.child.update(ctx));
         self.update |= update;
     }
 

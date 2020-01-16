@@ -20,6 +20,8 @@ impl Default for AppRegister {
                 id: AppContextId::new_unique(),
                 events: FnvHashMap::default(),
                 services: FnvHashMap::default(),
+                window_services_init: Vec::default(),
+                window_services: FnvHashMap::default(),
 
                 window_id: None,
                 widget_id: None,
@@ -35,6 +37,31 @@ impl Default for AppRegister {
     }
 }
 
+impl AppRegister {
+    /// Register a new event for the duration of the application context.
+    pub fn register_event<E: Event>(&mut self, listener: EventListener<E::Args>) {
+        self.ctx.events.insert(TypeId::of::<E>(), Box::new(listener));
+    }
+
+    /// Register a new service for the duration of the application context.
+    pub fn register_service<S: Service>(&mut self, service: S) {
+        self.ctx
+            .services
+            .insert(TypeId::of::<S>(), RefCell::new(Box::new(service)));
+    }
+
+    /// Register a new window service initializer.
+    ///
+    /// Window services have diferent instances for each window and exist for the duration
+    /// of that window. The `new` closure is called when a new window is created to
+    pub fn register_window_service<S: Service>(&mut self, mut new: impl Fn(&AppContext) -> S + 'static) {
+        self.ctx
+            .window_services_init
+            .push((TypeId::of::<S>(), Box::new(move |ctx| RefCell::new(Box::new(new(ctx))))));
+    }
+}
+
+/// Event extension update context.
 pub struct EventContext<'a> {
     ctx: &'a mut AppContext,
     event_loop: &'a EventLoopWindowTarget<WebRenderEvent>,
@@ -68,22 +95,10 @@ impl<'a> EventContext<'a> {
     }
 }
 
-impl AppRegister {
-    /// Register a new event for the duration of the application context.
-    pub fn register_event<E: Event>(&mut self, listener: EventListener<E::Args>) {
-        self.ctx.events.insert(TypeId::of::<E>(), Box::new(listener));
-    }
-
-    /// Register a new service for the duration of the application context.
-    pub fn register_service<S: Service>(&mut self, service: S) {
-        self.ctx
-            .services
-            .insert(TypeId::of::<S>(), RefCell::new(Box::new(service)));
-    }
-}
-
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
-type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
+pub(crate) type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
+type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&AppContext) -> RefCell<Box<dyn Any>>>)>;
+
 enum UntypedRef {}
 impl UntypedRef {
     fn pack<T>(r: &T) -> *const UntypedRef {
@@ -123,8 +138,12 @@ bitflags! {
 /// Provides access to app events and services.
 pub struct AppContext {
     id: AppContextId,
+
     events: AnyMap,
     services: AnyCellMap,
+    window_services_init: WindowServicesInit,
+
+    window_services: AnyCellMap,
 
     window_id: Option<WindowId>,
     widget_id: Option<WidgetId>,
@@ -179,7 +198,13 @@ impl AppContext {
 
     /// Gets a service reference if the service is registered in the application.
     pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
-        if let Some(any) = self.services.get(&TypeId::of::<S>()) {
+        let type_id = TypeId::of::<S>();
+
+        if let Some(any) = self
+            .services
+            .get(&type_id)
+            .or_else(|| self.window_services.get(&type_id))
+        {
             Some(RefMut::map(any.borrow_mut(), |any| {
                 // SAFETY: This is safe because services are always the same type as key in
                 // `AppRegister::register_service` which is the only place where insertion occurs.
@@ -423,21 +448,34 @@ impl AppContext {
         self.update |= UpdateFlags::RENDER;
     }
 
+    /// Instantiates window services.
+    pub(crate) fn new_window_services(&self) -> AnyCellMap {
+        self.window_services_init
+            .iter()
+            .map(|(key, new)| (*key, new(self)))
+            .collect()
+    }
+
     /// Applies a window update collecting the window specific [UpdateFlags]
     pub(crate) fn window_update(
         &mut self,
         window_id: WindowId,
         root_id: WidgetId,
+        window_services: &mut AnyCellMap,
         update: impl FnOnce(&mut AppContext),
     ) -> UpdateFlags {
         self.window_update = UpdateFlags::empty();
+
         self.window_id = Some(window_id);
         self.widget_id = Some(root_id);
+        std::mem::swap(window_services, &mut self.window_services);
 
         update(self);
 
         self.window_id = None;
         self.widget_id = None;
+        std::mem::swap(window_services, &mut self.window_services);
+
         std::mem::replace(&mut self.window_update, UpdateFlags::empty())
     }
 
