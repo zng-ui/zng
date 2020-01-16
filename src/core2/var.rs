@@ -197,7 +197,7 @@ impl<T: 'static, V: ContextVar<Type = T>> ObjVar<T> for V {
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
-        ctx.get_new::<V>()
+        ctx.get_update::<V>()
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {

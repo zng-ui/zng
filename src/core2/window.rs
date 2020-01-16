@@ -347,7 +347,9 @@ impl GlWindow {
     }
 
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        let update = ctx.window_scope(self.id(), self.root.id, |ctx| self.root.child.update_hp(ctx));
+        let id = self.id();
+        let root = &mut self.root;
+        let update = ctx.window_update(id, root.id, &mut self.services, |ctx| root.child.update_hp(ctx));
         self.update |= update;
     }
 
@@ -359,7 +361,10 @@ impl GlWindow {
         }
 
         // do UiNode updates
-        let update = ctx.window_scope(self.id(), self.root.id, |ctx| self.root.child.update(ctx));
+
+        let id = self.id();
+        let root = &mut self.root;
+        let update = ctx.window_update(id, root.id, &mut self.services, |ctx| root.child.update(ctx));
         self.update |= update;
     }
 

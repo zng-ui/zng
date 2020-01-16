@@ -296,7 +296,7 @@ impl AppContext {
     }
 
     /// Gets the context var value if it is new.
-    pub fn get_new<V: ContextVar>(&self) -> Option<&V::Type> {
+    pub fn get_update<V: ContextVar>(&self) -> Option<&V::Type> {
         let (value, is_new, _) = self.get_impl(TypeId::of::<V>(), V::default());
 
         if is_new {
