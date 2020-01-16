@@ -54,7 +54,7 @@ impl AppRegister {
     ///
     /// Window services have diferent instances for each window and exist for the duration
     /// of that window. The `new` closure is called when a new window is created to
-    pub fn register_window_service<S: Service>(&mut self, mut new: impl Fn(&AppContext) -> S + 'static) {
+    pub fn register_window_service<S: Service>(&mut self, mut new: impl Fn(&WindowContext) -> S + 'static) {
         self.ctx
             .window_services_init
             .push((TypeId::of::<S>(), Box::new(move |ctx| RefCell::new(Box::new(new(ctx))))));
@@ -69,6 +69,7 @@ pub struct EventContext<'a> {
 
 impl<'a> EventContext<'a> {
     pub fn app_ctx(&self) -> &AppContext {
+        // TODO remove this, turn event context into a full delegating wrapper.
         self.ctx
     }
 
@@ -95,9 +96,26 @@ impl<'a> EventContext<'a> {
     }
 }
 
+/// Window service initialization context.
+pub struct WindowContext<'a> {
+    ctx: &'a AppContext,
+    window_id: WindowId,
+}
+
+impl<'a> WindowContext<'a> {
+    pub fn app_ctx(&self) -> &AppContext {
+        // TODO remove this, turn event context into a full delegating wrapper.
+        self.ctx
+    }
+
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+}
+
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 pub(crate) type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
-type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&AppContext) -> RefCell<Box<dyn Any>>>)>;
+type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> RefCell<Box<dyn Any>>>)>;
 
 enum UntypedRef {}
 impl UntypedRef {
@@ -449,10 +467,12 @@ impl AppContext {
     }
 
     /// Instantiates window services.
-    pub(crate) fn new_window_services(&self) -> AnyCellMap {
+    pub(crate) fn new_window_services(&self, window_id: WindowId) -> AnyCellMap {
+        let ctx = WindowContext { ctx: self, window_id };
+
         self.window_services_init
             .iter()
-            .map(|(key, new)| (*key, new(self)))
+            .map(|(key, new)| (*key, new(&ctx)))
             .collect()
     }
 

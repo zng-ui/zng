@@ -326,10 +326,13 @@ impl GlWindow {
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
         let api = sender.create_api();
 
+        let id = context.window().id();
+        let services = ctx.new_window_services(id);
+
         let mut r = GlWindow {
             context: Some(unsafe { context.make_not_current().unwrap() }),
             renderer,
-            services: ctx.new_window_services(),
+            services,
 
             root,
             update: UpdateFlags::LAYOUT | UpdateFlags::RENDER,
