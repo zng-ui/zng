@@ -189,7 +189,8 @@ impl AppExtension for AppWindows {
     }
 
     fn respond(&mut self, r: &mut EventContext) {
-        for request in r.service::<Windows>().take_requests() {
+        let requests = r.service::<Windows>().take_requests();
+        for request in requests {
             let w = GlWindow::new(
                 request.new,
                 r.app_ctx(),

@@ -1,7 +1,7 @@
 use super::*;
 pub use glutin::window::CursorIcon;
 use webrender::api::*;
-pub use webrender::api::{GradientStop, LayoutRect, LayoutSideOffsets};
+pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LayoutRect, LayoutSideOffsets};
 
 pub struct FrameBuilder {
     widget_id: WidgetId,
@@ -40,6 +40,17 @@ impl FrameBuilder {
     }
 
     pub fn push_border(&mut self, rect: &LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        todo!()
+    }
+
+    pub fn push_text(
+        &mut self,
+        rect: &LayoutRect,
+        glyphs: &[GlyphInstance],
+        font_instance_key: FontInstanceKey,
+        color: ColorF,
+        glyph_options: Option<GlyphOptions>,
+    ) {
         todo!()
     }
 

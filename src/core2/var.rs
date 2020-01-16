@@ -269,7 +269,7 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
 
     fn map_bidi<O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut(&O) -> T + 'static>(
         &self,
-        map: M,
+        mut map: M,
         _: N,
     ) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Owned(OwnedVar(map(&self.0))))
@@ -613,7 +613,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S,
 
         let source_version = self.source.version(ctx);
         if self.output_version.get() != source_version {
-            let value = (self.map.borrow_mut())(self.source.get(ctx));
+            let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
             // vars require a &mut AppContext for changing version.
@@ -658,7 +658,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T>
 
         let source_version = self.source.version(ctx);
         if self.output_version.get() != source_version {
-            let value = (self.map.borrow_mut())(self.source.get(ctx));
+            let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
             // vars require a &mut AppContext for changing version.
@@ -751,7 +751,8 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn push_set(&self, new_value: O, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        self.source.push_set((self.map_back.borrow_mut())(&new_value), ctx);
+        self.source
+            .push_set((&mut *self.map_back.borrow_mut())(&new_value), ctx);
         todo!()
     }
 
@@ -903,7 +904,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
             Occupied(entry) => {
                 let (output, output_version) = entry.into_mut();
                 if *output_version != source_version {
-                    let value = (self.map.borrow_mut())(self.source.get(ctx));
+                    let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
                     // TODO UNSAFE: Same context var can be set twice in same widget.
 
                     // SAFETY: This is safe because it only happens before the first borrow
@@ -914,7 +915,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
                 output
             }
             Vacant(entry) => {
-                let value = (self.map.borrow_mut())(self.source.get(ctx));
+                let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
                 let (output, _) = entry.insert((UnsafeCell::new(value), source_version));
                 output
             }
@@ -1756,7 +1757,7 @@ macro_rules! impl_merge_vars {
 
                 if sync {
                     self.r.version.set(self.r.version.get().wrapping_add(1));
-                    let value = (self.r.merge.borrow_mut())($(self.r.$vn.get(ctx)),+);
+                    let value = (&mut *self.r.merge.borrow_mut())($(self.r.$vn.get(ctx)),+);
 
                     // SAFETY: This is safe because it only happens before the first borrow
                     // of this update, and borrows cannot exist across updates because source

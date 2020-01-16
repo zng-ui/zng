@@ -4,6 +4,7 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::EventLoopWindowTarget;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, Any, TypeId};
+use std::cell::{RefCell, RefMut};
 
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
 pub use glutin::window::WindowId;
@@ -50,7 +51,7 @@ impl<'a> EventContext<'a> {
     }
 
     /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&mut self) -> Option<&mut S> {
+    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
         self.ctx.try_service::<S>()
     }
 
@@ -58,7 +59,7 @@ impl<'a> EventContext<'a> {
     ///
     /// # Panics
     /// If  the service is not registered in application.
-    pub fn service<S: Service>(&mut self) -> &mut S {
+    pub fn service<S: Service>(&self) -> RefMut<S> {
         self.ctx.service::<S>()
     }
 
@@ -75,11 +76,14 @@ impl AppRegister {
 
     /// Register a new service for the duration of the application context.
     pub fn register_service<S: Service>(&mut self, service: S) {
-        self.ctx.services.insert(TypeId::of::<S>(), Box::new(service));
+        self.ctx
+            .services
+            .insert(TypeId::of::<S>(), RefCell::new(Box::new(service)));
     }
 }
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
+type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
 enum UntypedRef {}
 impl UntypedRef {
     fn pack<T>(r: &T) -> *const UntypedRef {
@@ -120,7 +124,7 @@ bitflags! {
 pub struct AppContext {
     id: AppContextId,
     events: AnyMap,
-    services: AnyMap,
+    services: AnyCellMap,
 
     window_id: Option<WindowId>,
     widget_id: Option<WidgetId>,
@@ -174,11 +178,13 @@ impl AppContext {
     }
 
     /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&mut self) -> Option<&mut S> {
-        if let Some(any) = self.events.get_mut(&TypeId::of::<S>()) {
-            // SAFETY: This is safe because services are always the same type as key in
-            // `AppRegister::register_service` witch is the only place where insertion occurs.
-            Some(unsafe { any.downcast_mut_unchecked::<S>() })
+    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
+        if let Some(any) = self.services.get(&TypeId::of::<S>()) {
+            Some(RefMut::map(any.borrow_mut(), |any| {
+                // SAFETY: This is safe because services are always the same type as key in
+                // `AppRegister::register_service` which is the only place where insertion occurs.
+                unsafe { any.downcast_mut_unchecked::<S>() }
+            }))
         } else {
             None
         }
@@ -188,7 +194,7 @@ impl AppContext {
     ///
     /// # Panics
     /// If  the service is not registered in application.
-    pub fn service<S: Service>(&mut self) -> &mut S {
+    pub fn service<S: Service>(&self) -> RefMut<S> {
         self.try_service::<S>()
             .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
     }
@@ -546,9 +552,12 @@ impl<E: AppExtension> App<E> {
     }
 
     /// Application with default extensions.
-    pub fn default() -> App<(MouseEvents, KeyboardEvents)> {
+    pub fn default() -> App<(FontCache, (MouseEvents, KeyboardEvents))> {
         App {
-            extensions: (MouseEvents::default(), KeyboardEvents::default()),
+            extensions: (
+                FontCache::default(),
+                (MouseEvents::default(), KeyboardEvents::default()),
+            ),
         }
     }
 

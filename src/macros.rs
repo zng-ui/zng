@@ -137,7 +137,7 @@ macro_rules! visited_var {
 /// Declares new [ContextVar] types.
 #[macro_export]
 macro_rules! context_var {
-    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty = $default:expr;)+) => {$(
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
         $(#[$outer])*
         #[derive(Clone, Copy)]
         $vis struct $ident;
@@ -146,7 +146,7 @@ macro_rules! context_var {
             type Type = $type;
 
             fn default() -> &'static Self::Type {
-                static DEFAULT: Self::Type = $default;
+                static DEFAULT: $type = $default;
                 &DEFAULT
             }
         }

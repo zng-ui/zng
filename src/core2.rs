@@ -1,5 +1,6 @@
 mod app;
 mod events;
+mod font;
 mod frame;
 mod keyboard_events;
 mod mouse_events;
@@ -11,6 +12,7 @@ mod window;
 pub use crate::core::NextFrame;
 pub use app::*;
 pub use events::*;
+pub use font::*;
 pub use frame::*;
 pub use keyboard_events::*;
 pub use mouse_events::*;
