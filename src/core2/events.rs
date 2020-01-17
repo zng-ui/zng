@@ -105,6 +105,13 @@ impl<T: 'static> EventListener<T> {
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }
+
+    /// Listener that never updates.
+    pub fn never(is_high_pressure: bool) -> Self {
+        EventListener {
+            chan: EventEmitter::new(is_high_pressure).chan,
+        }
+    }
 }
 
 /// Read-write reference to an event channel.

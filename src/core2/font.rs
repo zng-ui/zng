@@ -11,8 +11,8 @@ pub struct FontCache;
 
 impl AppExtension for FontCache {
     fn register(&mut self, r: &mut AppRegister) {
-        r.register_service(Fonts {
-            api: todo!(),
+        r.register_window_service(|ctx| Fonts {
+            api: ctx.render_api(),
             fonts: FnvHashMap::default(),
         })
     }

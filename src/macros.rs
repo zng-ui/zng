@@ -124,9 +124,9 @@ macro_rules! profile_scope {
 /// Declares new [VisitedVar] types.
 #[macro_export]
 macro_rules! visited_var {
-    ($($(#[$outer:meta])* $vis:vis $ident:ident: $type: ty)+) => {$(
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty)+) => {$(
         $(#[&outer])*
-        $vis enum $ident {}
+        $vis struct $ident;
 
         impl $crate::core2::VisitedVar for $ident {
             type Type = $type;

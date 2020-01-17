@@ -5,6 +5,8 @@ use glutin::event_loop::EventLoopWindowTarget;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, Any, TypeId};
 use std::cell::{RefCell, RefMut};
+use std::sync::Arc;
+use webrender::api::*;
 
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
 pub use glutin::window::WindowId;
@@ -54,7 +56,7 @@ impl AppRegister {
     ///
     /// Window services have diferent instances for each window and exist for the duration
     /// of that window. The `new` closure is called when a new window is created to
-    pub fn register_window_service<S: Service>(&mut self, mut new: impl Fn(&WindowContext) -> S + 'static) {
+    pub fn register_window_service<S: Service>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
         self.ctx
             .window_services_init
             .push((TypeId::of::<S>(), Box::new(move |ctx| RefCell::new(Box::new(new(ctx))))));
@@ -106,6 +108,10 @@ impl<'a> WindowContext<'a> {
     pub fn app_ctx(&self) -> &AppContext {
         // TODO remove this, turn event context into a full delegating wrapper.
         self.ctx
+    }
+
+    pub fn render_api(&self) -> Arc<RenderApi> {
+        todo!()
     }
 
     pub fn window_id(&self) -> WindowId {
