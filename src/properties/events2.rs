@@ -32,12 +32,16 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode 
 }
 
 #[property(event)]
-pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static ) -> impl UiNode {
+pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event::set(child, KeyDown, handler)
 }
 
 #[property(event)]
-pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
+pub fn on_event<E: Event>(
+    child: impl UiNode,
+    event: E,
+    handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static,
+) -> impl UiNode {
     OnEvent {
         child,
         event,

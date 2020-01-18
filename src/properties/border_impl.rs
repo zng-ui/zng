@@ -131,7 +131,7 @@ impl LayoutSideOffsetsExt for LayoutSideOffsets {
 
 impl From<BorderStyle> for wapi::BorderStyle {
     fn from(border_style: BorderStyle) -> Self {
-        // SAFETY: WBorderStyle is also repr(u32)
+        // SAFETY: wapi::BorderStyle is also repr(u32)
         // and contains all values
         unsafe { std::mem::transmute(border_style) }
     }

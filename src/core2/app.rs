@@ -72,6 +72,7 @@ pub struct EventContext<'a> {
 impl<'a> EventContext<'a> {
     pub fn app_ctx(&self) -> &AppContext {
         // TODO remove this, turn event context into a full delegating wrapper.
+        // THIS is used in window new
         self.ctx
     }
 

@@ -569,8 +569,7 @@ impl<T: 'static, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
 
 // #region MapSharedVar<T> and MapBiDiSharedVar<T>
 
-/// A read-only variable that maps the value of another variable.
-struct MapSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
+struct MapSharedVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -579,8 +578,12 @@ struct MapSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     context: AppContextOwnership,
 }
 
-/// A variable that maps the value of another variable.
-struct MapBiDiSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+/// A read-only variable that maps the value of another variable.
+struct MapSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
+    r: Rc<MapSharedVarInner<T, S, O, M>>,
+}
+
+struct MapBiDiSharedVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -590,20 +593,27 @@ struct MapBiDiSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O,
     context: AppContextOwnership,
 }
 
+/// A variable that maps the value of another variable.
+struct MapBiDiSharedVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+    r: Rc<MapBiDiSharedVarInner<T, S, O, M, N>>,
+}
+
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S, O, M> {
     fn new(source: S, map: M, prev_version: u32) -> Self {
         MapSharedVar {
-            _t: PhantomData,
-            source,
-            map: RefCell::new(map),
-            output: UnsafeCell::new(MaybeUninit::uninit()),
-            output_version: Cell::new(prev_version),
-            context: AppContextOwnership::default(),
+            r: Rc::new(MapSharedVarInner {
+                _t: PhantomData,
+                source,
+                map: RefCell::new(map),
+                output: UnsafeCell::new(MaybeUninit::uninit()),
+                output_version: Cell::new(prev_version),
+                context: AppContextOwnership::default(),
+            }),
         }
     }
 
     fn borrow(&self, ctx: &AppContext) -> &O {
-        self.context.check(ctx.id(), || {
+        self.r.context.check(ctx.id(), || {
             format!(
                 "cannot borrow `MapVar<{} -> {}>` because it is already bound to a different `AppContext`",
                 type_name::<T>(),
@@ -611,24 +621,24 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S,
             )
         });
 
-        let source_version = self.source.version(ctx);
-        if self.output_version.get() != source_version {
-            let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
+        let source_version = self.r.source.version(ctx);
+        if self.r.output_version.get() != source_version {
+            let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
             // vars require a &mut AppContext for changing version.
             unsafe {
-                let m_uninit = &mut *self.output.get();
+                let m_uninit = &mut *self.r.output.get();
                 m_uninit.as_mut_ptr().write(value);
             }
-            self.output_version.set(source_version);
+            self.r.output_version.set(source_version);
         }
 
         // SAFETY:
         // borrow validation was done at the start of the method.
         // memory is initialized here because we start from the prev_version.
         unsafe {
-            let inited = &*self.output.get();
+            let inited = &*self.r.output.get();
             &*inited.as_ptr()
         }
     }
@@ -637,18 +647,20 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapSharedVar<T, S,
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> MapBiDiSharedVar<T, S, O, M, N> {
     fn new(source: S, map: M, map_back: N, prev_version: u32) -> Self {
         MapBiDiSharedVar {
-            _t: PhantomData,
-            source,
-            map: RefCell::new(map),
-            map_back: RefCell::new(map_back),
-            output: UnsafeCell::new(MaybeUninit::uninit()),
-            output_version: Cell::new(prev_version),
-            context: AppContextOwnership::default(),
+            r: Rc::new(MapBiDiSharedVarInner {
+                _t: PhantomData,
+                source,
+                map: RefCell::new(map),
+                map_back: RefCell::new(map_back),
+                output: UnsafeCell::new(MaybeUninit::uninit()),
+                output_version: Cell::new(prev_version),
+                context: AppContextOwnership::default(),
+            }),
         }
     }
 
     fn borrow(&self, ctx: &AppContext) -> &O {
-        self.context.check(ctx.id(), || {
+        self.r.context.check(ctx.id(), || {
             format!(
                 "cannot borrow `MapVarBiDi<{} <-> {}>` because it is already bound to a different `AppContext`",
                 type_name::<T>(),
@@ -656,24 +668,24 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T>
             )
         });
 
-        let source_version = self.source.version(ctx);
-        if self.output_version.get() != source_version {
-            let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
+        let source_version = self.r.source.version(ctx);
+        if self.r.output_version.get() != source_version {
+            let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
             // vars require a &mut AppContext for changing version.
             unsafe {
-                let m_uninit = &mut *self.output.get();
+                let m_uninit = &mut *self.r.output.get();
                 m_uninit.as_mut_ptr().write(value);
             }
-            self.output_version.set(source_version);
+            self.r.output_version.set(source_version);
         }
 
         // SAFETY:
         // borrow validation was done at the start of the method.
         // memory is initialized here because we start from the prev_version.
         unsafe {
-            let inited = &*self.output.get();
+            let inited = &*self.r.output.get();
             &*inited.as_ptr()
         }
     }
@@ -693,7 +705,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn read_only_prev_version(&self) -> u32 {
-        self.output_version.get().wrapping_sub(1)
+        self.r.output_version.get().wrapping_sub(1)
     }
 }
 
@@ -711,11 +723,11 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        self.source.is_new(ctx)
+        self.r.source.is_new(ctx)
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        self.source.version(ctx)
+        self.r.source.version(ctx)
     }
 }
 
@@ -735,25 +747,29 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        self.source.is_new(ctx)
+        self.r.source.is_new(ctx)
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        self.source.version(ctx)
+        self.r.source.version(ctx)
     }
 
     fn read_only(&self) -> bool {
-        self.source.read_only()
+        self.r.source.read_only()
     }
 
     fn always_read_only(&self) -> bool {
-        self.source.always_read_only()
+        self.r.source.always_read_only()
     }
 
     fn push_set(&self, new_value: O, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        self.source
-            .push_set((&mut *self.map_back.borrow_mut())(&new_value), ctx);
-        todo!()
+        self.r
+            .source
+            .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), ctx)?;
+
+        ctx.push_modify_impl(|cleanup| {});
+
+        Ok(())
     }
 
     fn push_modify_boxed(
@@ -767,7 +783,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Clone for MapSharedVar<T, S, O, M> {
     fn clone(&self) -> Self {
-        todo!("when GATs are stable")
+        MapSharedVar { r: Rc::clone(&self.r) }
     }
 }
 
@@ -775,7 +791,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     for MapBiDiSharedVar<T, S, O, M, N>
 {
     fn clone(&self) -> Self {
-        todo!("when GATs are stable")
+        MapBiDiSharedVar { r: Rc::clone(&self.r) }
     }
 }
 
@@ -786,7 +802,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> f
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
-            self.output_version.get().wrapping_sub(1),
+            self.r.output_version.get().wrapping_sub(1),
         )))
     }
 
@@ -799,7 +815,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Var<O> f
             self.clone(),
             map,
             map_back,
-            self.output_version.get().wrapping_sub(1),
+            self.r.output_version.get().wrapping_sub(1),
         )))
     }
 
@@ -821,7 +837,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
-            self.output_version.get().wrapping_sub(1),
+            self.r.output_version.get().wrapping_sub(1),
         )))
     }
 
@@ -834,7 +850,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
             self.clone(),
             map,
             map_back,
-            self.output_version.get().wrapping_sub(1),
+            self.r.output_version.get().wrapping_sub(1),
         )))
     }
 
