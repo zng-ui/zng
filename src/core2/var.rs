@@ -264,7 +264,7 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
 
     fn map<O: 'static, M: FnMut(&T) -> O + 'static>(&self, mut map: M) -> MapVar<T, Self, O, M> {
-        MapVar::new(MapVarInner::Owned(OwnedVar(map(&self.0))))
+        MapVar::new(MapVarInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
     fn map_bidi<O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut(&O) -> T + 'static>(
@@ -272,7 +272,7 @@ impl<T: 'static> Var<T> for OwnedVar<T> {
         mut map: M,
         _: N,
     ) -> MapVarBiDi<T, Self, O, M, N> {
-        MapVarBiDi::new(MapVarBiDiInner::Owned(OwnedVar(map(&self.0))))
+        MapVarBiDi::new(MapVarBiDiInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
     fn as_read_only(self) -> Self {
@@ -883,8 +883,7 @@ impl<T: 'static, O: 'static, S: ObjVar<T>, M: FnMut(&T) -> O + 'static, N: FnMut
 
 type MapContextVarOutputs<O> = FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>;
 
-/// A variable that maps the value of a context variable.
-struct MapContextVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
+struct MapContextVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -892,19 +891,26 @@ struct MapContextVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
     context: AppContextOwnership,
 }
 
+/// A variable that maps the value of a context variable.
+struct MapContextVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
+    r: Rc<MapContextVarInner<T, S, O, M>>,
+}
+
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S, O, M> {
     fn new(source: S, map: M) -> Self {
         MapContextVar {
-            _t: PhantomData,
-            source,
-            map: RefCell::new(map),
-            outputs: RefCell::default(),
-            context: AppContextOwnership::default(),
+            r: Rc::new(MapContextVarInner {
+                _t: PhantomData,
+                source,
+                map: RefCell::new(map),
+                outputs: RefCell::default(),
+                context: AppContextOwnership::default(),
+            }),
         }
     }
 
     fn borrow(&self, ctx: &AppContext) -> &O {
-        self.context.check(ctx.id(), || {
+        self.r.context.check(ctx.id(), || {
             format!(
                 "cannot borrow `MapVar<{}>` because it is already bound to a different `AppContext`",
                 type_name::<T>()
@@ -912,15 +918,15 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
         });
 
         use std::collections::hash_map::Entry::{Occupied, Vacant};
-        let mut outputs = self.outputs.borrow_mut();
+        let mut outputs = self.r.outputs.borrow_mut();
         let widget_id = ctx.try_widget_id();
-        let source_version = self.source.version(ctx);
+        let source_version = self.r.source.version(ctx);
 
         let output = match outputs.entry(widget_id) {
             Occupied(entry) => {
                 let (output, output_version) = entry.into_mut();
                 if *output_version != source_version {
-                    let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
+                    let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
                     // TODO UNSAFE: Same context var can be set twice in same widget.
 
                     // SAFETY: This is safe because it only happens before the first borrow
@@ -931,7 +937,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
                 output
             }
             Vacant(entry) => {
-                let value = (&mut *self.map.borrow_mut())(self.source.get(ctx));
+                let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
                 let (output, _) = entry.insert((UnsafeCell::new(value), source_version));
                 output
             }
@@ -945,7 +951,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapContextVar<T, S
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> protected::Var<O> for MapContextVar<T, S, O, M> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        protected::BindInfo::Var(self.borrow(ctx), self.source.is_new(ctx), self.source.version(ctx))
+        protected::BindInfo::Var(self.borrow(ctx), self.r.source.is_new(ctx), self.r.source.version(ctx))
     }
 }
 
@@ -963,11 +969,17 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        self.source.is_new(ctx)
+        self.r.source.is_new(ctx)
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        self.source.version(ctx)
+        self.r.source.version(ctx)
+    }
+}
+
+impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Clone for MapContextVar<T, S, O, M> {
+    fn clone(&self) -> Self {
+        MapContextVar { r: Rc::clone(&self.r) }
     }
 }
 
@@ -1012,13 +1024,13 @@ impl<T: 'static, O: 'static, M: FnMut(&T) -> O + 'static, S: ObjVar<T>> IntoVar<
 // #region MapVar<T> and MapVarBidi<T>
 
 enum MapVarInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
-    Owned(OwnedVar<O>),
+    Owned(Rc<OwnedVar<O>>),
     Shared(MapSharedVar<T, S, O, M>),
     Context(MapContextVar<T, S, O, M>),
 }
 
 enum MapVarBiDiInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
-    Owned(OwnedVar<O>),
+    Owned(Rc<OwnedVar<O>>),
     Shared(MapBiDiSharedVar<T, S, O, M, N>),
     Context(MapContextVar<T, S, O, M>),
 }
@@ -1028,7 +1040,7 @@ enum MapVarBiDiInner<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N:
 /// This `struct` is created by the [map](Var::map) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
 pub struct MapVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
-    r: Rc<MapVarInner<T, S, O, M>>,
+    r: MapVarInner<T, S, O, M>,
 }
 
 /// A variable that maps from and to another variable.
@@ -1036,24 +1048,24 @@ pub struct MapVar<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> {
 /// This `struct` is created by the [map_bidi](Var::map_bidi) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
 pub struct MapVarBiDi<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
-    r: Rc<MapVarBiDiInner<T, S, O, M, N>>,
+    r: MapVarBiDiInner<T, S, O, M, N>,
 }
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O> MapVar<T, S, O, M> {
     fn new(inner: MapVarInner<T, S, O, M>) -> Self {
-        MapVar { r: Rc::new(inner) }
+        MapVar { r: inner }
     }
 }
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O, N: FnMut(&O) -> T> MapVarBiDi<T, S, O, M, N> {
     fn new(inner: MapVarBiDiInner<T, S, O, M, N>) -> Self {
-        MapVarBiDi { r: Rc::new(inner) }
+        MapVarBiDi { r: inner }
     }
 }
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> protected::Var<O> for MapVar<T, S, O, M> {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        match &*self.r {
+        match &self.r {
             MapVarInner::Owned(o) => o.bind_info(ctx),
             MapVarInner::Shared(s) => s.bind_info(ctx),
             MapVarInner::Context(c) => c.bind_info(ctx),
@@ -1065,7 +1077,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     for MapVarBiDi<T, S, O, M, N>
 {
     fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.bind_info(ctx),
             MapVarBiDiInner::Shared(s) => s.bind_info(ctx),
             MapVarBiDiInner::Context(c) => c.bind_info(ctx),
@@ -1079,7 +1091,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O> for MapVar<T, S, O, M> {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
-        match &*self.r {
+        match &self.r {
             MapVarInner::Owned(o) => o.get(ctx),
             MapVarInner::Shared(s) => s.get(ctx),
             MapVarInner::Context(c) => c.get(ctx),
@@ -1087,7 +1099,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
-        match &*self.r {
+        match &self.r {
             MapVarInner::Owned(o) => o.update(ctx),
             MapVarInner::Shared(s) => s.update(ctx),
             MapVarInner::Context(c) => c.update(ctx),
@@ -1095,7 +1107,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        match &*self.r {
+        match &self.r {
             MapVarInner::Owned(o) => o.is_new(ctx),
             MapVarInner::Shared(s) => s.is_new(ctx),
             MapVarInner::Context(c) => c.is_new(ctx),
@@ -1103,7 +1115,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> ObjVar<O
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        match &*self.r {
+        match &self.r {
             MapVarInner::Owned(o) => o.version(ctx),
             MapVarInner::Shared(s) => s.version(ctx),
             MapVarInner::Context(c) => c.version(ctx),
@@ -1115,7 +1127,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     for MapVarBiDi<T, S, O, M, N>
 {
     fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.get(ctx),
             MapVarBiDiInner::Shared(s) => s.get(ctx),
             MapVarBiDiInner::Context(c) => c.get(ctx),
@@ -1123,7 +1135,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.update(ctx),
             MapVarBiDiInner::Shared(s) => s.update(ctx),
             MapVarBiDiInner::Context(c) => c.update(ctx),
@@ -1131,7 +1143,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn is_new(&self, ctx: &AppContext) -> bool {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.is_new(ctx),
             MapVarBiDiInner::Shared(s) => s.is_new(ctx),
             MapVarBiDiInner::Context(c) => c.is_new(ctx),
@@ -1139,7 +1151,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn version(&self, ctx: &AppContext) -> u32 {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.version(ctx),
             MapVarBiDiInner::Shared(s) => s.version(ctx),
             MapVarBiDiInner::Context(c) => c.version(ctx),
@@ -1147,7 +1159,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn read_only(&self) -> bool {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.read_only(),
             MapVarBiDiInner::Shared(s) => s.read_only(),
             MapVarBiDiInner::Context(c) => c.read_only(),
@@ -1155,7 +1167,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn always_read_only(&self) -> bool {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.always_read_only(),
             MapVarBiDiInner::Shared(s) => s.always_read_only(),
             MapVarBiDiInner::Context(c) => c.always_read_only(),
@@ -1163,7 +1175,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     }
 
     fn push_set(&self, new_value: O, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_set(new_value, ctx),
             MapVarBiDiInner::Shared(s) => s.push_set(new_value, ctx),
             MapVarBiDiInner::Context(c) => c.push_set(new_value, ctx),
@@ -1175,7 +1187,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
         modify: Box<dyn FnOnce(&mut O) + 'static>,
         ctx: &mut AppContext,
     ) -> Result<(), VarIsReadOnly> {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, ctx),
             MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, ctx),
             MapVarBiDiInner::Context(c) => c.push_modify_boxed(modify, ctx),
@@ -1185,7 +1197,13 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
 
 impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static> Clone for MapVar<T, S, O, M> {
     fn clone(&self) -> Self {
-        MapVar { r: Rc::clone(&self.r) }
+        MapVar {
+            r: match &self.r {
+                MapVarInner::Owned(o) => MapVarInner::Owned(Rc::clone(&o)),
+                MapVarInner::Shared(s) => MapVarInner::Shared(s.clone()),
+                MapVarInner::Context(c) => MapVarInner::Context(c.clone()),
+            },
+        }
     }
 }
 
@@ -1193,7 +1211,13 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     for MapVarBiDi<T, S, O, M, N>
 {
     fn clone(&self) -> Self {
-        MapVarBiDi { r: Rc::clone(&self.r) }
+        MapVarBiDi {
+            r: match &self.r {
+                MapVarBiDiInner::Owned(o) => MapVarBiDiInner::Owned(Rc::clone(&o)),
+                MapVarBiDiInner::Shared(s) => MapVarBiDiInner::Shared(s.clone()),
+                MapVarBiDiInner::Context(c) => MapVarBiDiInner::Context(c.clone()),
+            },
+        }
     }
 }
 
@@ -1229,7 +1253,7 @@ impl<T: 'static, S: ObjVar<T>, O: 'static, M: FnMut(&T) -> O + 'static, N: FnMut
     type AsReadOnly = ReadOnlyVar<O, Self>;
 
     fn push_modify(&self, modify: impl FnOnce(&mut O) + 'static, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
-        match &*self.r {
+        match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify(modify, ctx),
             MapVarBiDiInner::Shared(s) => s.push_modify(modify, ctx),
             MapVarBiDiInner::Context(c) => c.push_modify(modify, ctx),
