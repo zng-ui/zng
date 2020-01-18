@@ -54,51 +54,47 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
     }
 }
 
-struct FillColor<C: Var<ColorF>> {
+struct FillColor<C: LocalVar<ColorF>> {
     color: C,
-    render_color: ColorF,
 }
 
 #[impl_ui_node_crate]
-impl<C: Var<ColorF>> UiNode for FillColor<C> {
+impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
     fn init(&mut self, ctx: &mut AppContext) {
-        self.render_color = *self.color.get(ctx);
+        self.color.init_local(ctx);
     }
     fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(color) = self.color.update(ctx) {
-            self.render_color = *color;
+        if self.color.update_local(ctx).is_some() {
             ctx.push_frame();
         }
     }
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_color");
-        frame.push_fill_color(&LayoutRect::from_size(frame.final_size()), self.render_color);
+        frame.push_fill_color(&LayoutRect::from_size(frame.final_size()), *self.color.get_local());
     }
 }
 
 pub fn fill_color<C: IntoVar<ColorF>>(color: C) -> impl UiNode {
     FillColor {
-        color: color.into_var(),
-        render_color: ColorF::BLACK,
+        color: color.into_var().as_local(),
     }
 }
 
-struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> {
+struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> {
     start: A,
     end: B,
     stops: S,
     render_start: LayoutPoint,
     render_end: LayoutPoint,
-    render_stops: Vec<GradientStop>,
     final_size: LayoutSize,
 }
 
 #[impl_ui_node_crate]
-impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
+impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.render_start = *self.start.get(ctx);
         self.render_end = *self.end.get(ctx);
-        self.render_stops = self.stops.get(ctx).clone();
+        self.stops.init_local(ctx);
     }
 
     fn update(&mut self, ctx: &mut AppContext) {
@@ -114,8 +110,7 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> UiNode
             self.render_end.y *= self.final_size.height;
             ctx.push_frame();
         }
-        if let Some(stops) = self.stops.update(ctx) {
-            self.render_stops = stops.clone();
+        if self.stops.update_local(ctx).is_some() {
             ctx.push_frame();
         }
     }
@@ -141,7 +136,7 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: Var<Vec<GradientStop>>> UiNode
             &LayoutRect::from_size(self.final_size),
             self.render_start,
             self.render_end,
-            self.render_stops.clone(),
+            self.stops.get_local().clone(),
         );
     }
 }
@@ -154,10 +149,9 @@ pub fn fill_gradient(
     FillGradient {
         start: start.into_var(),
         end: end.into_var(),
-        stops: stops.into_var(),
+        stops: stops.into_var().as_local(),
         render_start: LayoutPoint::zero(),
         render_end: LayoutPoint::zero(),
-        render_stops: Vec::default(),
         final_size: LayoutSize::zero(),
     }
 }

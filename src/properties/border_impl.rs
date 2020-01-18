@@ -157,11 +157,10 @@ impl From<BorderDetails> for wapi::BorderDetails {
     }
 }
 
-struct Border<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> {
+struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> {
     child: T,
     widths: L,
     details: B,
-    render_widths: LayoutSideOffsets,
     render_details: wapi::BorderDetails,
     child_rect: LayoutRect,
     final_size: LayoutSize,
@@ -169,17 +168,16 @@ struct Border<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> {
 }
 
 #[impl_ui_node_crate(child)]
-impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
+impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.child.init(ctx);
 
-        let widths = *self.widths.get(ctx);
+        let widths = *self.widths.init_local(ctx);
         let details = *self.details.get(ctx);
 
         self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
         self.visible = widths.visible() && details.visible();
 
-        self.render_widths = widths;
         self.render_details = details.into();
     }
 
@@ -187,10 +185,9 @@ impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Bor
         self.child.update(ctx);
 
         let mut visible = false;
-        if let Some(&widths) = self.widths.update(ctx) {
+        if let Some(&widths) = self.widths.update_local(ctx) {
             visible |= widths.visible();
             self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
-            self.render_widths = widths;
             ctx.push_layout();
         }
         if let Some(&details) = self.details.update(ctx) {
@@ -215,7 +212,7 @@ impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Bor
         if self.visible {
             frame.push_border(
                 &LayoutRect::from_size(self.final_size),
-                self.render_widths,
+                *self.widths.get_local(),
                 self.render_details,
             );
         }
@@ -223,12 +220,10 @@ impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Bor
     }
 }
 
-impl<T: UiNode, L: Var<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T, L, B> {
+impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T, L, B> {
     fn size_increment(&self) -> LayoutSize {
-        LayoutSize::new(
-            self.render_widths.left + self.render_widths.right,
-            self.render_widths.top + self.render_widths.bottom,
-        )
+        let rw = self.widths.get_local();
+        LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
     }
 }
 
@@ -241,9 +236,8 @@ pub fn border(
 ) -> impl UiNode {
     Border {
         child,
-        widths: widths.into_var(),
+        widths: widths.into_var().as_local(),
         details: details.into_var(),
-        render_widths: LayoutSideOffsets::zero(),
         render_details: border_details_none(),
         child_rect: LayoutRect::zero(),
         final_size: LayoutSize::zero(),

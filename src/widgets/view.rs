@@ -1,5 +1,4 @@
 use crate::core2::*;
-use crate::property;
 use zero_ui_macros::impl_ui_node_crate;
 
 /// [view] presenter function result.
@@ -11,7 +10,7 @@ pub enum View<U: UiNode> {
 }
 
 /// Dynamically presents a data variable.
-struct DataView<D: 'static, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U>> {
+struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U>> {
     data: V,
     child: U,
     presenter: P,
@@ -19,7 +18,7 @@ struct DataView<D: 'static, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) 
 }
 
 #[impl_ui_node_crate(child)]
-impl<D: 'static, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static> DataView<D, U, V, P> {
+impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static> DataView<D, U, V, P> {
     fn refresh_child(&mut self, ctx: &mut AppContext) {
         if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
             self.child = new_child;
@@ -85,7 +84,7 @@ impl<D: 'static, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> 
 ///     })
 /// }
 /// ```
-pub fn view<D: 'static, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static>(
+pub fn view<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static>(
     data: V,
     initial_ui: U,
     presenter: P,

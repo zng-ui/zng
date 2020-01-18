@@ -423,15 +423,15 @@ impl AppContext {
     }
 
     /// Schedules a variable change for the next update.
-    pub fn push_set<T: 'static>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
+    pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
         var.push_set(new_value, self)
     }
 
     /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: 'static>(
+    pub fn push_modify<T: VarValue>(
         &mut self,
         var: impl Var<T>,
-        modify: impl FnOnce(&mut T) + 'static,
+        modify: impl ModifyFnOnce<T>,
     ) -> Result<(), VarIsReadOnly> {
         var.push_modify(modify, self)
     }
@@ -455,7 +455,7 @@ impl AppContext {
     }
 
     /// Schedules a switch variable index change for the next update.
-    pub fn push_switch<T: 'static>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
+    pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
         self.update.insert(UpdateFlags::UPDATE);
         self.updates
             .push(Box::new(move |cleanup| var.modify(new_index, cleanup)));

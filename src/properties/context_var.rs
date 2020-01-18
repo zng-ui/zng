@@ -2,13 +2,13 @@ use crate::core2::*;
 use crate::property;
 use zero_ui_macros::impl_ui_node_crate;
 
-struct SetContextVar<U: UiNode, T: 'static, C: ContextVar<Type = T>, V: Var<T>> {
+struct SetContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
     child: U,
     var: C,
     value: V,
 }
 #[impl_ui_node_crate(child)]
-impl<U: UiNode, T: 'static, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetContextVar<U, T, C, V> {
+impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetContextVar<U, T, C, V> {
     fn init(&mut self, ctx: &mut AppContext) {
         let child = &mut self.child;
         ctx.with_var_bind(self.var, &self.value, |ctx| child.init(ctx));
@@ -28,7 +28,7 @@ impl<U: UiNode, T: 'static, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetCo
 }
 
 #[property(context_var)]
-pub fn set_context_var<T: 'static>(
+pub fn set_context_var<T: VarValue>(
     child: impl UiNode,
     var: impl ContextVar<Type = T>,
     value: impl IntoVar<T>,
