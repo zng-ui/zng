@@ -571,6 +571,50 @@ pub trait AppExtension: 'static {
     fn respond(&mut self, _ctx: &mut EventContext) {}
 }
 
+impl AppExtension for Box<dyn AppExtension> {
+    fn register(&mut self, r: &mut AppRegister) {
+        self.as_mut().register(r);
+    }
+
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut EventContext) {
+        self.as_mut().on_device_event(device_id, event, ctx);
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+        self.as_mut().on_window_event(window_id, event, ctx);
+    }
+
+    fn respond(&mut self, ctx: &mut EventContext) {
+        self.as_mut().respond(ctx);
+    }
+}
+
+impl<E: AppExtension> AppExtension for Vec<E> {
+    fn register(&mut self, r: &mut AppRegister) {
+        for inner in self.iter_mut() {
+            inner.register(r);
+        }
+    }
+
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut EventContext) {
+        for inner in self.iter_mut() {
+            inner.on_device_event(device_id, event, ctx);
+        }
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+        for inner in self.iter_mut() {
+            inner.on_window_event(window_id, event, ctx);
+        }
+    }
+
+    fn respond(&mut self, ctx: &mut EventContext) {
+        for inner in self.iter_mut() {
+            inner.respond(ctx);
+        }
+    }
+}
+
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     fn register(&mut self, r: &mut AppRegister) {
         self.0.register(r);
@@ -593,16 +637,12 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 }
 
-impl AppExtension for () {
-    fn register(&mut self, _: &mut AppRegister) {}
-}
-
 /// Identifies a service type.
 pub trait Service: 'static {}
 
 /// Defines and runs an application.
-pub struct App<Exts: AppExtension> {
-    extensions: Exts,
+pub struct App {
+    extensions: Vec<Box<dyn AppExtension>>,
 }
 
 #[derive(Debug)]
@@ -610,27 +650,27 @@ pub(crate) enum WebRenderEvent {
     NewFrameReady(WindowId),
 }
 
-impl<E: AppExtension> App<E> {
+impl App {
     /// Application without any extension.
-    pub fn empty() -> App<()> {
-        App { extensions: () }
+    pub fn empty() -> App {
+        App {
+            extensions: Vec::default(),
+        }
     }
 
     /// Application with default extensions.
-    pub fn default() -> App<(FontCache, (MouseEvents, KeyboardEvents))> {
-        App {
-            extensions: (
-                FontCache::default(),
-                (MouseEvents::default(), KeyboardEvents::default()),
-            ),
-        }
+    pub fn default() -> App {
+        App::empty()
+            .extend(MouseEvents::default())
+            .extend(KeyboardEvents::default())
+            .extend(FontCache::default())
     }
 
     /// Includes an [AppExtension] in the application.
-    pub fn extend<F: AppExtension>(self, extension: F) -> App<(E, F)> {
-        App {
-            extensions: (self.extensions, extension),
-        }
+    pub fn extend<F: AppExtension>(self, extension: F) -> App {
+        let mut extensions = self.extensions;
+        extensions.push(Box::new(extension));
+        App { extensions }
     }
 
     /// Runs the application.
