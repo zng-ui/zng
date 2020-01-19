@@ -1,13 +1,12 @@
 use super::*;
-use crate::property;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::impl_ui_node;
 
 struct Widget<T: UiNode> {
     id: WidgetId,
     child: T,
 }
 
-#[impl_ui_node_crate]
+#[impl_ui_node]
 impl<T: UiNode> UiNode for Widget<T> {
     fn init(&mut self, ctx: &mut AppContext) {
         ctx.widget_scope(self.id, |ctx| self.child.init(ctx));

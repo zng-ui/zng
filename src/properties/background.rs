@@ -1,6 +1,5 @@
 use crate::core2::*;
-use crate::property;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::{impl_ui_node, property};
 
 pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
     rgba(r, g, b, 1.0)
@@ -58,7 +57,7 @@ struct FillColor<C: LocalVar<ColorF>> {
     color: C,
 }
 
-#[impl_ui_node_crate]
+#[impl_ui_node]
 impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.color.init_local(ctx);
@@ -89,7 +88,7 @@ struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<Gr
     final_size: LayoutSize,
 }
 
-#[impl_ui_node_crate]
+#[impl_ui_node]
 impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.render_start = *self.start.get(ctx);

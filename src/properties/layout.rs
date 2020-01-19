@@ -1,6 +1,5 @@
 use crate::core2::*;
-use crate::property;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::{impl_ui_node, property};
 
 struct MinSize<T: UiNode, S: LocalVar<LayoutSize>> {
     child: T,
@@ -8,7 +7,7 @@ struct MinSize<T: UiNode, S: LocalVar<LayoutSize>> {
     final_size: LayoutSize,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.min_size.init_local(ctx);
@@ -52,7 +51,7 @@ struct MaxSize<T: UiNode, S: LocalVar<LayoutSize>> {
     final_size: LayoutSize,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.max_size.init_local(ctx);
@@ -96,7 +95,7 @@ struct ExactSize<T: UiNode, S: LocalVar<LayoutSize>> {
     final_size: LayoutSize,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.size.init_local(ctx);
@@ -160,7 +159,7 @@ struct Align<T: UiNode, A: LocalVar<Alignment>> {
     child_rect: LayoutRect,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.alignment.init_local(ctx);
@@ -229,7 +228,7 @@ struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
     child_rect: LayoutRect,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
     fn init(&mut self, ctx: &mut AppContext) {
         let margin = self.margin.get(ctx);

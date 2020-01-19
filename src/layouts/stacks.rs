@@ -1,7 +1,6 @@
 use crate::core2::*;
-use crate::property;
+use crate::impl_ui_node;
 use std::iter::FromIterator;
-use zero_ui_macros::impl_ui_node_crate;
 
 macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
@@ -9,7 +8,7 @@ macro_rules! stack {
             children: Vec<StackEntry<T>>,
             //TODO - interspacing - space between entries
         }
-        #[impl_ui_node_crate(children)]
+        #[impl_ui_node(children)]
         impl<T: UiNode> UiNode for $Stack<T> {
             fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
                 let mut total_size = LayoutSize::default();
@@ -67,7 +66,7 @@ struct ZStack<T> {
     children: Vec<StackEntry<T>>,
 }
 
-#[impl_ui_node_crate(children)]
+#[impl_ui_node(children)]
 impl<T: UiNode> ZStack<T> {}
 
 /// Stacks the children on top of each other (Z-index). The first child at the bottom the last at the top.
@@ -92,7 +91,7 @@ impl<T: UiNode> StackEntry<T> {
     }
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode> UiNode for StackEntry<T> {
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
         self.rect.size = self.child.measure(available_size);

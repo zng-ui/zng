@@ -1,13 +1,12 @@
 use crate::core2::*;
-use crate::property;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::{impl_ui_node, property};
 
 struct SetContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
     child: U,
     var: C,
     value: V,
 }
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetContextVar<U, T, C, V> {
     fn init(&mut self, ctx: &mut AppContext) {
         let child = &mut self.child;

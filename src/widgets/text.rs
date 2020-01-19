@@ -1,8 +1,7 @@
 use crate::core2::*;
 use crate::properties::set_context_var;
-use crate::property;
+use crate::{impl_ui_node, property};
 use std::borrow::Cow;
-use zero_ui_macros::impl_ui_node_crate;
 
 struct Text<T: Var<Cow<'static, str>>> {
     text: T,
@@ -13,7 +12,7 @@ struct Text<T: Var<Cow<'static, str>>> {
     color: ColorF,
 }
 
-#[impl_ui_node_crate]
+#[impl_ui_node]
 impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.color = *TextColor.get(ctx);

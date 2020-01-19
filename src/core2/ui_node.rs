@@ -1,7 +1,7 @@
 use super::{AppContext, FrameBuilder};
 
+use crate::impl_ui_node;
 pub use webrender::api::LayoutSize;
-use zero_ui_macros::impl_ui_node_crate;
 
 /// An Ui tree node.
 pub trait UiNode: 'static {
@@ -58,7 +58,7 @@ pub trait UiNode: 'static {
     }
 }
 
-#[impl_ui_node_crate(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+#[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
 impl UiNode for Box<dyn UiNode> {
     fn into_box(self) -> Box<dyn UiNode> {
         self

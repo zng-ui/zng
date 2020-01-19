@@ -12,27 +12,27 @@ mod property;
 mod ui;
 mod widget;
 
-/// Generates default implementations of [Ui](zero_ui::core::Ui) methods.
+/// Generates default implementations of [UiNode](zero_ui::core::UiNode) methods.
 ///
 /// # Usage
 ///
-/// In a inherent impl, anotate the impl block with `#[impl_ui]` and custom `Ui` methods with `#[Ui]`.
+/// In a inherent impl, anotate the impl block with `#[impl_ui_node]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```rust
-/// #[impl_ui]
+/// #[impl_ui_node]
 /// impl<C: Value<ColorF>> FillColor<C> {
-///     #[Ui]
+///     #[UiNode]
 ///     fn render(&self, f: &mut NextFrame) {
 ///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
 ///     }
 /// }
 /// ```
 ///
-/// In a `Ui` trait impl block, anotate the impl block with `#[impl_ui]` and only implement custom methods.
+/// In a `UiNode` trait impl block, anotate the impl block with `#[impl_ui_node]` and only implement custom methods.
 ///
 /// ```rust
-/// #[impl_ui]
-/// impl<C: Value<ColorF>> Ui for FillColor<C> {
+/// #[impl_ui_node]
+/// impl<C: Value<ColorF>> UiNode for FillColor<C> {
 ///     fn render(&self, f: &mut NextFrame) {
 ///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
 ///     }
@@ -41,7 +41,7 @@ mod widget;
 ///
 /// The generated defaults can be configurated in the macro.
 ///
-/// ## `#[impl_ui]`
+/// ## `#[impl_ui_node]`
 ///
 /// Generates defaults for UI components without descendents.
 ///
@@ -55,20 +55,20 @@ mod widget;
 /// # use zero_ui::core::{Value, NextFrame, ColorF, LayoutSize, UiValues, NextUpdate};
 /// # pub struct FillColor<C: Value<ColorF>>(C);
 /// #
-/// #[impl_ui]
+/// #[impl_ui_node]
 /// impl<C: Value<ColorF>> FillColor<C> {
 ///     pub fn new(color: C) -> Self {
 ///         FillColor(color)
 ///     }
 ///     /// Custom impl
-///     #[Ui]
+///     #[UiNode]
 ///     fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
 ///         if self.0.changed() {
 ///             update.render_frame();
 ///         }
 ///     }
 ///     /// Custom impl
-///     #[Ui]
+///     #[UiNode]
 ///     fn render(&self, f: &mut NextFrame) {
 ///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
 ///     }
@@ -83,7 +83,7 @@ mod widget;
 ///     }
 /// }
 ///
-/// impl<C: Value<ColorF>> zero_ui::core::Ui for FillColor<C> {
+/// impl<C: Value<ColorF>> zero_ui::core::UiNode for FillColor<C> {
 ///     /// Custom impl
 ///     #[inline]
 ///     fn render(&self, f: &mut NextFrame) {
@@ -166,62 +166,79 @@ mod widget;
 /// }
 /// ```
 ///
-/// ## `#[impl_ui(child)]`
+/// ## `#[impl_ui_node(child)]`
 ///
 /// Shorthand for:
 /// ```rust
-/// #[impl_ui(
+/// #[impl_ui_node(
 ///     delegate: &self.child,
 ///     delegate_mut: &mut self.child
 /// )]
 /// ```
 ///
-/// ## `#[impl_ui(children)]`
+/// ## `#[impl_ui_node(children)]`
 ///
 /// Shorthand for:
 /// ```rust
-/// #[impl_ui(
+/// #[impl_ui_node(
 ///     delegate_iter: self.children.iter(),
 ///     delegate_iter_mut: mut self.children.iter_mut()
 /// )]
 /// ```
 ///
-/// ## `#[impl_ui(delegate: expr, delegate_mut: expr)]`
+/// ## `#[impl_ui_node(delegate: expr, delegate_mut: expr)]`
 ///
 /// Generates defaults by delegating the method calls to
-/// a reference of another Ui component.
+/// a reference of another UiNode component.
 ///
 /// Both arguments are required and in order.
 ///
 /// ```rust
-/// #[impl_ui(delegate: self.0.borrow(), delegate_mut: self.0.borrow_mut())]
+/// #[impl_ui_node(delegate: self.0.borrow(), delegate_mut: self.0.borrow_mut())]
 /// // TODO
 /// ```
 ///
-/// ## `#[impl_ui(delegate_iter: expr, delegate_iter_mut: expr)]`
+/// ## `#[impl_ui_node(delegate_iter: expr, delegate_iter_mut: expr)]`
 ///
 /// Generates defaults by delegating the method calls to
-/// all Ui component references provided by the iterators.
+/// all UiNode component references provided by the iterators.
 ///
 /// ### Defaults
-/// * Events: Calls the same event method for each `Ui` delegate provided by the iterator.
+/// * Events: Calls the same event method for each `UiNode` delegate provided by the iterator.
 /// * Layout: Measure all delegates the largest size is returned. Arranges all delegates with the default top-left alignment.
 /// * Render: Renders all delegates on top of each other in the iterator order.
 /// * Hit-test: Returns the first delegate hit or `None` if none hit.
 ///
 /// ```rust
-/// #[impl_ui(delegate_iter: self.0.iter(), delegate_iter_mut: self.0.iter_mut())]
+/// #[impl_ui_node(delegate_iter: self.0.iter(), delegate_iter_mut: self.0.iter_mut())]
 /// // TODO
 /// ```
 #[proc_macro_attribute]
-pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
+pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
+    impl_ui_node::gen_impl_ui_node(args, input)
 }
 
+/// Generates a property declaration module from a function.
 #[proc_macro_attribute]
-pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui_node::gen_impl_ui_node(args, input, quote!(zero_ui))
+pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
+    property::expand_property(args, input)
 }
+
+/// Generates a widget macro.
+#[proc_macro]
+pub fn widget(input: TokenStream) -> TokenStream {
+    widget::expand_widget(input)
+}
+
+/// Used internally by macros generated by `[widget]` to
+/// initialize the widget.
+#[doc(hidden)]
+#[proc_macro_hack]
+pub fn widget_new(input: TokenStream) -> TokenStream {
+    widget::expand_widget_new(input)
+}
+
+//----- old stuff -------
 
 // proc_macro_hack must be documented in the rexport.
 #[proc_macro_hack]
@@ -239,19 +256,9 @@ pub fn ui_widget(input: TokenStream) -> TokenStream {
     ui::expand_ui_widget(input)
 }
 
-#[proc_macro]
-pub fn widget(input: TokenStream) -> TokenStream {
-    widget::expand_widget(input)
-}
-
 #[proc_macro_attribute]
 pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
     ui::expand_ui_property(input)
-}
-
-#[proc_macro_attribute]
-pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
-    property::expand_property(args, input)
 }
 
 /// Same as `impl_ui`, but with type paths using the keyword `crate::` instead of `zero_ui::`.
@@ -261,21 +268,13 @@ pub fn impl_ui_crate(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui::gen_impl_ui(args, input, quote!(crate))
 }
 
-/// Same as `impl_ui_node`, but with type paths using the keyword `crate::` instead of `zero_ui::`.
-#[doc(hidden)]
-#[proc_macro_attribute]
-pub fn impl_ui_node_crate(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui_node::gen_impl_ui_node(args, input, quote!(crate))
-}
-
 #[doc(hidden)]
 #[proc_macro_hack]
 pub fn custom_ui(input: TokenStream) -> TokenStream {
     ui::gen_custom_ui_init(input)
 }
 
-#[doc(hidden)]
-#[proc_macro_hack]
-pub fn widget_new(input: TokenStream) -> TokenStream {
-    widget::expand_widget_new(input)
+#[proc_macro_attribute]
+pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
+    impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
 }

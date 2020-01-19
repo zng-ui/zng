@@ -15,10 +15,10 @@ extern crate derive_new;
 #[macro_use]
 extern crate bitflags;
 
+extern crate self as zero_ui;
+
 #[macro_use]
 mod macros;
-
-pub use zero_ui_macros::{impl_ui, ui_property, ui_widget};
 
 pub use zero_ui_macros::{impl_ui_node, property, widget};
 
@@ -26,11 +26,13 @@ use proc_macro_hack::proc_macro_hack;
 
 #[doc(hidden)]
 #[proc_macro_hack(support_nested)]
-pub use zero_ui_macros::custom_ui;
+pub use zero_ui_macros::widget_new;
 
+// old macros
 #[doc(hidden)]
 #[proc_macro_hack(support_nested)]
-pub use zero_ui_macros::widget_new;
+pub use zero_ui_macros::custom_ui;
+pub use zero_ui_macros::{impl_ui, ui_property, ui_widget};
 
 /// Defines an item widget made entirely of property behavior.
 ///

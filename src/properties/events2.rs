@@ -1,6 +1,5 @@
 use crate::core2::*;
-use crate::property;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::{impl_ui_node, property};
 
 struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     child: C,
@@ -9,7 +8,7 @@ struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     handler: F,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode for OnEvent<C, E, F> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.listener = ctx.listen::<E>();

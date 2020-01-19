@@ -1,5 +1,5 @@
 use crate::core2::*;
-use zero_ui_macros::impl_ui_node_crate;
+use crate::impl_ui_node;
 
 /// [view] presenter function result.
 pub enum View<U: UiNode> {
@@ -17,7 +17,7 @@ struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext)
     _d: std::marker::PhantomData<D>,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static> DataView<D, U, V, P> {
     fn refresh_child(&mut self, ctx: &mut AppContext) {
         if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {

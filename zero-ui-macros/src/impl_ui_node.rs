@@ -1,4 +1,4 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::Span;
 use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
 use syn::spanned::Spanned;
@@ -10,10 +10,11 @@ include!("util.rs");
 pub(crate) fn gen_impl_ui_node(
     args: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
-    crate_: TokenStream,
 ) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
     let input = parse_macro_input!(input as ItemImpl);
+
+    let crate_ = zero_ui_crate_ident();
 
     let mut in_node_impl = false;
 
@@ -145,7 +146,7 @@ macro_rules! make_absents {
     }};
 }
 
-fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
+fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
@@ -176,7 +177,7 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
     }
 }
 
-fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) {
@@ -216,7 +217,7 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
     }
 }
 
-fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
+fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) {

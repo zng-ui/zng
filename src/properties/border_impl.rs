@@ -1,8 +1,7 @@
 use crate::core2::*;
-use crate::property;
+use crate::{impl_ui_node, property};
 pub use wapi::BorderRadius;
 use webrender::api as wapi;
-use zero_ui_macros::impl_ui_node_crate;
 
 impl IntoVar<BorderDetails> for ColorF {
     type Var = OwnedVar<BorderDetails>;
@@ -167,7 +166,7 @@ struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> 
     visible: bool,
 }
 
-#[impl_ui_node_crate(child)]
+#[impl_ui_node(child)]
 impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.child.init(ctx);

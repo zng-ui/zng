@@ -40,6 +40,13 @@ fn extract_attributes(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attrib
     (docs, other_attrs)
 }
 
+/// returns `zero_ui` or the name used in `Cargo.toml` if the crate was
+/// renamed.
+#[allow(unused)]
+fn zero_ui_crate_ident() -> Ident {
+    proc_macro_crate::crate_name("zero-ui").map(|n|ident(&n)).unwrap_or_else(|_|ident("zero_ui"))
+}
+
 /// Same as `parse_quote` but with an `expect` message.
 #[allow(unused)]
 macro_rules! dbg_parse_quote {
