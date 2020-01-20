@@ -2,6 +2,7 @@ use proc_macro2::Span;
 use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
 use syn::spanned::Spanned;
+use syn::visit::{self, Visit};
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
@@ -58,8 +59,13 @@ pub(crate) fn gen_impl_ui_node(
         }
     }
 
+    let mut validate_manual_delegation = true;
+
     let default_ui_items = match args {
-        Args::NoDelegate => no_delegate_absents(crate_.clone(), node_item_names),
+        Args::NoDelegate => {
+            validate_manual_delegation = false;
+            no_delegate_absents(crate_.clone(), node_item_names)
+        }
         Args::Delegate { delegate, delegate_mut } => {
             delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut)
         }
@@ -68,6 +74,29 @@ pub(crate) fn gen_impl_ui_node(
             delegate_iter_mut,
         } => delegate_iter_absents(crate_.clone(), node_item_names, delegate_iter, delegate_iter_mut),
     };
+
+    if validate_manual_delegation {
+        let skip = vec![ident("render"), ident("into_box")];
+
+        for manual_impl in node_items.iter() {
+            let mut validator = DelegateValidator::new(manual_impl);
+
+            if skip.contains(&validator.ident) {
+                continue;
+            }
+
+            validator.visit_impl_item(manual_impl);
+
+            if !validator.delegates {
+                let ident = validator.ident;
+                abort!(
+                    manual_impl.span(),
+                    "auto impl delegates call to `{}` but this manual impl does not",
+                    quote! {#ident},
+                )
+            }
+        }
+    }
 
     let generics = input.generics;
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -283,12 +312,10 @@ enum Args {
 
 impl Parse for Args {
     fn parse(args: ParseStream) -> Result<Self> {
-        let args = if args.is_empty() {
-            Args::NoDelegate
-        } else {
+        if args.peek(Ident) {
             let arg0 = args.parse::<Ident>()?;
 
-            if arg0 == ident("child") {
+            let args = if arg0 == ident("child") {
                 Args::Delegate {
                     delegate: parse_quote!(&self.child),
                     delegate_mut: parse_quote!(&mut self.child),
@@ -298,6 +325,8 @@ impl Parse for Args {
                     delegate_iter: parse_quote!(self.children.iter()),
                     delegate_iter_mut: parse_quote!(self.children.iter_mut()),
                 }
+            } else if arg0 == ident("none") {
+                Args::NoDelegate
             } else {
                 let delegate = ident("delegate");
                 let delegate_mut = ident("delegate_mut");
@@ -323,10 +352,15 @@ impl Parse for Args {
                         ));
                     }
                 }
-            }
-        };
+            };
 
-        Ok(args)
+            Ok(args)
+        } else {
+            Err(Error::new(
+                Span::call_site(),
+                "missing macro argument, expected `none`, `child`, `children`, `delegate` or `delegate_iter`",
+            ))
+        }
     }
 }
 
@@ -356,5 +390,34 @@ fn parse_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) ->
         } else {
             Err(Error::new(ident2.span(), format!("expected `{}`", ident)))
         }
+    }
+}
+
+struct DelegateValidator {
+    ident: Ident,
+    args_count: u8,
+    pub delegates: bool,
+}
+
+impl DelegateValidator {
+    fn new(manual_impl: &ImplItem) -> Self {
+        if let ImplItem::Method(m) = manual_impl {
+            DelegateValidator {
+                ident: m.sig.ident.clone(),
+                args_count: (m.sig.inputs.len() - 1) as u8,
+                delegates: false,
+            }
+        } else {
+            panic!("")
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for DelegateValidator {
+    fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
+        if i.method == self.ident && i.args.len() as u8 == self.args_count {
+            self.delegates = true;
+        }
+        visit::visit_expr_method_call(self, i)
     }
 }

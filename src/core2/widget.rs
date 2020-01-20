@@ -6,7 +6,7 @@ struct Widget<T: UiNode> {
     child: T,
 }
 
-#[impl_ui_node]
+#[impl_ui_node(child)]
 impl<T: UiNode> UiNode for Widget<T> {
     fn init(&mut self, ctx: &mut AppContext) {
         ctx.widget_scope(self.id, |ctx| self.child.init(ctx));

@@ -57,7 +57,7 @@ struct FillColor<C: LocalVar<ColorF>> {
     color: C,
 }
 
-#[impl_ui_node]
+#[impl_ui_node(none)]
 impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.color.init_local(ctx);
@@ -88,7 +88,7 @@ struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<Gr
     final_size: LayoutSize,
 }
 
-#[impl_ui_node]
+#[impl_ui_node(none)]
 impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.render_start = *self.start.get(ctx);
@@ -160,6 +160,7 @@ struct Background<T: UiNode, B: UiNode> {
     background: B,
 }
 
+#[impl_ui_node(child)]
 impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.background.init(ctx);

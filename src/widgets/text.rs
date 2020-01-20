@@ -12,7 +12,7 @@ struct Text<T: Var<Cow<'static, str>>> {
     color: ColorF,
 }
 
-#[impl_ui_node]
+#[impl_ui_node(none)]
 impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.color = *TextColor.get(ctx);

@@ -6,7 +6,7 @@ struct Cursor<T: UiNode, C: LocalVar<CursorIcon>> {
     child: T,
 }
 
-#[impl_ui_node]
+#[impl_ui_node(child)]
 impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
     fn init(&mut self, ctx: &mut AppContext) {
         self.cursor.init_local(ctx);
