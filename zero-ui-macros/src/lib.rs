@@ -16,47 +16,46 @@ mod widget;
 ///
 /// # Usage
 ///
-/// In a inherent impl, anotate the impl block with `#[impl_ui_node]` and custom `UiNode` methods with `#[UiNode]`.
+/// In a inherent impl, anotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```rust
-/// #[impl_ui_node]
-/// impl<C: Value<ColorF>> FillColor<C> {
+/// #[impl_ui_node(none)]
+/// impl<C: Var<ColorF>> FillColor<C> {
 ///     #[UiNode]
-///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
+///     fn render(&self, f: &mut FrameBuilder) {
+///         f.push_fill_color(&LayoutRect::from_size(f.final_size()), *self.color.get_local());
 ///     }
 /// }
 /// ```
 ///
-/// In a `UiNode` trait impl block, anotate the impl block with `#[impl_ui_node]` and only implement custom methods.
+/// In a `UiNode` trait impl block, anotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
 ///
 /// ```rust
-/// #[impl_ui_node]
-/// impl<C: Value<ColorF>> UiNode for FillColor<C> {
-///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
+/// #[impl_ui_node(none)]
+/// impl<C: Var<ColorF>> UiNode for FillColor<C> {
+///     fn render(&self, f: &mut FrameBuilder) {
+///         f.push_fill_color(&LayoutRect::from_size(f.final_size()), *self.color.get_local());
 ///     }
 /// }
 /// ```
 ///
 /// The generated defaults can be configurated in the macro.
 ///
-/// ## `#[impl_ui_node]`
+/// ## `#[impl_ui_node(none)]`
 ///
 /// Generates defaults for UI components without descendents.
 ///
 /// ### Defaults
-/// * Events: Does nothing, blank implementation.
-/// * Layout: Normal fill behavior, fills finite spaces, collapses in infinite spaces.
+/// * Init, Updates: Does nothing, blank implementation.
+/// * Layout: Fills finite spaces, collapses in infinite spaces.
 /// * Render: Does nothing, blank implementation.
-/// * Hit-test: Not hit-testable, `point_over` is always `None`.
 ///
 /// ```rust
-/// # use zero_ui::core::{Value, NextFrame, ColorF, LayoutSize, UiValues, NextUpdate};
-/// # pub struct FillColor<C: Value<ColorF>>(C);
+/// # use zero_ui::core::{Var, FrameBuilder, ColorF, LayoutSize, UiValues, NextUpdate};
+/// # pub struct FillColor<C: Var<ColorF>>(C);
 /// #
-/// #[impl_ui_node]
-/// impl<C: Value<ColorF>> FillColor<C> {
+/// #[impl_ui_node(none)]
+/// impl<C: Var<ColorF>> FillColor<C> {
 ///     pub fn new(color: C) -> Self {
 ///         FillColor(color)
 ///     }
@@ -69,8 +68,8 @@ mod widget;
 ///     }
 ///     /// Custom impl
 ///     #[UiNode]
-///     fn render(&self, f: &mut NextFrame) {
-///         f.push_color(LayoutRect::from_size(f.final_size()), *self.0, None);
+///     fn render(&self, f: &mut FrameBuilder) {
+///         f.push_fill_color(&LayoutRect::from_size(f.final_size()), *self.color.get_local());
 ///     }
 /// }
 /// ```
@@ -213,6 +212,12 @@ mod widget;
 /// #[impl_ui_node(delegate_iter: self.0.iter(), delegate_iter_mut: self.0.iter_mut())]
 /// // TODO
 /// ```
+///
+/// ## Delegate Validation
+/// If delegation is configured but no delegation occurs in the manually implemented methods
+/// you get the error `"auto impl delegates call to `{}` but this manual impl does not"`.
+///
+/// To disable this error use `#[allow_missing_delegate]` in the method or in the `impl` block.
 #[proc_macro_attribute]
 pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)

@@ -13,7 +13,7 @@ pub(crate) fn gen_impl_ui_node(
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
-    let input = parse_macro_input!(input as ItemImpl);
+    let mut input = parse_macro_input!(input as ItemImpl);
 
     let crate_ = zero_ui_crate_ident();
 
@@ -35,8 +35,11 @@ pub(crate) fn gen_impl_ui_node(
     }
 
     let mut node_items = vec![];
+    let mut node_items_allow_missing_del = vec![];
     let mut other_items = vec![];
     let mut node_item_names = HashSet::new();
+
+    let mut validate_manual_del = take_allow_missing_deletate(&mut input.attrs).is_none();
 
     for mut item in input.items {
         let mut is_node = false;
@@ -50,6 +53,10 @@ pub(crate) fn gen_impl_ui_node(
                 is_node = true;
                 node_item_names.insert(m.sig.ident.clone());
             }
+
+            if is_node && validate_manual_del {
+                node_items_allow_missing_del.push(take_allow_missing_deletate(&mut m.attrs).is_some());
+            }
         }
 
         if is_node {
@@ -59,11 +66,9 @@ pub(crate) fn gen_impl_ui_node(
         }
     }
 
-    let mut validate_manual_delegation = true;
-
     let default_ui_items = match args {
         Args::NoDelegate => {
-            validate_manual_delegation = false;
+            validate_manual_del = false;
             no_delegate_absents(crate_.clone(), node_item_names)
         }
         Args::Delegate { delegate, delegate_mut } => {
@@ -75,13 +80,13 @@ pub(crate) fn gen_impl_ui_node(
         } => delegate_iter_absents(crate_.clone(), node_item_names, delegate_iter, delegate_iter_mut),
     };
 
-    if validate_manual_delegation {
+    if validate_manual_del {
         let skip = vec![ident("render"), ident("into_box")];
 
-        for manual_impl in node_items.iter() {
+        for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
 
-            if skip.contains(&validator.ident) {
+            if allow || skip.contains(&validator.ident) {
                 continue;
             }
 
@@ -393,17 +398,19 @@ fn parse_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) ->
     }
 }
 
-struct DelegateValidator {
-    ident: Ident,
+struct DelegateValidator<'a> {
+    pub ident: &'a Ident,
+    pub attrs: &'a [Attribute],
     args_count: u8,
     pub delegates: bool,
 }
 
-impl DelegateValidator {
-    fn new(manual_impl: &ImplItem) -> Self {
+impl<'a> DelegateValidator<'a> {
+    fn new(manual_impl: &'a ImplItem) -> Self {
         if let ImplItem::Method(m) = manual_impl {
             DelegateValidator {
-                ident: m.sig.ident.clone(),
+                ident: &m.sig.ident,
+                attrs: &m.attrs,
                 args_count: (m.sig.inputs.len() - 1) as u8,
                 delegates: false,
             }
@@ -413,11 +420,21 @@ impl DelegateValidator {
     }
 }
 
-impl<'ast> Visit<'ast> for DelegateValidator {
+impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
     fn visit_expr_method_call(&mut self, i: &'ast ExprMethodCall) {
-        if i.method == self.ident && i.args.len() as u8 == self.args_count {
+        if &i.method == self.ident && i.args.len() as u8 == self.args_count {
             self.delegates = true;
         }
         visit::visit_expr_method_call(self, i)
+    }
+}
+
+fn take_allow_missing_deletate(attrs: &mut Vec<Attribute>) -> Option<Attribute> {
+    let allow = ident("allow_missing_delegate");
+
+    if let Some(i) = attrs.iter().position(|a| a.path.get_ident() == Some(&allow)) {
+        Some(attrs.remove(i))
+    } else {
+        None
     }
 }
