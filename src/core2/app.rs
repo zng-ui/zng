@@ -124,10 +124,10 @@ type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 pub(crate) type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
 type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> RefCell<Box<dyn Any>>>)>;
 
-enum UntypedRef {}
-impl UntypedRef {
-    fn pack<T>(r: &T) -> *const UntypedRef {
-        (r as *const T) as *const UntypedRef
+enum AnyRef {}
+impl AnyRef {
+    fn pack<T>(r: &T) -> *const AnyRef {
+        (r as *const T) as *const AnyRef
     }
 
     unsafe fn unpack<'a, T>(pointer: *const Self) -> &'a T {
@@ -135,10 +135,10 @@ impl UntypedRef {
     }
 }
 enum ContextVarEntry {
-    Value(*const UntypedRef, bool, u32),
-    ContextVar(TypeId, *const UntypedRef, Option<(bool, u32)>),
+    Value(*const AnyRef, bool, u32),
+    ContextVar(TypeId, *const AnyRef, Option<(bool, u32)>),
 }
-type UpdateOnce = Box<dyn FnOnce(&mut Vec<Box<dyn FnOnce()>>)>;
+type UpdateOnce = Box<dyn FnOnce(&mut Vec<CleanupOnce>)>;
 type CleanupOnce = Box<dyn FnOnce()>;
 
 uid! {
@@ -160,47 +160,120 @@ bitflags! {
     }
 }
 
-/// Provides access to app events and services.
-pub struct AppContext {
-    id: AppContextId,
+pub struct Vars {
+    context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
+}
 
+impl Vars {
+    /// Runs a function with the context var.
+    pub fn with_context<V: ContextVar>(&self, _: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
+        self.with_context_impl(
+            TypeId::of::<V>(),
+            ContextVarEntry::Value(AnyRef::pack(value), is_new, version),
+            f,
+        )
+    }
+
+    /// Get the context var value or default.
+    pub fn get_context<V: ContextVar>(&self) -> &V::Type {
+        self.get_context_impl(TypeId::of::<V>(), V::default()).0
+    }
+
+    /// Gets if the context var value is new.
+    pub fn get_context_is_new<V: ContextVar>(&self) -> bool {
+        self.get_context_impl(TypeId::of::<V>(), V::default()).1
+    }
+
+    /// Gets the context var value version.
+    pub fn get_context_version<V: ContextVar>(&self) -> u32 {
+        self.get_context_impl(TypeId::of::<V>(), V::default()).2
+    }
+
+    /// Gets the context var value if it is new.
+    pub fn get_context_update<V: ContextVar>(&self) -> Option<&V::Type> {
+        let (value, is_new, _) = self.get_context_impl(TypeId::of::<V>(), V::default());
+
+        if is_new {
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn with_context_impl(&self, type_id: TypeId, value: ContextVarEntry, f: impl FnOnce()) {
+        let prev = self.context_vars.borrow_mut().insert(type_id, value);
+
+        f();
+
+        let mut ctxs = self.context_vars.borrow_mut();
+        if let Some(prev) = prev {
+            ctxs.insert(type_id, prev);
+        } else {
+            ctxs.remove(&type_id);
+        }
+    }
+
+    fn get_context_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool, u32) {
+        let ctxs = self.context_vars.borrow();
+
+        if let Some(ctx_var) = ctxs.get(&var) {
+            match ctx_var {
+                ContextVarEntry::Value(pointer, is_new, version) => {
+                    // SAFETY: This is safe because `TypeId` keys are always associated
+                    // with the same type of reference.
+                    let value = unsafe { AnyRef::unpack(*pointer) };
+                    (value, *is_new, *version)
+                }
+                ContextVarEntry::ContextVar(var, default, meta_override) => {
+                    // SAFETY: This is safe because default is a &'static T.
+                    let r = self.get_context_impl(*var, unsafe { AnyRef::unpack(*default) });
+                    if let Some((is_new, version)) = *meta_override {
+                        (r.0, is_new, version)
+                    } else {
+                        r
+                    }
+                }
+            }
+        } else {
+            (default, false, 0)
+        }
+    }
+}
+
+pub struct VisitedVars {
+    visited_vars: FnvHashMap<TypeId, Box<dyn Any>>,
+}
+
+impl VisitedVars {
+    /// Sets the visited var value for the rest of the update.
+    pub fn set_visited<V: VisitedVar>(&mut self, value: V::Type) -> Option<V::Type> {
+        self.visited_vars
+            .insert(TypeId::of::<V>(), Box::new(value))
+            .map(|any| *any.downcast::<V::Type>().unwrap())
+    }
+
+    /// Get the visited var value or none if its not set.
+    pub fn try_get_visited<V: VisitedVar>(&self) -> Option<&V::Type> {
+        if let Some(any) = self.visited_vars.get(&TypeId::of::<V>()) {
+            Some(any.downcast_ref::<V::Type>().unwrap())
+        } else {
+            None
+        }
+    }
+
+    /// Get the visited var value or panics if its not set.
+    pub fn get_visited<V: VisitedVar>(&self) -> &V::Type {
+        self.try_get_visited::<V>()
+            .unwrap_or_else(|| panic!("visited var `{}` is required", type_name::<V>()))
+    }
+}
+
+pub struct Events {
     events: AnyMap,
-    services: AnyCellMap,
-    window_services_init: WindowServicesInit,
-
-    window_services: AnyCellMap,
-
-    window_id: Option<WindowId>,
-    widget_id: Option<WidgetId>,
-    context_vars: FnvHashMap<TypeId, ContextVarEntry>,
-    visited_vars: AnyMap,
-
-    update: UpdateFlags,
-    window_update: UpdateFlags,
-    updates: Vec<UpdateOnce>,
-    cleanup: Vec<CleanupOnce>,
 }
 
-trait AnyExt {
-    #[inline]
-    unsafe fn downcast_ref_unchecked<T: 'static>(&self) -> &T {
-        &*(self as *const Self as *const T)
-    }
-
-    #[inline]
-    unsafe fn downcast_mut_unchecked<T: 'static>(&mut self) -> &mut T {
-        &mut *(self as *mut Self as *mut T)
-    }
-}
-impl AnyExt for Box<dyn Any> {}
-
-impl AppContext {
-    /// Gets this context instance id. There is usually a single context
-    /// per application but more then one context can happen in tests.
-    pub fn id(&self) -> AppContextId {
-        self.id
-    }
-
+impl Events {
     /// Creates an event listener if the event is registered in the application.
     pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
         if let Some(any) = self.events.get(&TypeId::of::<E>()) {
@@ -220,208 +293,16 @@ impl AppContext {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
     }
+}
 
-    /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
-        let type_id = TypeId::of::<S>();
+pub struct Updates {
+    update: UpdateFlags,
+    window_update: UpdateFlags,
+    updates: Vec<UpdateOnce>,
+    cleanup: Vec<CleanupOnce>,
+}
 
-        if let Some(any) = self
-            .services
-            .get(&type_id)
-            .or_else(|| self.window_services.get(&type_id))
-        {
-            Some(RefMut::map(any.borrow_mut(), |any| {
-                // SAFETY: This is safe because services are always the same type as key in
-                // `AppRegister::register_service` which is the only place where insertion occurs.
-                unsafe { any.downcast_mut_unchecked::<S>() }
-            }))
-        } else {
-            None
-        }
-    }
-
-    /// Gets a service reference.
-    ///
-    /// # Panics
-    /// If  the service is not registered in application.
-    pub fn service<S: Service>(&self) -> RefMut<S> {
-        self.try_service::<S>()
-            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
-    }
-
-    fn get_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool, u32) {
-        if let Some(ctx_var) = self.context_vars.get(&var) {
-            match ctx_var {
-                ContextVarEntry::Value(pointer, is_new, version) => {
-                    // SAFETY: This is safe because context_vars are only inserted for the duration
-                    // of [with_var] that holds the reference.
-                    let value = unsafe { UntypedRef::unpack(*pointer) };
-                    (value, *is_new, *version)
-                }
-                ContextVarEntry::ContextVar(var, default, meta_override) => {
-                    // SAFETY: This is safe because default is a &'static T.
-                    let r = self.get_impl(*var, unsafe { UntypedRef::unpack(*default) });
-                    if let Some((is_new, version)) = *meta_override {
-                        (r.0, is_new, version)
-                    } else {
-                        r
-                    }
-                }
-            }
-        } else {
-            (default, false, 0)
-        }
-    }
-
-    /// Gets the current window ID. Can be none if we are not in a window.
-    pub fn try_window_id(&self) -> Option<WindowId> {
-        self.window_id
-    }
-
-    /// Gets the current widget ID. Can be none if we are not in a widget.
-    pub fn try_widget_id(&self) -> Option<WidgetId> {
-        self.widget_id
-    }
-
-    /// Gets the current window ID.
-    ///
-    /// # Panics
-    ///
-    /// Panics if we are not in a window.
-    ///
-    /// Code inside an [UiNode] method should assume that this does not panic.
-    pub fn window_id(&self) -> WindowId {
-        self.window_id.expect("not in window")
-    }
-
-    /// Gets the current widget ID.
-    ///
-    /// # Panics
-    ///
-    /// Panics if we are not in a widget.
-    ///
-    /// Code inside an [UiNode] method should assume that this does not panic.
-    pub fn widget_id(&self) -> WidgetId {
-        self.widget_id.expect("not in widget")
-    }
-
-    /// Get the context var value or default.
-    pub fn get<V: ContextVar>(&self) -> &V::Type {
-        self.get_impl(TypeId::of::<V>(), V::default()).0
-    }
-
-    /// Gets if the context var value is new.
-    pub fn get_is_new<V: ContextVar>(&self) -> bool {
-        self.get_impl(TypeId::of::<V>(), V::default()).1
-    }
-
-    /// Gets the context var value version.
-    pub fn get_version<V: ContextVar>(&self) -> u32 {
-        self.get_impl(TypeId::of::<V>(), V::default()).2
-    }
-
-    /// Gets the context var value if it is new.
-    pub fn get_update<V: ContextVar>(&self) -> Option<&V::Type> {
-        let (value, is_new, _) = self.get_impl(TypeId::of::<V>(), V::default());
-
-        if is_new {
-            Some(value)
-        } else {
-            None
-        }
-    }
-
-    /// Get the visited var value or none if its not set.
-    pub fn try_get_visited<V: VisitedVar>(&self) -> Option<&V::Type> {
-        if let Some(any) = self.visited_vars.get(&TypeId::of::<V>()) {
-            any.downcast_ref::<V::Type>()
-        } else {
-            None
-        }
-    }
-
-    /// Get the visited var value or panics if its not set.
-    pub fn get_visited<V: VisitedVar>(&self) -> &V::Type {
-        self.try_get_visited::<V>()
-            .unwrap_or_else(|| panic!("visited var `{}` is required", type_name::<V>()))
-    }
-
-    /// Sets the visited var value for the rest of the update.
-    pub fn set_visited<V: VisitedVar>(&mut self, value: V::Type) {
-        self.visited_vars.insert(TypeId::of::<V>(), Box::new(value));
-    }
-
-    #[inline]
-    fn with_var_impl(&mut self, type_id: TypeId, value: ContextVarEntry, f: impl FnOnce(&mut AppContext)) {
-        let prev = self.context_vars.insert(type_id, value);
-
-        f(self);
-
-        if let Some(prev) = prev {
-            self.context_vars.insert(type_id, prev);
-        } else {
-            self.context_vars.remove(&type_id);
-        }
-    }
-
-    /// Runs a function with the context var.
-    pub fn with_var<V: ContextVar>(
-        &mut self,
-        _: V,
-        value: &V::Type,
-        is_new: bool,
-        version: u32,
-        f: impl FnOnce(&mut AppContext),
-    ) {
-        self.with_var_impl(
-            TypeId::of::<V>(),
-            ContextVarEntry::Value(UntypedRef::pack(value), is_new, version),
-            f,
-        )
-    }
-
-    /// Runs a function with the context var set from another var.
-    pub fn with_var_bind<V: ContextVar, O: ObjVar<V::Type>>(
-        &mut self,
-        context_var: V,
-        var: &O,
-        f: impl FnOnce(&mut AppContext),
-    ) {
-        use crate::core2::protected::BindInfo;
-
-        match var.bind_info(self) {
-            BindInfo::Var(value, is_new, version) => self.with_var(context_var, value, is_new, version, f),
-            BindInfo::ContextVar(var, default, meta) => {
-                let type_id = TypeId::of::<V>();
-                let mut bind_to = var;
-                let circular_binding = loop {
-                    if let Some(ContextVarEntry::ContextVar(var, _, _)) = self.context_vars.get(&bind_to) {
-                        bind_to = *var;
-                        if bind_to == type_id {
-                            break true;
-                        }
-                    } else {
-                        break false;
-                    }
-                };
-
-                if circular_binding {
-                    eprintln!(
-                        "circular context var binding `{}`=`{}` ignored",
-                        type_name::<V>(),
-                        type_name::<O>()
-                    );
-                } else {
-                    self.with_var_impl(
-                        type_id,
-                        ContextVarEntry::ContextVar(var, UntypedRef::pack(default), meta),
-                        f,
-                    )
-                }
-            }
-        }
-    }
-
+impl Updates {
     /// Schedules a variable change for the next update.
     pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
         var.push_set(new_value, self)
@@ -473,48 +354,6 @@ impl AppContext {
         self.update |= UpdateFlags::RENDER;
     }
 
-    /// Instantiates window services.
-    pub(crate) fn new_window_services(&self, window_id: WindowId) -> AnyCellMap {
-        let ctx = WindowContext { ctx: self, window_id };
-
-        self.window_services_init
-            .iter()
-            .map(|(key, new)| (*key, new(&ctx)))
-            .collect()
-    }
-
-    /// Applies a window update collecting the window specific [UpdateFlags]
-    pub(crate) fn window_update(
-        &mut self,
-        window_id: WindowId,
-        root_id: WidgetId,
-        window_services: &mut AnyCellMap,
-        update: impl FnOnce(&mut AppContext),
-    ) -> UpdateFlags {
-        self.window_update = UpdateFlags::empty();
-
-        self.window_id = Some(window_id);
-        self.widget_id = Some(root_id);
-        std::mem::swap(window_services, &mut self.window_services);
-
-        update(self);
-
-        self.window_id = None;
-        self.widget_id = None;
-        std::mem::swap(window_services, &mut self.window_services);
-
-        std::mem::replace(&mut self.window_update, UpdateFlags::empty())
-    }
-
-    /// Widget id scope.
-    pub(crate) fn widget_scope(&mut self, id: WidgetId, f: impl FnOnce(&mut AppContext)) {
-        let parent_id = std::mem::replace(&mut self.widget_id, Some(id));
-
-        f(self);
-
-        self.widget_id = parent_id;
-    }
-
     /// Cleanup the previous update and applies the new one.
     ///
     /// Returns what update methods must be pumped.
@@ -527,9 +366,136 @@ impl AppContext {
             update(&mut self.cleanup);
         }
 
-        self.visited_vars.clear();
+        //self.visited_vars.clear(); TODO
 
         std::mem::replace(&mut self.update, UpdateFlags::empty())
+    }
+}
+
+pub struct Services {
+    services: AnyCellMap,
+    window_services_init: WindowServicesInit,
+
+    window_services: AnyCellMap,
+}
+
+impl Services {
+    /// Gets a service reference if the service is registered in the application.
+    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
+        let type_id = TypeId::of::<S>();
+
+        if let Some(any) = self
+            .services
+            .get(&type_id)
+            .or_else(|| self.window_services.get(&type_id))
+        {
+            Some(RefMut::map(any.borrow_mut(), |any| any.downcast_mut::<S>().unwrap()))
+        } else {
+            None
+        }
+    }
+
+    /// Gets a service reference.
+    ///
+    /// # Panics
+    /// If  the service is not registered in application.
+    pub fn service<S: Service>(&self) -> RefMut<S> {
+        self.try_service::<S>()
+            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
+    }
+
+    /// Instantiates window services.
+    pub(crate) fn new_window_services(&self, window_id: WindowId) -> AnyCellMap {
+        let ctx = WindowContext { ctx: self, window_id };
+
+        self.window_services_init
+            .iter()
+            .map(|(key, new)| (*key, new(&ctx)))
+            .collect()
+    }
+}
+
+pub struct AppContext<'v, 'vv, 'e, 's, 'u> {
+    pub vars: &'v Vars,
+    pub visited_vars: &'vv mut VisitedVars,
+    pub events: &'e Events,
+    pub services: &'s mut Services,
+    pub updates: &'u mut Updates,
+
+    id: AppContextId,
+    window_id: Option<WindowId>,
+    widget_id: Option<WidgetId>,
+}
+
+impl<'v, 'vv, 'e, 's, 'u> AppContext<'v, 'vv, 'e, 's, 'u> {
+    /// Gets this context instance id. There is usually a single context
+    /// per application but more then one context can happen in tests.
+    pub fn id(&self) -> AppContextId {
+        self.id
+    }
+
+    /// Gets the current window ID. Can be none if we are not in a window.
+    pub fn try_window_id(&self) -> Option<WindowId> {
+        self.window_id
+    }
+
+    /// Gets the current widget ID. Can be none if we are not in a widget.
+    pub fn try_widget_id(&self) -> Option<WidgetId> {
+        self.widget_id
+    }
+
+    /// Gets the current window ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are not in a window.
+    ///
+    /// Code inside an [UiNode] method should assume that this does not panic.
+    pub fn window_id(&self) -> WindowId {
+        self.window_id.expect("not in window")
+    }
+
+    /// Gets the current widget ID.
+    ///
+    /// # Panics
+    ///
+    /// Panics if we are not in a widget.
+    ///
+    /// Code inside an [UiNode] method should assume that this does not panic.
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_id.expect("not in widget")
+    }
+
+    /// Applies a window update collecting the window specific [UpdateFlags]
+    pub(crate) fn window_update(
+        &mut self,
+        window_id: WindowId,
+        root_id: WidgetId,
+        window_services: &mut AnyCellMap,
+        update: impl FnOnce(&mut AppContext),
+    ) -> UpdateFlags {
+        self.updates.window_update = UpdateFlags::empty();
+
+        self.window_id = Some(window_id);
+        self.widget_id = Some(root_id);
+        std::mem::swap(window_services, &mut self.services.window_services);
+
+        update(self);
+
+        self.window_id = None;
+        self.widget_id = None;
+        std::mem::swap(window_services, &mut self.services.window_services);
+
+        std::mem::replace(&mut self.updates.window_update, UpdateFlags::empty())
+    }
+
+    /// Widget id scope.
+    pub(crate) fn widget_scope(&mut self, id: WidgetId, f: impl FnOnce(&mut AppContext)) {
+        let parent_id = std::mem::replace(&mut self.widget_id, Some(id));
+
+        f(self);
+
+        self.widget_id = parent_id;
     }
 }
 

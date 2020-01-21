@@ -17,14 +17,14 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode 
 
     fn update(&mut self, ctx: &mut AppContext) {
         if ctx.try_get_visited::<StopPropagation<E>>().is_none() {
-            for args in self.listener.updates(&ctx) {
-                let mut args = OnEventArgs::new(args);
-                (self.handler)(&mut args);
-                if args.handled() {
-                    ctx.set_visited::<StopPropagation<E>>(());
-                    break;
-                }
-            }
+            //for args in self.listener.updates(&ctx.events) {
+            //    let mut args = OnEventArgs::new(ctx, args);
+            //    (self.handler)(&mut args);
+            //    if args.handled() {
+            //        ctx.set_visited::<StopPropagation<E>>(());
+            //        break;
+            //    }
+            //}
         }
         self.child.update(ctx);
     }
@@ -57,27 +57,38 @@ impl<E: Event> VisitedVar for StopPropagation<E> {
     type Type = ();
 }
 
-pub struct OnEventArgs<'a, A: EventArgs> {
+/// Event arguments.
+pub struct OnEventArgs<'c, 'a, A: EventArgs> {
+    ctx: &'c mut AppContext,
     args: &'a A,
     stop_propagation: bool,
 }
 
-impl<'a, A: EventArgs> OnEventArgs<'a, A> {
-    pub fn new(args: &'a A) -> Self {
+impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
+    pub fn new(ctx: &'c mut AppContext, args: &'a A) -> Self {
         OnEventArgs {
+            ctx,
             args,
             stop_propagation: false,
         }
     }
 
+    /// Application context.
+    pub fn ctx(&mut self) -> &mut AppContext {
+        &mut self.ctx
+    }
+
+    /// Event arguments.
     pub fn args(&self) -> &'a A {
         self.args
     }
 
+    /// Stops this event from being raised in other widgets.
     pub fn stop_propagation(&mut self) {
         self.stop_propagation = true;
     }
 
+    /// Finished call to handler, returns if should [stop_propagation].
     pub fn handled(self) -> bool {
         self.stop_propagation
     }

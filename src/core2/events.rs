@@ -64,7 +64,7 @@ impl<T: 'static> EventChannel<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
         self.r.context.check(ctx.id(), || {
             format!(
                 "cannot read `EventChannel<{}>` because it is borrowed in a different context",
@@ -97,7 +97,7 @@ impl<T: 'static> Clone for EventListener<T> {
 }
 impl<T: 'static> EventListener<T> {
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
         self.chan.updates(ctx)
     }
 
@@ -143,7 +143,7 @@ impl<T: 'static> EventEmitter<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates(&self, ctx: &AppContext) -> &[T] {
+    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
         self.chan.updates(ctx)
     }
 
