@@ -3,7 +3,7 @@ use crate::{impl_ui_node, property};
 
 struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     child: C,
-    event: E,
+    _event: E,
     listener: EventListener<E::Args>,
     handler: F,
 }
@@ -43,7 +43,7 @@ pub fn on_event<E: Event>(
 ) -> impl UiNode {
     OnEvent {
         child,
-        event,
+        _event: event,
         listener: EventListener::never(false),
         handler,
     }

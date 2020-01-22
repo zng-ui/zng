@@ -197,12 +197,6 @@ pub(crate) struct AppOwnership {
 }
 
 impl AppOwnership {
-    pub fn new(context: AppId) -> Self {
-        AppOwnership {
-            id: std::cell::Cell::new(Some(context)),
-        }
-    }
-
     pub fn check(&self, id: AppId, already_owned_error: impl FnOnce() -> String) {
         if let Some(ctx_id) = self.id.get() {
             if ctx_id != id {

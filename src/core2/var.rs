@@ -906,7 +906,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
             .source
             .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), ctx)?;
 
-        ctx.push_modify_impl(|cleanup| {});
+        ctx.push_modify_impl(|cleanup| { todo!()});
 
         Ok(())
     }
@@ -1136,8 +1136,8 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapCo
 
     fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
         &self,
-        map: M2,
-        map_back: N2,
+        _map: M2,
+        _map_back: N2,
     ) -> MapVarBiDi<O, Self, O2, M2, N2> {
         todo!("when GATs are stable")
     }
