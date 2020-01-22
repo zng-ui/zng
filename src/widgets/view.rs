@@ -10,7 +10,7 @@ pub enum View<U: UiNode> {
 }
 
 /// Dynamically presents a data variable.
-struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U>> {
+struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U>> {
     data: V,
     child: U,
     presenter: P,
@@ -18,23 +18,23 @@ struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext)
 }
 
 #[impl_ui_node(child)]
-impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static> DataView<D, U, V, P> {
-    fn refresh_child(&mut self, ctx: &mut AppContext) {
+impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static> DataView<D, U, V, P> {
+    fn refresh_child(&mut self, ctx: &mut WidgetContext) {
         if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
             self.child = new_child;
-            ctx.push_layout();
+            ctx.updates.push_layout();
         }
     }
 
     #[UiNode]
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self, ctx: &mut WidgetContext) {
         self.refresh_child(ctx);
         self.child.init(ctx);
     }
 
     #[UiNode]
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.data.is_new(ctx) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.data.is_new(ctx.vars) {
             self.refresh_child(ctx);
         }
         self.child.update(ctx);
@@ -84,7 +84,7 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U>
 ///     })
 /// }
 /// ```
-pub fn view<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut AppContext) -> View<U> + 'static>(
+pub fn view<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static>(
     data: V,
     initial_ui: U,
     presenter: P,

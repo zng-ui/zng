@@ -168,11 +168,11 @@ struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> 
 
 #[impl_ui_node(child)]
 impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
 
-        let widths = *self.widths.init_local(ctx);
-        let details = *self.details.get(ctx);
+        let widths = *self.widths.init_local(ctx.vars);
+        let details = *self.details.get(ctx.vars);
 
         self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
         self.visible = widths.visible() && details.visible();
@@ -180,19 +180,19 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         self.render_details = details.into();
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
         let mut visible = false;
-        if let Some(&widths) = self.widths.update_local(ctx) {
+        if let Some(&widths) = self.widths.update_local(ctx.vars) {
             visible |= widths.visible();
             self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
-            ctx.push_layout();
+            ctx.updates.push_layout();
         }
-        if let Some(&details) = self.details.update(ctx) {
+        if let Some(&details) = self.details.update(ctx.vars) {
             visible |= details.visible();
             self.render_details = details.into();
-            ctx.push_frame();
+            ctx.updates.push_frame();
         }
         self.visible = visible;
     }

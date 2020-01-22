@@ -1,4 +1,4 @@
-use super::{AppContext, FrameBuilder};
+use super::{FrameBuilder, WidgetContext};
 
 use crate::impl_ui_node;
 pub use webrender::api::LayoutSize;
@@ -6,16 +6,16 @@ pub use webrender::api::LayoutSize;
 /// An Ui tree node.
 pub trait UiNode: 'static {
     /// Called every time the node is plugged in an Ui tree.
-    fn init(&mut self, ctx: &mut AppContext);
+    fn init(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time the node is unplugged from an Ui tree.
-    fn deinit(&mut self, ctx: &mut AppContext);
+    fn deinit(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a low pressure event update happens.
     ///
     /// # Event Pressure
     /// See [update_hp] for more information about event pressure rate.
-    fn update(&mut self, ctx: &mut AppContext);
+    fn update(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a high pressure event update happens.
     ///
@@ -24,7 +24,7 @@ pub trait UiNode: 'static {
     /// event source may choose to be propagated in the this hight pressure lane.
     ///
     /// Event sources that are high pressure mention this in their documentation.
-    fn update_hp(&mut self, ctx: &mut AppContext);
+    fn update_hp(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a layout update is needed.
     ///

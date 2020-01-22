@@ -1,4 +1,5 @@
 use super::*;
+use contexts::{AppContext, AppEventContext};
 use glutin::event::KeyboardInput;
 pub use glutin::event::{ScanCode, VirtualKeyCode};
 use std::time::Instant;
@@ -44,13 +45,13 @@ impl Default for KeyboardEvents {
 }
 
 impl AppExtension for KeyboardEvents {
-    fn register(&mut self, r: &mut AppRegister) {
-        r.register_event::<KeyInput>(self.key_input.listener());
-        r.register_event::<KeyDown>(self.key_down.listener());
-        r.register_event::<KeyUp>(self.key_up.listener());
+    fn register(&mut self, r: &mut AppContext) {
+        r.events.register::<KeyInput>(self.key_input.listener());
+        r.events.register::<KeyDown>(self.key_down.listener());
+        r.events.register::<KeyUp>(self.key_up.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
         if let WindowEvent::KeyboardInput {
             device_id,
             input:
@@ -84,15 +85,15 @@ impl AppExtension for KeyboardEvents {
                 repeat,
             };
 
-            ctx.push_notify(self.key_input.clone(), args.clone());
+            ctx.updates.push_notify(self.key_input.clone(), args.clone());
 
             match state {
                 ElementState::Pressed => {
-                    ctx.push_notify(self.key_down.clone(), args);
+                    ctx.updates.push_notify(self.key_down.clone(), args);
                     todo!()
                 }
                 ElementState::Released => {
-                    ctx.push_notify(self.key_up.clone(), args);
+                    ctx.updates.push_notify(self.key_up.clone(), args);
                 }
             }
         }

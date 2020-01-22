@@ -9,14 +9,14 @@ struct MinSize<T: UiNode, S: LocalVar<LayoutSize>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.min_size.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.min_size.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.min_size.update_local(ctx).is_some() {
-            ctx.push_layout();
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.min_size.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
 
         self.child.update(ctx);
@@ -53,14 +53,14 @@ struct MaxSize<T: UiNode, S: LocalVar<LayoutSize>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.max_size.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.max_size.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.max_size.update_local(ctx).is_some() {
-            ctx.push_layout();
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.max_size.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
 
         self.child.update(ctx);
@@ -97,14 +97,14 @@ struct ExactSize<T: UiNode, S: LocalVar<LayoutSize>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.size.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.size.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.size.update_local(ctx).is_some() {
-            ctx.push_layout();
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.size.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
 
         self.child.update(ctx);
@@ -161,19 +161,19 @@ struct Align<T: UiNode, A: LocalVar<Alignment>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.alignment.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.alignment.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(alignment) = self.alignment.update_local(ctx) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(alignment) = self.alignment.update_local(ctx.vars) {
             self.child_rect.origin = LayoutPoint::new(
                 (self.final_size.width - self.child_rect.size.width) * alignment.0,
                 (self.final_size.height - self.child_rect.size.height) * alignment.1,
             );
 
-            ctx.push_frame();
+            ctx.updates.push_frame();
         }
 
         self.child.update(ctx);
@@ -230,19 +230,19 @@ struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        let margin = self.margin.get(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        let margin = self.margin.get(ctx.vars);
         self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
         self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
 
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(margin) = self.margin.update(ctx) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(margin) = self.margin.update(ctx.vars) {
             self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
             self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
-            ctx.push_layout();
+            ctx.updates.push_layout();
         }
 
         self.child.update(ctx);

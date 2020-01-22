@@ -59,12 +59,12 @@ struct FillColor<C: LocalVar<ColorF>> {
 
 #[impl_ui_node(none)]
 impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.color.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.color.init_local(ctx.vars);
     }
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.color.update_local(ctx).is_some() {
-            ctx.push_frame();
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.color.update_local(ctx.vars).is_some() {
+            ctx.updates.push_frame();
         }
     }
     fn render(&self, frame: &mut FrameBuilder) {
@@ -90,27 +90,27 @@ struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<Gr
 
 #[impl_ui_node(none)]
 impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.render_start = *self.start.get(ctx);
-        self.render_end = *self.end.get(ctx);
-        self.stops.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.render_start = *self.start.get(ctx.vars);
+        self.render_end = *self.end.get(ctx.vars);
+        self.stops.init_local(ctx.vars);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if let Some(start) = self.start.update(ctx) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(start) = self.start.update(ctx.vars) {
             self.render_start = *start;
             self.render_start.x *= self.final_size.width;
             self.render_start.y *= self.final_size.height;
-            ctx.push_frame();
+            ctx.updates.push_frame();
         }
-        if let Some(end) = self.end.update(ctx) {
+        if let Some(end) = self.end.update(ctx.vars) {
             self.render_end = *end;
             self.render_end.x *= self.final_size.width;
             self.render_end.y *= self.final_size.height;
-            ctx.push_frame();
+            ctx.updates.push_frame();
         }
-        if self.stops.update_local(ctx).is_some() {
-            ctx.push_frame();
+        if self.stops.update_local(ctx.vars).is_some() {
+            ctx.updates.push_frame();
         }
     }
 
@@ -162,21 +162,21 @@ struct Background<T: UiNode, B: UiNode> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self, ctx: &mut WidgetContext) {
         self.background.init(ctx);
         self.child.init(ctx);
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
         self.background.deinit(ctx);
         self.child.deinit(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
         self.background.update(ctx);
         self.child.update(ctx);
     }
-    fn update_hp(&mut self, ctx: &mut AppContext) {
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
         self.background.update_hp(ctx);
         self.child.update_hp(ctx);
     }

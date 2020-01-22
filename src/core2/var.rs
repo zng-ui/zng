@@ -1,4 +1,4 @@
-use super::{AppContext, AppContextId, AppContextOwnership, WidgetId};
+use super::contexts::{AppId, AppOwnership, ContextVarStageId, Updates, Vars};
 use fnv::FnvHashMap;
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -38,14 +38,8 @@ pub trait ContextVar: Clone + Copy + 'static {
     fn default() -> &'static Self::Type;
 }
 
-/// A variable value that is set by the previously visited UiNodes during the call.
-pub trait VisitedVar: 'static {
-    /// The variable type.
-    type Type: 'static;
-}
-
 pub(crate) mod protected {
-    use super::{AppContext, VarValue};
+    use super::{VarValue, Vars};
     use std::any::TypeId;
 
     /// Info for context var binding.
@@ -65,7 +59,7 @@ pub(crate) mod protected {
 
     /// pub(crate) part of `ObjVar`.
     pub trait Var<T: VarValue>: 'static {
-        fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> BindInfo<'a, T>;
+        fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> BindInfo<'a, T>;
 
         fn is_context_var(&self) -> bool {
             false
@@ -97,16 +91,16 @@ impl std::error::Error for VarIsReadOnly {}
 /// Part of [Var] that can be boxed (object safe).
 pub trait ObjVar<T: VarValue>: protected::Var<T> {
     /// The current value.
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T;
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T;
 
     /// [get] if [is_new] or none.
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T>;
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T>;
 
     /// If the value changed this update.
-    fn is_new(&self, ctx: &AppContext) -> bool;
+    fn is_new(&self, ctx: &Vars) -> bool;
 
     /// Current value version. Version changes every time the value changes.
-    fn version(&self, ctx: &AppContext) -> u32;
+    fn version(&self, ctx: &Vars) -> u32;
 
     /// Gets if the variable is currently read-only.
     fn read_only(&self) -> bool {
@@ -119,12 +113,12 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     }
 
     /// Schedules a variable change for the next update if the variable is not [read_only].
-    fn push_set(&self, _new_value: T, _ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, _new_value: T, _ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
     /// Schedules a variable modification for the next update using a boxed closure.
-    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<T>>, _ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<T>>, _ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
@@ -154,7 +148,7 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     type AsLocal: LocalVar<T>;
 
     /// Schedules a variable modification for the next update.
-    fn push_modify(&self, _modify: impl ModifyFnOnce<T>, _ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, _modify: impl ModifyFnOnce<T>, _ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
@@ -178,7 +172,7 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     fn as_read_only(self) -> Self::AsReadOnly;
 
     /// Returns a [variable](LocalVar) that keeps the current value locally so
-    /// it can be read without a [context](AppContext).
+    /// it can be read without a [context](Vars).
     fn as_local(self) -> Self::AsLocal;
 }
 
@@ -200,16 +194,16 @@ pub trait SwitchVar<T: VarValue>: Var<T> + protected::SwitchVar<T> {
     fn len(&self) -> usize;
 }
 
-/// A variable that can be read without [context](AppContext).
+/// A variable that can be read without [context](Vars).
 pub trait LocalVar<T: VarValue>: ObjVar<T> {
     /// Gets the local copy of the value.
     fn get_local(&self) -> &T;
 
     /// Initializes the local copy of the value. Mut be called on [init](UiNode::init).
-    fn init_local<'a, 'b>(&'a mut self, ctx: &'b AppContext) -> &'a T;
+    fn init_local<'a, 'b>(&'a mut self, ctx: &'b Vars) -> &'a T;
 
     /// Update the local copy of the value. Must be called every [update](UiNode::update).
-    fn update_local<'a, 'b>(&'a mut self, ctx: &'b AppContext) -> Option<&'a T>;
+    fn update_local<'a, 'b>(&'a mut self, ctx: &'b Vars) -> Option<&'a T>;
 }
 
 // #endregion Traits
@@ -229,7 +223,7 @@ impl<T: VarValue, V: Var<T>> CloningLocalVar<T, V> {
 }
 
 impl<T: VarValue, V: Var<T>> protected::Var<T> for CloningLocalVar<T, V> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, T> {
         self.var.bind_info(ctx)
     }
 
@@ -243,19 +237,19 @@ impl<T: VarValue, V: Var<T>> protected::Var<T> for CloningLocalVar<T, V> {
 }
 
 impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T {
         self.var.get(ctx)
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
         self.var.update(ctx)
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.var.is_new(ctx)
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         self.var.version(ctx)
     }
 
@@ -267,11 +261,11 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.always_read_only()
     }
 
-    fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.var.push_set(new_value, ctx)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.var.push_modify_boxed(modify, ctx)
     }
 }
@@ -281,12 +275,12 @@ impl<T: VarValue, V: Var<T>> LocalVar<T> for CloningLocalVar<T, V> {
         self.local.as_ref().expect("`init_local` was never called")
     }
 
-    fn init_local<'a, 'b>(&'a mut self, ctx: &'b AppContext) -> &'a T {
+    fn init_local<'a, 'b>(&'a mut self, ctx: &'b Vars) -> &'a T {
         self.local = Some(self.var.get(ctx).clone());
         self.get_local()
     }
 
-    fn update_local<'a, 'b>(&'a mut self, ctx: &'b AppContext) -> Option<&'a T> {
+    fn update_local<'a, 'b>(&'a mut self, ctx: &'b Vars) -> Option<&'a T> {
         match self.var.update(ctx) {
             Some(update) => {
                 self.local = Some(update.clone());
@@ -302,7 +296,7 @@ impl<T: VarValue, V: Var<T>> LocalVar<T> for CloningLocalVar<T, V> {
 // #region Var<T> for ContextVar<Type=T>
 
 impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for V {
-    fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, _: &'b Vars) -> protected::BindInfo<'a, T> {
         protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default(), None)
     }
 
@@ -312,20 +306,20 @@ impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for V {
 }
 
 impl<T: VarValue, V: ContextVar<Type = T>> ObjVar<T> for V {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
-        ctx.get::<V>()
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T {
+        ctx.context::<V>()
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
-        ctx.get_update::<V>()
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
+        ctx.context_update::<V>()
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
-        ctx.get_is_new::<V>()
+    fn is_new(&self, ctx: &Vars) -> bool {
+        ctx.context_is_new::<V>()
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
-        ctx.get_version::<V>()
+    fn version(&self, ctx: &Vars) -> u32 {
+        ctx.context_version::<V>()
     }
 }
 
@@ -362,25 +356,25 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
 pub struct OwnedVar<T: VarValue>(pub T);
 
 impl<T: VarValue> protected::Var<T> for OwnedVar<T> {
-    fn bind_info<'a, 'b>(&'a self, _: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, _: &'b Vars) -> protected::BindInfo<'a, T> {
         protected::BindInfo::Var(&self.0, false, 0)
     }
 }
 
 impl<T: VarValue> ObjVar<T> for OwnedVar<T> {
-    fn get(&self, _: &AppContext) -> &T {
+    fn get(&self, _: &Vars) -> &T {
         &self.0
     }
 
-    fn update<'a>(&'a self, _: &'a AppContext) -> Option<&'a T> {
+    fn update<'a>(&'a self, _: &'a Vars) -> Option<&'a T> {
         None
     }
 
-    fn is_new(&self, _: &AppContext) -> bool {
+    fn is_new(&self, _: &Vars) -> bool {
         false
     }
 
-    fn version(&self, _: &AppContext) -> u32 {
+    fn version(&self, _: &Vars) -> u32 {
         0
     }
 }
@@ -415,11 +409,11 @@ impl<T: VarValue> LocalVar<T> for OwnedVar<T> {
         &self.0
     }
 
-    fn init_local<'a, 'b>(&'a mut self, _: &'b AppContext) -> &'a T {
+    fn init_local<'a, 'b>(&'a mut self, _: &'b Vars) -> &'a T {
         &self.0
     }
 
-    fn update_local<'a, 'b>(&'a mut self, _: &'b AppContext) -> Option<&'a T> {
+    fn update_local<'a, 'b>(&'a mut self, _: &'b Vars) -> Option<&'a T> {
         None
     }
 }
@@ -447,7 +441,7 @@ impl<T: VarValue> IntoVar<T> for T {
 
 struct SharedVarInner<T> {
     data: UnsafeCell<T>,
-    context: AppContextOwnership,
+    context: AppOwnership,
     is_new: Cell<bool>,
     version: Cell<u32>,
 }
@@ -462,22 +456,17 @@ impl<T: VarValue> SharedVar<T> {
         SharedVar {
             r: Rc::new(SharedVarInner {
                 data: UnsafeCell::new(initial_value),
-                context: AppContextOwnership::default(),
+                context: AppOwnership::default(),
                 is_new: Cell::new(false),
                 version: Cell::new(0),
             }),
         }
     }
 
-    pub(crate) fn modify(
-        self,
-        mut_ctx_id: AppContextId,
-        modify: impl ModifyFnOnce<T>,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
+    pub(crate) fn modify(self, mut_ctx_id: AppId, modify: impl ModifyFnOnce<T>, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.r.context.check(mut_ctx_id, || {
             format!(
-                "cannot set `SharedVar<{}>` because it is bound to a different `AppContext`",
+                "cannot set `SharedVar<{}>` because it is bound to a different `Vars`",
                 type_name::<T>()
             )
         });
@@ -491,10 +480,10 @@ impl<T: VarValue> SharedVar<T> {
         cleanup.push(Box::new(move || self.r.is_new.set(false)));
     }
 
-    fn borrow(&self, ctx_id: AppContextId) -> &T {
+    fn borrow(&self, ctx_id: AppId) -> &T {
         self.r.context.check(ctx_id, || {
             format!(
-                "cannot borrow `SharedVar<{}>` because it is bound to a different `AppContext`",
+                "cannot borrow `SharedVar<{}>` because it is bound to a different `Vars`",
                 type_name::<T>()
             )
         });
@@ -518,8 +507,8 @@ impl<T: VarValue> Clone for SharedVar<T> {
 }
 
 impl<T: VarValue> protected::Var<T> for SharedVar<T> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
-        protected::BindInfo::Var(self.borrow(ctx.id()), self.r.is_new.get(), self.r.version.get())
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, T> {
+        protected::BindInfo::Var(self.borrow(ctx.app_id()), self.r.is_new.get(), self.r.version.get())
     }
 
     fn read_only_prev_version(&self) -> u32 {
@@ -528,11 +517,11 @@ impl<T: VarValue> protected::Var<T> for SharedVar<T> {
 }
 
 impl<T: VarValue> ObjVar<T> for SharedVar<T> {
-    fn get(&self, ctx: &AppContext) -> &T {
-        self.borrow(ctx.id())
+    fn get(&self, ctx: &Vars) -> &T {
+        self.borrow(ctx.app_id())
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
         if self.r.is_new.get() {
             Some(self.get(ctx))
         } else {
@@ -540,11 +529,11 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         }
     }
 
-    fn is_new(&self, _: &AppContext) -> bool {
+    fn is_new(&self, _: &Vars) -> bool {
         self.r.is_new.get()
     }
 
-    fn version(&self, _: &AppContext) -> u32 {
+    fn version(&self, _: &Vars) -> u32 {
         self.r.version.get()
     }
 
@@ -556,18 +545,18 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         false
     }
 
-    fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        let ctx_id = ctx.id();
+        let ctx_id = ctx.app_id();
         ctx.push_modify_impl(move |cleanup| {
             var.modify(ctx_id, move |v: &mut T| *v = new_value, cleanup);
         });
         Ok(())
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        let ctx_id = ctx.id();
+        let ctx_id = ctx.app_id();
         ctx.push_modify_impl(move |cleanup| {
             var.modify(ctx_id, |v: &mut T| modify(v), cleanup);
         });
@@ -579,9 +568,9 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        let ctx_id = ctx.id();
+        let ctx_id = ctx.app_id();
         ctx.push_modify_impl(move |cleanup| {
             var.modify(ctx_id, modify, cleanup);
         });
@@ -646,28 +635,28 @@ impl<T: VarValue, V: Var<T> + Clone> ReadOnlyVar<T, V> {
 }
 
 impl<T: VarValue, V: Var<T> + Clone> protected::Var<T> for ReadOnlyVar<T, V> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, T> {
         self.var.bind_info(ctx)
     }
 }
 
 impl<T: VarValue, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T {
         self.var.get(ctx)
     }
 
     /// [get] if [is_new] or none.
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
         self.var.update(ctx)
     }
 
     /// If the value changed this update.
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.var.is_new(ctx)
     }
 
     /// Current value version. Version changes every time the value changes.
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         self.var.version(ctx)
     }
 }
@@ -725,7 +714,7 @@ struct MapSharedVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) ->
     map: RefCell<M>,
     output: UnsafeCell<MaybeUninit<O>>,
     output_version: Cell<u32>,
-    context: AppContextOwnership,
+    context: AppOwnership,
 }
 
 /// A read-only variable that maps the value of another variable.
@@ -740,7 +729,7 @@ struct MapBiDiSharedVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T
     map_back: RefCell<N>,
     output: UnsafeCell<MaybeUninit<O>>,
     output_version: Cell<u32>,
-    context: AppContextOwnership,
+    context: AppOwnership,
 }
 
 /// A variable that maps the value of another variable.
@@ -757,15 +746,15 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapSharedVar<T, 
                 map: RefCell::new(map),
                 output: UnsafeCell::new(MaybeUninit::uninit()),
                 output_version: Cell::new(prev_version),
-                context: AppContextOwnership::default(),
+                context: AppOwnership::default(),
             }),
         }
     }
 
-    fn borrow(&self, ctx: &AppContext) -> &O {
-        self.r.context.check(ctx.id(), || {
+    fn borrow(&self, ctx: &Vars) -> &O {
+        self.r.context.check(ctx.app_id(), || {
             format!(
-                "cannot borrow `MapVar<{} -> {}>` because it is already bound to a different `AppContext`",
+                "cannot borrow `MapVar<{} -> {}>` because it is already bound to a different `Vars`",
                 type_name::<T>(),
                 type_name::<O>()
             )
@@ -776,7 +765,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapSharedVar<T, 
             let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
-            // vars require a &mut AppContext for changing version.
+            // vars require a &mut Vars for changing version.
             unsafe {
                 let m_uninit = &mut *self.r.output.get();
                 m_uninit.as_mut_ptr().write(value);
@@ -804,15 +793,15 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> 
                 map_back: RefCell::new(map_back),
                 output: UnsafeCell::new(MaybeUninit::uninit()),
                 output_version: Cell::new(prev_version),
-                context: AppContextOwnership::default(),
+                context: AppOwnership::default(),
             }),
         }
     }
 
-    fn borrow(&self, ctx: &AppContext) -> &O {
-        self.r.context.check(ctx.id(), || {
+    fn borrow(&self, ctx: &Vars) -> &O {
+        self.r.context.check(ctx.app_id(), || {
             format!(
-                "cannot borrow `MapVarBiDi<{} <-> {}>` because it is already bound to a different `AppContext`",
+                "cannot borrow `MapVarBiDi<{} <-> {}>` because it is already bound to a different `Vars`",
                 type_name::<T>(),
                 type_name::<O>()
             )
@@ -823,7 +812,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> 
             let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
             // SAFETY: This is safe because it only happens before the first borrow
             // of this update, and borrows cannot exist across updates because source
-            // vars require a &mut AppContext for changing version.
+            // vars require a &mut Vars for changing version.
             unsafe {
                 let m_uninit = &mut *self.r.output.get();
                 m_uninit.as_mut_ptr().write(value);
@@ -842,7 +831,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> 
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapSharedVar<T, S, O, M> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(ctx), self.is_new(ctx), self.version(ctx))
     }
 }
@@ -850,7 +839,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O>
     for MapBiDiSharedVar<T, S, O, M, N>
 {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(ctx), self.is_new(ctx), self.version(ctx))
     }
 
@@ -860,11 +849,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapSharedVar<T, S, O, M> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
         self.borrow(ctx)
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
         if self.is_new(ctx) {
             Some(self.borrow(ctx))
         } else {
@@ -872,11 +861,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.r.source.is_new(ctx)
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         self.r.source.version(ctx)
     }
 }
@@ -884,11 +873,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O>
     for MapBiDiSharedVar<T, S, O, M, N>
 {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
         self.borrow(ctx)
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
         if self.is_new(ctx) {
             Some(self.borrow(ctx))
         } else {
@@ -896,11 +885,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.r.source.is_new(ctx)
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         self.r.source.version(ctx)
     }
 
@@ -912,7 +901,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         self.r.source.always_read_only()
     }
 
-    fn push_set(&self, new_value: O, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: O, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.r
             .source
             .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), ctx)?;
@@ -922,7 +911,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         Ok(())
     }
 
-    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<O>>, _ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<O>>, _ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         todo!()
     }
 }
@@ -981,7 +970,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, _modify: impl ModifyFnOnce<O>, _ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, _modify: impl ModifyFnOnce<O>, _ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         todo!()
     }
 
@@ -1037,14 +1026,14 @@ impl<T: VarValue, O: VarValue, S: ObjVar<T>, M: MapFnMut<T, O>, N: MapFnMut<O, T
 
 // #region MapContextVar<T>
 
-type MapContextVarOutputs<O> = FnvHashMap<Option<WidgetId>, (UnsafeCell<O>, u32)>;
+type MapContextVarOutputs<O> = FnvHashMap<ContextVarStageId, (UnsafeCell<O>, u32)>;
 
 struct MapContextVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
     outputs: RefCell<MapContextVarOutputs<O>>,
-    context: AppContextOwnership,
+    context: AppOwnership,
 }
 
 /// A variable that maps the value of a context variable.
@@ -1060,31 +1049,29 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
                 source,
                 map: RefCell::new(map),
                 outputs: RefCell::default(),
-                context: AppContextOwnership::default(),
+                context: AppOwnership::default(),
             }),
         }
     }
 
-    fn borrow(&self, ctx: &AppContext) -> &O {
-        self.r.context.check(ctx.id(), || {
+    fn borrow(&self, ctx: &Vars) -> &O {
+        self.r.context.check(ctx.app_id(), || {
             format!(
-                "cannot borrow `MapVar<{}>` because it is already bound to a different `AppContext`",
+                "cannot borrow `MapVar<{}>` because it is already bound to a different `Vars`",
                 type_name::<T>()
             )
         });
 
         use std::collections::hash_map::Entry::{Occupied, Vacant};
         let mut outputs = self.r.outputs.borrow_mut();
-        let widget_id = ctx.try_widget_id();
+        let context_id = ctx.context_id();
         let source_version = self.r.source.version(ctx);
 
-        let output = match outputs.entry(widget_id) {
+        let output = match outputs.entry(context_id) {
             Occupied(entry) => {
                 let (output, output_version) = entry.into_mut();
                 if *output_version != source_version {
                     let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(ctx));
-                    // TODO UNSAFE: Same context var can be set twice in same widget.
-
                     // SAFETY: This is safe because it only happens before the first borrow
                     // of this update.
                     unsafe { *output.get() = value }
@@ -1106,17 +1093,17 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapContextVar<T, S, O, M> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(ctx), self.r.source.is_new(ctx), self.r.source.version(ctx))
     }
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapContextVar<T, S, O, M> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
         self.borrow(ctx)
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
         if self.is_new(ctx) {
             Some(self.borrow(ctx))
         } else {
@@ -1124,11 +1111,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.r.source.is_new(ctx)
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         self.r.source.version(ctx)
     }
 }
@@ -1225,7 +1212,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> 
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapVar<T, S, O, M> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
         match &self.r {
             MapVarInner::Owned(o) => o.bind_info(ctx),
             MapVarInner::Shared(s) => s.bind_info(ctx),
@@ -1237,7 +1224,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O>
     for MapVarBiDi<T, S, O, M, N>
 {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.bind_info(ctx),
             MapVarBiDiInner::Shared(s) => s.bind_info(ctx),
@@ -1251,7 +1238,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
 }
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapVar<T, S, O, M> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
         match &self.r {
             MapVarInner::Owned(o) => o.get(ctx),
             MapVarInner::Shared(s) => s.get(ctx),
@@ -1259,7 +1246,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
         }
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
         match &self.r {
             MapVarInner::Owned(o) => o.update(ctx),
             MapVarInner::Shared(s) => s.update(ctx),
@@ -1267,7 +1254,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         match &self.r {
             MapVarInner::Owned(o) => o.is_new(ctx),
             MapVarInner::Shared(s) => s.is_new(ctx),
@@ -1275,7 +1262,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
         }
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         match &self.r {
             MapVarInner::Owned(o) => o.version(ctx),
             MapVarInner::Shared(s) => s.version(ctx),
@@ -1287,7 +1274,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O>
     for MapVarBiDi<T, S, O, M, N>
 {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.get(ctx),
             MapVarBiDiInner::Shared(s) => s.get(ctx),
@@ -1295,7 +1282,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.update(ctx),
             MapVarBiDiInner::Shared(s) => s.update(ctx),
@@ -1303,7 +1290,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.is_new(ctx),
             MapVarBiDiInner::Shared(s) => s.is_new(ctx),
@@ -1311,7 +1298,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.version(ctx),
             MapVarBiDiInner::Shared(s) => s.version(ctx),
@@ -1335,7 +1322,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn push_set(&self, new_value: O, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: O, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_set(new_value, ctx),
             MapVarBiDiInner::Shared(s) => s.push_set(new_value, ctx),
@@ -1343,7 +1330,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, ctx),
             MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, ctx),
@@ -1413,7 +1400,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<O>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl ModifyFnOnce<O>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify(modify, ctx),
             MapVarBiDiInner::Shared(s) => s.push_modify(modify, ctx),
@@ -1494,7 +1481,7 @@ macro_rules! impl_switch_vars {
         }
 
         impl<T: VarValue, $($VN: Var<T>),+> protected::Var<T> for $SwitchVar<T, $($VN),+> {
-            fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+            fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, T> {
                 let is_new = self.is_new(ctx);
                 let version = self.version(ctx);
                 let inner_info = match self.r.index.get() {
@@ -1516,14 +1503,14 @@ macro_rules! impl_switch_vars {
         }
 
         impl<T: VarValue, $($VN: Var<T>),+> ObjVar<T> for $SwitchVar<T, $($VN),+> {
-            fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+            fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T {
                 match self.r.index.get() {
                     $($n => self.r.$vn.get(ctx),)+
                     _ => unreachable!(),
                 }
             }
 
-            fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+            fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
                 if self.r.is_new.get() {
                     Some(self.get(ctx))
                 } else {
@@ -1534,7 +1521,7 @@ macro_rules! impl_switch_vars {
                 }
             }
 
-            fn is_new(&self, ctx: &AppContext) -> bool {
+            fn is_new(&self, ctx: &Vars) -> bool {
                 self.r.is_new.get()
                     || match self.r.index.get() {
                         $($n => self.r.$vn.is_new(ctx),)+
@@ -1542,7 +1529,7 @@ macro_rules! impl_switch_vars {
                     }
             }
 
-            fn version(&self, ctx: &AppContext) -> u32 {
+            fn version(&self, ctx: &Vars) -> u32 {
                 match self.r.index.get() {
                     $($n => {
                         let $version = self.r.$vn.version(ctx);
@@ -1567,14 +1554,14 @@ macro_rules! impl_switch_vars {
                 $(self.r.$vn.always_read_only()) && +
             }
 
-            fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+            fn push_set(&self, new_value: T, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
                     $($n => self.r.$vn.push_set(new_value, ctx),)+
                     _ => unreachable!(),
                 }
             }
 
-            fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+            fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
                     $($n => self.r.$vn.push_modify_boxed(modify, ctx),)+
                     _ => unreachable!(),
@@ -1592,7 +1579,7 @@ macro_rules! impl_switch_vars {
             type AsReadOnly = ReadOnlyVar<T, Self>;
             type AsLocal = CloningLocalVar<T, Self>;
 
-            fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+            fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
                     $($n => self.r.$vn.push_modify(modify, ctx),)+
                     _ => unreachable!(),
@@ -1770,7 +1757,7 @@ impl<T: VarValue> SwitchVarDyn<T> {
 }
 
 impl<T: VarValue> protected::Var<T> for SwitchVarDyn<T> {
-    fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, T> {
+    fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, T> {
         let is_new = self.is_new(ctx);
         let version = self.version(ctx);
         let inner_info = self.r.vars[self.r.index.get()].bind_info(ctx);
@@ -1789,11 +1776,11 @@ impl<T: VarValue> protected::Var<T> for SwitchVarDyn<T> {
 }
 
 impl<T: VarValue> ObjVar<T> for SwitchVarDyn<T> {
-    fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a T {
+    fn get<'a>(&'a self, ctx: &'a Vars) -> &'a T {
         self.r.vars[self.r.index.get()].get(ctx)
     }
 
-    fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a T> {
+    fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a T> {
         if self.r.is_new.get() {
             Some(self.get(ctx))
         } else {
@@ -1801,11 +1788,11 @@ impl<T: VarValue> ObjVar<T> for SwitchVarDyn<T> {
         }
     }
 
-    fn is_new(&self, ctx: &AppContext) -> bool {
+    fn is_new(&self, ctx: &Vars) -> bool {
         self.r.is_new.get() || self.r.vars[self.r.index.get()].is_new(ctx)
     }
 
-    fn version(&self, ctx: &AppContext) -> u32 {
+    fn version(&self, ctx: &Vars) -> u32 {
         let index = self.r.index.get();
         let version = self.r.vars[index].version(ctx);
         if version != self.r.versions[index].get() {
@@ -1823,11 +1810,11 @@ impl<T: VarValue> ObjVar<T> for SwitchVarDyn<T> {
         self.r.vars.iter().all(|v| v.always_read_only())
     }
 
-    fn push_set(&self, new_value: T, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.r.vars[self.r.index.get()].push_set(new_value, ctx)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.r.vars[self.r.index.get()].push_modify_boxed(modify, ctx)
     }
 }
@@ -1842,7 +1829,7 @@ impl<T: VarValue> Var<T> for SwitchVarDyn<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut AppContext) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl ModifyFnOnce<T>, ctx: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.push_modify_boxed(Box::new(modify), ctx)
     }
 
@@ -1931,7 +1918,7 @@ macro_rules! impl_merge_vars {
             merge: RefCell<M>,
             output: UnsafeCell<MaybeUninit<O>>,
             version: Cell<u32>,
-            context: AppContextOwnership
+            context: AppOwnership
         }
 
         pub struct $MergeVar<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> {
@@ -1948,16 +1935,16 @@ macro_rules! impl_merge_vars {
                         merge: RefCell::new(merge),
                         output: UnsafeCell::new(MaybeUninit::uninit()),
                         version: Cell::new(0),
-                        context: AppContextOwnership::default(),
+                        context: AppOwnership::default(),
                     })
                 }
             }
 
-            fn sync(&self, ctx: &AppContext) {
+            fn sync(&self, ctx: &Vars) {
                 self.r.context.check(
-                    ctx.id(),
+                    ctx.app_id(),
                     ||format!(
-                        "cannot borrow `{}<({}) -> {}>` because it is already bound to a different `AppContext`",
+                        "cannot borrow `{}<({}) -> {}>` because it is already bound to a different `Vars`",
                         stringify!($MergeVar),
                         vec![$(type_name::<$TN>()),+].join(", "),
                         type_name::<O>(),
@@ -1980,7 +1967,7 @@ macro_rules! impl_merge_vars {
 
                     // SAFETY: This is safe because it only happens before the first borrow
                     // of this update, and borrows cannot exist across updates because source
-                    // vars require a &mut AppContext for changing version.
+                    // vars require a &mut Vars for changing version.
                     unsafe {
                         let m_uninit = &mut *self.r.output.get();
                         m_uninit.as_mut_ptr().write(value);
@@ -1988,7 +1975,7 @@ macro_rules! impl_merge_vars {
                 }
             }
 
-            fn borrow(&self, ctx: &AppContext) -> &O {
+            fn borrow(&self, ctx: &Vars) -> &O {
                 self.sync(ctx);
                 // SAFETY:
                 // borrow validation was done in sync.
@@ -1999,7 +1986,7 @@ macro_rules! impl_merge_vars {
                 }
             }
 
-            fn any_is_new(&self, ctx: &AppContext) -> bool {
+            fn any_is_new(&self, ctx: &Vars) -> bool {
                  $(self.r.$vn.is_new(ctx))||+
             }
         }
@@ -2013,18 +2000,18 @@ macro_rules! impl_merge_vars {
 
         impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> protected::Var<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
-            fn bind_info<'a, 'b>(&'a self, ctx: &'b AppContext) -> protected::BindInfo<'a, O> {
+            fn bind_info<'a, 'b>(&'a self, ctx: &'b Vars) -> protected::BindInfo<'a, O> {
                 protected::BindInfo::Var(self.borrow(ctx), self.any_is_new(ctx), self.r.version.get())
             }
         }
 
         impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> ObjVar<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
-            fn get<'a>(&'a self, ctx: &'a AppContext) -> &'a O {
+            fn get<'a>(&'a self, ctx: &'a Vars) -> &'a O {
                 self.borrow(ctx)
             }
 
-            fn update<'a>(&'a self, ctx: &'a AppContext) -> Option<&'a O> {
+            fn update<'a>(&'a self, ctx: &'a Vars) -> Option<&'a O> {
                 if self.any_is_new(ctx) {
                     Some(self.borrow(ctx))
                 } else {
@@ -2032,11 +2019,11 @@ macro_rules! impl_merge_vars {
                 }
             }
 
-            fn is_new(&self, ctx: &AppContext) -> bool {
+            fn is_new(&self, ctx: &Vars) -> bool {
                 self.any_is_new(ctx)
             }
 
-            fn version(&self, ctx: &AppContext) -> u32 {
+            fn version(&self, ctx: &Vars) -> u32 {
                 self.sync(ctx);
                 self.r.version.get()
             }
@@ -2248,65 +2235,4 @@ macro_rules! merge_var {
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")
     };
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct TestApp {
-        ctx: AppContext,
-    }
-
-    impl TestApp {
-        fn new() -> Self {
-            todo!()
-        }
-
-        fn update<R>(&mut self, f: impl FnOnce(&mut AppContext) -> R) -> R {
-            f(&mut self.ctx)
-        }
-
-        fn finish_update(&mut self) {
-            todo!()
-        }
-    }
-
-    #[test]
-    fn owned_var_get() {
-        let var: OwnedVar<&'static str> = "value".into_var();
-
-        let mut test = TestApp::new();
-
-        let value = test.update(move |ctx| *var.get(ctx));
-
-        assert_eq!("value", value)
-    }
-
-    #[test]
-    fn owned_var_set() {
-        let var = OwnedVar("value");
-
-        assert!(var.always_read_only());
-        assert!(var.read_only());
-
-        let mut test = TestApp::new();
-
-        test.update(move |ctx| {
-            assert_eq!(0, var.version(ctx));
-            assert!(!var.is_new(ctx));
-
-            assert!(var.push_set("new value", ctx).is_err());
-        });
-    }
-
-    #[test]
-    fn shared_var_get() {
-        todo!()
-    }
-
-    #[test]
-    fn shared_var_set() {
-        todo!()
-    }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use contexts::{AppContext, AppEventContext};
 pub use glutin::event::ElementState;
 use std::time::{Duration, Instant};
 pub use webrender::api::LayoutPoint;
@@ -81,16 +82,16 @@ impl Default for MouseEvents {
 }
 
 impl AppExtension for MouseEvents {
-    fn register(&mut self, r: &mut AppRegister) {
-        r.register_event::<MouseMove>(self.mouse_move.listener());
+    fn register(&mut self, r: &mut AppContext) {
+        r.events.register::<MouseMove>(self.mouse_move.listener());
 
-        r.register_event::<MouseInput>(self.mouse_input.listener());
-        r.register_event::<MouseDown>(self.mouse_down.listener());
-        r.register_event::<MouseUp>(self.mouse_up.listener());
-        r.register_event::<MouseClick>(self.mouse_click.listener());
+        r.events.register::<MouseInput>(self.mouse_input.listener());
+        r.events.register::<MouseDown>(self.mouse_down.listener());
+        r.events.register::<MouseUp>(self.mouse_up.listener());
+        r.events.register::<MouseClick>(self.mouse_click.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
         match *event {
             WindowEvent::MouseInput {
                 state,
@@ -112,10 +113,10 @@ impl AppExtension for MouseEvents {
                     modifiers,
                     state,
                 };
-                ctx.push_notify(self.mouse_input.clone(), args.clone());
+                ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
                 match state {
                     ElementState::Pressed => {
-                        ctx.push_notify(self.mouse_down.clone(), args);
+                        ctx.updates.push_notify(self.mouse_down.clone(), args);
 
                         self.click_count = self.click_count.saturating_add(1);
 
@@ -132,7 +133,7 @@ impl AppExtension for MouseEvents {
                                     modifiers,
                                     click_count: self.click_count,
                                 };
-                                ctx.push_notify(self.mouse_click.clone(), args);
+                                ctx.updates.push_notify(self.mouse_click.clone(), args);
                             } else {
                                 self.click_count = 1;
                             }
@@ -142,7 +143,7 @@ impl AppExtension for MouseEvents {
                         todo!(r"src\properties\events.rs");
                     }
                     ElementState::Released => {
-                        ctx.push_notify(self.mouse_up.clone(), args);
+                        ctx.updates.push_notify(self.mouse_up.clone(), args);
 
                         if self.click_count == 1 {
                             let args = MouseClickArgs {
@@ -154,7 +155,7 @@ impl AppExtension for MouseEvents {
                                 modifiers,
                                 click_count: 1,
                             };
-                            ctx.push_notify(self.mouse_click.clone(), args);
+                            ctx.updates.push_notify(self.mouse_click.clone(), args);
                         }
 
                         todo!(r"src\properties\events.rs");
@@ -179,7 +180,7 @@ impl AppExtension for MouseEvents {
                         position,
                     };
 
-                    ctx.push_notify(self.mouse_move.clone(), args);
+                    ctx.updates.push_notify(self.mouse_move.clone(), args);
                 }
             }
             _ => {}

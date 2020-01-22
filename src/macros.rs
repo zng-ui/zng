@@ -121,14 +121,14 @@ macro_rules! profile_scope {
     };
 }
 
-/// Declares new [VisitedVar] types.
+/// Declares new [StateKey](std::core2::contexts::StateKey) types.
 #[macro_export]
-macro_rules! visited_var {
+macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty)+) => {$(
         $(#[&outer])*
         $vis struct $ident;
 
-        impl $crate::core2::VisitedVar for $ident {
+        impl $std::core2::contexts::StateKey for $ident {
             type Type = $type;
         }
     )+};

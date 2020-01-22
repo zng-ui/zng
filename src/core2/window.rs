@@ -1,4 +1,5 @@
 use super::*;
+use contexts::*;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
@@ -166,12 +167,12 @@ impl AppWindows {
 }
 
 impl AppExtension for AppWindows {
-    fn register(&mut self, r: &mut AppRegister) {
-        r.register_service::<Windows>(Windows::new());
-        r.register_event::<WindowOpen>(self.window_open.listener());
+    fn register(&mut self, r: &mut AppContext) {
+        r.services.register(Windows::new());
+        r.events.register::<WindowOpen>(self.window_open.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut AppEventContext) {
         match event {
             WindowEvent::RedrawRequested => {
                 if let Some(window) = self.window_mut(window_id) {
@@ -186,12 +187,12 @@ impl AppExtension for AppWindows {
         }
     }
 
-    fn respond(&mut self, r: &mut EventContext) {
-        let requests = r.service::<Windows>().take_requests();
+    fn respond(&mut self, r: &mut AppEventContext) {
+        let requests = r.services.require::<Windows>().take_requests();
         for request in requests {
             let w = GlWindow::new(
                 request.new,
-                r.app_ctx(),
+                r,
                 r.event_loop(),
                 self.event_loop_proxy.clone(),
                 Arc::clone(&self.ui_threads),
@@ -202,8 +203,8 @@ impl AppExtension for AppWindows {
                 window_id: w.id(),
             };
 
-            r.push_notify(request.notifier, args.clone());
-            r.push_notify(self.window_open.clone(), args.clone());
+            r.updates.push_notify(request.notifier, args.clone());
+            r.updates.push_notify(self.window_open.clone(), args.clone());
         }
     }
 }
@@ -269,7 +270,7 @@ impl RenderNotifier for Notifier {
 struct GlWindow {
     context: Option<WindowedContext<NotCurrent>>,
     renderer: webrender::Renderer,
-    services: AnyCellMap,
+    services: AnyMap,
 
     root: UiRoot,
     update: UpdateFlags,
@@ -285,9 +286,9 @@ impl GlWindow {
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let root = new_window(ctx);
-        let inner_size = *root.size.get(ctx);
+        let inner_size = *root.size.get(ctx.vars);
         let inner_size = LogicalSize::new(inner_size.width.into(), inner_size.height.into());
-        let clear_color = *root.background_color.get(ctx);
+        let clear_color = *root.background_color.get(ctx.vars);
 
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to flickering
@@ -359,7 +360,7 @@ impl GlWindow {
     pub fn update(&mut self, ctx: &mut AppContext) {
         // do winit window updates
         let window = self.context.as_ref().unwrap().window();
-        if let Some(title) = self.root.title.update(&ctx) {
+        if let Some(title) = self.root.title.update(ctx.vars) {
             window.set_title(title);
         }
 

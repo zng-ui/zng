@@ -10,21 +10,21 @@ struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
 
 #[impl_ui_node(child)]
 impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode for OnEvent<C, E, F> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.listener = ctx.listen::<E>();
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.listener = ctx.events.listen::<E>();
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if ctx.try_get_visited::<StopPropagation<E>>().is_none() {
-            //for args in self.listener.updates(&ctx.events) {
-            //    let mut args = OnEventArgs::new(ctx, args);
-            //    (self.handler)(&mut args);
-            //    if args.handled() {
-            //        ctx.set_visited::<StopPropagation<E>>(());
-            //        break;
-            //    }
-            //}
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if ctx.event_state.flagged(StopPropagation::<E>::default()) {
+            for args in self.listener.updates(&ctx.events) {
+                let mut args = OnEventArgs::new(ctx, args);
+                (self.handler)(&mut args);
+                if args.handled() {
+                    ctx.event_state.flag(StopPropagation::<E>::default());
+                    break;
+                }
+            }
         }
         self.child.update(ctx);
     }
@@ -53,19 +53,27 @@ pub struct StopPropagation<E: Event> {
     _e: std::marker::PhantomData<E>,
 }
 
-impl<E: Event> VisitedVar for StopPropagation<E> {
+impl<E: Event> Default for StopPropagation<E> {
+    fn default() -> Self {
+        StopPropagation {
+            _e: std::marker::PhantomData
+        }
+    }
+}
+
+impl<E: Event> contexts::StateKey for StopPropagation<E> {
     type Type = ();
 }
 
 /// Event arguments.
-pub struct OnEventArgs<'c, 'a, A: EventArgs> {
-    ctx: &'c mut AppContext,
+pub struct OnEventArgs<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A: EventArgs> {
+    ctx: &'c mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>,
     args: &'a A,
     stop_propagation: bool,
 }
 
-impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
-    pub fn new(ctx: &'c mut AppContext, args: &'a A) -> Self {
+impl<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A: EventArgs> OnEventArgs<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A> {
+    pub fn new(ctx: &'c mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>, args: &'a A) -> Self {
         OnEventArgs {
             ctx,
             args,
@@ -73,8 +81,8 @@ impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
         }
     }
 
-    /// Application context.
-    pub fn ctx(&mut self) -> &mut AppContext {
+    /// Widget context.
+    pub fn ctx(&mut self) -> &mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
         &mut self.ctx
     }
 

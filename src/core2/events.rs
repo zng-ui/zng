@@ -1,7 +1,8 @@
 use super::*;
+use contexts::{AppId, AppOwnership, Events};
 pub use glutin::event::{ModifiersState, MouseButton};
 use std::any::type_name;
-use std::cell::{Cell, UnsafeCell};
+use std::cell::UnsafeCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
@@ -18,22 +19,14 @@ pub trait Event: 'static {
     type Args: EventArgs;
 }
 
-/// [VisitedVar] signal to stop propagation of event.
-pub struct Stop<E: Event> {
-    _event: std::marker::PhantomData<E>,
-}
-impl<E: Event> VisitedVar for Stop<E> {
-    type Type = ();
-}
-
-struct EventData<T> {
+struct EventChannelInner<T> {
     data: UnsafeCell<Vec<T>>,
-    context: AppContextOwnership,
+    context: AppOwnership,
     is_high_pressure: bool,
 }
 
 struct EventChannel<T: 'static> {
-    r: Rc<EventData<T>>,
+    r: Rc<EventChannelInner<T>>,
 }
 impl<T: 'static> Clone for EventChannel<T> {
     fn clone(&self) -> Self {
@@ -41,7 +34,7 @@ impl<T: 'static> Clone for EventChannel<T> {
     }
 }
 impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(self, mut_ctx_id: AppContextId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
+    pub(crate) fn notify(self, mut_ctx_id: AppId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.r.context.check(mut_ctx_id, || {
             format!(
                 "cannot update `EventChannel<{}>` because it is borrowed in a different context",
@@ -64,8 +57,8 @@ impl<T: 'static> EventChannel<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
-        self.r.context.check(ctx.id(), || {
+    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
+        self.r.context.check(ctx.app_id(), || {
             format!(
                 "cannot read `EventChannel<{}>` because it is borrowed in a different context",
                 type_name::<T>()
@@ -97,7 +90,7 @@ impl<T: 'static> Clone for EventListener<T> {
 }
 impl<T: 'static> EventListener<T> {
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
+    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
         self.chan.updates(ctx)
     }
 
@@ -133,9 +126,9 @@ impl<T: 'static> EventEmitter<T> {
     pub fn new(is_high_pressure: bool) -> Self {
         EventEmitter {
             chan: EventChannel {
-                r: Rc::new(EventData {
+                r: Rc::new(EventChannelInner {
                     data: UnsafeCell::default(),
-                    context: AppContextOwnership::default(),
+                    context: AppOwnership::default(),
                     is_high_pressure,
                 }),
             },
@@ -143,7 +136,7 @@ impl<T: 'static> EventEmitter<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a AppContext) -> &'a [T] {
+    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
         self.chan.updates(ctx)
     }
 
@@ -159,7 +152,7 @@ impl<T: 'static> EventEmitter<T> {
         }
     }
 
-    pub(crate) fn notify(self, mut_ctx_id: AppContextId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
+    pub(crate) fn notify(self, mut_ctx_id: AppId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.chan.notify(mut_ctx_id, new_update, cleanup);
     }
 }

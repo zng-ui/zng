@@ -183,13 +183,13 @@ macro_rules! make_absents {
 fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
+        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
+        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
+        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::AppContext) { }]
+        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
 
         [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) { }]
 
@@ -214,22 +214,22 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
 fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             let child = {#borrow_mut};
             child.init(ctx)
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             let child = {#borrow_mut};
             child.deinit(ctx)
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             let child = {#borrow_mut};
             child.update(ctx)
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             let child = {#borrow_mut};
             child.update_hp(ctx)
         }]
@@ -254,25 +254,25 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
 fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             for child in {#iter_mut} {
                 child.init(ctx)
             }
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             for child in {#iter_mut} {
                 child.deinit(ctx)
             }
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             for child in {#iter_mut} {
                 child.update(ctx)
             }
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::AppContext) {
+        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
             for child in {#iter_mut} {
                 child.update_hp(ctx)
             }

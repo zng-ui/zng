@@ -8,14 +8,14 @@ struct Cursor<T: UiNode, C: LocalVar<CursorIcon>> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.cursor.init_local(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.cursor.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if self.cursor.update_local(&ctx).is_some() {
-            ctx.push_frame();
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.cursor.update_local(&ctx.vars).is_some() {
+            ctx.updates.push_frame();
         }
         self.child.update(ctx);
     }

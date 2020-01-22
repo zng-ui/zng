@@ -1,5 +1,6 @@
 use super::*;
 use crate::impl_ui_node;
+use contexts::WidgetId;
 
 struct Widget<T: UiNode> {
     id: WidgetId,
@@ -8,20 +9,20 @@ struct Widget<T: UiNode> {
 
 #[impl_ui_node(child)]
 impl<T: UiNode> UiNode for Widget<T> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        ctx.widget_scope(self.id, |ctx| self.child.init(ctx));
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        ctx.widget_context(self.id, |ctx| self.child.init(ctx));
     }
 
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        ctx.widget_scope(self.id, |ctx| self.child.deinit(ctx));
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        ctx.widget_context(self.id, |ctx| self.child.deinit(ctx));
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        ctx.widget_scope(self.id, |ctx| self.child.update(ctx));
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        ctx.widget_context(self.id, |ctx| self.child.update(ctx));
     }
 
-    fn update_hp(&mut self, ctx: &mut AppContext) {
-        ctx.widget_scope(self.id, |ctx| self.child.update_hp(ctx));
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        ctx.widget_context(self.id, |ctx| self.child.update_hp(ctx));
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

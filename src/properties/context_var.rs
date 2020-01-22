@@ -8,21 +8,22 @@ struct SetContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>>
 }
 #[impl_ui_node(child)]
 impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetContextVar<U, T, C, V> {
-    fn init(&mut self, ctx: &mut AppContext) {
+    fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.with_var_bind(self.var, &self.value, |ctx| child.init(ctx));
+        ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
     }
-    fn deinit(&mut self, ctx: &mut AppContext) {
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.with_var_bind(self.var, &self.value, |ctx| child.deinit(ctx));
+        ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
     }
-    fn update(&mut self, ctx: &mut AppContext) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.with_var_bind(self.var, &self.value, |ctx| child.update(ctx));
+        ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
     }
-    fn update_hp(&mut self, ctx: &mut AppContext) {
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.with_var_bind(self.var, &self.value, |ctx| child.update_hp(ctx));
+        ctx.vars
+            .with_context_bind(self.var, &self.value, || child.update_hp(ctx));
     }
 }
 

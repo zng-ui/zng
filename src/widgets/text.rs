@@ -14,16 +14,16 @@ struct Text<T: Var<Cow<'static, str>>> {
 
 #[impl_ui_node(none)]
 impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
-    fn init(&mut self, ctx: &mut AppContext) {
-        self.color = *TextColor.get(ctx);
-        let font_size = *FontSize.get(ctx);
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.color = *TextColor.get(ctx.vars);
+        let font_size = *FontSize.get(ctx.vars);
 
-        let font_family = &FontFamily.get(ctx);
-        let font = ctx.service::<Fonts>().get(font_family, font_size);
+        let font_family = &FontFamily.get(ctx.vars);
+        let font = ctx.services.require::<Fonts>().get(font_family, font_size);
 
         let font_size = font_size as f32;
 
-        let (indices, dimensions) = font.glyph_layout(self.text.get(ctx));
+        let (indices, dimensions) = font.glyph_layout(self.text.get(ctx.vars));
         let mut glyphs = Vec::with_capacity(indices.len());
         let mut offset = 0.;
         assert_eq!(indices.len(), dimensions.len());
@@ -45,15 +45,15 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
         self.font = Some(font);
     }
 
-    fn update(&mut self, ctx: &mut AppContext) {
-        if FontFamily.is_new(ctx) || FontSize.is_new(ctx) {
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if FontFamily.is_new(ctx.vars) || FontSize.is_new(ctx.vars) {
             self.init(ctx);
-            ctx.push_layout();
+            ctx.updates.push_layout();
         }
 
-        if let Some(&color) = TextColor.update(ctx) {
+        if let Some(&color) = TextColor.update(ctx.vars) {
             self.color = color;
-            ctx.push_frame();
+            ctx.updates.push_frame();
         }
     }
 

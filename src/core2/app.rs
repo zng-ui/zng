@@ -1,580 +1,63 @@
 use super::*;
-use fnv::FnvHashMap;
+use contexts::*;
 use glutin::event::Event as GEvent;
-use glutin::event_loop::EventLoopWindowTarget;
-use glutin::event_loop::{ControlFlow, EventLoop};
-use std::any::{type_name, Any, TypeId};
-use std::cell::{RefCell, RefMut};
-use std::sync::Arc;
-use webrender::api::*;
-
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
+use glutin::event_loop::{ControlFlow, EventLoop};
 pub use glutin::window::WindowId;
-
-pub struct AppRegister {
-    ctx: AppContext,
-}
-
-impl Default for AppRegister {
-    fn default() -> Self {
-        AppRegister {
-            ctx: AppContext {
-                id: AppContextId::new_unique(),
-                events: FnvHashMap::default(),
-                services: FnvHashMap::default(),
-                window_services_init: Vec::default(),
-                window_services: FnvHashMap::default(),
-
-                window_id: None,
-                widget_id: None,
-                context_vars: FnvHashMap::default(),
-                visited_vars: FnvHashMap::default(),
-
-                update: UpdateFlags::empty(),
-                window_update: UpdateFlags::empty(),
-                updates: Vec::default(),
-                cleanup: Vec::default(),
-            },
-        }
-    }
-}
-
-impl AppRegister {
-    /// Register a new event for the duration of the application context.
-    pub fn register_event<E: Event>(&mut self, listener: EventListener<E::Args>) {
-        self.ctx.events.insert(TypeId::of::<E>(), Box::new(listener));
-    }
-
-    /// Register a new service for the duration of the application context.
-    pub fn register_service<S: Service>(&mut self, service: S) {
-        self.ctx
-            .services
-            .insert(TypeId::of::<S>(), RefCell::new(Box::new(service)));
-    }
-
-    /// Register a new window service initializer.
-    ///
-    /// Window services have diferent instances for each window and exist for the duration
-    /// of that window. The `new` closure is called when a new window is created to
-    pub fn register_window_service<S: Service>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
-        self.ctx
-            .window_services_init
-            .push((TypeId::of::<S>(), Box::new(move |ctx| RefCell::new(Box::new(new(ctx))))));
-    }
-}
-
-/// Event extension update context.
-pub struct EventContext<'a> {
-    ctx: &'a mut AppContext,
-    event_loop: &'a EventLoopWindowTarget<WebRenderEvent>,
-}
-
-impl<'a> EventContext<'a> {
-    pub fn app_ctx(&self) -> &AppContext {
-        // TODO remove this, turn event context into a full delegating wrapper.
-        // THIS is used in window new
-        self.ctx
-    }
-
-    /// Schedules an update notification.
-    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
-        self.ctx.push_notify(sender, args);
-    }
-
-    /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
-        self.ctx.try_service::<S>()
-    }
-
-    /// Gets a service reference.
-    ///
-    /// # Panics
-    /// If  the service is not registered in application.
-    pub fn service<S: Service>(&self) -> RefMut<S> {
-        self.ctx.service::<S>()
-    }
-
-    pub(crate) fn event_loop(&self) -> &EventLoopWindowTarget<WebRenderEvent> {
-        self.event_loop
-    }
-}
-
-/// Window service initialization context.
-pub struct WindowContext<'a> {
-    ctx: &'a AppContext,
-    window_id: WindowId,
-}
-
-impl<'a> WindowContext<'a> {
-    pub fn app_ctx(&self) -> &AppContext {
-        // TODO remove this, turn event context into a full delegating wrapper.
-        self.ctx
-    }
-
-    pub fn render_api(&self) -> Arc<RenderApi> {
-        todo!()
-    }
-
-    pub fn window_id(&self) -> WindowId {
-        self.window_id
-    }
-}
-
-type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
-pub(crate) type AnyCellMap = FnvHashMap<TypeId, RefCell<Box<dyn Any>>>;
-type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> RefCell<Box<dyn Any>>>)>;
-
-enum AnyRef {}
-impl AnyRef {
-    fn pack<T>(r: &T) -> *const AnyRef {
-        (r as *const T) as *const AnyRef
-    }
-
-    unsafe fn unpack<'a, T>(pointer: *const Self) -> &'a T {
-        &*(pointer as *const T)
-    }
-}
-enum ContextVarEntry {
-    Value(*const AnyRef, bool, u32),
-    ContextVar(TypeId, *const AnyRef, Option<(bool, u32)>),
-}
-type UpdateOnce = Box<dyn FnOnce(&mut Vec<CleanupOnce>)>;
-type CleanupOnce = Box<dyn FnOnce()>;
-
-uid! {
-   /// Unique id of an [AppContext] instance.
-   pub struct AppContextId(_);
-
-   /// Unique id of a widget.
-   pub struct WidgetId(_);
-}
-
-bitflags! {
-    /// What to pump in a Ui tree after an update is applied.
-    #[derive(Default)]
-    pub(crate) struct UpdateFlags: u8 {
-        const UPDATE = 0b0000_0001;
-        const UPD_HP = 0b0000_0010;
-        const LAYOUT = 0b0000_0100;
-        const RENDER = 0b0000_1000;
-    }
-}
-
-pub struct Vars {
-    context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
-}
-
-impl Vars {
-    /// Runs a function with the context var.
-    pub fn with_context<V: ContextVar>(&self, _: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
-        self.with_context_impl(
-            TypeId::of::<V>(),
-            ContextVarEntry::Value(AnyRef::pack(value), is_new, version),
-            f,
-        )
-    }
-
-    /// Get the context var value or default.
-    pub fn get_context<V: ContextVar>(&self) -> &V::Type {
-        self.get_context_impl(TypeId::of::<V>(), V::default()).0
-    }
-
-    /// Gets if the context var value is new.
-    pub fn get_context_is_new<V: ContextVar>(&self) -> bool {
-        self.get_context_impl(TypeId::of::<V>(), V::default()).1
-    }
-
-    /// Gets the context var value version.
-    pub fn get_context_version<V: ContextVar>(&self) -> u32 {
-        self.get_context_impl(TypeId::of::<V>(), V::default()).2
-    }
-
-    /// Gets the context var value if it is new.
-    pub fn get_context_update<V: ContextVar>(&self) -> Option<&V::Type> {
-        let (value, is_new, _) = self.get_context_impl(TypeId::of::<V>(), V::default());
-
-        if is_new {
-            Some(value)
-        } else {
-            None
-        }
-    }
-
-    #[inline]
-    fn with_context_impl(&self, type_id: TypeId, value: ContextVarEntry, f: impl FnOnce()) {
-        let prev = self.context_vars.borrow_mut().insert(type_id, value);
-
-        f();
-
-        let mut ctxs = self.context_vars.borrow_mut();
-        if let Some(prev) = prev {
-            ctxs.insert(type_id, prev);
-        } else {
-            ctxs.remove(&type_id);
-        }
-    }
-
-    fn get_context_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool, u32) {
-        let ctxs = self.context_vars.borrow();
-
-        if let Some(ctx_var) = ctxs.get(&var) {
-            match ctx_var {
-                ContextVarEntry::Value(pointer, is_new, version) => {
-                    // SAFETY: This is safe because `TypeId` keys are always associated
-                    // with the same type of reference.
-                    let value = unsafe { AnyRef::unpack(*pointer) };
-                    (value, *is_new, *version)
-                }
-                ContextVarEntry::ContextVar(var, default, meta_override) => {
-                    // SAFETY: This is safe because default is a &'static T.
-                    let r = self.get_context_impl(*var, unsafe { AnyRef::unpack(*default) });
-                    if let Some((is_new, version)) = *meta_override {
-                        (r.0, is_new, version)
-                    } else {
-                        r
-                    }
-                }
-            }
-        } else {
-            (default, false, 0)
-        }
-    }
-}
-
-pub struct VisitedVars {
-    visited_vars: FnvHashMap<TypeId, Box<dyn Any>>,
-}
-
-impl VisitedVars {
-    /// Sets the visited var value for the rest of the update.
-    pub fn set_visited<V: VisitedVar>(&mut self, value: V::Type) -> Option<V::Type> {
-        self.visited_vars
-            .insert(TypeId::of::<V>(), Box::new(value))
-            .map(|any| *any.downcast::<V::Type>().unwrap())
-    }
-
-    /// Get the visited var value or none if its not set.
-    pub fn try_get_visited<V: VisitedVar>(&self) -> Option<&V::Type> {
-        if let Some(any) = self.visited_vars.get(&TypeId::of::<V>()) {
-            Some(any.downcast_ref::<V::Type>().unwrap())
-        } else {
-            None
-        }
-    }
-
-    /// Get the visited var value or panics if its not set.
-    pub fn get_visited<V: VisitedVar>(&self) -> &V::Type {
-        self.try_get_visited::<V>()
-            .unwrap_or_else(|| panic!("visited var `{}` is required", type_name::<V>()))
-    }
-}
-
-pub struct Events {
-    events: AnyMap,
-}
-
-impl Events {
-    /// Creates an event listener if the event is registered in the application.
-    pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
-        if let Some(any) = self.events.get(&TypeId::of::<E>()) {
-            // SAFETY: This is safe because args are always the same type as key in
-            // `AppRegister::register_event` witch is the only place where insertion occurs.
-            Some(unsafe { any.downcast_ref_unchecked::<EventListener<E::Args>>().clone() })
-        } else {
-            None
-        }
-    }
-
-    /// Creates an event listener.
-    ///
-    /// # Panics
-    /// If the event is not registered in the application.
-    pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>()
-            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
-    }
-}
-
-pub struct Updates {
-    update: UpdateFlags,
-    window_update: UpdateFlags,
-    updates: Vec<UpdateOnce>,
-    cleanup: Vec<CleanupOnce>,
-}
-
-impl Updates {
-    /// Schedules a variable change for the next update.
-    pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
-        var.push_set(new_value, self)
-    }
-
-    /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: VarValue>(
-        &mut self,
-        var: impl Var<T>,
-        modify: impl ModifyFnOnce<T>,
-    ) -> Result<(), VarIsReadOnly> {
-        var.push_modify(modify, self)
-    }
-
-    pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vec<CleanupOnce>) + 'static) {
-        self.update.insert(UpdateFlags::UPDATE);
-        self.updates.push(Box::new(modify));
-    }
-
-    /// Schedules an update notification.
-    pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
-        self.update.insert(if sender.is_high_pressure() {
-            UpdateFlags::UPD_HP
-        } else {
-            UpdateFlags::UPDATE
-        });
-
-        let self_id = self.id;
-        self.updates
-            .push(Box::new(move |cleanup| sender.notify(self_id, args, cleanup)));
-    }
-
-    /// Schedules a switch variable index change for the next update.
-    pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
-        self.update.insert(UpdateFlags::UPDATE);
-        self.updates
-            .push(Box::new(move |cleanup| var.modify(new_index, cleanup)));
-    }
-
-    /// Schedules a layout update.
-    pub fn push_layout(&mut self) {
-        self.window_update |= UpdateFlags::LAYOUT;
-        self.update |= UpdateFlags::LAYOUT;
-    }
-
-    /// Schedules a new render.
-    pub fn push_frame(&mut self) {
-        self.window_update |= UpdateFlags::RENDER;
-        self.update |= UpdateFlags::RENDER;
-    }
-
-    /// Cleanup the previous update and applies the new one.
-    ///
-    /// Returns what update methods must be pumped.
-    pub(crate) fn apply_updates(&mut self) -> UpdateFlags {
-        for cleanup in self.cleanup.drain(..) {
-            cleanup();
-        }
-
-        for update in self.updates.drain(..) {
-            update(&mut self.cleanup);
-        }
-
-        //self.visited_vars.clear(); TODO
-
-        std::mem::replace(&mut self.update, UpdateFlags::empty())
-    }
-}
-
-pub struct Services {
-    services: AnyCellMap,
-    window_services_init: WindowServicesInit,
-
-    window_services: AnyCellMap,
-}
-
-impl Services {
-    /// Gets a service reference if the service is registered in the application.
-    pub fn try_service<S: Service>(&self) -> Option<RefMut<S>> {
-        let type_id = TypeId::of::<S>();
-
-        if let Some(any) = self
-            .services
-            .get(&type_id)
-            .or_else(|| self.window_services.get(&type_id))
-        {
-            Some(RefMut::map(any.borrow_mut(), |any| any.downcast_mut::<S>().unwrap()))
-        } else {
-            None
-        }
-    }
-
-    /// Gets a service reference.
-    ///
-    /// # Panics
-    /// If  the service is not registered in application.
-    pub fn service<S: Service>(&self) -> RefMut<S> {
-        self.try_service::<S>()
-            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
-    }
-
-    /// Instantiates window services.
-    pub(crate) fn new_window_services(&self, window_id: WindowId) -> AnyCellMap {
-        let ctx = WindowContext { ctx: self, window_id };
-
-        self.window_services_init
-            .iter()
-            .map(|(key, new)| (*key, new(&ctx)))
-            .collect()
-    }
-}
-
-pub struct AppContext<'v, 'vv, 'e, 's, 'u> {
-    pub vars: &'v Vars,
-    pub visited_vars: &'vv mut VisitedVars,
-    pub events: &'e Events,
-    pub services: &'s mut Services,
-    pub updates: &'u mut Updates,
-
-    id: AppContextId,
-    window_id: Option<WindowId>,
-    widget_id: Option<WidgetId>,
-}
-
-impl<'v, 'vv, 'e, 's, 'u> AppContext<'v, 'vv, 'e, 's, 'u> {
-    /// Gets this context instance id. There is usually a single context
-    /// per application but more then one context can happen in tests.
-    pub fn id(&self) -> AppContextId {
-        self.id
-    }
-
-    /// Gets the current window ID. Can be none if we are not in a window.
-    pub fn try_window_id(&self) -> Option<WindowId> {
-        self.window_id
-    }
-
-    /// Gets the current widget ID. Can be none if we are not in a widget.
-    pub fn try_widget_id(&self) -> Option<WidgetId> {
-        self.widget_id
-    }
-
-    /// Gets the current window ID.
-    ///
-    /// # Panics
-    ///
-    /// Panics if we are not in a window.
-    ///
-    /// Code inside an [UiNode] method should assume that this does not panic.
-    pub fn window_id(&self) -> WindowId {
-        self.window_id.expect("not in window")
-    }
-
-    /// Gets the current widget ID.
-    ///
-    /// # Panics
-    ///
-    /// Panics if we are not in a widget.
-    ///
-    /// Code inside an [UiNode] method should assume that this does not panic.
-    pub fn widget_id(&self) -> WidgetId {
-        self.widget_id.expect("not in widget")
-    }
-
-    /// Applies a window update collecting the window specific [UpdateFlags]
-    pub(crate) fn window_update(
-        &mut self,
-        window_id: WindowId,
-        root_id: WidgetId,
-        window_services: &mut AnyCellMap,
-        update: impl FnOnce(&mut AppContext),
-    ) -> UpdateFlags {
-        self.updates.window_update = UpdateFlags::empty();
-
-        self.window_id = Some(window_id);
-        self.widget_id = Some(root_id);
-        std::mem::swap(window_services, &mut self.services.window_services);
-
-        update(self);
-
-        self.window_id = None;
-        self.widget_id = None;
-        std::mem::swap(window_services, &mut self.services.window_services);
-
-        std::mem::replace(&mut self.updates.window_update, UpdateFlags::empty())
-    }
-
-    /// Widget id scope.
-    pub(crate) fn widget_scope(&mut self, id: WidgetId, f: impl FnOnce(&mut AppContext)) {
-        let parent_id = std::mem::replace(&mut self.widget_id, Some(id));
-
-        f(self);
-
-        self.widget_id = parent_id;
-    }
-}
-
-#[derive(Default)]
-pub(crate) struct AppContextOwnership {
-    id: std::cell::Cell<Option<AppContextId>>,
-}
-
-impl AppContextOwnership {
-    pub fn new(context: AppContextId) -> Self {
-        AppContextOwnership {
-            id: std::cell::Cell::new(Some(context)),
-        }
-    }
-
-    pub fn check(&self, id: AppContextId, already_owned_error: impl FnOnce() -> String) {
-        if let Some(ctx_id) = self.id.get() {
-            if ctx_id != id {
-                panic!("{}", already_owned_error())
-            }
-        } else {
-            self.id.set(Some(id));
-        }
-    }
-}
 
 /// An [App] extension.
 pub trait AppExtension: 'static {
     /// Register this extension.
-    fn register(&mut self, r: &mut AppRegister);
+    fn register(&mut self, r: &mut AppContext);
 
     /// Called when the OS sends an event to a device.
-    fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut EventContext) {}
+    fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut AppEventContext) {}
 
     /// Called when the OS sends an event to a window.
-    fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut EventContext) {}
+    fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut AppEventContext) {}
 
     /// Called every update after the Ui update.
-    fn respond(&mut self, _ctx: &mut EventContext) {}
+    fn respond(&mut self, _ctx: &mut AppEventContext) {}
 }
 
 impl AppExtension for Box<dyn AppExtension> {
-    fn register(&mut self, r: &mut AppRegister) {
+    fn register(&mut self, r: &mut AppContext) {
         self.as_mut().register(r);
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut EventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
         self.as_mut().on_device_event(device_id, event, ctx);
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
         self.as_mut().on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self, ctx: &mut EventContext) {
+    fn respond(&mut self, ctx: &mut AppEventContext) {
         self.as_mut().respond(ctx);
     }
 }
 
 impl<E: AppExtension> AppExtension for Vec<E> {
-    fn register(&mut self, r: &mut AppRegister) {
+    fn register(&mut self, r: &mut AppContext) {
         for inner in self.iter_mut() {
             inner.register(r);
         }
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut EventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
         for inner in self.iter_mut() {
             inner.on_device_event(device_id, event, ctx);
         }
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
         for inner in self.iter_mut() {
             inner.on_window_event(window_id, event, ctx);
         }
     }
 
-    fn respond(&mut self, ctx: &mut EventContext) {
+    fn respond(&mut self, ctx: &mut AppEventContext) {
         for inner in self.iter_mut() {
             inner.respond(ctx);
         }
@@ -582,22 +65,22 @@ impl<E: AppExtension> AppExtension for Vec<E> {
 }
 
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    fn register(&mut self, r: &mut AppRegister) {
+    fn register(&mut self, r: &mut AppContext) {
         self.0.register(r);
         self.1.register(r);
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut EventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
         self.0.on_device_event(device_id, event, ctx);
         self.1.on_device_event(device_id, event, ctx);
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut EventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
         self.0.on_window_event(window_id, event, ctx);
         self.1.on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self, ctx: &mut EventContext) {
+    fn respond(&mut self, ctx: &mut AppEventContext) {
         self.0.respond(ctx);
         self.1.respond(ctx);
     }
@@ -645,20 +128,18 @@ impl App {
 
         let mut extensions = (AppWindows::new(event_loop.create_proxy()), self.extensions);
 
-        let mut register = AppRegister::default();
-        extensions.register(&mut register);
+        let mut owned_ctx = OwnedAppContext::new();
+        let mut app_ctx = owned_ctx.borrow();
+
+        extensions.register(&mut app_ctx);
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateFlags::empty();
-        let mut ctx = register.ctx;
 
         event_loop.run(move |event, event_loop, control_flow| {
-            let mut context = EventContext {
-                ctx: &mut ctx,
-                event_loop,
-            };
-
             *control_flow = ControlFlow::Wait;
+            let mut event_update = UpdateFlags::empty();
+
             match event {
                 GEvent::NewEvents(_) => {
                     in_sequence = true;
@@ -668,33 +149,39 @@ impl App {
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
-                    extensions.on_window_event(window_id, &event, &mut context);
+                    event_update = app_ctx.event_context(event_loop, |ctx| {
+                        extensions.on_window_event(window_id, &event, ctx);
+                    });
                 }
                 GEvent::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
                     extensions.0.new_frame_ready(window_id);
                 }
                 GEvent::DeviceEvent { device_id, event } => {
-                    extensions.on_device_event(device_id, &event, &mut context);
+                    event_update = app_ctx.event_context(event_loop, |ctx| {
+                        extensions.on_device_event(device_id, &event, ctx);
+                    });
                 }
                 _ => {}
             }
 
-            let mut event_update = context.ctx.apply_updates();
+            let mut updates = Updates::new(app_ctx.app_id());
 
             if event_update.contains(UpdateFlags::UPD_HP) {
                 event_update.remove(UpdateFlags::UPD_HP);
-                extensions.0.update_hp(context.ctx);
+                extensions.0.update_hp(app_ctx);
             }
             if event_update.contains(UpdateFlags::UPDATE) {
                 event_update.remove(UpdateFlags::UPDATE);
-                extensions.0.update(context.ctx);
+                extensions.0.update(app_ctx);
             }
 
-            let ui_node_update = context.ctx.apply_updates();
+            let ui_update = updates.apply_updates();
 
-            sequence_update |= event_update | ui_node_update;
+            sequence_update |= event_update | ui_update;
 
-            extensions.respond(&mut context);
+            app_ctx.event_context(event_loop, |ctx| {
+                extensions.respond(ctx);
+            });
 
             if !in_sequence {
                 if sequence_update.contains(UpdateFlags::LAYOUT) {

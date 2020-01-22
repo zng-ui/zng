@@ -1,4 +1,5 @@
 use super::*;
+use contexts::WidgetId;
 pub use glutin::window::CursorIcon;
 use webrender::api::*;
 pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LayoutRect, LayoutSideOffsets};

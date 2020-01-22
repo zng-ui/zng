@@ -1,4 +1,5 @@
 mod app;
+pub mod contexts;
 mod events;
 mod font;
 mod frame;
@@ -9,8 +10,8 @@ mod var;
 mod widget;
 mod window;
 
-pub use crate::core::NextFrame;
 pub use app::*;
+pub use contexts::WidgetContext;
 pub use events::*;
 pub use font::*;
 pub use frame::*;
