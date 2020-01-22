@@ -1,6 +1,6 @@
 use super::*;
 use crate::impl_ui_node;
-use contexts::WidgetId;
+use context::WidgetId;
 
 struct Widget<T: UiNode> {
     id: WidgetId,

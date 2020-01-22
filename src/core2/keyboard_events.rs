@@ -1,5 +1,5 @@
 use super::*;
-use contexts::{AppContext, AppInitContext};
+use context::{AppContext, AppInitContext};
 use glutin::event::KeyboardInput;
 pub use glutin::event::{ScanCode, VirtualKeyCode};
 use std::time::Instant;

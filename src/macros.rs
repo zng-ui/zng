@@ -121,14 +121,14 @@ macro_rules! profile_scope {
     };
 }
 
-/// Declares new [StateKey](std::core2::contexts::StateKey) types.
+/// Declares new [StateKey](std::core2::context::StateKey) types.
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty)+) => {$(
         $(#[&outer])*
         $vis struct $ident;
 
-        impl $std::core2::contexts::StateKey for $ident {
+        impl $std::core2::context::StateKey for $ident {
             type Type = $type;
         }
     )+};

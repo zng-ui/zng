@@ -1,5 +1,5 @@
 use super::*;
-use contexts::*;
+use context::*;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};

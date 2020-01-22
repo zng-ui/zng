@@ -1,5 +1,5 @@
 use super::*;
-use contexts::{AppId, AppOwnership, Events};
+use context::{AppId, AppOwnership, Events};
 pub use glutin::event::{ModifiersState, MouseButton};
 use std::any::type_name;
 use std::cell::UnsafeCell;

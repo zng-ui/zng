@@ -1,5 +1,5 @@
 mod app;
-pub mod contexts;
+pub mod context;
 mod events;
 mod font;
 mod frame;
@@ -11,7 +11,7 @@ mod widget;
 mod window;
 
 pub use app::*;
-pub use contexts::WidgetContext;
+pub use context::WidgetContext;
 pub use events::*;
 pub use font::*;
 pub use frame::*;

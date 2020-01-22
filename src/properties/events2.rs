@@ -61,7 +61,7 @@ impl<E: Event> Default for StopPropagation<E> {
     }
 }
 
-impl<E: Event> contexts::StateKey for StopPropagation<E> {
+impl<E: Event> context::StateKey for StopPropagation<E> {
     type Type = ();
 }
 

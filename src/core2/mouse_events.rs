@@ -1,5 +1,5 @@
 use super::*;
-use contexts::{AppContext, AppInitContext};
+use context::{AppContext, AppInitContext};
 pub use glutin::event::ElementState;
 use std::time::{Duration, Instant};
 pub use webrender::api::LayoutPoint;

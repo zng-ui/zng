@@ -1,5 +1,5 @@
 use super::*;
-use contexts::*;
+use context::*;
 use glutin::event::Event as GEvent;
 pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};

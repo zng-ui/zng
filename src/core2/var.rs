@@ -1,4 +1,4 @@
-use super::contexts::{AppId, AppOwnership, ContextVarStageId, Updates, Vars};
+use super::context::{AppId, AppOwnership, ContextVarStageId, Updates, Vars};
 use fnv::FnvHashMap;
 use std::any::type_name;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -906,7 +906,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
             .source
             .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), ctx)?;
 
-        ctx.push_modify_impl(|cleanup| { todo!()});
+        ctx.push_modify_impl(|cleanup| todo!());
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use super::*;
 use app_units::Au;
-use contexts::AppInitContext;
+use context::AppInitContext;
 use fnv::FnvHashMap;
 use font_loader::system_fonts;
 use std::sync::Arc;
