@@ -478,10 +478,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn borrow<'a, 'el>(
-        &'a mut self,
-        event_loop: &'el EventLoopWindowTarget<WebRenderEvent>,
-    ) -> AppContext<'a, 'a, 'a, 'a, 'a, 'el> {
+    pub fn borrow<'a>(&'a mut self, event_loop: &'a EventLoopWindowTarget<WebRenderEvent>) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
@@ -494,27 +491,27 @@ impl OwnedAppContext {
 }
 
 /// App extension initialization context.
-pub struct AppInitContext<'v, 'sa, 'e, 's, 'u> {
+pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
-    pub app_state: &'sa mut StageState,
+    pub app_state: &'a mut StageState,
 
-    pub vars: &'v Vars,
-    pub events: &'e mut Events,
-    pub services: &'s mut Services,
-    pub updates: &'u mut Updates,
+    pub vars: &'a Vars,
+    pub events: &'a mut Events,
+    pub services: &'a mut Services,
+    pub updates: &'a mut Updates,
 }
 
 /// Full application context.
-pub struct AppContext<'v, 'sa, 'e, 's, 'u, 'el> {
+pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
-    pub app_state: &'sa mut StageState,
+    pub app_state: &'a mut StageState,
 
-    pub vars: &'v Vars,
-    pub events: &'e Events,
-    pub services: &'s mut Services,
-    pub updates: &'u mut Updates,
+    pub vars: &'a Vars,
+    pub events: &'a Events,
+    pub services: &'a mut Services,
+    pub updates: &'a mut Updates,
 
-    pub event_loop: &'el EventLoopWindowTarget<WebRenderEvent>,
+    pub event_loop: &'a EventLoopWindowTarget<WebRenderEvent>,
 }
 
 /// Instances of services associated with a window.
@@ -523,7 +520,7 @@ pub type WindowServices = AnyMap;
 /// Custom state associated with a window.
 pub type WindowState = StageState;
 
-impl<'v, 'sa, 'e, 's, 'u, 'el> AppContext<'v, 'sa, 'e, 's, 'u, 'el> {
+impl<'a> AppContext<'a> {
     pub fn app_id(&self) -> AppId {
         self.vars.app_id()
     }
@@ -578,27 +575,27 @@ impl<'v, 'sa, 'e, 's, 'u, 'el> AppContext<'v, 'sa, 'e, 's, 'u, 'el> {
 }
 
 /// A window context.
-pub struct WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> {
+pub struct WindowContext<'a> {
     window_id: WindowId,
-    pub render_api: &'r Arc<RenderApi>,
+    pub render_api: &'a Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'sa mut StageState,
+    pub app_state: &'a mut StageState,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'sw mut StageState,
+    pub window_state: &'a mut StageState,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'sx mut StageState,
+    pub event_state: &'a mut StageState,
 
-    pub vars: &'v Vars,
-    pub events: &'e Events,
-    pub services: &'s mut Services,
+    pub vars: &'a Vars,
+    pub events: &'a Events,
+    pub services: &'a mut Services,
 
-    pub updates: &'u mut Updates,
+    pub updates: &'a mut Updates,
 }
 
-impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> {
+impl<'a> WindowContext<'a> {
     pub fn app_id(&self) -> AppId {
         self.vars.app_id()
     }
@@ -629,27 +626,27 @@ impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's,
 }
 
 /// A widget context.
-pub struct WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
+pub struct WidgetContext<'a> {
     window_id: WindowId,
     widget_id: WidgetId,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'sa mut StageState,
+    pub app_state: &'a mut StageState,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'sw mut StageState,
+    pub window_state: &'a mut StageState,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'sx mut StageState,
+    pub event_state: &'a mut StageState,
 
-    pub vars: &'v Vars,
-    pub events: &'e Events,
-    pub services: &'s mut Services,
+    pub vars: &'a Vars,
+    pub events: &'a Events,
+    pub services: &'a mut Services,
 
-    pub updates: &'u mut Updates,
+    pub updates: &'a mut Updates,
 }
 
-impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
+impl<'a> WidgetContext<'a> {
     pub fn app_id(&self) -> AppId {
         self.vars.app_id()
     }
@@ -663,11 +660,7 @@ impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>
     }
 
     /// Runs a function `f` within the context of a widget.
-    pub fn widget_context(
-        &mut self,
-        widget_id: WidgetId,
-        f: impl FnOnce(&mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>),
-    ) {
+    pub fn widget_context(&mut self, widget_id: WidgetId, f: impl FnOnce(&mut WidgetContext<'a>)) {
         let widget_id = mem::replace(&mut self.widget_id, widget_id);
 
         f(self);

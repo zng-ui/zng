@@ -66,14 +66,14 @@ impl<E: Event> context::StateKey for StopPropagation<E> {
 }
 
 /// Event arguments.
-pub struct OnEventArgs<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A: EventArgs> {
-    ctx: &'c mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>,
+pub struct OnEventArgs<'c, 'a, A: EventArgs> {
+    ctx: &'a mut WidgetContext<'c>,
     args: &'a A,
     stop_propagation: bool,
 }
 
-impl<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A: EventArgs> OnEventArgs<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A> {
-    pub fn new(ctx: &'c mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>, args: &'a A) -> Self {
+impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
+    pub fn new(ctx: &'a mut WidgetContext<'c>, args: &'a A) -> Self {
         OnEventArgs {
             ctx,
             args,
@@ -82,7 +82,7 @@ impl<'c, 'a, 'v, 'sa, 'sw, 'sx, 'e, 's, 'u, A: EventArgs> OnEventArgs<'c, 'a, 'v
     }
 
     /// Widget context.
-    pub fn ctx(&mut self) -> &mut WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
+    pub fn ctx(&mut self) -> &mut WidgetContext<'c> {
         &mut self.ctx
     }
 
