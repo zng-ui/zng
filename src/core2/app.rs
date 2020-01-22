@@ -128,9 +128,9 @@ impl App {
 
         let mut extensions = (AppWindows::new(event_loop.create_proxy()), self.extensions);
 
-        let mut ctx = OwnedAppContext::new();
+        let mut owned_ctx = OwnedAppContext::instance();
 
-        extensions.init(&mut ctx.borrow_init());
+        extensions.init(&mut owned_ctx.borrow_init());
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateFlags::empty();
@@ -138,8 +138,6 @@ impl App {
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
             let mut event_update = UpdateFlags::empty();
-
-            let mut ctx = ctx.borrow(event_loop);
 
             match event {
                 GEvent::NewEvents(_) => {
@@ -150,31 +148,31 @@ impl App {
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
-                    extensions.on_window_event(window_id, &event, &mut ctx);
+                    extensions.on_window_event(window_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
                     extensions.0.new_frame_ready(window_id);
                 }
                 GEvent::DeviceEvent { device_id, event } => {
-                    extensions.on_device_event(device_id, &event, &mut ctx);
+                    extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
                 _ => {}
             }
 
             if event_update.contains(UpdateFlags::UPD_HP) {
                 event_update.remove(UpdateFlags::UPD_HP);
-                extensions.0.update_hp(&mut ctx);
+                extensions.0.update_hp(&mut owned_ctx.borrow(event_loop));
             }
             if event_update.contains(UpdateFlags::UPDATE) {
                 event_update.remove(UpdateFlags::UPDATE);
-                extensions.0.update(&mut ctx);
+                extensions.0.update(&mut owned_ctx.borrow(event_loop));
             }
 
-            let ui_update = ctx.updates.apply_updates();
+            let ui_update = owned_ctx.apply_updates();
 
             sequence_update |= event_update | ui_update;
 
-            extensions.respond(&mut ctx);
+            extensions.respond(&mut owned_ctx.borrow(event_loop));
 
             if !in_sequence {
                 if sequence_update.contains(UpdateFlags::LAYOUT) {

@@ -4,6 +4,7 @@ use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
+use std::sync::atomic::{self, AtomicBool};
 use std::sync::Arc;
 use webrender::api::RenderApi;
 
@@ -27,14 +28,11 @@ enum ContextVarEntry {
     ContextVar(TypeId, *const AnyRef, Option<(bool, u32)>),
 }
 
-type UpdateOnce = Box<dyn FnOnce(&mut Vec<CleanupOnce>)>;
+type UpdateOnce = Box<dyn FnOnce(&mut Vars, &mut Events, &mut Vec<CleanupOnce>)>;
 
 type CleanupOnce = Box<dyn FnOnce()>;
 
 uid! {
-   /// Unique id of an [AppContext] instance.
-   pub struct AppId(_);
-
    /// Unique id of a widget.
    pub struct WidgetId(_);
 }
@@ -50,24 +48,31 @@ bitflags! {
     }
 }
 
-/// [Variables](std::core2::Vars) access and context.
+/// Access to application variables.
+///
+/// Only a single instance of this type exists at a time.
 pub struct Vars {
-    app_id: AppId,
     context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
 }
+
+static VARS_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub type ContextVarStageId = (Option<WidgetId>, u32);
 
 impl Vars {
-    pub fn new(app_id: AppId) -> Self {
+    /// Produces the instance of `Vars`. Only a single
+    /// instance can exist at a time, panics if called
+    /// again before droping the previous instance.
+    pub fn instance() -> Self {
+        if VARS_ALIVE.load(atomic::Ordering::Acquire) {
+            panic!("only a single instance of `Vars` can exist at at time")
+        }
+
+        VARS_ALIVE.store(true, atomic::Ordering::Release);
+
         Vars {
-            app_id,
             context_vars: RefCell::default(),
         }
-    }
-
-    pub fn app_id(&self) -> AppId {
-        self.app_id
     }
 
     /// Unique id of the context var stage.
@@ -191,20 +196,9 @@ impl Vars {
     }
 }
 
-#[derive(Default)]
-pub(crate) struct AppOwnership {
-    id: std::cell::Cell<Option<AppId>>,
-}
-
-impl AppOwnership {
-    pub fn check(&self, id: AppId, already_owned_error: impl FnOnce() -> String) {
-        if let Some(ctx_id) = self.id.get() {
-            if ctx_id != id {
-                panic!("{}", already_owned_error())
-            }
-        } else {
-            self.id.set(Some(id));
-        }
+impl Drop for Vars {
+    fn drop(&mut self) {
+        VARS_ALIVE.store(false, atomic::Ordering::Release);
     }
 }
 
@@ -259,21 +253,28 @@ impl StageState {
 }
 
 /// Access to application events.
+///
+/// Only a single instance of this type exists at a time.
 pub struct Events {
-    app_id: AppId,
     events: AnyMap,
 }
 
+static EVENTS_ALIVE: AtomicBool = AtomicBool::new(false);
+
 impl Events {
-    pub fn new(app_id: AppId) -> Self {
+    /// Produces the instance of `Vars`. Only a single
+    /// instance can exist at a time, panics if called
+    /// again before droping the previous instance.
+    pub fn instance() -> Self {
+        if EVENTS_ALIVE.load(atomic::Ordering::Acquire) {
+            panic!("only a single instance of `Vars` can exist at at time")
+        }
+
+        EVENTS_ALIVE.store(true, atomic::Ordering::Release);
+
         Events {
-            app_id,
             events: Default::default(),
         }
-    }
-
-    pub fn app_id(&self) -> AppId {
-        self.app_id
     }
 
     /// Register a new event for the duration of the application.
@@ -299,6 +300,12 @@ impl Events {
     pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
+    }
+}
+
+impl Drop for Events {
+    fn drop(&mut self) {
+        EVENTS_ALIVE.store(false, atomic::Ordering::Release);
     }
 }
 
@@ -349,8 +356,8 @@ impl Services {
 }
 
 /// Schedule of actions to apply after an Ui update.
+#[derive(Default)]
 pub struct Updates {
-    app_id: AppId,
     update: UpdateFlags,
     window_update: UpdateFlags,
     updates: Vec<UpdateOnce>,
@@ -358,20 +365,6 @@ pub struct Updates {
 }
 
 impl Updates {
-    pub fn new(app_id: AppId) -> Self {
-        Updates {
-            app_id,
-            update: UpdateFlags::empty(),
-            window_update: UpdateFlags::empty(),
-            updates: Vec::default(),
-            cleanup: Vec::default(),
-        }
-    }
-
-    pub fn app_id(&self) -> AppId {
-        self.app_id
-    }
-
     /// Schedules a variable change for the next update.
     pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
         var.push_set(new_value, self)
@@ -386,9 +379,10 @@ impl Updates {
         var.push_modify(modify, self)
     }
 
-    pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vec<CleanupOnce>) + 'static) {
+    pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vars, &mut Vec<CleanupOnce>) + 'static) {
         self.update.insert(UpdateFlags::UPDATE);
-        self.updates.push(Box::new(modify));
+        self.updates
+            .push(Box::new(move |assert, _, cleanup| modify(assert, cleanup)));
     }
 
     /// Schedules an update notification.
@@ -399,16 +393,15 @@ impl Updates {
             UpdateFlags::UPDATE
         });
 
-        let self_id = self.app_id;
         self.updates
-            .push(Box::new(move |cleanup| sender.notify(self_id, args, cleanup)));
+            .push(Box::new(move |_, assert, cleanup| sender.notify(args, assert, cleanup)));
     }
 
     /// Schedules a switch variable index change for the next update.
     pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
         self.update.insert(UpdateFlags::UPDATE);
         self.updates
-            .push(Box::new(move |cleanup| var.modify(new_index, cleanup)));
+            .push(Box::new(move |assert, _, cleanup| var.modify(new_index, cleanup)));
     }
 
     /// Schedules a layout update.
@@ -426,13 +419,23 @@ impl Updates {
     /// Cleanup the previous update and applies the new one.
     ///
     /// Returns what update methods must be pumped.
-    pub(crate) fn apply_updates(&mut self) -> UpdateFlags {
+    ///
+    /// # Assert Borrows
+    ///
+    /// When variable and event values are borrowed the instance of `Vars`/`Events` is
+    /// imutable borrowed, so the requirement of borrowing both mutable here is an assert
+    /// that all variable and event borrows have been dropped.
+    pub fn apply_updates(
+        &mut self,
+        assert_vars_not_borrowed: &mut Vars,
+        assert_events_not_borrowed: &mut Events,
+    ) -> UpdateFlags {
         for cleanup in self.cleanup.drain(..) {
             cleanup();
         }
 
         for update in self.updates.drain(..) {
-            update(&mut self.cleanup);
+            update(assert_vars_not_borrowed, assert_events_not_borrowed, &mut self.cleanup);
         }
 
         //self.visited_vars.clear(); TODO
@@ -441,7 +444,11 @@ impl Updates {
     }
 }
 
-/// Object from witch [AppContext] can be borrowed.
+/// Owner of [AppContext] objects.
+///
+/// Because [Vars] and [Events] can only have one instance
+/// and this `struct` owns both you can only have one instance
+/// of this at a time.
 pub struct OwnedAppContext {
     app_state: StageState,
     vars: Vars,
@@ -450,21 +457,15 @@ pub struct OwnedAppContext {
     updates: Updates,
 }
 
-impl Default for OwnedAppContext {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl OwnedAppContext {
-    pub fn new() -> Self {
-        let app_id = AppId::new_unique();
+    /// Produces the single instance of `AppContext`.
+    pub fn instance() -> Self {
         OwnedAppContext {
             app_state: StageState::default(),
-            vars: Vars::new(app_id),
-            events: Events::new(app_id),
+            vars: Vars::instance(),
+            events: Events::instance(),
             services: Services::default(),
-            updates: Updates::new(app_id),
+            updates: Updates::default(),
         }
     }
 
@@ -487,6 +488,10 @@ impl OwnedAppContext {
             updates: &mut self.updates,
             event_loop,
         }
+    }
+
+    pub fn apply_updates(&mut self) -> UpdateFlags {
+        self.updates.apply_updates(&mut self.vars, &mut self.events)
     }
 }
 
@@ -521,10 +526,6 @@ pub type WindowServices = AnyMap;
 pub type WindowState = StageState;
 
 impl<'a> AppContext<'a> {
-    pub fn app_id(&self) -> AppId {
-        self.vars.app_id()
-    }
-
     /// Initializes state and services for a new iwndow.
     pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
         let mut window_state = StageState::default();
@@ -596,10 +597,6 @@ pub struct WindowContext<'a> {
 }
 
 impl<'a> WindowContext<'a> {
-    pub fn app_id(&self) -> AppId {
-        self.vars.app_id()
-    }
-
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
@@ -647,10 +644,6 @@ pub struct WidgetContext<'a> {
 }
 
 impl<'a> WidgetContext<'a> {
-    pub fn app_id(&self) -> AppId {
-        self.vars.app_id()
-    }
-
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }

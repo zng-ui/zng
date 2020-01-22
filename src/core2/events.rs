@@ -1,7 +1,6 @@
 use super::*;
-use context::{AppId, AppOwnership, Events};
+use context::Events;
 pub use glutin::event::{ModifiersState, MouseButton};
-use std::any::type_name;
 use std::cell::UnsafeCell;
 use std::fmt::Debug;
 use std::rc::Rc;
@@ -21,7 +20,6 @@ pub trait Event: 'static {
 
 struct EventChannelInner<T> {
     data: UnsafeCell<Vec<T>>,
-    context: AppOwnership,
     is_high_pressure: bool,
 }
 
@@ -34,17 +32,14 @@ impl<T: 'static> Clone for EventChannel<T> {
     }
 }
 impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(self, mut_ctx_id: AppId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        self.r.context.check(mut_ctx_id, || {
-            format!(
-                "cannot update `EventChannel<{}>` because it is borrowed in a different context",
-                type_name::<T>()
-            )
-        });
-
-        // SAFETY: This is safe because borrows are bound to a context that
-        // is the only place where the value can be changed and this change is
-        // only applied when the context is mut.
+    pub(crate) fn notify(
+        self,
+        new_update: T,
+        _assert_events_not_borrowed: &mut Events,
+        cleanup: &mut Vec<Box<dyn FnOnce()>>,
+    ) {
+        // SAFETY: This is safe because borrows are bound to the `Events` instance
+        // so if we have a mutable reference to it no event value is borrowed.
         let data = unsafe { &mut *self.r.data.get() };
         data.push(new_update);
 
@@ -57,17 +52,10 @@ impl<T: 'static> EventChannel<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
-        self.r.context.check(ctx.app_id(), || {
-            format!(
-                "cannot read `EventChannel<{}>` because it is borrowed in a different context",
-                type_name::<T>()
-            )
-        });
-
-        // SAFETY: This is safe because borrows are bound to a context that
-        // is the only place where the value can be changed and this change is
-        // only applied when the context is mut.
+    pub fn updates<'a>(&'a self, _events: &'a Events) -> &'a [T] {
+        // SAFETY: This is safe because we are bounding the value lifetime with
+        // the `Events` lifetime and we require a mutable reference to `Events` to
+        // modify the value.
         unsafe { &*self.r.data.get() }.as_ref()
     }
 
@@ -90,8 +78,8 @@ impl<T: 'static> Clone for EventListener<T> {
 }
 impl<T: 'static> EventListener<T> {
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
-        self.chan.updates(ctx)
+    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
+        self.chan.updates(events)
     }
 
     /// Gets if this update is notified using the [UiNode::update_hp] method.
@@ -128,7 +116,6 @@ impl<T: 'static> EventEmitter<T> {
             chan: EventChannel {
                 r: Rc::new(EventChannelInner {
                     data: UnsafeCell::default(),
-                    context: AppOwnership::default(),
                     is_high_pressure,
                 }),
             },
@@ -136,8 +123,8 @@ impl<T: 'static> EventEmitter<T> {
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, ctx: &'a Events) -> &'a [T] {
-        self.chan.updates(ctx)
+    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
+        self.chan.updates(events)
     }
 
     /// Gets if this event is notified using the [UiNode::update_hp] method.
@@ -152,7 +139,12 @@ impl<T: 'static> EventEmitter<T> {
         }
     }
 
-    pub(crate) fn notify(self, mut_ctx_id: AppId, new_update: T, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        self.chan.notify(mut_ctx_id, new_update, cleanup);
+    pub(crate) fn notify(
+        self,
+        new_update: T,
+        assert_events_not_borrowed: &mut Events,
+        cleanup: &mut Vec<Box<dyn FnOnce()>>,
+    ) {
+        self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
     }
 }
