@@ -1,5 +1,5 @@
 use super::*;
-use contexts::{AppContext, AppEventContext};
+use contexts::{AppContext, AppInitContext};
 pub use glutin::event::ElementState;
 use std::time::{Duration, Instant};
 pub use webrender::api::LayoutPoint;
@@ -82,7 +82,7 @@ impl Default for MouseEvents {
 }
 
 impl AppExtension for MouseEvents {
-    fn register(&mut self, r: &mut AppContext) {
+    fn init(&mut self, r: &mut AppInitContext) {
         r.events.register::<MouseMove>(self.mouse_move.listener());
 
         r.events.register::<MouseInput>(self.mouse_input.listener());
@@ -91,7 +91,7 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseClick>(self.mouse_click.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match *event {
             WindowEvent::MouseInput {
                 state,

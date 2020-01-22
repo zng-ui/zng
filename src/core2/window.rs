@@ -11,7 +11,7 @@ use std::borrow::Cow;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::time::Instant;
-use webrender::api::{DocumentId, RenderNotifier};
+use webrender::api::*;
 
 pub use webrender::api::ColorF;
 
@@ -167,12 +167,12 @@ impl AppWindows {
 }
 
 impl AppExtension for AppWindows {
-    fn register(&mut self, r: &mut AppContext) {
+    fn init(&mut self, r: &mut AppInitContext) {
         r.services.register(Windows::new());
         r.events.register::<WindowOpen>(self.window_open.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut AppContext) {
         match event {
             WindowEvent::RedrawRequested => {
                 if let Some(window) = self.window_mut(window_id) {
@@ -187,13 +187,13 @@ impl AppExtension for AppWindows {
         }
     }
 
-    fn respond(&mut self, r: &mut AppEventContext) {
+    fn respond(&mut self, r: &mut AppContext) {
         let requests = r.services.require::<Windows>().take_requests();
         for request in requests {
             let w = GlWindow::new(
                 request.new,
                 r,
-                r.event_loop(),
+                r.event_loop,
                 self.event_loop_proxy.clone(),
                 Arc::clone(&self.ui_threads),
             );
@@ -270,7 +270,9 @@ impl RenderNotifier for Notifier {
 struct GlWindow {
     context: Option<WindowedContext<NotCurrent>>,
     renderer: webrender::Renderer,
-    services: AnyMap,
+    api: Arc<RenderApi>,
+    state: WindowState,
+    services: WindowServices,
 
     root: UiRoot,
     update: UpdateFlags,
@@ -279,8 +281,8 @@ struct GlWindow {
 
 impl GlWindow {
     pub fn new(
-        new_window: impl FnOnce(&AppContext) -> UiRoot,
-        ctx: &AppContext,
+        new_window: Box<dyn FnOnce(&AppContext) -> UiRoot>,
+        ctx: &mut AppContext,
         event_loop: &EventLoopWindowTarget<WebRenderEvent>,
         event_loop_proxy: EventLoopProxy<WebRenderEvent>,
         ui_threads: Arc<ThreadPool>,
@@ -325,35 +327,60 @@ impl GlWindow {
             event_loop: event_loop_proxy,
         });
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None).unwrap();
-        let api = sender.create_api();
+        let api = Arc::new(sender.create_api());
 
         let id = context.window().id();
-        let services = ctx.new_window_services(id);
+        let (state, services) = ctx.new_window(id, &api);
 
-        let mut r = GlWindow {
+        GlWindow {
             context: Some(unsafe { context.make_not_current().unwrap() }),
             renderer,
+            state,
             services,
+            api,
 
             root,
             update: UpdateFlags::LAYOUT | UpdateFlags::RENDER,
             first_draw: true,
-        };
-
-        r.layout();
-        r.render();
-
-        r
+        }
     }
 
     pub fn id(&self) -> WindowId {
         self.context.as_ref().unwrap().window().id()
     }
 
-    pub fn update_hp(&mut self, ctx: &mut AppContext) {
+    pub fn init(&mut self, ctx: &mut AppContext) {
         let id = self.id();
         let root = &mut self.root;
-        let update = ctx.window_update(id, root.id, &mut self.services, |ctx| root.child.update_hp(ctx));
+
+        let update = ctx.window_context(id, &mut self.state, &mut self.services, &self.api, |ctx| {
+            ctx.updates.push_layout();
+            ctx.updates.push_frame();
+
+            ctx.widget_context(root.id, |ctx| {
+                root.child.init(ctx);
+            });
+        });
+        self.update |= update;
+    }
+
+    fn root_context(
+        &mut self,
+        ctx: &mut AppContext,
+        f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext),
+    ) -> UpdateFlags {
+        let id = self.id();
+        let root = &mut self.root;
+
+        ctx.window_context(id, &mut self.state, &mut self.services, &self.api, |ctx| {
+            ctx.widget_context(root.id, |ctx| {
+                f(&mut root.child, ctx);
+            });
+        })
+    }
+
+    pub fn update_hp(&mut self, ctx: &mut AppContext) {
+        let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
         self.update |= update;
     }
 
@@ -365,10 +392,7 @@ impl GlWindow {
         }
 
         // do UiNode updates
-
-        let id = self.id();
-        let root = &mut self.root;
-        let update = ctx.window_update(id, root.id, &mut self.services, |ctx| root.child.update(ctx));
+        let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
         self.update |= update;
     }
 
@@ -433,9 +457,9 @@ impl GlWindow {
         self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
 
-    pub fn hit_test(&self, point: LayoutPoint) {}
+    pub(crate) fn deinit(mut self, ctx: &mut AppContext) {
+        self.root_context(ctx, |root, ctx| root.deinit(ctx));
 
-    pub(crate) fn deinit(mut self) {
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
         self.renderer.deinit();
         unsafe { context.make_not_current().unwrap() };

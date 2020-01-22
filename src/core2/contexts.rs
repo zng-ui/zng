@@ -7,7 +7,7 @@ use std::mem;
 use std::sync::Arc;
 use webrender::api::RenderApi;
 
-pub(crate) type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
+type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 
 type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> Box<dyn Any>>)>;
 
@@ -42,7 +42,7 @@ uid! {
 bitflags! {
     /// What to pump in a Ui tree after an update is applied.
     #[derive(Default)]
-    pub(crate) struct UpdateFlags: u8 {
+    pub struct UpdateFlags: u8 {
         const UPDATE = 0b0000_0001;
         const UPD_HP = 0b0000_0010;
         const LAYOUT = 0b0000_0100;
@@ -245,7 +245,7 @@ impl StageState {
         }
     }
 
-    pub fn get_mut<S: StateKey>(&self, _key: S) -> Option<&S::Type> {
+    pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&S::Type> {
         if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
             Some(any.downcast_mut::<S::Type>().unwrap())
         } else {
@@ -254,12 +254,12 @@ impl StageState {
     }
 
     /// Sets a state key without value.
-    pub fn flag<S: StateKey<Type=()>>(&mut self, key: S) -> bool {
+    pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
         self.set(key, ()).is_some()
     }
 
     /// Gets if a state key without value is set.
-    pub fn flagged<S: StateKey<Type=()>>(&self, _key: S) -> bool {
+    pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
 }
@@ -335,7 +335,9 @@ impl Services {
     pub fn get<S: Service>(&mut self) -> Option<&mut S> {
         let type_id = TypeId::of::<S>();
 
-        if let Some(any) = self.app.get(&type_id).or_else(|| self.window.get(&type_id)) {
+        if let Some(any) = self.app.get_mut(&type_id) {
+            Some(any.downcast_mut::<S>().unwrap())
+        } else if let Some(any) = self.window.get_mut(&type_id) {
             Some(any.downcast_mut::<S>().unwrap())
         } else {
             None
@@ -447,92 +449,122 @@ impl Updates {
 
 /// Object from witch [AppContext] can be borrowed.
 pub struct OwnedAppContext {
-    app_id: AppId,
     app_state: StageState,
     vars: Vars,
     events: Events,
     services: Services,
+    updates: Updates,
+}
+
+impl Default for OwnedAppContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OwnedAppContext {
     pub fn new() -> Self {
         let app_id = AppId::new_unique();
         OwnedAppContext {
-            app_id,
             app_state: StageState::default(),
             vars: Vars::new(app_id),
             events: Events::new(app_id),
             services: Services::default(),
+            updates: Updates::new(app_id),
         }
     }
 
-    pub fn borrow(&mut self) -> AppContext {
-        AppContext {
-            app_id: self.app_id,
+    pub fn borrow_init(&mut self) -> AppInitContext {
+        AppInitContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
+            updates: &mut self.updates,
+        }
+    }
+
+    pub fn borrow<'a, 'el>(
+        &'a mut self,
+        event_loop: &'el EventLoopWindowTarget<WebRenderEvent>,
+    ) -> AppContext<'a, 'a, 'a, 'a, 'a, 'el> {
+        AppContext {
+            app_state: &mut self.app_state,
+            vars: &self.vars,
+            events: &self.events,
+            services: &mut self.services,
+            updates: &mut self.updates,
+            event_loop,
         }
     }
 }
 
-/// Full application context.
-pub struct AppContext<'v, 'sa, 'e, 's> {
-    app_id: AppId,
-
+/// App extension initialization context.
+pub struct AppInitContext<'v, 'sa, 'e, 's, 'u> {
     /// State that lives for the duration of the application.
     pub app_state: &'sa mut StageState,
 
     pub vars: &'v Vars,
     pub events: &'e mut Events,
     pub services: &'s mut Services,
+    pub updates: &'u mut Updates,
 }
 
-impl<'v, 'sa, 'e, 's> AppContext<'v, 'sa, 'e, 's> {
+/// Full application context.
+pub struct AppContext<'v, 'sa, 'e, 's, 'u, 'el> {
+    /// State that lives for the duration of the application.
+    pub app_state: &'sa mut StageState,
+
+    pub vars: &'v Vars,
+    pub events: &'e Events,
+    pub services: &'s mut Services,
+    pub updates: &'u mut Updates,
+
+    pub event_loop: &'el EventLoopWindowTarget<WebRenderEvent>,
+}
+
+/// Instances of services associated with a window.
+pub type WindowServices = AnyMap;
+
+/// Custom state associated with a window.
+pub type WindowState = StageState;
+
+impl<'v, 'sa, 'e, 's, 'u, 'el> AppContext<'v, 'sa, 'e, 's, 'u, 'el> {
     pub fn app_id(&self) -> AppId {
-        self.app_id
+        self.vars.app_id()
     }
 
-    /// Runs a function `f` within the context of an application extension event handler.
-    pub fn event_context(
-        &mut self,
-        event_loop: &EventLoopWindowTarget<WebRenderEvent>,
-        f: impl FnOnce(&mut AppEventContext),
-    ) -> UpdateFlags {
-        let mut updates = Updates::new(self.app_id);
+    /// Initializes state and services for a new iwndow.
+    pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
+        let mut window_state = StageState::default();
+        let mut window_services = FnvHashMap::default();
 
-        let mut ctx = AppEventContext {
-            app_id: self.app_id,
-            app_state: self.app_state,
-            vars: self.vars,
-            events: self.events,
-            services: self.services,
-            updates: &mut updates,
-            event_loop,
-        };
+        let window_init = mem::replace(&mut self.services.window_init, Vec::default());
+        for (key, new) in window_init.iter() {
+            self.window_context(window_id, &mut window_state, &mut window_services, render_api, |ctx| {
+                let service = new(ctx);
+                ctx.services.window.insert(*key, service);
+            });
+        }
+        self.services.window_init = window_init;
 
-        f(&mut ctx);
-
-        updates.apply_updates()
+        (window_state, window_services)
     }
 
     /// Runs a function `f` within the context of a window.
     pub fn window_context(
         &mut self,
         window_id: WindowId,
-        window_state: &mut StageState,
+        window_state: &mut WindowState,
         window_services: &mut AnyMap,
-        render_api: Arc<RenderApi>,
-        updates: &mut Updates,
+        render_api: &Arc<RenderApi>,
         f: impl FnOnce(&mut WindowContext),
     ) -> UpdateFlags {
-        updates.window_update = UpdateFlags::empty();
+        self.updates.window_update = UpdateFlags::empty();
         std::mem::swap(&mut self.services.window, window_services);
 
         let mut event_state = StageState::default();
         let mut ctx = WindowContext {
-            app_id: self.app_id,
             window_id,
             render_api,
             app_state: self.app_state,
@@ -541,43 +573,20 @@ impl<'v, 'sa, 'e, 's> AppContext<'v, 'sa, 'e, 's> {
             vars: self.vars,
             events: self.events,
             services: self.services,
-            updates,
+            updates: self.updates,
         };
 
         f(&mut ctx);
 
         std::mem::swap(window_services, &mut self.services.window);
-        std::mem::replace(&mut updates.window_update, UpdateFlags::empty())
-    }
-}
-
-/// An application extension event context.
-pub struct AppEventContext<'v, 'sa, 'e, 's, 'u, 'el> {
-    app_id: AppId,
-
-    /// State that lives for the duration of the application.
-    pub app_state: &'sa mut StageState,
-
-    pub vars: &'v Vars,
-    pub events: &'e mut Events,
-    pub services: &'s mut Services,
-
-    pub updates: &'u mut Updates,
-
-    pub event_loop: &'el EventLoopWindowTarget<WebRenderEvent>,
-}
-
-impl<'v, 'sa, 'e, 's, 'u, 'el> AppEventContext<'v, 'sa, 'e, 's, 'u, 'el> {
-    pub fn app_id(&self) -> AppId {
-        self.app_id
+        std::mem::replace(&mut self.updates.window_update, UpdateFlags::empty())
     }
 }
 
 /// A window context.
-pub struct WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
-    app_id: AppId,
+pub struct WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> {
     window_id: WindowId,
-    render_api: Arc<RenderApi>,
+    pub render_api: &'r Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
     pub app_state: &'sa mut StageState,
@@ -586,41 +595,27 @@ pub struct WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
     pub window_state: &'sw mut StageState,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'sx StageState,
+    pub event_state: &'sx mut StageState,
 
     pub vars: &'v Vars,
-    pub events: &'e mut Events,
+    pub events: &'e Events,
     pub services: &'s mut Services,
 
     pub updates: &'u mut Updates,
 }
 
-impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
+impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u, 'r> {
     pub fn app_id(&self) -> AppId {
-        self.app_id
+        self.vars.app_id()
     }
 
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
-    pub fn render_api(&self) -> &Arc<RenderApi> {
-        &self.render_api
-    }
-
-    /// Instantiates window services.
-    pub(crate) fn new_window_services(&self) -> AnyMap {
-        self.services
-            .window_init
-            .iter()
-            .map(|(key, new)| (*key, new(self)))
-            .collect()
-    }
-
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, f: impl FnOnce(&mut WidgetContext)) {
         let mut ctx = WidgetContext {
-            app_id: self.app_id,
             window_id: self.window_id,
             widget_id,
 
@@ -641,7 +636,6 @@ impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> WindowContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u>
 
 /// A widget context.
 pub struct WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
-    app_id: AppId,
     window_id: WindowId,
     widget_id: WidgetId,
 
@@ -652,10 +646,10 @@ pub struct WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
     pub window_state: &'sw mut StageState,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'sx StageState,
+    pub event_state: &'sx mut StageState,
 
     pub vars: &'v Vars,
-    pub events: &'e mut Events,
+    pub events: &'e Events,
     pub services: &'s mut Services,
 
     pub updates: &'u mut Updates,
@@ -663,7 +657,7 @@ pub struct WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
 
 impl<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> WidgetContext<'v, 'sa, 'sw, 'sx, 'e, 's, 'u> {
     pub fn app_id(&self) -> AppId {
-        self.app_id
+        self.vars.app_id()
     }
 
     pub fn window_id(&self) -> WindowId {

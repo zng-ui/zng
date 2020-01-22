@@ -1,6 +1,6 @@
 use super::*;
 use app_units::Au;
-use contexts::AppContext;
+use contexts::AppInitContext;
 use fnv::FnvHashMap;
 use font_loader::system_fonts;
 use std::sync::Arc;
@@ -10,9 +10,9 @@ use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 pub struct FontCache;
 
 impl AppExtension for FontCache {
-    fn register(&mut self, r: &mut AppContext) {
+    fn init(&mut self, r: &mut AppInitContext) {
         r.services.register_wnd(|ctx| Fonts {
-            api: Arc::clone(ctx.render_api()),
+            api: Arc::clone(ctx.render_api),
             fonts: FnvHashMap::default(),
         })
     }

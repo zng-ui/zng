@@ -8,56 +8,56 @@ pub use glutin::window::WindowId;
 /// An [App] extension.
 pub trait AppExtension: 'static {
     /// Register this extension.
-    fn register(&mut self, r: &mut AppContext);
+    fn init(&mut self, r: &mut AppInitContext);
 
     /// Called when the OS sends an event to a device.
-    fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut AppEventContext) {}
+    fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut AppContext) {}
 
     /// Called when the OS sends an event to a window.
-    fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut AppEventContext) {}
+    fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut AppContext) {}
 
     /// Called every update after the Ui update.
-    fn respond(&mut self, _ctx: &mut AppEventContext) {}
+    fn respond(&mut self, _ctx: &mut AppContext) {}
 }
 
 impl AppExtension for Box<dyn AppExtension> {
-    fn register(&mut self, r: &mut AppContext) {
-        self.as_mut().register(r);
+    fn init(&mut self, r: &mut AppInitContext) {
+        self.as_mut().init(r);
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
         self.as_mut().on_device_event(device_id, event, ctx);
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         self.as_mut().on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self, ctx: &mut AppEventContext) {
+    fn respond(&mut self, ctx: &mut AppContext) {
         self.as_mut().respond(ctx);
     }
 }
 
 impl<E: AppExtension> AppExtension for Vec<E> {
-    fn register(&mut self, r: &mut AppContext) {
+    fn init(&mut self, r: &mut AppInitContext) {
         for inner in self.iter_mut() {
-            inner.register(r);
+            inner.init(r);
         }
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
         for inner in self.iter_mut() {
             inner.on_device_event(device_id, event, ctx);
         }
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         for inner in self.iter_mut() {
             inner.on_window_event(window_id, event, ctx);
         }
     }
 
-    fn respond(&mut self, ctx: &mut AppEventContext) {
+    fn respond(&mut self, ctx: &mut AppContext) {
         for inner in self.iter_mut() {
             inner.respond(ctx);
         }
@@ -65,22 +65,22 @@ impl<E: AppExtension> AppExtension for Vec<E> {
 }
 
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    fn register(&mut self, r: &mut AppContext) {
-        self.0.register(r);
-        self.1.register(r);
+    fn init(&mut self, r: &mut AppInitContext) {
+        self.0.init(r);
+        self.1.init(r);
     }
 
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppEventContext) {
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
         self.0.on_device_event(device_id, event, ctx);
         self.1.on_device_event(device_id, event, ctx);
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         self.0.on_window_event(window_id, event, ctx);
         self.1.on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self, ctx: &mut AppEventContext) {
+    fn respond(&mut self, ctx: &mut AppContext) {
         self.0.respond(ctx);
         self.1.respond(ctx);
     }
@@ -95,7 +95,7 @@ pub struct App {
 }
 
 #[derive(Debug)]
-pub(crate) enum WebRenderEvent {
+pub enum WebRenderEvent {
     NewFrameReady(WindowId),
 }
 
@@ -128,10 +128,9 @@ impl App {
 
         let mut extensions = (AppWindows::new(event_loop.create_proxy()), self.extensions);
 
-        let mut owned_ctx = OwnedAppContext::new();
-        let mut app_ctx = owned_ctx.borrow();
+        let mut ctx = OwnedAppContext::new();
 
-        extensions.register(&mut app_ctx);
+        extensions.init(&mut ctx.borrow_init());
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateFlags::empty();
@@ -139,6 +138,8 @@ impl App {
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
             let mut event_update = UpdateFlags::empty();
+
+            let mut ctx = ctx.borrow(event_loop);
 
             match event {
                 GEvent::NewEvents(_) => {
@@ -149,39 +150,31 @@ impl App {
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
-                    event_update = app_ctx.event_context(event_loop, |ctx| {
-                        extensions.on_window_event(window_id, &event, ctx);
-                    });
+                    extensions.on_window_event(window_id, &event, &mut ctx);
                 }
                 GEvent::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
                     extensions.0.new_frame_ready(window_id);
                 }
                 GEvent::DeviceEvent { device_id, event } => {
-                    event_update = app_ctx.event_context(event_loop, |ctx| {
-                        extensions.on_device_event(device_id, &event, ctx);
-                    });
+                    extensions.on_device_event(device_id, &event, &mut ctx);
                 }
                 _ => {}
             }
 
-            let mut updates = Updates::new(app_ctx.app_id());
-
             if event_update.contains(UpdateFlags::UPD_HP) {
                 event_update.remove(UpdateFlags::UPD_HP);
-                extensions.0.update_hp(app_ctx);
+                extensions.0.update_hp(&mut ctx);
             }
             if event_update.contains(UpdateFlags::UPDATE) {
                 event_update.remove(UpdateFlags::UPDATE);
-                extensions.0.update(app_ctx);
+                extensions.0.update(&mut ctx);
             }
 
-            let ui_update = updates.apply_updates();
+            let ui_update = ctx.updates.apply_updates();
 
             sequence_update |= event_update | ui_update;
 
-            app_ctx.event_context(event_loop, |ctx| {
-                extensions.respond(ctx);
-            });
+            extensions.respond(&mut ctx);
 
             if !in_sequence {
                 if sequence_update.contains(UpdateFlags::LAYOUT) {

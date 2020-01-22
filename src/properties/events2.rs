@@ -56,7 +56,7 @@ pub struct StopPropagation<E: Event> {
 impl<E: Event> Default for StopPropagation<E> {
     fn default() -> Self {
         StopPropagation {
-            _e: std::marker::PhantomData
+            _e: std::marker::PhantomData,
         }
     }
 }

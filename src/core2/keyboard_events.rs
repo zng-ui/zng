@@ -1,5 +1,5 @@
 use super::*;
-use contexts::{AppContext, AppEventContext};
+use contexts::{AppContext, AppInitContext};
 use glutin::event::KeyboardInput;
 pub use glutin::event::{ScanCode, VirtualKeyCode};
 use std::time::Instant;
@@ -45,13 +45,13 @@ impl Default for KeyboardEvents {
 }
 
 impl AppExtension for KeyboardEvents {
-    fn register(&mut self, r: &mut AppContext) {
+    fn init(&mut self, r: &mut AppInitContext) {
         r.events.register::<KeyInput>(self.key_input.listener());
         r.events.register::<KeyDown>(self.key_down.listener());
         r.events.register::<KeyUp>(self.key_up.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppEventContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         if let WindowEvent::KeyboardInput {
             device_id,
             input:
