@@ -90,8 +90,8 @@ impl Event for WindowClosing {
 }
 
 /// Windows management [AppExtension].
-pub(crate) struct AppWindows {
-    event_loop_proxy: EventLoopProxy<WebRenderEvent>,
+pub struct AppWindows {
+    event_loop_proxy: Option<EventLoopProxy<WebRenderEvent>>,
     ui_threads: Arc<ThreadPool>,
     windows: Vec<GlWindow>,
     window_open: EventEmitter<WindowArgs>,
@@ -99,8 +99,8 @@ pub(crate) struct AppWindows {
     window_close: EventEmitter<WindowArgs>,
 }
 
-impl AppWindows {
-    pub fn new(event_loop_proxy: EventLoopProxy<WebRenderEvent>) -> Self {
+impl Default for AppWindows {
+    fn default() -> Self {
         let ui_threads = Arc::new(
             ThreadPoolBuilder::new()
                 .thread_name(|idx| format!("UI#{}", idx))
@@ -113,7 +113,7 @@ impl AppWindows {
         );
 
         AppWindows {
-            event_loop_proxy,
+            event_loop_proxy: None,
             ui_threads,
             windows: Vec::with_capacity(1),
             window_open: EventEmitter::new(false),
@@ -121,41 +121,9 @@ impl AppWindows {
             window_close: EventEmitter::new(false),
         }
     }
+}
 
-    pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        for window in self.windows.iter_mut() {
-            window.update_hp(ctx);
-        }
-    }
-
-    pub fn update(&mut self, ctx: &mut AppContext) {
-        for window in self.windows.iter_mut() {
-            window.update(ctx);
-        }
-    }
-
-    pub fn layout(&mut self) {
-        for window in self.windows.iter_mut() {
-            window.layout();
-        }
-    }
-
-    pub fn render(&mut self) {
-        for window in self.windows.iter_mut() {
-            window.render();
-        }
-    }
-
-    pub fn new_frame_ready(&mut self, window_id: WindowId) {
-        // TODO do we need a hash_map?
-        for window in self.windows.iter_mut() {
-            if window.id() == window_id {
-                window.request_redraw();
-                break;
-            }
-        }
-    }
-
+impl AppWindows {
     fn window_mut(&mut self, window_id: WindowId) -> Option<&mut GlWindow> {
         for window in self.windows.iter_mut() {
             if window.id() == window_id {
@@ -168,6 +136,7 @@ impl AppWindows {
 
 impl AppExtension for AppWindows {
     fn init(&mut self, r: &mut AppInitContext) {
+        self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new());
         r.events.register::<WindowOpen>(self.window_open.listener());
     }
@@ -187,14 +156,21 @@ impl AppExtension for AppWindows {
         }
     }
 
-    fn respond(&mut self, r: &mut AppContext) {
-        let requests = r.services.require::<Windows>().take_requests();
+    fn on_new_frame_ready(&mut self, window_id: WindowId, _: &mut AppContext) {
+        if let Some(window) = self.window_mut(window_id) {
+            window.request_redraw();
+        }
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        // respond to service requests
+        let requests = ctx.services.require::<Windows>().take_requests();
         for request in requests {
             let w = GlWindow::new(
                 request.new,
-                r,
-                r.event_loop,
-                self.event_loop_proxy.clone(),
+                ctx,
+                ctx.event_loop,
+                self.event_loop_proxy.as_ref().unwrap().clone(),
                 Arc::clone(&self.ui_threads),
             );
 
@@ -203,8 +179,27 @@ impl AppExtension for AppWindows {
                 window_id: w.id(),
             };
 
-            r.updates.push_notify(request.notifier, args.clone());
-            r.updates.push_notify(self.window_open.clone(), args.clone());
+            ctx.updates.push_notify(request.notifier, args.clone());
+            ctx.updates.push_notify(self.window_open.clone(), args.clone());
+        }
+
+        // notify updates
+        if update.update_hp {
+            for window in self.windows.iter_mut() {
+                window.update_hp(ctx);
+            }
+        }
+        if update.update {
+            for window in self.windows.iter_mut() {
+                window.update(ctx);
+            }
+        }
+    }
+
+    fn update_display(&mut self, _: DisplayUpdate) {
+        for window in self.windows.iter_mut() {
+            window.layout();
+            window.render();
         }
     }
 }
@@ -275,7 +270,7 @@ struct GlWindow {
     services: WindowServices,
 
     root: UiRoot,
-    update: UpdateFlags,
+    update: DisplayUpdate,
     first_draw: bool,
 }
 
@@ -340,7 +335,7 @@ impl GlWindow {
             api,
 
             root,
-            update: UpdateFlags::LAYOUT | UpdateFlags::RENDER,
+            update: DisplayUpdate::Layout,
             first_draw: true,
         }
     }
@@ -368,7 +363,7 @@ impl GlWindow {
         &mut self,
         ctx: &mut AppContext,
         f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext),
-    ) -> UpdateFlags {
+    ) -> DisplayUpdate {
         let id = self.id();
         let root = &mut self.root;
 
@@ -397,8 +392,8 @@ impl GlWindow {
     }
 
     pub fn layout(&mut self) {
-        if self.update.contains(UpdateFlags::LAYOUT) {
-            self.update.remove(UpdateFlags::LAYOUT);
+        if self.update == DisplayUpdate::Layout {
+            self.update = DisplayUpdate::Render;
 
             let available_size = self.context.as_ref().unwrap().window().inner_size();
             let available_size = LayoutSize::new(available_size.width as f32, available_size.height as f32);
@@ -412,8 +407,8 @@ impl GlWindow {
     }
 
     pub fn render(&mut self) {
-        if self.update.contains(UpdateFlags::RENDER) {
-            self.update.remove(UpdateFlags::RENDER);
+        if self.update == DisplayUpdate::Render {
+            self.update = DisplayUpdate::None;
 
             let mut frame = FrameBuilder::new(self.root.id);
             self.root.child.render(&mut frame);

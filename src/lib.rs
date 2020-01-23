@@ -12,8 +12,6 @@
 
 #[macro_use]
 extern crate derive_new;
-#[macro_use]
-extern crate bitflags;
 
 extern crate self as zero_ui;
 

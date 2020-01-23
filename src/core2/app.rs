@@ -7,8 +7,8 @@ pub use glutin::window::WindowId;
 
 /// An [App] extension.
 pub trait AppExtension: 'static {
-    /// Register this extension.
-    fn init(&mut self, r: &mut AppInitContext);
+    /// Initializes this extension.
+    fn init(&mut self, _ctx: &mut AppInitContext) {}
 
     /// Called when the OS sends an event to a device.
     fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut AppContext) {}
@@ -16,58 +16,22 @@ pub trait AppExtension: 'static {
     /// Called when the OS sends an event to a window.
     fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut AppContext) {}
 
+    /// Called when a new frame is ready to be presented.
+    fn on_new_frame_ready(&mut self, _window_id: WindowId, _ctx: &mut AppContext) {}
+
     /// Called every update after the Ui update.
-    fn respond(&mut self, _ctx: &mut AppContext) {}
+    fn update(&mut self, _update: UpdateRequest, _ctx: &mut AppContext) {}
+
+    /// Called after every sequence of updates if display update was requested.
+    fn update_display(&mut self, _update: DisplayUpdate) {}
 }
 
-impl AppExtension for Box<dyn AppExtension> {
-    fn init(&mut self, r: &mut AppInitContext) {
-        self.as_mut().init(r);
-    }
-
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
-        self.as_mut().on_device_event(device_id, event, ctx);
-    }
-
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
-        self.as_mut().on_window_event(window_id, event, ctx);
-    }
-
-    fn respond(&mut self, ctx: &mut AppContext) {
-        self.as_mut().respond(ctx);
-    }
-}
-
-impl<E: AppExtension> AppExtension for Vec<E> {
-    fn init(&mut self, r: &mut AppInitContext) {
-        for inner in self.iter_mut() {
-            inner.init(r);
-        }
-    }
-
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
-        for inner in self.iter_mut() {
-            inner.on_device_event(device_id, event, ctx);
-        }
-    }
-
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
-        for inner in self.iter_mut() {
-            inner.on_window_event(window_id, event, ctx);
-        }
-    }
-
-    fn respond(&mut self, ctx: &mut AppContext) {
-        for inner in self.iter_mut() {
-            inner.respond(ctx);
-        }
-    }
-}
+impl AppExtension for () {}
 
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    fn init(&mut self, r: &mut AppInitContext) {
-        self.0.init(r);
-        self.1.init(r);
+    fn init(&mut self, ctx: &mut AppInitContext) {
+        self.0.init(ctx);
+        self.1.init(ctx);
     }
 
     fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
@@ -80,9 +44,19 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.on_window_event(window_id, event, ctx);
     }
 
-    fn respond(&mut self, ctx: &mut AppContext) {
-        self.0.respond(ctx);
-        self.1.respond(ctx);
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.0.on_new_frame_ready(window_id, ctx);
+        self.1.on_new_frame_ready(window_id, ctx);
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        self.0.update(update, ctx);
+        self.1.update(update, ctx);
+    }
+
+    fn update_display(&mut self, update: DisplayUpdate) {
+        self.0.update_display(update);
+        self.1.update_display(update);
     }
 }
 
@@ -90,54 +64,50 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
 pub trait Service: 'static {}
 
 /// Defines and runs an application.
-pub struct App {
-    extensions: Vec<Box<dyn AppExtension>>,
-}
-
-#[derive(Debug)]
-pub enum WebRenderEvent {
-    NewFrameReady(WindowId),
-}
+pub struct App;
 
 impl App {
     /// Application without any extension.
-    pub fn empty() -> App {
-        App {
-            extensions: Vec::default(),
-        }
+    pub fn empty() -> ExtendedApp<()> {
+        ExtendedApp { extensions: () }
     }
 
     /// Application with default extensions.
-    pub fn default() -> App {
+    pub fn default() -> ExtendedApp<impl AppExtension> {
         App::empty()
             .extend(MouseEvents::default())
             .extend(KeyboardEvents::default())
             .extend(FontCache::default())
+            .extend(AppWindows::default())
     }
+}
 
-    /// Includes an [AppExtension] in the application.
-    pub fn extend<F: AppExtension>(self, extension: F) -> App {
-        let mut extensions = self.extensions;
-        extensions.push(Box::new(extension));
-        App { extensions }
+pub struct ExtendedApp<E: AppExtension> {
+    extensions: E,
+}
+
+impl<E: AppExtension> ExtendedApp<E> {
+    pub fn extend<F: AppExtension>(self, extension: F) -> ExtendedApp<impl AppExtension> {
+        ExtendedApp {
+            extensions: (self.extensions, extension),
+        }
     }
 
     /// Runs the application.
     pub fn run(self) -> ! {
         let event_loop = EventLoop::with_user_event();
 
-        let mut extensions = (AppWindows::new(event_loop.create_proxy()), self.extensions);
+        let mut extensions = self.extensions;
 
         let mut owned_ctx = OwnedAppContext::instance();
 
-        extensions.init(&mut owned_ctx.borrow_init());
+        extensions.init(&mut owned_ctx.borrow_init(event_loop.create_proxy()));
 
         let mut in_sequence = false;
-        let mut sequence_update = UpdateFlags::empty();
+        let mut sequence_update = DisplayUpdate::None;
 
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
-            let mut event_update = UpdateFlags::empty();
 
             match event {
                 GEvent::NewEvents(_) => {
@@ -151,7 +121,7 @@ impl App {
                     extensions.on_window_event(window_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
-                    extensions.0.new_frame_ready(window_id);
+                    extensions.on_new_frame_ready(window_id, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::DeviceEvent { device_id, event } => {
                     extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));
@@ -159,31 +129,26 @@ impl App {
                 _ => {}
             }
 
-            if event_update.contains(UpdateFlags::UPD_HP) {
-                event_update.remove(UpdateFlags::UPD_HP);
-                extensions.0.update_hp(&mut owned_ctx.borrow(event_loop));
-            }
-            if event_update.contains(UpdateFlags::UPDATE) {
-                event_update.remove(UpdateFlags::UPDATE);
-                extensions.0.update(&mut owned_ctx.borrow(event_loop));
-            }
+            loop {
+                let (update, display) = owned_ctx.apply_updates();
+                sequence_update |= display;
 
-            let ui_update = owned_ctx.apply_updates();
-
-            sequence_update |= event_update | ui_update;
-
-            extensions.respond(&mut owned_ctx.borrow(event_loop));
-
-            if !in_sequence {
-                if sequence_update.contains(UpdateFlags::LAYOUT) {
-                    extensions.0.layout();
+                if update.update || update.update_hp {
+                    extensions.update(update, &mut owned_ctx.borrow(event_loop));
+                } else {
+                    break;
                 }
-                if sequence_update.contains(UpdateFlags::RENDER) {
-                    extensions.0.render();
-                }
+            }
 
-                sequence_update = UpdateFlags::empty();
+            if !in_sequence && sequence_update.is_some() {
+                extensions.update_display(sequence_update);
+                sequence_update = DisplayUpdate::None;
             }
         })
     }
+}
+
+#[derive(Debug)]
+pub enum WebRenderEvent {
+    NewFrameReady(WindowId),
 }

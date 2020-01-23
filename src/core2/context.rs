@@ -1,5 +1,6 @@
 use super::*;
 use fnv::FnvHashMap;
+use glutin::event_loop::EventLoopProxy;
 use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
@@ -37,14 +38,90 @@ uid! {
    pub struct WidgetId(_);
 }
 
-bitflags! {
-    /// What to pump in a Ui tree after an update is applied.
-    #[derive(Default)]
-    pub struct UpdateFlags: u8 {
-        const UPDATE = 0b0000_0001;
-        const UPD_HP = 0b0000_0010;
-        const LAYOUT = 0b0000_0100;
-        const RENDER = 0b0000_1000;
+/// Required updates for a window layout and frame.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DisplayUpdate {
+    /// No update required.
+    None,
+    /// No re-layout required, just render again.
+    Render,
+    /// Full update required, re-layout then render again.
+    Layout,
+}
+
+impl Default for DisplayUpdate {
+    #[inline]
+    fn default() -> Self {
+        DisplayUpdate::None
+    }
+}
+
+impl std::ops::BitOrAssign for DisplayUpdate {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        use DisplayUpdate::*;
+        match rhs {
+            Layout => *self = Layout,
+            Render => {
+                if *self != Render {
+                    *self = Render;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl std::ops::BitOr for DisplayUpdate {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
+}
+
+/// Updates that where requested during a previous round of
+/// updates.
+#[derive(Debug, PartialEq, Eq, Default, Clone, Copy)]
+pub struct UpdateRequest {
+    /// If should notify all that variables or events change occurred.
+    pub update: bool,
+    /// If should notify all that variables or events change occurred using
+    /// the hight-pressure band when applicable.
+    pub update_hp: bool,
+}
+
+impl std::ops::BitOrAssign for UpdateRequest {
+    #[inline]
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.update |= rhs.update;
+        self.update_hp |= rhs.update_hp;
+    }
+}
+
+impl std::ops::BitOr for UpdateRequest {
+    type Output = Self;
+
+    #[inline]
+    fn bitor(mut self, rhs: Self) -> Self {
+        self |= rhs;
+        self
+    }
+}
+
+impl DisplayUpdate {
+    /// If contains any update.
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
+
+    /// If does not contain any update.
+    #[inline]
+    pub fn is_none(&self) -> bool {
+        *self == DisplayUpdate::None
     }
 }
 
@@ -358,8 +435,9 @@ impl Services {
 /// Schedule of actions to apply after an Ui update.
 #[derive(Default)]
 pub struct Updates {
-    update: UpdateFlags,
-    window_update: UpdateFlags,
+    update: UpdateRequest,
+    display_update: DisplayUpdate,
+    win_display_update: DisplayUpdate,
     updates: Vec<UpdateOnce>,
     cleanup: Vec<CleanupOnce>,
 }
@@ -380,18 +458,18 @@ impl Updates {
     }
 
     pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vars, &mut Vec<CleanupOnce>) + 'static) {
-        self.update.insert(UpdateFlags::UPDATE);
+        self.update.update = true;
         self.updates
             .push(Box::new(move |assert, _, cleanup| modify(assert, cleanup)));
     }
 
     /// Schedules an update notification.
     pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
-        self.update.insert(if sender.is_high_pressure() {
-            UpdateFlags::UPD_HP
+        if sender.is_high_pressure() {
+            self.update.update_hp = true;
         } else {
-            UpdateFlags::UPDATE
-        });
+            self.update.update = true;
+        }
 
         self.updates
             .push(Box::new(move |_, assert, cleanup| sender.notify(args, assert, cleanup)));
@@ -399,21 +477,21 @@ impl Updates {
 
     /// Schedules a switch variable index change for the next update.
     pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
-        self.update.insert(UpdateFlags::UPDATE);
+        self.update.update = true;
         self.updates
             .push(Box::new(move |assert, _, cleanup| var.modify(new_index, cleanup)));
     }
 
     /// Schedules a layout update.
     pub fn push_layout(&mut self) {
-        self.window_update |= UpdateFlags::LAYOUT;
-        self.update |= UpdateFlags::LAYOUT;
+        self.win_display_update |= DisplayUpdate::Layout;
+        self.display_update |= DisplayUpdate::Layout;
     }
 
     /// Schedules a new render.
     pub fn push_frame(&mut self) {
-        self.window_update |= UpdateFlags::RENDER;
-        self.update |= UpdateFlags::RENDER;
+        self.win_display_update |= DisplayUpdate::Render;
+        self.display_update |= DisplayUpdate::Render;
     }
 
     /// Cleanup the previous update and applies the new one.
@@ -429,7 +507,7 @@ impl Updates {
         &mut self,
         assert_vars_not_borrowed: &mut Vars,
         assert_events_not_borrowed: &mut Events,
-    ) -> UpdateFlags {
+    ) -> (UpdateRequest, DisplayUpdate) {
         for cleanup in self.cleanup.drain(..) {
             cleanup();
         }
@@ -438,9 +516,10 @@ impl Updates {
             update(assert_vars_not_borrowed, assert_events_not_borrowed, &mut self.cleanup);
         }
 
-        //self.visited_vars.clear(); TODO
-
-        std::mem::replace(&mut self.update, UpdateFlags::empty())
+        (
+            mem::replace(&mut self.update, UpdateRequest::default()),
+            mem::replace(&mut self.display_update, DisplayUpdate::None),
+        )
     }
 }
 
@@ -469,9 +548,10 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn borrow_init(&mut self) -> AppInitContext {
+    pub fn borrow_init(&mut self, event_loop: EventLoopProxy<WebRenderEvent>) -> AppInitContext {
         AppInitContext {
             app_state: &mut self.app_state,
+            event_loop,
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -490,7 +570,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn apply_updates(&mut self) -> UpdateFlags {
+    pub fn apply_updates(&mut self) -> (UpdateRequest, DisplayUpdate) {
         self.updates.apply_updates(&mut self.vars, &mut self.events)
     }
 }
@@ -499,6 +579,8 @@ impl OwnedAppContext {
 pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StageState,
+
+    pub event_loop: EventLoopProxy<WebRenderEvent>,
 
     pub vars: &'a Vars,
     pub events: &'a mut Events,
@@ -551,9 +633,9 @@ impl<'a> AppContext<'a> {
         window_services: &mut AnyMap,
         render_api: &Arc<RenderApi>,
         f: impl FnOnce(&mut WindowContext),
-    ) -> UpdateFlags {
-        self.updates.window_update = UpdateFlags::empty();
-        std::mem::swap(&mut self.services.window, window_services);
+    ) -> DisplayUpdate {
+        self.updates.win_display_update = DisplayUpdate::None;
+        mem::swap(&mut self.services.window, window_services);
 
         let mut event_state = StageState::default();
         let mut ctx = WindowContext {
@@ -570,8 +652,8 @@ impl<'a> AppContext<'a> {
 
         f(&mut ctx);
 
-        std::mem::swap(window_services, &mut self.services.window);
-        std::mem::replace(&mut self.updates.window_update, UpdateFlags::empty())
+        mem::swap(window_services, &mut self.services.window);
+        mem::replace(&mut self.updates.win_display_update, DisplayUpdate::None)
     }
 }
 
