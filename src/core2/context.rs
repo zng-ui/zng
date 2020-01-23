@@ -40,7 +40,7 @@ uid! {
 
 /// Required updates for a window layout and frame.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum DisplayUpdate {
+pub enum UpdateDisplayRequest {
     /// No update required.
     None,
     /// No re-layout required, just render again.
@@ -49,17 +49,17 @@ pub enum DisplayUpdate {
     Layout,
 }
 
-impl Default for DisplayUpdate {
+impl Default for UpdateDisplayRequest {
     #[inline]
     fn default() -> Self {
-        DisplayUpdate::None
+        UpdateDisplayRequest::None
     }
 }
 
-impl std::ops::BitOrAssign for DisplayUpdate {
+impl std::ops::BitOrAssign for UpdateDisplayRequest {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
-        use DisplayUpdate::*;
+        use UpdateDisplayRequest::*;
         match rhs {
             Layout => *self = Layout,
             Render => {
@@ -72,7 +72,7 @@ impl std::ops::BitOrAssign for DisplayUpdate {
     }
 }
 
-impl std::ops::BitOr for DisplayUpdate {
+impl std::ops::BitOr for UpdateDisplayRequest {
     type Output = Self;
 
     #[inline]
@@ -111,7 +111,7 @@ impl std::ops::BitOr for UpdateRequest {
     }
 }
 
-impl DisplayUpdate {
+impl UpdateDisplayRequest {
     /// If contains any update.
     #[inline]
     pub fn is_some(&self) -> bool {
@@ -121,7 +121,7 @@ impl DisplayUpdate {
     /// If does not contain any update.
     #[inline]
     pub fn is_none(&self) -> bool {
-        *self == DisplayUpdate::None
+        *self == UpdateDisplayRequest::None
     }
 }
 
@@ -436,8 +436,8 @@ impl Services {
 #[derive(Default)]
 pub struct Updates {
     update: UpdateRequest,
-    display_update: DisplayUpdate,
-    win_display_update: DisplayUpdate,
+    display_update: UpdateDisplayRequest,
+    win_display_update: UpdateDisplayRequest,
     updates: Vec<UpdateOnce>,
     cleanup: Vec<CleanupOnce>,
 }
@@ -484,14 +484,14 @@ impl Updates {
 
     /// Schedules a layout update.
     pub fn push_layout(&mut self) {
-        self.win_display_update |= DisplayUpdate::Layout;
-        self.display_update |= DisplayUpdate::Layout;
+        self.win_display_update |= UpdateDisplayRequest::Layout;
+        self.display_update |= UpdateDisplayRequest::Layout;
     }
 
     /// Schedules a new render.
     pub fn push_frame(&mut self) {
-        self.win_display_update |= DisplayUpdate::Render;
-        self.display_update |= DisplayUpdate::Render;
+        self.win_display_update |= UpdateDisplayRequest::Render;
+        self.display_update |= UpdateDisplayRequest::Render;
     }
 
     /// Cleanup the previous update and applies the new one.
@@ -507,7 +507,7 @@ impl Updates {
         &mut self,
         assert_vars_not_borrowed: &mut Vars,
         assert_events_not_borrowed: &mut Events,
-    ) -> (UpdateRequest, DisplayUpdate) {
+    ) -> (UpdateRequest, UpdateDisplayRequest) {
         for cleanup in self.cleanup.drain(..) {
             cleanup();
         }
@@ -518,7 +518,7 @@ impl Updates {
 
         (
             mem::replace(&mut self.update, UpdateRequest::default()),
-            mem::replace(&mut self.display_update, DisplayUpdate::None),
+            mem::replace(&mut self.display_update, UpdateDisplayRequest::None),
         )
     }
 }
@@ -548,7 +548,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn borrow_init(&mut self, event_loop: EventLoopProxy<WebRenderEvent>) -> AppInitContext {
+    pub fn borrow_init(&mut self, event_loop: EventLoopProxy<AppEvent>) -> AppInitContext {
         AppInitContext {
             app_state: &mut self.app_state,
             event_loop,
@@ -559,7 +559,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn borrow<'a>(&'a mut self, event_loop: &'a EventLoopWindowTarget<WebRenderEvent>) -> AppContext<'a> {
+    pub fn borrow<'a>(&'a mut self, event_loop: &'a EventLoopWindowTarget<AppEvent>) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
@@ -570,7 +570,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn apply_updates(&mut self) -> (UpdateRequest, DisplayUpdate) {
+    pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
         self.updates.apply_updates(&mut self.vars, &mut self.events)
     }
 }
@@ -580,7 +580,7 @@ pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StageState,
 
-    pub event_loop: EventLoopProxy<WebRenderEvent>,
+    pub event_loop: EventLoopProxy<AppEvent>,
 
     pub vars: &'a Vars,
     pub events: &'a mut Events,
@@ -598,7 +598,7 @@ pub struct AppContext<'a> {
     pub services: &'a mut Services,
     pub updates: &'a mut Updates,
 
-    pub event_loop: &'a EventLoopWindowTarget<WebRenderEvent>,
+    pub event_loop: &'a EventLoopWindowTarget<AppEvent>,
 }
 
 /// Instances of services associated with a window.
@@ -633,8 +633,8 @@ impl<'a> AppContext<'a> {
         window_services: &mut AnyMap,
         render_api: &Arc<RenderApi>,
         f: impl FnOnce(&mut WindowContext),
-    ) -> DisplayUpdate {
-        self.updates.win_display_update = DisplayUpdate::None;
+    ) -> UpdateDisplayRequest {
+        self.updates.win_display_update = UpdateDisplayRequest::None;
         mem::swap(&mut self.services.window, window_services);
 
         let mut event_state = StageState::default();
@@ -653,7 +653,7 @@ impl<'a> AppContext<'a> {
         f(&mut ctx);
 
         mem::swap(window_services, &mut self.services.window);
-        mem::replace(&mut self.updates.win_display_update, DisplayUpdate::None)
+        mem::replace(&mut self.updates.win_display_update, UpdateDisplayRequest::None)
     }
 }
 

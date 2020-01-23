@@ -1,5 +1,5 @@
 use crate::core::FocusKey;
-use crate::core::{NewWindow, NextUpdate, Ui, WebRenderEvent, Window};
+use crate::core::{AppEvent, NewWindow, NextUpdate, Ui, Window};
 use rayon::ThreadPoolBuilder;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -76,7 +76,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
                     has_update |= win.event(event);
                 }
             }
-            Event::UserEvent(WebRenderEvent::NewFrameReady(window_id)) => {
+            Event::UserEvent(AppEvent::NewFrameReady(window_id)) => {
                 if let Some(win) = windows.get_mut(&window_id) {
                     // this can cause a RedrawRequested after EventsCleared but before NewEvents
                     win.request_redraw();

@@ -12,14 +12,14 @@ use std::sync::Arc;
 use webrender::api::*;
 
 #[derive(Debug)]
-pub(crate) enum WebRenderEvent {
+pub(crate) enum AppEvent {
     NewFrameReady(WindowId),
 }
 
 #[derive(Clone)]
 struct Notifier {
     window_id: WindowId,
-    event_loop: EventLoopProxy<WebRenderEvent>,
+    event_loop: EventLoopProxy<AppEvent>,
 }
 impl RenderNotifier for Notifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
@@ -29,9 +29,7 @@ impl RenderNotifier for Notifier {
     fn wake_up(&self) {}
 
     fn new_frame_ready(&self, _: DocumentId, _scrolled: bool, _composite_needed: bool, _: Option<u64>) {
-        let _ = self
-            .event_loop
-            .send_event(WebRenderEvent::NewFrameReady(self.window_id));
+        let _ = self.event_loop.send_event(AppEvent::NewFrameReady(self.window_id));
     }
 }
 
@@ -54,8 +52,8 @@ pub(crate) struct Window {
 impl Window {
     pub fn new(
         new_window: NewWindow,
-        event_loop: &EventLoopWindowTarget<WebRenderEvent>,
-        event_loop_proxy: EventLoopProxy<WebRenderEvent>,
+        event_loop: &EventLoopWindowTarget<AppEvent>,
+        event_loop_proxy: EventLoopProxy<AppEvent>,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let inner_size = new_window.inner_size;

@@ -91,7 +91,7 @@ impl Event for WindowClosing {
 
 /// Windows management [AppExtension].
 pub struct AppWindows {
-    event_loop_proxy: Option<EventLoopProxy<WebRenderEvent>>,
+    event_loop_proxy: Option<EventLoopProxy<AppEvent>>,
     ui_threads: Arc<ThreadPool>,
     windows: Vec<GlWindow>,
     window_open: EventEmitter<WindowArgs>,
@@ -196,7 +196,7 @@ impl AppExtension for AppWindows {
         }
     }
 
-    fn update_display(&mut self, _: DisplayUpdate) {
+    fn update_display(&mut self, _: UpdateDisplayRequest) {
         for window in self.windows.iter_mut() {
             window.layout();
             window.render();
@@ -246,7 +246,7 @@ impl Windows {
 #[derive(Clone)]
 struct Notifier {
     window_id: WindowId,
-    event_loop: EventLoopProxy<WebRenderEvent>,
+    event_loop: EventLoopProxy<AppEvent>,
 }
 impl RenderNotifier for Notifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
@@ -256,9 +256,7 @@ impl RenderNotifier for Notifier {
     fn wake_up(&self) {}
 
     fn new_frame_ready(&self, _: DocumentId, _scrolled: bool, _composite_needed: bool, _: Option<u64>) {
-        let _ = self
-            .event_loop
-            .send_event(WebRenderEvent::NewFrameReady(self.window_id));
+        let _ = self.event_loop.send_event(AppEvent::NewFrameReady(self.window_id));
     }
 }
 
@@ -270,7 +268,7 @@ struct GlWindow {
     services: WindowServices,
 
     root: UiRoot,
-    update: DisplayUpdate,
+    update: UpdateDisplayRequest,
     first_draw: bool,
 }
 
@@ -278,8 +276,8 @@ impl GlWindow {
     pub fn new(
         new_window: Box<dyn FnOnce(&AppContext) -> UiRoot>,
         ctx: &mut AppContext,
-        event_loop: &EventLoopWindowTarget<WebRenderEvent>,
-        event_loop_proxy: EventLoopProxy<WebRenderEvent>,
+        event_loop: &EventLoopWindowTarget<AppEvent>,
+        event_loop_proxy: EventLoopProxy<AppEvent>,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let root = new_window(ctx);
@@ -335,7 +333,7 @@ impl GlWindow {
             api,
 
             root,
-            update: DisplayUpdate::Layout,
+            update: UpdateDisplayRequest::Layout,
             first_draw: true,
         }
     }
@@ -363,7 +361,7 @@ impl GlWindow {
         &mut self,
         ctx: &mut AppContext,
         f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext),
-    ) -> DisplayUpdate {
+    ) -> UpdateDisplayRequest {
         let id = self.id();
         let root = &mut self.root;
 
@@ -392,8 +390,8 @@ impl GlWindow {
     }
 
     pub fn layout(&mut self) {
-        if self.update == DisplayUpdate::Layout {
-            self.update = DisplayUpdate::Render;
+        if self.update == UpdateDisplayRequest::Layout {
+            self.update = UpdateDisplayRequest::Render;
 
             let available_size = self.context.as_ref().unwrap().window().inner_size();
             let available_size = LayoutSize::new(available_size.width as f32, available_size.height as f32);
@@ -407,8 +405,8 @@ impl GlWindow {
     }
 
     pub fn render(&mut self) {
-        if self.update == DisplayUpdate::Render {
-            self.update = DisplayUpdate::None;
+        if self.update == UpdateDisplayRequest::Render {
+            self.update = UpdateDisplayRequest::None;
 
             let mut frame = FrameBuilder::new(self.root.id);
             self.root.child.render(&mut frame);
