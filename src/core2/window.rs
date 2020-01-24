@@ -137,7 +137,7 @@ impl AppWindows {
 impl AppExtension for AppWindows {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new());
+        r.services.register(Windows::new(r.event_loop.clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
     }
 
@@ -212,14 +212,16 @@ struct NewWindowRequest {
 /// Windows service.
 pub struct Windows {
     requests: Vec<NewWindowRequest>,
+    update_notifier: UpdateNotifier,
 }
 
 impl Service for Windows {}
 
 impl Windows {
-    fn new() -> Self {
+    fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
         Windows {
             requests: Vec::default(),
+            update_notifier: UpdateNotifier::new(event_loop),
         }
     }
 
@@ -239,6 +241,9 @@ impl Windows {
         };
         let notice = request.notifier.listener();
         self.requests.push(request);
+
+        self.update_notifier.push_update();
+
         notice
     }
 }
@@ -342,21 +347,6 @@ impl GlWindow {
         self.context.as_ref().unwrap().window().id()
     }
 
-    pub fn init(&mut self, ctx: &mut AppContext) {
-        let id = self.id();
-        let root = &mut self.root;
-
-        let update = ctx.window_context(id, &mut self.state, &mut self.services, &self.api, |ctx| {
-            ctx.updates.push_layout();
-            ctx.updates.push_frame();
-
-            ctx.widget_context(root.id, |ctx| {
-                root.child.init(ctx);
-            });
-        });
-        self.update |= update;
-    }
-
     fn root_context(
         &mut self,
         ctx: &mut AppContext,
@@ -370,6 +360,15 @@ impl GlWindow {
                 f(&mut root.child, ctx);
             });
         })
+    }
+
+    pub fn init(&mut self, ctx: &mut AppContext) {
+        let update = self.root_context(ctx, |root, ctx| {
+            ctx.updates.push_layout();
+
+            root.init(ctx);
+        });
+        self.update |= update;
     }
 
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
@@ -450,7 +449,7 @@ impl GlWindow {
         self.context = Some(unsafe { context.make_not_current().unwrap() });
     }
 
-    pub(crate) fn deinit(mut self, ctx: &mut AppContext) {
+    pub fn deinit(mut self, ctx: &mut AppContext) {
         self.root_context(ctx, |root, ctx| root.deinit(ctx));
 
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };

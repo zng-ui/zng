@@ -148,6 +148,7 @@ impl<E: AppExtension> AppExtended<E> {
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
 
+            let mut event_update = UpdateRequest::default();
             match event {
                 GEvent::NewEvents(_) => {
                     in_sequence = true;
@@ -162,6 +163,9 @@ impl<E: AppExtension> AppExtended<E> {
                 GEvent::UserEvent(AppEvent::NewFrameReady(window_id)) => {
                     extensions.on_new_frame_ready(window_id, &mut owned_ctx.borrow(event_loop));
                 }
+                GEvent::UserEvent(AppEvent::Update) => {
+                    event_update = UpdateNotifier::take_update();
+                }
                 GEvent::DeviceEvent { device_id, event } => {
                     extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
@@ -169,7 +173,8 @@ impl<E: AppExtension> AppExtended<E> {
             }
 
             loop {
-                let (update, display) = owned_ctx.apply_updates();
+                let (mut update, display) = owned_ctx.apply_updates();
+                update |= event_update;
                 sequence_update |= display;
 
                 if update.update || update.update_hp {
@@ -190,4 +195,5 @@ impl<E: AppExtension> AppExtended<E> {
 #[derive(Debug)]
 pub enum AppEvent {
     NewFrameReady(WindowId),
+    Update,
 }

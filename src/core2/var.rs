@@ -1884,6 +1884,7 @@ macro_rules! impl_merge_vars {
         }
 
         impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+            #[allow(clippy::too_many_arguments)]
             pub fn new($($vn: $VN,)+ merge: M) -> Self {
                 $MergeVar {
                     r: Rc::new($MergeVarInner {

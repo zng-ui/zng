@@ -6,7 +6,7 @@ use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
 use std::sync::atomic::{self, AtomicBool};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use webrender::api::RenderApi;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
@@ -63,7 +63,7 @@ impl std::ops::BitOrAssign for UpdateDisplayRequest {
         match rhs {
             Layout => *self = Layout,
             Render => {
-                if *self != Render {
+                if *self == None {
                     *self = Render;
                 }
             }
@@ -114,14 +114,48 @@ impl std::ops::BitOr for UpdateRequest {
 impl UpdateDisplayRequest {
     /// If contains any update.
     #[inline]
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         !self.is_none()
     }
 
     /// If does not contain any update.
     #[inline]
-    pub fn is_none(&self) -> bool {
-        *self == UpdateDisplayRequest::None
+    pub fn is_none(self) -> bool {
+        self == UpdateDisplayRequest::None
+    }
+}
+
+#[derive(Clone)]
+pub struct UpdateNotifier {
+    event_loop: EventLoopProxy<AppEvent>,
+}
+static UPDATE_NOTIFIER: (AtomicBool, AtomicBool) = (AtomicBool::new(false), AtomicBool::new(false));
+
+impl UpdateNotifier {    
+    pub fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+
+        UpdateNotifier { event_loop }
+    }
+
+    pub fn push_update(&self) {
+        let update = UPDATE_NOTIFIER.0.swap(true, atomic::Ordering::Relaxed);
+        if !update && !UPDATE_NOTIFIER.1.load(atomic::Ordering::Relaxed) {
+            let _ = self.event_loop.send_event(AppEvent::Update);
+        }
+    }
+
+    pub fn push_update_hp(&self) {
+        let update_hp = UPDATE_NOTIFIER.1.swap(true, atomic::Ordering::Relaxed);
+        if  !UPDATE_NOTIFIER.0.load(atomic::Ordering::Relaxed) && !update_hp{
+            let _ = self.event_loop.send_event(AppEvent::Update);
+        }
+    }
+
+    pub fn take_update() -> UpdateRequest {
+        UpdateRequest {
+            update: UPDATE_NOTIFIER.0.swap(false, atomic::Ordering::Relaxed),
+            update_hp: UPDATE_NOTIFIER.1.swap(false, atomic::Ordering::Relaxed),
+        }
     }
 }
 
@@ -339,12 +373,12 @@ pub struct Events {
 static EVENTS_ALIVE: AtomicBool = AtomicBool::new(false);
 
 impl Events {
-    /// Produces the instance of `Vars`. Only a single
+    /// Produces the instance of `Events`. Only a single
     /// instance can exist at a time, panics if called
     /// again before droping the previous instance.
     pub fn instance() -> Self {
         if EVENTS_ALIVE.load(atomic::Ordering::Acquire) {
-            panic!("only a single instance of `Vars` can exist at at time")
+            panic!("only a single instance of `Events` can exist at at time")
         }
 
         EVENTS_ALIVE.store(true, atomic::Ordering::Release);
