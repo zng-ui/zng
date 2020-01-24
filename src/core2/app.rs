@@ -164,7 +164,7 @@ impl<E: AppExtension> AppExtended<E> {
                     extensions.on_new_frame_ready(window_id, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(AppEvent::Update) => {
-                    event_update = UpdateNotifier::take_update();
+                    event_update = UpdateNotifier::take_request();
                 }
                 GEvent::DeviceEvent { device_id, event } => {
                     extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));

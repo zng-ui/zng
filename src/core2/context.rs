@@ -6,7 +6,7 @@ use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
 use std::sync::atomic::{self, AtomicBool};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use webrender::api::RenderApi;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
@@ -129,32 +129,44 @@ impl UpdateDisplayRequest {
 pub struct UpdateNotifier {
     event_loop: EventLoopProxy<AppEvent>,
 }
-static UPDATE_NOTIFIER: (AtomicBool, AtomicBool) = (AtomicBool::new(false), AtomicBool::new(false));
 
-impl UpdateNotifier {    
+impl UpdateNotifier {
+    #[inline]
     pub fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
-
         UpdateNotifier { event_loop }
     }
 
+    fn update() -> &'static AtomicBool {
+        static UPDATE: AtomicBool = AtomicBool::new(false);
+        &UPDATE
+    }
+
+    fn update_hp() -> &'static AtomicBool {
+        static UPDATE_HP: AtomicBool = AtomicBool::new(false);
+        &UPDATE_HP
+    }
+
+    #[inline]
     pub fn push_update(&self) {
-        let update = UPDATE_NOTIFIER.0.swap(true, atomic::Ordering::Relaxed);
-        if !update && !UPDATE_NOTIFIER.1.load(atomic::Ordering::Relaxed) {
+        let update = Self::update().swap(true, atomic::Ordering::Relaxed);
+        if !update && !Self::update_hp().load(atomic::Ordering::Relaxed) {
             let _ = self.event_loop.send_event(AppEvent::Update);
         }
     }
 
+    #[inline]
     pub fn push_update_hp(&self) {
-        let update_hp = UPDATE_NOTIFIER.1.swap(true, atomic::Ordering::Relaxed);
-        if  !UPDATE_NOTIFIER.0.load(atomic::Ordering::Relaxed) && !update_hp{
+        let update_hp = Self::update_hp().swap(true, atomic::Ordering::Relaxed);
+        if !Self::update().load(atomic::Ordering::Relaxed) && !update_hp {
             let _ = self.event_loop.send_event(AppEvent::Update);
         }
     }
 
-    pub fn take_update() -> UpdateRequest {
+    #[inline]
+    pub fn take_request() -> UpdateRequest {
         UpdateRequest {
-            update: UPDATE_NOTIFIER.0.swap(false, atomic::Ordering::Relaxed),
-            update_hp: UPDATE_NOTIFIER.1.swap(false, atomic::Ordering::Relaxed),
+            update: Self::update().swap(false, atomic::Ordering::Relaxed),
+            update_hp: Self::update_hp().swap(false, atomic::Ordering::Relaxed),
         }
     }
 }
