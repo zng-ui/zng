@@ -122,7 +122,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     }
 
     /// Box the variable. This disables mapping.
-    fn into_box(self) -> BoxVar<T>
+    fn boxed(self) -> BoxVar<T>
     where
         Self: std::marker::Sized,
     {
@@ -2129,7 +2129,7 @@ macro_rules! switch_var {
         $crate::core2::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
     };
     ($index: expr, $($v:expr),+) => {
-        $crate::core2::SwitchVarDyn::new($index, vec![$($v.into_box()),+])
+        $crate::core2::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")

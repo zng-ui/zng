@@ -59,7 +59,7 @@ fn custom_run() {
 
                 => text("Change Data")
             };
-            ui.into_box()
+            ui.boxed()
         }),
     );
 

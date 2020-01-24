@@ -6,7 +6,7 @@ macro_rules! ui_n {
         ///
         /// There is a helper enum type for 2 to 8 alternative Uis
         /// named `Ui2-8`, if you need more then 8 return a `Box<dyn Ui>` using
-        /// [into_box]([Ui::into_box).
+        /// [boxed]([Ui::boxed).
         ///
         /// # Example
         /// ```

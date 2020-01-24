@@ -52,7 +52,7 @@ impl NextUpdate {
         content: impl FnOnce(&mut NextUpdate) -> C + 'static,
     ) {
         self.windows.push(NewWindow {
-            content: Box::new(move |c| content(c).into_box()),
+            content: Box::new(move |c| content(c).boxed()),
             clear_color,
             inner_size,
         });

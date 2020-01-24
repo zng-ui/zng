@@ -41,7 +41,7 @@ pub fn run<C: Ui>(clear_color: ColorF, inner_size: LayoutSize, content: impl Fn(
     );
 
     let main_window = NewWindow {
-        content: Box::new(move |c| content(c).into_box()),
+        content: Box::new(move |c| content(c).boxed()),
         clear_color,
         inner_size,
     };

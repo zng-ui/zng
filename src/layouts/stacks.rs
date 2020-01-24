@@ -152,7 +152,7 @@ impl Stack<Box<dyn UiNode>> {
     /// Takes and returns `self` for builder style initialization.
     #[inline]
     pub fn push_box(mut self, child: impl UiNode) -> Self {
-        self.stack.push(StackEntry::new(child.into_box()));
+        self.stack.push(StackEntry::new(child.boxed()));
         self
     }
 }
@@ -181,7 +181,7 @@ macro_rules! impl_tuples {
             #[inline]
             #[allow(non_snake_case)]
             fn from(($TH, $TH2, $($T,)*): ($TH, $TH2, $($T,)*)) -> Stack<Box<dyn UiNode>> {
-                let stack = vec![StackEntry::new($TH.into_box()), StackEntry::new($TH2.into_box()),  $(StackEntry::new($T.into_box()), )*];
+                let stack = vec![StackEntry::new($TH.boxed()), StackEntry::new($TH2.boxed()),  $(StackEntry::new($T.boxed()), )*];
                 Stack { stack }
             }
         }

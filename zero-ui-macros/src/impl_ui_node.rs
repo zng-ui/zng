@@ -81,7 +81,7 @@ pub(crate) fn gen_impl_ui_node(
     };
 
     if validate_manual_del {
-        let skip = vec![ident("render"), ident("into_box")];
+        let skip = vec![ident("render"), ident("boxed")];
 
         for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);

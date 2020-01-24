@@ -42,7 +42,7 @@ pub trait Ui: 'static {
     fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate);
 
     /// Box this component, unless it is already `Box<dyn Ui>`.
-    fn into_box(self) -> Box<dyn Ui>
+    fn boxed(self) -> Box<dyn Ui>
     where
         Self: Sized + 'static,
     {
@@ -52,7 +52,7 @@ pub trait Ui: 'static {
 
 #[impl_ui_crate(delegate: self.as_ref(), delegate_mut: self.as_mut())]
 impl Ui for Box<dyn Ui> {
-    fn into_box(self) -> Box<dyn Ui> {
+    fn boxed(self) -> Box<dyn Ui> {
         self
     }
 }

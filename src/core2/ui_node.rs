@@ -50,7 +50,7 @@ pub trait UiNode: 'static {
     fn render(&self, frame: &mut FrameBuilder);
 
     /// Box this component, unless it is already `Box<dyn UiNode>`.
-    fn into_box(self) -> Box<dyn UiNode>
+    fn boxed(self) -> Box<dyn UiNode>
     where
         Self: Sized + 'static,
     {
@@ -60,7 +60,7 @@ pub trait UiNode: 'static {
 
 #[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
 impl UiNode for Box<dyn UiNode> {
-    fn into_box(self) -> Box<dyn UiNode> {
+    fn boxed(self) -> Box<dyn UiNode> {
         self
     }
 }
