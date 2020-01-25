@@ -12,10 +12,28 @@ pub trait EventArgs: Debug + Clone + 'static {
     fn timestamp(&self) -> Instant;
 }
 
+/// [Event] arguments that can be canceled.
+pub trait CancelableEventArgs: EventArgs {
+    /// If the originating action must be canceled.
+    fn cancel_requested(&self) -> bool;
+    /// Cancel the originating action.
+    fn cancel(&self);
+}
+
 /// Identifies an event type.
 pub trait Event: 'static {
     /// Event arguments.
     type Args: EventArgs;
+}
+
+/// Identifies an event type for an action that
+/// can be canceled.
+pub trait CancelableEvent: 'static {
+    /// Event arguments.
+    type Args: CancelableEventArgs;
+}
+impl<E: CancelableEvent> Event for E {
+    type Args = E::Args;
 }
 
 struct EventChannelInner<T> {

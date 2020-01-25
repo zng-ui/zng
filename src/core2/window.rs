@@ -8,85 +8,65 @@ use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::borrow::Cow;
-use std::cell::Cell;
 use std::sync::Arc;
 use std::time::Instant;
 use webrender::api::*;
 
 pub use webrender::api::ColorF;
 
+event_args! {
+    /// [WindowOpen], [WindowClose] event args.
+    pub struct WindowArgs {
+        pub window_id: WindowId,
+    }
+
+    /// [WindowResize] event args.
+    pub struct WindowResizeArgs {
+        pub window_id: WindowId,
+        pub new_size: LayoutSize,
+    }
+
+    /// [WindowMove] event args.
+    pub struct WindowMoveArgs {
+        pub window_id: WindowId,
+        pub new_position: LayoutPoint,
+    }
+}
+cancelable_event_args! {
+    /// [WindowClosing] event args.
+    pub struct WindowClosingArgs {
+        pub window_id: WindowId,
+    }
+}
+
 /// New window event.
-pub enum WindowOpen {}
-
-/// Window resized event.
-pub enum WindowResize {}
-
-/// Window moved event.
-pub enum WindowMove {}
-
-/// Closing window event.
-pub enum WindowClosing {}
-
-/// Closed window event.
-pub enum WindowClose {}
-
-/// [WindowOpen], [WindowClose] event args.
-#[derive(Debug, Clone)]
-pub struct WindowArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-}
-
-impl EventArgs for WindowArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-}
-
-/// [NewWindow] event args.
-#[derive(Debug, Clone)]
-pub struct WindowClosingArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    cancel: Cell<bool>,
-}
-
-impl WindowClosingArgs {
-    pub fn new(window_id: WindowId) -> Self {
-        WindowClosingArgs {
-            timestamp: Instant::now(),
-            window_id,
-            cancel: Cell::new(false),
-        }
-    }
-
-    /// Gets if a handler canceled the window close.
-    pub fn cancel_requested(&self) -> bool {
-        self.cancel.get()
-    }
-
-    /// Cancel the window close.
-    pub fn cancel(&self) {
-        self.cancel.set(true);
-    }
-}
-
-impl EventArgs for WindowClosingArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-}
-
+pub struct WindowOpen;
 impl Event for WindowOpen {
     type Args = WindowArgs;
 }
 
-impl Event for WindowClose {
-    type Args = WindowArgs;
+/// Window resized event.
+pub struct WindowResize;
+impl Event for WindowResize {
+    type Args = WindowResizeArgs;
 }
 
-impl Event for WindowClosing {
+/// Window moved event.
+pub struct WindowMove;
+impl Event for WindowMove {
+    type Args = WindowMoveArgs;
+}
+
+/// Closing window event.
+pub struct WindowClosing;
+impl CancelableEvent for WindowClosing {
     type Args = WindowClosingArgs;
+}
+
+/// Closed window event.
+pub struct WindowClose;
+impl Event for WindowClose {
+    type Args = WindowArgs;
 }
 
 /// Windows management [AppExtension].

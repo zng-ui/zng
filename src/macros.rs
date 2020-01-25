@@ -152,3 +152,111 @@ macro_rules! context_var {
         }
     )+};
 }
+
+/// Declares event args `struct`s that follows the basic initialization
+/// pattern and implement `EventArgs`.
+///
+/// # Example
+/// ```
+/// event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         pub arg: String
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! event_args {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $(pub $arg:ident : $arg_ty:ty,)*
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            pub timestamp: Instant,
+            $(pub $arg : $arg_ty,)*
+        }
+        impl $Args {
+            #[inline]
+            pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp,
+                    $($arg: $arg.into(),)*
+                }
+            }
+
+            /// Arguments for event that happened `Instant::now`.
+            #[inline]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+        }
+        impl $crate::core2::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+        }
+    )+};
+}
+
+/// Declares event args `struct`s for events whos originating action can be
+/// cancelled.
+///
+/// Same sintax as `[event_args!]` but the generated code also implements
+/// [CancelableEventArgs]
+#[macro_export]
+macro_rules! cancelable_event_args {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $(pub $arg:ident : $arg_ty:ty,)*
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            pub timestamp: Instant,
+            $(pub $arg : $arg_ty,)*
+            cancel: std::cell::Cell<bool>
+        }
+        impl $Args {
+            #[inline]
+            pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp,
+                    $($arg: $arg.into(),)*
+                    cancel: std::cell::Cell::new(false)
+                }
+            }
+
+            /// Arguments for event that happened `Instant::now`.
+            #[inline]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+        }
+        impl $crate::core2::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+        }
+        impl $crate::core2::CancelableEventArgs for $Args {
+            /// If a handler canceled the action.
+            #[inline]
+            fn cancel_requested(&self) -> bool {
+                self.cancel.get()
+            }
+
+            /// Cancel the action.
+            #[inline]
+            fn cancel(&self) {
+                self.cancel.set(true);
+            }
+        }
+    )+};
+}
