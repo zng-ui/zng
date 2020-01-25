@@ -525,7 +525,7 @@ impl Updates {
     pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
         self.update.update = true;
         self.updates
-            .push(Box::new(move |assert, _, cleanup| var.modify(new_index, cleanup)));
+            .push(Box::new(move |_, _, cleanup| var.modify(new_index, cleanup)));
     }
 
     /// Schedules a layout update.

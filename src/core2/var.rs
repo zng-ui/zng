@@ -260,12 +260,12 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.always_read_only()
     }
 
-    fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.var.push_set(new_value, vars)
+    fn push_set(&self, new_value: T, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.var.push_set(new_value, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.var.push_modify_boxed(modify, vars)
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.var.push_modify_boxed(modify, updates)
     }
 }
 
@@ -532,17 +532,17 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         false
     }
 
-    fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        vars.push_modify_impl(move |assert, cleanup| {
+        updates.push_modify_impl(move |assert, cleanup| {
             var.modify(move |v: &mut T| *v = new_value, assert, cleanup);
         });
         Ok(())
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        vars.push_modify_impl(move |assert, cleanup| {
+        updates.push_modify_impl(move |assert, cleanup| {
             var.modify(|v: &mut T| modify(v), assert, cleanup);
         });
         Ok(())
@@ -553,9 +553,9 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
-        vars.push_modify_impl(move |assert, cleanup| {
+        updates.push_modify_impl(move |assert, cleanup| {
             var.modify(modify, assert, cleanup);
         });
         Ok(())
@@ -864,18 +864,23 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         self.r.source.always_read_only()
     }
 
-    fn push_set(&self, new_value: O, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: O, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.r
             .source
-            .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), vars)?;
-
-        vars.push_modify_impl(|assert, cleanup| todo!());
-
-        Ok(())
+            .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), updates)
     }
 
-    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<O>>, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        todo!()
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        let r = Rc::clone(&self.r);
+        self.r.source.push_modify_boxed(
+            Box::new(move |input| {
+                let mut value = (&mut *r.map.borrow_mut())(input);
+                modify(&mut value);
+                let output = (&mut *r.map_back.borrow_mut())(&value);
+                *input = output;
+            }),
+            updates,
+        )
     }
 }
 
@@ -933,8 +938,17 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, _modify: impl ModifyFnOnce<O>, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        todo!()
+    fn push_modify(&self, modify: impl ModifyFnOnce<O>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        let r = Rc::clone(&self.r);
+        self.r.source.push_modify_boxed(
+            Box::new(move |input| {
+                let mut value = (&mut *r.map.borrow_mut())(input);
+                modify(&mut value);
+                let output = (&mut *r.map_back.borrow_mut())(&value);
+                *input = output;
+            }),
+            updates,
+        )
     }
 
     fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
@@ -1281,19 +1295,19 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn push_set(&self, new_value: O, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: O, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
-            MapVarBiDiInner::Owned(o) => o.push_set(new_value, vars),
-            MapVarBiDiInner::Shared(s) => s.push_set(new_value, vars),
-            MapVarBiDiInner::Context(c) => c.push_set(new_value, vars),
+            MapVarBiDiInner::Owned(o) => o.push_set(new_value, updates),
+            MapVarBiDiInner::Shared(s) => s.push_set(new_value, updates),
+            MapVarBiDiInner::Context(c) => c.push_set(new_value, updates),
         }
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
-            MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, vars),
-            MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, vars),
-            MapVarBiDiInner::Context(c) => c.push_modify_boxed(modify, vars),
+            MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, updates),
+            MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, updates),
+            MapVarBiDiInner::Context(c) => c.push_modify_boxed(modify, updates),
         }
     }
 }
@@ -1359,11 +1373,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<O>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl ModifyFnOnce<O>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
-            MapVarBiDiInner::Owned(o) => o.push_modify(modify, vars),
-            MapVarBiDiInner::Shared(s) => s.push_modify(modify, vars),
-            MapVarBiDiInner::Context(c) => c.push_modify(modify, vars),
+            MapVarBiDiInner::Owned(o) => o.push_modify(modify, updates),
+            MapVarBiDiInner::Shared(s) => s.push_modify(modify, updates),
+            MapVarBiDiInner::Context(c) => c.push_modify(modify, updates),
         }
     }
 
@@ -1513,16 +1527,16 @@ macro_rules! impl_switch_vars {
                 $(self.r.$vn.always_read_only()) && +
             }
 
-            fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+            fn push_set(&self, new_value: T, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
-                    $($n => self.r.$vn.push_set(new_value, vars),)+
+                    $($n => self.r.$vn.push_set(new_value, updates),)+
                     _ => unreachable!(),
                 }
             }
 
-            fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+            fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
-                    $($n => self.r.$vn.push_modify_boxed(modify, vars),)+
+                    $($n => self.r.$vn.push_modify_boxed(modify, updates),)+
                     _ => unreachable!(),
                 }
             }
@@ -1538,9 +1552,9 @@ macro_rules! impl_switch_vars {
             type AsReadOnly = ReadOnlyVar<T, Self>;
             type AsLocal = CloningLocalVar<T, Self>;
 
-            fn push_modify(&self, modify: impl ModifyFnOnce<T>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+            fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
-                    $($n => self.r.$vn.push_modify(modify, vars),)+
+                    $($n => self.r.$vn.push_modify(modify, updates),)+
                     _ => unreachable!(),
                 }
             }
@@ -1769,12 +1783,12 @@ impl<T: VarValue> ObjVar<T> for SwitchVarDyn<T> {
         self.r.vars.iter().all(|v| v.always_read_only())
     }
 
-    fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.r.vars[self.r.index.get()].push_set(new_value, vars)
+    fn push_set(&self, new_value: T, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.r.vars[self.r.index.get()].push_set(new_value, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.r.vars[self.r.index.get()].push_modify_boxed(modify, vars)
+    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.r.vars[self.r.index.get()].push_modify_boxed(modify, updates)
     }
 }
 
@@ -1788,8 +1802,8 @@ impl<T: VarValue> Var<T> for SwitchVarDyn<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.push_modify_boxed(Box::new(modify), vars)
+    fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.push_modify_boxed(Box::new(modify), updates)
     }
 
     fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
