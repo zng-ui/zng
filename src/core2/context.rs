@@ -534,8 +534,8 @@ impl Updates {
         self.display_update |= UpdateDisplayRequest::Layout;
     }
 
-    /// Schedules a new render.
-    pub fn push_frame(&mut self) {
+    /// Schedules a new frame.
+    pub fn push_render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
         self.display_update |= UpdateDisplayRequest::Render;
     }

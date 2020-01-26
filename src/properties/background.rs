@@ -64,7 +64,7 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
     }
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.color.update_local(ctx.vars).is_some() {
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
     }
     fn render(&self, frame: &mut FrameBuilder) {
@@ -101,16 +101,16 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> U
             self.render_start = *start;
             self.render_start.x *= self.final_size.width;
             self.render_start.y *= self.final_size.height;
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
         if let Some(end) = self.end.update(ctx.vars) {
             self.render_end = *end;
             self.render_end.x *= self.final_size.width;
             self.render_end.y *= self.final_size.height;
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
         if self.stops.update_local(ctx.vars).is_some() {
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
     }
 

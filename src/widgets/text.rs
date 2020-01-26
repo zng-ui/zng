@@ -53,7 +53,7 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
 
         if let Some(&color) = TextColor.update(ctx.vars) {
             self.color = color;
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
     }
 

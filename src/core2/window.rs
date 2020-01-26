@@ -16,7 +16,7 @@ pub use webrender::api::ColorF;
 
 event_args! {
     /// [WindowOpen], [WindowClose] event args.
-    pub struct WindowArgs {
+    pub struct WindowEventArgs {
         pub window_id: WindowId,
     }
 
@@ -42,7 +42,7 @@ cancelable_event_args! {
 /// New window event.
 pub struct WindowOpen;
 impl Event for WindowOpen {
-    type Args = WindowArgs;
+    type Args = WindowEventArgs;
 }
 
 /// Window resized event.
@@ -66,7 +66,7 @@ impl CancelableEvent for WindowClosing {
 /// Closed window event.
 pub struct WindowClose;
 impl Event for WindowClose {
-    type Args = WindowArgs;
+    type Args = WindowEventArgs;
 }
 
 /// Windows management [AppExtension].
@@ -74,9 +74,11 @@ pub struct AppWindows {
     event_loop_proxy: Option<EventLoopProxy<AppEvent>>,
     ui_threads: Arc<ThreadPool>,
     windows: Vec<GlWindow>,
-    window_open: EventEmitter<WindowArgs>,
+    window_open: EventEmitter<WindowEventArgs>,
+    window_resize: EventEmitter<WindowResizeArgs>,
+    window_move: EventEmitter<WindowMoveArgs>,
     window_closing: EventEmitter<WindowClosingArgs>,
-    window_close: EventEmitter<WindowArgs>,
+    window_close: EventEmitter<WindowEventArgs>,
 }
 
 impl Default for AppWindows {
@@ -97,6 +99,8 @@ impl Default for AppWindows {
             ui_threads,
             windows: Vec::with_capacity(1),
             window_open: EventEmitter::new(false),
+            window_resize: EventEmitter::new(false),
+            window_move: EventEmitter::new(false),
             window_closing: EventEmitter::new(false),
             window_close: EventEmitter::new(false),
         }
@@ -104,13 +108,16 @@ impl Default for AppWindows {
 }
 
 impl AppWindows {
+    fn window_index(&self, window_id: WindowId) -> Option<usize> {
+        self.windows.iter().position(|w| w.id() == window_id)
+    }
+
+    fn contains_window(&self, window_id: WindowId) -> bool {
+        self.windows.iter().any(|w| w.id() == window_id)
+    }
+
     fn window_mut(&mut self, window_id: WindowId) -> Option<&mut GlWindow> {
-        for window in self.windows.iter_mut() {
-            if window.id() == window_id {
-                return Some(window);
-            }
-        }
-        None
+        self.windows.iter_mut().find(|w| w.id() == window_id)
     }
 }
 
@@ -119,18 +126,35 @@ impl AppExtension for AppWindows {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.event_loop.clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
+        r.events.register::<WindowResize>(self.window_resize.listener());
+        r.events.register::<WindowMove>(self.window_move.listener());
+        r.events.register::<WindowClosing>(self.window_closing.listener());
+        r.events.register::<WindowClose>(self.window_close.listener());
     }
 
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, _ctx: &mut AppContext) {
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match event {
             WindowEvent::RedrawRequested => {
                 if let Some(window) = self.window_mut(window_id) {
                     window.redraw();
                 }
             }
-            WindowEvent::Resized(_new_size) => todo!(),
-            WindowEvent::Moved(_new_position) => todo!(),
-            WindowEvent::CloseRequested => todo!(),
+            WindowEvent::Resized(new_size) => {
+                let new_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
+                ctx.updates
+                    .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size))
+            }
+            WindowEvent::Moved(new_position) => {
+                let new_position = LayoutPoint::new(new_position.x as f32, new_position.y as f32);
+                ctx.updates
+                    .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
+            }
+            WindowEvent::CloseRequested => {
+                if self.contains_window(window_id) {
+                    ctx.updates
+                        .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id))
+                }
+            }
             WindowEvent::HiDpiFactorChanged(_new_dpi) => todo!(),
             _ => {}
         }
@@ -154,16 +178,19 @@ impl AppExtension for AppWindows {
                 Arc::clone(&self.ui_threads),
             );
 
-            let args = WindowArgs {
+            let args = WindowEventArgs {
                 timestamp: Instant::now(),
                 window_id: w.id(),
             };
 
+            // notify the window requester
             ctx.updates.push_notify(request.notifier, args.clone());
+
+            // notify everyone
             ctx.updates.push_notify(self.window_open.clone(), args.clone());
         }
 
-        // notify updates
+        // notify and respond to updates
         if update.update_hp {
             for window in self.windows.iter_mut() {
                 window.update_hp(ctx);
@@ -173,10 +200,31 @@ impl AppExtension for AppWindows {
             for window in self.windows.iter_mut() {
                 window.update(ctx);
             }
+
+            // respond to window_closing events
+            for closing in self.window_closing.updates(ctx.events) {
+                if !closing.cancel_requested() && self.contains_window(closing.window_id) {
+                    // not canceled and we can close the window.
+                    // notify close, the window will be deinited on
+                    // the next update.
+                    ctx.updates
+                        .push_notify(self.window_close.clone(), WindowEventArgs::now(closing.window_id));
+                }
+            }
+
+            // respond to window_close events
+            for close in self.window_close.updates(ctx.events) {
+                if let Some(i) = self.window_index(close.window_id) {
+                    self.windows.remove(i).deinit(ctx);
+                }
+            }
         }
     }
 
     fn update_display(&mut self, _: UpdateDisplayRequest) {
+        // Pump layout and render in all windows.
+        // The windows don't do an update unless they recorded
+        // an update request for layout or render.
         for window in self.windows.iter_mut() {
             window.layout();
             window.render();
@@ -186,7 +234,7 @@ impl AppExtension for AppWindows {
 
 struct NewWindowRequest {
     new: Box<dyn FnOnce(&AppContext) -> UiRoot>,
-    notifier: EventEmitter<WindowArgs>,
+    notifier: EventEmitter<WindowEventArgs>,
 }
 
 /// Windows service.
@@ -214,7 +262,7 @@ impl Windows {
     pub fn new_window(
         &mut self,
         new_window: impl FnOnce(&AppContext) -> UiRoot + 'static,
-    ) -> EventListener<WindowArgs> {
+    ) -> EventListener<WindowEventArgs> {
         let request = NewWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),

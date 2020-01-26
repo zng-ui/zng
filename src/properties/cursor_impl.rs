@@ -15,7 +15,7 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.cursor.update_local(&ctx.vars).is_some() {
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
         self.child.update(ctx);
     }

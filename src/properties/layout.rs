@@ -173,7 +173,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
                 (self.final_size.height - self.child_rect.size.height) * alignment.1,
             );
 
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
 
         self.child.update(ctx);

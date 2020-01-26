@@ -192,7 +192,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         if let Some(&details) = self.details.update(ctx.vars) {
             visible |= details.visible();
             self.render_details = details.into();
-            ctx.updates.push_frame();
+            ctx.updates.push_render();
         }
         self.visible = visible;
     }
