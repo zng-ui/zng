@@ -718,7 +718,8 @@ impl<'a> AppContext<'a> {
         mem::swap(&mut self.services.window, window_services);
 
         let mut event_state = StageState::default();
-        let mut ctx = WindowContext {
+
+        f(&mut WindowContext {
             window_id,
             render_api,
             app_state: self.app_state,
@@ -728,9 +729,7 @@ impl<'a> AppContext<'a> {
             events: self.events,
             services: self.services,
             updates: self.updates,
-        };
-
-        f(&mut ctx);
+        });
 
         mem::swap(window_services, &mut self.services.window);
         mem::replace(&mut self.updates.win_display_update, UpdateDisplayRequest::None)
@@ -770,7 +769,7 @@ impl<'a> WindowContext<'a> {
         widget_state: &mut LazyStageState,
         f: impl FnOnce(&mut WidgetContext),
     ) {
-        let mut ctx = WidgetContext {
+        f(&mut WidgetContext {
             window_id: self.window_id,
             widget_id,
 
@@ -784,9 +783,7 @@ impl<'a> WindowContext<'a> {
             services: self.services,
 
             updates: self.updates,
-        };
-
-        f(&mut ctx);
+        });
     }
 }
 
@@ -830,7 +827,7 @@ impl<'a> WidgetContext<'a> {
         widget_state: &mut LazyStageState,
         f: impl FnOnce(&mut WidgetContext),
     ) {
-        let mut ctx = WidgetContext {
+        f(&mut WidgetContext {
             window_id: self.window_id,
             widget_id,
 
@@ -844,7 +841,6 @@ impl<'a> WidgetContext<'a> {
             services: self.services,
 
             updates: self.updates,
-        };
-        f(&mut ctx);
+        });
     }
 }
