@@ -170,7 +170,7 @@ impl AppExtension for AppWindows {
         // respond to service requests
         let requests = ctx.services.require::<Windows>().take_requests();
         for request in requests {
-            let w = GlWindow::new(
+            let mut w = GlWindow::new(
                 request.new,
                 ctx,
                 ctx.event_loop,
@@ -182,6 +182,9 @@ impl AppExtension for AppWindows {
                 timestamp: Instant::now(),
                 window_id: w.id(),
             };
+
+            w.init(ctx);
+            self.windows.push(w);
 
             // notify the window requester
             ctx.updates.push_notify(request.notifier, args.clone());

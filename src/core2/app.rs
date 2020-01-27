@@ -133,7 +133,7 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Runs the application.
-    pub fn run(self) -> ! {
+    pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
         let event_loop = EventLoop::with_user_event();
 
         let mut extensions = self.extensions;
@@ -144,6 +144,8 @@ impl<E: AppExtension> AppExtended<E> {
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateDisplayRequest::None;
+
+        start(&mut owned_ctx.borrow(&event_loop));
 
         event_loop.run(move |event, event_loop, control_flow| {
             *control_flow = ControlFlow::Wait;
