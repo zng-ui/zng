@@ -1,28 +1,33 @@
 use super::*;
 use crate::impl_ui_node;
-use context::WidgetId;
+use context::{LazyStageState, WidgetId};
 
 struct Widget<T: UiNode> {
     id: WidgetId,
+    state: LazyStageState,
     child: T,
 }
 
 #[impl_ui_node(child)]
 impl<T: UiNode> UiNode for Widget<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        ctx.widget_context(self.id, |ctx| self.child.init(ctx));
+        let child = &mut self.child;
+        ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
-        ctx.widget_context(self.id, |ctx| self.child.deinit(ctx));
+        let child = &mut self.child;
+        ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        ctx.widget_context(self.id, |ctx| self.child.update(ctx));
+        let child = &mut self.child;
+        ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
     }
 
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        ctx.widget_context(self.id, |ctx| self.child.update_hp(ctx));
+        let child = &mut self.child;
+        ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -32,5 +37,9 @@ impl<T: UiNode> UiNode for Widget<T> {
 
 /// Creates a widget bondary.
 pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
-    Widget { id, child }
+    Widget {
+        id,
+        state: LazyStageState::default(),
+        child,
+    }
 }

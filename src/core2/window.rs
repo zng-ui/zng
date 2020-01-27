@@ -387,8 +387,9 @@ impl GlWindow {
         let root = &mut self.root;
 
         ctx.window_context(id, &mut self.state, &mut self.services, &self.api, |ctx| {
-            ctx.widget_context(root.id, |ctx| {
-                f(&mut root.child, ctx);
+            let child = &mut root.child;
+            ctx.widget_context(root.id, &mut root.state, |ctx| {
+                f(child, ctx);
             });
         })
     }
@@ -491,6 +492,7 @@ impl GlWindow {
 
 pub struct UiRoot {
     id: WidgetId,
+    state: LazyStageState,
     title: BoxVar<Cow<'static, str>>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,

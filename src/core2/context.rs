@@ -375,6 +375,40 @@ impl StageState {
     }
 }
 
+/// A [StateState] that only uses one `usize` of memory if not used.
+#[derive(Default)]
+pub struct LazyStageState {
+    m: Option<Box<StageState>>,
+}
+
+impl LazyStageState {
+    fn borrow_mut(&mut self) -> &mut StageState {
+        self.m.get_or_insert_with(|| Box::new(StageState::default()))
+    }
+
+    pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
+        self.borrow_mut().set(key, value)
+    }
+
+    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
+        self.m.as_ref().and_then(|m| m.get(key))
+    }
+
+    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&S::Type> {
+        self.m.as_mut().and_then(|m| m.get_mut(key))
+    }
+
+    /// Sets a state key without value.
+    pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
+        self.borrow_mut().flag(key)
+    }
+
+    /// Gets if a state key without value is set.
+    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
+        self.get(key).is_some()
+    }
+}
+
 /// Access to application events.
 ///
 /// Only a single instance of this type exists at a time.
@@ -730,13 +764,19 @@ impl<'a> WindowContext<'a> {
     }
 
     /// Runs a function `f` within the context of a widget.
-    pub fn widget_context(&mut self, widget_id: WidgetId, f: impl FnOnce(&mut WidgetContext)) {
+    pub fn widget_context(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut LazyStageState,
+        f: impl FnOnce(&mut WidgetContext),
+    ) {
         let mut ctx = WidgetContext {
             window_id: self.window_id,
             widget_id,
 
             app_state: self.app_state,
             window_state: self.window_state,
+            widget_state,
             event_state: self.event_state,
 
             vars: self.vars,
@@ -761,6 +801,9 @@ pub struct WidgetContext<'a> {
     /// State that lives for the duration of the window.
     pub window_state: &'a mut StageState,
 
+    /// State that lives for the duration of the widget.
+    pub widget_state: &'a mut LazyStageState,
+
     /// State that lives for the duration of the event.
     pub event_state: &'a mut StageState,
 
@@ -781,11 +824,27 @@ impl<'a> WidgetContext<'a> {
     }
 
     /// Runs a function `f` within the context of a widget.
-    pub fn widget_context(&mut self, widget_id: WidgetId, f: impl FnOnce(&mut WidgetContext<'a>)) {
-        let widget_id = mem::replace(&mut self.widget_id, widget_id);
+    pub fn widget_context(
+        &mut self,
+        widget_id: WidgetId,
+        widget_state: &mut LazyStageState,
+        f: impl FnOnce(&mut WidgetContext),
+    ) {
+        let mut ctx = WidgetContext {
+            window_id: self.window_id,
+            widget_id,
 
-        f(self);
+            app_state: self.app_state,
+            window_state: self.window_state,
+            widget_state,
+            event_state: self.event_state,
 
-        self.widget_id = widget_id;
+            vars: self.vars,
+            events: self.events,
+            services: self.services,
+
+            updates: self.updates,
+        };
+        f(&mut ctx);
     }
 }
