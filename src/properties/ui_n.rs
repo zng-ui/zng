@@ -1,19 +1,19 @@
 use crate::core::*;
 
 macro_rules! ui_n {
-    ($UiEnum: ident { $($Ui: ident),+ }) => {
-        /// Helper type for returning more then one type of [Ui].
+    ($UiEnum: ident { $($UiNode: ident),+ }) => {
+        /// Helper type for returning more then one type of [UiNode].
         ///
         /// There is a helper enum type for 2 to 8 alternative Uis
-        /// named `Ui2-8`, if you need more then 8 return a `Box<dyn Ui>` using
-        /// [boxed]([Ui::boxed).
+        /// named `Ui2-8`, if you need more then 8 return a `Box<dyn UiNode>` using
+        /// [boxed]([UiNode::boxed).
         ///
         /// # Example
         /// ```
         /// # use zero_ui::{core::*, properties::*, *};
-        /// # fn restart_btn() -> impl Ui { text("Restart") }
+        /// # fn restart_btn() -> impl UiNode { text("Restart") }
         /// #
-        /// fn countdown(n: usize) -> impl Ui {
+        /// fn countdown(n: usize) -> impl UiNode {
         ///     if n > 0 {
         ///         Ui2::A(text(format!("{}!", n)))
         ///     } else {
@@ -27,104 +27,50 @@ macro_rules! ui_n {
         ///     }
         /// }
         /// ```
-        pub enum $UiEnum<$($Ui: Ui),+> {
-            $($Ui($Ui)),+
+        pub enum $UiEnum<$($UiNode: UiNode),+> {
+            $($UiNode($UiNode)),+
         }
 
-        impl<$($Ui: Ui),+> Ui for $UiEnum<$($Ui),+> {
-            fn init(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
+        impl<$($UiNode: UiNode),+> UiNode for $UiEnum<$($UiNode),+> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
                 match self {
-                    $($UiEnum::$Ui(ui) => ui.init(values, update),)+
+                    $($UiEnum::$UiNode(ui) => ui.init(ctx),)+
+                }
+            }
+
+            fn deinit(&mut self, ctx: &mut WidgetContext) {
+                match self {
+                    $($UiEnum::$UiNode(ui) => ui.deinit(ctx),)+
+                }
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                match self {
+                    $($UiEnum::$UiNode(ui) => ui.update(ctx),)+
+                }
+            }
+
+            fn update_hp(&mut self, ctx: &mut WidgetContext) {
+                match self {
+                    $($UiEnum::$UiNode(ui) => ui.update_hp(ctx),)+
                 }
             }
 
             fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
                 match self {
-                    $($UiEnum::$Ui(ui) => ui.measure(available_size),)+
+                    $($UiEnum::$UiNode(ui) => ui.measure(available_size),)+
                 }
             }
 
             fn arrange(&mut self, final_size: LayoutSize) {
                 match self {
-                    $($UiEnum::$Ui(ui) => ui.arrange(final_size),)+
+                    $($UiEnum::$UiNode(ui) => ui.arrange(final_size),)+
                 }
             }
 
-            fn render(&self, f: &mut NextFrame) {
+            fn render(&self, f: &mut FrameBuilder) {
                 match self {
-                    $($UiEnum::$Ui(ui) => ui.render(f),)+
-                }
-            }
-
-            fn keyboard_input(&mut self, input: &KeyboardInput, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.keyboard_input(input, values, update),)+
-                }
-            }
-
-            fn window_focused(&mut self, focused: bool, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.window_focused(focused, values, update),)+
-                }
-            }
-
-            fn focus_changed(&mut self, change: &FocusChange, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.focus_changed(change, values, update),)+
-                }
-            }
-
-            fn mouse_input(&mut self, input: &MouseInput, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.mouse_input(input, hits, values, update),)+
-                }
-            }
-
-            fn mouse_move(&mut self, input: &UiMouseMove, hits: &Hits, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.mouse_move(input, hits, values, update),)+
-                }
-            }
-
-            fn mouse_entered(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.mouse_entered(values, update),)+
-                }
-            }
-
-            fn mouse_left(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.mouse_left(values, update),)+
-                }
-            }
-
-            fn close_request(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.close_request(values, update),)+
-                }
-            }
-
-            fn focus_status(&self) -> Option<FocusStatus> {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.focus_status(),)+
-                }
-            }
-
-            fn point_over(&self, hits: &Hits) -> Option<LayoutPoint> {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.point_over(hits),)+
-                }
-            }
-
-            fn value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.value_changed(values, update),)+
-                }
-            }
-
-            fn parent_value_changed(&mut self, values: &mut UiValues, update: &mut NextUpdate) {
-                match self {
-                    $($UiEnum::$Ui(ui) => ui.parent_value_changed(values, update),)+
+                    $($UiEnum::$UiNode(ui) => ui.render(f),)+
                 }
             }
         }

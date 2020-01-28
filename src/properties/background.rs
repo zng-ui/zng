@@ -1,4 +1,4 @@
-use crate::core2::*;
+use crate::core::*;
 use crate::{impl_ui_node, property};
 
 pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {

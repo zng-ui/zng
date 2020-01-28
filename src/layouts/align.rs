@@ -1,4 +1,4 @@
-use crate::core2::UiNode;
+use crate::core::UiNode;
 use crate::properties::{align, Alignment};
 
 pub fn center(child: impl UiNode) -> impl UiNode {

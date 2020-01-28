@@ -1,4 +1,4 @@
-use crate::core2::*;
+use crate::core::*;
 use crate::properties::set_context_var;
 use crate::{impl_ui_node, property};
 use std::borrow::Cow;

@@ -110,7 +110,7 @@ pub(crate) fn gen_impl_ui_node(
     let mut inline_all = InlineEverything::new();
 
     let mut impl_node = parse_quote! {
-        impl #impl_generics #crate_::core2::UiNode for #self_ty #where_clause {
+        impl #impl_generics #crate_::core::UiNode for #self_ty #where_clause {
             #(#node_items)*
             #(#default_ui_items)*
         }
@@ -183,19 +183,19 @@ macro_rules! make_absents {
 fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
+        [fn init(&mut self, ctx: &mut #crate_::core::WidgetContext) { }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
+        [fn deinit(&mut self, ctx: &mut #crate_::core::WidgetContext) { }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
+        [fn update(&mut self, ctx: &mut #crate_::core::WidgetContext) { }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) { }]
+        [fn update_hp(&mut self, ctx: &mut #crate_::core::WidgetContext) { }]
 
-        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) { }]
+        [fn render(&self, frame: &mut #crate_::core::FrameBuilder) { }]
 
-        [fn arrange(&mut self, final_size: #crate_::core2::LayoutSize) { }]
+        [fn arrange(&mut self, final_size: #crate_::core::LayoutSize) { }]
 
-        [fn measure(&mut self, available_size: #crate_::core2::LayoutSize) -> #crate_::core2::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::LayoutSize) -> #crate_::core::LayoutSize {
             let mut size = available_size;
 
             if size.width.is_infinite() {
@@ -214,37 +214,37 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
 fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn init(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             let child = {#borrow_mut};
             child.init(ctx)
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn deinit(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             let child = {#borrow_mut};
             child.deinit(ctx)
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             let child = {#borrow_mut};
             child.update(ctx)
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn update_hp(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             let child = {#borrow_mut};
             child.update_hp(ctx)
         }]
 
-        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::core::FrameBuilder) {
             let child = {#borrow};
             child.render(frame)
         }]
 
-        [fn arrange(&mut self, final_size: #crate_::core2::LayoutSize) {
+        [fn arrange(&mut self, final_size: #crate_::core::LayoutSize) {
             let child = {#borrow_mut};
             child.arrange(final_size)
         }]
 
-        [fn measure(&mut self, available_size: #crate_::core2::LayoutSize) -> #crate_::core2::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::LayoutSize) -> #crate_::core::LayoutSize {
             let child = {#borrow_mut};
             child.measure(available_size)
         }]
@@ -254,43 +254,43 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
 fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
-        [fn init(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn init(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             for child in {#iter_mut} {
                 child.init(ctx)
             }
         }]
 
-        [fn deinit(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn deinit(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             for child in {#iter_mut} {
                 child.deinit(ctx)
             }
         }]
 
-        [fn update(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn update(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             for child in {#iter_mut} {
                 child.update(ctx)
             }
         }]
 
-        [fn update_hp(&mut self, ctx: &mut #crate_::core2::WidgetContext) {
+        [fn update_hp(&mut self, ctx: &mut #crate_::core::WidgetContext) {
             for child in {#iter_mut} {
                 child.update_hp(ctx)
             }
         }]
 
-        [fn render(&self, frame: &mut #crate_::core2::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::core::FrameBuilder) {
             for child in {#iter} {
                 child.render(frame)
             }
         }]
 
-        [fn arrange(&mut self, final_size: #crate_::core2::LayoutSize) {
+        [fn arrange(&mut self, final_size: #crate_::core::LayoutSize) {
             for child in {#iter_mut} {
                 child.arrange(final_size)
             }
         }]
 
-        [fn measure(&mut self, available_size: #crate_::core2::LayoutSize) -> #crate_::core2::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::LayoutSize) -> #crate_::core::LayoutSize {
             let mut size = Default::default();
             for child in #iter_mut {
                 size = child.measure(available_size).max(size);

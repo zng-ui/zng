@@ -1,7 +1,7 @@
 use super::{FrameBuilder, WidgetContext};
 
 use crate::impl_ui_node;
-pub use webrender::api::LayoutSize;
+pub use webrender::api::units::LayoutSize;
 
 /// An Ui tree node.
 pub trait UiNode: 'static {

@@ -1,4 +1,4 @@
-use crate::core2::*;
+use crate::core::*;
 use crate::{impl_ui_node, property};
 pub use wapi::BorderRadius;
 use webrender::api as wapi;

@@ -1,4 +1,4 @@
-use crate::core2::*;
+use crate::core::*;
 use crate::{impl_ui_node, property};
 
 struct SetContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {

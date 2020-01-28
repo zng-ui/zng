@@ -2,7 +2,7 @@ use super::*;
 use context::{AppContext, AppInitContext};
 pub use glutin::event::ElementState;
 use std::time::{Duration, Instant};
-pub use webrender::api::LayoutPoint;
+pub use webrender::api::units::LayoutPoint;
 
 /// [MouseMove] event args.
 #[derive(Debug, Clone)]
@@ -55,6 +55,7 @@ impl EventArgs for MouseClickArgs {
 
 pub struct MouseEvents {
     pos: LayoutPoint,
+    modifiers: ModifiersState,
     pos_window: Option<WindowId>,
     last_pressed: Instant,
     click_count: u8,
@@ -69,6 +70,7 @@ impl Default for MouseEvents {
     fn default() -> Self {
         MouseEvents {
             pos: LayoutPoint::default(),
+            modifiers: ModifiersState::default(),
             pos_window: None,
             last_pressed: Instant::now() - Duration::from_secs(60),
             click_count: 0,
@@ -91,13 +93,19 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseClick>(self.mouse_click.listener());
     }
 
+    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
+        if let DeviceEvent::ModifiersChanged(m) = event {
+            self.modifiers = *m;
+        }
+    }
+
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match *event {
             WindowEvent::MouseInput {
                 state,
                 device_id,
                 button,
-                modifiers,
+                ..
             } => {
                 let position = if self.pos_window == Some(window_id) {
                     self.pos
@@ -110,7 +118,7 @@ impl AppExtension for MouseEvents {
                     device_id,
                     button,
                     position,
-                    modifiers,
+                    modifiers: self.modifiers,
                     state,
                 };
                 ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
@@ -130,7 +138,7 @@ impl AppExtension for MouseEvents {
                                     device_id,
                                     button,
                                     position,
-                                    modifiers,
+                                    modifiers: self.modifiers,
                                     click_count: self.click_count,
                                 };
                                 ctx.updates.push_notify(self.mouse_click.clone(), args);
@@ -152,7 +160,7 @@ impl AppExtension for MouseEvents {
                                 device_id,
                                 button,
                                 position,
-                                modifiers,
+                                modifiers: self.modifiers,
                                 click_count: 1,
                             };
                             ctx.updates.push_notify(self.mouse_click.clone(), args);
@@ -163,9 +171,7 @@ impl AppExtension for MouseEvents {
                 }
             }
             WindowEvent::CursorMoved {
-                device_id,
-                position,
-                modifiers,
+                device_id, position, ..
             } => {
                 let position = LayoutPoint::new(position.x as f32, position.y as f32);
                 if position != self.pos || Some(window_id) != self.pos_window {
@@ -176,7 +182,7 @@ impl AppExtension for MouseEvents {
                         timestamp: Instant::now(),
                         window_id,
                         device_id,
-                        modifiers,
+                        modifiers: self.modifiers,
                         position,
                     };
 

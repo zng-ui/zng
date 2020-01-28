@@ -1,71 +1,40 @@
-use super::{FontInstanceKey, FontKey};
+use super::*;
 use app_units::Au;
+use context::AppInitContext;
 use fnv::FnvHashMap;
 use font_loader::system_fonts;
 use std::sync::Arc;
-use webrender::api::{GlyphDimensions, RenderApi, RenderApiSender, Transaction};
+use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 
-pub struct FontInstances {
-    pub font_key: FontKey,
-    pub instances: FnvHashMap<u32, FontInstance>,
-}
+#[derive(Default)]
+pub struct FontCache;
 
-#[derive(Clone)]
-struct FontInstanceData {
-    api: Arc<RenderApi>,
-    font_key: FontKey,
-    instance_key: FontInstanceKey,
-}
-
-/// Reference to a font instance.
-#[derive(Clone)]
-pub struct FontInstance {
-    inner: Arc<FontInstanceData>,
-}
-
-impl FontInstance {
-    fn new(api: Arc<RenderApi>, font_key: FontKey, instance_key: FontInstanceKey) -> Self {
-        FontInstance {
-            inner: Arc::new(FontInstanceData {
-                api,
-                font_key,
-                instance_key,
-            }),
-        }
-    }
-
-    pub fn glyph_layout(&self, text: &str) -> (Vec<u32>, Vec<Option<GlyphDimensions>>) {
-        let indices: Vec<_> = self
-            .inner
-            .api
-            .get_glyph_indices(self.inner.font_key, text)
-            .into_iter()
-            .filter_map(|i| i)
-            .collect();
-
-        let dimensions = self
-            .inner
-            .api
-            .get_glyph_dimensions(self.inner.instance_key, indices.clone());
-        (indices, dimensions)
-    }
-
-    /// Gets the font instance key
-    pub fn instance_key(&self) -> FontInstanceKey {
-        self.inner.instance_key
+impl AppExtension for FontCache {
+    fn init(&mut self, r: &mut AppInitContext) {
+        r.services.register_wnd(|ctx| Fonts {
+            api: Arc::clone(ctx.render_api),
+            fonts: FnvHashMap::default(),
+        })
     }
 }
 
-pub(crate) struct FontCache {
+/// Fonts service.
+pub struct Fonts {
     api: Arc<RenderApi>,
     fonts: FnvHashMap<String, FontInstances>,
 }
 
-impl FontCache {
-    pub fn new(sender: RenderApiSender) -> FontCache {
-        FontCache {
-            api: Arc::new(sender.create_api()),
-            fonts: Default::default(),
+impl Fonts {
+    /// Gets a cached font instance or loads a new instance.
+    pub fn get(&mut self, font_family: &str, font_size: u32) -> FontInstance {
+        if let Some(font) = self.fonts.get_mut(font_family) {
+            if let Some(font_instance) = font.instances.get(&font_size) {
+                font_instance.clone()
+            } else {
+                Self::load_font_size(self.api.clone(), font, font_size)
+            }
+        } else {
+            self.load_font(font_family, font_size)
         }
     }
 
@@ -109,16 +78,59 @@ impl FontCache {
 
         instance
     }
+}
 
-    pub fn get(&mut self, font_family: &str, font_size: u32) -> FontInstance {
-        if let Some(font) = self.fonts.get_mut(font_family) {
-            if let Some(font_instance) = font.instances.get(&font_size) {
-                font_instance.clone()
-            } else {
-                Self::load_font_size(self.api.clone(), font, font_size)
-            }
-        } else {
-            self.load_font(font_family, font_size)
+impl Service for Fonts {}
+
+/// All instances of a font family.
+struct FontInstances {
+    pub font_key: FontKey,
+    pub instances: FnvHashMap<u32, FontInstance>,
+}
+
+#[derive(Clone)]
+struct FontInstanceInner {
+    api: Arc<RenderApi>,
+    font_key: FontKey,
+    instance_key: FontInstanceKey,
+}
+
+/// Reference to a specific font instance (family and size).
+#[derive(Clone)]
+pub struct FontInstance {
+    inner: Arc<FontInstanceInner>,
+}
+
+impl FontInstance {
+    fn new(api: Arc<RenderApi>, font_key: FontKey, instance_key: FontInstanceKey) -> Self {
+        FontInstance {
+            inner: Arc::new(FontInstanceInner {
+                api,
+                font_key,
+                instance_key,
+            }),
         }
+    }
+
+    /// Gets the glyphs and glyph dimensions required for drawing the given `text`.
+    pub fn glyph_layout(&self, text: &str) -> (Vec<u32>, Vec<Option<GlyphDimensions>>) {
+        let indices: Vec<_> = self
+            .inner
+            .api
+            .get_glyph_indices(self.inner.font_key, text)
+            .into_iter()
+            .filter_map(|i| i)
+            .collect();
+
+        let dimensions = self
+            .inner
+            .api
+            .get_glyph_dimensions(self.inner.instance_key, indices.clone());
+        (indices, dimensions)
+    }
+
+    /// Gets the font instance key.
+    pub fn instance_key(&self) -> FontInstanceKey {
+        self.inner.instance_key
     }
 }

@@ -9,7 +9,7 @@ use std::string::String;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 use std::thread;
-use time::precise_time_ns;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 lazy_static! {
     static ref GLOBAL_PROFILER: Mutex<Profiler> = Mutex::new(Profiler::new());
@@ -160,4 +160,8 @@ pub fn write_profile(filename: &str) {
 /// Registers the current thread with the global profiler.
 pub fn register_thread_with_profiler() {
     GLOBAL_PROFILER.lock().unwrap().register_thread();
+}
+
+fn precise_time_ns() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
 }

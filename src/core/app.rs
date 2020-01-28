@@ -43,6 +43,10 @@ pub trait AppExtension: 'static {
     /// Called after every sequence of updates if display update was requested.
     #[inline]
     fn update_display(&mut self, _update: UpdateDisplayRequest) {}
+
+    /// Called when the OS sends a request for re-drawing the last frame.
+    #[inline]
+    fn on_redraw_requested(&mut self, _window_id: WindowId, _ctx: &mut AppContext) {}
 }
 
 impl AppExtension for () {}
@@ -82,6 +86,11 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     fn update_display(&mut self, update: UpdateDisplayRequest) {
         self.0.update_display(update);
         self.1.update_display(update);
+    }
+
+    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.0.on_redraw_requested(window_id, ctx);
+        self.1.on_redraw_requested(window_id, ctx);
     }
 }
 
@@ -155,9 +164,6 @@ impl<E: AppExtension> AppExtended<E> {
                 GEvent::NewEvents(_) => {
                     in_sequence = true;
                 }
-                GEvent::EventsCleared => {
-                    in_sequence = false;
-                }
 
                 GEvent::WindowEvent { window_id, event } => {
                     extensions.on_window_event(window_id, &event, &mut owned_ctx.borrow(event_loop));
@@ -171,6 +177,15 @@ impl<E: AppExtension> AppExtended<E> {
                 GEvent::DeviceEvent { device_id, event } => {
                     extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
+
+                GEvent::MainEventsCleared => {
+                    in_sequence = false;
+                }
+
+                GEvent::RedrawRequested(window_id) => {
+                    extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop))
+                }
+
                 _ => {}
             }
 

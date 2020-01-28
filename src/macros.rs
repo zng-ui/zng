@@ -121,14 +121,14 @@ macro_rules! profile_scope {
     };
 }
 
-/// Declares new [StateKey](std::core2::context::StateKey) types.
+/// Declares new [StateKey](std::core::context::StateKey) types.
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty)+) => {$(
         $(#[&outer])*
         $vis struct $ident;
 
-        impl $std::core2::context::StateKey for $ident {
+        impl $std::core::context::StateKey for $ident {
             type Type = $type;
         }
     )+};
@@ -142,7 +142,7 @@ macro_rules! context_var {
         #[derive(Clone, Copy)]
         $vis struct $ident;
 
-        impl $crate::core2::ContextVar for $ident {
+        impl $crate::core::ContextVar for $ident {
             type Type = $type;
 
             fn default() -> &'static Self::Type {
@@ -194,7 +194,7 @@ macro_rules! event_args {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
         }
-        impl $crate::core2::EventArgs for $Args {
+        impl $crate::core::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
@@ -239,13 +239,13 @@ macro_rules! cancelable_event_args {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
         }
-        impl $crate::core2::EventArgs for $Args {
+        impl $crate::core::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
             }
         }
-        impl $crate::core2::CancelableEventArgs for $Args {
+        impl $crate::core::CancelableEventArgs for $Args {
             /// If a handler canceled the action.
             #[inline]
             fn cancel_requested(&self) -> bool {

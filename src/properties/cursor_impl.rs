@@ -1,4 +1,4 @@
-use crate::core2::*;
+use crate::core::*;
 use crate::{impl_ui_node, property};
 
 struct Cursor<T: UiNode, C: LocalVar<CursorIcon>> {

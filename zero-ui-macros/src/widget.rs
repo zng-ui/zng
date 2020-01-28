@@ -173,7 +173,7 @@ pub(crate) fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::T
         let child = #fn_name::new(child, #(#expanded_fn_args),*);
         #(#self_args)*
         #(#expanded_self_props)*
-        $crate::core2::widget(#id, child)
+        $crate::core::widget(#id, child)
     }};
 
     result.into()

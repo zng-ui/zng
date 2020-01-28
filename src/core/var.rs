@@ -2123,28 +2123,28 @@ pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
 #[macro_export]
 macro_rules! switch_var {
     ($index: expr, $v0: expr, $v1: expr) => {
-        $crate::core2::SwitchVar2::new($index, $v0, $v1)
+        $crate::core::SwitchVar2::new($index, $v0, $v1)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
-        $crate::core2::SwitchVar3::new($index, $v0, $v1, $v2)
+        $crate::core::SwitchVar3::new($index, $v0, $v1, $v2)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
-        $crate::core2::SwitchVar4::new($index, $v0, $v1, $v2)
+        $crate::core::SwitchVar4::new($index, $v0, $v1, $v2)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
-        $crate::core2::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
+        $crate::core::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
-        $crate::core2::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
+        $crate::core::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
-        $crate::core2::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
+        $crate::core::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
-        $crate::core2::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
+        $crate::core::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
     };
     ($index: expr, $($v:expr),+) => {
-        $crate::core2::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
+        $crate::core::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
@@ -2172,25 +2172,25 @@ macro_rules! switch_var {
 #[macro_export]
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
-        $crate::core2::MergeVar2::new($v0, $v1, $merge)
+        $crate::core::MergeVar2::new($v0, $v1, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
-        $crate::core2::MergeVar3::new($v0, $v1, $v2, $merge)
+        $crate::core::MergeVar3::new($v0, $v1, $v2, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
-        $crate::core2::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
+        $crate::core::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
-        $crate::core2::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
+        $crate::core::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
-        $crate::core2::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
+        $crate::core::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
-        $crate::core2::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
+        $crate::core::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
-        $crate::core2::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
+        $crate::core::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:ident),+) => {
         compile_error!("merge_var is only implemented to a maximum of 8 variables")

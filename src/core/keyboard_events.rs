@@ -3,7 +3,7 @@ use context::{AppContext, AppInitContext};
 use glutin::event::KeyboardInput;
 pub use glutin::event::{ScanCode, VirtualKeyCode};
 use std::time::Instant;
-pub use webrender::api::LayoutPoint;
+pub use webrender::api::units::LayoutPoint;
 
 pub type Key = VirtualKeyCode;
 
@@ -28,6 +28,7 @@ impl EventArgs for KeyInputArgs {
 
 pub struct KeyboardEvents {
     last_key_down: Option<ScanCode>,
+    modifiers: ModifiersState,
     key_input: EventEmitter<KeyInputArgs>,
     key_down: EventEmitter<KeyInputArgs>,
     key_up: EventEmitter<KeyInputArgs>,
@@ -37,6 +38,7 @@ impl Default for KeyboardEvents {
     fn default() -> Self {
         KeyboardEvents {
             last_key_down: None,
+            modifiers: ModifiersState::default(),
             key_input: EventEmitter::new(false),
             key_down: EventEmitter::new(false),
             key_up: EventEmitter::new(false),
@@ -51,6 +53,12 @@ impl AppExtension for KeyboardEvents {
         r.events.register::<KeyUp>(self.key_up.listener());
     }
 
+    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
+        if let DeviceEvent::ModifiersChanged(m) = event {
+            self.modifiers = *m;
+        }
+    }
+
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         if let WindowEvent::KeyboardInput {
             device_id,
@@ -59,7 +67,7 @@ impl AppExtension for KeyboardEvents {
                     scancode,
                     state,
                     virtual_keycode: key,
-                    modifiers,
+                    ..
                 },
             ..
         } = *event
@@ -80,7 +88,7 @@ impl AppExtension for KeyboardEvents {
                 device_id,
                 scancode,
                 key,
-                modifiers,
+                modifiers: self.modifiers,
                 state,
                 repeat,
             };

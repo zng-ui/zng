@@ -214,7 +214,7 @@ impl Vars {
 
     /// Runs a function with the context var set from another var.
     pub fn with_context_bind<V: ContextVar, O: ObjVar<V::Type>>(&self, context_var: V, var: &O, f: impl FnOnce()) {
-        use crate::core2::protected::BindInfo;
+        use crate::core::protected::BindInfo;
 
         match var.bind_info(self) {
             BindInfo::Var(value, is_new, version) => self.with_context(context_var, value, is_new, version, f),

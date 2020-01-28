@@ -1,5 +1,4 @@
 use super::*;
-use crate::app::Focused;
 use crate::properties::{FocusScope, FocusScopeConfig};
 use webrender::api::*;
 
@@ -148,12 +147,7 @@ impl UiRoot {
 
         // do default focus navigation
         if is_pressed && self.next_update.focus_request.is_none() && self.ui_values.child(*FOCUS_HANDLED).is_none() {
-            static SHIFT_ONLY: ModifiersState = ModifiersState {
-                shift: true,
-                alt: false,
-                ctrl: false,
-                logo: false,
-            };
+            static SHIFT_ONLY: ModifiersState = ModifiersState::SHIFT;
 
             let request = if modifiers == ModifiersState::default() {
                 match virtual_keycode {
@@ -289,7 +283,7 @@ impl UiRoot {
     /// more `NextUpdate` changes are requested the function does
     /// not do layout and render and returns [UiUpdateResult::CausedMoreUpdates].
     #[inline]
-    pub fn update(&mut self, values_changed: bool, focused: Focused, first_draw: bool) -> UiUpdateResult {
+    pub fn update(&mut self, values_changed: bool, focused: (), first_draw: bool) -> UiUpdateResult {
         if self.next_update.has_update || values_changed {
             self.next_update.has_update = false;
 
@@ -345,7 +339,7 @@ impl UiRoot {
         self.next_update.render_frame();
     }
 
-    fn update_focus(&mut self, focused: Focused) {
+    fn update_focus(&mut self, focused: ()) {
         if let Some(request) = self.next_update.focus_request.take() {
             let new_focused = self.focus_map.focus(focused.get(), request);
             self.focused = new_focused;

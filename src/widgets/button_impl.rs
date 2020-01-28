@@ -1,38 +1,8 @@
 use crate::core::*;
-use crate::properties::*;
-use std::cell::RefCell;
-use std::rc::Rc;
-
-/// Arguments for [button!] click event. A button click
-/// can be initiated by the mouse, keyboard or touch screen.
-#[derive(Debug)]
-pub enum ButtonInput {
-    /// Mouse left button click.
-    Mouse(ClickInput),
-    /// Keyboard enter or space key tap.
-    Keyboard(KeyTap),
-    // TODO Touch(TouchInput)
-}
-
-impl ButtonInput {
-    /// Returns keyboard modifiers state.
-    pub fn modifiers(&self) -> ModifiersState {
-        match self {
-            ButtonInput::Mouse(ci) => ci.modifiers,
-            ButtonInput::Keyboard(kt) => kt.modifiers,
-        }
-    }
-
-    pub fn stop_propagation(&self) {
-        match self {
-            ButtonInput::Mouse(ci) => ci.stop_propagation(),
-            ButtonInput::Keyboard(kt) => kt.stop_propagation(),
-        }
-    }
-}
+use crate::widget;
 
 // Declares a button! {} macro.
-ui_widget! {
+widget! {
     //! Button widget.
     //! # Arguments
     //! * `on_click`: Required button click event handler.
@@ -50,7 +20,7 @@ ui_widget! {
     //! }
     //! ```
 
-    use crate::properties::*;
+    //use crate::properties::*;
 
     // Properties applied to child before calling widget fn.
     child_properties {
@@ -73,28 +43,15 @@ ui_widget! {
     // widget signature, must name the parameters after child,
     // they behave like required properties in the declared button! macro.
 
-    pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static) -> impl Ui {
-        let on_click = Rc::new(RefCell::new(on_click));
-        ui_part! {
-            focusable: default;
-            on_click: enclose! ((on_click) move |ci, n|{
-                if ci.button == MouseButton::Left {
-                    (&mut *on_click.borrow_mut())(ButtonInput::Mouse(ci), n);
-                }
-            });
-            on_key_tap: move |kt, n|{
-                if kt.key == VirtualKeyCode::Return || kt.key == VirtualKeyCode::Space {
-                    (&mut *on_click.borrow_mut())(ButtonInput::Keyboard(kt), n);
-                }
-            };
-            => child
-        }
+    pub fn button(child: impl UiNode, _on_click: ()) -> impl UiNode {
+        //TODO
+        child
     }
 }
 
 /*
 
-ui_widget! {
+widget! {
     //! Button widget.
     //! # Arguments
     //! * `on_click`: Required button click event handler.

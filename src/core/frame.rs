@@ -1,8 +1,9 @@
 use super::*;
 use context::WidgetId;
 pub use glutin::window::CursorIcon;
+pub use units::{LayoutRect, LayoutSideOffsets};
 use webrender::api::*;
-pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LayoutRect, LayoutSideOffsets};
+pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop};
 
 pub struct FrameBuilder {
     widget_id: WidgetId,
