@@ -1,10 +1,10 @@
 use super::*;
 use crate::impl_ui_node;
-use context::{LazyStageState, WidgetId};
+use context::{LazyStateMap, WidgetId};
 
 struct Widget<T: UiNode> {
     id: WidgetId,
-    state: LazyStageState,
+    state: LazyStateMap,
     child: T,
 }
 
@@ -39,7 +39,7 @@ impl<T: UiNode> UiNode for Widget<T> {
 pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
     Widget {
         id,
-        state: LazyStageState::default(),
+        state: LazyStateMap::default(),
         child,
     }
 }

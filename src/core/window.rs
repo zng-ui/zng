@@ -531,7 +531,7 @@ impl GlWindow {
 
 pub struct UiRoot {
     id: WidgetId,
-    state: LazyStageState,
+    state: LazyStateMap,
     title: BoxVar<Cow<'static, str>>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,

@@ -337,11 +337,11 @@ pub trait StateKey: 'static {
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.
 #[derive(Default)]
-pub struct StageState {
+pub struct StateMap {
     map: FnvHashMap<TypeId, Box<dyn Any>>,
 }
 
-impl StageState {
+impl StateMap {
     pub fn set<S: StateKey>(&mut self, _key: S, value: S::Type) -> Option<S::Type> {
         self.map
             .insert(TypeId::of::<S>(), Box::new(value))
@@ -377,13 +377,13 @@ impl StageState {
 
 /// A [StateState] that only uses one `usize` of memory if not used.
 #[derive(Default)]
-pub struct LazyStageState {
-    m: Option<Box<StageState>>,
+pub struct LazyStateMap {
+    m: Option<Box<StateMap>>,
 }
 
-impl LazyStageState {
-    fn borrow_mut(&mut self) -> &mut StageState {
-        self.m.get_or_insert_with(|| Box::new(StageState::default()))
+impl LazyStateMap {
+    fn borrow_mut(&mut self) -> &mut StateMap {
+        self.m.get_or_insert_with(|| Box::new(StateMap::default()))
     }
 
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
@@ -609,7 +609,7 @@ impl Updates {
 /// and this `struct` owns both you can only have one instance
 /// of this at a time.
 pub struct OwnedAppContext {
-    app_state: StageState,
+    app_state: StateMap,
     vars: Vars,
     events: Events,
     services: Services,
@@ -620,7 +620,7 @@ impl OwnedAppContext {
     /// Produces the single instance of `AppContext`.
     pub fn instance() -> Self {
         OwnedAppContext {
-            app_state: StageState::default(),
+            app_state: StateMap::default(),
             vars: Vars::instance(),
             events: Events::instance(),
             services: Services::default(),
@@ -658,7 +658,7 @@ impl OwnedAppContext {
 /// App extension initialization context.
 pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StageState,
+    pub app_state: &'a mut StateMap,
 
     pub event_loop: EventLoopProxy<AppEvent>,
 
@@ -671,7 +671,7 @@ pub struct AppInitContext<'a> {
 /// Full application context.
 pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StageState,
+    pub app_state: &'a mut StateMap,
 
     pub vars: &'a Vars,
     pub events: &'a Events,
@@ -685,12 +685,12 @@ pub struct AppContext<'a> {
 pub type WindowServices = AnyMap;
 
 /// Custom state associated with a window.
-pub type WindowState = StageState;
+pub type WindowState = StateMap;
 
 impl<'a> AppContext<'a> {
     /// Initializes state and services for a new iwndow.
     pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
-        let mut window_state = StageState::default();
+        let mut window_state = StateMap::default();
         let mut window_services = FnvHashMap::default();
 
         let window_init = mem::replace(&mut self.services.window_init, Vec::default());
@@ -717,7 +717,7 @@ impl<'a> AppContext<'a> {
         self.updates.win_display_update = UpdateDisplayRequest::None;
         mem::swap(&mut self.services.window, window_services);
 
-        let mut event_state = StageState::default();
+        let mut event_state = StateMap::default();
 
         f(&mut WindowContext {
             window_id,
@@ -742,13 +742,13 @@ pub struct WindowContext<'a> {
     pub render_api: &'a Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StageState,
+    pub app_state: &'a mut StateMap,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'a mut StageState,
+    pub window_state: &'a mut StateMap,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'a mut StageState,
+    pub event_state: &'a mut StateMap,
 
     pub vars: &'a Vars,
     pub events: &'a Events,
@@ -766,7 +766,7 @@ impl<'a> WindowContext<'a> {
     pub fn widget_context(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut LazyStageState,
+        widget_state: &mut LazyStateMap,
         f: impl FnOnce(&mut WidgetContext),
     ) {
         f(&mut WidgetContext {
@@ -793,16 +793,16 @@ pub struct WidgetContext<'a> {
     widget_id: WidgetId,
 
     /// State that lives for the duration of the application.
-    pub app_state: &'a mut StageState,
+    pub app_state: &'a mut StateMap,
 
     /// State that lives for the duration of the window.
-    pub window_state: &'a mut StageState,
+    pub window_state: &'a mut StateMap,
 
     /// State that lives for the duration of the widget.
-    pub widget_state: &'a mut LazyStageState,
+    pub widget_state: &'a mut LazyStateMap,
 
     /// State that lives for the duration of the event.
-    pub event_state: &'a mut StageState,
+    pub event_state: &'a mut StateMap,
 
     pub vars: &'a Vars,
     pub events: &'a Events,
@@ -824,7 +824,7 @@ impl<'a> WidgetContext<'a> {
     pub fn widget_context(
         &mut self,
         widget_id: WidgetId,
-        widget_state: &mut LazyStageState,
+        widget_state: &mut LazyStateMap,
         f: impl FnOnce(&mut WidgetContext),
     ) {
         f(&mut WidgetContext {

@@ -1,5 +1,6 @@
 use super::*;
-use context::WidgetId;
+use context::{LazyStateMap, WidgetId};
+use ego_tree::Tree;
 pub use glutin::window::CursorIcon;
 pub use units::{LayoutRect, LayoutSideOffsets};
 use webrender::api::*;
@@ -126,46 +127,309 @@ impl Hits {
     }
 }
 
-pub struct FrameTree {
-    root: FrameNode,
+/// Builds [FrameInfo]
+pub struct FrameInfoBuilder {
+    tree: Tree<WidgetInfoInner>,
 }
 
-impl FrameTree {
-    pub fn new(root_id: WidgetId) -> Self {
-        FrameTree {
-            root: FrameNode {
+impl FrameInfoBuilder {
+    pub fn new(root_id: WidgetId, size: LayoutSize) -> Self {
+        FrameInfoBuilder {
+            tree: Tree::new(WidgetInfoInner {
                 id: root_id,
-                children: Vec::default(),
-            },
+                bounds: LayoutRect::from_size(size),
+                meta: LazyStateMap::default(),
+            }),
         }
     }
 
-    pub fn root_mut(&mut self) -> FrameNodeMut {
-        FrameNodeMut { node: &mut self.root }
+    pub fn build(self) -> FrameInfo {
+        FrameInfo { tree: self.tree }
     }
 }
 
-pub struct FrameNodeMut<'a> {
-    node: &'a mut FrameNode,
+/// Information about a rendered frame.
+pub struct FrameInfo {
+    tree: Tree<WidgetInfoInner>,
 }
 
-impl<'a> FrameNodeMut<'a> {
-    /// Pushes a new child and returns a mutable reference to it.
-    pub fn push(&mut self, widget_id: WidgetId) -> FrameNodeMut {
-        self.node.children.push(FrameNode {
-            id: widget_id,
-            children: Vec::default(),
-        });
-
-        let last = self.node.children.len() - 1;
-
-        FrameNodeMut {
-            node: &mut self.node.children[last],
-        }
+impl FrameInfo {
+    /// Reference to the root widget in the frame.
+    pub fn root(&self) -> WidgetInfo {
+        WidgetInfo::new(self.tree.root())
     }
 }
 
-struct FrameNode {
+struct WidgetInfoInner {
     id: WidgetId,
-    children: Vec<FrameNode>,
+    bounds: LayoutRect,
+    meta: LazyStateMap,
+}
+
+/// Reference to a widget info in a [FrameInfo].
+#[derive(Clone, Copy)]
+pub struct WidgetInfo<'a> {
+    node: ego_tree::NodeRef<'a, WidgetInfoInner>,
+}
+
+impl<'a> WidgetInfo<'a> {
+    #[inline]
+    fn new(node: ego_tree::NodeRef<'a, WidgetInfoInner>) -> Self {
+        Self { node }
+    }
+
+    /// Widget id.
+    #[inline]
+    pub fn id(&self) -> WidgetId {
+        self.node.value().id
+    }
+
+    /// Widget retangle in the frame.
+    #[inline]
+    pub fn bounds(&self) -> &LayoutRect {
+        &self.node.value().bounds
+    }
+
+    /// Widget bounds center.
+    #[inline]
+    pub fn center(&self) -> LayoutPoint {
+        self.bounds().center()
+    }
+
+    /// Metadata associated with the widget during render.
+    #[inline]
+    pub fn meta(&self) -> &LazyStateMap {
+        &self.node.value().meta
+    }
+
+    /// Reference to the frame root widget.
+    #[inline]
+    pub fn root(&self) -> WidgetInfo {
+        self.ancestors().last().unwrap_or(*self)
+    }
+
+    /// Reference to the widget that contains this widget.
+    ///
+    /// Is `None` only for [root](FrameInfo::root).
+    #[inline]
+    pub fn parent(&self) -> Option<WidgetInfo> {
+        self.node.parent().map(WidgetInfo::new)
+    }
+
+    /// Reference to the previous widget within the same parent.
+    #[inline]
+    pub fn prev_sibling(&self) -> Option<Self> {
+        self.node.prev_sibling().map(WidgetInfo::new)
+    }
+
+    /// Reference to the next widget within the same parent.
+    #[inline]
+    pub fn next_sibling(&self) -> Option<Self> {
+        self.node.next_sibling().map(WidgetInfo::new)
+    }
+
+    /// Reference to the first widget within this widget.
+    #[inline]
+    pub fn first_child(&self) -> Option<Self> {
+        self.node.first_child().map(WidgetInfo::new)
+    }
+
+    /// Reference to the last widget within this widget.
+    #[inline]
+    pub fn last_child(&self) -> Option<Self> {
+        self.node.last_child().map(WidgetInfo::new)
+    }
+
+    /// If the parent widget has multiple children.
+    #[inline]
+    pub fn has_siblings(&self) -> bool {
+        self.node.has_siblings()
+    }
+
+    /// If the widget has at least one child.
+    #[inline]
+    pub fn has_children(&self) -> bool {
+        self.node.has_children()
+    }
+
+    /// All parent children except this widget.
+    #[inline]
+    pub fn siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.prev_siblings().chain(self.next_siblings())
+    }
+
+    /// Iterator over the widgets directly contained by this widget.
+    #[inline]
+    pub fn children(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.node.children().map(WidgetInfo::new)
+    }
+
+    /// Iterator over all widgets contained by this widget.
+    #[inline]
+    pub fn descendants(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.node.descendants().map(WidgetInfo::new)
+    }
+
+    /// Iterator over parent -> grant-parent -> .. -> root.
+    #[inline]
+    pub fn ancestors(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.node.ancestors().map(WidgetInfo::new)
+    }
+
+    /// Iterator over all previous widgets within the same parent.
+    #[inline]
+    pub fn prev_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.node.prev_siblings().map(WidgetInfo::new)
+    }
+
+    /// Iterator over all next widgets within the same parent.
+    #[inline]
+    pub fn next_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.node.next_siblings().map(WidgetInfo::new)
+    }
+
+    /// Find descendant.
+    #[inline]
+    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
+        self.descendants().find(|n| n.id() == widget_id)
+    }
+
+    /// This widgets orientation in relation to a `origin`.
+    #[inline]
+    pub fn orientation_from(&self, origin: LayoutPoint) -> WidgetOrientation {
+        let o = self.center();
+        if o.x < origin.x {
+            if o.y < origin.y {
+                // left or above
+                if o.y <= origin.y + (origin.x - o.x) {
+                    WidgetOrientation::Left
+                } else {
+                    WidgetOrientation::Above
+                }
+            } else {
+                // left or below
+                todo!()
+            }
+        } else {
+            // else -> o.x >= origin.x
+
+            if o.y < origin.y {
+                // right or above
+                todo!()
+            } else {
+                // right or below
+                todo!()
+            }
+        }
+    }
+
+    ///Iterator over all parent children except this widget with orientation in relation
+    /// to this widget center.
+    #[inline]
+    pub fn oriented_siblings(&self) -> impl Iterator<Item = (WidgetInfo, WidgetOrientation)> {
+        let c = self.center();
+        self.siblings().map(move |s| (s, s.orientation_from(c)))
+    }
+
+    /// All parent children except this widget, sorted by closest first.
+    #[inline]
+    pub fn closest_siblings(&self) -> Vec<WidgetInfo> {
+        self.closest_first(self.siblings())
+    }
+
+    /// All parent children except this widget, sorted by closest first and with orientation in
+    /// relation to this widget center.
+    #[inline]
+    pub fn closest_oriented_siblings(&self) -> Vec<(WidgetInfo, WidgetOrientation)> {
+        let mut vec: Vec<_> = self.oriented_siblings().collect();
+        let origin = self.center();
+        vec.sort_by_cached_key(|n| n.0.distance_key(origin));
+        vec
+    }
+
+    /// Unordered siblings to the left of this widget.
+    #[inline]
+    pub fn un_left_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.oriented_siblings().filter_map(|(s, o)| match o {
+            WidgetOrientation::Left => Some(s),
+            _ => None,
+        })
+    }
+
+    /// Unordered siblings to the right of this widget.
+    #[inline]
+    pub fn un_right_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.oriented_siblings().filter_map(|(s, o)| match o {
+            WidgetOrientation::Right => Some(s),
+            _ => None,
+        })
+    }
+
+    /// Unordered siblings to the above of this widget.
+    #[inline]
+    pub fn un_above_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.oriented_siblings().filter_map(|(s, o)| match o {
+            WidgetOrientation::Above => Some(s),
+            _ => None,
+        })
+    }
+
+    /// Unordered siblings to the below of this widget.
+    #[inline]
+    pub fn un_below_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.oriented_siblings().filter_map(|(s, o)| match o {
+            WidgetOrientation::Below => Some(s),
+            _ => None,
+        })
+    }
+
+    /// Siblings to the left of this widget sorted by closest first.
+    #[inline]
+    pub fn left_siblings(&self) -> Vec<WidgetInfo> {
+        self.closest_first(self.un_left_siblings())
+    }
+
+    /// Siblings to the right of this widget sorted by closest first.
+    #[inline]
+    pub fn right_siblings(&self) -> Vec<WidgetInfo> {
+        self.closest_first(self.un_right_siblings())
+    }
+
+    /// Siblings to the above of this widget sorted by closest first.
+    #[inline]
+    pub fn above_siblings(&self) -> Vec<WidgetInfo> {
+        self.closest_first(self.un_above_siblings())
+    }
+
+    /// Siblings to the below of this widget sorted by closest first.
+    #[inline]
+    pub fn below_siblings(&self) -> Vec<WidgetInfo> {
+        self.closest_first(self.un_below_siblings())
+    }
+
+    /// Value that indicates the distance between this widget center
+    /// and `origin`.
+    #[inline]
+    pub fn distance_key(&self, origin: LayoutPoint) -> usize {
+        let o = self.center();
+        let a = (o.x - origin.x).powf(2.);
+        let b = (o.y - origin.y).powf(2.);
+        (a + b) as usize
+    }
+
+    fn closest_first(&self, iter: impl Iterator<Item = WidgetInfo<'a>>) -> Vec<WidgetInfo<'a>> {
+        let mut vec: Vec<_> = iter.collect();
+        let origin = self.center();
+        vec.sort_by_cached_key(|n| n.distance_key(origin));
+        vec
+    }
+}
+
+/// Orientation of a [WidgetInfo] relative to another point.
+#[derive(Debug, PartialEq, Eq)]
+pub enum WidgetOrientation {
+    Left,
+    Right,
+    Above,
+    Below,
 }
