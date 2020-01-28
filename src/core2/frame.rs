@@ -124,3 +124,47 @@ impl Hits {
         todo!()
     }
 }
+
+pub struct FrameTree {
+    root: FrameNode,
+}
+
+impl FrameTree {
+    pub fn new(root_id: WidgetId) -> Self {
+        FrameTree {
+            root: FrameNode {
+                id: root_id,
+                children: Vec::default(),
+            },
+        }
+    }
+
+    pub fn root_mut(&mut self) -> FrameNodeMut {
+        FrameNodeMut { node: &mut self.root }
+    }
+}
+
+pub struct FrameNodeMut<'a> {
+    node: &'a mut FrameNode,
+}
+
+impl<'a> FrameNodeMut<'a> {
+    /// Pushes a new child and returns a mutable reference to it.
+    pub fn push(&mut self, widget_id: WidgetId) -> FrameNodeMut {
+        self.node.children.push(FrameNode {
+            id: widget_id,
+            children: Vec::default(),
+        });
+
+        let last = self.node.children.len() - 1;
+
+        FrameNodeMut {
+            node: &mut self.node.children[last],
+        }
+    }
+}
+
+struct FrameNode {
+    id: WidgetId,
+    children: Vec<FrameNode>,
+}
