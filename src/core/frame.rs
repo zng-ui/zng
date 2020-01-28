@@ -92,17 +92,20 @@ fn unpack_cursor(raw: u16) -> CursorIcon {
     }
 }
 
-pub struct Hit {
+/// A hit-test hit.
+pub struct HitInfo {
     pub widget_id: WidgetId,
     pub point: LayoutPoint,
+    pub cursor: CursorIcon,
 }
 
-pub struct Hits {
-    hits: Vec<Hit>,
-    cursor: CursorIcon,
+/// A hit-test result.
+pub struct FrameHitInfo {
+    hits: Vec<HitInfo>,
 }
 
-impl Hits {
+impl FrameHitInfo {
+    /// Initializes from a webrender hit-test result.
     #[inline]
     pub fn new(hits: HitTestResult) -> Self {
         // TODO solve: using the same WidgetId in multiple properties
@@ -111,46 +114,63 @@ impl Hits {
         todo!()
     }
 
+    /// Top-most cursor or `CursorIcon::Default` if there was no hit.
     #[inline]
     pub fn cursor(&self) -> CursorIcon {
-        self.cursor
+        self.hits.first().map(|h|h.cursor).unwrap_or(CursorIcon::Default)
     }
 
+    /// All hits, from top-most.
     #[inline]
-    pub fn hits(&self) -> &[Hit] {
+    pub fn hits(&self) -> &[HitInfo] {
         &self.hits
     }
 
+    /// Finds the widget in the hit-test result if it was hit.
     #[inline]
-    pub fn hit(&self, widget_id: WidgetId) -> &Hit {
-        todo!()
+    pub fn find(&self, widget_id: WidgetId) -> Option<&HitInfo> {
+        self.hits.iter().find(|h| h.widget_id == widget_id)
+    }
+
+    /// If the widget is in was hit.
+    #[inline]
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.hits.iter().any(|h| h.widget_id == widget_id)
     }
 }
 
-/// Builds [FrameInfo]
+/// [FrameInfo] builder.
 pub struct FrameInfoBuilder {
     tree: Tree<WidgetInfoInner>,
 }
 
 impl FrameInfoBuilder {
+    /// Starts building a frame info with the frame root information.
     pub fn new(root_id: WidgetId, size: LayoutSize) -> Self {
         FrameInfoBuilder {
             tree: Tree::new(WidgetInfoInner {
-                id: root_id,
+                widget_id: root_id,
                 bounds: LayoutRect::from_size(size),
                 meta: LazyStateMap::default(),
             }),
         }
     }
 
+    /// Builds the final frame info.
     pub fn build(self) -> FrameInfo {
-        FrameInfo { tree: self.tree }
+        FrameInfo {
+            lookup: self.tree.nodes().map(|n| (n.value().widget_id, n.id())).collect(),
+            tree: self.tree,
+        }
     }
 }
 
 /// Information about a rendered frame.
+///
+/// Instantiated using [FrameInfoBuilder].
 pub struct FrameInfo {
     tree: Tree<WidgetInfoInner>,
+    lookup: fnv::FnvHashMap<WidgetId, ego_tree::NodeId>,
 }
 
 impl FrameInfo {
@@ -158,10 +178,22 @@ impl FrameInfo {
     pub fn root(&self) -> WidgetInfo {
         WidgetInfo::new(self.tree.root())
     }
+
+    /// Reference to the widget in the frame, if it is present.
+    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
+        self.lookup
+            .get(&widget_id)
+            .and_then(|i| self.tree.get(*i).map(WidgetInfo::new))
+    }
+
+    /// If the frame contains the widget.
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.lookup.contains_key(&widget_id)
+    }
 }
 
 struct WidgetInfoInner {
-    id: WidgetId,
+    widget_id: WidgetId,
     bounds: LayoutRect,
     meta: LazyStateMap,
 }
@@ -180,8 +212,8 @@ impl<'a> WidgetInfo<'a> {
 
     /// Widget id.
     #[inline]
-    pub fn id(&self) -> WidgetId {
-        self.node.value().id
+    pub fn widget_id(&self) -> WidgetId {
+        self.node.value().widget_id
     }
 
     /// Widget retangle in the frame.
@@ -286,12 +318,6 @@ impl<'a> WidgetInfo<'a> {
     #[inline]
     pub fn next_siblings(&self) -> impl Iterator<Item = WidgetInfo> {
         self.node.next_siblings().map(WidgetInfo::new)
-    }
-
-    /// Find descendant.
-    #[inline]
-    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
-        self.descendants().find(|n| n.id() == widget_id)
     }
 
     /// This widgets orientation in relation to a `origin`.
