@@ -55,6 +55,7 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
 
 struct FillColor<C: LocalVar<ColorF>> {
     color: C,
+    final_size: LayoutSize,
 }
 
 #[impl_ui_node(none)]
@@ -67,15 +68,20 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
             ctx.updates.push_render();
         }
     }
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.final_size = final_size;
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_color");
-        frame.push_fill_color(&LayoutRect::from_size(frame.final_size()), *self.color.get_local());
+        frame.push_fill_color(&LayoutRect::from_size(self.final_size), *self.color.get_local());
     }
 }
 
 pub fn fill_color<C: IntoVar<ColorF>>(color: C) -> impl UiNode {
     FillColor {
         color: color.into_var().as_local(),
+        final_size: LayoutSize::default(),
     }
 }
 

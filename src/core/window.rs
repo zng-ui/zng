@@ -152,8 +152,15 @@ impl AppExtension for AppWindows {
         match event {
             WindowEvent::Resized(new_size) => {
                 let new_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
+
+                // raise window_resize
                 ctx.updates
-                    .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size))
+                    .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
+
+                // set the window size variable if it is not read-only.
+                if let Some(window) = self.window_mut(window_id) {
+                    let _ = ctx.updates.push_set(&window.root.size, new_size);
+                }
             }
             WindowEvent::Moved(new_position) => {
                 let new_position = LayoutPoint::new(new_position.x as f32, new_position.y as f32);
@@ -475,7 +482,10 @@ impl GlWindow {
         if self.update == UpdateDisplayRequest::Render {
             self.update = UpdateDisplayRequest::None;
 
-            let mut frame = FrameBuilder::new(self.root.id);
+            let size = self.context.as_ref().unwrap().window().inner_size();
+            let size = LayoutSize::new(size.width as f32, size.height as f32);
+
+            let mut frame = FrameBuilder::new(self.root.id, size, PipelineId::default());
             self.root.child.render(&mut frame);
 
             todo!()

@@ -16,5 +16,5 @@ impl AppExtension for PrintDeviceKeyPresses {
 }
 
 fn main() {
-    App::empty().extend(PrintDeviceKeyPresses).run(|_|{});
+    App::empty().extend(PrintDeviceKeyPresses).run(|_| {});
 }

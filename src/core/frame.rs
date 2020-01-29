@@ -7,26 +7,27 @@ use webrender::api::*;
 pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop};
 
 pub struct FrameBuilder {
+    pub display_list: DisplayListBuilder,
     widget_id: WidgetId,
     cursor: CursorIcon,
-    final_size: LayoutSize,
 }
 
 impl FrameBuilder {
-    pub fn new(root_id: WidgetId) -> Self {
+    pub fn new(root_id: WidgetId, root_size: LayoutSize, pipeline_id: PipelineId) -> Self {
         FrameBuilder {
+            display_list: DisplayListBuilder::new(pipeline_id, root_size),
             widget_id: root_id,
             cursor: CursorIcon::default(),
-            final_size: LayoutSize::zero(),
         }
+    }
+
+    /// Current widget.
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_id
     }
 
     fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
-    }
-
-    pub fn final_size(&self) -> LayoutSize {
-        self.final_size
     }
 
     pub(crate) fn push_widget(&mut self, id: WidgetId, child: &impl UiNode) {
@@ -117,7 +118,7 @@ impl FrameHitInfo {
     /// Top-most cursor or `CursorIcon::Default` if there was no hit.
     #[inline]
     pub fn cursor(&self) -> CursorIcon {
-        self.hits.first().map(|h|h.cursor).unwrap_or(CursorIcon::Default)
+        self.hits.first().map(|h| h.cursor).unwrap_or(CursorIcon::Default)
     }
 
     /// All hits, from top-most.
