@@ -12,7 +12,7 @@ mod widget;
 mod window;
 
 pub use app::*;
-pub use context::WidgetContext;
+pub use context::{WidgetContext, AppContext};
 pub use events::*;
 pub use font::*;
 pub use frame::*;
