@@ -13,7 +13,5 @@ pub use context_var::*;
 pub use cursor_impl::*;
 pub use events::*;
 pub use focus::*;
-pub use glutin::event::{ElementState, ModifiersState, MouseButton, ScanCode, VirtualKeyCode};
-pub use glutin::window::CursorIcon;
 pub use layout::*;
 pub use ui_n::*;
