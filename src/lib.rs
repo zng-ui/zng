@@ -74,7 +74,10 @@ pub mod properties;
 pub mod widgets;
 
 pub mod prelude {
-    pub use crate::core::*;
+    pub use crate::core::{
+        types::{rgb, rgba},
+        var::var,
+    };
     pub use crate::layouts::*;
     pub use crate::properties::*;
     pub use crate::widgets::*;

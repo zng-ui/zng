@@ -1,4 +1,8 @@
-use super::*;
+use crate::core::app::AppEvent;
+use crate::core::event::{Event, EventEmitter, EventListener};
+use crate::core::types::{WidgetId, WindowId};
+use crate::core::var::*;
+
 use fnv::FnvHashMap;
 use glutin::event_loop::EventLoopProxy;
 use glutin::event_loop::EventLoopWindowTarget;
@@ -32,11 +36,6 @@ enum ContextVarEntry {
 type UpdateOnce = Box<dyn FnOnce(&mut Vars, &mut Events, &mut Vec<CleanupOnce>)>;
 
 type CleanupOnce = Box<dyn FnOnce()>;
-
-uid! {
-   /// Unique id of a widget.
-   pub struct WidgetId(_);
-}
 
 /// Required updates for a window layout and frame.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -214,7 +213,7 @@ impl Vars {
 
     /// Runs a function with the context var set from another var.
     pub fn with_context_bind<V: ContextVar, O: ObjVar<V::Type>>(&self, context_var: V, var: &O, f: impl FnOnce()) {
-        use crate::core::protected::BindInfo;
+        use crate::core::var::protected::BindInfo;
 
         match var.bind_info(self) {
             BindInfo::Var(value, is_new, version) => self.with_context(context_var, value, is_new, version, f),
@@ -466,6 +465,9 @@ impl Drop for Events {
         EVENTS_ALIVE.store(false, atomic::Ordering::Release);
     }
 }
+
+/// Identifies a service type.
+pub trait Service: 'static {}
 
 /// Access to application services.
 #[derive(Default)]

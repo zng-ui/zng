@@ -142,7 +142,7 @@ macro_rules! context_var {
         #[derive(Clone, Copy)]
         $vis struct $ident;
 
-        impl $crate::core::ContextVar for $ident {
+        impl $crate::core::var::ContextVar for $ident {
             type Type = $type;
 
             fn default() -> &'static Self::Type {
@@ -194,7 +194,7 @@ macro_rules! event_args {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
         }
-        impl $crate::core::EventArgs for $Args {
+        impl $crate::core::event::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
@@ -239,13 +239,13 @@ macro_rules! cancelable_event_args {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
         }
-        impl $crate::core::EventArgs for $Args {
+        impl $crate::core::event::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
             }
         }
-        impl $crate::core::CancelableEventArgs for $Args {
+        impl $crate::core::event::CancelableEventArgs for $Args {
             /// If a handler canceled the action.
             #[inline]
             fn cancel_requested(&self) -> bool {

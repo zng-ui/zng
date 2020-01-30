@@ -1,5 +1,10 @@
-use super::*;
-use context::*;
+use crate::core::app::{AppEvent, AppExtension};
+use crate::core::context::*;
+use crate::core::event::*;
+use crate::core::frame::FrameBuilder;
+use crate::core::types::*;
+use crate::core::var::*;
+use crate::core::UiNode;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
@@ -11,8 +16,6 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Instant;
 use webrender::api::*;
-
-pub use webrender::api::ColorF;
 
 event_args! {
     /// [WindowOpen], [WindowClose] event args.
@@ -412,7 +415,6 @@ impl GlWindow {
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
         let document_id = api.add_document(start_size, 0);
-
 
         let id = context.window().id();
         let (state, services) = ctx.new_window(id, &api);

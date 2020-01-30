@@ -1,4 +1,10 @@
-use crate::core::*;
+use crate::core::context::*;
+use crate::core::font::*;
+use crate::core::frame::FrameBuilder;
+use crate::core::types::*;
+use crate::core::var::*;
+use crate::core::var::{IntoVar, Var};
+use crate::core::UiNode;
 use crate::properties::set_context_var;
 use crate::{impl_ui_node, property};
 use std::borrow::Cow;

@@ -1,4 +1,7 @@
-use crate::core::*;
+use crate::core::context::*;
+use crate::core::event::*;
+use crate::core::events::*;
+use crate::core::UiNode;
 use crate::{impl_ui_node, property};
 
 struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
@@ -110,7 +113,7 @@ impl<E: Event> Default for StopPropagation<E> {
     }
 }
 
-impl<E: Event> context::StateKey for StopPropagation<E> {
+impl<E: Event> StateKey for StopPropagation<E> {
     type Type = ();
 }
 

@@ -1,9 +1,11 @@
-use super::*;
-use app_units::Au;
-use context::AppInitContext;
+use crate::core::app::AppExtension;
+use crate::core::context::{AppInitContext, Service};
+use crate::core::types::FontInstanceKey;
+
 use fnv::FnvHashMap;
 use font_loader::system_fonts;
 use std::sync::Arc;
+use webrender::api::units::Au;
 use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 
 #[derive(Default)]

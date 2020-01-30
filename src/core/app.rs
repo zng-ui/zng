@@ -1,9 +1,7 @@
-use super::*;
-use context::*;
+use crate::core::{context::*, events::*, font::FontCache, types::*, window::AppWindows};
+
 use glutin::event::Event as GEvent;
-pub use glutin::event::{DeviceEvent, DeviceId, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
-pub use glutin::window::WindowId;
 use std::any::{type_name, TypeId};
 
 /// An [App] extension.
@@ -93,9 +91,6 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
         self.1.on_redraw_requested(window_id, ctx);
     }
 }
-
-/// Identifies a service type.
-pub trait Service: 'static {}
 
 /// Defines and runs an application.
 pub struct App;

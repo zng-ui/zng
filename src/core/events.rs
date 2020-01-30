@@ -1,171 +1,392 @@
-use super::*;
-use context::Events;
-pub use glutin::event::{ModifiersState, MouseButton};
-use std::cell::UnsafeCell;
-use std::fmt::Debug;
-use std::rc::Rc;
-use std::time::Instant;
+use crate::core::app::*;
+use crate::core::context::*;
+use crate::core::event::*;
+use crate::core::types::*;
+use std::time::*;
 
-/// [Event] arguments.
-pub trait EventArgs: Debug + Clone + 'static {
-    /// Gets the instant this event happen.
-    fn timestamp(&self) -> Instant;
+/// [KeyInput], [KeyDown], [KeyUp] event args.
+#[derive(Debug, Clone)]
+pub struct KeyInputArgs {
+    pub timestamp: Instant,
+    pub window_id: WindowId,
+    pub device_id: DeviceId,
+    pub scancode: ScanCode,
+    pub state: ElementState,
+    pub key: Option<VirtualKeyCode>,
+    pub modifiers: ModifiersState,
+    pub repeat: bool,
 }
 
-/// [Event] arguments that can be canceled.
-pub trait CancelableEventArgs: EventArgs {
-    /// If the originating action must be canceled.
-    fn cancel_requested(&self) -> bool;
-    /// Cancel the originating action.
-    fn cancel(&self);
-}
-
-/// Identifies an event type.
-pub trait Event: 'static {
-    /// Event arguments.
-    type Args: EventArgs;
-
-    const IS_HIGH_PRESSURE: bool = false;
-
-    fn valid_in_widget(_ctx: &mut WidgetContext) -> bool {
-        true
+impl EventArgs for KeyInputArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
     }
 }
 
-/// Identifies an event type for an action that
-/// can be canceled.
-pub trait CancelableEvent: Event + 'static {
-    /// Event arguments.
-    type Args: CancelableEventArgs;
+pub struct KeyboardEvents {
+    last_key_down: Option<ScanCode>,
+    modifiers: ModifiersState,
+    key_input: EventEmitter<KeyInputArgs>,
+    key_down: EventEmitter<KeyInputArgs>,
+    key_up: EventEmitter<KeyInputArgs>,
 }
 
-struct EventChannelInner<T> {
-    data: UnsafeCell<Vec<T>>,
-    is_high_pressure: bool,
-}
-
-struct EventChannel<T: 'static> {
-    r: Rc<EventChannelInner<T>>,
-}
-impl<T: 'static> Clone for EventChannel<T> {
-    fn clone(&self) -> Self {
-        EventChannel { r: Rc::clone(&self.r) }
-    }
-}
-impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(
-        self,
-        new_update: T,
-        _assert_events_not_borrowed: &mut Events,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
-        // SAFETY: This is safe because borrows are bound to the `Events` instance
-        // so if we have a mutable reference to it no event value is borrowed.
-        let data = unsafe { &mut *self.r.data.get() };
-        data.push(new_update);
-
-        if data.len() == 1 {
-            // register for cleanup once
-            cleanup.push(Box::new(move || {
-                unsafe { &mut *self.r.data.get() }.clear();
-            }))
-        }
-    }
-
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, _events: &'a Events) -> &'a [T] {
-        // SAFETY: This is safe because we are bounding the value lifetime with
-        // the `Events` lifetime and we require a mutable reference to `Events` to
-        // modify the value.
-        unsafe { &*self.r.data.get() }.as_ref()
-    }
-
-    /// Gets if this update is notified using the [UiNode::update_hp] method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.r.is_high_pressure
-    }
-}
-
-/// Read-only reference to an event channel.
-pub struct EventListener<T: 'static> {
-    chan: EventChannel<T>,
-}
-impl<T: 'static> Clone for EventListener<T> {
-    fn clone(&self) -> Self {
-        EventListener {
-            chan: self.chan.clone(),
-        }
-    }
-}
-impl<T: 'static> EventListener<T> {
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
-        self.chan.updates(events)
-    }
-
-    /// Gets if this update is notified using the [UiNode::update_hp] method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.chan.is_high_pressure()
-    }
-
-    /// Listener that never updates.
-    pub fn never(is_high_pressure: bool) -> Self {
-        EventListener {
-            chan: EventEmitter::new(is_high_pressure).chan,
+impl Default for KeyboardEvents {
+    fn default() -> Self {
+        KeyboardEvents {
+            last_key_down: None,
+            modifiers: ModifiersState::default(),
+            key_input: EventEmitter::new(false),
+            key_down: EventEmitter::new(false),
+            key_up: EventEmitter::new(false),
         }
     }
 }
 
-/// Read-write reference to an event channel.
-pub struct EventEmitter<T: 'static> {
-    chan: EventChannel<T>,
-}
-impl<T: 'static> Clone for EventEmitter<T> {
-    fn clone(&self) -> Self {
-        EventEmitter {
-            chan: self.chan.clone(),
+impl AppExtension for KeyboardEvents {
+    fn init(&mut self, r: &mut AppInitContext) {
+        r.events.register::<KeyInput>(self.key_input.listener());
+        r.events.register::<KeyDown>(self.key_down.listener());
+        r.events.register::<KeyUp>(self.key_up.listener());
+    }
+
+    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
+        if let DeviceEvent::ModifiersChanged(m) = event {
+            self.modifiers = *m;
+        }
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        if let WindowEvent::KeyboardInput {
+            device_id,
+            input:
+                KeyboardInput {
+                    scancode,
+                    state,
+                    virtual_keycode: key,
+                    ..
+                },
+            ..
+        } = *event
+        {
+            let mut repeat = false;
+            if state == ElementState::Pressed {
+                repeat = self.last_key_down == Some(scancode);
+                if !repeat {
+                    self.last_key_down = Some(scancode);
+                }
+            } else {
+                self.last_key_down = None;
+            }
+
+            let args = KeyInputArgs {
+                timestamp: Instant::now(),
+                window_id,
+                device_id,
+                scancode,
+                key,
+                modifiers: self.modifiers,
+                state,
+                repeat,
+            };
+
+            ctx.updates.push_notify(self.key_input.clone(), args.clone());
+
+            match state {
+                ElementState::Pressed => {
+                    ctx.updates.push_notify(self.key_down.clone(), args);
+                    todo!()
+                }
+                ElementState::Released => {
+                    ctx.updates.push_notify(self.key_up.clone(), args);
+                }
+            }
         }
     }
 }
-impl<T: 'static> EventEmitter<T> {
-    /// New event emitter.
-    ///
-    /// # Arguments
-    /// * `is_high_pressure`: If this event is notified using the [UiNode::update_hp] method.
-    pub fn new(is_high_pressure: bool) -> Self {
-        EventEmitter {
-            chan: EventChannel {
-                r: Rc::new(EventChannelInner {
-                    data: UnsafeCell::default(),
-                    is_high_pressure,
-                }),
-            },
+
+pub struct KeyInput;
+impl Event for KeyInput {
+    type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
+}
+
+pub struct KeyDown;
+impl Event for KeyDown {
+    type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
+}
+
+pub struct KeyUp;
+impl Event for KeyUp {
+    type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
+}
+
+/// [MouseMove] event args.
+#[derive(Debug, Clone)]
+pub struct MouseMoveArgs {
+    pub timestamp: Instant,
+    pub window_id: WindowId,
+    pub device_id: DeviceId,
+    pub modifiers: ModifiersState,
+    pub position: LayoutPoint,
+}
+impl EventArgs for MouseMoveArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+}
+
+/// [MouseInput], [MouseDown], [MouseUp] event args.
+#[derive(Debug, Clone)]
+pub struct MouseInputArgs {
+    pub timestamp: Instant,
+    pub window_id: WindowId,
+    pub device_id: DeviceId,
+    pub button: MouseButton,
+    pub position: LayoutPoint,
+    pub modifiers: ModifiersState,
+    pub state: ElementState,
+}
+impl EventArgs for MouseInputArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+}
+
+/// [MouseClick] event args.
+#[derive(Debug, Clone)]
+pub struct MouseClickArgs {
+    pub timestamp: Instant,
+    pub window_id: WindowId,
+    pub device_id: DeviceId,
+    pub button: MouseButton,
+    pub position: LayoutPoint,
+    pub modifiers: ModifiersState,
+    pub click_count: u8,
+}
+impl EventArgs for MouseClickArgs {
+    fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+}
+
+pub struct MouseEvents {
+    pos: LayoutPoint,
+    modifiers: ModifiersState,
+    pos_window: Option<WindowId>,
+    last_pressed: Instant,
+    click_count: u8,
+    mouse_move: EventEmitter<MouseMoveArgs>,
+    mouse_input: EventEmitter<MouseInputArgs>,
+    mouse_down: EventEmitter<MouseInputArgs>,
+    mouse_up: EventEmitter<MouseInputArgs>,
+    mouse_click: EventEmitter<MouseClickArgs>,
+}
+
+impl Default for MouseEvents {
+    fn default() -> Self {
+        MouseEvents {
+            pos: LayoutPoint::default(),
+            modifiers: ModifiersState::default(),
+            pos_window: None,
+            last_pressed: Instant::now() - Duration::from_secs(60),
+            click_count: 0,
+            mouse_move: EventEmitter::new(true),
+            mouse_input: EventEmitter::new(false),
+            mouse_down: EventEmitter::new(false),
+            mouse_up: EventEmitter::new(false),
+            mouse_click: EventEmitter::new(false),
+        }
+    }
+}
+
+impl AppExtension for MouseEvents {
+    fn init(&mut self, r: &mut AppInitContext) {
+        r.events.register::<MouseMove>(self.mouse_move.listener());
+
+        r.events.register::<MouseInput>(self.mouse_input.listener());
+        r.events.register::<MouseDown>(self.mouse_down.listener());
+        r.events.register::<MouseUp>(self.mouse_up.listener());
+        r.events.register::<MouseClick>(self.mouse_click.listener());
+    }
+
+    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
+        if let DeviceEvent::ModifiersChanged(m) = event {
+            self.modifiers = *m;
         }
     }
 
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update].
-    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
-        self.chan.updates(events)
-    }
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        match *event {
+            WindowEvent::MouseInput {
+                state,
+                device_id,
+                button,
+                ..
+            } => {
+                let position = if self.pos_window == Some(window_id) {
+                    self.pos
+                } else {
+                    LayoutPoint::default()
+                };
+                let args = MouseInputArgs {
+                    timestamp: Instant::now(),
+                    window_id,
+                    device_id,
+                    button,
+                    position,
+                    modifiers: self.modifiers,
+                    state,
+                };
+                ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
+                match state {
+                    ElementState::Pressed => {
+                        ctx.updates.push_notify(self.mouse_down.clone(), args);
 
-    /// Gets if this event is notified using the [UiNode::update_hp] method.
-    pub fn is_high_pressure(&self) -> bool {
-        self.chan.is_high_pressure()
-    }
+                        self.click_count = self.click_count.saturating_add(1);
 
-    /// Gets a new event listener linked with this emitter.
-    pub fn listener(&self) -> EventListener<T> {
-        EventListener {
-            chan: self.chan.clone(),
+                        let now = Instant::now();
+
+                        if self.click_count > 1 {
+                            if (now - self.last_pressed) < multi_click_time_ms() {
+                                let args = MouseClickArgs {
+                                    timestamp: Instant::now(),
+                                    window_id,
+                                    device_id,
+                                    button,
+                                    position,
+                                    modifiers: self.modifiers,
+                                    click_count: self.click_count,
+                                };
+                                ctx.updates.push_notify(self.mouse_click.clone(), args);
+                            } else {
+                                self.click_count = 1;
+                            }
+                        }
+                        self.last_pressed = now;
+
+                        todo!(r"src\properties\events.rs");
+                    }
+                    ElementState::Released => {
+                        ctx.updates.push_notify(self.mouse_up.clone(), args);
+
+                        if self.click_count == 1 {
+                            let args = MouseClickArgs {
+                                timestamp: Instant::now(),
+                                window_id,
+                                device_id,
+                                button,
+                                position,
+                                modifiers: self.modifiers,
+                                click_count: 1,
+                            };
+                            ctx.updates.push_notify(self.mouse_click.clone(), args);
+                        }
+
+                        todo!(r"src\properties\events.rs");
+                    }
+                }
+            }
+            WindowEvent::CursorMoved {
+                device_id, position, ..
+            } => {
+                let position = LayoutPoint::new(position.x as f32, position.y as f32);
+                if position != self.pos || Some(window_id) != self.pos_window {
+                    self.pos = position;
+                    self.pos_window = Some(window_id);
+
+                    let args = MouseMoveArgs {
+                        timestamp: Instant::now(),
+                        window_id,
+                        device_id,
+                        modifiers: self.modifiers,
+                        position,
+                    };
+
+                    ctx.updates.push_notify(self.mouse_move.clone(), args);
+                }
+            }
+            _ => {}
         }
     }
+}
 
-    pub(crate) fn notify(
-        self,
-        new_update: T,
-        assert_events_not_borrowed: &mut Events,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
-        self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
+#[cfg(target_os = "windows")]
+fn multi_click_time_ms() -> Duration {
+    Duration::from_millis(u64::from(unsafe { winapi::um::winuser::GetDoubleClickTime() }))
+}
+
+#[cfg(not(target_os = "windows"))]
+fn multi_click_time_ms() -> u32 {
+    // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
+    // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
+    Duration::from_millis(500)
+}
+
+/// Mouse move event.
+pub struct MouseMove;
+
+impl Event for MouseMove {
+    type Args = MouseMoveArgs;
+
+    const IS_HIGH_PRESSURE: bool = true;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
+}
+
+/// Mouse input event.
+pub struct MouseInput;
+
+impl Event for MouseInput {
+    type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
+}
+
+/// Mouse down event.
+pub struct MouseDown;
+
+impl Event for MouseDown {
+    type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
+}
+
+/// Mouse up event.
+pub struct MouseUp;
+
+impl Event for MouseUp {
+    type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
+}
+
+/// Mouse click event.
+pub struct MouseClick;
+
+impl Event for MouseClick {
+    type Args = MouseClickArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
     }
 }

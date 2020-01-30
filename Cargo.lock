@@ -1466,7 +1466,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "zero-ui"
 version = "0.1.0"
 dependencies = [
- "app_units 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bencher 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ego-tree 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
