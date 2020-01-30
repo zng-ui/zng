@@ -345,12 +345,16 @@ struct GlWindow {
     context: Option<WindowedContext<NotCurrent>>,
     renderer: webrender::Renderer,
     api: Arc<RenderApi>,
+    pipeline_id: PipelineId,
+    document_id: DocumentId,
     state: WindowState,
     services: WindowServices,
 
     root: UiRoot,
     update: UpdateDisplayRequest,
     first_draw: bool,
+
+    latest_frame_id: Epoch,
 }
 
 impl GlWindow {
@@ -407,6 +411,8 @@ impl GlWindow {
         let start_size = units::DeviceIntSize::new(start_size.width as i32, start_size.height as i32);
         let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
+        let document_id = api.add_document(start_size, 0);
+
 
         let id = context.window().id();
         let (state, services) = ctx.new_window(id, &api);
@@ -414,13 +420,17 @@ impl GlWindow {
         GlWindow {
             context: Some(unsafe { context.make_not_current().unwrap() }),
             renderer,
+            api,
+            pipeline_id: PipelineId(1, 0),
+            document_id,
             state,
             services,
-            api,
 
             root,
             update: UpdateDisplayRequest::Layout,
             first_draw: true,
+
+            latest_frame_id: Epoch(0),
         }
     }
 
@@ -492,10 +502,25 @@ impl GlWindow {
             let size = self.context.as_ref().unwrap().window().inner_size();
             let size = LayoutSize::new(size.width as f32, size.height as f32);
 
-            let mut frame = FrameBuilder::new(self.root.id, size, PipelineId::default());
+            let mut frame = FrameBuilder::new(self.root.id, size, self.pipeline_id);
             self.root.child.render(&mut frame);
 
-            todo!()
+            let (display_list_data, frame_info) = frame.finalize();
+            //TODO - Use frame_info
+
+            self.latest_frame_id = Epoch({
+                let mut next = self.latest_frame_id.0.wrapping_add(1);
+                if next == Epoch::invalid().0 {
+                    next = next.wrapping_add(1);
+                }
+                next
+            });
+
+            let mut txn = Transaction::new();
+            txn.set_display_list(self.latest_frame_id, None, size, display_list_data, true);
+            txn.set_root_pipeline(self.pipeline_id);
+            txn.generate_frame();
+            self.api.send_transaction(self.document_id, txn);
         }
     }
 

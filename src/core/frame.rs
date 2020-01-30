@@ -8,6 +8,7 @@ pub use webrender::api::{FontInstanceKey, GlyphInstance, GlyphOptions, GradientS
 
 pub struct FrameBuilder {
     pub display_list: DisplayListBuilder,
+    info: FrameInfoBuilder,
     widget_id: WidgetId,
     cursor: CursorIcon,
 }
@@ -16,6 +17,7 @@ impl FrameBuilder {
     pub fn new(root_id: WidgetId, root_size: LayoutSize, pipeline_id: PipelineId) -> Self {
         FrameBuilder {
             display_list: DisplayListBuilder::new(pipeline_id, root_size),
+            info: FrameInfoBuilder::new(root_id, root_size),
             widget_id: root_id,
             cursor: CursorIcon::default(),
         }
@@ -76,6 +78,10 @@ impl FrameBuilder {
         stops: Vec<GradientStop>,
     ) {
         todo!()
+    }
+
+    pub fn finalize(self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+        (self.display_list.finalize(), self.info.build())
     }
 }
 
