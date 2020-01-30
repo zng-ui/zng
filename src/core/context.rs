@@ -436,6 +436,7 @@ impl Events {
 
     /// Register a new event for the duration of the application.
     pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
+        assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
         self.events.insert(TypeId::of::<E>(), Box::new(listener));
     }
 
@@ -818,6 +819,14 @@ impl<'a> WidgetContext<'a> {
 
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
+    }
+
+    pub fn widget_is_focused(&self) -> bool {
+        todo!()
+    }
+
+    pub fn widget_is_hit(&self) -> bool {
+        todo!()
     }
 
     /// Runs a function `f` within the context of a widget.

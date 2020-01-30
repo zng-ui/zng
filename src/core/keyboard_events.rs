@@ -111,14 +111,26 @@ impl AppExtension for KeyboardEvents {
 pub struct KeyInput;
 impl Event for KeyInput {
     type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
 }
 
 pub struct KeyDown;
 impl Event for KeyDown {
     type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
 }
 
 pub struct KeyUp;
 impl Event for KeyUp {
     type Args = KeyInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_focused()
+    }
 }

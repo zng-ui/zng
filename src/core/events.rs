@@ -24,16 +24,19 @@ pub trait CancelableEventArgs: EventArgs {
 pub trait Event: 'static {
     /// Event arguments.
     type Args: EventArgs;
+
+    const IS_HIGH_PRESSURE: bool = false;
+
+    fn valid_in_widget(_ctx: &mut WidgetContext) -> bool {
+        true
+    }
 }
 
 /// Identifies an event type for an action that
 /// can be canceled.
-pub trait CancelableEvent: 'static {
+pub trait CancelableEvent: Event + 'static {
     /// Event arguments.
     type Args: CancelableEventArgs;
-}
-impl<E: CancelableEvent> Event for E {
-    type Args = E::Args;
 }
 
 struct EventChannelInner<T> {

@@ -55,12 +55,16 @@ impl Event for WindowOpen {
 pub struct WindowResize;
 impl Event for WindowResize {
     type Args = WindowResizeArgs;
+
+    const IS_HIGH_PRESSURE: bool = true;
 }
 
 /// Window moved event.
 pub struct WindowMove;
 impl Event for WindowMove {
     type Args = WindowMoveArgs;
+
+    const IS_HIGH_PRESSURE: bool = true;
 }
 
 /// Window scale factor changed.
@@ -71,6 +75,9 @@ impl Event for WindowScaleChanged {
 
 /// Closing window event.
 pub struct WindowClosing;
+impl Event for WindowClosing {
+    type Args = WindowClosingArgs;
+}
 impl CancelableEvent for WindowClosing {
     type Args = WindowClosingArgs;
 }
@@ -112,8 +119,8 @@ impl Default for AppWindows {
             ui_threads,
             windows: Vec::with_capacity(1),
             window_open: EventEmitter::new(false),
-            window_resize: EventEmitter::new(false),
-            window_move: EventEmitter::new(false),
+            window_resize: EventEmitter::new(true),
+            window_move: EventEmitter::new(true),
             window_scale_changed: EventEmitter::new(false),
             window_closing: EventEmitter::new(false),
             window_close: EventEmitter::new(false),

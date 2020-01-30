@@ -9,14 +9,33 @@ struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode for OnEvent<C, E, F> {
+impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent<C, E, F> {
+    #[UiNode]
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.listener = ctx.events.listen::<E>();
         self.child.init(ctx);
     }
 
+    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if ctx.event_state.flagged(StopPropagation::<E>::default()) {
+        self.child.update(ctx);
+
+        if !E::IS_HIGH_PRESSURE {
+            self.do_update(ctx)
+        }
+    }
+
+    #[UiNode]
+    fn update_hp(&mut self, ctx: &mut WidgetContext) {
+        self.child.update_hp(ctx);
+
+        if E::IS_HIGH_PRESSURE {
+            self.do_update(ctx)
+        }
+    }
+
+    fn do_update(&mut self, ctx: &mut WidgetContext) {
+        if E::valid_in_widget(ctx) && ctx.event_state.flagged(StopPropagation::<E>::default()) {
             for args in self.listener.updates(&ctx.events) {
                 let mut args = OnEventArgs::new(ctx, args);
                 (self.handler)(&mut args);
@@ -26,13 +45,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> UiNode 
                 }
             }
         }
-        self.child.update(ctx);
     }
-}
-
-#[property(event)]
-pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
-    on_event::set(child, KeyDown, handler)
 }
 
 #[property(event)]
@@ -48,23 +61,6 @@ pub fn on_event<E: Event>(
         handler,
     }
 }
-
-pub struct StopPropagation<E: Event> {
-    _e: std::marker::PhantomData<E>,
-}
-
-impl<E: Event> Default for StopPropagation<E> {
-    fn default() -> Self {
-        StopPropagation {
-            _e: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<E: Event> context::StateKey for StopPropagation<E> {
-    type Type = ();
-}
-
 /// Event arguments.
 pub struct OnEventArgs<'c, 'a, A: EventArgs> {
     ctx: &'a mut WidgetContext<'c>,
@@ -100,4 +96,72 @@ impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
     pub fn handled(self) -> bool {
         self.stop_propagation
     }
+}
+
+pub struct StopPropagation<E: Event> {
+    _e: std::marker::PhantomData<E>,
+}
+
+impl<E: Event> Default for StopPropagation<E> {
+    fn default() -> Self {
+        StopPropagation {
+            _e: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<E: Event> context::StateKey for StopPropagation<E> {
+    type Type = ();
+}
+
+#[property(event)]
+pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, KeyInput, handler)
+}
+
+#[property(event)]
+pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, KeyDown, handler)
+}
+
+#[property(event)]
+pub fn on_key_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, KeyUp, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_move(
+    child: impl UiNode,
+    handler: impl FnMut(&mut OnEventArgs<MouseMoveArgs>) + 'static,
+) -> impl UiNode {
+    on_event::set(child, MouseMove, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_input(
+    child: impl UiNode,
+    handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static,
+) -> impl UiNode {
+    on_event::set(child, MouseInput, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_down(
+    child: impl UiNode,
+    handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static,
+) -> impl UiNode {
+    on_event::set(child, MouseDown, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, MouseUp, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_click(
+    child: impl UiNode,
+    handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static,
+) -> impl UiNode {
+    on_event::set(child, MouseClick, handler)
 }

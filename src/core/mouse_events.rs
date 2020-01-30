@@ -211,6 +211,12 @@ pub struct MouseMove;
 
 impl Event for MouseMove {
     type Args = MouseMoveArgs;
+
+    const IS_HIGH_PRESSURE: bool = true;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
 }
 
 /// Mouse input event.
@@ -218,6 +224,10 @@ pub struct MouseInput;
 
 impl Event for MouseInput {
     type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
 }
 
 /// Mouse down event.
@@ -225,6 +235,10 @@ pub struct MouseDown;
 
 impl Event for MouseDown {
     type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
 }
 
 /// Mouse up event.
@@ -232,6 +246,10 @@ pub struct MouseUp;
 
 impl Event for MouseUp {
     type Args = MouseInputArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
 }
 
 /// Mouse click event.
@@ -239,4 +257,8 @@ pub struct MouseClick;
 
 impl Event for MouseClick {
     type Args = MouseClickArgs;
+
+    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
+        ctx.widget_is_hit()
+    }
 }
