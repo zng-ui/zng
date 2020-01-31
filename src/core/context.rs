@@ -9,7 +9,7 @@ use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
-use std::sync::atomic::{self, AtomicBool};
+use std::sync::atomic::{self, AtomicBool, AtomicU8};
 use std::sync::Arc;
 use webrender::api::RenderApi;
 
@@ -124,48 +124,63 @@ impl UpdateDisplayRequest {
     }
 }
 
+/// Out-of-band update request sender.
+///
+/// Use this to cause an update cycle without direct access to a context.
 #[derive(Clone)]
 pub struct UpdateNotifier {
+    r: Arc<UpdateNotifierInner>,
+}
+
+struct UpdateNotifierInner {
     event_loop: EventLoopProxy<AppEvent>,
+    request: AtomicU8,
 }
 
 impl UpdateNotifier {
     #[inline]
     pub fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
-        UpdateNotifier { event_loop }
+        UpdateNotifier {
+            r: Arc::new(UpdateNotifierInner {
+                event_loop,
+                request: AtomicU8::new(0),
+            }),
+        }
     }
 
-    fn update() -> &'static AtomicBool {
-        static UPDATE: AtomicBool = AtomicBool::new(false);
-        &UPDATE
+    const UPDATE: u8 = 0b01;
+    const UPDATE_HP: u8 = 0b11;
+
+    #[inline]
+    fn set(&self, update: u8) {
+        let old = self.r.request.fetch_or(update, atomic::Ordering::Relaxed);
+        if old == 0 {
+            let _ = self.r.event_loop.send_event(AppEvent::Update);
+        }
     }
 
-    fn update_hp() -> &'static AtomicBool {
-        static UPDATE_HP: AtomicBool = AtomicBool::new(false);
-        &UPDATE_HP
-    }
-
+    /// Flags an update request and sends an update event
+    /// if none was sent since the last call to [take_request].
     #[inline]
     pub fn push_update(&self) {
-        let update = Self::update().swap(true, atomic::Ordering::Relaxed);
-        if !update && !Self::update_hp().load(atomic::Ordering::Relaxed) {
-            let _ = self.event_loop.send_event(AppEvent::Update);
-        }
+        self.set(Self::UPDATE);
     }
 
+    /// Flags an update request(high-pressure) and sends an update event
+    /// if none was sent since the last call to [take_request].
     #[inline]
     pub fn push_update_hp(&self) {
-        let update_hp = Self::update_hp().swap(true, atomic::Ordering::Relaxed);
-        if !Self::update().load(atomic::Ordering::Relaxed) && !update_hp {
-            let _ = self.event_loop.send_event(AppEvent::Update);
-        }
+        self.set(Self::UPDATE_HP);
     }
 
+    /// Takes the update request generated since the last time it was
+    /// taken.
     #[inline]
-    pub fn take_request() -> UpdateRequest {
+    pub fn take_request(&self) -> UpdateRequest {
+        let request = self.r.request.swap(0, atomic::Ordering::Relaxed);
         UpdateRequest {
-            update: Self::update().swap(false, atomic::Ordering::Relaxed),
-            update_hp: Self::update_hp().swap(false, atomic::Ordering::Relaxed),
+            update: request & Self::UPDATE == Self::UPDATE,
+            update_hp: request & Self::UPDATE_HP == Self::UPDATE_HP,
         }
     }
 }
@@ -537,7 +552,7 @@ impl Updates {
         }
     }
 
-    /// Clonable notification sender.
+    /// Clonable out-of-band notification sender.
     pub fn notifier(&self) -> &UpdateNotifier {
         &self.notifier
     }
@@ -669,6 +684,11 @@ impl OwnedAppContext {
             updates: &mut self.updates,
             event_loop,
         }
+    }
+
+    /// Takes the request that generated an [AppEvent::Update].
+    pub fn take_request(&mut self) -> UpdateRequest {
+        self.updates.notifier.take_request()
     }
 
     pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
