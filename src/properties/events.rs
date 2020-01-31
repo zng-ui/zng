@@ -1,6 +1,8 @@
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::events::*;
+use crate::core::frame::FrameBuilder;
+use crate::core::types::LayoutSize;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
 
@@ -167,4 +169,104 @@ pub fn on_mouse_click(
     handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static,
 ) -> impl UiNode {
     on_event::set(child, MouseClick, handler)
+}
+
+macro_rules! on_ctx_mtd {
+    ($( $(#[$outer:meta])* struct $OnCtxMtd:ident { fn $mtd:ident } fn $on_mtd:ident;)+) => {$(
+        struct $OnCtxMtd<C: UiNode, F: FnMut(&mut WidgetContext)> {
+            child: C,
+            handler: F
+        }
+
+        #[impl_ui_node(child)]
+        impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for $OnCtxMtd<C, F> {
+            fn $mtd(&mut self, ctx: &mut WidgetContext) {
+                self.child.$mtd(ctx);
+                (self.handler)(ctx);
+            }
+        }
+
+        $(#[$outer])*
+        #[property(event)]
+        pub fn $on_mtd(child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
+            $OnCtxMtd {
+                child,
+                handler
+            }
+        }
+    )+};
+}
+
+on_ctx_mtd! {
+    /// Called when the widget is initialized.
+    struct OnInit { fn init } fn on_init;
+    struct OnDeinit { fn deinit } fn on_denit;
+    struct OnUpdate { fn update } fn on_update;
+    struct OnUpdateHp { fn update_hp } fn on_update_hp;
+}
+
+struct OnRender<C: UiNode, F: Fn(&mut FrameBuilder)> {
+    child: C,
+    handler: F,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRender<C, F> {
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.child.render(frame);
+        (self.handler)(frame);
+    }
+}
+
+#[property(event)]
+pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
+    OnRender { child, handler }
+}
+
+struct OnArrange<C: UiNode, F: FnMut(LayoutSize)> {
+    child: C,
+    handler: F,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, F: FnMut(LayoutSize) + 'static> UiNode for OnArrange<C, F> {
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.child.arrange(final_size);
+        (self.handler)(final_size);
+    }
+}
+
+#[property(event)]
+pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize) + 'static) -> impl UiNode {
+    OnArrange { child, handler }
+}
+
+#[derive(Debug)]
+pub struct OnMeasureArgs {
+    pub available_size: LayoutSize,
+    pub desired_size: LayoutSize,
+}
+
+struct OnMeasure<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
+    child: C,
+    handler: F,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMeasure<C, F> {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut args = OnMeasureArgs {
+            available_size,
+            desired_size: LayoutSize::zero(),
+        };
+
+        args.desired_size = self.child.measure(available_size);
+
+        (self.handler)(args)
+    }
+}
+
+#[property(event)]
+pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> LayoutSize + 'static) -> impl UiNode {
+    OnMeasure { child, handler }
 }
