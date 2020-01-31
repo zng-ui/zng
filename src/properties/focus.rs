@@ -38,6 +38,28 @@ impl<C: UiNode> UiNode for Focusable<C> {
 pub struct FocusableConfig {
     pub tab_index: u32,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TabIndex(u32);
+
+impl TabIndex {
+    /// Widget is not focusable.
+    pub const NONE: TabIndex = TabIndex(0);
+
+    /// Widget is focusable but uses the declaration order for navigation.
+    pub const AUTO: TabIndex = TabIndex(u32::max_value());
+
+    /// If is [NONE].
+    #[inline]
+    pub fn is_none(self) -> bool {
+        self == Self::NONE
+    }
+
+    /// If is [AUTO].
+    #[inline]
+    pub fn is_auto(self) -> bool {
+        self == Self::AUTO
+    }
+}
 
 impl Default for FocusableConfig {
     fn default() -> Self {
