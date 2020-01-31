@@ -2,6 +2,7 @@ pub mod app;
 pub mod context;
 pub mod event;
 pub mod events;
+pub mod focus;
 pub mod font;
 pub mod frame;
 pub mod profiler;

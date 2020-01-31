@@ -121,14 +121,14 @@ macro_rules! profile_scope {
     };
 }
 
-/// Declares new [StateKey](std::core::context::StateKey) types.
+/// Declares new [StateKey](crate::core::context::StateKey) types.
 #[macro_export]
 macro_rules! state_key {
-    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty)+) => {$(
-        $(#[&outer])*
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
+        $(#[$outer])*
         $vis struct $ident;
 
-        impl $std::core::context::StateKey for $ident {
+        impl $crate::core::context::StateKey for $ident {
             type Type = $type;
         }
     )+};
@@ -176,7 +176,7 @@ macro_rules! event_args {
         $(#[$outer])*
         #[derive(Debug, Clone)]
         $vis struct $Args {
-            pub timestamp: Instant,
+            pub timestamp: std::time::Instant,
             $(pub $arg : $arg_ty,)*
         }
         impl $Args {
@@ -219,7 +219,7 @@ macro_rules! cancelable_event_args {
         $(#[$outer])*
         #[derive(Debug, Clone)]
         $vis struct $Args {
-            pub timestamp: Instant,
+            pub timestamp: std::time::Instant,
             $(pub $arg : $arg_ty,)*
             cancel: std::cell::Cell<bool>
         }

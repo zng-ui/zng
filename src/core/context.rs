@@ -516,8 +516,8 @@ impl Services {
 }
 
 /// Schedule of actions to apply after an Ui update.
-#[derive(Default)]
 pub struct Updates {
+    notifier: UpdateNotifier,
     update: UpdateRequest,
     display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
@@ -526,6 +526,22 @@ pub struct Updates {
 }
 
 impl Updates {
+    pub fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+        Updates {
+            notifier: UpdateNotifier::new(event_loop),
+            update: UpdateRequest::default(),
+            display_update: UpdateDisplayRequest::None,
+            win_display_update: UpdateDisplayRequest::None,
+            updates: Vec::default(),
+            cleanup: Vec::default(),
+        }
+    }
+
+    /// Clonable notification sender.
+    pub fn notifier(&self) -> &UpdateNotifier {
+        &self.notifier
+    }
+
     /// Schedules a variable change for the next update.
     pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
         var.push_set(new_value, self)
@@ -612,6 +628,7 @@ impl Updates {
 /// and this `struct` owns both you can only have one instance
 /// of this at a time.
 pub struct OwnedAppContext {
+    event_loop: EventLoopProxy<AppEvent>,
     app_state: StateMap,
     vars: Vars,
     events: Events,
@@ -621,20 +638,21 @@ pub struct OwnedAppContext {
 
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext`.
-    pub fn instance() -> Self {
+    pub fn instance(event_loop: EventLoopProxy<AppEvent>) -> Self {
         OwnedAppContext {
             app_state: StateMap::default(),
             vars: Vars::instance(),
             events: Events::instance(),
             services: Services::default(),
-            updates: Updates::default(),
+            updates: Updates::new(event_loop.clone()),
+            event_loop,
         }
     }
 
-    pub fn borrow_init(&mut self, event_loop: EventLoopProxy<AppEvent>) -> AppInitContext {
+    pub fn borrow_init(&mut self) -> AppInitContext {
         AppInitContext {
             app_state: &mut self.app_state,
-            event_loop,
+            event_loop: &self.event_loop,
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
@@ -663,7 +681,7 @@ pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
-    pub event_loop: EventLoopProxy<AppEvent>,
+    pub event_loop: &'a EventLoopProxy<AppEvent>,
 
     pub vars: &'a Vars,
     pub events: &'a mut Events,
@@ -741,7 +759,7 @@ impl<'a> AppContext<'a> {
 
 /// A window context.
 pub struct WindowContext<'a> {
-    window_id: WindowId,
+    pub window_id: WindowId,
     pub render_api: &'a Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
@@ -761,10 +779,6 @@ pub struct WindowContext<'a> {
 }
 
 impl<'a> WindowContext<'a> {
-    pub fn window_id(&self) -> WindowId {
-        self.window_id
-    }
-
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(
         &mut self,
@@ -792,8 +806,8 @@ impl<'a> WindowContext<'a> {
 
 /// A widget context.
 pub struct WidgetContext<'a> {
-    window_id: WindowId,
-    widget_id: WidgetId,
+    pub window_id: WindowId,
+    pub widget_id: WidgetId,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
@@ -815,14 +829,6 @@ pub struct WidgetContext<'a> {
 }
 
 impl<'a> WidgetContext<'a> {
-    pub fn window_id(&self) -> WindowId {
-        self.window_id
-    }
-
-    pub fn widget_id(&self) -> WidgetId {
-        self.widget_id
-    }
-
     pub fn widget_is_focused(&self) -> bool {
         todo!()
     }

@@ -8,7 +8,7 @@ pub use glutin::event::{
     DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode,
     WindowEvent,
 };
-pub use glutin::window::{WindowId, CursorIcon};
+pub use glutin::window::{CursorIcon, WindowId};
 
 uid! {
    /// Unique id of a widget.
@@ -16,6 +16,7 @@ uid! {
 }
 
 use crate::core::var::{IntoVar, OwnedVar};
+use std::borrow::Cow;
 
 /// for uniform
 impl IntoVar<LayoutSideOffsets> for f32 {
@@ -50,6 +51,10 @@ pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
 
 pub fn rgba<C: Into<ColorFComponent>, A: Into<ColorFComponent>>(r: C, g: C, b: C, a: A) -> ColorF {
     ColorF::new(r.into().0, g.into().0, b.into().0, a.into().0)
+}
+
+pub fn default<D: Default>() -> D {
+    D::default()
 }
 
 /// `ColorF` component value.
@@ -93,5 +98,13 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
                 })
                 .collect(),
         )
+    }
+}
+
+impl IntoVar<Cow<'static, str>> for &'static str {
+    type Var = OwnedVar<Cow<'static, str>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Cow::from(self))
     }
 }

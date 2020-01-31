@@ -26,6 +26,11 @@ impl FrameBuilder {
         self.widget_id
     }
 
+    /// Current widget metadata.
+    pub fn widget_meta(&mut self) -> &mut LazyStateMap {
+        todo!()
+    }
+
     fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
     }

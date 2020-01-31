@@ -101,6 +101,11 @@ impl<T: 'static> EventListener<T> {
         self.chan.updates(events)
     }
 
+    /// Gets if [updates] is not empty.
+    pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
+        !self.updates(events).is_empty()
+    }
+
     /// Gets if this update is notified using the [UiNode::update_hp] method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
@@ -144,6 +149,11 @@ impl<T: 'static> EventEmitter<T> {
     /// Gets a reference to the updates that happened in between calls of [UiNode::update].
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
+    }
+
+    /// Gets if [updates] is not empty.
+    pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
+        !self.updates(events).is_empty()
     }
 
     /// Gets if this event is notified using the [UiNode::update_hp] method.

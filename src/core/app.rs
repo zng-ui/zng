@@ -1,4 +1,4 @@
-use crate::core::{context::*, events::*, font::FontCache, types::*, window::AppWindows};
+use crate::core::{context::*, events::*, focus::FocusManager, font::FontCache, types::*, window::AppWindows};
 
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -108,6 +108,7 @@ impl App {
             .extend(KeyboardEvents::default())
             .extend(FontCache::default())
             .extend(AppWindows::default())
+            .extend(FocusManager::default())
     }
 }
 
@@ -142,9 +143,9 @@ impl<E: AppExtension> AppExtended<E> {
 
         let mut extensions = self.extensions;
 
-        let mut owned_ctx = OwnedAppContext::instance();
+        let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
-        extensions.init(&mut owned_ctx.borrow_init(event_loop.create_proxy()));
+        extensions.init(&mut owned_ctx.borrow_init());
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateDisplayRequest::None;
