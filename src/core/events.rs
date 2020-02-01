@@ -5,23 +5,98 @@ use crate::core::frame::*;
 use crate::core::types::*;
 use std::time::*;
 
-/// [KeyInput], [KeyDown], [KeyUp] event args.
-#[derive(Debug, Clone)]
-pub struct KeyInputArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    pub device_id: DeviceId,
-    pub scancode: ScanCode,
-    pub state: ElementState,
-    pub key: Option<VirtualKeyCode>,
-    pub modifiers: ModifiersState,
-    pub repeat: bool,
+event_args! {
+    /// [KeyInput], [KeyDown], [KeyUp] event args.
+    pub struct KeyInputArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub scancode: ScanCode,
+        pub state: ElementState,
+        pub key: Option<VirtualKeyCode>,
+        pub modifiers: ModifiersState,
+        pub repeat: bool,
+        concerns_widget: |args, ctx|todo!("check if focused")
+    }
+
+    /// [MouseMove] event args.
+    pub struct MouseMoveArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub modifiers: ModifiersState,
+        pub position: LayoutPoint,
+        pub hits: FrameHitInfo,
+        concerns_widget: |args, ctx|args.hits.contains(ctx.widget_id)
+    }
+
+    /// [MouseInput], [MouseDown], [MouseUp] event args.
+    pub struct MouseInputArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub button: MouseButton,
+        pub position: LayoutPoint,
+        pub modifiers: ModifiersState,
+        pub state: ElementState,
+        pub hits: FrameHitInfo,
+        concerns_widget: |args, ctx|args.hits.contains(ctx.widget_id)
+    }
+
+    /// [MouseClick] event args.
+    pub struct MouseClickArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub button: MouseButton,
+        pub position: LayoutPoint,
+        pub modifiers: ModifiersState,
+        pub click_count: u8,
+        pub hits: FrameHitInfo,
+        concerns_widget: |args, ctx|args.hits.contains(ctx.widget_id)
+    }
 }
 
-impl EventArgs for KeyInputArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
+pub struct KeyInput;
+impl Event for KeyInput {
+    type Args = KeyInputArgs;
+}
+
+pub struct KeyDown;
+impl Event for KeyDown {
+    type Args = KeyInputArgs;
+}
+
+pub struct KeyUp;
+impl Event for KeyUp {
+    type Args = KeyInputArgs;
+}
+
+/// Mouse move event.
+pub struct MouseMove;
+impl Event for MouseMove {
+    type Args = MouseMoveArgs;
+    const IS_HIGH_PRESSURE: bool = true;
+}
+
+/// Mouse input event.
+pub struct MouseInput;
+impl Event for MouseInput {
+    type Args = MouseInputArgs;
+}
+
+/// Mouse down event.
+pub struct MouseDown;
+impl Event for MouseDown {
+    type Args = MouseInputArgs;
+}
+
+/// Mouse up event.
+pub struct MouseUp;
+impl Event for MouseUp {
+    type Args = MouseInputArgs;
+}
+
+/// Mouse click event.
+pub struct MouseClick;
+impl Event for MouseClick {
+    type Args = MouseClickArgs;
 }
 
 pub struct KeyboardEvents {
@@ -106,52 +181,6 @@ impl AppExtension for KeyboardEvents {
     }
 }
 
-pub struct KeyInput;
-impl Event for KeyInput {
-    type Args = KeyInputArgs;
-}
-
-pub struct KeyDown;
-impl Event for KeyDown {
-    type Args = KeyInputArgs;
-}
-
-pub struct KeyUp;
-impl Event for KeyUp {
-    type Args = KeyInputArgs;
-}
-
-event_args! {
-    /// [MouseMove] event args.
-    pub struct MouseMoveArgs {
-        pub window_id: WindowId,
-        pub device_id: DeviceId,
-        pub modifiers: ModifiersState,
-        pub position: LayoutPoint,
-    }
-
-    /// [MouseInput], [MouseDown], [MouseUp] event args.
-    pub struct MouseInputArgs {
-        pub window_id: WindowId,
-        pub device_id: DeviceId,
-        pub button: MouseButton,
-        pub position: LayoutPoint,
-        pub modifiers: ModifiersState,
-        pub state: ElementState,
-        pub hits: FrameHitInfo,
-    }
-
-    /// [MouseClick] event args.
-    pub struct MouseClickArgs {
-        pub window_id: WindowId,
-        pub device_id: DeviceId,
-        pub button: MouseButton,
-        pub position: LayoutPoint,
-        pub modifiers: ModifiersState,
-        pub click_count: u8,
-    }
-}
-
 pub struct MouseEvents {
     pos: LayoutPoint,
     modifiers: ModifiersState,
@@ -231,15 +260,15 @@ impl AppExtension for MouseEvents {
 
                         if self.click_count > 1 {
                             if (now - self.last_pressed) < multi_click_time_ms() {
-                                let args = MouseClickArgs {
-                                    timestamp: Instant::now(),
+                                let args = MouseClickArgs::now(
                                     window_id,
                                     device_id,
                                     button,
                                     position,
-                                    modifiers: self.modifiers,
-                                    click_count: self.click_count,
-                                };
+                                    self.modifiers,
+                                    self.click_count,
+                                    FrameHitInfo::default(),
+                                );
                                 ctx.updates.push_notify(self.mouse_click.clone(), args);
                             } else {
                                 self.click_count = 1;
@@ -253,15 +282,15 @@ impl AppExtension for MouseEvents {
                         ctx.updates.push_notify(self.mouse_up.clone(), args);
 
                         if self.click_count == 1 {
-                            let args = MouseClickArgs {
-                                timestamp: Instant::now(),
+                            let args = MouseClickArgs::now(
                                 window_id,
                                 device_id,
                                 button,
                                 position,
-                                modifiers: self.modifiers,
-                                click_count: 1,
-                            };
+                                self.modifiers,
+                                1,
+                                FrameHitInfo::default(),
+                            );
                             ctx.updates.push_notify(self.mouse_click.clone(), args);
                         }
 
@@ -277,13 +306,8 @@ impl AppExtension for MouseEvents {
                     self.pos = position;
                     self.pos_window = Some(window_id);
 
-                    let args = MouseMoveArgs {
-                        timestamp: Instant::now(),
-                        window_id,
-                        device_id,
-                        modifiers: self.modifiers,
-                        position,
-                    };
+                    let args =
+                        MouseMoveArgs::now(window_id, device_id, self.modifiers, position, FrameHitInfo::default());
 
                     ctx.updates.push_notify(self.mouse_move.clone(), args);
                 }
@@ -303,41 +327,4 @@ fn multi_click_time_ms() -> u32 {
     // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
     // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
     Duration::from_millis(500)
-}
-
-/// Mouse move event.
-pub struct MouseMove;
-
-impl Event for MouseMove {
-    type Args = MouseMoveArgs;
-
-    const IS_HIGH_PRESSURE: bool = true;
-}
-
-/// Mouse input event.
-pub struct MouseInput;
-
-impl Event for MouseInput {
-    type Args = MouseInputArgs;
-}
-
-/// Mouse down event.
-pub struct MouseDown;
-
-impl Event for MouseDown {
-    type Args = MouseInputArgs;
-}
-
-/// Mouse up event.
-pub struct MouseUp;
-
-impl Event for MouseUp {
-    type Args = MouseInputArgs;
-}
-
-/// Mouse click event.
-pub struct MouseClick;
-
-impl Event for MouseClick {
-    type Args = MouseClickArgs;
 }

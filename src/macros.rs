@@ -171,6 +171,7 @@ macro_rules! event_args {
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
             $(pub $arg:ident : $arg_ty:ty,)*
+            concerns_widget: $($concerns_widget:tt)+
         }
     )+) => {$(
         $(#[$outer])*
@@ -201,6 +202,12 @@ macro_rules! event_args {
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
             }
+
+            #[inline]
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                let impl_ = $($concerns_widget)+;
+                impl_(self, ctx)
+            }
         }
     )+};
 }
@@ -216,6 +223,7 @@ macro_rules! cancelable_event_args {
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
             $(pub $arg:ident : $arg_ty:ty,)*
+            concerns_widget: $($concerns_widget:tt)+
         }
     )+) => {$(
         $(#[$outer])*
@@ -247,6 +255,12 @@ macro_rules! cancelable_event_args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
+            }
+
+            #[inline]
+            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+                let impl_ = $($concerns_widget)+;
+                impl_(self, ctx)
             }
         }
         impl $crate::core::event::CancelableEventArgs for $Args {

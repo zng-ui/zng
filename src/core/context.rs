@@ -411,7 +411,7 @@ impl LazyStateMap {
     }
 
     pub fn contains<S: StateKey>(&self, key: S) -> bool {
-        if let Some(m) = self.m.as_ref(){
+        if let Some(m) = self.m.as_ref() {
             m.contains(key)
         } else {
             false

@@ -21,30 +21,36 @@ event_args! {
     /// [WindowOpen], [WindowClose] event args.
     pub struct WindowEventArgs {
         pub window_id: WindowId,
+        concerns_widget: |args, ctx|ctx.window_id == args.window_id
     }
 
     /// [WindowResize] event args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
+        concerns_widget: |args, ctx|ctx.window_id == args.window_id
     }
 
     /// [WindowMove] event args.
     pub struct WindowMoveArgs {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
+        concerns_widget: |args, ctx|ctx.window_id == args.window_id
     }
 
+    /// [WindowScaleChanged] event args.
     pub struct WindowScaleChangedArgs {
         pub window_id: WindowId,
         pub new_scale_factor: f32,
         pub new_size: LayoutSize,
+        concerns_widget: |args, ctx|ctx.window_id == args.window_id
     }
 }
 cancelable_event_args! {
     /// [WindowClosing] event args.
     pub struct WindowClosingArgs {
         pub window_id: WindowId,
+        concerns_widget: |args, ctx|ctx.window_id == args.window_id
     }
 }
 

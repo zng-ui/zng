@@ -9,9 +9,7 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
     /// If this event arguments is relevant to the widget context.
-    fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
-        true
-    }
+    fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool;
 }
 
 /// [Event] arguments that can be canceled.
