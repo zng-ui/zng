@@ -362,6 +362,10 @@ impl StateMap {
             .map(|any| *any.downcast::<S::Type>().unwrap())
     }
 
+    pub fn contains<S: StateKey>(&self, _key: S) -> bool {
+        self.map.contains_key(&TypeId::of::<S>())
+    }
+
     pub fn get<S: StateKey>(&self, _key: S) -> Option<&S::Type> {
         if let Some(any) = self.map.get(&TypeId::of::<S>()) {
             Some(any.downcast_ref::<S::Type>().unwrap())
@@ -387,6 +391,12 @@ impl StateMap {
     pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
+
+    pub fn remove<S: StateKey>(&mut self, _key: S) -> Option<S::Type> {
+        self.map
+            .remove(&TypeId::of::<S>())
+            .map(|any| *any.downcast::<S::Type>().unwrap())
+    }
 }
 
 /// A [StateState] that only uses one `usize` of memory if not used.
@@ -398,6 +408,14 @@ pub struct LazyStateMap {
 impl LazyStateMap {
     fn borrow_mut(&mut self) -> &mut StateMap {
         self.m.get_or_insert_with(|| Box::new(StateMap::default()))
+    }
+
+    pub fn contains<S: StateKey>(&self, key: S) -> bool {
+        if let Some(m) = self.m.as_ref(){
+            m.contains(key)
+        } else {
+            false
+        }
     }
 
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
@@ -420,6 +438,10 @@ impl LazyStateMap {
     /// Gets if a state key without value is set.
     pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
         self.get(key).is_some()
+    }
+
+    pub fn remove<S: StateKey>(&mut self, key: S) -> Option<S::Type> {
+        self.borrow_mut().remove(key)
     }
 }
 
@@ -850,10 +872,6 @@ pub struct WidgetContext<'a> {
 
 impl<'a> WidgetContext<'a> {
     pub fn widget_is_focused(&self) -> bool {
-        todo!()
-    }
-
-    pub fn widget_is_hit(&self) -> bool {
         todo!()
     }
 

@@ -7,37 +7,69 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
 
-struct Focusable<C: UiNode> {
+struct Focusable<C: UiNode, E: LocalVar<bool>> {
     child: C,
-    config: FocusableConfig,
-    mouse_down: EventListener<MouseInputArgs>,
+    enabled: E,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for Focusable<C> {
+impl<C: UiNode, E: LocalVar<bool>> UiNode for Focusable<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.mouse_down = ctx.events.listen::<MouseDown>();
+        self.enabled.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.mouse_down.has_updates(ctx.events) && ctx.widget_is_hit() {
-            ctx.services.require::<Focus>().focus_widget(ctx.widget_id);
+        if self.enabled.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
         }
         self.child.update(ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.widget_meta().set(FocusableInfo, self.config.clone());
+        if *self.enabled.get_local() {
+            if !frame.widget_meta().contains(FocusableInfo) {
+                frame.widget_meta().set(FocusableInfo, TabIndex::AUTO);
+            }
+        } else {
+            frame.widget_meta().flag(FocusableDisabled);
+            frame.widget_meta().remove(FocusableInfo);
+        }
         self.child.render(frame);
     }
 }
 
-/// Configuration of a focusable widget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FocusableConfig {
-    pub tab_index: u32,
+struct SetTabIndex<C: UiNode, T: LocalVar<TabIndex>> {
+    child: C,
+    tab_index: T,
 }
+
+#[impl_ui_node(child)]
+impl<C, T> UiNode for SetTabIndex<C, T>
+where
+    C: UiNode,
+    T: LocalVar<TabIndex>,
+{
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.tab_index.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.tab_index.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        if !frame.widget_meta().flagged(FocusableDisabled) {
+            frame.widget_meta().set(FocusableInfo, *self.tab_index.get_local());
+        }
+        self.child.render(frame);
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TabIndex(u32);
 
@@ -61,26 +93,20 @@ impl TabIndex {
     }
 }
 
-impl Default for FocusableConfig {
-    fn default() -> Self {
-        FocusableConfig {
-            tab_index: u32::max_value(),
-        }
-    }
-}
-
 state_key! {
     ///
-    pub struct FocusableInfo: FocusableConfig;
+    pub(crate) struct FocusableInfo: TabIndex;
+
+    ///
+    struct FocusableDisabled: ();
 }
 
 /// Enables a widget to receive focus.
 #[property(context_var)]
-pub fn focusable(child: impl UiNode, config: FocusableConfig) -> impl UiNode {
+pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
     Focusable {
         child,
-        config,
-        mouse_down: EventListener::never(false),
+        enabled: enabled.into_var().as_local(),
     }
 }
 

@@ -8,6 +8,10 @@ use std::time::Instant;
 pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
+    /// If this event arguments is relevant to the widget context.
+    fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+        true
+    }
 }
 
 /// [Event] arguments that can be canceled.
@@ -24,10 +28,6 @@ pub trait Event: 'static {
     type Args: EventArgs;
 
     const IS_HIGH_PRESSURE: bool = false;
-
-    fn valid_in_widget(_ctx: &mut WidgetContext) -> bool {
-        true
-    }
 }
 
 /// Identifies an event type for an action that

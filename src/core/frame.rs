@@ -103,6 +103,7 @@ fn unpack_cursor(raw: u16) -> CursorIcon {
 }
 
 /// A hit-test hit.
+#[derive(Clone, Debug)]
 pub struct HitInfo {
     pub widget_id: WidgetId,
     pub point: LayoutPoint,
@@ -110,6 +111,7 @@ pub struct HitInfo {
 }
 
 /// A hit-test result.
+#[derive(Clone, Debug, Default)]
 pub struct FrameHitInfo {
     hits: Vec<HitInfo>,
 }

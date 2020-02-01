@@ -1,6 +1,7 @@
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::frame::*;
 use crate::core::types::*;
 use std::time::*;
 
@@ -108,76 +109,46 @@ impl AppExtension for KeyboardEvents {
 pub struct KeyInput;
 impl Event for KeyInput {
     type Args = KeyInputArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_focused()
-    }
 }
 
 pub struct KeyDown;
 impl Event for KeyDown {
     type Args = KeyInputArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_focused()
-    }
 }
 
 pub struct KeyUp;
 impl Event for KeyUp {
     type Args = KeyInputArgs;
+}
 
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_focused()
+event_args! {
+    /// [MouseMove] event args.
+    pub struct MouseMoveArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub modifiers: ModifiersState,
+        pub position: LayoutPoint,
     }
-}
 
-/// [MouseMove] event args.
-#[derive(Debug, Clone)]
-pub struct MouseMoveArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    pub device_id: DeviceId,
-    pub modifiers: ModifiersState,
-    pub position: LayoutPoint,
-}
-impl EventArgs for MouseMoveArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
+    /// [MouseInput], [MouseDown], [MouseUp] event args.
+    pub struct MouseInputArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub button: MouseButton,
+        pub position: LayoutPoint,
+        pub modifiers: ModifiersState,
+        pub state: ElementState,
+        pub hits: FrameHitInfo,
     }
-}
 
-/// [MouseInput], [MouseDown], [MouseUp] event args.
-#[derive(Debug, Clone)]
-pub struct MouseInputArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    pub device_id: DeviceId,
-    pub button: MouseButton,
-    pub position: LayoutPoint,
-    pub modifiers: ModifiersState,
-    pub state: ElementState,
-}
-impl EventArgs for MouseInputArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
-    }
-}
-
-/// [MouseClick] event args.
-#[derive(Debug, Clone)]
-pub struct MouseClickArgs {
-    pub timestamp: Instant,
-    pub window_id: WindowId,
-    pub device_id: DeviceId,
-    pub button: MouseButton,
-    pub position: LayoutPoint,
-    pub modifiers: ModifiersState,
-    pub click_count: u8,
-}
-impl EventArgs for MouseClickArgs {
-    fn timestamp(&self) -> Instant {
-        self.timestamp
+    /// [MouseClick] event args.
+    pub struct MouseClickArgs {
+        pub window_id: WindowId,
+        pub device_id: DeviceId,
+        pub button: MouseButton,
+        pub position: LayoutPoint,
+        pub modifiers: ModifiersState,
+        pub click_count: u8,
     }
 }
 
@@ -240,15 +211,15 @@ impl AppExtension for MouseEvents {
                 } else {
                     LayoutPoint::default()
                 };
-                let args = MouseInputArgs {
-                    timestamp: Instant::now(),
+                let args = MouseInputArgs::now(
                     window_id,
                     device_id,
                     button,
                     position,
-                    modifiers: self.modifiers,
+                    self.modifiers,
                     state,
-                };
+                    FrameHitInfo::default(),
+                );
                 ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
                 match state {
                     ElementState::Pressed => {
@@ -341,10 +312,6 @@ impl Event for MouseMove {
     type Args = MouseMoveArgs;
 
     const IS_HIGH_PRESSURE: bool = true;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_hit()
-    }
 }
 
 /// Mouse input event.
@@ -352,10 +319,6 @@ pub struct MouseInput;
 
 impl Event for MouseInput {
     type Args = MouseInputArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_hit()
-    }
 }
 
 /// Mouse down event.
@@ -363,10 +326,6 @@ pub struct MouseDown;
 
 impl Event for MouseDown {
     type Args = MouseInputArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_hit()
-    }
 }
 
 /// Mouse up event.
@@ -374,10 +333,6 @@ pub struct MouseUp;
 
 impl Event for MouseUp {
     type Args = MouseInputArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_hit()
-    }
 }
 
 /// Mouse click event.
@@ -385,8 +340,4 @@ pub struct MouseClick;
 
 impl Event for MouseClick {
     type Args = MouseClickArgs;
-
-    fn valid_in_widget(ctx: &mut WidgetContext) -> bool {
-        ctx.widget_is_hit()
-    }
 }

@@ -181,6 +181,7 @@ macro_rules! event_args {
         }
         impl $Args {
             #[inline]
+            #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
                     timestamp,
@@ -190,6 +191,7 @@ macro_rules! event_args {
 
             /// Arguments for event that happened `Instant::now`.
             #[inline]
+            #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }
@@ -225,6 +227,7 @@ macro_rules! cancelable_event_args {
         }
         impl $Args {
             #[inline]
+            #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
                     timestamp,
@@ -235,6 +238,7 @@ macro_rules! cancelable_event_args {
 
             /// Arguments for event that happened `Instant::now`.
             #[inline]
+            #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
             }

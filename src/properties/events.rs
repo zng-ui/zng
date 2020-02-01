@@ -40,13 +40,15 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
     }
 
     fn do_update(&mut self, ctx: &mut WidgetContext) {
-        if E::valid_in_widget(ctx) && ctx.event_state.flagged(StopPropagation::<E>::default()) {
+        if !ctx.event_state.flagged(StopPropagation::<E>::default()) {
             for args in self.listener.updates(&ctx.events) {
-                let mut args = OnEventArgs::new(ctx, args);
-                (self.handler)(&mut args);
-                if args.handled() {
-                    ctx.event_state.flag(StopPropagation::<E>::default());
-                    break;
+                if args.concerns_widget(ctx) {
+                    let mut args = OnEventArgs::new(ctx, args);
+                    (self.handler)(&mut args);
+                    if args.handled() {
+                        ctx.event_state.flag(StopPropagation::<E>::default());
+                        break;
+                    }
                 }
             }
         }

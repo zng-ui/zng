@@ -1,6 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension};
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::events::*;
 use crate::core::frame::FrameBuilder;
 use crate::core::types::*;
 use crate::core::var::*;
@@ -23,6 +24,7 @@ impl Event for FocusChanged {
 pub struct FocusManager {
     focused: Option<WidgetId>,
     focus_changed: EventEmitter<FocusChangedArgs>,
+    mouse_down: EventListener<MouseInputArgs>,
 }
 
 impl Default for FocusManager {
@@ -30,16 +32,23 @@ impl Default for FocusManager {
         Self {
             focused: None,
             focus_changed: EventEmitter::new(false),
+            mouse_down: EventListener::never(false),
         }
     }
 }
 
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
+        self.mouse_down = ctx.events.listen::<MouseDown>();
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()))
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        for args in self.mouse_down.updates(ctx.events) {
+            //if todo!() {
+            //    ctx.services.require::<Focus>().focus_widget(ctx.widget_id);
+            //}
+        }
         if let Some(request) = ctx.services.require::<Focus>().request.take() {
             todo!()
         }
