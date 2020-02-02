@@ -10,12 +10,17 @@ use crate::core::UiNode;
 event_args! {
     /// [FocusChanged] event args.
     pub struct FocusChangedArgs {
+        /// Previously focused widget.
         pub prev_focus: Option<WidgetId>,
+
+        /// Newly focused widget.
         pub new_focus: Option<WidgetId>,
 
-        concerns_widget: |args, ctx| {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is [prev_focus] or [new_focus].
+
             let ctx = Some(ctx.widget_id);
-            args.new_focus == ctx || args.old_focus == ctx
+            self.new_focus == ctx || self.prev_focus == ctx
         }
     }
 }

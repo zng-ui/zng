@@ -170,15 +170,17 @@ macro_rules! event_args {
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
-            $(pub $arg:ident : $arg_ty:ty,)*
-            concerns_widget: $($concerns_widget:tt)+
+            $($(#[$arg_outer:meta])* pub $arg:ident : $arg_ty:ty,)*
+
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
         }
     )+) => {$(
         $(#[$outer])*
         #[derive(Debug, Clone)]
         $vis struct $Args {
+            /// When the event happened.
             pub timestamp: std::time::Instant,
-            $(pub $arg : $arg_ty,)*
+            $($(#[$arg_outer])* pub $arg : $arg_ty,)*
         }
         impl $Args {
             #[inline]
@@ -204,9 +206,8 @@ macro_rules! event_args {
             }
 
             #[inline]
-            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-                let impl_ = $($concerns_widget)+;
-                impl_(self, ctx)
+            fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
+                $($concerns_widget)+
             }
         }
     )+};
@@ -222,15 +223,17 @@ macro_rules! cancelable_event_args {
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
-            $(pub $arg:ident : $arg_ty:ty,)*
-            concerns_widget: $($concerns_widget:tt)+
+            $($(#[$arg_outer:meta])* pub $arg:ident : $arg_ty:ty,)*
+
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
         }
     )+) => {$(
         $(#[$outer])*
         #[derive(Debug, Clone)]
         $vis struct $Args {
+            /// When the event happened.
             pub timestamp: std::time::Instant,
-            $(pub $arg : $arg_ty,)*
+            $($(#[$arg_outer])* pub $arg : $arg_ty,)*
             cancel: std::cell::Cell<bool>
         }
         impl $Args {
@@ -258,9 +261,8 @@ macro_rules! cancelable_event_args {
             }
 
             #[inline]
-            fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-                let impl_ = $($concerns_widget)+;
-                impl_(self, ctx)
+            fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
+                $($concerns_widget)+
             }
         }
         impl $crate::core::event::CancelableEventArgs for $Args {

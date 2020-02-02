@@ -20,22 +20,35 @@ use webrender::api::*;
 event_args! {
     /// [WindowOpen], [WindowClose] event args.
     pub struct WindowEventArgs {
+        /// Id of window that was opened or closed.
         pub window_id: WindowId,
-        concerns_widget: |args, ctx|ctx.window_id == args.window_id
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is in the same window.
+            ctx.window_id == self.window_id
+        }
     }
 
     /// [WindowResize] event args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
-        concerns_widget: |args, ctx|ctx.window_id == args.window_id
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is in the same window.
+            ctx.window_id == self.window_id
+        }
     }
 
     /// [WindowMove] event args.
     pub struct WindowMoveArgs {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
-        concerns_widget: |args, ctx|ctx.window_id == args.window_id
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is in the same window.
+            ctx.window_id == self.window_id
+        }
     }
 
     /// [WindowScaleChanged] event args.
@@ -43,14 +56,22 @@ event_args! {
         pub window_id: WindowId,
         pub new_scale_factor: f32,
         pub new_size: LayoutSize,
-        concerns_widget: |args, ctx|ctx.window_id == args.window_id
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is in the same window.
+            ctx.window_id == self.window_id
+        }
     }
 }
 cancelable_event_args! {
     /// [WindowClosing] event args.
     pub struct WindowClosingArgs {
         pub window_id: WindowId,
-        concerns_widget: |args, ctx|ctx.window_id == args.window_id
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+            //! If the widget is in the same window.
+            ctx.window_id == self.window_id
+        }
     }
 }
 
