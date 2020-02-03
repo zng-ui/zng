@@ -1,6 +1,7 @@
 use super::context::{ContextVarStageId, Updates, Vars};
 use fnv::FnvHashMap;
 use std::cell::{Cell, RefCell, UnsafeCell};
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 use std::rc::Rc;
@@ -11,8 +12,8 @@ use std::rc::Rc;
 ///
 /// This `trait` is used like a generic type alias and is already
 /// implemented to all types it applies.
-pub trait VarValue: Clone + 'static {}
-impl<T: Clone + 'static> VarValue for T {}
+pub trait VarValue: Debug + Clone + 'static {}
+impl<T: Debug + Clone + 'static> VarValue for T {}
 
 /// Type alias for map functions.
 ///
