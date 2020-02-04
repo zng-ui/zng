@@ -1,40 +1,76 @@
 use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::events::*;
 use crate::core::focus::*;
 use crate::core::frame::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
 
+/// Enables a widget to receive focus.
+#[property(context_var)]
+pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
+    Focusable {
+        child,
+        is_focusable: focusable.into_var().as_local(),
+    }
+}
+
+/// Customizes the widget order during TAB navigation.
+#[property(context_var)]
+pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
+    SetTabIndex {
+        child,
+        tab_index: tab_index.into_var().as_local(),
+    }
+}
+
+/// If this widget is a focus scope.
+#[property(context_var)]
+pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
+    FocusScope {
+        child,
+        is_focus_scope: focus_scope.into_var().as_local(),
+    }
+}
+
+/// Tab navigation within this widget.
+#[property(context_var)]
+pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
+    SetTabNav {
+        child,
+        tab_nav: tab_nav.into_var().as_local(),
+    }
+}
+
+/// Arrows navigation within this widget.
+#[property(context_var)]
+pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
+    SetDirectionalNav {
+        child,
+        directional_nav: directional_nav.into_var().as_local(),
+    }
+}
+
 struct Focusable<C: UiNode, E: LocalVar<bool>> {
     child: C,
-    enabled: E,
+    is_focusable: E,
 }
 
 #[impl_ui_node(child)]
 impl<C: UiNode, E: LocalVar<bool>> UiNode for Focusable<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.enabled.init_local(ctx.vars);
+        self.is_focusable.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.enabled.update_local(ctx.vars).is_some() {
+        if self.is_focusable.update_local(ctx.vars).is_some() {
             ctx.updates.push_render();
         }
         self.child.update(ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        if *self.enabled.get_local() {
-            if !frame.widget_meta().contains(FocusableInfo) {
-                frame.widget_meta().set(FocusableInfo, TabIndex::AUTO);
-            }
-        } else {
-            frame.widget_meta().flag(FocusableDisabled);
-            frame.widget_meta().remove(FocusableInfo);
-        }
+        frame.widget_meta().set(IsFocusable, *self.is_focusable.get_local());
         self.child.render(frame);
     }
 }
@@ -63,86 +99,84 @@ where
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        if !frame.widget_meta().flagged(FocusableDisabled) {
-            frame.widget_meta().set(FocusableInfo, *self.tab_index.get_local());
-        }
+        frame.widget_meta().set(FocusTabIndex, *self.tab_index.get_local());
         self.child.render(frame);
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TabIndex(u32);
-
-impl TabIndex {
-    /// Widget is not focusable.
-    pub const NONE: TabIndex = TabIndex(0);
-
-    /// Widget is focusable but uses the declaration order for navigation.
-    pub const AUTO: TabIndex = TabIndex(u32::max_value());
-
-    /// If is [NONE].
-    #[inline]
-    pub fn is_none(self) -> bool {
-        self == Self::NONE
-    }
-
-    /// If is [AUTO].
-    #[inline]
-    pub fn is_auto(self) -> bool {
-        self == Self::AUTO
-    }
-}
-
-state_key! {
-    ///
-    pub(crate) struct FocusableInfo: TabIndex;
-
-    ///
-    struct FocusableDisabled: ();
-}
-
-/// Enables a widget to receive focus.
-#[property(context_var)]
-pub fn focusable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    Focusable {
-        child,
-        enabled: enabled.into_var().as_local(),
-    }
-}
-
-struct FocusScope<C: UiNode> {
+struct FocusScope<C: UiNode, E: LocalVar<bool>> {
     child: C,
-    config: FocusScopeConfig,
+    is_focus_scope: E,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for FocusScope<C> {}
+impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScope<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.is_focus_scope.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
 
-#[property(context_var)]
-pub fn focus_scope(child: impl UiNode, config: FocusScopeConfig) -> impl UiNode {
-    FocusScope { child, config }
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.is_focus_scope.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.widget_meta().set(IsFocusScope, *self.is_focus_scope.get_local());
+        self.child.render(frame);
+    }
 }
 
-/// Configuration of a focusable widget.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FocusScopeConfig {
-    pub tab_index: u32,
-    pub skip: bool,
-    pub tab: Option<TabNav>,
-    pub directional: Option<DirectionalNav>,
+struct SetTabNav<C: UiNode, E: LocalVar<TabNav>> {
+    child: C,
+    tab_nav: E,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TabNav {
-    Continue,
-    Contained,
-    Cycle,
-    Once,
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<TabNav>> SetTabNav<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.tab_nav.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.tab_nav.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.widget_meta().set(FocusTabNav, *self.tab_nav.get_local());
+        self.child.render(frame);
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DirectionalNav {
-    Continue,
-    Contained,
-    Cycle,
+struct SetDirectionalNav<C: UiNode, E: LocalVar<DirectionalNav>> {
+    child: C,
+    directional_nav: E,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<DirectionalNav>> SetDirectionalNav<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.directional_nav.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.directional_nav.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame
+            .widget_meta()
+            .set(FocusDirectionalNav, *self.directional_nav.get_local());
+        self.child.render(frame);
+    }
 }

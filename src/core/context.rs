@@ -374,7 +374,7 @@ impl StateMap {
         }
     }
 
-    pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&S::Type> {
+    pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
         if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
             Some(any.downcast_mut::<S::Type>().unwrap())
         } else {
@@ -426,7 +426,7 @@ impl LazyStateMap {
         self.m.as_ref().and_then(|m| m.get(key))
     }
 
-    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&S::Type> {
+    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
         self.m.as_mut().and_then(|m| m.get_mut(key))
     }
 

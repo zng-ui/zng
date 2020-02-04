@@ -3,6 +3,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::frame::*;
 use crate::core::types::*;
+use crate::core::window::Windows;
 use std::time::*;
 
 event_args! {
@@ -270,6 +271,7 @@ impl AppExtension for MouseEvents {
                 } else {
                     LayoutPoint::default()
                 };
+                let hits = ctx.services.require::<Windows>().hit_test(window_id, position);
                 let args = MouseInputArgs::now(
                     window_id,
                     device_id,
@@ -277,7 +279,7 @@ impl AppExtension for MouseEvents {
                     position,
                     self.modifiers,
                     state,
-                    FrameHitInfo::default(),
+                    hits.clone(),
                 );
                 ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
                 match state {
@@ -297,7 +299,7 @@ impl AppExtension for MouseEvents {
                                     position,
                                     self.modifiers,
                                     self.click_count,
-                                    FrameHitInfo::default(),
+                                    hits,
                                 );
                                 ctx.updates.push_notify(self.mouse_click.clone(), args);
                             } else {
@@ -312,15 +314,8 @@ impl AppExtension for MouseEvents {
                         ctx.updates.push_notify(self.mouse_up.clone(), args);
 
                         if self.click_count == 1 {
-                            let args = MouseClickArgs::now(
-                                window_id,
-                                device_id,
-                                button,
-                                position,
-                                self.modifiers,
-                                1,
-                                FrameHitInfo::default(),
-                            );
+                            let args =
+                                MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, 1, hits);
                             ctx.updates.push_notify(self.mouse_click.clone(), args);
                         }
 

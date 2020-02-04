@@ -187,6 +187,7 @@ pub struct FrameInfo {
 
 impl FrameInfo {
     /// Reference to the root widget in the frame.
+    #[inline]
     pub fn root(&self) -> WidgetInfo {
         WidgetInfo::new(self.tree.root())
     }

@@ -1,7 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension};
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::frame::FrameBuilder;
+use crate::core::frame::{FrameBuilder, FrameHitInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
@@ -351,6 +351,10 @@ impl Windows {
         self.update_notifier.push_update();
 
         notice
+    }
+
+    pub fn hit_test(&mut self, window_id: WindowId, point: LayoutPoint) -> FrameHitInfo {
+        todo!()
     }
 }
 

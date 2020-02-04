@@ -3,6 +3,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::events::*;
 use crate::core::frame::FrameBuilder;
+use crate::core::frame::{FrameInfo, WidgetInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
@@ -23,6 +24,55 @@ event_args! {
             self.new_focus == ctx || self.prev_focus == ctx
         }
     }
+}
+
+state_key! {
+    pub(crate) struct IsFocusable: bool;
+    pub(crate) struct FocusTabIndex: TabIndex;
+    pub(crate) struct IsFocusScope: bool;
+    pub(crate) struct FocusTabNav: TabNav;
+    pub(crate) struct FocusDirectionalNav: DirectionalNav;
+}
+
+/// Widget order index during TAB navigation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TabIndex(u32);
+
+impl TabIndex {
+    /// Widget is skipped during TAB navigation.
+    pub const SKIP: TabIndex = TabIndex(0);
+
+    /// Widget is focused during TAB navigation using its order of declaration.
+    pub const AUTO: TabIndex = TabIndex(u32::max_value());
+
+    /// If is [SKIP].
+    #[inline]
+    pub fn is_skip(self) -> bool {
+        self == Self::SKIP
+    }
+
+    /// If is [AUTO].
+    #[inline]
+    pub fn is_auto(self) -> bool {
+        self == Self::AUTO
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TabNav {
+    None,
+    Continue,
+    Contained,
+    Cycle,
+    Once,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DirectionalNav {
+    None,
+    Continue,
+    Contained,
+    Cycle,
 }
 
 pub struct FocusChanged;
@@ -141,4 +191,105 @@ pub enum FocusRequest {
     Up,
     /// Move focus bellow current.
     Down,
+}
+
+pub struct FrameFocusInfo<'a> {
+    info: &'a FrameInfo,
+}
+
+impl<'a> FrameFocusInfo<'a> {
+    pub fn new(frame_info: &'a FrameInfo) -> Self {
+        FrameFocusInfo { info: frame_info }
+    }
+
+    /// Reference to the root widget in the frame.
+    pub fn root(&self) -> WidgetFocusInfo {
+        WidgetFocusInfo::new(self.info.root())
+    }
+}
+
+pub struct WidgetFocusInfo<'a> {
+    pub info: WidgetInfo<'a>,
+}
+
+impl<'a> WidgetFocusInfo<'a> {
+    pub fn new(widget_info: WidgetInfo<'a>) -> Self {
+        WidgetFocusInfo { info: widget_info }
+    }
+
+    pub fn focus_info(&self) -> FocusInfo {
+        let m = self.info.meta();
+
+        match (
+            m.get(IsFocusable).copied(),
+            m.get(IsFocusScope).copied(),
+            m.get(FocusTabIndex).copied(),
+            m.get(FocusTabNav).copied(),
+            m.get(FocusDirectionalNav).copied(),
+        ) {
+            // Set as not focusable.
+            (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
+
+            // Set as focus scope and not set as not focusable.
+            (_, Some(true), idx, tab, dir) => FocusInfo::FocusScope(
+                idx.unwrap_or(TabIndex::AUTO),
+                tab.unwrap_or(TabNav::Continue),
+                dir.unwrap_or(DirectionalNav::None),
+            ),
+
+            // Set tab nav and did not set as not focus scope.
+            (_, None, idx, Some(tab), dir) => {
+                FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab, dir.unwrap_or(DirectionalNav::None))
+            }
+
+            // Set directional nav and did not set as not focus scope.
+            (_, None, idx, tab, Some(dir)) => {
+                FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab.unwrap_or(TabNav::Continue), dir)
+            }
+
+            // Set as focusable and was not focus scope.
+            (Some(true), _, idx, _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
+
+            // Set tab index and was not focus scope and did not set as not focusable.
+            (_, _, Some(idx), _, _) => FocusInfo::Focusable(idx),
+
+            _ => FocusInfo::NotFocusable,
+        }
+    }
+
+    /// Iterator over all next widgets within the same parent that are focusable.
+    #[inline]
+    pub fn next_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.next_siblings().filter_map(|n| {
+            let n = WidgetFocusInfo::new(n);
+
+            if n.focus_info().is_focusable() {
+                Some(n)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Next focusable sibling.
+    #[inline]
+    pub fn next_sibling(&self) -> Option<WidgetFocusInfo> {
+        self.next_siblings().next()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum FocusInfo {
+    NotFocusable,
+    Focusable(TabIndex),
+    FocusScope(TabIndex, TabNav, DirectionalNav),
+}
+
+impl FocusInfo {
+    pub fn is_focusable(&self) -> bool {
+        match self {
+            FocusInfo::NotFocusable => false,
+            _ => true,
+        }
+    }
 }
