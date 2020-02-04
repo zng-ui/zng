@@ -29,6 +29,12 @@ impl EasingStep {
     pub fn get(self) -> f32 {
         self.0
     }
+
+    /// Flipped step.
+    #[inline]
+    pub fn flip(self) -> EasingStep {
+        EasingStep(1.0 - self.0)
+    }
 }
 
 /// Easing function time input. Is a value in the `0.0..=1.0` range.
@@ -55,6 +61,12 @@ impl EasingTime {
     #[inline]
     pub fn get(self) -> f32 {
         self.0
+    }
+
+    /// Inverted time.
+    #[inline]
+    pub fn reverse(self) -> EasingTime {
+        EasingTime(1.0 - self.0)
     }
 }
 
@@ -148,32 +160,31 @@ impl Mul<EasingStep> for u64 {
     }
 }
 
-// math source: https://referencesource.microsoft.com/#PresentationCore/Core/CSharp/System/Windows/Media/Animation/EasingFunctionBase.cs,7ee062c60623f179,references
-pub trait EasingFunction: Debug + Clone {
-    fn ease_in(&self, time: EasingTime) -> EasingStep;
-
-    /// Inverse of [ease_in].
-    #[inline]
-    fn ease_out(&self, time: EasingTime) -> EasingStep {
-        EasingStep(1.0 - self.ease_in(EasingTime(1.0 - time.get())))
-    }
-
-    /// Combination of [ease_in] and [ease_out].
-    #[inline]
-    fn ease_in_out(&self, time: EasingTime) -> EasingStep {
-        if time.get() < 0.5 {
-            EasingStep(self.ease_in(EasingTime(time.get() * 2.0)) * 0.5)
-        } else {
-            EasingStep(1.0 - self.ease_in((1.0 - time.get()) * 2.0)) * 0.5 + 0.5
-        }
-    }
-}
-
 /// Common easing functions.
 pub mod easing {
     use super::{EasingStep, EasingTime};
     use std::f32::consts::*;
-    // math source: http://gizma.com/easing/
+
+    /// Applies the `ease_fn`.
+    pub fn ease_in(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+        ease_fn(time)
+    }
+
+    /// Applies the `ease_fn` in reverse and flipped.
+    pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+        ease_fn(time.reverse()).flip()
+    }
+
+    /// Applies `ease_in` for the first half then `[ease_out]` scaled to fit a single duration (1.0).
+    pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+        let time = EasingTime(time.get() * 2.0);
+        let step = if time.get() < 1.0 {
+            ease_in(ease_fn, time)
+        } else {
+            ease_out(ease_fn, time)
+        };
+        EasingStep(step.get() * 0.5)
+    }
 
     /// Simple linear transition, no easing, no acceleration.
     #[inline]
@@ -181,205 +192,57 @@ pub mod easing {
         EasingStep(time.get())
     }
 
-    /// Quadratic accelerating from zero velocity.
-    #[inline]
-    pub fn quad_in(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(t * t)
-    }
-    /// Quadratic decelerating to zero velocity.
-    #[inline]
-    pub fn quad_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(t * (2.0 - t))
-    }
-    /// Quadratic in/out.
     #[inline]
     pub fn quad(time: EasingTime) -> EasingStep {
         let t = time.get();
-        EasingStep(if t < 0.5 {
-            2.0 * t * t
-        } else {
-            -1.0 + (4.0 - 2.0 * t) * t
-        })
+        EasingStep(t * t)
     }
 
-    /// Cubic accelerating from zero velocity.
-    #[inline]
-    pub fn cubic_in(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(t * t * t)
-    }
-    /// Cubic decelerating to zero velocity.
-    #[inline]
-    pub fn cubic_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep((t - 1.0) * t * t + 1.0)
-    }
-    /// Cubic in/out.
     #[inline]
     pub fn cubic(time: EasingTime) -> EasingStep {
         let t = time.get();
-        EasingStep(if t < 0.5 {
-            4.0 * t * t * t
-        } else {
-            (t - 1.0) * (2.0 * t - 2.0) * (2.0 * t - 2.0) + 1.0
-        })
+        EasingStep(t * t * t)
     }
 
-    /// Quartic accelerating from zero velocity.
-    #[inline]
-    pub fn quart_in(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(t * t * t * t)
-    }
-    /// Quartic decelerating to zero velocity.
-    #[inline]
-    pub fn quart_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(1.0 - (t - 1.0) * t * t * t)
-    }
-    /// Quartic in/out.
     #[inline]
     pub fn quart(time: EasingTime) -> EasingStep {
         let t = time.get();
-        EasingStep(if t < 0.5 {
-            8.0 * t * t * t * t
-        } else {
-            1.0 - 8.0 * (t - 1.0) * t * t * t
-        })
+        EasingStep(t * t * t * t)
     }
 
-    /// Quintic accelerating from zero velocity.
-    #[inline]
-    pub fn quint_in(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(t * t * t * t * t)
-    }
-    /// Quintic decelerating to zero velocity.
-    #[inline]
-    pub fn quint_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep(1.0 + (t * 1.0) * t * t * t * t)
-    }
-    /// Quintic in/out.
     #[inline]
     pub fn quint(time: EasingTime) -> EasingStep {
         let t = time.get();
-        EasingStep(if t < 0.5 {
-            16.0 * t * t * t * t * t
-        } else {
-            1.0 + 16.0 * (t - 1.0) * t * t * t * t
-        })
+        EasingStep(t * t * t * t * t)
     }
 
-    #[inline]
-    pub fn sine_in(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep((t * FRAC_PI_2).cos() + 1.0)
-    }
-    #[inline]
-    pub fn sine_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep((t * FRAC_PI_2).sin())
-    }
-    /// Sinusoidal in/out.
     #[inline]
     pub fn sine(time: EasingTime) -> EasingStep {
         let t = time.get();
-        EasingStep(-0.5 * ((PI * t / 1.0).cos() - 1.0))
+        EasingStep(1.0 - (t * FRAC_PI_2 * (1.0 - t)).sin())
     }
 
     #[inline]
-    pub fn expo_in(time: EasingTime) -> EasingStep {
+    pub fn expo(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep((10.0 * (t - 1.0)).powf(2.0))
     }
-    #[inline]
-    pub fn expo_out(time: EasingTime) -> EasingStep {
-        let t = time.get();
-        EasingStep((-10.0 * t).powf(2.0) - 1.0)
-    }
-    /// Exponential in/out.
-    #[inline]
-    pub fn expo(time: EasingTime) -> EasingStep {
-        // t: current time
-        // b: start value
-        // c: change in value
-        // d: duration
-        // t/d: `time`
-        // b: 0.0
-        // c: 1.0
-        /*
 
-        t /= d/2;
-        if (t < 1) return c/2 * Math.pow( 2, 10 * (t - 1) ) + b;
-        t--;
-        return c/2 * ( -Math.pow( 2, -10 * t) + 2 ) + b;
-
-        */
-        let t = time.get();
-        EasingStep()
-    }
-
-    #[inline]
-    pub fn circ_in(time: EasingTime) -> EasingStep {
-        // return -c * (Math.sqrt(1 - t*t) - 1) + b;
-        todo!()
-    }
-    #[inline]
-    pub fn circ_out(time: EasingTime) -> EasingStep {
-        //	t--;
-        //	return c * Math.sqrt(1 - t*t) + b;
-        todo!()
-    }
-    /// Circular in/out.
     #[inline]
     pub fn circ(time: EasingTime) -> EasingStep {
-        // t /= d/2;
-        //if (t < 1) return -c/2 * (Math.sqrt(1 - t*t) - 1) + b;
-        //t -= 2;
-        //return c/2 * (Math.sqrt(1 - t*t) + 1) + b;
         todo!()
     }
 
-    #[inline]
-    pub fn back_in(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    #[inline]
-    pub fn back_out(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    /// Back in/out.
     #[inline]
     pub fn back(time: EasingTime) -> EasingStep {
         todo!()
     }
 
     #[inline]
-    pub fn elastic_in(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    #[inline]
-    pub fn elastic_out(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    /// Elastic in/out.
-    #[inline]
     pub fn elastic(time: EasingTime) -> EasingStep {
         todo!()
     }
 
-    #[inline]
-    pub fn bounce_in(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    #[inline]
-    pub fn bounce_out(time: EasingTime) -> EasingStep {
-        todo!()
-    }
-    /// Bounce in/out.
     #[inline]
     pub fn bounce(time: EasingTime) -> EasingStep {
         todo!()
