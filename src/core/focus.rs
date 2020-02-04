@@ -382,13 +382,42 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
     #[inline]
     pub fn prev_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        vec![].into_iter() // TODO
+        let self_id = self.info.widget_id();
+
+        let mut prev: Vec<_> = self
+            .scope()
+            .into_iter()
+            .flat_map(|s| s.descendants())
+            .take_while(move |f| f.info.widget_id() != self_id)
+            .collect();
+
+        prev.reverse();
+
+        prev.into_iter()
     }
 
     /// Previous focusable in the same scope after this widget.
     #[inline]
     pub fn prev_focusable(self) -> Option<WidgetFocusInfo<'a>> {
-        self.next_focusables().next()
+        let self_id = self.info.widget_id();
+
+        self.scope().and_then(move |s| {
+            s.descendants()
+                .take_while(move |f| f.info.widget_id() != self_id)
+                .last()
+        })
+    }
+
+    /// Widget to focus when pressing TAB from this widget.
+    #[inline]
+    pub fn tab(self) -> WidgetFocusInfo<'a> {
+        todo!()
+    }
+
+    /// Widget to focus when pressing CTRL+TAB from this widget.
+    #[inline]
+    pub fn ctrl_tab(self) -> WidgetFocusInfo<'a> {
+        todo!()
     }
 }
 

@@ -307,7 +307,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Iterator over the widgets directly contained by this widget.
     #[inline]
-    pub fn children(self) -> impl Iterator<Item = WidgetInfo<'a>> {
+    pub fn children(self) -> impl DoubleEndedIterator<Item = WidgetInfo<'a>> {
         self.node.children().map(WidgetInfo::new)
     }
 
