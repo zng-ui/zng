@@ -263,23 +263,23 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Root focusable.
     #[inline]
-    pub fn root(&self) -> WidgetFocusInfo {
-        self.ancestors().last().unwrap_or(*self)
+    pub fn root(self) -> Self {
+        self.ancestors().last().unwrap_or(self)
     }
 
     #[inline]
-    pub fn is_focusable(&self) -> bool {
+    pub fn is_focusable(self) -> bool {
         self.focus_info().is_focusable()
     }
 
     /// Is focus scope.
     #[inline]
-    pub fn is_scope(&self) -> bool {
+    pub fn is_scope(self) -> bool {
         self.focus_info().is_scope()
     }
 
     #[inline]
-    pub fn focus_info(&self) -> FocusInfo {
+    pub fn focus_info(self) -> FocusInfo {
         let m = self.info.meta();
         match (
             m.get(IsFocusable).copied(),
@@ -320,13 +320,13 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Iterator over focusable parent -> grant-parent -> .. -> root.
     #[inline]
-    pub fn ancestors(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+    pub fn ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().focusable()
     }
 
     /// Iterator over focus scopes parent -> grant-parent -> .. -> root.
     #[inline]
-    pub fn scopes(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+    pub fn scopes(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().filter_map(|i| {
             let i = i.as_focus_info();
             if i.is_scope() {
@@ -339,44 +339,56 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Reference to the focusable parent that contains this widget.
     #[inline]
-    pub fn parent(&self) -> Option<WidgetFocusInfo> {
+    pub fn parent(self) -> Option<WidgetFocusInfo<'a>> {
         self.ancestors().next()
     }
 
     /// Reference the focus scope parent that contains the widget.
     #[inline]
-    pub fn scope(&self) -> Option<WidgetFocusInfo> {
-        self.scopes().next()
+    pub fn scope(self) -> Option<WidgetFocusInfo<'a>> {
+        let scope = self.scopes().next();
+        if scope.is_some() {
+            scope
+        } else if self.is_scope() {
+            Some(self)
+        } else {
+            None
+        }
     }
 
-    /// Iterator over all next widgets within the same parent that are focusable.
+    /// Iterator over the focusable widgets contained by this widget.
     #[inline]
-    pub fn next_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.info.next_siblings().focusable()
+    pub fn descendants(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        self.info.descendants().focusable()
     }
 
-    /// Iterator over all previous widgets within the same parent that are focusable.
+    /// Iterator over all focusable widgets in the same scope after this widget.
     #[inline]
-    pub fn prev_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.info.prev_siblings().focusable()
+    pub fn next_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        let self_id = self.info.widget_id();
+        self.scope()
+            .into_iter()
+            .flat_map(|s| s.descendants())
+            .skip_while(move |f| f.info.widget_id() != self_id)
+            .skip(1)
     }
 
-    /// Next focusable sibling.
+    /// Next focusable in the same scope after this widget.
     #[inline]
-    pub fn next_sibling(&self) -> Option<WidgetFocusInfo> {
-        self.next_siblings().next()
+    pub fn next_focusable(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_focusables().next()
     }
 
-    /// Previous focusable sibling.
+    /// Iterator over all focusable widgets in the same scope before this widget in reverse.
     #[inline]
-    pub fn prev_sibling(&self) -> Option<WidgetFocusInfo> {
-        self.prev_siblings().next()
+    pub fn prev_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        vec![].into_iter() // TODO
     }
 
-    /// Iterator over the focusable widgets directly contained by this widget.
+    /// Previous focusable in the same scope after this widget.
     #[inline]
-    pub fn children(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.info.children().focusable()
+    pub fn prev_focusable(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_focusables().next()
     }
 }
 
