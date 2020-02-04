@@ -193,6 +193,7 @@ impl FrameInfo {
     }
 
     /// Reference to the widget in the frame, if it is present.
+    #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
         self.lookup
             .get(&widget_id)
@@ -200,6 +201,7 @@ impl FrameInfo {
     }
 
     /// If the frame contains the widget.
+    #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.lookup.contains_key(&widget_id)
     }
@@ -337,29 +339,17 @@ impl<'a> WidgetInfo<'a> {
     #[inline]
     pub fn orientation_from(&self, origin: LayoutPoint) -> WidgetOrientation {
         let o = self.center();
-        if o.x < origin.x {
-            if o.y < origin.y {
-                // left or above
-                if o.y <= origin.y + (origin.x - o.x) {
-                    WidgetOrientation::Left
-                } else {
-                    WidgetOrientation::Above
-                }
-            } else {
-                // left or below
-                todo!()
-            }
-        } else {
-            // else -> o.x >= origin.x
-
-            if o.y < origin.y {
-                // right or above
-                todo!()
-            } else {
-                // right or below
-                todo!()
+        for &d in &[
+            WidgetOrientation::Left,
+            WidgetOrientation::Right,
+            WidgetOrientation::Above,
+            WidgetOrientation::Below,
+        ] {
+            if is_in_direction(d, origin, o) {
+                return d;
             }
         }
+        unreachable!()
     }
 
     ///Iterator over all parent children except this widget with orientation in relation
@@ -464,8 +454,31 @@ impl<'a> WidgetInfo<'a> {
     }
 }
 
+#[inline]
+fn is_in_direction(direction: WidgetOrientation, origin: LayoutPoint, candidate: LayoutPoint) -> bool {
+    let (a, b, c, d) = match direction {
+        WidgetOrientation::Left => (candidate.x, origin.x, candidate.y, origin.y),
+        WidgetOrientation::Right => (origin.x, candidate.x, candidate.y, origin.y),
+        WidgetOrientation::Above => (candidate.y, origin.y, candidate.x, origin.x),
+        WidgetOrientation::Below => (origin.y, candidate.y, candidate.x, origin.x),
+        _ => unreachable!(),
+    };
+
+    // checks if the candidate point is in between two imaginary perpendicular lines parting from the
+    // origin point in the focus direction
+    if a <= b {
+        if c >= d {
+            return c <= d + (b - a);
+        } else {
+            return c >= d - (b - a);
+        }
+    }
+
+    false
+}
+
 /// Orientation of a [WidgetInfo] relative to another point.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum WidgetOrientation {
     Left,
     Right,

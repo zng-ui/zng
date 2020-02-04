@@ -1,12 +1,10 @@
-use crate::core::app::{AppEvent, AppExtension};
+use crate::core::app::AppExtension;
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::events::*;
-use crate::core::frame::FrameBuilder;
 use crate::core::frame::{FrameInfo, WidgetInfo};
 use crate::core::types::*;
 use crate::core::var::*;
-use crate::core::UiNode;
 
 event_args! {
     /// [FocusChanged] event args.
@@ -194,32 +192,95 @@ pub enum FocusRequest {
 }
 
 pub struct FrameFocusInfo<'a> {
-    info: &'a FrameInfo,
+    /// Full frame info.
+    pub info: &'a FrameInfo,
 }
 
 impl<'a> FrameFocusInfo<'a> {
+    #[inline]
     pub fn new(frame_info: &'a FrameInfo) -> Self {
         FrameFocusInfo { info: frame_info }
     }
 
     /// Reference to the root widget in the frame.
+    ///
+    /// The root is usually a focusable focus scope but it may not be. This
+    /// is the only method that returns a [WidgetFocusInfo] that may not be focusable.
+    #[inline]
     pub fn root(&self) -> WidgetFocusInfo {
         WidgetFocusInfo::new(self.info.root())
     }
+
+    /// Reference to the widget in the frame, if it is present and has focus info.
+    #[inline]
+    pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
+        self.info.find(widget_id).and_then(|i| i.as_focusable())
+    }
+
+    /// If the frame info contains the widget and it is focusable.
+    #[inline]
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.find(widget_id).is_some()
+    }
 }
 
+/// [WidgetInfo] extensions that build a [WidgetFocusInfo].
+pub trait WidgetInfoFocusExt<'a> {
+    /// Wraps the [WidgetInfo] in a [WidgetFocusInfo] even if it is not focusable.
+    fn as_focus_info(self) -> WidgetFocusInfo<'a>;
+
+    /// Returns a wrapped [WidgetFocusInfo] if the [WidgetInfo] is focusable.
+    fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
+}
+
+impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
+    fn as_focus_info(self) -> WidgetFocusInfo<'a> {
+        WidgetFocusInfo::new(self)
+    }
+
+    fn as_focusable(self) -> Option<WidgetFocusInfo<'a>> {
+        let r = self.as_focus_info();
+        if r.is_focusable() {
+            Some(r)
+        } else {
+            None
+        }
+    }
+}
+
+/// [WidgetInfo] wrapper that uses focus metadata for computing navigation.
+#[derive(Clone, Copy)]
 pub struct WidgetFocusInfo<'a> {
+    /// Full widget info.
     pub info: WidgetInfo<'a>,
 }
 
 impl<'a> WidgetFocusInfo<'a> {
+    #[inline]
     pub fn new(widget_info: WidgetInfo<'a>) -> Self {
         WidgetFocusInfo { info: widget_info }
     }
 
+    /// Root focusable.
+    #[inline]
+    pub fn root(&self) -> WidgetFocusInfo {
+        self.ancestors().last().unwrap_or(*self)
+    }
+
+    #[inline]
+    pub fn is_focusable(&self) -> bool {
+        self.focus_info().is_focusable()
+    }
+
+    /// Is focus scope.
+    #[inline]
+    pub fn is_scope(&self) -> bool {
+        self.focus_info().is_scope()
+    }
+
+    #[inline]
     pub fn focus_info(&self) -> FocusInfo {
         let m = self.info.meta();
-
         match (
             m.get(IsFocusable).copied(),
             m.get(IsFocusScope).copied(),
@@ -257,18 +318,47 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    /// Iterator over all next widgets within the same parent that are focusable.
+    /// Iterator over focusable parent -> grant-parent -> .. -> root.
     #[inline]
-    pub fn next_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
-        self.info.next_siblings().filter_map(|n| {
-            let n = WidgetFocusInfo::new(n);
+    pub fn ancestors(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.ancestors().focusable()
+    }
 
-            if n.focus_info().is_focusable() {
-                Some(n)
+    /// Iterator over focus scopes parent -> grant-parent -> .. -> root.
+    #[inline]
+    pub fn scopes(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.ancestors().filter_map(|i| {
+            let i = i.as_focus_info();
+            if i.is_scope() {
+                Some(i)
             } else {
                 None
             }
         })
+    }
+
+    /// Reference to the focusable parent that contains this widget.
+    #[inline]
+    pub fn parent(&self) -> Option<WidgetFocusInfo> {
+        self.ancestors().next()
+    }
+
+    /// Reference the focus scope parent that contains the widget.
+    #[inline]
+    pub fn scope(&self) -> Option<WidgetFocusInfo> {
+        self.scopes().next()
+    }
+
+    /// Iterator over all next widgets within the same parent that are focusable.
+    #[inline]
+    pub fn next_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.next_siblings().focusable()
+    }
+
+    /// Iterator over all previous widgets within the same parent that are focusable.
+    #[inline]
+    pub fn prev_siblings(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.prev_siblings().focusable()
     }
 
     /// Next focusable sibling.
@@ -276,9 +366,32 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn next_sibling(&self) -> Option<WidgetFocusInfo> {
         self.next_siblings().next()
     }
+
+    /// Previous focusable sibling.
+    #[inline]
+    pub fn prev_sibling(&self) -> Option<WidgetFocusInfo> {
+        self.prev_siblings().next()
+    }
+
+    /// Iterator over the focusable widgets directly contained by this widget.
+    #[inline]
+    pub fn children(&self) -> impl Iterator<Item = WidgetFocusInfo> {
+        self.info.children().focusable()
+    }
 }
 
-#[derive(Debug, Clone)]
+/// Filter-maps an iterator of [WidgetInfo] to [WidgetFocusInfo].
+pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
+    fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
+}
+
+impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
+    fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>> {
+        self.filter_map(|i| i.as_focusable())
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum FocusInfo {
     NotFocusable,
     Focusable(TabIndex),
@@ -286,10 +399,19 @@ pub enum FocusInfo {
 }
 
 impl FocusInfo {
+    #[inline]
     pub fn is_focusable(&self) -> bool {
         match self {
             FocusInfo::NotFocusable => false,
             _ => true,
+        }
+    }
+
+    #[inline]
+    pub fn is_scope(&self) -> bool {
+        match self {
+            FocusInfo::FocusScope(..) => true,
+            _ => false,
         }
     }
 }
