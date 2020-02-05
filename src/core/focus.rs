@@ -107,7 +107,7 @@ impl AppExtension for FocusManager {
             //    ctx.services.require::<Focus>().focus_widget(ctx.widget_id);
             //}
         }
-        if let Some(request) = ctx.services.require::<Focus>().request.take() {
+        if let Some(request) = ctx.services.req::<Focus>().request.take() {
             todo!()
         }
     }
@@ -168,7 +168,7 @@ impl Focus {
     }
 }
 
-impl Service for Focus {}
+impl AppService for Focus {}
 
 /// Focus change request.
 #[derive(Clone, Copy, Debug)]

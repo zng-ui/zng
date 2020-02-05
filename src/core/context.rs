@@ -15,8 +15,6 @@ use webrender::api::RenderApi;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 
-type WindowServicesInit = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> Box<dyn Any>>)>;
-
 enum AnyRef {}
 impl AnyRef {
     fn pack<T>(r: &T) -> *const AnyRef {
@@ -379,10 +377,6 @@ impl StateMap {
     pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
-
-    pub fn remove<S: StateKey>(&mut self, _key: S) -> Option<S::Type> {
-        self.map.remove(&TypeId::of::<S>()).map(|any| *any.downcast::<S::Type>().unwrap())
-    }
 }
 
 /// A [StateState] that only uses one `usize` of memory if not used.
@@ -424,10 +418,6 @@ impl LazyStateMap {
     /// Gets if a state key without value is set.
     pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
         self.get(key).is_some()
-    }
-
-    pub fn remove<S: StateKey>(&mut self, key: S) -> Option<S::Type> {
-        self.borrow_mut().remove(key)
     }
 }
 
@@ -489,51 +479,120 @@ impl Drop for Events {
     }
 }
 
-/// Identifies a service type.
-pub trait Service: 'static {}
+/// Identifies an application level service type.
+pub trait AppService: 'static {}
 
-/// Access to application services.
+/// Indentifies a window level service type.
+pub trait WindowService: 'static {}
+
 #[derive(Default)]
-pub struct Services {
-    app: AnyMap,
-    window_init: WindowServicesInit,
-    window: AnyMap,
+struct ServiceMap {
+    m: AnyMap,
 }
 
-impl Services {
-    /// Register a new service for the duration of the application context.
-    pub fn register<S: Service>(&mut self, service: S) {
-        self.app.insert(TypeId::of::<S>(), Box::new(service));
+impl ServiceMap {
+    pub fn insert<S: 'static>(&mut self, service: S) {
+        self.m.insert(TypeId::of::<S>(), Box::new(service));
     }
 
+    pub fn get<S: 'static>(&mut self) -> Option<&mut S> {
+        let type_id = TypeId::of::<S>();
+        self.m.get_mut(&type_id).map(|any| any.downcast_mut::<S>().unwrap())
+    }
+
+    pub fn req<S: 'static>(&mut self) -> &mut S {
+        self.get::<S>()
+            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
+    }
+}
+
+/// Application services with registration access.
+pub struct AppServicesInit {
+    m: AppServices,
+}
+
+impl Default for AppServicesInit {
+    fn default() -> Self {
+        AppServicesInit {
+            m: AppServices { m: ServiceMap::default() },
+        }
+    }
+}
+
+impl AppServicesInit {
+    /// Register a new service for the duration of the application context.
+    pub fn register<S: AppService>(&mut self, service: S) {
+        self.m.m.insert(service)
+    }
+
+    /// Moves the registered services into a new [AppServices].
+    pub fn services(&mut self) -> &mut AppServices {
+        &mut self.m
+    }
+}
+
+/// Application services access.
+pub struct AppServices {
+    m: ServiceMap,
+}
+
+impl AppServices {
+    /// Gets a service reference if the service is registered in the application.
+    pub fn get<S: AppService>(&mut self) -> Option<&mut S> {
+        self.m.get::<S>()
+    }
+
+    // Requires a service reference.
+    ///
+    /// # Panics
+    /// If  the service is not registered in application.
+    pub fn req<S: AppService>(&mut self) -> &mut S {
+        self.m.req::<S>()
+    }
+}
+
+/// Window services registration.
+#[derive(Default)]
+pub struct WindowServicesInit {
+    builders: Vec<(TypeId, Box<dyn Fn(&WindowContext) -> Box<dyn Any>>)>,
+}
+
+impl WindowServicesInit {
     /// Register a new window service initializer.
     ///
     /// Window services have diferent instances for each window and exist for the duration
     /// of that window. The `new` closure is called when a new window is created to
-    pub fn register_wnd<S: Service>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
-        self.window_init.push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
+    pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
+        self.builders.push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
     }
 
-    /// Gets a service reference if the service is registered in the application.
-    pub fn get<S: Service>(&mut self) -> Option<&mut S> {
-        let type_id = TypeId::of::<S>();
-
-        if let Some(any) = self.app.get_mut(&type_id) {
-            Some(any.downcast_mut::<S>().unwrap())
-        } else if let Some(any) = self.window.get_mut(&type_id) {
-            Some(any.downcast_mut::<S>().unwrap())
-        } else {
-            None
+    /// Initializes services for a window context.
+    pub fn init(&self, ctx: &WindowContext) -> WindowServices {
+        WindowServices {
+            m: ServiceMap {
+                m: self.builders.iter().map(|(k, v)| (*k, (v)(ctx))).collect(),
+            },
         }
     }
+}
 
-    /// Gets a service reference.
+/// Window services access.
+pub struct WindowServices {
+    m: ServiceMap,
+}
+
+impl WindowServices {
+    /// Gets a service reference if the service is registered in the application.
+    pub fn get<S: WindowService>(&mut self) -> Option<&mut S> {
+        self.m.get::<S>()
+    }
+
+    // Requires a service reference.
     ///
     /// # Panics
     /// If  the service is not registered in application.
-    pub fn require<S: Service>(&mut self) -> &mut S {
-        self.get::<S>()
-            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
+    pub fn req<S: WindowService>(&mut self) -> &mut S {
+        self.m.req::<S>()
     }
 }
 
@@ -648,7 +707,8 @@ pub struct OwnedAppContext {
     app_state: StateMap,
     vars: Vars,
     events: Events,
-    services: Services,
+    services: AppServicesInit,
+    window_services: WindowServicesInit,
     updates: Updates,
 }
 
@@ -659,7 +719,8 @@ impl OwnedAppContext {
             app_state: StateMap::default(),
             vars: Vars::instance(),
             events: Events::instance(),
-            services: Services::default(),
+            services: AppServicesInit::default(),
+            window_services: WindowServicesInit::default(),
             updates: Updates::new(event_loop.clone()),
             event_loop,
         }
@@ -672,6 +733,7 @@ impl OwnedAppContext {
             vars: &self.vars,
             events: &mut self.events,
             services: &mut self.services,
+            window_services: &mut self.window_services,
             updates: &mut self.updates,
         }
     }
@@ -681,7 +743,8 @@ impl OwnedAppContext {
             app_state: &mut self.app_state,
             vars: &self.vars,
             events: &self.events,
-            services: &mut self.services,
+            services: self.services.services(),
+            window_services: &self.window_services,
             updates: &mut self.updates,
             event_loop,
         }
@@ -706,7 +769,8 @@ pub struct AppInitContext<'a> {
 
     pub vars: &'a Vars,
     pub events: &'a mut Events,
-    pub services: &'a mut Services,
+    pub services: &'a mut AppServicesInit,
+    pub window_services: &'a mut WindowServicesInit,
     pub updates: &'a mut Updates,
 }
 
@@ -717,14 +781,12 @@ pub struct AppContext<'a> {
 
     pub vars: &'a Vars,
     pub events: &'a Events,
-    pub services: &'a mut Services,
+    pub services: &'a mut AppServices,
+    pub window_services: &'a WindowServicesInit,
     pub updates: &'a mut Updates,
 
     pub event_loop: &'a EventLoopWindowTarget<AppEvent>,
 }
-
-/// Instances of services associated with a window.
-pub type WindowServices = AnyMap;
 
 /// Custom state associated with a window.
 pub type WindowState = StateMap;
@@ -733,16 +795,23 @@ impl<'a> AppContext<'a> {
     /// Initializes state and services for a new iwndow.
     pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
         let mut window_state = StateMap::default();
-        let mut window_services = FnvHashMap::default();
+        let mut event_state = StateMap::default();
 
-        let window_init = mem::replace(&mut self.services.window_init, Vec::default());
-        for (key, new) in window_init.iter() {
-            self.window_context(window_id, &mut window_state, &mut window_services, render_api, |ctx| {
-                let service = new(ctx);
-                ctx.services.window.insert(*key, service);
-            });
-        }
-        self.services.window_init = window_init;
+        let mut window_services = WindowServices { m: Default::default() };
+        let ctx = WindowContext {
+            window_id,
+            render_api,
+            app_state: self.app_state,
+            window_state: &mut window_state,
+            event_state: &mut event_state,
+            window_services: &mut window_services,
+            vars: self.vars,
+            events: self.events,
+            services: self.services,
+            updates: self.updates,
+        };
+
+        window_services = self.window_services.init(&ctx);
 
         (window_state, window_services)
     }
@@ -752,12 +821,11 @@ impl<'a> AppContext<'a> {
         &mut self,
         window_id: WindowId,
         window_state: &mut WindowState,
-        window_services: &mut AnyMap,
+        window_services: &mut WindowServices,
         render_api: &Arc<RenderApi>,
         f: impl FnOnce(&mut WindowContext),
     ) -> UpdateDisplayRequest {
         self.updates.win_display_update = UpdateDisplayRequest::None;
-        mem::swap(&mut self.services.window, window_services);
 
         let mut event_state = StateMap::default();
 
@@ -766,6 +834,7 @@ impl<'a> AppContext<'a> {
             render_api,
             app_state: self.app_state,
             window_state,
+            window_services,
             event_state: &mut event_state,
             vars: self.vars,
             events: self.events,
@@ -773,7 +842,6 @@ impl<'a> AppContext<'a> {
             updates: self.updates,
         });
 
-        mem::swap(window_services, &mut self.services.window);
         mem::replace(&mut self.updates.win_display_update, UpdateDisplayRequest::None)
     }
 }
@@ -794,7 +862,8 @@ pub struct WindowContext<'a> {
 
     pub vars: &'a Vars,
     pub events: &'a Events,
-    pub services: &'a mut Services,
+    pub services: &'a mut AppServices,
+    pub window_services: &'a mut WindowServices,
 
     pub updates: &'a mut Updates,
 }
@@ -814,6 +883,7 @@ impl<'a> WindowContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
+            window_services: self.window_services,
 
             updates: self.updates,
         });
@@ -839,7 +909,8 @@ pub struct WidgetContext<'a> {
 
     pub vars: &'a Vars,
     pub events: &'a Events,
-    pub services: &'a mut Services,
+    pub services: &'a mut AppServices,
+    pub window_services: &'a mut WindowServices,
 
     pub updates: &'a mut Updates,
 }
@@ -863,6 +934,7 @@ impl<'a> WidgetContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
+            window_services: self.window_services,
 
             updates: self.updates,
         });

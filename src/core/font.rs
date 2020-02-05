@@ -1,5 +1,5 @@
 use crate::core::app::AppExtension;
-use crate::core::context::{AppInitContext, Service};
+use crate::core::context::{AppInitContext, WindowService};
 use crate::core::types::FontInstanceKey;
 
 use fnv::FnvHashMap;
@@ -13,7 +13,7 @@ pub struct FontCache;
 
 impl AppExtension for FontCache {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.services.register_wnd(|ctx| Fonts {
+        r.window_services.register(|ctx| Fonts {
             api: Arc::clone(ctx.render_api),
             fonts: FnvHashMap::default(),
         })
@@ -82,7 +82,7 @@ impl Fonts {
     }
 }
 
-impl Service for Fonts {}
+impl WindowService for Fonts {}
 
 /// All instances of a font family.
 struct FontInstances {

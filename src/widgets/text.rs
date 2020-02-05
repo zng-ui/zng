@@ -25,7 +25,7 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
         let font_size = *FontSize.get(ctx.vars);
 
         let font_family = &FontFamily.get(ctx.vars);
-        let font = ctx.services.require::<Fonts>().get(font_family, font_size);
+        let font = ctx.window_services.req::<Fonts>().get(font_family, font_size);
 
         let font_size = font_size as f32;
 

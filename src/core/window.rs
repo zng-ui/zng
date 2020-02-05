@@ -242,7 +242,7 @@ impl AppExtension for AppWindows {
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         // respond to service requests
-        let requests = ctx.services.require::<Windows>().take_requests();
+        let requests = ctx.services.req::<Windows>().take_requests();
         for request in requests {
             let mut w = GlWindow::new(
                 request.new,
@@ -320,7 +320,7 @@ pub struct Windows {
     update_notifier: UpdateNotifier,
 }
 
-impl Service for Windows {}
+impl AppService for Windows {}
 
 impl Windows {
     fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
