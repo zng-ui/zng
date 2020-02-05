@@ -56,11 +56,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 }
 
 #[property(event)]
-pub fn on_event<E: Event>(
-    child: impl UiNode,
-    event: E,
-    handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static,
-) -> impl UiNode {
+pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
     OnEvent {
         child,
         _event: event,
@@ -137,26 +133,17 @@ pub fn on_key_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInp
 }
 
 #[property(event)]
-pub fn on_mouse_move(
-    child: impl UiNode,
-    handler: impl FnMut(&mut OnEventArgs<MouseMoveArgs>) + 'static,
-) -> impl UiNode {
+pub fn on_mouse_move(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseMoveArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseMove, handler)
 }
 
 #[property(event)]
-pub fn on_mouse_input(
-    child: impl UiNode,
-    handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static,
-) -> impl UiNode {
+pub fn on_mouse_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseInput, handler)
 }
 
 #[property(event)]
-pub fn on_mouse_down(
-    child: impl UiNode,
-    handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static,
-) -> impl UiNode {
+pub fn on_mouse_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseDown, handler)
 }
 
@@ -166,10 +153,7 @@ pub fn on_mouse_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<Mous
 }
 
 #[property(event)]
-pub fn on_mouse_click(
-    child: impl UiNode,
-    handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static,
-) -> impl UiNode {
+pub fn on_mouse_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseClick, handler)
 }
 

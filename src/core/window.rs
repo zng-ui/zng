@@ -179,8 +179,7 @@ impl AppExtension for AppWindows {
         r.events.register::<WindowOpen>(self.window_open.listener());
         r.events.register::<WindowResize>(self.window_resize.listener());
         r.events.register::<WindowMove>(self.window_move.listener());
-        r.events
-            .register::<WindowScaleChanged>(self.window_scale_changed.listener());
+        r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
         r.events.register::<WindowClosing>(self.window_closing.listener());
         r.events.register::<WindowClose>(self.window_close.listener());
     }
@@ -337,10 +336,7 @@ impl Windows {
 
     /// Requests a new window. Returns a notice that gets updated once
     /// when the window is launched.
-    pub fn new_window(
-        &mut self,
-        new_window: impl FnOnce(&AppContext) -> UiRoot + 'static,
-    ) -> EventListener<WindowEventArgs> {
+    pub fn new_window(&mut self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowEventArgs> {
         let request = NewWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),
@@ -405,10 +401,7 @@ impl GlWindow {
 
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to flickering
-            .with_inner_size(LogicalSize::<f64>::new(
-                inner_size.width.into(),
-                inner_size.height.into(),
-            ));
+            .with_inner_size(LogicalSize::<f64>::new(inner_size.width.into(), inner_size.height.into()));
 
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
@@ -471,11 +464,7 @@ impl GlWindow {
         self.context.as_ref().unwrap().window().id()
     }
 
-    fn root_context(
-        &mut self,
-        ctx: &mut AppContext,
-        f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext),
-    ) -> UpdateDisplayRequest {
+    fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let id = self.id();
         let root = &mut self.root;
 

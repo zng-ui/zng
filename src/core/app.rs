@@ -56,9 +56,7 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.0.is_or_contain(app_extension_id)
-            || self.1.is_or_contain(app_extension_id)
-            || self.id() == app_extension_id
+        self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id) || self.id() == app_extension_id
     }
 
     fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
@@ -178,9 +176,7 @@ impl<E: AppExtension> AppExtended<E> {
                     in_sequence = false;
                 }
 
-                GEvent::RedrawRequested(window_id) => {
-                    extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop))
-                }
+                GEvent::RedrawRequested(window_id) => extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop)),
 
                 _ => {}
             }

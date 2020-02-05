@@ -5,10 +5,7 @@ use syn::{parse::*, *};
 include!("util.rs");
 
 #[allow(clippy::cognitive_complexity)]
-pub(crate) fn expand_property(
-    args: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let priority = parse_macro_input!(args as Priority);
 
     let mut fn_ = parse_macro_input!(input as ItemFn);
@@ -188,10 +185,7 @@ impl Parse for Priority {
             } else {
                 Err(Error::new(
                     parsed.span(),
-                    format!(
-                        "expected `context_var`, `event`, `outer` or `inner` found `{}`",
-                        quote!(#parsed)
-                    ),
+                    format!("expected `context_var`, `event`, `outer` or `inner` found `{}`", quote!(#parsed)),
                 ))
             }
         } else {

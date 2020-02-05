@@ -49,12 +49,7 @@ impl<T: 'static> Clone for EventChannel<T> {
     }
 }
 impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(
-        self,
-        new_update: T,
-        _assert_events_not_borrowed: &mut Events,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
+    pub(crate) fn notify(self, new_update: T, _assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         // SAFETY: This is safe because borrows are bound to the `Events` instance
         // so if we have a mutable reference to it no event value is borrowed.
         let data = unsafe { &mut *self.r.data.get() };
@@ -88,9 +83,7 @@ pub struct EventListener<T: 'static> {
 }
 impl<T: 'static> Clone for EventListener<T> {
     fn clone(&self) -> Self {
-        EventListener {
-            chan: self.chan.clone(),
-        }
+        EventListener { chan: self.chan.clone() }
     }
 }
 impl<T: 'static> EventListener<T> {
@@ -123,9 +116,7 @@ pub struct EventEmitter<T: 'static> {
 }
 impl<T: 'static> Clone for EventEmitter<T> {
     fn clone(&self) -> Self {
-        EventEmitter {
-            chan: self.chan.clone(),
-        }
+        EventEmitter { chan: self.chan.clone() }
     }
 }
 impl<T: 'static> EventEmitter<T> {
@@ -161,17 +152,10 @@ impl<T: 'static> EventEmitter<T> {
 
     /// Gets a new event listener linked with this emitter.
     pub fn listener(&self) -> EventListener<T> {
-        EventListener {
-            chan: self.chan.clone(),
-        }
+        EventListener { chan: self.chan.clone() }
     }
 
-    pub(crate) fn notify(
-        self,
-        new_update: T,
-        assert_events_not_borrowed: &mut Events,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
+    pub(crate) fn notify(self, new_update: T, assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
     }
 }

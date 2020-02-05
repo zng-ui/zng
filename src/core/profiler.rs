@@ -77,10 +77,7 @@ impl Profiler {
         THREAD_PROFILER.with(|profiler| {
             assert!(profiler.borrow().is_none());
 
-            let thread_profiler = ThreadProfiler {
-                id,
-                tx: self.tx.clone(),
-            };
+            let thread_profiler = ThreadProfiler { id, tx: self.tx.clone() };
 
             *profiler.borrow_mut() = Some(thread_profiler);
         });

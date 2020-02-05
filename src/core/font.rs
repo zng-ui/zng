@@ -124,10 +124,7 @@ impl FontInstance {
             .filter_map(|i| i)
             .collect();
 
-        let dimensions = self
-            .inner
-            .api
-            .get_glyph_dimensions(self.inner.instance_key, indices.clone());
+        let dimensions = self.inner.api.get_glyph_dimensions(self.inner.instance_key, indices.clone());
         (indices, dimensions)
     }
 

@@ -219,11 +219,7 @@ impl Vars {
 
     /// Runs a function with the context var.
     pub fn with_context<V: ContextVar>(&self, _: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
-        self.with_context_impl(
-            TypeId::of::<V>(),
-            ContextVarEntry::Value(AnyRef::pack(value), is_new, version),
-            f,
-        )
+        self.with_context_impl(TypeId::of::<V>(), ContextVarEntry::Value(AnyRef::pack(value), is_new, version), f)
     }
 
     /// Runs a function with the context var set from another var.
@@ -250,17 +246,9 @@ impl Vars {
                 drop(context_vars);
 
                 if circular_binding {
-                    eprintln!(
-                        "circular context var binding `{}`=`{}` ignored",
-                        type_name::<V>(),
-                        type_name::<O>()
-                    );
+                    eprintln!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
                 } else {
-                    self.with_context_impl(
-                        type_id,
-                        ContextVarEntry::ContextVar(var, AnyRef::pack(default), meta),
-                        f,
-                    )
+                    self.with_context_impl(type_id, ContextVarEntry::ContextVar(var, AnyRef::pack(default), meta), f)
                 }
             }
         }
@@ -393,9 +381,7 @@ impl StateMap {
     }
 
     pub fn remove<S: StateKey>(&mut self, _key: S) -> Option<S::Type> {
-        self.map
-            .remove(&TypeId::of::<S>())
-            .map(|any| *any.downcast::<S::Type>().unwrap())
+        self.map.remove(&TypeId::of::<S>()).map(|any| *any.downcast::<S::Type>().unwrap())
     }
 }
 
@@ -525,8 +511,7 @@ impl Services {
     /// Window services have diferent instances for each window and exist for the duration
     /// of that window. The `new` closure is called when a new window is created to
     pub fn register_wnd<S: Service>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
-        self.window_init
-            .push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
+        self.window_init.push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
     }
 
     /// Gets a service reference if the service is registered in the application.
@@ -585,18 +570,13 @@ impl Updates {
     }
 
     /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: VarValue>(
-        &mut self,
-        var: impl Var<T>,
-        modify: impl ModifyFnOnce<T>,
-    ) -> Result<(), VarIsReadOnly> {
+    pub fn push_modify<T: VarValue>(&mut self, var: impl Var<T>, modify: impl ModifyFnOnce<T>) -> Result<(), VarIsReadOnly> {
         var.push_modify(modify, self)
     }
 
     pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vars, &mut Vec<CleanupOnce>) + 'static) {
         self.update.update = true;
-        self.updates
-            .push(Box::new(move |assert, _, cleanup| modify(assert, cleanup)));
+        self.updates.push(Box::new(move |assert, _, cleanup| modify(assert, cleanup)));
     }
 
     /// Schedules an update notification.
@@ -614,8 +594,7 @@ impl Updates {
     /// Schedules a switch variable index change for the next update.
     pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
         self.update.update = true;
-        self.updates
-            .push(Box::new(move |_, _, cleanup| var.modify(new_index, cleanup)));
+        self.updates.push(Box::new(move |_, _, cleanup| var.modify(new_index, cleanup)));
     }
 
     /// Schedules a layout update.
@@ -822,12 +801,7 @@ pub struct WindowContext<'a> {
 
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` within the context of a widget.
-    pub fn widget_context(
-        &mut self,
-        widget_id: WidgetId,
-        widget_state: &mut LazyStateMap,
-        f: impl FnOnce(&mut WidgetContext),
-    ) {
+    pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         f(&mut WidgetContext {
             window_id: self.window_id,
             widget_id,
@@ -876,12 +850,7 @@ impl<'a> WidgetContext<'a> {
     }
 
     /// Runs a function `f` within the context of a widget.
-    pub fn widget_context(
-        &mut self,
-        widget_id: WidgetId,
-        widget_state: &mut LazyStateMap,
-        f: impl FnOnce(&mut WidgetContext),
-    ) {
+    pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         f(&mut WidgetContext {
             window_id: self.window_id,
             widget_id,

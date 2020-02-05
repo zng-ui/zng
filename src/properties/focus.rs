@@ -174,9 +174,7 @@ impl<C: UiNode, E: LocalVar<DirectionalNav>> SetDirectionalNav<C, E> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame
-            .widget_meta()
-            .set(FocusDirectionalNav, *self.directional_nav.get_local());
+        frame.widget_meta().set(FocusDirectionalNav, *self.directional_nav.get_local());
         self.child.render(frame);
     }
 }

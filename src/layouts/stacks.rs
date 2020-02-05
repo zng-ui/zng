@@ -52,17 +52,13 @@ stack!(VStack, height, width, y);
 /// Stack the children in a line (X). The first child at the begining (0, 0) the last child
 /// at the end (n, 0);
 pub fn h_stack<T: UiNode>(children: Stack<T>) -> impl UiNode {
-    HStack {
-        children: children.stack,
-    }
+    HStack { children: children.stack }
 }
 
 /// Stacks the children in a column (Y). The first child at the top (0, 0) the last child at
 /// the bottom (0, n).
 pub fn v_stack<T: UiNode>(children: Stack<T>) -> impl UiNode {
-    VStack {
-        children: children.stack,
-    }
+    VStack { children: children.stack }
 }
 
 /// Stacks the children on top of each other. The first child at the bottom the last at the top.
@@ -75,9 +71,7 @@ impl<T: UiNode> ZStack<T> {}
 
 /// Stacks the children on top of each other (Z-index). The first child at the bottom the last at the top.
 pub fn z_stack<T: UiNode>(children: Stack<T>) -> impl UiNode {
-    ZStack {
-        children: children.stack,
-    }
+    ZStack { children: children.stack }
 }
 
 /// A child in a stack container.

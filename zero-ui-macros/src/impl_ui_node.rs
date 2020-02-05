@@ -8,10 +8,7 @@ use syn::*;
 
 include!("util.rs");
 
-pub(crate) fn gen_impl_ui_node(
-    args: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
     let mut input = parse_macro_input!(input as ItemImpl);
 
@@ -71,9 +68,7 @@ pub(crate) fn gen_impl_ui_node(
             validate_manual_del = false;
             no_delegate_absents(crate_.clone(), node_item_names)
         }
-        Args::Delegate { delegate, delegate_mut } => {
-            delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut)
-        }
+        Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut),
         Args::DelegateIter {
             delegate_iter,
             delegate_iter_mut,
@@ -154,10 +149,7 @@ impl InlineEverything {
 }
 impl VisitMut for InlineEverything {
     fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
-        if i.attrs
-            .iter()
-            .all(|a| a.path.get_ident() != self.inline.path.get_ident())
-        {
+        if i.attrs.iter().all(|a| a.path.get_ident() != self.inline.path.get_ident()) {
             i.attrs.push(self.inline.clone());
         }
 
@@ -309,10 +301,7 @@ enum Args {
     Delegate { delegate: Expr, delegate_mut: Expr },
     /// `children` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
-    DelegateIter {
-        delegate_iter: Expr,
-        delegate_iter_mut: Expr,
-    },
+    DelegateIter { delegate_iter: Expr, delegate_iter_mut: Expr },
 }
 
 impl Parse for Args {
@@ -344,8 +333,7 @@ impl Parse for Args {
                     let delegate_iter_mut = ident("delegate_iter_mut");
 
                     if arg0 == delegate_iter || arg0 == delegate_iter_mut {
-                        let (delegate_iter, delegate_iter_mut) =
-                            parse_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
+                        let (delegate_iter, delegate_iter_mut) = parse_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
                         Args::DelegateIter {
                             delegate_iter,
                             delegate_iter_mut,

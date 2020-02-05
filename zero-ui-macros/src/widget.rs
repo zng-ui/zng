@@ -199,9 +199,7 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
                     continue;
                 }
 
-                let arg_names: Vec<_> = (0..args.len())
-                    .map(|i| ident(&format!("__{}{}", quote! {#name}, i)))
-                    .collect();
+                let arg_names: Vec<_> = (0..args.len()).map(|i| ident(&format!("__{}{}", quote! {#name}, i))).collect();
                 let args = args.into_iter();
 
                 let_args.push(quote! {
@@ -211,9 +209,7 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
                 all_arg_names.push(arg_names);
             }
             PropertyArgs::Fields(fields) => {
-                let arg_names: Vec<_> = (0..fields.len())
-                    .map(|i| ident(&format!("__{}{}", quote! {#name}, i)))
-                    .collect();
+                let arg_names: Vec<_> = (0..fields.len()).map(|i| ident(&format!("__{}{}", quote! {#name}, i))).collect();
                 let_args.push(quote! {
                     let (#(#arg_names),*) = #name::Args {
                         #fields
@@ -238,10 +234,7 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
     (let_args, expanded_props, custom_id)
 }
 
-fn take_properties(
-    args: &mut HashMap<Ident, Property>,
-    properties: Punctuated<PropertyDeclaration, Token![;]>,
-) -> Vec<Property> {
+fn take_properties(args: &mut HashMap<Ident, Property>, properties: Punctuated<PropertyDeclaration, Token![;]>) -> Vec<Property> {
     properties
         .into_iter()
         .filter_map(|pd| {
@@ -313,8 +306,7 @@ impl Parse for WidgetInput {
 
         if let Some(fn_) = fn_ {
             Ok(WidgetInput {
-                child_properties: child_props
-                    .unwrap_or_else(|| PropertiesDeclaration::empty(ident("child_properties"))),
+                child_properties: child_props.unwrap_or_else(|| PropertiesDeclaration::empty(ident("child_properties"))),
                 self_properties: self_props.unwrap_or_else(|| PropertiesDeclaration::empty(ident("self_properties"))),
                 fn_,
                 attrs,

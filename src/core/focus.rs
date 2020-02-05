@@ -304,9 +304,7 @@ impl<'a> WidgetFocusInfo<'a> {
             }
 
             // Set directional nav and did not set as not focus scope.
-            (_, None, idx, tab, Some(dir)) => {
-                FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab.unwrap_or(TabNav::Continue), dir)
-            }
+            (_, None, idx, tab, Some(dir)) => FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab.unwrap_or(TabNav::Continue), dir),
 
             // Set as focusable and was not focus scope.
             (Some(true), _, idx, _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
@@ -401,11 +399,8 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn prev_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
 
-        self.scope().and_then(move |s| {
-            s.descendants()
-                .take_while(move |f| f.info.widget_id() != self_id)
-                .last()
-        })
+        self.scope()
+            .and_then(move |s| s.descendants().take_while(move |f| f.info.widget_id() != self_id).last())
     }
 
     /// Widget to focus when pressing TAB from this widget.

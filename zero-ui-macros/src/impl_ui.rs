@@ -8,11 +8,7 @@ use syn::*;
 include!("util.rs");
 
 /// #[impl_ui] and #[impl_ui_crate] implementation.
-pub(crate) fn gen_impl_ui(
-    args: proc_macro::TokenStream,
-    input: proc_macro::TokenStream,
-    crate_: TokenStream,
-) -> proc_macro::TokenStream {
+pub(crate) fn gen_impl_ui(args: proc_macro::TokenStream, input: proc_macro::TokenStream, crate_: TokenStream) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
     let input = parse_macro_input!(input as ItemImpl);
 
@@ -22,11 +18,7 @@ pub(crate) fn gen_impl_ui(
             in_ui_impl = seg.ident == ident("Ui");
         }
         if !in_ui_impl {
-            abort!(
-                path.span(),
-                "expected inherent impl or Ui trait impl, found `{}`",
-                quote! {#path}
-            )
+            abort!(path.span(), "expected inherent impl or Ui trait impl, found `{}`", quote! {#path})
         }
     }
 
@@ -59,9 +51,7 @@ pub(crate) fn gen_impl_ui(
 
     let default_ui_items = match args {
         Args::Leaf => ui_leaf_defaults(crate_.clone(), ui_item_names),
-        Args::Container { delegate, delegate_mut } => {
-            ui_container_defaults(crate_.clone(), ui_item_names, delegate, delegate_mut)
-        }
+        Args::Container { delegate, delegate_mut } => ui_container_defaults(crate_.clone(), ui_item_names, delegate, delegate_mut),
         Args::MultiContainer {
             delegate_iter,
             delegate_iter_mut,
@@ -119,10 +109,7 @@ enum Args {
     Container { delegate: Expr, delegate_mut: Expr },
     /// `children` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
-    MultiContainer {
-        delegate_iter: Expr,
-        delegate_iter_mut: Expr,
-    },
+    MultiContainer { delegate_iter: Expr, delegate_iter_mut: Expr },
 }
 
 impl Parse for Args {
@@ -169,10 +156,7 @@ impl Parse for Args {
 
                 let delegate_iter_mut = args.parse::<Ident>()?;
                 if delegate_iter_mut != ident("delegate_iter_mut") {
-                    return Err(syn::parse::Error::new(
-                        delegate_iter_mut.span(),
-                        "expected `delegate_iter_mut`",
-                    ));
+                    return Err(syn::parse::Error::new(delegate_iter_mut.span(), "expected `delegate_iter_mut`"));
                 }
 
                 args.parse::<Token![:]>()?;
@@ -213,10 +197,7 @@ impl InlineEverything {
 }
 impl VisitMut for InlineEverything {
     fn visit_impl_item_method_mut(&mut self, i: &mut ImplItemMethod) {
-        if i.attrs
-            .iter()
-            .all(|a| a.path.get_ident() != self.inline.path.get_ident())
-        {
+        if i.attrs.iter().all(|a| a.path.get_ident() != self.inline.path.get_ident()) {
             i.attrs.push(self.inline.clone());
         }
 
@@ -393,12 +374,7 @@ fn ui_leaf_defaults(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<ImplI
     )
 }
 
-fn ui_container_defaults(
-    crate_: TokenStream,
-    user_mtds: HashSet<Ident>,
-    borrow: Expr,
-    borrow_mut: Expr,
-) -> Vec<ImplItem> {
+fn ui_container_defaults(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
     ui_defaults(
         crate_,
         user_mtds,
@@ -432,12 +408,7 @@ fn ui_container_defaults(
     )
 }
 
-fn ui_multi_container_defaults(
-    crate_: TokenStream,
-    user_mtds: HashSet<Ident>,
-    iter: Expr,
-    iter_mut: Expr,
-) -> Vec<ImplItem> {
+fn ui_multi_container_defaults(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
     ui_defaults(
         crate_.clone(),
         user_mtds,

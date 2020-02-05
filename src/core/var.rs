@@ -160,11 +160,7 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     /// Bidirectional map. Returns a `Var<O>` that uses two closures to convert to and from this `Var<T>`.
     ///
     /// Unlike [map](Var::map) the returned variable is read-write when this variable is read-write.
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        map: M,
-        map_back: N,
-    ) -> MapVarBiDi<T, Self, O, M, N>
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
     where
         Self: Sized;
 
@@ -331,11 +327,7 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
         MapVar::new(MapVarInner::Context(MapContextVar::new(*self, map)))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        map: M,
-        _: N,
-    ) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, _: N) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Context(MapContextVar::new(*self, map)))
     }
 
@@ -387,11 +379,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         MapVar::new(MapVarInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        mut map: M,
-        _: N,
-    ) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, mut map: M, _: N) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
@@ -461,12 +449,7 @@ impl<T: VarValue> SharedVar<T> {
         }
     }
 
-    pub(crate) fn modify(
-        self,
-        modify: impl ModifyFnOnce<T>,
-        _assert_vars_not_borrowed: &mut Vars,
-        cleanup: &mut Vec<Box<dyn FnOnce()>>,
-    ) {
+    pub(crate) fn modify(self, modify: impl ModifyFnOnce<T>, _assert_vars_not_borrowed: &mut Vars, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         // SAFETY: This is safe because borrows are bound to the `Vars` instance
         // so if we have a mutable reference to it no event value is borrowed.
         modify(unsafe { &mut *self.r.data.get() });
@@ -570,11 +553,7 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        map: M,
-        map_back: N,
-    ) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -667,11 +646,7 @@ impl<T: VarValue, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        map: M,
-        map_back: N,
-    ) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -800,9 +775,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O>
-    for MapBiDiSharedVar<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O> for MapBiDiSharedVar<T, S, O, M, N> {
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(vars), self.is_new(vars), self.version(vars))
     }
@@ -834,9 +807,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O>
-    for MapBiDiSharedVar<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O> for MapBiDiSharedVar<T, S, O, M, N> {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         self.borrow(vars)
     }
@@ -866,9 +837,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 
     fn push_set(&self, new_value: O, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.r
-            .source
-            .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), updates)
+        self.r.source.push_set((&mut *self.r.map_back.borrow_mut())(&new_value), updates)
     }
 
     fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
@@ -891,9 +860,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Clone for MapSha
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Clone
-    for MapBiDiSharedVar<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Clone for MapBiDiSharedVar<T, S, O, M, N> {
     fn clone(&self) -> Self {
         MapBiDiSharedVar { r: Rc::clone(&self.r) }
     }
@@ -911,11 +878,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapSh
         )))
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
-        &self,
-        map: M2,
-        map_back: N2,
-    ) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -933,9 +896,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapSh
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O>
-    for MapBiDiSharedVar<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O> for MapBiDiSharedVar<T, S, O, M, N> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
@@ -960,11 +921,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         )))
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
-        &self,
-        map: M2,
-        map_back: N2,
-    ) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -990,9 +947,7 @@ impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for M
     }
 }
 
-impl<T: VarValue, O: VarValue, S: ObjVar<T>, M: MapFnMut<T, O>, N: MapFnMut<O, T>> IntoVar<O>
-    for MapBiDiSharedVar<T, S, O, M, N>
-{
+impl<T: VarValue, O: VarValue, S: ObjVar<T>, M: MapFnMut<T, O>, N: MapFnMut<O, T>> IntoVar<O> for MapBiDiSharedVar<T, S, O, M, N> {
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1064,11 +1019,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
 
 impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapContextVar<T, S, O, M> {
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
-        protected::BindInfo::Var(
-            self.borrow(vars),
-            self.r.source.is_new(vars),
-            self.r.source.version(vars),
-        )
+        protected::BindInfo::Var(self.borrow(vars), self.r.source.is_new(vars), self.r.source.version(vars))
     }
 }
 
@@ -1108,11 +1059,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapCo
         todo!("when GATs are stable")
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
-        &self,
-        _map: M2,
-        _map_back: N2,
-    ) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, _map: M2, _map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
         todo!("when GATs are stable")
     }
 
@@ -1195,9 +1142,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O>
-    for MapVarBiDi<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O> for MapVarBiDi<T, S, O, M, N> {
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.bind_info(vars),
@@ -1245,9 +1190,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O>
-    for MapVarBiDi<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O> for MapVarBiDi<T, S, O, M, N> {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.get(vars),
@@ -1346,17 +1289,8 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapVa
         // TODO prev_version?
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
-        &self,
-        map: M2,
-        map_back: N2,
-    ) -> MapVarBiDi<O, Self, O2, M2, N2> {
-        MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
-            self.clone(),
-            map,
-            map_back,
-            0,
-        )))
+    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+        MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(self.clone(), map, map_back, 0)))
     }
 
     fn as_read_only(self) -> Self {
@@ -1368,9 +1302,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapVa
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O>
-    for MapVarBiDi<T, S, O, M, N>
-{
+impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O> for MapVarBiDi<T, S, O, M, N> {
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
@@ -1387,17 +1319,8 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         // TODO prev_version?
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(
-        &self,
-        map: M2,
-        map_back: N2,
-    ) -> MapVarBiDi<O, Self, O2, M2, N2> {
-        MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
-            self.clone(),
-            map,
-            map_back,
-            0,
-        )))
+    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+        MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(self.clone(), map, map_back, 0)))
     }
 
     fn as_read_only(self) -> Self::AsReadOnly {
@@ -1815,11 +1738,7 @@ impl<T: VarValue> Var<T> for SwitchVarDyn<T> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
-        &self,
-        map: M,
-        map_back: N,
-    ) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,

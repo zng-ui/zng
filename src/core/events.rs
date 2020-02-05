@@ -261,10 +261,7 @@ impl AppExtension for MouseEvents {
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match *event {
             WindowEvent::MouseInput {
-                state,
-                device_id,
-                button,
-                ..
+                state, device_id, button, ..
             } => {
                 let position = if self.pos_window == Some(window_id) {
                     self.pos
@@ -272,15 +269,7 @@ impl AppExtension for MouseEvents {
                     LayoutPoint::default()
                 };
                 let hits = ctx.services.require::<Windows>().hit_test(window_id, position);
-                let args = MouseInputArgs::now(
-                    window_id,
-                    device_id,
-                    button,
-                    position,
-                    self.modifiers,
-                    state,
-                    hits.clone(),
-                );
+                let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits.clone());
                 ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
                 match state {
                     ElementState::Pressed => {
@@ -292,15 +281,8 @@ impl AppExtension for MouseEvents {
 
                         if self.click_count > 1 {
                             if (now - self.last_pressed) < multi_click_time_ms() {
-                                let args = MouseClickArgs::now(
-                                    window_id,
-                                    device_id,
-                                    button,
-                                    position,
-                                    self.modifiers,
-                                    self.click_count,
-                                    hits,
-                                );
+                                let args =
+                                    MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, self.click_count, hits);
                                 ctx.updates.push_notify(self.mouse_click.clone(), args);
                             } else {
                                 self.click_count = 1;
@@ -314,8 +296,7 @@ impl AppExtension for MouseEvents {
                         ctx.updates.push_notify(self.mouse_up.clone(), args);
 
                         if self.click_count == 1 {
-                            let args =
-                                MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, 1, hits);
+                            let args = MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, 1, hits);
                             ctx.updates.push_notify(self.mouse_click.clone(), args);
                         }
 
@@ -323,16 +304,13 @@ impl AppExtension for MouseEvents {
                     }
                 }
             }
-            WindowEvent::CursorMoved {
-                device_id, position, ..
-            } => {
+            WindowEvent::CursorMoved { device_id, position, .. } => {
                 let position = LayoutPoint::new(position.x as f32, position.y as f32);
                 if position != self.pos || Some(window_id) != self.pos_window {
                     self.pos = position;
                     self.pos_window = Some(window_id);
 
-                    let args =
-                        MouseMoveArgs::now(window_id, device_id, self.modifiers, position, FrameHitInfo::default());
+                    let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, FrameHitInfo::default());
 
                     ctx.updates.push_notify(self.mouse_move.clone(), args);
                 }

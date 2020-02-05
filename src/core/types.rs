@@ -5,8 +5,7 @@ pub use webrender::api::units::{LayoutPoint, LayoutRect, LayoutSideOffsets, Layo
 pub use webrender::api::{BorderRadius, ColorF, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop};
 
 pub use glutin::event::{
-    DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode,
-    WindowEvent,
+    DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode, WindowEvent,
 };
 pub use glutin::window::{CursorIcon, WindowId};
 
@@ -76,11 +75,7 @@ impl IntoVar<Vec<GradientStop>> for Vec<(f32, ColorF)> {
     type Var = OwnedVar<Vec<GradientStop>>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(
-            self.into_iter()
-                .map(|(offset, color)| GradientStop { offset, color })
-                .collect(),
-        )
+        OwnedVar(self.into_iter().map(|(offset, color)| GradientStop { offset, color }).collect())
     }
 }
 

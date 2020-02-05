@@ -73,13 +73,7 @@ impl FrameBuilder {
         todo!()
     }
 
-    pub fn push_fill_gradient(
-        &mut self,
-        rect: &LayoutRect,
-        start: LayoutPoint,
-        end: LayoutPoint,
-        stops: Vec<GradientStop>,
-    ) {
+    pub fn push_fill_gradient(&mut self, rect: &LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) {
         todo!()
     }
 
@@ -195,9 +189,7 @@ impl FrameInfo {
     /// Reference to the widget in the frame, if it is present.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetInfo> {
-        self.lookup
-            .get(&widget_id)
-            .and_then(|i| self.tree.get(*i).map(WidgetInfo::new))
+        self.lookup.get(&widget_id).and_then(|i| self.tree.get(*i).map(WidgetInfo::new))
     }
 
     /// If the frame contains the widget.

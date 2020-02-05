@@ -231,11 +231,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T,
 
 /// Border property
 #[property(outer)]
-pub fn border(
-    child: impl UiNode,
-    widths: impl IntoVar<LayoutSideOffsets>,
-    details: impl IntoVar<BorderDetails>,
-) -> impl UiNode {
+pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     Border {
         child,
         widths: widths.into_var().as_local(),

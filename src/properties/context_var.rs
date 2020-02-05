@@ -24,17 +24,12 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
     }
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.vars
-            .with_context_bind(self.var, &self.value, || child.update_hp(ctx));
+        ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
     }
 }
 
 #[property(context_var)]
-pub fn set_context_var<T: VarValue>(
-    child: impl UiNode,
-    var: impl ContextVar<Type = T>,
-    value: impl IntoVar<T>,
-) -> impl UiNode {
+pub fn set_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
     SetContextVar {
         child,
         var,

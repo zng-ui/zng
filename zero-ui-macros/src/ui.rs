@@ -127,10 +127,7 @@ pub(crate) fn expand_ui_property(input: proc_macro::TokenStream) -> proc_macro::
                     arg_names.push(pat.ident.clone());
                     arg_gen_types.push(ident(&format!("T{}", arg_gen_types.len() + 1)))
                 } else {
-                    abort!(
-                        arg.span(),
-                        "Property arguments does not support pattern deconstruction."
-                    );
+                    abort!(arg.span(), "Property arguments does not support pattern deconstruction.");
                 }
             } else {
                 abort!(arg.span(), "Unexpected `self`.");
@@ -385,10 +382,7 @@ fn expand_property_args_fields(property_name: Ident, fields: Punctuated<FieldVal
     }
 }
 
-fn take_properties(
-    args: &mut HashMap<Ident, Property>,
-    properties: Punctuated<CustomUiProperty, Token![;]>,
-) -> Vec<Property> {
+fn take_properties(args: &mut HashMap<Ident, Property>, properties: Punctuated<CustomUiProperty, Token![;]>) -> Vec<Property> {
     properties
         .into_iter()
         .filter_map(|pd| {
