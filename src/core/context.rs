@@ -765,12 +765,45 @@ pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
 
+    /// Reference to the `winit` event loop.
     pub event_loop: &'a EventLoopProxy<AppEvent>,
 
+    /// Variables access.
+    ///
+    /// ### Note
+    /// In the application initialization context there are no variable updates, so
+    /// `[Var::update]` is always none.
     pub vars: &'a Vars,
+
+    /// Events listener access and registration.
+    ///
+    /// ### Note
+    /// Events are registered in the order the extensions appear in [App], if an
+    /// extension needs a listener for an event of another extension this dependency
+    /// must be mentioned in documentation.
     pub events: &'a mut Events,
+
+    /// Application services access and registration.
+    ///
+    /// ### Note
+    /// Services are registered in the order the extensions appear in [App], if an
+    /// extension needs a service from another extension this dependency
+    /// must be mentioned in documentation.
     pub services: &'a mut AppServicesInit,
+
+    /// Window services registration.
+    ///
+    /// ### Note
+    /// Window services are services that require a window to exist so none
+    /// can be accessed during the application initialization, they can only
+    /// be registered here.
     pub window_services: &'a mut WindowServicesInit,
+
+    /// Changes to be applied after initialization.
+    ///
+    /// ### Note
+    /// There is no notification of updates for this one, the updates are
+    /// applied and then vars and events are reset.
     pub updates: &'a mut Updates,
 }
 
