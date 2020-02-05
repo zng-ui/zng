@@ -175,7 +175,7 @@ impl AppWindows {
 impl AppExtension for AppWindows {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.event_loop.clone()));
+        r.services.register(Windows::new(r.updates.notifier().clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
         r.events.register::<WindowResize>(self.window_resize.listener());
         r.events.register::<WindowMove>(self.window_move.listener());
@@ -323,10 +323,10 @@ pub struct Windows {
 impl AppService for Windows {}
 
 impl Windows {
-    fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+    fn new(update_notifier: UpdateNotifier) -> Self {
         Windows {
             requests: Vec::default(),
-            update_notifier: UpdateNotifier::new(event_loop),
+            update_notifier,
         }
     }
 
