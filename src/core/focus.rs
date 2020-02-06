@@ -2,24 +2,34 @@ use crate::core::app::AppExtension;
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::events::*;
-use crate::core::frame::{FrameInfo, WidgetInfo};
+use crate::core::frame::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
-use crate::core::var::*;
 
 event_args! {
     /// [FocusChanged] event args.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
-        pub prev_focus: Option<WidgetId>,
+        pub prev_focus: Option<WidgetPath>,
 
         /// Newly focused widget.
-        pub new_focus: Option<WidgetId>,
+        pub new_focus: Option<WidgetPath>,
 
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
             //! If the widget is [prev_focus] or [new_focus].
 
-            let ctx = Some(ctx.widget_id);
-            self.new_focus == ctx || self.prev_focus == ctx
+            if let Some(prev) = &self.prev_focus {
+                if prev.widget_id() == ctx.widget_id {
+                    return true
+                }
+            }
+
+            if let Some(new) = &self.new_focus {
+                if new.widget_id() == ctx.widget_id {
+                    return true
+                }
+            }
+
+            false
         }
     }
 }

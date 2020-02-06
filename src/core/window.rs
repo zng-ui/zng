@@ -603,19 +603,21 @@ impl GlWindow {
             let size = self.context.as_ref().unwrap().window().inner_size();
             let size = LayoutSize::new(size.width as f32, size.height as f32);
 
-            let mut frame = FrameBuilder::new(self.root.id, size, self.pipeline_id);
-            self.root.child.render(&mut frame);
-
-            let (display_list_data, frame_info) = frame.finalize();
-            //TODO - Use frame_info
-
-            self.latest_frame_id = Epoch({
+            let frame_id = Epoch({
                 let mut next = self.latest_frame_id.0.wrapping_add(1);
                 if next == Epoch::invalid().0 {
                     next = next.wrapping_add(1);
                 }
                 next
             });
+
+            let mut frame = FrameBuilder::new(self.id(), frame_id, self.root.id, size, self.pipeline_id);
+            self.root.child.render(&mut frame);
+
+            let (display_list_data, frame_info) = frame.finalize();
+            //TODO - Use frame_info
+
+            self.latest_frame_id = frame_id;
 
             let mut txn = Transaction::new();
             txn.set_display_list(self.latest_frame_id, None, size, display_list_data, true);
