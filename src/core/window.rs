@@ -463,7 +463,7 @@ struct GlWindow {
     update: UpdateDisplayRequest,
     first_draw: bool,
 
-    latest_frame_id: Epoch,
+    latest_frame_id: FrameId,
 }
 
 impl GlWindow {
@@ -605,7 +605,7 @@ impl GlWindow {
 
             let frame_id = Epoch({
                 let mut next = self.latest_frame_id.0.wrapping_add(1);
-                if next == Epoch::invalid().0 {
+                if next == FrameId::invalid().0 {
                     next = next.wrapping_add(1);
                 }
                 next

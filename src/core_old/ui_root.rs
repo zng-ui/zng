@@ -35,7 +35,7 @@ pub struct UiRoot {
     // closest sibling or parent.
     focused_coerced: Option<FocusKey>,
 
-    latest_frame_id: Epoch,
+    latest_frame_id: FrameId,
 }
 
 impl UiRoot {
@@ -87,7 +87,7 @@ impl UiRoot {
             prev_frame_data_len: 0,
             focused: None,
             focused_coerced: None,
-            latest_frame_id: Epoch(0),
+            latest_frame_id: FrameId(0),
             set_cursor: None,
         }
     }
@@ -392,9 +392,9 @@ impl UiRoot {
 
         self.content.render(&mut frame);
 
-        self.latest_frame_id = Epoch({
+        self.latest_frame_id = FrameId({
             let mut next = self.latest_frame_id.0.wrapping_add(1);
-            if next == Epoch::invalid().0 {
+            if next == FrameId::invalid().0 {
                 next = next.wrapping_add(1);
             }
             next

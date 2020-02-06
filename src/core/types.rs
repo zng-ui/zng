@@ -9,6 +9,9 @@ pub use glutin::event::{
 };
 pub use glutin::window::{CursorIcon, WindowId};
 
+/// Id of a full frame of a window.
+pub type FrameId = webrender::api::Epoch;
+
 uid! {
    /// Unique id of a widget.
    pub struct WidgetId(_);

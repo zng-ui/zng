@@ -12,7 +12,7 @@ pub struct FrameBuilder {
 }
 
 impl FrameBuilder {
-    pub fn new(window_id: WindowId, frame_id: Epoch, root_id: WidgetId, root_size: LayoutSize, pipeline_id: PipelineId) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, root_size: LayoutSize, pipeline_id: PipelineId) -> Self {
         FrameBuilder {
             display_list: DisplayListBuilder::new(pipeline_id, root_size),
             info: FrameInfoBuilder::new(window_id, frame_id, root_id, root_size),
@@ -148,13 +148,13 @@ impl FrameHitInfo {
 /// [FrameInfo] builder.
 pub struct FrameInfoBuilder {
     window_id: WindowId,
-    frame_id: Epoch,
+    frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
 }
 
 impl FrameInfoBuilder {
     /// Starts building a frame info with the frame root information.
-    pub fn new(window_id: WindowId, frame_id: Epoch, root_id: WidgetId, size: LayoutSize) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: LayoutSize) -> Self {
         FrameInfoBuilder {
             window_id,
             frame_id,
@@ -182,7 +182,7 @@ impl FrameInfoBuilder {
 /// Instantiated using [FrameInfoBuilder].
 pub struct FrameInfo {
     window_id: WindowId,
-    frame_id: Epoch,
+    frame_id: FrameId,
     tree: Tree<WidgetInfoInner>,
     lookup: fnv::FnvHashMap<WidgetId, ego_tree::NodeId>,
 }
@@ -200,7 +200,7 @@ impl FrameInfo {
     }
 
     #[inline]
-    pub fn frame_id(&self) -> Epoch {
+    pub fn frame_id(&self) -> FrameId {
         self.frame_id
     }
 
@@ -234,7 +234,7 @@ impl FrameInfo {
 pub struct WidgetPath {
     node_id: ego_tree::NodeId,
     window_id: WindowId,
-    frame_id: Epoch,
+    frame_id: FrameId,
     path: Box<[WidgetId]>,
 }
 
@@ -247,7 +247,7 @@ impl WidgetPath {
 
     /// The frame of [window_id] this path was computed.
     #[inline]
-    pub fn frame_id(&self) -> Epoch {
+    pub fn frame_id(&self) -> FrameId {
         self.frame_id
     }
 
