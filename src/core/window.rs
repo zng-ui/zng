@@ -123,8 +123,25 @@ impl Event for WindowClose {
 
 type OpenWindows = Rc<RefCell<FnvHashMap<WindowId, GlWindow>>>;
 
-/// Windows management [AppExtension].
-pub struct AppWindows {
+/// Application extension that manages windows.
+///
+/// # Events
+///
+/// Events this extension provides.
+///
+/// * [WindowOpen]
+/// * [WindowResize]
+/// * [WindowMove]
+/// * [WindowScaleChanged]
+/// * [WindowClosing]
+/// * [WindowClose]
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [Windows]
+pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy<AppEvent>>,
     ui_threads: Arc<ThreadPool>,
     windows: OpenWindows,
@@ -136,7 +153,7 @@ pub struct AppWindows {
     window_close: EventEmitter<WindowEventArgs>,
 }
 
-impl Default for AppWindows {
+impl Default for WindowManager {
     fn default() -> Self {
         let ui_threads = Arc::new(
             ThreadPoolBuilder::new()
@@ -149,7 +166,7 @@ impl Default for AppWindows {
                 .unwrap(),
         );
 
-        AppWindows {
+        WindowManager {
             event_loop_proxy: None,
             ui_threads,
             windows: Rc::default(),
@@ -163,7 +180,7 @@ impl Default for AppWindows {
     }
 }
 
-impl AppExtension for AppWindows {
+impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services

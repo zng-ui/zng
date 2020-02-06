@@ -1,4 +1,4 @@
-use crate::core::{context::*, events::*, focus::FocusManager, font::FontCache, types::*, window::AppWindows};
+use crate::core::{context::*, events::*, focus::FocusManager, font::FontManager, types::*, window::WindowManager};
 
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -104,8 +104,8 @@ impl App {
         App::empty()
             .extend(MouseEvents::default())
             .extend(KeyboardEvents::default())
-            .extend(FontCache::default())
-            .extend(AppWindows::default())
+            .extend(WindowManager::default())
+            .extend(FontManager::default())
             .extend(FocusManager::default())
     }
 }

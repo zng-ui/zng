@@ -130,6 +130,27 @@ impl Event for MouseClick {
     type Args = MouseClickArgs;
 }
 
+/// Mouse double-click event.
+pub struct MouseDoubleClick;
+impl Event for MouseDoubleClick {
+    type Args = MouseClickArgs;
+}
+
+/// Mouse triple-click event.
+pub struct MouseTripleClick;
+impl Event for MouseTripleClick {
+    type Args = MouseClickArgs;
+}
+
+/// Application extension that provides keyboard events.
+///
+/// # Events
+///
+/// Events this extension provides.
+///
+/// * [KeyInput]
+/// * [KeyDown]
+/// * [KeyUp]
 pub struct KeyboardEvents {
     last_key_down: Option<ScanCode>,
     modifiers: ModifiersState,
@@ -212,6 +233,19 @@ impl AppExtension for KeyboardEvents {
     }
 }
 
+/// Application extension that provides mouse events.
+///
+/// # Events
+///
+/// Events this extension provides.
+///
+/// * [MouseMove]
+/// * [MouseInput]
+/// * [MouseDown]
+/// * [MouseUp]
+/// * [MouseClick]
+/// * [MouseDoubleClick]
+/// * [MouseTripleClick]
 pub struct MouseEvents {
     pos: LayoutPoint,
     modifiers: ModifiersState,
@@ -223,6 +257,8 @@ pub struct MouseEvents {
     mouse_down: EventEmitter<MouseInputArgs>,
     mouse_up: EventEmitter<MouseInputArgs>,
     mouse_click: EventEmitter<MouseClickArgs>,
+    mouse_double_click: EventEmitter<MouseClickArgs>,
+    mouse_triple_click: EventEmitter<MouseClickArgs>,
 }
 
 impl Default for MouseEvents {
@@ -238,6 +274,8 @@ impl Default for MouseEvents {
             mouse_down: EventEmitter::new(false),
             mouse_up: EventEmitter::new(false),
             mouse_click: EventEmitter::new(false),
+            mouse_double_click: EventEmitter::new(false),
+            mouse_triple_click: EventEmitter::new(false),
         }
     }
 }
@@ -250,6 +288,8 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseDown>(self.mouse_down.listener());
         r.events.register::<MouseUp>(self.mouse_up.listener());
         r.events.register::<MouseClick>(self.mouse_click.listener());
+        r.events.register::<MouseDoubleClick>(self.mouse_double_click.listener());
+        r.events.register::<MouseTripleClick>(self.mouse_triple_click.listener());
     }
 
     fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
@@ -283,6 +323,13 @@ impl AppExtension for MouseEvents {
                             if (now - self.last_pressed) < multi_click_time_ms() {
                                 let args =
                                     MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, self.click_count, hits);
+
+                                if args.click_count == 2 {
+                                    ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
+                                } else if args.click_count == 3 {
+                                    ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
+                                }
+
                                 ctx.updates.push_notify(self.mouse_click.clone(), args);
                             } else {
                                 self.click_count = 1;

@@ -268,6 +268,12 @@ impl WidgetPath {
     pub fn widgets_path(&self) -> &[WidgetId] {
         &self.path[..]
     }
+
+    /// If the `widget_id` is part of the path.
+    #[inline]
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.path.iter().any(move |&w| w == widget_id)
+    }
 }
 
 struct WidgetInfoInner {

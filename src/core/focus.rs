@@ -90,6 +90,8 @@ impl Event for FocusChanged {
     type Args = FocusChangedArgs;
 }
 
+/// Application extension that manages keyboard focus. Provides the [FocusChanged] event
+/// and [Focus] service.
 pub struct FocusManager {
     focused: Option<WidgetId>,
     focus_changed: EventEmitter<FocusChangedArgs>,

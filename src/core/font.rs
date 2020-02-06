@@ -8,10 +8,11 @@ use std::sync::Arc;
 use webrender::api::units::Au;
 use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 
+/// Application extension that provides the [Fonts] window service.
 #[derive(Default)]
-pub struct FontCache;
+pub struct FontManager;
 
-impl AppExtension for FontCache {
+impl AppExtension for FontManager {
     fn init(&mut self, r: &mut AppInitContext) {
         r.window_services.register(|ctx| Fonts {
             api: Arc::clone(ctx.render_api),
