@@ -98,7 +98,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
-    if  !in_node_impl && node_items.is_empty() && !other_items.is_empty() {
+    if !in_node_impl && node_items.is_empty() && !other_items.is_empty() {
         abort_call_site!("no UiNode method found, missing `UiNode for` in impl or `#[UiNode]` in methods")
     }
 

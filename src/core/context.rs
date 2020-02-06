@@ -705,6 +705,16 @@ impl Updates {
         self.updates.push(Box::new(move |_, _, cleanup| var.modify(new_index, cleanup)));
     }
 
+    /// Schedules a low-pressure update.
+    pub fn push_update(&mut self) {
+        self.update.update = true;
+    }
+
+    /// Schelues a high-pressure update.
+    pub fn push_update_hp(&mut self) {
+        self.update.update_hp = true;
+    }
+
     /// Schedules a layout update.
     pub fn push_layout(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;

@@ -5,6 +5,7 @@ use crate::core::frame::{FrameBuilder, FrameHitInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
+use fnv::{FnvHashMap, FnvHashSet};
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
@@ -13,6 +14,8 @@ use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::borrow::Cow;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use webrender::api::*;
@@ -118,11 +121,13 @@ impl Event for WindowClose {
     type Args = WindowEventArgs;
 }
 
+type OpenWindows = Rc<RefCell<FnvHashMap<WindowId, GlWindow>>>;
+
 /// Windows management [AppExtension].
 pub struct AppWindows {
     event_loop_proxy: Option<EventLoopProxy<AppEvent>>,
     ui_threads: Arc<ThreadPool>,
-    windows: Vec<GlWindow>,
+    windows: OpenWindows,
     window_open: EventEmitter<WindowEventArgs>,
     window_resize: EventEmitter<WindowResizeArgs>,
     window_move: EventEmitter<WindowMoveArgs>,
@@ -147,7 +152,7 @@ impl Default for AppWindows {
         AppWindows {
             event_loop_proxy: None,
             ui_threads,
-            windows: Vec::with_capacity(1),
+            windows: Rc::default(),
             window_open: EventEmitter::new(false),
             window_resize: EventEmitter::new(true),
             window_move: EventEmitter::new(true),
@@ -158,24 +163,11 @@ impl Default for AppWindows {
     }
 }
 
-impl AppWindows {
-    fn window_index(&self, window_id: WindowId) -> Option<usize> {
-        self.windows.iter().position(|w| w.id() == window_id)
-    }
-
-    fn contains_window(&self, window_id: WindowId) -> bool {
-        self.windows.iter().any(|w| w.id() == window_id)
-    }
-
-    fn window_mut(&mut self, window_id: WindowId) -> Option<&mut GlWindow> {
-        self.windows.iter_mut().find(|w| w.id() == window_id)
-    }
-}
-
 impl AppExtension for AppWindows {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.notifier().clone()));
+        r.services
+            .register(Windows::new(Rc::clone(&self.windows), r.updates.notifier().clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
         r.events.register::<WindowResize>(self.window_resize.listener());
         r.events.register::<WindowMove>(self.window_move.listener());
@@ -194,7 +186,7 @@ impl AppExtension for AppWindows {
                     .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
 
                 // set the window size variable if it is not read-only.
-                if let Some(window) = self.window_mut(window_id) {
+                if let Some(window) = self.windows.borrow_mut().get_mut(&window_id) {
                     let _ = ctx.updates.push_set(&window.root.size, new_size);
                 }
             }
@@ -204,16 +196,16 @@ impl AppExtension for AppWindows {
                     .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
             }
             WindowEvent::CloseRequested => {
-                if self.contains_window(window_id) {
-                    ctx.updates
-                        .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id))
+                if self.windows.borrow().contains_key(&window_id) {
+                    ctx.services.req::<Windows>().close_requests.insert(window_id);
+                    ctx.updates.push_update();
                 }
             }
             WindowEvent::ScaleFactorChanged {
                 scale_factor,
                 new_inner_size,
             } => {
-                if self.contains_window(window_id) {
+                if self.windows.borrow().contains_key(&window_id) {
                     ctx.updates.push_notify(
                         self.window_scale_changed.clone(),
                         WindowScaleChangedArgs::now(
@@ -229,21 +221,21 @@ impl AppExtension for AppWindows {
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, _: &mut AppContext) {
-        if let Some(window) = self.window_mut(window_id) {
+        if let Some(window) = self.windows.borrow_mut().get_mut(&window_id) {
             window.request_redraw();
         }
     }
 
     fn on_redraw_requested(&mut self, window_id: WindowId, _: &mut AppContext) {
-        if let Some(window) = self.window_mut(window_id) {
+        if let Some(window) = self.windows.borrow_mut().get_mut(&window_id) {
             window.redraw();
         }
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         // respond to service requests
-        let requests = ctx.services.req::<Windows>().take_requests();
-        for request in requests {
+        let (open, close) = ctx.services.req::<Windows>().take_requests();
+        for request in open {
             let mut w = GlWindow::new(
                 request.new,
                 ctx,
@@ -258,7 +250,7 @@ impl AppExtension for AppWindows {
             };
 
             w.init(ctx);
-            self.windows.push(w);
+            self.windows.borrow_mut().insert(args.window_id, w);
 
             // notify the window requester
             ctx.updates.push_notify(request.notifier, args.clone());
@@ -266,33 +258,69 @@ impl AppExtension for AppWindows {
             // notify everyone
             ctx.updates.push_notify(self.window_open.clone(), args.clone());
         }
+        for window_id in close {
+            ctx.updates
+                .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id))
+        }
 
         // notify and respond to updates
         if update.update_hp {
-            for window in self.windows.iter_mut() {
+            for (_, window) in self.windows.borrow_mut().iter_mut() {
                 window.update_hp(ctx);
             }
         }
         if update.update {
-            for window in self.windows.iter_mut() {
+            for (_, window) in self.windows.borrow_mut().iter_mut() {
                 window.update(ctx);
             }
 
             // respond to window_closing events
             for closing in self.window_closing.updates(ctx.events) {
-                if !closing.cancel_requested() && self.contains_window(closing.window_id) {
+                if !closing.cancel_requested() {
                     // not canceled and we can close the window.
                     // notify close, the window will be deinited on
                     // the next update.
                     ctx.updates
                         .push_notify(self.window_close.clone(), WindowEventArgs::now(closing.window_id));
+
+                    for listener in ctx
+                        .services
+                        .req::<Windows>()
+                        .close_listeners
+                        .remove(&closing.window_id)
+                        .unwrap_or_default()
+                    {
+                        ctx.updates.push_notify(
+                            listener,
+                            CloseWindowResult {
+                                window_id: closing.window_id,
+                                canceled: true,
+                            },
+                        );
+                    }
                 }
             }
 
             // respond to window_close events
             for close in self.window_close.updates(ctx.events) {
-                if let Some(i) = self.window_index(close.window_id) {
-                    self.windows.remove(i).deinit(ctx);
+                if let Some(w) = self.windows.borrow_mut().remove(&close.window_id) {
+                    w.deinit(ctx);
+                }
+
+                for listener in ctx
+                    .services
+                    .req::<Windows>()
+                    .close_listeners
+                    .remove(&close.window_id)
+                    .unwrap_or_default()
+                {
+                    ctx.updates.push_notify(
+                        listener,
+                        CloseWindowResult {
+                            window_id: close.window_id,
+                            canceled: false,
+                        },
+                    );
                 }
             }
         }
@@ -302,55 +330,106 @@ impl AppExtension for AppWindows {
         // Pump layout and render in all windows.
         // The windows don't do an update unless they recorded
         // an update request for layout or render.
-        for window in self.windows.iter_mut() {
+        for (_, window) in self.windows.borrow_mut().iter_mut() {
             window.layout();
             window.render();
         }
     }
 }
 
-struct NewWindowRequest {
+struct OpenWindowRequest {
     new: Box<dyn FnOnce(&AppContext) -> UiRoot>,
     notifier: EventEmitter<WindowEventArgs>,
 }
 
+/// Response message of [Windows::close].
+#[derive(Debug)]
+pub struct CloseWindowResult {
+    pub window_id: WindowId,
+    pub canceled: bool,
+}
+
+/// Window not found error.
+#[derive(Debug)]
+pub struct WindowNotFound(pub WindowId);
+
+impl std::fmt::Display for WindowNotFound {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "window `{:?}` is not opened in `Windows` service", self.0)
+    }
+}
+
+impl std::error::Error for WindowNotFound {}
+
 /// Windows service.
 pub struct Windows {
-    requests: Vec<NewWindowRequest>,
+    open_requests: Vec<OpenWindowRequest>,
+    close_requests: FnvHashSet<WindowId>,
+    close_listeners: FnvHashMap<WindowId, Vec<EventEmitter<CloseWindowResult>>>,
+    windows: OpenWindows,
     update_notifier: UpdateNotifier,
 }
 
 impl AppService for Windows {}
 
 impl Windows {
-    fn new(update_notifier: UpdateNotifier) -> Self {
+    fn new(windows: OpenWindows, update_notifier: UpdateNotifier) -> Self {
         Windows {
-            requests: Vec::default(),
+            open_requests: Vec::with_capacity(1),
+            close_requests: FnvHashSet::default(),
+            close_listeners: FnvHashMap::default(),
+            windows,
             update_notifier,
         }
     }
 
-    fn take_requests(&mut self) -> Vec<NewWindowRequest> {
-        std::mem::replace(&mut self.requests, Vec::default())
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashSet<WindowId>) {
+        (
+            std::mem::replace(&mut self.open_requests, Vec::default()),
+            std::mem::replace(&mut self.close_requests, FnvHashSet::default()),
+        )
     }
 
-    /// Requests a new window. Returns a notice that gets updated once
-    /// when the window is launched.
-    pub fn new_window(&mut self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowEventArgs> {
-        let request = NewWindowRequest {
+    /// Requests a new window. Returns a listener that will update once when the window is opened.
+    pub fn open(&mut self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowEventArgs> {
+        let request = OpenWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),
         };
         let notice = request.notifier.listener();
-        self.requests.push(request);
+        self.open_requests.push(request);
 
         self.update_notifier.push_update();
 
         notice
     }
 
-    pub fn hit_test(&mut self, window_id: WindowId, point: LayoutPoint) -> FrameHitInfo {
-        todo!()
+    /// Requests a window closing. Returns a listener that will update once with the result of
+    /// the operation.
+    pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
+        if self.windows.borrow().contains_key(&window_id) {
+            let notifier = EventEmitter::new(false);
+            let notice = notifier.listener();
+
+            self.close_requests.insert(window_id);
+
+            use std::collections::hash_map::Entry::*;
+            match self.close_listeners.entry(window_id) {
+                Vacant(ve) => {
+                    ve.insert(vec![notifier]);
+                }
+                Occupied(mut oe) => oe.get_mut().push(notifier),
+            }
+
+            self.update_notifier.push_update();
+            Ok(notice)
+        } else {
+            Err(WindowNotFound(window_id))
+        }
+    }
+
+    pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> FrameHitInfo {
+        self.windows.borrow().get(&window_id).map(|w| w.hit_test(point)).unwrap_or_default()
     }
 }
 
@@ -590,6 +669,14 @@ impl GlWindow {
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
         self.renderer.deinit();
         unsafe { context.make_not_current().unwrap() };
+    }
+
+    pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
+        let point = units::WorldPoint::new(point.x, point.y);
+        let r = self
+            .api
+            .hit_test(self.document_id, Some(self.pipeline_id), point, HitTestFlags::all());
+        FrameHitInfo::new(r)
     }
 }
 
