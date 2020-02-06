@@ -124,7 +124,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
     ///
     /// # Panics
-    /// * `"app already extended with `{}`"` when the app is already [extended_with] the
+    /// * `"app already extended with `{}`"` when the app is already [extended_with](AppExtended::extended_with) the
     /// extension type.
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
         if self.extended_with::<F>() {

@@ -21,7 +21,7 @@ event_args! {
         /// If the key was pressed or released.
         pub state: ElementState,
 
-        /// Symbolic name of [scancode].
+        /// Symbolic name of [scancode](KeyInputArgs::scancode).
         pub key: Option<VirtualKeyCode>,
 
         /// What modifier keys where pressed when this event happened.
@@ -46,7 +46,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in [hits].
+            //! If the widget is in [MouseMoveArgs::hits].
             self.hits.contains(ctx.widget_id)
          }
     }
@@ -62,7 +62,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in [hits].
+            //! If the widget is in [hits](MouseInputArgs::hits).
             self.hits.contains(ctx.widget_id)
         }
     }
@@ -78,7 +78,7 @@ event_args! {
         pub hits: FrameHitInfo,
 
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in [hits].
+            //! If the widget is in [hits](MouseClickArgs::hits).
             self.hits.contains(ctx.widget_id)
         }
     }

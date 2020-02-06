@@ -9,7 +9,7 @@ pub use glutin::event::{
 };
 pub use glutin::window::{CursorIcon, WindowId};
 
-/// Id of a full frame of a window.
+/// Id of a rendered or rendering window frame. Not unique across windows.
 pub type FrameId = webrender::api::Epoch;
 
 uid! {

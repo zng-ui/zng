@@ -134,7 +134,7 @@ macro_rules! state_key {
     )+};
 }
 
-/// Declares new [ContextVar] types.
+/// Declares new [crate::core::context::ContextVar] types.
 #[macro_export]
 macro_rules! context_var {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
@@ -217,7 +217,7 @@ macro_rules! event_args {
 /// cancelled.
 ///
 /// Same sintax as `[event_args!]` but the generated code also implements
-/// [CancelableEventArgs]
+/// [crate::core::event::CancelableEventArgs]
 #[macro_export]
 macro_rules! cancelable_event_args {
     ($(

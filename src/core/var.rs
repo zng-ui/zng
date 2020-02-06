@@ -93,7 +93,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     /// The current value.
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T;
 
-    /// [get] if [is_new] or none.
+    /// [get](ObjVar::get) if [is_new](ObjVar::is_new) or none.
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
 
     /// If the value changed this update.
@@ -112,7 +112,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
         true
     }
 
-    /// Schedules a variable change for the next update if the variable is not [read_only].
+    /// Schedules a variable change for the next update if the variable is not [read_only](ObjVar::read_only).
     fn push_set(&self, _new_value: T, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
@@ -142,9 +142,9 @@ pub type BoxVar<T> = Box<dyn ObjVar<T>>;
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
 /// support dinamic values in property definitions.
 pub trait Var<T: VarValue>: ObjVar<T> {
-    /// Return type of [as_read_only].
+    /// Return type of [as_read_only](Var::as_read_only).
     type AsReadOnly: Var<T>;
-    /// Return type of [as_local].
+    /// Return type of [as_local](Var::as_local).
     type AsLocal: LocalVar<T>;
 
     /// Schedules a variable modification for the next update.
@@ -164,7 +164,7 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     where
         Self: Sized;
 
-    /// Ensures this variable is [always_read_only].
+    /// Ensures this variable is [always_read_only](ObjVar::always_read_only).
     fn as_read_only(self) -> Self::AsReadOnly;
 
     /// Returns a [variable](LocalVar) that keeps the current value locally so
@@ -195,10 +195,10 @@ pub trait LocalVar<T: VarValue>: ObjVar<T> {
     /// Gets the local copy of the value.
     fn get_local(&self) -> &T;
 
-    /// Initializes the local copy of the value. Mut be called on [init](UiNode::init).
+    /// Initializes the local copy of the value. Mut be called on [init](crate::core::UiNode::init).
     fn init_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> &'a T;
 
-    /// Update the local copy of the value. Must be called every [update](UiNode::update).
+    /// Update the local copy of the value. Must be called every [update](crate::core::UiNode::update).
     fn update_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T>;
 }
 
@@ -465,7 +465,7 @@ impl<T: VarValue> SharedVar<T> {
         unsafe { &*self.r.data.get() }
     }
 
-    /// Gets the [version] this variable will be in the next update if set in this update.
+    /// Gets the [version](ObjVar::version) this variable will be in the next update if set in this update.
     pub fn next_version(&self) -> u32 {
         self.r.version.get().wrapping_add(1)
     }
@@ -583,7 +583,7 @@ impl<T: VarValue> IntoVar<T> for SharedVar<T> {
 
 // #region ReadOnlyVar<T>
 
-/// A variable that is [always_read_only](Var::always_read_only).
+/// A variable that is [always_read_only](ObjVar::always_read_only).
 ///
 /// This `struct` is created by the [as_read_only](Var::as_read_only) method in variables
 /// that are not `always_read_only`.
@@ -609,7 +609,7 @@ impl<T: VarValue, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
         self.var.get(vars)
     }
 
-    /// [get] if [is_new] or none.
+    /// [get](ObjVar::get) if [is_new](ObjVar::is_new) or none.
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.var.update(vars)
     }
@@ -2031,7 +2031,8 @@ pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
 /// All arguments are separated by comma like a function call.
 ///
 /// * `index`: A positive integer that is the initial switch index.
-/// * `var0..N`: A list of [vars](ObjVar), minimal 2, [SwitchVarDyn] is used for more then 8 variables.
+/// * `var0..N`: A list of [vars](crate::core::var::ObjVar), minimal 2, [crate::core::var::SwitchVarDyn]
+/// is used for more then 8 variables.
 ///
 /// # Example
 /// ```
@@ -2077,7 +2078,7 @@ macro_rules! switch_var {
 ///
 /// All arguments are separated by comma like a function call.
 ///
-/// * `var0..N`: A list of [vars](Var), minimal 2.
+/// * `var0..N`: A list of [vars](crate::core::var::Var), minimal 2.
 /// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
 /// # Example

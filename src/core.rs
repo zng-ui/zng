@@ -27,7 +27,7 @@ pub trait UiNode: 'static {
     /// Called every time a low pressure event update happens.
     ///
     /// # Event Pressure
-    /// See [update_hp] for more information about event pressure rate.
+    /// See [update_hp](UiNode::update_hp) for more information about event pressure rate.
     fn update(&mut self, ctx: &mut WidgetContext);
 
     /// Called every time a high pressure event update happens.
@@ -49,7 +49,7 @@ pub trait UiNode: 'static {
     /// Must return the nodes desired size. Must not contain infinity or NaN.
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize;
 
-    /// Called every time a layout update is needed, after [measure].
+    /// Called every time a layout update is needed, after [measure](UiNode::measure).
     ///
     /// # Arguments
     /// * `final_size`: The size the parent node reserved for the node. Must reposition its contents
