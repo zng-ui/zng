@@ -135,7 +135,7 @@ struct SetTabNav<C: UiNode, E: LocalVar<TabNav>> {
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<TabNav>> SetTabNav<C, E> {
+impl<C: UiNode, E: LocalVar<TabNav>> UiNode for SetTabNav<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.tab_nav.init_local(ctx.vars);
         self.child.init(ctx);
@@ -160,7 +160,7 @@ struct SetDirectionalNav<C: UiNode, E: LocalVar<DirectionalNav>> {
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<DirectionalNav>> SetDirectionalNav<C, E> {
+impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for SetDirectionalNav<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.directional_nav.init_local(ctx.vars);
         self.child.init(ctx);
