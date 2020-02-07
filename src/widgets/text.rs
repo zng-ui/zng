@@ -21,6 +21,8 @@ struct Text<T: Var<Cow<'static, str>>> {
 #[impl_ui_node(none)]
 impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        profile_scope!("text::init");
+
         self.color = *TextColor.get(ctx.vars);
         let font_size = *FontSize.get(ctx.vars);
 
@@ -52,6 +54,8 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
+        profile_scope!("text::update");
+
         if FontFamily.is_new(ctx.vars) || FontSize.is_new(ctx.vars) {
             self.init(ctx);
             ctx.updates.push_layout();
@@ -68,7 +72,7 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        profile_scope!("text_render");
+        profile_scope!("text::render");
 
         frame.push_text(
             &LayoutRect::from_size(self.size),

@@ -337,6 +337,13 @@ impl StateMap {
             .map(|any| *any.downcast::<S::Type>().unwrap())
     }
 
+    /// Sets a value that is its own [StateKey].
+    pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
+        self.map
+            .insert(TypeId::of::<S>(), Box::new(value))
+            .map(|any| *any.downcast::<S>().unwrap())
+    }
+
     pub fn contains<S: StateKey>(&self, _key: S) -> bool {
         self.map.contains_key(&TypeId::of::<S>())
     }
@@ -389,6 +396,11 @@ impl LazyStateMap {
 
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
         self.borrow_mut().set(key, value)
+    }
+
+    /// Sets a value that is its own [StateKey].
+    pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
+        self.borrow_mut().set_single(value)
     }
 
     pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {

@@ -1,1 +1,1 @@
-cargo +nightly doc --no-deps
+cargo +nightly doc --no-deps --all-features

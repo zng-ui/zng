@@ -134,6 +134,9 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 /// Boxed [ObjVar].
 pub type BoxVar<T> = Box<dyn ObjVar<T>>;
 
+/// Boxed [LocalVar].
+pub type BoxLocalVar<T> = Box<dyn LocalVar<T>>;
+
 /// A value that can change. Can [own the value](OwnedVar) or be a [reference](SharedVar).
 ///
 /// This is the complete generic trait, the non-generic methods are defined in [ObjVar]

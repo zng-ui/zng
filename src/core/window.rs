@@ -483,6 +483,12 @@ struct GlWindow {
     latest_frame_id: FrameId,
 }
 
+macro_rules! win_profile_scope {
+    ($self:expr, $mtd:expr) => {
+        profile_scope!(r#"({:?} "{}")::{}"#, $self.id(), $self.root.title.get_local(), $mtd)
+    };
+}
+
 impl GlWindow {
     pub fn new(
         new_window: Box<dyn FnOnce(&AppContext) -> UiRoot>,
@@ -573,6 +579,8 @@ impl GlWindow {
     }
 
     pub fn init(&mut self, ctx: &mut AppContext) {
+        win_profile_scope!(self, "init");
+
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.push_layout();
 
@@ -582,16 +590,23 @@ impl GlWindow {
     }
 
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
+        win_profile_scope!(self, "update_hp");
+
         let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
         self.update |= update;
     }
 
     pub fn update(&mut self, ctx: &mut AppContext) {
-        // do winit window updates
-        let window = self.context.as_ref().unwrap().window();
-        if let Some(title) = self.root.title.update(ctx.vars) {
-            window.set_title(title);
+        {
+            win_profile_scope!(self, "update::self");
+
+            let window = self.context.as_ref().unwrap().window();
+            if let Some(title) = self.root.title.update_local(ctx.vars) {
+                window.set_title(title);
+            }
         }
+
+        win_profile_scope!(self, "update");
 
         // do UiNode updates
         let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
@@ -600,6 +615,8 @@ impl GlWindow {
 
     pub fn layout(&mut self) {
         if self.update == UpdateDisplayRequest::Layout {
+            win_profile_scope!(self, "layout");
+
             self.update = UpdateDisplayRequest::Render;
 
             let available_size = self.context.as_ref().unwrap().window().inner_size();
@@ -615,6 +632,8 @@ impl GlWindow {
 
     pub fn render(&mut self) {
         if self.update == UpdateDisplayRequest::Render {
+            win_profile_scope!(self, "render");
+
             self.update = UpdateDisplayRequest::None;
 
             let size = self.context.as_ref().unwrap().window().inner_size();
@@ -663,6 +682,8 @@ impl GlWindow {
     /// override your vsync settings, which means that you can't know in
     /// advance whether `swap_buffers` will block or not.
     pub fn redraw(&mut self) {
+        win_profile_scope!(self, "redraw");
+
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
 
         self.renderer.update();
@@ -683,7 +704,12 @@ impl GlWindow {
     }
 
     pub fn deinit(mut self, ctx: &mut AppContext) {
-        self.root_context(ctx, |root, ctx| root.deinit(ctx));
+        {
+            win_profile_scope!(self, "deinit");
+            self.root_context(ctx, |root, ctx| root.deinit(ctx));
+        }
+
+        win_profile_scope!(self, "deinit::self");
 
         let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
         self.renderer.deinit();
@@ -702,7 +728,7 @@ impl GlWindow {
 pub struct UiRoot {
     id: WidgetId,
     state: LazyStateMap,
-    title: BoxVar<Cow<'static, str>>,
+    title: BoxLocalVar<Cow<'static, str>>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,
     child: Box<dyn UiNode>,

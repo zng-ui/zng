@@ -100,6 +100,16 @@ impl App {
     }
 
     /// Application with default extensions.
+    ///
+    /// # Extensions
+    ///
+    /// Extensions included.
+    ///
+    /// * [MouseEvents]
+    /// * [KeyboardEvents]
+    /// * [WindowManager]
+    /// * [FontManager]
+    /// * [FocusManager]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::empty()
             .extend(MouseEvents::default())
@@ -135,8 +145,10 @@ impl<E: AppExtension> AppExtended<E> {
         }
     }
 
-    /// Runs the application.
+    /// Runs the application event loop calling `start` once at the begining.
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
+        profile_scope!("app::run");
+
         let event_loop = EventLoop::with_user_event();
 
         let mut extensions = self.extensions;
@@ -151,6 +163,8 @@ impl<E: AppExtension> AppExtended<E> {
         start(&mut owned_ctx.borrow(&event_loop));
 
         event_loop.run(move |event, event_loop, control_flow| {
+            profile_scope!("app::event");
+
             *control_flow = ControlFlow::Wait;
 
             let mut event_update = UpdateRequest::default();
@@ -160,15 +174,18 @@ impl<E: AppExtension> AppExtended<E> {
                 }
 
                 GEvent::WindowEvent { window_id, event } => {
+                    profile_scope!("app::on_window_event");
                     extensions.on_window_event(window_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(AppEvent::NewFrameReady(window_id)) => {
+                    profile_scope!("app::on_new_frame_ready");
                     extensions.on_new_frame_ready(window_id, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(AppEvent::Update) => {
                     event_update = owned_ctx.take_request();
                 }
                 GEvent::DeviceEvent { device_id, event } => {
+                    profile_scope!("app::on_device_event");
                     extensions.on_device_event(device_id, &event, &mut owned_ctx.borrow(event_loop));
                 }
 
@@ -176,7 +193,10 @@ impl<E: AppExtension> AppExtended<E> {
                     in_sequence = false;
                 }
 
-                GEvent::RedrawRequested(window_id) => extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop)),
+                GEvent::RedrawRequested(window_id) => {
+                    profile_scope!("app::on_redraw_requested");
+                    extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop))
+                }
 
                 _ => {}
             }
@@ -187,6 +207,7 @@ impl<E: AppExtension> AppExtended<E> {
                 sequence_update |= display;
 
                 if update.update || update.update_hp {
+                    profile_scope!("app::update");
                     extensions.update(update, &mut owned_ctx.borrow(event_loop));
                 } else {
                     break;
@@ -194,6 +215,7 @@ impl<E: AppExtension> AppExtended<E> {
             }
 
             if !in_sequence && sequence_update.is_some() {
+                profile_scope!("app::update_display");
                 extensions.update_display(sequence_update);
                 sequence_update = UpdateDisplayRequest::None;
             }

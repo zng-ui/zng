@@ -43,6 +43,8 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
         if !ctx.event_state.flagged(StopPropagation::<E>::default()) {
             for args in self.listener.updates(&ctx.events) {
                 if args.concerns_widget(ctx) {
+                    profile_scope!("on_event::<{}>", std::any::type_name::<E>());
+
                     let mut args = OnEventArgs::new(ctx, args);
                     (self.handler)(&mut args);
                     if args.handled() {

@@ -1,7 +1,11 @@
 #![cfg(feature = "app_profiler")]
+
+//! Generate profiles compatible with `chrome://tracing`.
+
 use lazy_static::*;
 use serde_json::*;
 
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::BufWriter;
@@ -26,7 +30,7 @@ struct ThreadInfo {
 
 struct Sample {
     tid: ThreadId,
-    name: String,
+    name: Cow<'static, str>,
     t0: u64,
     t1: u64,
 }
@@ -37,7 +41,7 @@ struct ThreadProfiler {
 }
 
 impl ThreadProfiler {
-    fn push_sample(&self, name: String, t0: u64, t1: u64) {
+    fn push_sample(&self, name: Cow<'static, str>, t0: u64, t1: u64) {
         let sample = Sample {
             tid: self.id,
             name,
@@ -119,20 +123,41 @@ impl Profiler {
     }
 }
 
+/// Named profile scope. The scope start time is when [new](ProfileScope::new) is called,
+/// the scope duration is the time it was alive.
+///
+/// # Example
+///
+/// ```
+/// # fn do_thing() { }
+/// # fn do_another_thing() { }
+/// {
+///     #[cfg(feature = "app_profiler")]
+///     let _scope = ProfileScope::new("do-things");
+///
+///     do_thing();
+///     do_another_thing();
+/// }
+/// ```
+///
+/// # Macro
+///
+/// For basic usage like in the example there is also the `[profile_scope!]` macro.
 pub struct ProfileScope {
-    name: String,
+    name: Cow<'static, str>,
     t0: u64,
 }
 
 impl ProfileScope {
-    pub fn new(name: String) -> ProfileScope {
+    /// Starts a new profile scope, the start time is when this method is called.
+    pub fn new(name: impl Into<Cow<'static, str>>) -> ProfileScope {
         let t0 = precise_time_ns();
-        ProfileScope { name, t0 }
+        ProfileScope { name: name.into(), t0 }
     }
 }
 
 impl Drop for ProfileScope {
-    /// When the ProfileScope is dropped it records the
+    /// When the `ProfileScope` is dropped it records the
     /// length of time it was alive for and records it
     /// against the Profiler.
     fn drop(&mut self) {
@@ -140,7 +165,7 @@ impl Drop for ProfileScope {
 
         THREAD_PROFILER.with(|profiler| match *profiler.borrow() {
             Some(ref profiler) => {
-                profiler.push_sample(self.name.clone(), self.t0, t1);
+                profiler.push_sample(std::mem::replace(&mut self.name, Cow::Borrowed("")), self.t0, t1);
             }
             None => {
                 println!("ERROR: ProfileScope {} on unregistered thread!", self.name);
