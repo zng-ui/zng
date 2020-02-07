@@ -307,13 +307,7 @@ impl AppExtension for WindowManager {
                         .remove(&closing.window_id)
                         .unwrap_or_default()
                     {
-                        ctx.updates.push_notify(
-                            listener,
-                            CloseWindowResult {
-                                window_id: closing.window_id,
-                                canceled: true,
-                            },
-                        );
+                        ctx.updates.push_notify(listener, CloseWindowResult::Canceled);
                     }
                 }
             }
@@ -331,13 +325,7 @@ impl AppExtension for WindowManager {
                     .remove(&close.window_id)
                     .unwrap_or_default()
                 {
-                    ctx.updates.push_notify(
-                        listener,
-                        CloseWindowResult {
-                            window_id: close.window_id,
-                            canceled: false,
-                        },
-                    );
+                    ctx.updates.push_notify(listener, CloseWindowResult::Closed);
                 }
             }
         }
@@ -352,6 +340,19 @@ impl AppExtension for WindowManager {
             window.render();
         }
     }
+
+    fn on_shutdown_requested(&mut self, ctx: &mut AppContext) {
+        for (_, window) in self.windows.borrow_mut().iter_mut() {
+            todo!()
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        for (id, window) in self.windows.borrow_mut().drain() {
+            println!("WARNING: destroying `{:?}` without closing events", id);
+            window.deinit(ctx);
+        }
+    }
 }
 
 struct OpenWindowRequest {
@@ -359,11 +360,11 @@ struct OpenWindowRequest {
     notifier: EventEmitter<WindowEventArgs>,
 }
 
-/// Response message of [Windows::close].
+/// Response message of [Windows::close] and [Windows::close_together].
 #[derive(Debug)]
-pub struct CloseWindowResult {
-    pub window_id: WindowId,
-    pub canceled: bool,
+pub enum CloseWindowResult {
+    Closed,
+    Canceled,
 }
 
 /// Window not found error.
@@ -421,8 +422,9 @@ impl Windows {
         notice
     }
 
-    /// Requests a window closing. Returns a listener that will update once with the result of
-    /// the operation.
+    /// Starts closing a window, the operation can be canceled by listeners of the [WindowClosing] event.
+    ///
+    /// Returns a listener that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
         if self.windows.borrow().contains_key(&window_id) {
             let notifier = EventEmitter::new(false);
@@ -443,6 +445,30 @@ impl Windows {
         } else {
             Err(WindowNotFound(window_id))
         }
+    }
+
+    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [WindowClosing] event.
+    /// If canceled none of the windows are closed.
+    ///
+    /// Returns a listener that will update once with the result of the operation.
+    pub fn close_together(
+        &mut self,
+        windows: impl IntoIterator<Item = WindowId>,
+    ) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
+        let windows: FnvHashSet<_> = windows.into_iter().collect();
+
+        {
+            let known_windows = self.windows.borrow();
+            for id in windows.iter() {
+                if !known_windows.contains_key(id) {
+                    return Err(WindowNotFound(*id));
+                }
+            }
+        }
+
+
+
+        todo!()
     }
 
     pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> FrameHitInfo {

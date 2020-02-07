@@ -3,6 +3,8 @@ use crate::core::{context::*, events::*, focus::FocusManager, font::FontManager,
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// An [App] extension.
 pub trait AppExtension: 'static {
@@ -45,48 +47,80 @@ pub trait AppExtension: 'static {
     /// Called when the OS sends a request for re-drawing the last frame.
     #[inline]
     fn on_redraw_requested(&mut self, _window_id: WindowId, _ctx: &mut AppContext) {}
+
+    /// Called when a shutdown was requested.
+    #[inline]
+    fn on_shutdown_requested(&mut self, _ctx: &mut AppContext) {}
+
+    /// Called when the application is shuting down.
+    ///
+    /// Update requests generated during this call are ignored.
+    #[inline]
+    fn deinit(&mut self, _ctx: &mut AppContext) {}
+}
+
+pub struct ShutdownRequestInner {
+    cancel: Cell<bool>,
+}
+
+pub struct ShutdownRequest {
+    r: Rc<ShutdownRequestInner>,
 }
 
 impl AppExtension for () {}
 
 impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
+    #[inline]
     fn init(&mut self, ctx: &mut AppInitContext) {
         self.0.init(ctx);
         self.1.init(ctx);
     }
 
+    #[inline]
     fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
         self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id) || self.id() == app_extension_id
     }
 
+    #[inline]
     fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
         self.0.on_device_event(device_id, event, ctx);
         self.1.on_device_event(device_id, event, ctx);
     }
 
+    #[inline]
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         self.0.on_window_event(window_id, event, ctx);
         self.1.on_window_event(window_id, event, ctx);
     }
 
+    #[inline]
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         self.0.on_new_frame_ready(window_id, ctx);
         self.1.on_new_frame_ready(window_id, ctx);
     }
 
+    #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         self.0.update(update, ctx);
         self.1.update(update, ctx);
     }
 
+    #[inline]
     fn update_display(&mut self, update: UpdateDisplayRequest) {
         self.0.update_display(update);
         self.1.update_display(update);
     }
 
+    #[inline]
     fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         self.0.on_redraw_requested(window_id, ctx);
         self.1.on_redraw_requested(window_id, ctx);
+    }
+
+    #[inline]
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        self.0.deinit(ctx);
+        self.1.deinit(ctx);
     }
 }
 
@@ -95,6 +129,7 @@ pub struct App;
 
 impl App {
     /// Application without any extension.
+    #[inline]
     pub fn empty() -> AppExtended<()> {
         AppExtended { extensions: () }
     }
@@ -110,6 +145,7 @@ impl App {
     /// * [WindowManager]
     /// * [FontManager]
     /// * [FocusManager]
+    #[inline]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::empty()
             .extend(MouseEvents::default())
@@ -127,6 +163,7 @@ pub struct AppExtended<E: AppExtension> {
 
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
+    #[inline]
     pub fn extended_with<F: AppExtension>(&self) -> bool {
         self.extensions.is_or_contain(TypeId::of::<F>())
     }
@@ -136,6 +173,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// # Panics
     /// * `"app already extended with `{}`"` when the app is already [extended_with](AppExtended::extended_with) the
     /// extension type.
+    #[inline]
     pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<impl AppExtension> {
         if self.extended_with::<F>() {
             panic!("app already extended with `{}`", type_name::<F>())
@@ -146,6 +184,7 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Runs the application event loop calling `start` once at the begining.
+    #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
         profile_scope!("app::run");
 
