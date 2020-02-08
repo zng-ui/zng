@@ -5,7 +5,7 @@ use crate::core::frame::{FrameBuilder, FrameHitInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use fnv::{FnvHashMap, FnvHashSet};
+use fnv::FnvHashMap;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
 use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
@@ -15,6 +15,7 @@ use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::num::NonZeroU16;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
@@ -26,8 +27,10 @@ event_args! {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
 
+        ..
+
+        /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in the same window.
             ctx.window_id == self.window_id
         }
     }
@@ -37,8 +40,10 @@ event_args! {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
 
+        ..
+
+        /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in the same window.
             ctx.window_id == self.window_id
         }
     }
@@ -48,8 +53,10 @@ event_args! {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
 
+        ..
+
+        /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in the same window.
             ctx.window_id == self.window_id
         }
     }
@@ -60,8 +67,10 @@ event_args! {
         pub new_scale_factor: f32,
         pub new_size: LayoutSize,
 
+        ..
+
+        /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in the same window.
             ctx.window_id == self.window_id
         }
     }
@@ -70,9 +79,12 @@ cancelable_event_args! {
     /// [WindowClosing] event args.
     pub struct WindowClosingArgs {
         pub window_id: WindowId,
+        group: CloseTogetherGroup,
 
+        ..
+
+        /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) {
-            //! If the widget is in the same window.
             ctx.window_id == self.window_id
         }
     }
@@ -115,7 +127,7 @@ impl CancelableEvent for WindowClosing {
     type Args = WindowClosingArgs;
 }
 
-/// Closed window event.
+/// Close window event.
 pub struct WindowClose;
 impl Event for WindowClose {
     type Args = WindowEventArgs;
@@ -214,7 +226,7 @@ impl AppExtension for WindowManager {
             }
             WindowEvent::CloseRequested => {
                 if self.windows.borrow().contains_key(&window_id) {
-                    ctx.services.req::<Windows>().close_requests.insert(window_id);
+                    ctx.services.req::<Windows>().close_requests.insert(window_id, None);
                     ctx.updates.push_update();
                 }
             }
@@ -275,9 +287,9 @@ impl AppExtension for WindowManager {
             // notify everyone
             ctx.updates.push_notify(self.window_open.clone(), args.clone());
         }
-        for window_id in close {
+        for (window_id, group) in close {
             ctx.updates
-                .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id))
+                .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id, group))
         }
 
         // notify and respond to updates
@@ -292,8 +304,23 @@ impl AppExtension for WindowManager {
             }
 
             // respond to window_closing events
+
+            // close_together are canceled together
+            let canceled_groups: Vec<_> = self
+                .window_closing
+                .updates(ctx.events)
+                .iter()
+                .filter_map(|c| {
+                    if c.cancel_requested() && c.group.is_some() {
+                        Some(c.group)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
             for closing in self.window_closing.updates(ctx.events) {
-                if !closing.cancel_requested() {
+                if !closing.cancel_requested() && !canceled_groups.contains(&closing.group) {
                     // not canceled and we can close the window.
                     // notify close, the window will be deinited on
                     // the next update.
@@ -307,7 +334,19 @@ impl AppExtension for WindowManager {
                         .remove(&closing.window_id)
                         .unwrap_or_default()
                     {
-                        ctx.updates.push_notify(listener, CloseWindowResult::Canceled);
+                        ctx.updates.push_notify(listener, CloseWindowResult::Close);
+                    }
+                } else {
+                    // canceled notify operation listeners.
+
+                    for listener in ctx
+                        .services
+                        .req::<Windows>()
+                        .close_listeners
+                        .remove(&closing.window_id)
+                        .unwrap_or_default()
+                    {
+                        ctx.updates.push_notify(listener, CloseWindowResult::Cancel);
                     }
                 }
             }
@@ -316,16 +355,6 @@ impl AppExtension for WindowManager {
             for close in self.window_close.updates(ctx.events) {
                 if let Some(w) = self.windows.borrow_mut().remove(&close.window_id) {
                     w.deinit(ctx);
-                }
-
-                for listener in ctx
-                    .services
-                    .req::<Windows>()
-                    .close_listeners
-                    .remove(&close.window_id)
-                    .unwrap_or_default()
-                {
-                    ctx.updates.push_notify(listener, CloseWindowResult::Closed);
                 }
             }
         }
@@ -363,8 +392,11 @@ struct OpenWindowRequest {
 /// Response message of [Windows::close] and [Windows::close_together].
 #[derive(Debug)]
 pub enum CloseWindowResult {
-    Closed,
-    Canceled,
+    /// Notifying [WindowClose].
+    Close,
+
+    /// [WindowClosing] canceled.
+    Cancel,
 }
 
 /// Window not found error.
@@ -379,10 +411,13 @@ impl std::fmt::Display for WindowNotFound {
 
 impl std::error::Error for WindowNotFound {}
 
+type CloseTogetherGroup = Option<NonZeroU16>;
+
 /// Windows service.
 pub struct Windows {
     open_requests: Vec<OpenWindowRequest>,
-    close_requests: FnvHashSet<WindowId>,
+    close_requests: FnvHashMap<WindowId, CloseTogetherGroup>,
+    next_group: u16,
     close_listeners: FnvHashMap<WindowId, Vec<EventEmitter<CloseWindowResult>>>,
     windows: OpenWindows,
     update_notifier: UpdateNotifier,
@@ -394,17 +429,18 @@ impl Windows {
     fn new(windows: OpenWindows, update_notifier: UpdateNotifier) -> Self {
         Windows {
             open_requests: Vec::with_capacity(1),
-            close_requests: FnvHashSet::default(),
+            close_requests: FnvHashMap::default(),
             close_listeners: FnvHashMap::default(),
+            next_group: 1,
             windows,
             update_notifier,
         }
     }
 
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashSet<WindowId>) {
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashMap<WindowId, CloseTogetherGroup>) {
         (
             std::mem::replace(&mut self.open_requests, Vec::default()),
-            std::mem::replace(&mut self.close_requests, FnvHashSet::default()),
+            std::mem::replace(&mut self.close_requests, FnvHashMap::default()),
         )
     }
 
@@ -429,21 +465,22 @@ impl Windows {
         if self.windows.borrow().contains_key(&window_id) {
             let notifier = EventEmitter::new(false);
             let notice = notifier.listener();
-
-            self.close_requests.insert(window_id);
-
-            use std::collections::hash_map::Entry::*;
-            match self.close_listeners.entry(window_id) {
-                Vacant(ve) => {
-                    ve.insert(vec![notifier]);
-                }
-                Occupied(mut oe) => oe.get_mut().push(notifier),
-            }
-
+            self.insert_close(window_id, None, notifier);
             self.update_notifier.push_update();
             Ok(notice)
         } else {
             Err(WindowNotFound(window_id))
+        }
+    }
+
+    fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
+        self.close_requests.insert(window_id, set);
+        use std::collections::hash_map::Entry::*;
+        match self.close_listeners.entry(window_id) {
+            Vacant(ve) => {
+                ve.insert(vec![notifier]);
+            }
+            Occupied(mut oe) => oe.get_mut().push(notifier),
         }
     }
 
@@ -455,20 +492,30 @@ impl Windows {
         &mut self,
         windows: impl IntoIterator<Item = WindowId>,
     ) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
-        let windows: FnvHashSet<_> = windows.into_iter().collect();
-
+        let windows = windows.into_iter();
+        let mut buffer = Vec::with_capacity(windows.size_hint().0);
         {
             let known_windows = self.windows.borrow();
-            for id in windows.iter() {
-                if !known_windows.contains_key(id) {
-                    return Err(WindowNotFound(*id));
+            for id in windows {
+                if !known_windows.contains_key(&id) {
+                    return Err(WindowNotFound(id));
                 }
+                buffer.push(id);
             }
         }
 
+        let set_id = NonZeroU16::new(self.next_group).unwrap();
+        self.next_group += 1;
 
+        let notifier = EventEmitter::new(false);
 
-        todo!()
+        for id in buffer {
+            self.insert_close(id, Some(set_id), notifier.clone());
+        }
+
+        self.update_notifier.push_update();
+
+        Ok(notifier.into_listener())
     }
 
     pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> FrameHitInfo {

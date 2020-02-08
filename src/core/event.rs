@@ -155,6 +155,11 @@ impl<T: 'static> EventEmitter<T> {
         EventListener { chan: self.chan.clone() }
     }
 
+    /// Converts this emitter instance into a listener.
+    pub fn into_listener(self) -> EventListener<T> {
+        EventListener { chan: self.chan }
+    }
+
     pub(crate) fn notify(self, new_update: T, assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
         self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
     }

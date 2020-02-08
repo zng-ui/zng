@@ -198,8 +198,9 @@ macro_rules! event_args {
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* pub $arg:ident : $arg_ty:ty,)*
-
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
             fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
         }
     )+) => {$(
@@ -208,7 +209,7 @@ macro_rules! event_args {
         $vis struct $Args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
-            $($(#[$arg_outer])* pub $arg : $arg_ty,)*
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
         }
         impl $Args {
             #[inline]
@@ -234,6 +235,7 @@ macro_rules! event_args {
             }
 
             #[inline]
+            $(#[$concerns_widget_outer])*
             fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
                 $($concerns_widget)+
             }
@@ -251,8 +253,9 @@ macro_rules! cancelable_event_args {
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
-            $($(#[$arg_outer:meta])* pub $arg:ident : $arg_ty:ty,)*
-
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
             fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
         }
     )+) => {$(
@@ -261,7 +264,7 @@ macro_rules! cancelable_event_args {
         $vis struct $Args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
-            $($(#[$arg_outer])* pub $arg : $arg_ty,)*
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
             cancel: std::cell::Cell<bool>
         }
         impl $Args {
@@ -289,6 +292,7 @@ macro_rules! cancelable_event_args {
             }
 
             #[inline]
+            $(#[$concerns_widget_outer])*
             fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
                 $($concerns_widget)+
             }
