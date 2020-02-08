@@ -201,7 +201,7 @@ macro_rules! event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
         }
     )+) => {$(
         $(#[$outer])*
@@ -256,7 +256,7 @@ macro_rules! cancelable_event_args {
             $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
             ..
             $(#[$concerns_widget_outer:meta])*
-            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) { $($concerns_widget:tt)+ }
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
         }
     )+) => {$(
         $(#[$outer])*
@@ -265,7 +265,7 @@ macro_rules! cancelable_event_args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-            cancel: std::cell::Cell<bool>
+            cancel: std::rc::Rc<std::cell::Cell<bool>>
         }
         impl $Args {
             #[inline]
@@ -274,7 +274,7 @@ macro_rules! cancelable_event_args {
                 $Args {
                     timestamp,
                     $($arg: $arg.into(),)*
-                    cancel: std::cell::Cell::new(false)
+                    cancel: std::rc::Rc::default()
                 }
             }
 
@@ -298,13 +298,15 @@ macro_rules! cancelable_event_args {
             }
         }
         impl $crate::core::event::CancelableEventArgs for $Args {
-            /// If a handler canceled the action.
+            /// If a listener canceled the action.
             #[inline]
             fn cancel_requested(&self) -> bool {
                 self.cancel.get()
             }
 
             /// Cancel the action.
+            ///
+            /// Cloned args are still linked, canceling one will cancel the others.
             #[inline]
             fn cancel(&self) {
                 self.cancel.set(true);

@@ -3,8 +3,6 @@ use crate::core::{context::*, events::*, focus::FocusManager, font::FontManager,
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
-use std::cell::Cell;
-use std::rc::Rc;
 
 /// An [App] extension.
 pub trait AppExtension: 'static {
@@ -50,7 +48,7 @@ pub trait AppExtension: 'static {
 
     /// Called when a shutdown was requested.
     #[inline]
-    fn on_shutdown_requested(&mut self, _ctx: &mut AppContext) {}
+    fn on_shutdown_requested(&mut self, _args: &ShutdownRequestedArgs, _ctx: &mut AppContext) {}
 
     /// Called when the application is shuting down.
     ///
@@ -59,12 +57,15 @@ pub trait AppExtension: 'static {
     fn deinit(&mut self, _ctx: &mut AppContext) {}
 }
 
-pub struct ShutdownRequestInner {
-    cancel: Cell<bool>,
-}
-
-pub struct ShutdownRequest {
-    r: Rc<ShutdownRequestInner>,
+cancelable_event_args! {
+    /// Arguments for `on_shutdown_requested`.
+    pub struct ShutdownRequestedArgs {
+        ..
+        /// Always true.
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+            true
+        }
+    }
 }
 
 impl AppExtension for () {}
@@ -115,6 +116,12 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         self.0.on_redraw_requested(window_id, ctx);
         self.1.on_redraw_requested(window_id, ctx);
+    }
+
+    #[inline]
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        self.0.on_shutdown_requested(args, ctx);
+        self.1.on_shutdown_requested(args, ctx);
     }
 
     #[inline]

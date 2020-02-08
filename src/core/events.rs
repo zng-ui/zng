@@ -33,7 +33,7 @@ event_args! {
         ..
 
         /// If the widget is focused or contains the focused widget.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             todo!("check if focused")
          }
     }
@@ -49,7 +49,7 @@ event_args! {
         ..
 
         /// If the widget is in [hits](MouseMoveArgs::hits).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.hits.contains(ctx.widget_id)
          }
     }
@@ -67,7 +67,7 @@ event_args! {
         ..
 
         /// If the widget is in [hits](MouseInputArgs::hits).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.hits.contains(ctx.widget_id)
         }
     }
@@ -85,7 +85,7 @@ event_args! {
         ..
 
         /// If the widget is in [hits](MouseClickArgs::hits).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.hits.contains(ctx.widget_id)
         }
     }

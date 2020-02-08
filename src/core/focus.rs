@@ -18,7 +18,7 @@ event_args! {
 
         /// If the widget is [prev_focus](FocusChangedArgs::prev_focus) or
         /// [new_focus](FocusChangedArgs::new_focus).
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
                 if prev.widget_id() == ctx.widget_id {
                     return true

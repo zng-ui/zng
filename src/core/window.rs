@@ -1,4 +1,4 @@
-use crate::core::app::{AppEvent, AppExtension};
+use crate::core::app::{AppEvent, AppExtension, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::frame::{FrameBuilder, FrameHitInfo};
@@ -30,7 +30,7 @@ event_args! {
         ..
 
         /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.window_id == self.window_id
         }
     }
@@ -43,7 +43,7 @@ event_args! {
         ..
 
         /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.window_id == self.window_id
         }
     }
@@ -56,7 +56,7 @@ event_args! {
         ..
 
         /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.window_id == self.window_id
         }
     }
@@ -70,21 +70,21 @@ event_args! {
         ..
 
         /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.window_id == self.window_id
         }
     }
 }
 cancelable_event_args! {
-    /// [WindowClosing] event args.
-    pub struct WindowClosingArgs {
+    /// [WindowCloseRequested] event args.
+    pub struct WindowCloseRequestedArgs {
         pub window_id: WindowId,
         group: CloseTogetherGroup,
 
         ..
 
         /// If the widget is in the same window.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) {
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             ctx.window_id == self.window_id
         }
     }
@@ -119,12 +119,12 @@ impl Event for WindowScaleChanged {
 }
 
 /// Closing window event.
-pub struct WindowClosing;
-impl Event for WindowClosing {
-    type Args = WindowClosingArgs;
+pub struct WindowCloseRequested;
+impl Event for WindowCloseRequested {
+    type Args = WindowCloseRequestedArgs;
 }
-impl CancelableEvent for WindowClosing {
-    type Args = WindowClosingArgs;
+impl CancelableEvent for WindowCloseRequested {
+    type Args = WindowCloseRequestedArgs;
 }
 
 /// Close window event.
@@ -145,7 +145,7 @@ type OpenWindows = Rc<RefCell<FnvHashMap<WindowId, GlWindow>>>;
 /// * [WindowResize]
 /// * [WindowMove]
 /// * [WindowScaleChanged]
-/// * [WindowClosing]
+/// * [WindowCloseRequested]
 /// * [WindowClose]
 ///
 /// # Services
@@ -161,7 +161,7 @@ pub struct WindowManager {
     window_resize: EventEmitter<WindowResizeArgs>,
     window_move: EventEmitter<WindowMoveArgs>,
     window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
-    window_closing: EventEmitter<WindowClosingArgs>,
+    window_closing: EventEmitter<WindowCloseRequestedArgs>,
     window_close: EventEmitter<WindowEventArgs>,
 }
 
@@ -201,7 +201,7 @@ impl AppExtension for WindowManager {
         r.events.register::<WindowResize>(self.window_resize.listener());
         r.events.register::<WindowMove>(self.window_move.listener());
         r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
-        r.events.register::<WindowClosing>(self.window_closing.listener());
+        r.events.register::<WindowCloseRequested>(self.window_closing.listener());
         r.events.register::<WindowClose>(self.window_close.listener());
     }
 
@@ -263,7 +263,10 @@ impl AppExtension for WindowManager {
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         // respond to service requests
-        let (open, close) = ctx.services.req::<Windows>().take_requests();
+        let ((open, close), shutdown_if) = {
+            let service = ctx.services.req::<Windows>();
+            (service.take_requests(), service.shutdown_on_last_close)
+        };
         for request in open {
             let mut w = GlWindow::new(
                 request.new,
@@ -289,7 +292,7 @@ impl AppExtension for WindowManager {
         }
         for (window_id, group) in close {
             ctx.updates
-                .push_notify(self.window_closing.clone(), WindowClosingArgs::now(window_id, group))
+                .push_notify(self.window_closing.clone(), WindowCloseRequestedArgs::now(window_id, group))
         }
 
         // notify and respond to updates
@@ -357,6 +360,10 @@ impl AppExtension for WindowManager {
                     w.deinit(ctx);
                 }
             }
+
+            if shutdown_if && self.windows.borrow().is_empty() {
+                todo!()
+            }
         }
     }
 
@@ -370,9 +377,16 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn on_shutdown_requested(&mut self, ctx: &mut AppContext) {
-        for (_, window) in self.windows.borrow_mut().iter_mut() {
-            todo!()
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        if !args.cancel_requested() {
+            let service = ctx.services.req::<Windows>();
+            if service.shutdown_on_last_close {
+                let windows: Vec<WindowId> = self.windows.borrow_mut().keys().copied().collect();
+                if !windows.is_empty() {
+                    args.cancel();
+                    service.close_together(windows).unwrap();
+                }
+            }
         }
     }
 
@@ -395,7 +409,7 @@ pub enum CloseWindowResult {
     /// Notifying [WindowClose].
     Close,
 
-    /// [WindowClosing] canceled.
+    /// [WindowCloseRequested] canceled.
     Cancel,
 }
 
@@ -415,6 +429,9 @@ type CloseTogetherGroup = Option<NonZeroU16>;
 
 /// Windows service.
 pub struct Windows {
+    /// If shutdown is requested when there are no more windows open, `true` by default.
+    pub shutdown_on_last_close: bool,
+
     open_requests: Vec<OpenWindowRequest>,
     close_requests: FnvHashMap<WindowId, CloseTogetherGroup>,
     next_group: u16,
@@ -428,6 +445,7 @@ impl AppService for Windows {}
 impl Windows {
     fn new(windows: OpenWindows, update_notifier: UpdateNotifier) -> Self {
         Windows {
+            shutdown_on_last_close: true,
             open_requests: Vec::with_capacity(1),
             close_requests: FnvHashMap::default(),
             close_listeners: FnvHashMap::default(),
@@ -458,7 +476,7 @@ impl Windows {
         notice
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of the [WindowClosing] event.
+    /// Starts closing a window, the operation can be canceled by listeners of the [WindowCloseRequested] event.
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
@@ -484,7 +502,7 @@ impl Windows {
         }
     }
 
-    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [WindowClosing] event.
+    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [WindowCloseRequested] event.
     /// If canceled none of the windows are closed.
     ///
     /// Returns a listener that will update once with the result of the operation.
