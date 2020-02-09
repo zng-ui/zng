@@ -1,5 +1,5 @@
 use crate::core::context::{Events, WidgetContext};
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
@@ -37,6 +37,7 @@ pub trait CancelableEvent: Event + 'static {
 
 struct EventChannelInner<T> {
     data: UnsafeCell<Vec<T>>,
+    listener_count: Cell<usize>,
     is_high_pressure: bool,
 }
 
@@ -75,6 +76,22 @@ impl<T: 'static> EventChannel<T> {
     pub fn is_high_pressure(&self) -> bool {
         self.r.is_high_pressure
     }
+
+    pub fn listener_count(&self) -> usize {
+        self.r.listener_count.get()
+    }
+
+    pub fn has_listeners(&self) -> bool {
+        self.listener_count() > 0
+    }
+
+    pub fn on_new_listener(&self) {
+        self.r.listener_count.set(self.r.listener_count.get() + 1)
+    }
+
+    pub fn on_drop_listener(&self) {
+        self.r.listener_count.set(self.r.listener_count.get() - 1)
+    }
 }
 
 /// Read-only reference to an event channel.
@@ -87,6 +104,11 @@ impl<T: 'static> Clone for EventListener<T> {
     }
 }
 impl<T: 'static> EventListener<T> {
+    fn new(chan: EventChannel<T>) -> Self {
+        chan.on_new_listener();
+        EventListener { chan }
+    }
+
     /// Gets a reference to the updates that happened in between calls of [UiNode::update](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
@@ -110,6 +132,12 @@ impl<T: 'static> EventListener<T> {
     }
 }
 
+impl<T: 'static> Drop for EventListener<T> {
+    fn drop(&mut self) {
+        self.chan.on_drop_listener();
+    }
+}
+
 /// Read-write reference to an event channel.
 pub struct EventEmitter<T: 'static> {
     chan: EventChannel<T>,
@@ -129,10 +157,21 @@ impl<T: 'static> EventEmitter<T> {
             chan: EventChannel {
                 r: Rc::new(EventChannelInner {
                     data: UnsafeCell::default(),
+                    listener_count: Cell::new(0),
                     is_high_pressure,
                 }),
             },
         }
+    }
+
+    /// Number of listener to this event emitter.
+    pub fn listener_count(&self) -> usize {
+        self.chan.listener_count()
+    }
+
+    /// If this event emitter has any listeners.
+    pub fn has_listeners(&self) -> bool {
+        self.chan.has_listeners()
     }
 
     /// Gets a reference to the updates that happened in between calls of [UiNode::update](crate::core::UiNode::update).
@@ -152,12 +191,12 @@ impl<T: 'static> EventEmitter<T> {
 
     /// Gets a new event listener linked with this emitter.
     pub fn listener(&self) -> EventListener<T> {
-        EventListener { chan: self.chan.clone() }
+        EventListener::new(self.chan.clone())
     }
 
     /// Converts this emitter instance into a listener.
     pub fn into_listener(self) -> EventListener<T> {
-        EventListener { chan: self.chan }
+        EventListener::new(self.chan)
     }
 
     pub(crate) fn notify(self, new_update: T, assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
