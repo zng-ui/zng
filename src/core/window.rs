@@ -1,7 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::frame::{FrameBuilder, FrameHitInfo};
+use crate::core::render::{FrameBuilder, FrameHitInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;

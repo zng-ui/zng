@@ -1,6 +1,6 @@
 use crate::core::context::*;
 use crate::core::focus::*;
-use crate::core::frame::*;
+use crate::core::render::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};

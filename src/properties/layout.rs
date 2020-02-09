@@ -1,6 +1,6 @@
 use crate::core::{
     context::WidgetContext,
-    frame::FrameBuilder,
+    render::FrameBuilder,
     types::*,
     var::{IntoVar, LocalVar, Var},
     UiNode,

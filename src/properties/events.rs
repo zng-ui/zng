@@ -1,7 +1,8 @@
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::events::*;
-use crate::core::frame::FrameBuilder;
+use crate::core::keyboard::*;
+use crate::core::mouse::*;
+use crate::core::render::FrameBuilder;
 use crate::core::types::LayoutSize;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};

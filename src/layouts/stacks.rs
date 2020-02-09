@@ -1,5 +1,5 @@
 use crate::core::{
-    frame::FrameBuilder,
+    render::FrameBuilder,
     types::{LayoutRect, LayoutSize},
     UiNode,
 };

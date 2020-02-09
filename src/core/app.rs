@@ -1,4 +1,6 @@
-use crate::core::{context::*, events::*, focus::FocusManager, font::FontManager, types::*, window::WindowManager};
+use crate::core::{
+    context::*, focus::FocusManager, font::FontManager, keyboard::KeyboardEvents, mouse::MouseEvents, types::*, window::WindowManager,
+};
 
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};

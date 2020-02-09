@@ -187,7 +187,7 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
 
         [fn update_hp(&mut self, ctx: &mut #crate_::core::context::WidgetContext) { }]
 
-        [fn render(&self, frame: &mut #crate_::core::frame::FrameBuilder) { }]
+        [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) { }]
 
         [fn arrange(&mut self, final_size: #crate_::core::types::LayoutSize) { }]
 
@@ -230,7 +230,7 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
             child.update_hp(ctx)
         }]
 
-        [fn render(&self, frame: &mut #crate_::core::frame::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) {
             let child = {#borrow};
             child.render(frame)
         }]
@@ -274,7 +274,7 @@ fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, i
             }
         }]
 
-        [fn render(&self, frame: &mut #crate_::core::frame::FrameBuilder) {
+        [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) {
             for child in {#iter} {
                 child.render(frame)
             }

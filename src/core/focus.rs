@@ -1,8 +1,11 @@
+//! Focus manager, events and services.
+
 use crate::core::app::AppExtension;
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::events::*;
-use crate::core::frame::{FrameInfo, WidgetInfo, WidgetPath};
+use crate::core::keyboard::*;
+use crate::core::mouse::*;
+use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
 
 event_args! {

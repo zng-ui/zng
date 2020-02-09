@@ -1,5 +1,5 @@
 use crate::core::context::*;
-use crate::core::frame::*;
+use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
