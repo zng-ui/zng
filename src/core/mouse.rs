@@ -180,7 +180,7 @@ impl AppExtension for MouseEvents {
                 } else {
                     LayoutPoint::default()
                 };
-                let hits = ctx.services.req::<Windows>().hit_test(window_id, position);
+                let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
                 let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits.clone());
                 ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
                 match state {

@@ -42,7 +42,7 @@ pub trait AppExtension: 'static {
 
     /// Called after every sequence of updates if display update was requested.
     #[inline]
-    fn update_display(&mut self, _update: UpdateDisplayRequest) {}
+    fn update_display(&mut self, _update: UpdateDisplayRequest, _ctx: &mut AppContext) {}
 
     /// Called when the OS sends a request for re-drawing the last frame.
     #[inline]
@@ -109,9 +109,9 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
-    fn update_display(&mut self, update: UpdateDisplayRequest) {
-        self.0.update_display(update);
-        self.1.update_display(update);
+    fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
+        self.0.update_display(update, ctx);
+        self.1.update_display(update, ctx);
     }
 
     #[inline]
@@ -264,7 +264,7 @@ impl<E: AppExtension> AppExtended<E> {
 
             if !in_sequence && sequence_update.is_some() {
                 profile_scope!("app::update_display");
-                extensions.update_display(sequence_update);
+                extensions.update_display(sequence_update, &mut owned_ctx.borrow(event_loop));
                 sequence_update = UpdateDisplayRequest::None;
             }
         })

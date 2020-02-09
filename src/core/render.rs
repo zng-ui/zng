@@ -188,6 +188,12 @@ pub struct FrameInfo {
 }
 
 impl FrameInfo {
+    /// Blank window frame that contains only the root widget taking no space.
+    #[inline]
+    pub fn blank(window_id: WindowId, root_id: WidgetId) -> Self {
+        FrameInfoBuilder::new(window_id, Epoch(0), root_id, LayoutSize::zero()).build()
+    }
+
     /// Reference to the root widget in the frame.
     #[inline]
     pub fn root(&self) -> WidgetInfo {
