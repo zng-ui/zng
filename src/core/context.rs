@@ -1,6 +1,6 @@
 use crate::core::app::AppEvent;
 use crate::core::event::{Event, EventEmitter, EventListener};
-use crate::core::types::{WidgetId, WindowId};
+use crate::core::types::{Singleton, WidgetId, WindowId};
 use crate::core::var::*;
 
 use fnv::FnvHashMap;
@@ -9,7 +9,7 @@ use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
-use std::sync::atomic::{self, AtomicBool, AtomicU8};
+use std::sync::atomic::{self, AtomicU8};
 use std::sync::Arc;
 use webrender::api::RenderApi;
 
@@ -177,9 +177,8 @@ impl UpdateNotifier {
 /// Only a single instance of this type exists at a time.
 pub struct Vars {
     context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
+    _singleton: Singleton<Vars>,
 }
-
-static VARS_ALIVE: AtomicBool = AtomicBool::new(false);
 
 pub type ContextVarStageId = (Option<WidgetId>, u32);
 
@@ -188,14 +187,9 @@ impl Vars {
     /// instance can exist at a time, panics if called
     /// again before droping the previous instance.
     pub fn instance() -> Self {
-        if VARS_ALIVE.load(atomic::Ordering::Acquire) {
-            panic!("only a single instance of `Vars` can exist at at time")
-        }
-
-        VARS_ALIVE.store(true, atomic::Ordering::Release);
-
         Vars {
             context_vars: RefCell::default(),
+            _singleton: Singleton::assert_new(),
         }
     }
 
@@ -305,12 +299,6 @@ impl Vars {
         } else {
             (default, false, 0)
         }
-    }
-}
-
-impl Drop for Vars {
-    fn drop(&mut self) {
-        VARS_ALIVE.store(false, atomic::Ordering::Release);
     }
 }
 
@@ -427,23 +415,17 @@ impl LazyStateMap {
 /// Only a single instance of this type exists at a time.
 pub struct Events {
     events: AnyMap,
+    _singleton: Singleton<Events>,
 }
-
-static EVENTS_ALIVE: AtomicBool = AtomicBool::new(false);
 
 impl Events {
     /// Produces the instance of `Events`. Only a single
     /// instance can exist at a time, panics if called
     /// again before droping the previous instance.
     pub fn instance() -> Self {
-        if EVENTS_ALIVE.load(atomic::Ordering::Acquire) {
-            panic!("only a single instance of `Events` can exist at at time")
-        }
-
-        EVENTS_ALIVE.store(true, atomic::Ordering::Release);
-
         Events {
             events: Default::default(),
+            _singleton: Singleton::assert_new(),
         }
     }
 
@@ -471,12 +453,6 @@ impl Events {
     pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
-    }
-}
-
-impl Drop for Events {
-    fn drop(&mut self) {
-        EVENTS_ALIVE.store(false, atomic::Ordering::Release);
     }
 }
 
