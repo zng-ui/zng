@@ -38,7 +38,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
+        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
     }
 }
 
@@ -82,7 +82,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
+        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
     }
 }
 
@@ -127,7 +127,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_ui_node(&self.child, &LayoutRect::from_size(self.final_size));
+        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
     }
 }
 
@@ -213,7 +213,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_ui_node(&self.child, &self.child_rect);
+        frame.push_node(&self.child, &self.child_rect);
     }
 }
 
@@ -265,7 +265,7 @@ impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_ui_node(&self.child, &self.child_rect);
+        frame.push_node(&self.child, &self.child_rect);
     }
 }
 

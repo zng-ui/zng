@@ -784,11 +784,11 @@ impl GlWindow {
                 next
             });
 
-            let mut frame = FrameBuilder::new(ctx.id(), frame_id, ctx.root.id, size, self.pipeline_id);
+            let mut frame = FrameBuilder::new(frame_id, ctx.id(), self.pipeline_id, ctx.root.id, size);
+
             ctx.root.child.render(&mut frame);
 
             let (display_list_data, frame_info) = frame.finalize();
-            //TODO - Use frame_info
 
             self.frame_info = frame_info;
 
@@ -892,7 +892,7 @@ impl OwnedWindowContext {
 
         ctx.window_context(self.window_id, &mut self.state, &mut self.services, &self.api, |ctx| {
             let child = &mut root.child;
-            ctx.widget_context(root.id, &mut root.state, |ctx| {
+            ctx.widget_context(root.id, &mut root.meta, |ctx| {
                 f(child, ctx);
             });
         })
@@ -936,7 +936,7 @@ impl OwnedWindowContext {
 
 pub struct UiRoot {
     id: WidgetId,
-    state: LazyStateMap,
+    meta: LazyStateMap,
     title: BoxLocalVar<Cow<'static, str>>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,

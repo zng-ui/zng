@@ -83,6 +83,7 @@ struct Widget<T: UiNode> {
     id: WidgetId,
     state: LazyStateMap,
     child: T,
+    area: LayoutSize,
 }
 
 #[impl_ui_node(child)]
@@ -107,8 +108,13 @@ impl<T: UiNode> UiNode for Widget<T> {
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
     }
 
+    fn arrange(&mut self, final_size: LayoutSize) {
+        self.area = final_size;
+        self.child.arrange(final_size);
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_widget(self.id, &self.child);
+        frame.push_widget(self.id, self.area, &self.child);
     }
 }
 
@@ -118,5 +124,6 @@ pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
         id,
         state: LazyStateMap::default(),
         child,
+        area: LayoutSize::zero(),
     }
 }

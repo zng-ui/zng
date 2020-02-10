@@ -2,49 +2,106 @@ use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::UiNode;
 use ego_tree::Tree;
+use std::mem;
 use webrender::api::*;
 
 pub struct FrameBuilder {
-    pub display_list: DisplayListBuilder,
+    display_list: DisplayListBuilder,
+
     info: FrameInfoBuilder,
+    info_id: WidgetInfoId,
+
     widget_id: WidgetId,
+    meta: LazyStateMap,
     cursor: CursorIcon,
+
+    clip_rect: LayoutRect,
+    clip_id: ClipId,
+    spatial_id: SpatialId,
+
+    global_offset: LayoutPoint,
 }
 
 impl FrameBuilder {
-    pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, root_size: LayoutSize, pipeline_id: PipelineId) -> Self {
+    #[inline]
+    pub fn new(frame_id: FrameId, window_id: WindowId, pipeline_id: PipelineId, root_id: WidgetId, root_size: LayoutSize) -> Self {
+        let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         FrameBuilder {
             display_list: DisplayListBuilder::new(pipeline_id, root_size),
-            info: FrameInfoBuilder::new(window_id, frame_id, root_id, root_size),
+            info_id: info.root_id(),
+            info,
             widget_id: root_id,
+            meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
+            clip_rect: LayoutRect::from_size(root_size),
+            clip_id: ClipId::root(pipeline_id),
+            spatial_id: SpatialId::root_reference_frame(pipeline_id),
+            global_offset: LayoutPoint::zero(),
         }
     }
 
+    /// Direct access to the display list builder.
+    #[inline]
+    pub fn display_list(&mut self) -> &mut DisplayListBuilder {
+        &mut self.display_list
+    }
+
     /// Current widget.
+    #[inline]
     pub fn widget_id(&self) -> WidgetId {
         self.widget_id
     }
 
     /// Current widget metadata.
-    pub fn widget_meta(&mut self) -> &mut LazyStateMap {
-        todo!()
+    #[inline]
+    pub fn meta(&mut self) -> &mut LazyStateMap {
+        &mut self.meta
     }
 
-    fn item_tag(&self) -> ItemTag {
+    /// Current cursor.
+    #[inline]
+    pub fn cursor(&self) -> CursorIcon {
+        self.cursor
+    }
+
+    /// Current widget [ItemTag].
+    #[inline]
+    pub fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
     }
 
-    pub(crate) fn push_widget(&mut self, id: WidgetId, child: &impl UiNode) {
-        let widget_hit = (id, u16::max_value());
-        // self.push_hit_rect(widget_hit);
+    pub(crate) fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
+        // The hit-test bounding-box used to take the coordinates of the widget hit
+        // if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
+        //
+        // This is done so we have consistent hit coordinates with precise hit area.
+        self.display_list.push_hit_test(&CommonItemProperties {
+            hit_info: Some((id.get(), WIDGET_HIT_AREA)),
+            clip_rect: LayoutRect::from_size(area),
+            clip_id: self.clip_id,
+            spatial_id: self.spatial_id,
+            flags: PrimitiveFlags::empty(),
+        });
 
-        let parent = std::mem::replace(&mut self.widget_id, id);
+        let parent_id = mem::replace(&mut self.widget_id, id);
+
+        let parent_meta = mem::replace(&mut self.meta, LazyStateMap::default());
+
+        let mut bounds = LayoutRect::from_size(area);
+        bounds.origin = self.global_offset;
+
+        let node = self.info.push(self.info_id, id, bounds);
+        let parent_node = mem::replace(&mut self.info_id, node);
+
         child.render(self);
-        self.widget_id = parent;
+
+        self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
+
+        self.widget_id = parent_id;
+        self.info_id = parent_node;
     }
 
-    pub fn push_ui_node(&mut self, child: &impl UiNode, rect: &LayoutRect) {
+    pub fn push_node(&mut self, node: &impl UiNode, rect: &LayoutRect) {
         todo!()
     }
 
@@ -77,14 +134,18 @@ impl FrameBuilder {
         todo!()
     }
 
+    /// Finializes the build.
+    ///
+    /// # Returns
+    ///
+    /// `(PipelineId, LayoutSize, BuiltDisplayList)` : The display list finalize data.
+    /// `FrameInfo`: The built frame info.
     pub fn finalize(self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
         (self.display_list.finalize(), self.info.build())
     }
 }
 
-fn is_widget(raw: u16) -> bool {
-    raw == u16::max_value()
-}
+const WIDGET_HIT_AREA: u16 = u16::max_value();
 
 fn unpack_cursor(raw: u16) -> CursorIcon {
     debug_assert!(raw <= CursorIcon::RowResize as u16);
@@ -114,10 +175,32 @@ impl FrameHitInfo {
     /// Initializes from a webrender hit-test result.
     #[inline]
     pub fn new(hits: HitTestResult) -> Self {
-        // TODO solve: using the same WidgetId in multiple properties
-        // will result in repeated entries here with potentially different
-        // hit points, that don't match with the widget area.
-        todo!()
+        let mut candidates = Vec::default();
+        let mut actual_hits = fnv::FnvHashMap::default();
+
+        for hit in hits.items {
+            if hit.tag.1 == WIDGET_HIT_AREA {
+                candidates.push((hit.tag.0, hit.point_relative_to_item));
+            } else {
+                actual_hits.insert(hit.tag.0, hit.tag.1);
+            }
+        }
+
+        let mut hits = Vec::default();
+
+        for candidate in candidates {
+            let raw_id = candidate.0;
+            if let Some(raw_cursor) = actual_hits.remove(&raw_id) {
+                hits.push(HitInfo {
+                    // SAFETY: This is safe because we packed
+                    widget_id: unsafe { WidgetId::from_raw(raw_id) },
+                    point: candidate.1,
+                    cursor: unpack_cursor(raw_cursor),
+                })
+            }
+        }
+
+        FrameHitInfo { hits }
     }
 
     /// Top-most cursor or `CursorIcon::Default` if there was no hit.
@@ -154,19 +237,59 @@ pub struct FrameInfoBuilder {
 
 impl FrameInfoBuilder {
     /// Starts building a frame info with the frame root information.
+    #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, root_id: WidgetId, size: LayoutSize) -> Self {
-        FrameInfoBuilder {
-            window_id,
-            frame_id,
-            tree: Tree::new(WidgetInfoInner {
-                widget_id: root_id,
-                bounds: LayoutRect::from_size(size),
-                meta: LazyStateMap::default(),
-            }),
-        }
+        let tree = Tree::new(WidgetInfoInner {
+            widget_id: root_id,
+            bounds: LayoutRect::from_size(size),
+            meta: LazyStateMap::default(),
+        });
+
+        FrameInfoBuilder { window_id, frame_id, tree }
+    }
+
+    /// Gets the root widget info id.
+    #[inline]
+    pub fn root_id(&self) -> WidgetInfoId {
+        WidgetInfoId(self.tree.root().id())
+    }
+
+    #[inline]
+    fn node(&mut self, id: WidgetInfoId) -> ego_tree::NodeMut<WidgetInfoInner> {
+        self.tree
+            .get_mut(id.0)
+            .ok_or_else(|| format!("`{:?}` not found in this builder", id))
+            .unwrap()
+    }
+
+    /// Takes the widget metadata already set for `id`.
+    #[inline]
+    pub fn take_meta(&mut self, id: WidgetInfoId) -> LazyStateMap {
+        mem::replace(&mut self.node(id).value().meta, LazyStateMap::default())
+    }
+
+    /// Sets the widget metadata for `id`.
+    #[inline]
+    pub fn set_meta(&mut self, id: WidgetInfoId, meta: LazyStateMap) {
+        self.node(id).value().meta = meta;
+    }
+
+    /// Appends a widget child.
+    #[inline]
+    pub fn push(&mut self, parent: WidgetInfoId, widget_id: WidgetId, bounds: LayoutRect) -> WidgetInfoId {
+        WidgetInfoId(
+            self.node(parent)
+                .append(WidgetInfoInner {
+                    widget_id,
+                    bounds,
+                    meta: LazyStateMap::default(),
+                })
+                .id(),
+        )
     }
 
     /// Builds the final frame info.
+    #[inline]
     pub fn build(self) -> FrameInfo {
         FrameInfo {
             window_id: self.window_id,
@@ -176,6 +299,10 @@ impl FrameInfoBuilder {
         }
     }
 }
+
+/// Id of a building widget info.
+#[derive(Debug, Clone, Copy)]
+pub struct WidgetInfoId(ego_tree::NodeId);
 
 /// Information about a rendered frame.
 ///
