@@ -179,7 +179,14 @@ pub trait Var<T: VarValue>: ObjVar<T> {
 pub trait IntoVar<T: VarValue> {
     type Var: Var<T> + 'static;
 
+    /// Converts the source value into a var.
     fn into_var(self) -> Self::Var;
+
+    /// Shortcut call `self.into_var().as_local()`.
+    #[inline]
+    fn into_local(self) -> <<Self as IntoVar<T>>::Var as Var<T>>::AsLocal where Self: Sized  {
+        self.into_var().as_local()
+    }
 }
 
 /// A variable that can be one of many variables at a time, determined by

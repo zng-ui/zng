@@ -46,7 +46,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<LayoutSize>) -> impl UiNode {
     MinSize {
         child,
-        min_size: min_size.into_var().as_local(),
+        min_size: min_size.into_local(),
         final_size: LayoutSize::zero(),
     }
 }
@@ -90,7 +90,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<LayoutSize>) -> impl UiNode {
     MaxSize {
         child,
-        max_size: max_size.into_var().as_local(),
+        max_size: max_size.into_local(),
         final_size: LayoutSize::zero(),
     }
 }
@@ -135,7 +135,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
 pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     ExactSize {
         child,
-        size: size.into_var().as_local(),
+        size: size.into_local(),
         final_size: LayoutSize::zero(),
     }
 }
@@ -221,7 +221,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
     Align {
         child,
-        alignment: alignment.into_var().as_local(),
+        alignment: alignment.into_local(),
         final_size: LayoutSize::zero(),
         child_rect: LayoutRect::zero(),
     }

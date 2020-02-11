@@ -32,7 +32,7 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
 
 pub fn fill_color<C: IntoVar<ColorF>>(color: C) -> impl UiNode {
     FillColor {
-        color: color.into_var().as_local(),
+        color: color.into_local(),
         final_size: LayoutSize::default(),
     }
 }
@@ -106,7 +106,7 @@ pub fn fill_gradient(
     FillGradient {
         start: start.into_var(),
         end: end.into_var(),
-        stops: stops.into_var().as_local(),
+        stops: stops.into_local(),
         render_start: LayoutPoint::zero(),
         render_end: LayoutPoint::zero(),
         final_size: LayoutSize::zero(),

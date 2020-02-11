@@ -10,7 +10,7 @@ use crate::{impl_ui_node, property};
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     Focusable {
         child,
-        is_focusable: focusable.into_var().as_local(),
+        is_focusable: focusable.into_local(),
     }
 }
 
@@ -19,7 +19,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
     SetTabIndex {
         child,
-        tab_index: tab_index.into_var().as_local(),
+        tab_index: tab_index.into_local(),
     }
 }
 
@@ -28,7 +28,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScope {
         child,
-        is_focus_scope: focus_scope.into_var().as_local(),
+        is_focus_scope: focus_scope.into_local(),
     }
 }
 
@@ -37,7 +37,7 @@ pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl 
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     SetTabNav {
         child,
-        tab_nav: tab_nav.into_var().as_local(),
+        tab_nav: tab_nav.into_local(),
     }
 }
 
@@ -46,7 +46,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     SetDirectionalNav {
         child,
-        directional_nav: directional_nav.into_var().as_local(),
+        directional_nav: directional_nav.into_local(),
     }
 }
 

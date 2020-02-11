@@ -137,16 +137,13 @@ impl FrameBuilder {
         self.info_id = parent_node;
     }
 
-    /// Push a hit-test `rect` that hits the parent widget.
+    /// Push a hit-test `rect` using [common_item_properties](FrameBuilder::common_item_properties)
+    /// if [hit_testable](FrameBuilder::hit_testable) is `true`.
     #[inline]
     pub fn push_hit_test(&mut self, rect: LayoutRect) {
-        self.display_list.push_hit_test(&CommonItemProperties {
-            hit_info: Some(self.item_tag()),
-            clip_rect: rect,
-            clip_id: self.clip_id,
-            spatial_id: self.spatial_id,
-            flags: PrimitiveFlags::empty(),
-        });
+        if self.hit_testable {
+            self.display_list.push_hit_test(&self.common_item_properties(rect));
+        }
     }
 
     /// Calls [render](UiNode::render) for `node` while [hit_testable] is set to `hit_testable`.

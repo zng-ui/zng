@@ -234,7 +234,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T,
 pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     Border {
         child,
-        widths: widths.into_var().as_local(),
+        widths: widths.into_local(),
         details: details.into_var(),
         render_details: border_details_none(),
         child_rect: LayoutRect::zero(),
