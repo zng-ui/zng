@@ -1,7 +1,8 @@
-use crate::core::*;
+use crate::core::UiNode;
+use crate::core::gesture::ClickArgs;
+use crate::properties::OnEventArgs;
 use crate::widget;
 
-// Declares a button! {} macro.
 widget! {
     //! Button widget.
     //! # Arguments
@@ -20,7 +21,9 @@ widget! {
     //! }
     //! ```
 
-    //use crate::properties::*;
+    use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
+    use crate::core::types::{rgb, rgba};
+    use crate::widgets::container;
 
     // Properties applied to child before calling widget fn.
     child_properties {
@@ -28,7 +31,7 @@ widget! {
         // If set applies margin to child.
         padding -> margin;
         // Same with default value.
-        content_align -> align: CENTER;
+        content_align -> align: Alignment::CENTER;
         // Default value of background_color property that is applied to child.
         background_color: rgb(255, 255, 255);
     }
@@ -38,14 +41,20 @@ widget! {
     // child_properties.
     self_properties {
         border: 4., (rgba(0, 0, 0, 0.0), BorderStyle::Dashed);
+        //on_click: required!;
     }
 
     // widget signature, must name the parameters after child,
     // they behave like required properties in the declared button! macro.
 
-    pub fn button(child: impl UiNode, _on_click: ()) -> impl UiNode {
-        //TODO
+    pub fn button(child: impl UiNode, on_click: impl FnMut(OnEventArgs<ClickArgs>)) -> impl UiNode {
+        todo!();
         child
+        //container! {
+        //    id: unset!;
+        //    on_click: on_click;
+        //    => child
+        //}
     }
 }
 

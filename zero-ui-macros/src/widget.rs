@@ -162,7 +162,11 @@ pub(crate) fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::T
             .collect(),
     );
 
-    let id = id.unwrap_or_else(|| quote! {$crate::core::UiItemId::new_unique()});
+    let widget_call = if let Some(id) = id {
+        quote!($crate::core::widget(#id, child))
+    } else {
+        quote!()
+    };
 
     let result = quote! {{
         #(#uses);*
@@ -173,32 +177,53 @@ pub(crate) fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::T
         let child = #fn_name::new(child, #(#expanded_fn_args),*);
         #(#self_args)*
         #(#expanded_self_props)*
-        $crate::core::widget(#id, child)
+        #widget_call
     }};
 
     result.into()
 }
 
-// -> (let args, set_priorities, custom id)
+// -> (let args, set_priorities, id(None==unset))
 fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenStream>, Option<TokenStream>) {
+    let mut unset_id = false;
+    let mut custom_id = None;
+    let id_name = ident("id");
+
+    let properties: Vec<_> = properties
+        .into_iter()
+        .filter(|p| {
+            let name = &p.name;
+            match &p.args {
+                PropertyArgs::Exprs(args) => {
+                    if name == &id_name {
+                        unset_id = false;
+                        custom_id = Some(quote!(#(#args)+));
+                        false // id is not an UiNode property
+                    } else {
+                        true
+                    }
+                }
+                PropertyArgs::Unset => {
+                    if name == &id_name {
+                        unset_id = true;
+                        custom_id = None;
+                    }
+                    false
+                }
+                PropertyArgs::Fields(_) => true,
+            }
+        })
+        .collect();
+
     let mut let_args = Vec::with_capacity(properties.len());
     let mut all_arg_names = Vec::with_capacity(properties.len());
 
     let mut expanded_props = Vec::with_capacity(properties.len());
-    let mut custom_id = None;
-
-    let id_name = ident("id");
 
     for p in properties.iter() {
         let name = &p.name;
-
         match &p.args {
             PropertyArgs::Exprs(args) => {
-                if name == &id_name {
-                    custom_id = Some(quote!(#(#args)+));
-                    continue;
-                }
-
                 let arg_names: Vec<_> = (0..args.len()).map(|i| ident(&format!("__{}{}", quote! {#name}, i))).collect();
                 let args = args.into_iter();
 
@@ -218,6 +243,7 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
 
                 all_arg_names.push(arg_names);
             }
+            PropertyArgs::Unset => unreachable!(),
         }
     }
 
@@ -231,7 +257,15 @@ fn expand_properties(properties: Vec<Property>) -> (Vec<TokenStream>, Vec<TokenS
         }
     }
 
-    (let_args, expanded_props, custom_id)
+    let id = if unset_id {
+        None
+    } else if custom_id.is_some() {
+        custom_id
+    } else {
+        Some(quote! ($crate::core::UiItemId::new_unique()))
+    };
+
+    (let_args, expanded_props, id)
 }
 
 fn take_properties(args: &mut HashMap<Ident, Property>, properties: Punctuated<PropertyDeclaration, Token![;]>) -> Vec<Property> {
@@ -373,6 +407,7 @@ impl ToTokens for PropertiesDeclaration {
 mod keyword {
     syn::custom_keyword!(child_properties);
     syn::custom_keyword!(self_properties);
+    syn::custom_keyword!(unset);
 }
 
 struct PropertyDeclaration {
@@ -433,6 +468,7 @@ impl ToTokens for PropertyDeclaration {
 enum PropertyArgs {
     Fields(Punctuated<FieldValue, Token![,]>),
     Exprs(Punctuated<Expr, Token![,]>),
+    Unset,
 }
 
 impl Parse for PropertyArgs {
@@ -441,6 +477,11 @@ impl Parse for PropertyArgs {
             let inner;
             braced!(inner in input);
             PropertyArgs::Fields(Punctuated::parse_separated_nonempty(&inner)?)
+        } else if input.peek(keyword::unset) && input.peek2(Token![!]) {
+            input.parse::<keyword::unset>()?;
+            input.parse::<Token![!]>()?;
+
+            PropertyArgs::Unset
         } else {
             PropertyArgs::Exprs(Punctuated::parse_separated_nonempty(input)?)
         };
@@ -456,6 +497,7 @@ impl ToTokens for PropertyArgs {
                 Brace { span: fields.span() }.surround(tokens, |t| fields.to_tokens(t));
             }
             PropertyArgs::Exprs(args) => args.to_tokens(tokens),
+            PropertyArgs::Unset => tokens.extend(quote!(unset!)),
         }
     }
 }
