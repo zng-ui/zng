@@ -6,10 +6,8 @@ extern crate quote;
 use proc_macro::TokenStream;
 use proc_macro_hack::proc_macro_hack;
 
-mod impl_ui;
 mod impl_ui_node;
 mod property;
-mod ui;
 mod widget;
 
 /// Generates default implementations of [UiNode](zero_ui::core::UiNode) methods.
@@ -241,45 +239,4 @@ pub fn widget(input: TokenStream) -> TokenStream {
 #[proc_macro_hack]
 pub fn widget_new(input: TokenStream) -> TokenStream {
     widget::expand_widget_new(input)
-}
-
-//----- old stuff -------
-
-// proc_macro_hack must be documented in the rexport.
-#[proc_macro_hack]
-pub fn ui(input: TokenStream) -> TokenStream {
-    ui::gen_ui_init(input)
-}
-
-#[proc_macro_hack]
-pub fn ui_part(input: TokenStream) -> TokenStream {
-    ui::gen_ui_part_init(input)
-}
-
-#[proc_macro]
-pub fn ui_widget(input: TokenStream) -> TokenStream {
-    ui::expand_ui_widget(input)
-}
-
-#[proc_macro_attribute]
-pub fn ui_property(_args: TokenStream, input: TokenStream) -> TokenStream {
-    ui::expand_ui_property(input)
-}
-
-/// Same as `impl_ui`, but with type paths using the keyword `crate::` instead of `zero_ui::`.
-#[doc(hidden)]
-#[proc_macro_attribute]
-pub fn impl_ui_crate(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui::gen_impl_ui(args, input, quote!(crate))
-}
-
-#[doc(hidden)]
-#[proc_macro_hack]
-pub fn custom_ui(input: TokenStream) -> TokenStream {
-    ui::gen_custom_ui_init(input)
-}
-
-#[proc_macro_attribute]
-pub fn impl_ui(args: TokenStream, input: TokenStream) -> TokenStream {
-    impl_ui::gen_impl_ui(args, input, quote!(zero_ui))
 }
