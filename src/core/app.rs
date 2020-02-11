@@ -1,5 +1,6 @@
 use crate::core::{
-    context::*, focus::FocusManager, font::FontManager, keyboard::KeyboardEvents, mouse::MouseEvents, types::*, window::WindowManager,
+    context::*, focus::FocusManager, font::FontManager, gesture::GestureEvents, keyboard::KeyboardEvents, mouse::MouseEvents, types::*,
+    window::WindowManager,
 };
 
 use glutin::event::Event as GEvent;
@@ -151,6 +152,7 @@ impl App {
     ///
     /// * [MouseEvents]
     /// * [KeyboardEvents]
+    /// * [GestureEvents]
     /// * [WindowManager]
     /// * [FontManager]
     /// * [FocusManager]
@@ -159,6 +161,7 @@ impl App {
         App::empty()
             .extend(MouseEvents::default())
             .extend(KeyboardEvents::default())
+            .extend(GestureEvents::default())
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())

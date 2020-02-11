@@ -195,7 +195,7 @@ impl MouseEvents {
         };
 
         let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
-        let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits);
+        let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits.clone());
 
         // on_mouse_input
         ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
@@ -206,35 +206,41 @@ impl MouseEvents {
                 ctx.updates.push_notify(self.mouse_down.clone(), args);
 
                 self.click_count = self.click_count.saturating_add(1);
-
                 let now = Instant::now();
 
-                if let Some(click_count) = NonZeroU8::new(self.click_count) {
-                    if (now - self.last_pressed) < multi_click_time_ms() {
-                        let args = MouseClickArgs::now(
-                            window_id,
-                            device_id,
-                            button,
-                            position,
-                            self.modifiers,
-                            click_count,
-                            self.click_hits.clone().unwrap(),
-                        );
+                if self.click_count == 1 {
+                    self.click_hits = Some(hits);
+                } else if self.click_count >= 2 && (now - self.last_pressed) < multi_click_time_ms() {
+                    // if click_count >= 2 and the time is in multi-click range.
+                    let hits = self.click_hits.as_ref().unwrap().intersection(&hits);
 
-                        // on_mouse_click (click_count > 1)
+                    let args = MouseClickArgs::new(
+                        now,
+                        window_id,
+                        device_id,
+                        button,
+                        position,
+                        self.modifiers,
+                        NonZeroU8::new(self.click_count).unwrap(),
+                        hits.clone(),
+                    );
 
-                        if click_count.get() == 2 {
-                            if self.mouse_double_click.has_listeners() {
-                                ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
-                            }
-                        } else if click_count.get() == 3 && self.mouse_triple_click.has_listeners() {
-                            ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
+                    self.click_hits = Some(hits);
+
+                    // on_mouse_click (click_count > 1)
+
+                    if self.click_count == 2 {
+                        if self.mouse_double_click.has_listeners() {
+                            ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
                         }
-
-                        ctx.updates.push_notify(self.mouse_click.clone(), args);
-                    } else {
-                        self.click_count = 1;
+                    } else if self.click_count == 3 && self.mouse_triple_click.has_listeners() {
+                        ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
                     }
+
+                    ctx.updates.push_notify(self.mouse_click.clone(), args);
+                } else {
+                    self.click_count = 1;
+                    self.click_hits = None;
                 }
                 self.last_pressed = now;
             }
@@ -244,15 +250,11 @@ impl MouseEvents {
 
                 if let Some(click_count) = NonZeroU8::new(self.click_count) {
                     if click_count.get() == 1 {
-                        let args = MouseClickArgs::now(
-                            window_id,
-                            device_id,
-                            button,
-                            position,
-                            self.modifiers,
-                            click_count,
-                            self.click_hits.clone().unwrap(),
-                        );
+                        let hits = self.click_hits.as_ref().unwrap().intersection(&hits);
+
+                        let args = MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, click_count, hits.clone());
+
+                        self.click_hits = Some(hits);
 
                         if self.mouse_single_click.has_listeners() {
                             ctx.updates.push_notify(self.mouse_single_click.clone(), args.clone());
@@ -262,8 +264,6 @@ impl MouseEvents {
                         ctx.updates.push_notify(self.mouse_click.clone(), args);
                     }
                 }
-
-                self.click_hits = None;
             }
         }
     }
