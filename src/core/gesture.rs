@@ -152,13 +152,34 @@ impl Event for SingleClick {
     type Args = ClickArgs;
 }
 
+/// [Click] when the [click_count](ClickArgs::click_count) is `2`.
+pub struct DoubleClick;
+impl Event for DoubleClick {
+    type Args = ClickArgs;
+}
+
+/// [Click] when the [click_count](ClickArgs::click_count) is `3`.
+pub struct TripleClick;
+impl Event for TripleClick {
+    type Args = ClickArgs;
+}
+
 /// Application extension that provides aggregate events.
+///
+/// Events this extension provides.
+///
+/// * [Click]
+/// * [SingleClick]
+/// * [DoubleClick]
+/// * [TripleClick]
 pub struct GestureEvents {
     key_down: EventListener<KeyInputArgs>,
     mouse_click: EventListener<MouseClickArgs>,
 
     click: EventEmitter<ClickArgs>,
     single_click: EventEmitter<ClickArgs>,
+    double_click: EventEmitter<ClickArgs>,
+    triple_click: EventEmitter<ClickArgs>,
 }
 
 impl Default for GestureEvents {
@@ -169,6 +190,8 @@ impl Default for GestureEvents {
 
             click: EventEmitter::new(false),
             single_click: EventEmitter::new(false),
+            double_click: EventEmitter::new(false),
+            triple_click: EventEmitter::new(false),
         }
     }
 }
@@ -183,12 +206,17 @@ impl AppExtension for GestureEvents {
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update {
             let notify_single = self.single_click.has_listeners();
+            let notify_double = self.double_click.has_listeners();
+            let notify_triple = self.triple_click.has_listeners();
 
             for args in self.mouse_click.updates(ctx.events) {
                 let args: ClickArgs = args.clone().into();
 
-                if notify_single && args.click_count.get() == 1 {
-                    ctx.updates.push_notify(self.single_click.clone(), args.clone());
+                match args.click_count.get() {
+                    1 if notify_single => ctx.updates.push_notify(self.single_click.clone(), args.clone()),
+                    2 if notify_double => ctx.updates.push_notify(self.double_click.clone(), args.clone()),
+                    3 if notify_triple => ctx.updates.push_notify(self.triple_click.clone(), args.clone()),
+                    _ => {}
                 }
 
                 ctx.updates.push_notify(self.click.clone(), args);

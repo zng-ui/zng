@@ -186,6 +186,16 @@ pub fn on_single_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<
     on_event::set(child, SingleClick, handler)
 }
 
+#[property(event)]
+pub fn on_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, DoubleClick, handler)
+}
+
+#[property(event)]
+pub fn on_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, TripleClick, handler)
+}
+
 macro_rules! on_ctx_mtd {
     ($( $(#[$outer:meta])* struct $OnCtxMtd:ident { fn $mtd:ident } fn $on_mtd:ident;)+) => {$(
         struct $OnCtxMtd<C: UiNode, F: FnMut(&mut WidgetContext)> {
