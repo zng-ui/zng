@@ -803,8 +803,7 @@ fn is_in_direction(direction: WidgetOrientation, origin: LayoutPoint, candidate:
         WidgetOrientation::Left => (candidate.x, origin.x, candidate.y, origin.y),
         WidgetOrientation::Right => (origin.x, candidate.x, candidate.y, origin.y),
         WidgetOrientation::Above => (candidate.y, origin.y, candidate.x, origin.x),
-        WidgetOrientation::Below => (origin.y, candidate.y, candidate.x, origin.x),
-        _ => unreachable!(),
+        WidgetOrientation::Below => (origin.y, candidate.y, candidate.x, origin.x)
     };
 
     // checks if the candidate point is in between two imaginary perpendicular lines parting from the

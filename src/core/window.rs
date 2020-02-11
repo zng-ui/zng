@@ -251,7 +251,7 @@ impl WindowManager {
             // low-pressure pump.
             if update.update {
                 for w_ctx in w_ctxs.iter_mut() {
-                    w_ctx.update_hp(ctx);
+                    w_ctx.update(ctx);
                 }
             }
 
