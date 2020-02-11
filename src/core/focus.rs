@@ -133,6 +133,7 @@ impl AppExtension for FocusManager {
 pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,
+    focused: Option<WidgetPath>,
 }
 
 impl Focus {
@@ -141,12 +142,20 @@ impl Focus {
         Focus {
             request: None,
             update_notifier,
+            focused: None,
         }
+    }
+
+    /// Current focused widget.
+    #[inline]
+    pub fn focused(&self) -> Option<&WidgetPath> {
+        self.focused.as_ref()
     }
 
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
+        self.update_notifier.push_update();
     }
 
     #[inline]
@@ -453,7 +462,7 @@ pub enum FocusInfo {
 
 impl FocusInfo {
     #[inline]
-    pub fn is_focusable(&self) -> bool {
+    pub fn is_focusable(self) -> bool {
         match self {
             FocusInfo::NotFocusable => false,
             _ => true,
@@ -461,7 +470,7 @@ impl FocusInfo {
     }
 
     #[inline]
-    pub fn is_scope(&self) -> bool {
+    pub fn is_scope(self) -> bool {
         match self {
             FocusInfo::FocusScope(..) => true,
             _ => false,

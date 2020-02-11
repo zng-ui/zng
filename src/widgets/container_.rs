@@ -1,5 +1,5 @@
-use crate::widget;
 use crate::core::UiNode;
+use crate::widget;
 
 widget! {
     //! Custom container widget

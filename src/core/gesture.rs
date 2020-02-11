@@ -48,7 +48,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [target](ClickArgs::target).
+        /// If the widget is in [hits](ClickArgsSource::Mouse::hits) or [target](ClickArgsSource::Key::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             match &self.source {
                 ClickArgsSource::Mouse { hits, .. } => hits.contains(ctx.widget_id),
@@ -90,7 +90,7 @@ impl TryFrom<KeyInputArgs> for ClickArgs {
                 args.device_id,
                 ClickArgsSource::Key {
                     repeat: args.repeat,
-                    target: args.target,
+                    target: args.target.unwrap(),
                 },
                 1,
                 args.modifiers,
@@ -101,7 +101,7 @@ impl TryFrom<KeyInputArgs> for ClickArgs {
     }
 }
 
-/// If is a [return](VirtualKeyCode::Return) key press.
+/// If is a [return](VirtualKeyCode::Return) key press and [target](KeyInputArgs::target) is some widget.
 #[inline]
 pub fn key_input_is_click(args: &KeyInputArgs) -> bool {
     args.key == Some(VirtualKeyCode::Return) && args.state == ElementState::Pressed

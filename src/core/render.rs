@@ -76,7 +76,7 @@ impl FrameBuilder {
         self.spatial_id
     }
 
-    /// Current widget [ItemTag]. The first number is the raw [widget_id],
+    /// Current widget [ItemTag]. The first number is the raw [widget_id](FrameBuilder::widget_id),
     /// the second number is the raw [cursor](FrameBuilder::cursor).
     ///
     /// For more details on how the ItemTag is used see [FrameHitInfo::new].
@@ -146,7 +146,7 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls [render](UiNode::render) for `node` while [hit_testable] is set to `hit_testable`.
+    /// Calls [render](UiNode::render) for `node` while [hit_testable](FrameBuilder::hit_testable) is set to `hit_testable`.
     #[inline]
     pub fn push_hit_testable(&mut self, node: &impl UiNode, hit_testable: bool) {
         let parent_hit_testable = mem::replace(&mut self.hit_testable, hit_testable);
@@ -269,8 +269,11 @@ pub struct HitInfo {
 }
 
 /// A hit-test result.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct FrameHitInfo {
+    window_id: WindowId,
+    frame_id: FrameId,
+    point: LayoutPoint,
     hits: Vec<HitInfo>,
 }
 
@@ -289,7 +292,7 @@ impl FrameHitInfo {
     ///
     /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [HitInfo::point].
     #[inline]
-    pub fn new(hits: HitTestResult) -> Self {
+    pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
         let mut candidates = Vec::default();
         let mut actual_hits = fnv::FnvHashMap::default();
 
@@ -315,7 +318,32 @@ impl FrameHitInfo {
             }
         }
 
-        FrameHitInfo { hits }
+        hits.shrink_to_fit();
+
+        FrameHitInfo {
+            window_id,
+            frame_id,
+            point,
+            hits,
+        }
+    }
+
+    /// The window that was hit-tested.
+    #[inline]
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+
+    /// The window frame that was hit-tested.
+    #[inline]
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
+    }
+
+    /// The point in the window that was hit-tested.
+    #[inline]
+    pub fn point(&self) -> LayoutPoint {
+        self.point
     }
 
     /// Top-most cursor or `CursorIcon::Default` if there was no hit.
@@ -340,6 +368,20 @@ impl FrameHitInfo {
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.hits.iter().any(|h| h.widget_id == widget_id)
+    }
+
+    /// Gets a clone of `self` that only contains the hits that also happen in `other`.
+    #[inline]
+    pub fn intersection(&self, other: &FrameHitInfo) -> FrameHitInfo {
+        let mut hits: Vec<_> = self.hits.iter().filter(|h| other.contains(h.widget_id)).cloned().collect();
+        hits.shrink_to_fit();
+
+        FrameHitInfo {
+            window_id: self.window_id,
+            frame_id: self.frame_id,
+            point: self.point,
+            hits,
+        }
     }
 }
 

@@ -6,6 +6,7 @@ use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::Windows;
+use std::num::NonZeroU8;
 use std::time::*;
 
 event_args! {
@@ -50,7 +51,15 @@ event_args! {
         pub button: MouseButton,
         pub position: LayoutPoint,
         pub modifiers: ModifiersState,
-        pub click_count: u8,
+
+        /// Sequential click count . Number `1` is single click, `2` is double click, etc.
+        pub click_count: NonZeroU8,
+
+        /// Widgets that got clicked, only the widgets that where clicked are in the hit-info.
+        ///
+        /// A widget is clicked if the [MouseDown] and [MouseUp] happen
+        /// in sequence in the same widget. Subsequent clicks (double, triple)
+        /// happen on [MouseDown].
         pub hits: FrameHitInfo,
 
         ..
@@ -69,7 +78,7 @@ impl Event for MouseMove {
     const IS_HIGH_PRESSURE: bool = true;
 }
 
-/// Mouse input event.
+/// Mouse down or up event.
 pub struct MouseInput;
 impl Event for MouseInput {
     type Args = MouseInputArgs;
@@ -87,19 +96,25 @@ impl Event for MouseUp {
     type Args = MouseInputArgs;
 }
 
-/// Mouse click event.
+/// Mouse click event, any [click_count](MouseClickArgs::click_count).
 pub struct MouseClick;
 impl Event for MouseClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse double-click event.
+/// Mouse singleclick event ([click_count](MouseClickArgs::click_count) = `1`).
+pub struct MouseSingleClick;
+impl Event for MouseSingleClick {
+    type Args = MouseClickArgs;
+}
+
+/// Mouse double-click event ([click_count](MouseClickArgs::click_count) = `2`).
 pub struct MouseDoubleClick;
 impl Event for MouseDoubleClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse triple-click event.
+/// Mouse triple-click event ([click_count](MouseClickArgs::click_count) = `3`).
 pub struct MouseTripleClick;
 impl Event for MouseTripleClick {
     type Args = MouseClickArgs;
@@ -116,19 +131,31 @@ impl Event for MouseTripleClick {
 /// * [MouseDown]
 /// * [MouseUp]
 /// * [MouseClick]
+/// * [MouseSingleClick]
 /// * [MouseDoubleClick]
 /// * [MouseTripleClick]
 pub struct MouseEvents {
+    /// last cursor move position.
     pos: LayoutPoint,
-    modifiers: ModifiersState,
+    /// last cursor move window.
     pos_window: Option<WindowId>,
+
+    /// last modifiers.
+    modifiers: ModifiersState,
+
+    /// when the last mouse_down event happened.
     last_pressed: Instant,
+    click_hits: Option<FrameHitInfo>,
     click_count: u8,
+
     mouse_move: EventEmitter<MouseMoveArgs>,
+
     mouse_input: EventEmitter<MouseInputArgs>,
     mouse_down: EventEmitter<MouseInputArgs>,
     mouse_up: EventEmitter<MouseInputArgs>,
+
     mouse_click: EventEmitter<MouseClickArgs>,
+    mouse_single_click: EventEmitter<MouseClickArgs>,
     mouse_double_click: EventEmitter<MouseClickArgs>,
     mouse_triple_click: EventEmitter<MouseClickArgs>,
 }
@@ -137,17 +164,118 @@ impl Default for MouseEvents {
     fn default() -> Self {
         MouseEvents {
             pos: LayoutPoint::default(),
-            modifiers: ModifiersState::default(),
             pos_window: None,
+
+            modifiers: ModifiersState::default(),
+
             last_pressed: Instant::now() - Duration::from_secs(60),
+            click_hits: None,
             click_count: 0,
+
             mouse_move: EventEmitter::new(true),
+
             mouse_input: EventEmitter::new(false),
             mouse_down: EventEmitter::new(false),
             mouse_up: EventEmitter::new(false),
+
             mouse_click: EventEmitter::new(false),
+            mouse_single_click: EventEmitter::new(false),
             mouse_double_click: EventEmitter::new(false),
             mouse_triple_click: EventEmitter::new(false),
+        }
+    }
+}
+
+impl MouseEvents {
+    fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ElementState, button: MouseButton, ctx: &mut AppContext) {
+        let position = if self.pos_window == Some(window_id) {
+            self.pos
+        } else {
+            LayoutPoint::default()
+        };
+
+        let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
+        let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits);
+
+        // on_mouse_input
+        ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
+
+        match state {
+            ElementState::Pressed => {
+                // on_mouse_down
+                ctx.updates.push_notify(self.mouse_down.clone(), args);
+
+                self.click_count = self.click_count.saturating_add(1);
+
+                let now = Instant::now();
+
+                if let Some(click_count) = NonZeroU8::new(self.click_count) {
+                    if (now - self.last_pressed) < multi_click_time_ms() {
+                        let args = MouseClickArgs::now(
+                            window_id,
+                            device_id,
+                            button,
+                            position,
+                            self.modifiers,
+                            click_count,
+                            self.click_hits.clone().unwrap(),
+                        );
+
+                        // on_mouse_click (click_count > 1)
+
+                        if click_count.get() == 2 {
+                            if self.mouse_double_click.has_listeners() {
+                                ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
+                            }
+                        } else if click_count.get() == 3 && self.mouse_triple_click.has_listeners() {
+                            ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
+                        }
+
+                        ctx.updates.push_notify(self.mouse_click.clone(), args);
+                    } else {
+                        self.click_count = 1;
+                    }
+                }
+                self.last_pressed = now;
+            }
+            ElementState::Released => {
+                // on_mouse_up
+                ctx.updates.push_notify(self.mouse_up.clone(), args);
+
+                if let Some(click_count) = NonZeroU8::new(self.click_count) {
+                    if click_count.get() == 1 {
+                        let args = MouseClickArgs::now(
+                            window_id,
+                            device_id,
+                            button,
+                            position,
+                            self.modifiers,
+                            click_count,
+                            self.click_hits.clone().unwrap(),
+                        );
+
+                        if self.mouse_single_click.has_listeners() {
+                            ctx.updates.push_notify(self.mouse_single_click.clone(), args.clone());
+                        }
+
+                        // on_mouse_click
+                        ctx.updates.push_notify(self.mouse_click.clone(), args);
+                    }
+                }
+
+                self.click_hits = None;
+            }
+        }
+    }
+
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: LayoutPoint, ctx: &mut AppContext) {
+        if position != self.pos || Some(window_id) != self.pos_window {
+            self.pos = position;
+            self.pos_window = Some(window_id);
+            let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
+            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits);
+
+            ctx.updates.push_notify(self.mouse_move.clone(), args);
         }
     }
 }
@@ -159,6 +287,8 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseInput>(self.mouse_input.listener());
         r.events.register::<MouseDown>(self.mouse_down.listener());
         r.events.register::<MouseUp>(self.mouse_up.listener());
+
+        r.events.register::<MouseClick>(self.mouse_click.listener());
         r.events.register::<MouseClick>(self.mouse_click.listener());
         r.events.register::<MouseDoubleClick>(self.mouse_double_click.listener());
         r.events.register::<MouseTripleClick>(self.mouse_triple_click.listener());
@@ -174,65 +304,9 @@ impl AppExtension for MouseEvents {
         match *event {
             WindowEvent::MouseInput {
                 state, device_id, button, ..
-            } => {
-                let position = if self.pos_window == Some(window_id) {
-                    self.pos
-                } else {
-                    LayoutPoint::default()
-                };
-                let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
-                let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits.clone());
-                ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
-                match state {
-                    ElementState::Pressed => {
-                        ctx.updates.push_notify(self.mouse_down.clone(), args);
-
-                        self.click_count = self.click_count.saturating_add(1);
-
-                        let now = Instant::now();
-
-                        if self.click_count > 1 {
-                            if (now - self.last_pressed) < multi_click_time_ms() {
-                                let args =
-                                    MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, self.click_count, hits);
-
-                                if args.click_count == 2 {
-                                    ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
-                                } else if args.click_count == 3 {
-                                    ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
-                                }
-
-                                ctx.updates.push_notify(self.mouse_click.clone(), args);
-                            } else {
-                                self.click_count = 1;
-                            }
-                        }
-                        self.last_pressed = now;
-
-                        todo!(r"src\properties\events.rs");
-                    }
-                    ElementState::Released => {
-                        ctx.updates.push_notify(self.mouse_up.clone(), args);
-
-                        if self.click_count == 1 {
-                            let args = MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, 1, hits);
-                            ctx.updates.push_notify(self.mouse_click.clone(), args);
-                        }
-
-                        todo!(r"src\properties\events.rs");
-                    }
-                }
-            }
+            } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::CursorMoved { device_id, position, .. } => {
-                let position = LayoutPoint::new(position.x as f32, position.y as f32);
-                if position != self.pos || Some(window_id) != self.pos_window {
-                    self.pos = position;
-                    self.pos_window = Some(window_id);
-
-                    let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, FrameHitInfo::default());
-
-                    ctx.updates.push_notify(self.mouse_move.clone(), args);
-                }
+                self.on_cursor_moved(window_id, device_id, LayoutPoint::new(position.x as f32, position.y as f32), ctx)
             }
             _ => {}
         }

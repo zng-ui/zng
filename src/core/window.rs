@@ -860,11 +860,14 @@ impl GlWindow {
 
     /// Hit-test the latest frame.
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        let point = units::WorldPoint::new(point.x, point.y);
-        let r = self
-            .api
-            .hit_test(self.document_id, Some(self.pipeline_id), point, HitTestFlags::all());
-        FrameHitInfo::new(r)
+        let r = self.api.hit_test(
+            self.document_id,
+            Some(self.pipeline_id),
+            units::WorldPoint::new(point.x, point.y),
+            HitTestFlags::all(),
+        );
+
+        FrameHitInfo::new(self.id(), self.frame_info.frame_id(), point, r)
     }
 
     /// Latest frame info.

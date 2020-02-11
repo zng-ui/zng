@@ -1,5 +1,5 @@
-use crate::core::UiNode;
 use crate::core::gesture::ClickArgs;
+use crate::core::UiNode;
 use crate::properties::OnEventArgs;
 use crate::widget;
 
@@ -62,8 +62,8 @@ macro_rules! widget2 {
 }
 
 widget2! {
-    /// Docs of widget.
-    pub button;
+    /// Docs of widget macro named button.
+    pub button;// this also becomes a mod.
 
     // Uses inserted in the `button!` macro call.
     use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
