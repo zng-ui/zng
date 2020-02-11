@@ -1,5 +1,6 @@
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::gesture::*;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::FrameBuilder;
@@ -168,6 +169,11 @@ pub fn on_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEven
 #[property(event)]
 pub fn on_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseTripleClick, handler)
+}
+
+#[property(event)]
+pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, Click, handler)
 }
 
 macro_rules! on_ctx_mtd {
