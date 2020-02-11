@@ -3,8 +3,8 @@
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::types::*;
 use crate::core::render::WidgetPath;
+use crate::core::types::*;
 use std::time::*;
 
 event_args! {
@@ -135,7 +135,7 @@ impl AppExtension for KeyboardEvents {
                 modifiers: self.modifiers,
                 state,
                 repeat,
-                target: todo!()
+                target: todo!(),
             };
 
             ctx.updates.push_notify(self.key_input.clone(), args.clone());

@@ -1,0 +1,3 @@
+{
+    "rust.features": ["app_profiler"]
+}

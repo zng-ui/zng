@@ -1,12 +1,12 @@
 use crate::core::context::*;
+use crate::core::render::FrameBuilder;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
-use crate::core::render::FrameBuilder;
 
 struct HitTestable<U: UiNode, H: LocalVar<bool>> {
     child: U,
-    hit_testable: H
+    hit_testable: H,
 }
 #[impl_ui_node(child)]
 impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
@@ -36,6 +36,6 @@ impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
     HitTestable {
         child,
-        hit_testable: hit_testable.into_local()
+        hit_testable: hit_testable.into_local(),
     }
 }

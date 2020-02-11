@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [features]
 app_profiler = ["serde_json", "lazy_static"]
 
@@ -20,7 +18,7 @@ proc-macro-nested = "0.1.3"
 # core
 raw-window-handle = "0.3.3"
 winapi = "0.3.8"
-glutin = "0.22.0"
+glutin = "0.23.0"
 gleam = "0.6.17"
 webrender = "0.61.0"
 font-loader = "0.8.0"

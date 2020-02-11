@@ -614,7 +614,7 @@ impl RenderNotifier for Notifier {
 }
 
 struct GlWindow {
-    context: Option<WindowedContext<NotCurrent>>,
+    gl_ctx: Option<WindowedContext<NotCurrent>>,
     ctx: Option<OwnedWindowContext>,
 
     renderer: webrender::Renderer,
@@ -627,8 +627,11 @@ struct GlWindow {
 }
 
 macro_rules! win_profile_scope {
-    ($self:expr, $mtd:expr) => {
-        profile_scope!(r#"({:?} "{}")::{}"#, $self.id(), $self.root.title.get_local(), $mtd)
+    ($ctx: expr, $mtd_name: tt) => {
+        win_profile_scope!($ctx.id(), $ctx.root.title.get_local(), $mtd_name)
+    };
+    ($id: expr, $title: expr, $mtd_name: tt) => {
+        profile_scope!(r#"({:?} "{}")::{}"#, $id, $title, $mtd_name)
     };
 }
 
@@ -689,7 +692,7 @@ impl GlWindow {
         let (state, services) = ctx.new_window(window_id, &api);
 
         GlWindow {
-            context: Some(unsafe { context.make_not_current().unwrap() }),
+            gl_ctx: Some(unsafe { context.make_not_current().unwrap() }),
             renderer,
             pipeline_id: PipelineId(1, 0),
             document_id,
@@ -712,7 +715,7 @@ impl GlWindow {
     /// Window id.
     pub fn id(&self) -> WindowId {
         // this method is required for [win_profile_scope!] to work with [GlWindow] and [OwnedWindowContext].
-        self.context.as_ref().unwrap().window().id()
+        self.gl_ctx.as_ref().unwrap().window().id()
     }
 
     pub fn ctx(&mut self) -> &mut OwnedWindowContext {
@@ -732,10 +735,11 @@ impl GlWindow {
 
     /// Update window vars.
     pub fn update(&mut self, vars: &Vars) {
-        win_profile_scope!(self, "update::self");
-
-        let window = self.context.as_ref().unwrap().window();
         let ctx = self.ctx.as_mut().unwrap();
+
+        win_profile_scope!(ctx, "update::self");
+
+        let window = self.gl_ctx.as_ref().unwrap().window();
         let r = &mut ctx.root;
 
         if let Some(title) = r.title.update_local(vars) {
@@ -749,11 +753,11 @@ impl GlWindow {
         let ctx = self.ctx.as_mut().unwrap();
 
         if ctx.update == UpdateDisplayRequest::Layout {
-            win_profile_scope!(self, "layout");
+            win_profile_scope!(ctx, "layout");
 
             ctx.update = UpdateDisplayRequest::Render;
 
-            let available_size = self.context.as_ref().unwrap().window().inner_size();
+            let available_size = self.gl_ctx.as_ref().unwrap().window().inner_size();
             let available_size = LayoutSize::new(available_size.width as f32, available_size.height as f32);
 
             let desired_size = ctx.root.child.measure(available_size);
@@ -769,11 +773,11 @@ impl GlWindow {
         let ctx = self.ctx.as_mut().unwrap();
 
         if ctx.update == UpdateDisplayRequest::Render {
-            win_profile_scope!(self, "render");
+            win_profile_scope!(ctx, "render");
 
             ctx.update = UpdateDisplayRequest::None;
 
-            let size = self.context.as_ref().unwrap().window().inner_size();
+            let size = self.gl_ctx.as_ref().unwrap().window().inner_size();
             let size = LayoutSize::new(size.width as f32, size.height as f32);
 
             let frame_id = Epoch({
@@ -803,7 +807,7 @@ impl GlWindow {
     /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
     /// from the OS after calling this.
     pub fn request_redraw(&mut self) {
-        let context = self.context.as_ref().unwrap();
+        let context = self.gl_ctx.as_ref().unwrap();
         if self.first_draw {
             context.window().set_visible(true); // OS generates a RequestRedraw here
             self.first_draw = false;
@@ -819,9 +823,9 @@ impl GlWindow {
     /// override your vsync settings, which means that you can't know in
     /// advance whether `swap_buffers` will block or not.
     pub fn redraw(&mut self) {
-        win_profile_scope!(self, "redraw");
+        win_profile_scope!(self.ctx.as_ref().unwrap(), "redraw");
 
-        let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
+        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
 
         self.renderer.update();
 
@@ -837,7 +841,7 @@ impl GlWindow {
 
         context.swap_buffers().ok();
 
-        self.context = Some(unsafe { context.make_not_current().unwrap() });
+        self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
     }
 
     /// Deinits renderer and OpenGl context.
@@ -847,9 +851,9 @@ impl GlWindow {
     pub fn deinit(mut self) {
         assert!(self.ctx.is_none()); // must deinit UiNodes first.
 
-        win_profile_scope!(self, "deinit::self");
+        win_profile_scope!(self.id(), "", "deinit::self");
 
-        let context = unsafe { self.context.take().unwrap().make_current().unwrap() };
+        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
         self.renderer.deinit();
         unsafe { context.make_not_current().unwrap() };
     }
