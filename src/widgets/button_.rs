@@ -23,7 +23,6 @@ widget! {
 
     use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
     use crate::core::types::{rgb, rgba};
-    use crate::widgets::container;
 
     // Properties applied to child before calling widget fn.
     child_properties {
@@ -58,80 +57,67 @@ widget! {
     }
 }
 
-/*
-
-widget! {
-    //! Button widget.
-    //! # Arguments
-    //! * `on_click`: Required button click event handler.
-    //! * `padding`: Margin around the button content.
-    //! * `background_color`:
-    //! * `border`:
-
-    use $crate::properties::*;
-
-     // Properties applied to child before calling widget fn.
-     properties(child) {
-         // Property declaration without default value, if not set does not apply.
-         // If set applies margin to child.
-         padding -> margin;
-         // Same with default value.
-         content_align: CENTER -> align;
-         // Default value of background_color property that is applied to child.
-         background_color: rgb(0, 0, 0);
-     },
-
-
-     // Properties applied to return of widget fn. Same sintax as
-     // child_properties.
-     properties(self) {
-         border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
-     },
-
-     on(hover) {
-        background_color: rgb(10, 10, 10);
-        border: 4., (Var::clone(&text_border), BorderStyle::Dashed);
-     }
-
-     on(pressed) {
-
-     }
-
-     on(disabled) {
-
-     }
-
-     // widget signature, must name the parameters after child,
-     // they behave like required properties in the declared button! macro.
-
-     pub fn button(child: impl Ui, on_click: impl FnMut(ButtonInput, &mut NextUpdate) + 'static, state: State) -> impl Ui {
-         let on_click = Rc::new(RefCell::new(on_click));
-         ui_part! {
-             focusable: default;
-             on_mouse_enter: |_, _| {
-                state.hover(true);
-             };
-             on_mouse_leave: |_, _| {
-                state.hover(false);
-             };
-             on_mouse_down: |_, _| {
-                state.pressed(true);
-             };
-             on_mouse_up: |_, _| {
-                state.pressed(false);
-             };
-             on_click: enclose! ((on_click) move |ci, n|{
-                 if ci.button == MouseButton::Left {
-                     (&mut *on_click.borrow_mut())(ButtonInput::Mouse(ci), n);
-                 }
-             });
-             on_key_tap: move |kt, n|{
-                 if kt.key == VirtualKeyCode::Return || kt.key == VirtualKeyCode::Space {
-                     (&mut *on_click.borrow_mut())(ButtonInput::Keyboard(kt), n);
-                 }
-             };
-             => child
-         }
-     }
+macro_rules! widget2 {
+    ($($tt:tt)*) => {};
 }
-*/
+
+widget2! {
+    /// Docs of widget.
+    pub button;
+
+    // Uses inserted in the `button!` macro call.
+    use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
+    use crate::core::types::{rgb, rgba};
+
+    // Properties applied to the macro child.
+    default(child) {
+        // Property declaration without default value, if not set does not apply.
+        // If set applies margin to child.
+        padding -> margin;
+        // Property declaration with default value, if not set still applies with
+        // default value, only does not apply if set with `unset!`.
+        content_align -> align: Alignment::CENTER;
+        // Property declaration using that does not alias the property name.
+        background_color: rgb(255, 255, 255);
+
+        // to have a property apply to child and not `self` you can write:
+        background_gradient -> background_gradient;
+    }
+
+    // Properties applied to the macro child properties.
+    // Same sintax as `default(child)`.
+    default(self) {
+        border: 4., (rgba(0, 0, 0, 0.0), BorderStyle::Dashed);
+        // When `required!` appears in the default values place the user
+        // gets an error if the property is not set.
+        on_click: required!;
+    }
+
+    // `when({bool expr})` blocks set properties given a condition. The
+    // expression can contain `self.{property}` and `child.{property}` to reference
+    // potentially live updating properties, every time this properties update the
+    // expression is rechecked.
+    when(self.is_mouse_over) {
+        // Sets the properties when the expression is true.
+        // the sintax in when blocks is like the sintax of properties
+        // in the generated macro
+        background_color: rgba(0, 0, 0, 0);
+        background_gradient: {
+            start: (0.0, 0.0),
+            end: (1.0, 1.0),
+            stops: vec![rgb(255, 0, 0), rgb(0, 255, 0), rgb(0, 0, 255)],
+        };
+    }
+
+    /// Optionaly you can wrap the child into widgets, or do any custom code.
+    ///
+    /// This is evaluated after the `default(child)` and before the `default(self)`.
+    => {
+        let ct = container! {
+            property: "";
+            => child
+        };
+        println!("button created");
+        ct
+    }
+}
