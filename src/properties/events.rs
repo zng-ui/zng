@@ -162,8 +162,13 @@ pub fn on_mouse_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<M
 }
 
 #[property(event)]
-pub fn on_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
+pub fn on_mouse_single_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event::set(child, MouseDoubleClick, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, MouseSingleClick, handler)
 }
 
 #[property(event)]
@@ -174,6 +179,11 @@ pub fn on_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEven
 #[property(event)]
 pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event::set(child, Click, handler)
+}
+
+#[property(event)]
+pub fn on_single_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
+    on_event::set(child, SingleClick, handler)
 }
 
 macro_rules! on_ctx_mtd {

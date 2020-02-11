@@ -8,6 +8,7 @@ use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use std::convert::{TryFrom, TryInto};
+use std::num::NonZeroU8;
 
 /// Specific information from the source of a [ClickArgs].
 #[derive(Debug, Clone)]
@@ -41,7 +42,10 @@ event_args! {
         /// Specific info from the source of this event.
         pub source: ClickArgsSource,
 
-        pub click_count: u8,
+        /// Sequential click count . Number `1` is single click, `2` is double click, etc.
+        ///
+        /// This is always `1` for clicks initiated by the keyboard.
+        pub click_count: NonZeroU8,
 
         // What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -92,7 +96,7 @@ impl TryFrom<KeyInputArgs> for ClickArgs {
                     repeat: args.repeat,
                     target: args.target.unwrap(),
                 },
-                1,
+                NonZeroU8::new(1).unwrap(),
                 args.modifiers,
             ))
         } else {
@@ -142,12 +146,19 @@ impl Event for Click {
     type Args = ClickArgs;
 }
 
+/// [Click] when the [click_count](ClickArgs::click_count) is `1`.
+pub struct SingleClick;
+impl Event for SingleClick {
+    type Args = ClickArgs;
+}
+
 /// Application extension that provides aggregate events.
 pub struct GestureEvents {
     key_down: EventListener<KeyInputArgs>,
     mouse_click: EventListener<MouseClickArgs>,
 
     click: EventEmitter<ClickArgs>,
+    single_click: EventEmitter<ClickArgs>,
 }
 
 impl Default for GestureEvents {
@@ -155,7 +166,9 @@ impl Default for GestureEvents {
         GestureEvents {
             key_down: EventListener::never(false),
             mouse_click: EventListener::never(false),
+
             click: EventEmitter::new(false),
+            single_click: EventEmitter::new(false),
         }
     }
 }
@@ -169,13 +182,27 @@ impl AppExtension for GestureEvents {
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update {
+            let notify_single = self.single_click.has_listeners();
+
             for args in self.mouse_click.updates(ctx.events) {
-                ctx.updates.push_notify(self.click.clone(), args.clone().into());
+                let args: ClickArgs = args.clone().into();
+
+                if notify_single && args.click_count.get() == 1 {
+                    ctx.updates.push_notify(self.single_click.clone(), args.clone());
+                }
+
+                ctx.updates.push_notify(self.click.clone(), args);
             }
 
             for args in self.key_down.updates(ctx.events) {
                 if key_input_is_click(args) {
-                    ctx.updates.push_notify(self.click.clone(), args.clone().try_into().unwrap());
+                    let args: ClickArgs = args.clone().try_into().unwrap();
+
+                    if notify_single {
+                        ctx.updates.push_notify(self.single_click.clone(), args.clone());
+                    }
+
+                    ctx.updates.push_notify(self.click.clone(), args);
                 }
             }
         }
