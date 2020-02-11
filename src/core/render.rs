@@ -14,12 +14,13 @@ pub struct FrameBuilder {
     widget_id: WidgetId,
     meta: LazyStateMap,
     cursor: CursorIcon,
+    hit_testable: bool,
 
     clip_rect: LayoutRect,
     clip_id: ClipId,
     spatial_id: SpatialId,
 
-    global_offset: LayoutPoint,
+    offset: LayoutPoint,
 }
 
 impl FrameBuilder {
@@ -33,10 +34,11 @@ impl FrameBuilder {
             widget_id: root_id,
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
+            hit_testable: true,
             clip_rect: LayoutRect::from_size(root_size),
             clip_id: ClipId::root(pipeline_id),
             spatial_id: SpatialId::root_reference_frame(pipeline_id),
-            global_offset: LayoutPoint::zero(),
+            offset: LayoutPoint::zero(),
         }
     }
 
@@ -64,13 +66,49 @@ impl FrameBuilder {
         self.cursor
     }
 
-    /// Current widget [ItemTag].
+    /// Current clipping node.
+    #[inline]
+    pub fn clip_id(&self) -> ClipId {
+        self.clip_id
+    }
+
+    /// Current spatial node.
+    #[inline]
+    pub fn spatial_id(&self) -> SpatialId {
+        self.spatial_id
+    }
+
+    /// Current widget [ItemTag]. The first number is the raw [widget_id],
+    /// the second number is the raw [cursor].
+    ///
+    /// For more details on how the ItemTag is used see [FrameHitInfo::new].
     #[inline]
     pub fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
     }
 
-    pub(crate) fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
+    /// If the context is hit-testable.
+    #[inline]
+    pub fn hit_testable(&self) -> bool {
+        self.hit_testable
+    }
+
+    /// Common item properties given a `clip_rect` and the current context.
+    ///
+    /// This is a common case helper,
+    #[inline]
+    pub fn common_item_properties(&self, clip_rect: LayoutRect) -> CommonItemProperties {
+        CommonItemProperties {
+            clip_rect,
+            hit_info: if self.hit_testable { Some(self.item_tag()) } else { None },
+            clip_id: self.clip_id,
+            spatial_id: self.spatial_id,
+            flags: PrimitiveFlags::empty(),
+        }
+    }
+
+    /// Calls [render](UiNode::render) for `node` inside a new widget context.
+    pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // The hit-test bounding-box used to take the coordinates of the widget hit
         // if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
         //
@@ -88,7 +126,7 @@ impl FrameBuilder {
         let parent_meta = mem::replace(&mut self.meta, LazyStateMap::default());
 
         let mut bounds = LayoutRect::from_size(area);
-        bounds.origin = self.global_offset;
+        bounds.origin = self.offset;
 
         let node = self.info.push(self.info_id, id, bounds);
         let parent_node = mem::replace(&mut self.info_id, node);
@@ -101,25 +139,79 @@ impl FrameBuilder {
         self.info_id = parent_node;
     }
 
+    /// Push a hit-test `rect` that hits the parent widget.
+    #[inline]
+    pub fn push_hit_test(&mut self, rect: LayoutRect) {
+        self.display_list.push_hit_test(&CommonItemProperties {
+            hit_info: Some(self.item_tag()),
+            clip_rect: rect,
+            clip_id: self.clip_id,
+            spatial_id: self.spatial_id,
+            flags: PrimitiveFlags::empty(),
+        });
+    }
+
+    /// Calls [render](UiNode::render) for `node` while [hit_testable] is set to `hit_testable`.
+    #[inline]
+    pub fn push_hit_testable(&mut self, node: &impl UiNode, hit_testable: bool) {
+        let parent_hit_testable = mem::replace(&mut self.hit_testable, hit_testable);
+        node.render(self);
+        self.hit_testable = parent_hit_testable;
+    }
+
+    /// Calls [render](UiNode::render) for `node` inside a new reference frame made from `rect`.
+    #[inline]
     pub fn push_node(&mut self, node: &impl UiNode, rect: &LayoutRect) {
-        todo!()
+        let parent_spatial_id = self.spatial_id;
+        self.spatial_id = self.display_list.push_reference_frame(
+            rect.origin,
+            parent_spatial_id,
+            TransformStyle::Flat,
+            PropertyBinding::default(),
+            ReferenceFrameKind::Transform,
+        );
+
+        let offset = rect.origin.to_vector();
+        self.offset += offset;
+
+        node.render(self);
+
+        self.display_list.pop_reference_frame();
+        self.spatial_id = parent_spatial_id;
+        self.offset -= offset;
     }
 
-    pub fn push_border(&mut self, rect: &LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
-        todo!()
+    /// Push a border using [common_item_properties].
+    #[inline]
+    pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        self.display_list
+            .push_border(&self.common_item_properties(rect.clone()), rect, widths, details);
     }
 
+    /// Push a text run using [common_item_properties].
+    #[inline]
     pub fn push_text(
         &mut self,
-        rect: &LayoutRect,
+        rect: LayoutRect,
         glyphs: &[GlyphInstance],
         font_instance_key: FontInstanceKey,
         color: ColorF,
         glyph_options: Option<GlyphOptions>,
     ) {
-        todo!()
+        self.display_list.push_text(
+            &self.common_item_properties(rect.clone()),
+            rect.clone(),
+            glyphs,
+            font_instance_key,
+            color,
+            glyph_options,
+        );
     }
 
+    /// Calls [render](UiNode::render) for `node` while [item_tag] indicates the `cursor`.
+    ///
+    /// Note that for the cursor to be used `node` or its children must push a hit-testable item.
+    #[inline]
     pub fn push_cursor(&mut self, cursor: CursorIcon, node: &impl UiNode) {
         let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
         node.render(self);
@@ -145,7 +237,8 @@ impl FrameBuilder {
     }
 }
 
-const WIDGET_HIT_AREA: u16 = u16::max_value();
+/// Complement of [ItemTag] that indicates the hit area of a widget.
+pub const WIDGET_HIT_AREA: u16 = u16::max_value();
 
 fn unpack_cursor(raw: u16) -> CursorIcon {
     debug_assert!(raw <= CursorIcon::RowResize as u16);
@@ -173,6 +266,18 @@ pub struct FrameHitInfo {
 
 impl FrameHitInfo {
     /// Initializes from a webrender hit-test result.
+    ///
+    /// Only item tags produced by [FrameBuilder] are expected.
+    ///
+    /// The tag format is:
+    ///
+    /// * `u64`: Raw [WidgetId].
+    /// * `u16`: Raw [CursorIcon] or `WIDGET_HIT_AREA`.
+    ///
+    /// Only widgets that are where hit by a cursor tag and `WIDGET_HIT_AREA` tag are included in
+    /// the final result.
+    ///
+    /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [HitInfo::point].
     #[inline]
     pub fn new(hits: HitTestResult) -> Self {
         let mut candidates = Vec::default();

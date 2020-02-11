@@ -21,7 +21,7 @@ impl WidgetId {
     /// Creates an id from a raw value.
     ///
     /// # Safety
-    /// 
+    ///
     /// This is only safe if called with a value provided by [WidgetId::get].
     pub unsafe fn from_raw(raw: u64) -> WidgetId {
         WidgetId(std::num::NonZeroU64::new_unchecked(raw))

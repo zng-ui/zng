@@ -75,7 +75,7 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
         profile_scope!("text::render");
 
         frame.push_text(
-            &LayoutRect::from_size(self.size),
+            LayoutRect::from_size(self.size),
             &self.glyphs,
             self.font.as_ref().unwrap().instance_key(),
             self.color,

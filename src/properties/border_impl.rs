@@ -213,7 +213,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     fn render(&self, frame: &mut FrameBuilder) {
         if self.visible {
             frame.push_border(
-                &LayoutRect::from_size(self.final_size),
+                LayoutRect::from_size(self.final_size),
                 *self.widths.get_local(),
                 self.render_details,
             );
