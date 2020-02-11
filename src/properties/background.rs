@@ -26,7 +26,7 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
 
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_color");
-        frame.push_fill_color(&LayoutRect::from_size(self.final_size), *self.color.get_local());
+        frame.push_color(LayoutRect::from_size(self.final_size), *self.color.get_local());
     }
 }
 
@@ -89,11 +89,11 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> U
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_gradient");
 
-        frame.push_fill_gradient(
-            &LayoutRect::from_size(self.final_size),
+        frame.push_linear_gradient(
+            LayoutRect::from_size(self.final_size),
             self.render_start,
             self.render_end,
-            self.stops.get_local().clone(),
+            self.stops.get_local(),
         );
     }
 }

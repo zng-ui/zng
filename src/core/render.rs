@@ -16,7 +16,6 @@ pub struct FrameBuilder {
     cursor: CursorIcon,
     hit_testable: bool,
 
-    clip_rect: LayoutRect,
     clip_id: ClipId,
     spatial_id: SpatialId,
 
@@ -35,7 +34,6 @@ impl FrameBuilder {
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
             hit_testable: true,
-            clip_rect: LayoutRect::from_size(root_size),
             clip_id: ClipId::root(pipeline_id),
             spatial_id: SpatialId::root_reference_frame(pipeline_id),
             offset: LayoutPoint::zero(),
@@ -79,7 +77,7 @@ impl FrameBuilder {
     }
 
     /// Current widget [ItemTag]. The first number is the raw [widget_id],
-    /// the second number is the raw [cursor].
+    /// the second number is the raw [cursor](FrameBuilder::cursor).
     ///
     /// For more details on how the ItemTag is used see [FrameHitInfo::new].
     #[inline]
@@ -181,14 +179,14 @@ impl FrameBuilder {
         self.offset -= offset;
     }
 
-    /// Push a border using [common_item_properties].
+    /// Push a border using [common_item_properties](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
         self.display_list
             .push_border(&self.common_item_properties(rect.clone()), rect, widths, details);
     }
 
-    /// Push a text run using [common_item_properties].
+    /// Push a text run using [common_item_properties](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_text(
         &mut self,
@@ -208,7 +206,7 @@ impl FrameBuilder {
         );
     }
 
-    /// Calls [render](UiNode::render) for `node` while [item_tag] indicates the `cursor`.
+    /// Calls [render](UiNode::render) for `node` while [item_tag](FrameBuilder::item_tag) indicates the `cursor`.
     ///
     /// Note that for the cursor to be used `node` or its children must push a hit-testable item.
     #[inline]
@@ -218,12 +216,27 @@ impl FrameBuilder {
         self.cursor = parent_cursor;
     }
 
-    pub fn push_fill_color(&mut self, rect: &LayoutRect, color: ColorF) {
-        todo!()
+    /// Push a color rectangle using [common_item_properties](FrameBuilder::common_item_properties).
+    #[inline]
+    pub fn push_color(&mut self, rect: LayoutRect, color: ColorF) {
+        self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
-    pub fn push_fill_gradient(&mut self, rect: &LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: Vec<GradientStop>) {
-        todo!()
+    /// Push a linear gradient rectangle using [common_item_properties](FrameBuilder::common_item_properties).
+    #[inline]
+    pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
+        self.display_list.push_stops(stops);
+
+        let gradient = Gradient {
+            start_point: start,
+            end_point: end,
+            extend_mode: ExtendMode::Clamp,
+        };
+        let tile_size = rect.size;
+        let tile_spacing = LayoutSize::zero();
+
+        self.display_list
+            .push_gradient(&self.common_item_properties(rect.clone()), rect, gradient, tile_size, tile_spacing);
     }
 
     /// Finializes the build.
