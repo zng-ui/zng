@@ -8,6 +8,7 @@ use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::{self, Display};
 use std::num::NonZeroU8;
 
 /// Specific information from the source of a [ClickArgs].
@@ -151,6 +152,90 @@ impl ClickArgs {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyGesture {
+    pub key: GestureKey,
+    pub modifiers: ModifiersState,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChord {
+    /// The first key gesture.
+    pub starter: KeyGesture,
+
+    /// The second key gesture.
+    pub complement: KeyGesture,
+}
+
+impl Display for KeyGesture {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.modifiers.logo() {
+            write!(f, "logo + ")?
+        }
+        if self.modifiers.ctrl() {
+            write!(f, "ctrl + ")?
+        }
+        if self.modifiers.shift() {
+            write!(f, "shift + ")?
+        }
+        if self.modifiers.alt() {
+            write!(f, "alt + ")?
+        }
+
+        write!(f, "{}", self.key)
+    }
+}
+
+impl Display for KeyChord {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", self.starter, self.complement)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KeyBinding {
+    Gesture(KeyGesture),
+    Chord(KeyChord),
+}
+
+impl Display for KeyBinding {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            KeyBinding::Gesture(g) => write!(f, "{}", g),
+            KeyBinding::Chord(c) => write!(f, "{}", c),
+        }
+    }
+}
+
+impl KeyInputArgs {
+    /// Key gesture this key press triggers.
+    #[inline]
+    pub fn gesture(&self) -> Option<KeyGesture> {
+        if self.state == ElementState::Released {
+            return None;
+        }
+
+        self.key.and_then(|k| k.try_into().ok()).map(|key| KeyGesture {
+            key,
+            modifiers: self.modifiers,
+        })
+    }
+}
+
+impl From<KeyGesture> for KeyBinding {
+    #[inline]
+    fn from(g: KeyGesture) -> Self {
+        KeyBinding::Gesture(g)
+    }
+}
+
+impl From<KeyChord> for KeyBinding {
+    #[inline]
+    fn from(c: KeyChord) -> Self {
+        KeyBinding::Chord(c)
+    }
+}
+
 /// Aggregate click event. Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
 pub struct Click;
 impl Event for Click {
@@ -246,4 +331,125 @@ impl AppExtension for GestureEvents {
             }
         }
     }
+}
+
+macro_rules! gesture_keys {
+    ($($key:ident),+) => {
+        /// The set of keys that can be used in a [KeyGesture].
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        pub enum GestureKey {
+            $($key),+
+        }
+
+        impl TryFrom<VirtualKeyCode> for GestureKey {
+            type Error = VirtualKeyCode;
+
+            fn try_from(key: VirtualKeyCode) -> Result<Self, VirtualKeyCode> {
+                match key {
+                    $(VirtualKeyCode::$key => Ok(GestureKey::$key),)+
+                    _ => Err(key)
+                }
+            }
+        }
+
+        impl Display for GestureKey {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                match self {
+                    $(GestureKey::$key => write!(f, stringify!($key))),+
+                }
+            }
+        }
+    };
+}
+
+gesture_keys! {
+    Key1,
+    Key2,
+    Key3,
+    Key4,
+    Key5,
+    Key6,
+    Key7,
+    Key8,
+    Key9,
+    Key0,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+    Escape,
+    F1,
+    F2,
+    F3,
+    F4,
+    F5,
+    F6,
+    F7,
+    F8,
+    F9,
+    F10,
+    F11,
+    F12,
+    F13,
+    F14,
+    F15,
+    F16,
+    F17,
+    F18,
+    F19,
+    Pause,
+    Insert,
+    Home,
+    Delete,
+    End,
+    PageDown,
+    PageUp,
+    Left,
+    Up,
+    Right,
+    Down,
+    Back,
+    Return,
+    Space,
+    Add,
+    Apostrophe,
+    Backslash,
+    Comma,
+    Decimal,
+    Divide,
+    Equals,
+    Minus,
+    Multiply,
+    Numpad1,
+    Numpad2,
+    Numpad3,
+    Numpad4,
+    Numpad5,
+    Numpad6,
+    Numpad7,
+    Numpad8,
+    Numpad9,
+    NumpadComma
 }
