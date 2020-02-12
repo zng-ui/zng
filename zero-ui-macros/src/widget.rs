@@ -23,8 +23,8 @@ pub(crate) fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::Token
         abort!(fn_.sig.span(), "function must return an `UiNode`")
     }
 
-    let (doc_attrs, other_attrs) = extract_attributes(&mut input.attrs);
-    let (_, fn_other_attrs) = extract_attributes(&mut fn_.attrs);
+    let (doc_attrs, other_attrs) = split_doc_other(&mut input.attrs);
+    let (_, fn_other_attrs) = split_doc_other(&mut fn_.attrs);
 
     let macro_vis = match fn_.vis {
         Visibility::Public(_) => {

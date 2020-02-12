@@ -125,7 +125,7 @@ pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::
         }
     }
 
-    let (docs_attrs, other_attrs) = extract_attributes(&mut fn_.attrs);
+    let (docs_attrs, other_attrs) = split_doc_other(&mut fn_.attrs);
 
     let build_doc = LitStr::new(
         &format!(

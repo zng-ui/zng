@@ -9,6 +9,7 @@ use proc_macro_hack::proc_macro_hack;
 mod impl_ui_node;
 mod property;
 mod widget;
+mod widget2;
 
 /// Generates default implementations of [UiNode](zero_ui::core::UiNode) methods.
 ///
