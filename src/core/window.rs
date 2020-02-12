@@ -1,7 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo};
+use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo, WidgetPath};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
@@ -586,11 +586,13 @@ impl Windows {
     }
 
     /// Hit-test the window lastest frame.
+    #[inline]
     pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> Result<FrameHitInfo, WindowNotFound> {
         self.req_window(window_id).map(|w| w.hit_test(point))
     }
 
     /// Reference the window latest frame.
+    #[inline]
     pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
         self.req_window(window_id).map(|w| w.frame_info())
     }
