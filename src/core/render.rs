@@ -358,6 +358,12 @@ impl FrameHitInfo {
         &self.hits
     }
 
+    /// The top hit.
+    #[inline]
+    pub fn target(&self) -> Option<&HitInfo> {
+        self.hits.first()
+    }
+
     /// Finds the widget in the hit-test result if it was hit.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<&HitInfo> {
@@ -512,7 +518,11 @@ impl FrameInfo {
     #[inline]
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         if path.window_id() == self.window_id() && path.frame_id() == self.frame_id() {
-            self.tree.get(path.node_id).map(|n| WidgetInfo::new(self, n.id()))
+            if let Some(id) = path.node_id {
+                self.tree.get(id).map(|n| WidgetInfo::new(self, n.id()))
+            } else {
+                self.find(path.widget_id())
+            }
         } else {
             None
         }
@@ -522,7 +532,7 @@ impl FrameInfo {
 /// Full address of a widget in a specific [FrameInfo].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidgetPath {
-    node_id: ego_tree::NodeId,
+    node_id: Option<ego_tree::NodeId>,
     window_id: WindowId,
     frame_id: FrameId,
     path: Box<[WidgetId]>,
@@ -563,6 +573,33 @@ impl WidgetPath {
     #[inline]
     pub fn contains(&self, widget_id: WidgetId) -> bool {
         self.path.iter().any(move |&w| w == widget_id)
+    }
+
+    /// Get the inner most widget parent shared by both `self` and `other`.
+    ///
+    /// The [frame_id](WidgetPath::frame_id) of `self` is used in the result.
+    #[inline]
+    pub fn shared_ancestor(&self, other: &WidgetPath) -> Option<WidgetPath> {
+        if self.window_id == other.window_id {
+            let mut path = Vec::default();
+
+            for (a, b) in self.path.iter().zip(other.path.iter()) {
+                if a != b {
+                    break;
+                }
+                path.push(*a);
+            }
+
+            if !path.is_empty() {
+                return Some(WidgetPath {
+                    node_id: None,
+                    window_id: self.window_id,
+                    frame_id: self.frame_id,
+                    path: path.into(),
+                });
+            }
+        }
+        None
     }
 }
 
@@ -611,7 +648,7 @@ impl<'a> WidgetInfo<'a> {
         WidgetPath {
             frame_id: self.frame.frame_id,
             window_id: self.frame.window_id,
-            node_id: self.node_id,
+            node_id: Some(self.node_id),
             path: path.into(),
         }
     }

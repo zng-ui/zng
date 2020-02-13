@@ -12,59 +12,107 @@ use std::time::*;
 event_args! {
     /// [MouseMove] event args.
     pub struct MouseMoveArgs {
+        /// Id of window that received the event.
         pub window_id: WindowId,
+
+        /// Id of device that generated the event.
         pub device_id: DeviceId,
+
+        /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
+
+        /// Position of the mouse in the coordinates of [target](MouseMoveArgs::target).
         pub position: LayoutPoint,
+
+        /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
+
+        /// Full path to the top-most hit in [hits](MouseMoveArgs::hits).
+        pub target: WidgetPath,
 
         ..
 
-        /// If the widget is in [hits](MouseMoveArgs::hits).
+        /// If the widget is in [target](MouseMoveArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.hits.contains(ctx.widget_id)
+            self.target.contains(ctx.widget_id)
          }
     }
 
     /// [MouseInput], [MouseDown], [MouseUp] event args.
     pub struct MouseInputArgs {
+        /// Id of window that received the event.
         pub window_id: WindowId,
+
+        /// Id of device that generated the event.
         pub device_id: DeviceId,
+
+        /// Which mouse button generated the event.
         pub button: MouseButton,
+
+        /// Position of the mouse in the coordinates of [target](MouseInputArgs::target).
         pub position: LayoutPoint,
+
+        /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
+
+        /// The state the [button](MouseInputArgs::button) was changed to.
         pub state: ElementState,
+
+        /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
+
+        /// Full path to the top-most hit in [hits](MouseInputArgs::hits).
+        pub target: WidgetPath,
 
         ..
 
-        /// If the widget is in [hits](MouseInputArgs::hits).
+        /// If the widget is in [target](MouseInputArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.hits.contains(ctx.widget_id)
+            self.target.contains(ctx.widget_id)
         }
     }
 
     /// [MouseClick] event args.
     pub struct MouseClickArgs {
+        /// Id of window that received the event.
         pub window_id: WindowId,
+
+        /// Id of device that generated the event.
         pub device_id: DeviceId,
+
+        /// Which mouse button generated the event.
         pub button: MouseButton,
+
+        /// Position of the mouse in the coordinates of [target](MouseClickArgs::target).
         pub position: LayoutPoint,
+
+         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
         /// Sequential click count . Number `1` is single click, `2` is double click, etc.
         pub click_count: NonZeroU8,
 
-        /// Widgets that got clicked, only the widgets that where clicked are in the hit-info.
+        /// Hit-test result for the mouse point in the window, at the moment the click event
+        /// was generated.
+        pub hits: FrameHitInfo,
+
+        /// Full path to the widget that got clicked.
         ///
         /// A widget is clicked if the [MouseDown] and [MouseUp] happen
         /// in sequence in the same widget. Subsequent clicks (double, triple)
         /// happen on [MouseDown].
-        pub hits: FrameHitInfo,
+        ///
+        /// If a [MouseDown] happen in a child widget and the pointer is dragged
+        /// to a larger parent widget and then let go ([MouseUp]), the click target
+        /// is the parent widget.
+        ///
+        /// Multi-clicks (`[click_count](MouseClickArgs::click_count) > 1`) only happen to
+        /// the same target.
+        pub target: WidgetPath,
 
         ..
 
-        /// If the widget is in [hits](MouseClickArgs::hits).
+        /// If the widget is in [target](MouseClickArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.hits.contains(ctx.widget_id)
         }
@@ -145,7 +193,7 @@ pub struct MouseEvents {
 
     /// when the last mouse_down event happened.
     last_pressed: Instant,
-    click_hits: Option<FrameHitInfo>,
+    click_target: Option<WidgetPath>,
     click_count: u8,
 
     mouse_move: EventEmitter<MouseMoveArgs>,
@@ -169,7 +217,7 @@ impl Default for MouseEvents {
             modifiers: ModifiersState::default(),
 
             last_pressed: Instant::now() - Duration::from_secs(60),
-            click_hits: None,
+            click_target: None,
             click_count: 0,
 
             mouse_move: EventEmitter::new(true),
@@ -194,8 +242,26 @@ impl MouseEvents {
             LayoutPoint::default()
         };
 
-        let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
-        let args = MouseInputArgs::now(window_id, device_id, button, position, self.modifiers, state, hits.clone());
+        let windows = ctx.services.req::<Windows>();
+        let hits = windows.hit_test(window_id, position).unwrap();
+        let frame_info = windows.frame_info(window_id).unwrap();
+
+        let (target, position) = if let Some(t) = hits.target() {
+            (frame_info.find(t.widget_id).unwrap().path(), t.point)
+        } else {
+            (frame_info.root().path(), position)
+        };
+
+        let args = MouseInputArgs::now(
+            window_id,
+            device_id,
+            button,
+            position,
+            self.modifiers,
+            state,
+            hits.clone(),
+            target.clone(),
+        );
 
         // on_mouse_input
         ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
@@ -209,10 +275,13 @@ impl MouseEvents {
                 let now = Instant::now();
 
                 if self.click_count == 1 {
-                    self.click_hits = Some(hits);
-                } else if self.click_count >= 2 && (now - self.last_pressed) < multi_click_time_ms() {
-                    // if click_count >= 2 and the time is in multi-click range.
-                    let hits = self.click_hits.as_ref().unwrap().intersection(&hits);
+                    // first mouse press, could be a click if a Released happen on the same target.
+                    self.click_target = Some(target);
+                } else if self.click_count >= 2
+                    && (now - self.last_pressed) < multi_click_time_ms()
+                    && self.click_target.as_ref().unwrap() == &target
+                {
+                    // if click_count >= 2 AND the time is in multi-click range, AND is the same exact target.
 
                     let args = MouseClickArgs::new(
                         now,
@@ -222,10 +291,9 @@ impl MouseEvents {
                         position,
                         self.modifiers,
                         NonZeroU8::new(self.click_count).unwrap(),
-                        hits.clone(),
+                        hits,
+                        target,
                     );
-
-                    self.click_hits = Some(hits);
 
                     // on_mouse_click (click_count > 1)
 
@@ -239,8 +307,8 @@ impl MouseEvents {
 
                     ctx.updates.push_notify(self.mouse_click.clone(), args);
                 } else {
-                    self.click_count = 1;
-                    self.click_hits = None;
+                    self.click_count = 0;
+                    self.click_target = None;
                 }
                 self.last_pressed = now;
             }
@@ -250,18 +318,32 @@ impl MouseEvents {
 
                 if let Some(click_count) = NonZeroU8::new(self.click_count) {
                     if click_count.get() == 1 {
-                        let hits = self.click_hits.as_ref().unwrap().intersection(&hits);
+                        if let Some(target) = self.click_target.as_ref().unwrap().shared_ancestor(&target) {
+                            //if MouseDown and MouseUp happened in the same target.
 
-                        let args = MouseClickArgs::now(window_id, device_id, button, position, self.modifiers, click_count, hits.clone());
+                            let args = MouseClickArgs::now(
+                                window_id,
+                                device_id,
+                                button,
+                                position,
+                                self.modifiers,
+                                click_count,
+                                hits,
+                                target.clone(),
+                            );
 
-                        self.click_hits = Some(hits);
+                            self.click_target = Some(target);
 
-                        if self.mouse_single_click.has_listeners() {
-                            ctx.updates.push_notify(self.mouse_single_click.clone(), args.clone());
+                            if self.mouse_single_click.has_listeners() {
+                                ctx.updates.push_notify(self.mouse_single_click.clone(), args.clone());
+                            }
+
+                            // on_mouse_click
+                            ctx.updates.push_notify(self.mouse_click.clone(), args);
+                        } else {
+                            self.click_count = 0;
+                            self.click_target = None;
                         }
-
-                        // on_mouse_click
-                        ctx.updates.push_notify(self.mouse_click.clone(), args);
                     }
                 }
             }
@@ -272,8 +354,17 @@ impl MouseEvents {
         if position != self.pos || Some(window_id) != self.pos_window {
             self.pos = position;
             self.pos_window = Some(window_id);
-            let hits = ctx.services.req::<Windows>().hit_test(window_id, position).unwrap();
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits);
+            let windows = ctx.services.req::<Windows>();
+            let hits = windows.hit_test(window_id, position).unwrap();
+            let frame_info = windows.frame_info(window_id).unwrap();
+
+            let (target, position) = if let Some(t) = hits.target() {
+                (frame_info.find(t.widget_id).unwrap().path(), t.point)
+            } else {
+                (frame_info.root().path(), position)
+            };
+
+            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
 
             ctx.updates.push_notify(self.mouse_move.clone(), args);
         }

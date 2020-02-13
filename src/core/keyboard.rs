@@ -6,6 +6,7 @@ use crate::core::event::*;
 use crate::core::focus::Focus;
 use crate::core::render::WidgetPath;
 use crate::core::types::*;
+use crate::core::window::Windows;
 use std::time::Instant;
 
 event_args! {
@@ -33,17 +34,13 @@ event_args! {
         pub repeat: bool,
 
         /// The focused element at the time of the key input.
-        pub target: Option<WidgetPath>,
+        pub target: WidgetPath,
 
         ..
 
         /// If the widget is focused or contains the focused widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            if let Some(wp) = &self.target {
-                wp.contains(ctx.widget_id)
-            } else {
-                false
-            }
+            self.target.contains(ctx.widget_id)
          }
     }
 }
@@ -131,7 +128,12 @@ impl AppExtension for KeyboardEvents {
                 self.last_key_down = None;
             }
 
-            let target = ctx.services.get::<Focus>().and_then(|f| f.focused().cloned());
+            let focused = ctx.services.get::<Focus>().and_then(|f| f.focused().cloned());
+            let target = if let Some(focused) = focused {
+                focused
+            } else {
+                ctx.services.req::<Windows>().frame_info(window_id).unwrap().root().path()
+            };
 
             let args = KeyInputArgs {
                 timestamp: Instant::now(),

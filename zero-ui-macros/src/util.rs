@@ -18,7 +18,7 @@ fn pub_vis() -> Visibility {
 
 ///-> (docs, other_attrs)
 #[allow(unused)]
-fn extract_attributes(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
+fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
     let mut docs = vec![];
     let mut other_attrs = vec![];
 
@@ -70,4 +70,13 @@ macro_rules! abort_call_site {
     ($($tt:tt)*) => {
         abort!(Span::call_site(), $($tt)*)
     };
+}
+
+#[allow(unused)]
+macro_rules! doc {
+    ($($tt:tt)*) => {{
+        let doc_lit = LitStr::new(&format!($($tt)*), Span::call_site());
+        let doc: Attribute = parse_quote!(#[doc=#doc_lit]);
+        doc
+    }};
 }

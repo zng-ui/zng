@@ -8,7 +8,8 @@ use proc_macro_hack::proc_macro_hack;
 
 mod impl_ui_node;
 mod property;
-mod widget;
+pub(crate) mod widget;
+mod widget_new;
 
 /// Generates default implementations of [UiNode](zero_ui::core::UiNode) methods.
 ///
@@ -238,5 +239,5 @@ pub fn widget(input: TokenStream) -> TokenStream {
 #[doc(hidden)]
 #[proc_macro_hack]
 pub fn widget_new(input: TokenStream) -> TokenStream {
-    widget::expand_widget_new(input)
+    widget_new::expand_widget_new(input)
 }
