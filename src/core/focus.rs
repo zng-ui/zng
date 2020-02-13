@@ -317,26 +317,20 @@ impl<'a> WidgetFocusInfo<'a> {
             // Set as not focusable.
             (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
 
-            // Set as focus scope and not set as not focusable.
-            (_, Some(true), idx, tab, dir) => FocusInfo::FocusScope(
-                idx.unwrap_or(TabIndex::AUTO),
-                tab.unwrap_or(TabNav::Continue),
-                dir.unwrap_or(DirectionalNav::None),
-            ),
-
-            // Set tab nav and did not set as not focus scope.
-            (_, None, idx, Some(tab), dir) => {
-                FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab, dir.unwrap_or(DirectionalNav::None))
+            // Set as focus scope and not set as not focusable
+            // or set tab nav and did not set as not focus scope
+            // or set directional nav and did not set as not focus scope.
+            (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
+                FocusInfo::FocusScope(
+                    idx.unwrap_or(TabIndex::AUTO),
+                    tab.unwrap_or(TabNav::Continue),
+                    dir.unwrap_or(DirectionalNav::None),
+                )
             }
 
-            // Set directional nav and did not set as not focus scope.
-            (_, None, idx, tab, Some(dir)) => FocusInfo::FocusScope(idx.unwrap_or(TabIndex::AUTO), tab.unwrap_or(TabNav::Continue), dir),
-
-            // Set as focusable and was not focus scope.
-            (Some(true), _, idx, _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
-
-            // Set tab index and was not focus scope and did not set as not focusable.
-            (_, _, Some(idx), _, _) => FocusInfo::Focusable(idx),
+            // Set as focusable and was not focus scope
+            // or set tab index and was not focus scope and did not set as not focusable.
+            (Some(true), _, idx, _, _) | (_, _, idx @ Some(_), _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
 
             _ => FocusInfo::NotFocusable,
         }
