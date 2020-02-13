@@ -14,33 +14,45 @@ pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_
 
     let user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
 
-    let mut let_child_args = vec![];
-    let mut set_child_props = vec![];
-    for default in input.default_child.properties {
-        let value = if let Some(p) = user_sets.remove(&default.ident) {
-            p.value
-        } else if let Some(d) = default.default_value {
-            match d {
-                PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
-                PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
-                PropertyDefaultValue::Unset => PropertyValue::Unset,
-                PropertyDefaultValue::Required => abort_call_site!("property `{}` is required", default.ident)
-            }
-        } else {
-            // no default value and user did not set
-            continue;
-        };
+    let PropertyCalls {
+        let_args: let_child_args,
+        set_ctx: set_child_props_ctx,
+        set_event: set_child_props_event,
+        set_outer: set_child_props_outer,
+        set_inner: set_child_props_inner,
+    } = match make_property_calls(input.default_child, &mut user_sets) {
+        Ok(p) => p,
+        Err(e) => abort_call_site!("{}", e),
+    };
 
-        match value {
-            PropertyValue::Args(a) => {
+    let mut self_calls = match make_property_calls(input.default_self, &mut user_sets) {
+        Ok(p) => p,
+        Err(e) => abort!(e.span(), "{}", e),
+    };
 
-            },
-            PropertyValue::Fields(f) => {
-
-            },
-            PropertyValue::Unset => continue,
+    let let_id = if let Some(p) = user_sets.remove(&self::ident("id")) {
+        match p.value {
+            PropertyValue::Args(a) => quote!(let __id = #crate_::core::validate_widget_id_args(#a)),
+            PropertyValue::Fields(a) => quote!(let __id = #crate_::core::ValidateWidgetIdArgs{#a}.id),
+            PropertyValue::Unset => abort_call_site!("cannot unset id"),
         }
+    } else {
+        quote!(let __id = #crate_::core::types::WidgetId::new_unique();)
+    };
+
+    for (ident, assign) in user_sets {
+        make_property_call(ident, assign.value, &mut self_calls);
     }
+
+    let PropertyCalls {
+        let_args: let_self_args,
+        set_ctx: mut set_self_props_ctx,
+        set_event: mut set_self_props_event,
+        set_outer: mut set_self_props_outer,
+        set_inner: mut set_self_props_inner,
+    } = self_calls;
+
+    let ident = input.ident;
 
     let r = quote! {{
         let __child = #child;
@@ -49,7 +61,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_
         let __child = {
             #(#imports)*
 
-            #(#set_child_props)*
+            #(#set_child_props_ctx)*
+            #(#set_child_props_event)*
+            #(#set_child_props_outer)*
+            #(#set_child_props_inner)*
 
             #ident::child(__child)
         };
@@ -60,13 +75,98 @@ pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_
         {
             #(#imports)*
 
-            #(#set_self_props)*
+            #(#set_self_props_ctx)*
+            #(#set_self_props_event)*
+            #(#set_self_props_outer)*
+            #(#set_self_props_inner)*
 
             #crate_::core::widget(__id, __self)
         }
     }};
 
     r.into()
+}
+
+fn make_property_calls(default: DefaultBlock, user_sets: &mut HashMap<Ident, PropertyAssign>) -> Result<PropertyCalls> {
+    let mut r = PropertyCalls::default();
+
+    for default in default.properties {
+        let value = if let Some(p) = user_sets.remove(&default.ident) {
+            p.value
+        } else if let Some(d) = default.default_value {
+            match d {
+                PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
+                PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
+                PropertyDefaultValue::Unset => PropertyValue::Unset,
+                PropertyDefaultValue::Required => {
+                    return Err(Error::new(Span::call_site(), format!("property `{}` is required", default.ident)))
+                }
+            }
+        } else {
+            // no default value and user did not set
+            continue;
+        };
+
+        let ident = default.maps_to.unwrap_or(default.ident);
+
+        if make_property_call(ident, value, &mut r) {
+            continue; // unset
+        }
+    }
+
+    Ok(r)
+}
+
+type Unset = bool;
+
+fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls) -> Unset {
+    macro_rules! arg {
+        ($n:expr) => {
+            self::ident(&format!("__{}_arg_{}", ident, $n))
+        };
+    }
+
+    let len = match value {
+        PropertyValue::Args(a) => {
+            for (i, a) in a.iter().enumerate() {
+                let arg = arg!(i);
+                r.let_args.push(quote!(let #arg = #a;));
+            }
+            a.len()
+        }
+        PropertyValue::Fields(f) => {
+            let len = f.len();
+
+            let args = (0..len).into_iter().map(|i| arg!(i));
+            r.let_args.push(quote! {
+                let (#(#args),*) = #ident::Args {
+                    #f
+                };
+            });
+
+            len
+        }
+        PropertyValue::Unset => return true,
+    };
+
+    let args = (0..len).into_iter().map(|i| arg!(i));
+    let args = quote!(__child, #(#args),*);
+
+    r.set_ctx.push(quote!(let (#args) = #ident::set_context_var(#args);));
+    r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
+    r.set_outer.push(quote!(let (#args) = #ident::set_outer(#args);));
+    r.set_inner.push(quote!(let (#args) = #ident::set_inner(#args);));
+
+    false
+}
+
+#[derive(Default)]
+struct PropertyCalls {
+    let_args: Vec<TokenStream>,
+    set_ctx: Vec<TokenStream>,
+    set_event: Vec<TokenStream>,
+    set_outer: Vec<TokenStream>,
+    set_inner: Vec<TokenStream>,
 }
 
 /// Input error not caused by the user.

@@ -119,6 +119,19 @@ impl<T: UiNode> UiNode for Widget<T> {
     }
 }
 
+/// This is called from widget macros to validate `id: ?;`.
+#[inline]
+#[doc(hidden)]
+pub fn validate_widget_id_args(id: WidgetId) -> WidgetId {
+    id
+}
+
+/// This is used in widget macros to validate `id: {id: ?};`.
+#[doc(hidden)]
+pub struct ValidateWidgetIdArgs {
+    id: WidgetId,
+}
+
 /// Creates a widget bondary.
 pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
     Widget {
