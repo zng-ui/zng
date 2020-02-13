@@ -24,25 +24,20 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         (quote!(), quote!())
     };
 
-    docs.push(doc!("\n# Properties\n"));
-    docs.push(doc!("Any property can be set in this widget using `property_name: args;`."));
-    docs.push(doc!("See [zero_ui::properties] for more information about properties."));
+    docs.push(doc!("\n# Required Properties\n"));
+    docs.push(doc!("Properties that must be set in this widget:"));
 
-    docs.push(doc!("\n## Required\n"));
-    docs.push(doc!("This widget does not require any property."));
+    docs.push(doc!("\n# Default Properties\n"));
+    docs.push(doc!("Properties that are set by default in this widget:"));
 
-    docs.push(doc!("This widget requires a property:"));
+    docs.push(doc!("\nYou can override any of this properties by setting then to another value."));
+    docs.push(doc!("You can also unset this properties by setting then to `unset!`."));
 
-    docs.push(doc!("This widget requires {} properties:", 2));
+    docs.push(doc!("\n# Other Properties\n"));
+    docs.push(doc!("Properties that have special meaning in this widget:"));
 
-    docs.push(doc!("\n## Defaults\n"));
-    docs.push(doc!("This widget does not set any property by default."));
-
-    docs.push(doc!("This widget sets some properties by default. You can override a default by"));
-    docs.push(doc!(
-        "setting the property to another value. You can unset the property by writing `property: unset!;`."
-    ));
-    docs.push(doc!("\nDefault properties:"));
+    docs.push(doc!("\nAll widgets are open-ended and accept any property."));
+    docs.push(doc!("See [zero_ui::properties] for more information."));
 
     let ident = input.ident;
     let mut imports = input.imports;
@@ -70,12 +65,17 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         quote!(child)
     };
 
+    // rust-doc includes the macro arm pattern in documentation.
+    let macro_arm = quote_spanned! {ident.span()=>
+        ($($tt:tt)+)
+    };
+
     let r = quote! {
-        #(#docs)*
+        #[doc(hidden)]
         #(#attrs)*
         #export
         macro_rules! #ident {
-            ($($tt:tt)+) => {
+            #macro_arm => {
                 widget_new! {
                     mod #ident;
                     #(#imports)*
@@ -87,18 +87,23 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
         }
 
-        #[doc(hidden)]
+        #(#docs)*
         #pub_ mod #ident {
             use super::*;
-            pub fn child(child: impl Ui) -> impl Ui {
+            use zero_ui::core::UiNode;
+
+            #[doc(hidden)]
+            pub fn child(child: impl UiNode) -> impl UiNode {
                 #child
             }
-            #[allow(unused)]
-            fn test(child: impl Ui) -> impl Ui {
-                #ident! {
-                    => child
-                }
-            }
+
+            //#[doc(hidden)]
+            //#[allow(unused)]
+            //fn test(child: impl UiNode) -> impl UiNode {
+            //    #ident! {
+            //        => child
+            //    }
+            //}
         }
     };
 
@@ -109,6 +114,7 @@ struct WidgetInput {
     attrs: Vec<Attribute>,
     export: bool,
     ident: Ident,
+    inherits: Punctuated<Ident, Token![+]>,
     imports: Vec<ItemUse>,
     default_child: Vec<DefaultBlock>,
     default_self: Vec<DefaultBlock>,
@@ -125,6 +131,13 @@ impl Parse for WidgetInput {
         }
 
         let ident = input.parse()?;
+        let inherits = if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            Punctuated::parse_separated_nonempty(input)?
+        } else {
+            Punctuated::new()
+        };
+        input.parse::<Token![;]>()?;
 
         let mut imports = vec![];
         while input.peek(Token![use]) {
@@ -162,6 +175,7 @@ impl Parse for WidgetInput {
             attrs,
             export,
             ident,
+            inherits,
             imports,
             default_child,
             default_self,
@@ -245,27 +259,33 @@ impl Parse for PropertyDeclaration {
         let attrs = Attribute::parse_outer(input)?;
 
         let ident = input.parse()?;
-
         let mut maps_to = None;
         let mut default_value = None;
-        let lookahead = input.lookahead1();
-        if lookahead.peek(Token![->]) {
-            input.parse::<Token![->]>()?;
-            maps_to = Some(input.parse()?);
-        } else if lookahead.peek(Token![:]) {
-            input.parse::<Token![:]>()?;
-            default_value = Some(input.parse()?);
-        } else {
-            return Err(lookahead.error());
-        }
 
         let lookahead = input.lookahead1();
-        if maps_to.is_some() && lookahead.peek(Token![:]) {
+        if lookahead.peek(Token![->]) {
+            // is property alias.
+            input.parse::<Token![->]>()?;
+            maps_to = Some(input.parse()?);
+
+            let lookahead = input.lookahead1();
+            if lookahead.peek(Token![:]) {
+                // alias does not need default value but this one has it too.
+                input.parse::<Token![:]>()?;
+                default_value = Some(input.parse()?);
+            } else if lookahead.peek(Token![;]) {
+                // no value and added the required ;.
+                input.parse::<Token![;]>()?;
+            } else {
+                // invalid did not finish the declaration with ;.
+                return Err(lookahead.error());
+            }
+        } else if lookahead.peek(Token![:]) {
+            // is not property alias but has default value.
             input.parse::<Token![:]>()?;
             default_value = Some(input.parse()?);
-        } else if lookahead.peek(Token![;]) {
-            input.parse::<Token![;]>()?;
         } else {
+            // invalid, no alias and no value.
             return Err(lookahead.error());
         }
 
@@ -412,8 +432,12 @@ impl Parse for DefaultBlockTarget {
     fn parse(input: ParseStream) -> Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(Token![self]) {
+            input.parse::<Token![self]>()?;
+
             Ok(DefaultBlockTarget::Self_)
         } else if lookahead.peek(keyword::child) {
+            input.parse::<keyword::child>()?;
+
             Ok(DefaultBlockTarget::Child)
         } else {
             Err(lookahead.error())
@@ -436,7 +460,9 @@ macro_rules! demo {
 // Input:
 demo! {
     /// Docs of widget macro named button.
-    pub button;// this also becomes a mod.
+    //`button` also becomes a mod.
+    // `container` and `other` is another widget that button inherits from.
+    pub button: container + other;
 
     // Uses inserted in the `button!` macro call.
     use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
@@ -532,15 +558,16 @@ demo! {
     #[doc(hidden)]
     pub mod button {
         use super::*;
+        use zero_ui::core::UiNode;
 
         // => { child }
-        pub fn child(child: impl Ui) -> impl Ui {
+        pub fn child(child: impl UiNode) -> impl UiNode {
             child
         }
 
         // compile test of the property declarations
         #[allow(unused)]
-        fn test(child: impl Ui) -> impl Ui {
+        fn test(child: impl UiNode) -> impl UiNode {
             button! {
                 => child
             }

@@ -6,13 +6,15 @@ use syn::{parse::*, *};
 include!("util.rs");
 
 /// `widget_new!` implementation
-pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_macro::TokenStream {
-    let mut input = parse_macro_input!(input as WidgetNewInput);
+#[allow(clippy::cognitive_complexity)]
+pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as WidgetNewInput);
 
     let child = input.user_child_expr;
     let imports = input.imports;
+    let imports = quote!(#(#imports)*);
 
-    let user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
+    let mut user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
 
     let PropertyCalls {
         let_args: let_child_args,
@@ -20,28 +22,28 @@ pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_
         set_event: set_child_props_event,
         set_outer: set_child_props_outer,
         set_inner: set_child_props_inner,
-    } = match make_property_calls(input.default_child, &mut user_sets) {
+    } = match make_property_calls(&imports, input.default_child, &mut user_sets) {
         Ok(p) => p,
         Err(e) => abort_call_site!("{}", e),
     };
 
-    let mut self_calls = match make_property_calls(input.default_self, &mut user_sets) {
+    let mut self_calls = match make_property_calls(&imports, input.default_self, &mut user_sets) {
         Ok(p) => p,
         Err(e) => abort!(e.span(), "{}", e),
     };
 
     let let_id = if let Some(p) = user_sets.remove(&self::ident("id")) {
         match p.value {
-            PropertyValue::Args(a) => quote!(let __id = #crate_::core::validate_widget_id_args(#a)),
-            PropertyValue::Fields(a) => quote!(let __id = #crate_::core::ValidateWidgetIdArgs{#a}.id),
+            PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a)),
+            PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id),
             PropertyValue::Unset => abort_call_site!("cannot unset id"),
         }
     } else {
-        quote!(let __id = #crate_::core::types::WidgetId::new_unique();)
+        quote!(let __id = zero_ui::core::types::WidgetId::new_unique();)
     };
 
     for (ident, assign) in user_sets {
-        make_property_call(ident, assign.value, &mut self_calls);
+        make_property_call(ident, assign.value, &mut self_calls, &imports, false);
     }
 
     let PropertyCalls {
@@ -55,53 +57,60 @@ pub fn expand_widget_new(input: proc_macro::TokenStream, crate_: Ident) -> proc_
     let ident = input.ident;
 
     let r = quote! {{
-        let __child = #child;
+        let __node = #child;
         #(#let_child_args)*
 
-        let __child = {
-            #(#imports)*
+        let __node = {
+            #imports
 
             #(#set_child_props_ctx)*
             #(#set_child_props_event)*
             #(#set_child_props_outer)*
             #(#set_child_props_inner)*
 
-            #ident::child(__child)
+            #ident::child(__node)
         };
 
         #(#let_self_args)*
         #let_id
 
         {
-            #(#imports)*
+            #imports
 
             #(#set_self_props_ctx)*
             #(#set_self_props_event)*
             #(#set_self_props_outer)*
             #(#set_self_props_inner)*
 
-            #crate_::core::widget(__id, __self)
+            zero_ui::core::widget(__id, __node)
         }
     }};
 
     r.into()
 }
 
-fn make_property_calls(default: DefaultBlock, user_sets: &mut HashMap<Ident, PropertyAssign>) -> Result<PropertyCalls> {
+fn make_property_calls(
+    imports: &TokenStream,
+    default: DefaultBlock,
+    user_sets: &mut HashMap<Ident, PropertyAssign>,
+) -> Result<PropertyCalls> {
     let mut r = PropertyCalls::default();
 
     for default in default.properties {
-        let value = if let Some(p) = user_sets.remove(&default.ident) {
-            p.value
+        let (value, default_value) = if let Some(p) = user_sets.remove(&default.ident) {
+            (p.value, false)
         } else if let Some(d) = default.default_value {
-            match d {
-                PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
-                PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
-                PropertyDefaultValue::Unset => PropertyValue::Unset,
-                PropertyDefaultValue::Required => {
-                    return Err(Error::new(Span::call_site(), format!("property `{}` is required", default.ident)))
-                }
-            }
+            (
+                match d {
+                    PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
+                    PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
+                    PropertyDefaultValue::Unset => PropertyValue::Unset,
+                    PropertyDefaultValue::Required => {
+                        return Err(Error::new(Span::call_site(), format!("property `{}` is required", default.ident)))
+                    }
+                },
+                true,
+            )
         } else {
             // no default value and user did not set
             continue;
@@ -109,7 +118,7 @@ fn make_property_calls(default: DefaultBlock, user_sets: &mut HashMap<Ident, Pro
 
         let ident = default.maps_to.unwrap_or(default.ident);
 
-        if make_property_call(ident, value, &mut r) {
+        if make_property_call(ident, value, &mut r, imports, default_value) {
             continue; // unset
         }
     }
@@ -119,7 +128,7 @@ fn make_property_calls(default: DefaultBlock, user_sets: &mut HashMap<Ident, Pro
 
 type Unset = bool;
 
-fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls) -> Unset {
+fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls, imports: &TokenStream, default_value: bool) -> Unset {
     macro_rules! arg {
         ($n:expr) => {
             self::ident(&format!("__{}_arg_{}", ident, $n))
@@ -130,27 +139,48 @@ fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls)
         PropertyValue::Args(a) => {
             for (i, a) in a.iter().enumerate() {
                 let arg = arg!(i);
-                r.let_args.push(quote!(let #arg = #a;));
+
+                if default_value {
+                    r.let_args.push(quote! {
+                        let #arg = {
+                            #imports
+                            #a
+                        };
+                    });
+                } else {
+                    r.let_args.push(quote!(let #arg = #a;));
+                }
             }
             a.len()
         }
         PropertyValue::Fields(f) => {
             let len = f.len();
 
-            let args = (0..len).into_iter().map(|i| arg!(i));
-            r.let_args.push(quote! {
-                let (#(#args),*) = #ident::Args {
-                    #f
-                };
-            });
+            let args = (0..len).map(|i| arg!(i));
+            if default_value {
+                r.let_args.push(quote! {
+                    let (#(#args),*) = {
+                        #imports
+                        #ident::Args {
+                            #f
+                        }.pop()
+                    };
+                });
+            } else {
+                r.let_args.push(quote! {
+                    let (#(#args),*) = #ident::Args {
+                        #f
+                    }.pop();
+                });
+            }
 
             len
         }
         PropertyValue::Unset => return true,
     };
 
-    let args = (0..len).into_iter().map(|i| arg!(i));
-    let args = quote!(__child, #(#args),*);
+    let args = (0..len).map(|i| arg!(i));
+    let args = quote!(__node, #(#args),*);
 
     r.set_ctx.push(quote!(let (#args) = #ident::set_context_var(#args);));
     r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
@@ -186,6 +216,7 @@ impl Parse for WidgetNewInput {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![mod]>().expect(NON_USER_ERROR);
         let ident = input.parse().expect(NON_USER_ERROR);
+        input.parse::<Token![;]>()?;
 
         let mut imports = vec![];
         while input.peek(Token![use]) {
@@ -229,6 +260,8 @@ impl Parse for WidgetNewInput {
             }
             // expect `=>` to be the last item.
             else if lookahead.peek(Token![=>]) {
+                input.parse::<Token![=>]>()?;
+
                 return Ok(WidgetNewInput {
                     ident,
                     imports,
@@ -256,12 +289,12 @@ impl Parse for WidgetNewInput {
 impl DefaultBlock {
     pub fn assert(&self, expected: DefaultBlockTarget) {
         if self.target != expected {
-            panic!("{}, expected default({})", NON_USER_ERROR, quote!(#expected))
+            panic!("{}: expected default({})", NON_USER_ERROR, quote!(#expected))
         }
 
         for p in &self.properties {
             if !p.attrs.is_empty() {
-                panic!("{}, unexpected attributes", NON_USER_ERROR)
+                panic!("{}: unexpected attributes", NON_USER_ERROR)
             }
         }
     }

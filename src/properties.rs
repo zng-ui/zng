@@ -6,6 +6,7 @@ mod events;
 mod focus;
 mod hit_testable_;
 mod layout;
+mod text;
 mod ui_n;
 
 pub use background::*;
@@ -15,4 +16,5 @@ pub use cursor_::*;
 pub use events::*;
 pub use focus::*;
 pub use layout::*;
+pub use text::*;
 pub use ui_n::*;

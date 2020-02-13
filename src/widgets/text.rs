@@ -5,8 +5,7 @@ use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::var::{IntoVar, Var};
 use crate::core::UiNode;
-use crate::properties::set_context_var;
-use crate::{impl_ui_node, property};
+use crate::impl_ui_node;
 use std::borrow::Cow;
 
 struct Text<T: Var<Cow<'static, str>>> {
@@ -85,6 +84,22 @@ impl<T: Var<Cow<'static, str>>> UiNode for Text<T> {
 }
 
 /// Simple text run.
+///
+/// # Context Vars
+/// This context variables are used to configure the text:
+///
+/// * [FontFamily]: Is set by the [font_family](crate::properties::font_family) property.
+/// * [FontSize]: Is set by the [font_size](crate::properties::font_family) property.
+/// * [TextColor]: Is set by the [text_color](crate::properties::font_family) property.
+///
+/// # Example
+/// ```
+/// let hello_txt = container! {
+///     font_family: "Arial";
+///     font_size: 18;
+///     => text("Hello!")
+/// }
+/// ```
 pub fn text(text: impl IntoVar<Cow<'static, str>>) -> impl UiNode {
     Text {
         text: text.into_var(),
@@ -97,39 +112,33 @@ pub fn text(text: impl IntoVar<Cow<'static, str>>) -> impl UiNode {
 }
 
 context_var! {
-    /// Font family name.
+    /// Font family context var.
+    ///
+    /// # Text
+    /// This context variable is used by the [text](crate::widgets::text::text) widget to
+    /// determinate the font family of the text.
     ///
     /// # Default
     /// When not set the value is `Sans-Serif`.
     pub struct FontFamily: Cow<'static, str> = Cow::Borrowed("Sans-Serif");
 
-    /// Font size.
+    /// Font size context var.
+    ///
+    /// # Text
+    /// This context variable is used by the [text](crate::widgets::text::text) widget to
+    /// determinate the font size of the text.
     ///
     /// # Default
     /// When not set the value is `14`.
     pub struct FontSize: u32 = 14;
 
-    /// Text color.
+    /// Text color context var.
+    ///
+    /// # Text
+    /// This context variable is used by the [text](crate::widgets::text::text) widget to
+    /// determinate the text color.
     ///
     /// # Default
     /// When not set the value is `ColorF::BLACK`.
     pub struct TextColor: ColorF = ColorF::BLACK;
-}
-
-/// Sets the [font family](FontFamily).
-#[property(context_var)]
-pub fn font_family(child: impl UiNode, font: impl IntoVar<Cow<'static, str>>) -> impl UiNode {
-    set_context_var::set(child, FontFamily, font)
-}
-
-/// Sets the [font size](FontSize).
-#[property(context_var)]
-pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
-    set_context_var::set(child, FontSize, size)
-}
-
-/// Sets the [text color](TextColor).
-#[property(context_var)]
-pub fn text_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
-    set_context_var::set(child, TextColor, color)
 }

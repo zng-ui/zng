@@ -10,6 +10,7 @@
 //! use zero_ui::prelude::*;
 //! ```
 
+// for proc_macros that don't have $self.
 extern crate self as zero_ui;
 
 #[macro_use]

@@ -1,13 +1,16 @@
-use crate::core::UiNode;
 use crate::widget;
 
 widget! {
-    //! Custom container widget
+    /// Base single content container.
+    pub container;
 
-    child_properties { }
-    self_properties { }
+    use crate::core::types::rgb;
+    use crate::properties::{margin, align, Alignment};
 
-    pub fn container(child: impl UiNode) -> impl UiNode {
-        child
+    default(child) {
+        /// Content margin.
+        padding -> margin;
+        /// Content alignment.
+        content_align -> align: Alignment::CENTER;
     }
 }
