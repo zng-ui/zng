@@ -45,7 +45,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     docs.push(doc!("\nDefault properties:"));
 
     let ident = input.ident;
-    let imports = input.imports;
+    let mut imports = input.imports;
+    // TODO change crate:: with $crate::
 
     let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
     let default_child = quote! {
