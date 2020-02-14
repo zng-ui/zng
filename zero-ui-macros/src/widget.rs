@@ -42,6 +42,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     let imports_mod = self::ident(&format!("__{}_imports", ident));
 
+    let mut test_required = vec![];
+
     for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
         for p in b.properties.iter_mut() {
             let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
@@ -53,6 +55,9 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             p.attrs = prop_docs;
 
             if p.is_required() {
+                let ident = p.maps_to.as_ref().unwrap_or(&p.ident);
+                test_required.push(quote!(#ident: todo!();));
+
                 required_docs.push((b.target, p));
             } else if p.default_value.is_some() {
                 default_docs.push((b.target, p));
@@ -125,6 +130,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             #[allow(unused)]
             fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
                 #ident! {
+                    #(#test_required)*
                     => child
                 }
             }
