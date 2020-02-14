@@ -33,14 +33,14 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let ident = input.ident;
     let imports = input.imports;
 
-    let macro_imports = imports.clone(); //TODO $crate
+    let macro_imports = imports.clone();
 
     let mut redirect_imports = imports;
     for use_ in redirect_imports.iter_mut() {
         use_.vis = self::pub_vis();
     }
 
-    let redirect_ident = self::ident(&format!("__{}_redirect", ident));
+    let imports_mod = self::ident(&format!("__{}_imports", ident));
 
     for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
         for p in b.properties.iter_mut() {
@@ -62,9 +62,9 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     }
 
-    print_required_section(&mut docs, &redirect_ident, required_docs);
-    print_provided_section(&mut docs, &redirect_ident, default_docs);
-    print_aliases_section(&mut docs, &redirect_ident, other_docs);
+    print_required_section(&mut docs, &imports_mod, required_docs);
+    print_provided_section(&mut docs, &imports_mod, default_docs);
+    print_aliases_section(&mut docs, &imports_mod, other_docs);
 
     let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
     let default_child = quote! {
@@ -88,50 +88,46 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         quote!(child)
     };
 
-    // rust-doc includes the macro arm pattern in documentation.
-    let macro_arm = quote_spanned! {ident.span()=>
-        ($($tt:tt)+)
-    };
-
     let r = quote! {
         #[doc(hidden)]
         #(#attrs)*
         #export
         macro_rules! #ident {
-            #macro_arm => {
+            ($($input:tt)+) => {
                 widget_new! {
+                    crate $crate;
                     mod #ident;
                     #(#macro_imports)*
                     #default_child
                     #default_self
                     #(#whens)*
-                    input:{$($tt)+}
+                    input:{$($input)+}
                 }
             };
         }
 
         #[doc(hidden)]
-        mod #redirect_ident {
+        mod #imports_mod {
             #(#redirect_imports)*
         }
 
         #(#docs)*
         #pub_ mod #ident {
             use super::*;
-            use #redirect_ident::*;
+            use #imports_mod::*;
 
             #[doc(hidden)]
             pub fn __child(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
                 #child
             }
 
-            //#[doc(hidden)]
-            //#[allow(unused)]
-            //fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
-            //    #ident! {
-            //        => child
-            //    }
-            //}
+            #[doc(hidden)]
+            #[allow(unused)]
+            fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
+                #ident! {
+                    => child
+                }
+            }
         }
     };
 
@@ -509,28 +505,24 @@ fn finish_docs_header(docs: &mut Vec<Attribute>) {
 
 fn print_required_section(
     docs: &mut Vec<Attribute>,
-    redirect_ident: &Ident,
+    imports_mod: &Ident,
     required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
 ) {
-    print_section(docs, redirect_ident, "required-properties", "Required properties", required_docs);
+    print_section(docs, imports_mod, "required-properties", "Required properties", required_docs);
 }
 
 fn print_provided_section(
     docs: &mut Vec<Attribute>,
-    redirect_ident: &Ident,
+    imports_mod: &Ident,
     default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
 ) {
-    print_section(docs, redirect_ident, "provided-properties", "Provided properties", default_docs);
+    print_section(docs, imports_mod, "provided-properties", "Provided properties", default_docs);
 }
 
-fn print_aliases_section(
-    docs: &mut Vec<Attribute>,
-    redirect_ident: &Ident,
-    other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
-) {
+fn print_aliases_section(docs: &mut Vec<Attribute>, imports_mod: &Ident, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
     print_section_header(docs, "other-properties", "Other properties");
     for p in other_docs {
-        print_property(docs, redirect_ident, p);
+        print_property(docs, imports_mod, p);
     }
     docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##));
     docs.push(doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n"));
@@ -540,7 +532,7 @@ fn print_aliases_section(
 
 fn print_section(
     docs: &mut Vec<Attribute>,
-    redirect_ident: &Ident,
+    imports_mod: &Ident,
     id: &str,
     title: &str,
     properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
@@ -551,7 +543,7 @@ fn print_section(
 
     print_section_header(docs, id, title);
     for p in properties {
-        print_property(docs, redirect_ident, p);
+        print_property(docs, imports_mod, p);
     }
     print_section_footer(docs);
 }
@@ -565,7 +557,7 @@ fn print_section_header(docs: &mut Vec<Attribute>, id: &str, title: &str) {
     ));
 }
 
-fn print_property(docs: &mut Vec<Attribute>, redirect_ident: &Ident, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
+fn print_property(docs: &mut Vec<Attribute>, imports_mod: &Ident, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         p.ident,
@@ -577,7 +569,7 @@ fn print_property(docs: &mut Vec<Attribute>, redirect_ident: &Ident, (t, p): (De
     docs.push(doc!(
         "\n[<span class='mod'>{0}</span>]({1}::{0})\n",
         p.maps_to.as_ref().unwrap_or(&p.ident),
-        redirect_ident
+        imports_mod
     ));
     docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
 

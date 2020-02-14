@@ -1,6 +1,7 @@
 use crate::widget::*;
 use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
+use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
 
 include!("util.rs");
@@ -11,7 +12,14 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let input = parse_macro_input!(input as WidgetNewInput);
 
     let child = input.user_child_expr;
-    let imports = input.imports;
+    let mut imports = input.imports;
+    let mut crate_patch = IdentReplace {
+        find: self::ident("crate"),
+        replace: input.crate_,
+    };
+    for import in imports.iter_mut() {
+        crate_patch.visit_item_use_mut(import);
+    }
     let imports = quote!(#(#imports)*);
 
     let mut user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
@@ -203,6 +211,7 @@ struct PropertyCalls {
 const NON_USER_ERROR: &str = "invalid non-user input";
 
 struct WidgetNewInput {
+    crate_: Ident,
     ident: Ident,
     imports: Vec<ItemUse>,
     default_child: DefaultBlock,
@@ -214,6 +223,10 @@ struct WidgetNewInput {
 }
 impl Parse for WidgetNewInput {
     fn parse(input: ParseStream) -> Result<Self> {
+        input.parse::<Token![crate]>()?;
+        let crate_ = input.parse()?;
+        input.parse::<Token![;]>()?;
+
         input.parse::<Token![mod]>().expect(NON_USER_ERROR);
         let ident = input.parse().expect(NON_USER_ERROR);
         input.parse::<Token![;]>()?;
@@ -263,6 +276,7 @@ impl Parse for WidgetNewInput {
                 input.parse::<Token![=>]>()?;
 
                 return Ok(WidgetNewInput {
+                    crate_,
                     ident,
                     imports,
                     default_child,
@@ -297,5 +311,19 @@ impl DefaultBlock {
                 panic!("{}: unexpected attributes", NON_USER_ERROR)
             }
         }
+    }
+}
+
+struct IdentReplace {
+    find: Ident,
+    replace: Ident,
+}
+
+impl VisitMut for IdentReplace {
+    fn visit_ident_mut(&mut self, i: &mut Ident) {
+        if i == &self.find {
+            *i = self.replace.clone();
+        }
+        visit_mut::visit_ident_mut(self, i);
     }
 }
