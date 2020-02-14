@@ -30,6 +30,18 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let mut default_docs = vec![];
     let mut other_docs = vec![];
 
+    let ident = input.ident;
+    let imports = input.imports;
+
+    let macro_imports = imports.clone(); //TODO $crate
+
+    let mut redirect_imports = imports;
+    for use_ in redirect_imports.iter_mut() {
+        use_.vis = self::pub_vis();
+    }
+
+    let redirect_ident = self::ident(&format!("__{}_redirect", ident));
+
     for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
         for p in b.properties.iter_mut() {
             let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
@@ -50,13 +62,9 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     }
 
-    print_required_section(&mut docs, required_docs);
-    print_provided_section(&mut docs, default_docs);
-    print_aliases_section(&mut docs, other_docs);
-
-    let ident = input.ident;
-    let mut imports = input.imports;
-    // TODO change crate:: with $crate::
+    print_required_section(&mut docs, &redirect_ident, required_docs);
+    print_provided_section(&mut docs, &redirect_ident, default_docs);
+    print_aliases_section(&mut docs, &redirect_ident, other_docs);
 
     let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
     let default_child = quote! {
@@ -93,7 +101,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             #macro_arm => {
                 widget_new! {
                     mod #ident;
-                    #(#imports)*
+                    #(#macro_imports)*
                     #default_child
                     #default_self
                     #(#whens)*
@@ -102,19 +110,24 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
         }
 
+        #[doc(hidden)]
+        mod #redirect_ident {
+            #(#redirect_imports)*
+        }
+
         #(#docs)*
         #pub_ mod #ident {
             use super::*;
-            use zero_ui::core::UiNode;
+            use #redirect_ident::*;
 
             #[doc(hidden)]
-            pub fn child(child: impl UiNode) -> impl UiNode {
+            pub fn __child(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
                 #child
             }
 
             //#[doc(hidden)]
             //#[allow(unused)]
-            //fn test(child: impl UiNode) -> impl UiNode {
+            //fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
             //    #ident! {
             //        => child
             //    }
@@ -481,35 +494,62 @@ impl ToTokens for DefaultBlockTarget {
     }
 }
 
+/* #region docs hack
+*
+* We emit inline html that reuses the rustdoc style to insert custom sections to a Module page.
+*
+* The result looks professional, unlike the code that makes it happen.
+*/
+
 fn finish_docs_header(docs: &mut Vec<Attribute>) {
-    docs.push(doc!("\n</div>")); // finish item level docs.
+    docs.push(doc!("\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>")); // finish item level docs.
 }
 
-fn print_required_section(docs: &mut Vec<Attribute>, required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    print_section(docs, "required-properties", "Required properties", required_docs);
+fn print_required_section(
+    docs: &mut Vec<Attribute>,
+    redirect_ident: &Ident,
+    required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
+) {
+    print_section(docs, redirect_ident, "required-properties", "Required properties", required_docs);
 }
 
-fn print_provided_section(docs: &mut Vec<Attribute>, default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    print_section(docs, "provided-properties", "Provided properties", default_docs);
+fn print_provided_section(
+    docs: &mut Vec<Attribute>,
+    redirect_ident: &Ident,
+    default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
+) {
+    print_section(docs, redirect_ident, "provided-properties", "Provided properties", default_docs);
 }
 
-fn print_aliases_section(docs: &mut Vec<Attribute>, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+fn print_aliases_section(
+    docs: &mut Vec<Attribute>,
+    redirect_ident: &Ident,
+    other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
+) {
     print_section_header(docs, "other-properties", "Other properties");
     for p in other_docs {
-        print_property(docs, p);
+        print_property(docs, redirect_ident, p);
     }
-    docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class="mod">*</span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##));
+    docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##));
+    docs.push(doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n"));
+    docs.push(doc!(r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##));
     print_section_footer(docs);
 }
 
-fn print_section(docs: &mut Vec<Attribute>, id: &str, title: &str, properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+fn print_section(
+    docs: &mut Vec<Attribute>,
+    redirect_ident: &Ident,
+    id: &str,
+    title: &str,
+    properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
+) {
     if properties.is_empty() {
         return;
     }
 
     print_section_header(docs, id, title);
     for p in properties {
-        print_property(docs, p);
+        print_property(docs, redirect_ident, p);
     }
     print_section_footer(docs);
 }
@@ -523,16 +563,21 @@ fn print_section_header(docs: &mut Vec<Attribute>, id: &str, title: &str) {
     ));
 }
 
-fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
+fn print_property(docs: &mut Vec<Attribute>, redirect_ident: &Ident, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
     docs.push(doc!(
-        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<a class="mod">{2}</a></code></h3>"##,
+        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         p.ident,
         match t {
             DefaultBlockTarget::Self_ => "self",
             DefaultBlockTarget::Child => "child",
         },
-        p.maps_to.as_ref().unwrap_or(&p.ident)
     ));
+    docs.push(doc!(
+        "\n[<span class='mod'>{0}</span>]({1}::{0})\n",
+        p.maps_to.as_ref().unwrap_or(&p.ident),
+        redirect_ident
+    ));
+    docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
 
     if !p.attrs.is_empty() {
         docs.push(doc!("<div class='docblock'>\n"));
@@ -544,3 +589,5 @@ fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut P
 fn print_section_footer(docs: &mut Vec<Attribute>) {
     docs.push(doc!("</div>"));
 }
+
+// #endregion docs hack
