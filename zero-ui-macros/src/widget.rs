@@ -482,7 +482,7 @@ impl ToTokens for DefaultBlockTarget {
 }
 
 fn finish_docs_header(docs: &mut Vec<Attribute>) {
-    docs.push(doc!("</div>")); // finish item level docs.
+    docs.push(doc!("\n</div>")); // finish item level docs.
 }
 
 fn print_required_section(docs: &mut Vec<Attribute>, required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
@@ -535,9 +535,9 @@ fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut P
     ));
 
     if !p.attrs.is_empty() {
-        docs.push(doc!("<div class='docblock'>"));
+        docs.push(doc!("<div class='docblock'>\n"));
         docs.extend(p.attrs.drain(..));
-        docs.push(doc!("</div>"));
+        docs.push(doc!("\n</div>"));
     }
 }
 

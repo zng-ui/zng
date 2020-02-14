@@ -15,6 +15,7 @@ pub use context_var::*;
 pub use cursor_::*;
 pub use events::*;
 pub use focus::*;
+pub use hit_testable_::*;
 pub use layout::*;
 pub use text::*;
 pub use ui_n::*;
