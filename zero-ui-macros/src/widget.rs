@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
+use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, *};
 
 include!("util.rs");
@@ -17,6 +18,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let mut input = parse_macro_input!(input as WidgetInput);
 
     let (mut docs, attrs) = split_doc_other(&mut input.attrs);
+    finish_docs_header(&mut docs);
 
     let (export, pub_) = if input.export {
         (quote!(#[macro_export]), quote!(pub))
@@ -24,20 +26,33 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         (quote!(), quote!())
     };
 
-    docs.push(doc!("\n# Required Properties\n"));
-    docs.push(doc!("Properties that must be set in this widget:"));
+    let mut required_docs = vec![];
+    let mut default_docs = vec![];
+    let mut other_docs = vec![];
 
-    docs.push(doc!("\n# Default Properties\n"));
-    docs.push(doc!("Properties that are set by default in this widget:"));
+    for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
+        for p in b.properties.iter_mut() {
+            let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
 
-    docs.push(doc!("\nYou can override any of this properties by setting then to another value."));
-    docs.push(doc!("You can also unset this properties by setting then to `unset!`."));
+            if let Some(invalid) = other_attrs.into_iter().next() {
+                abort!(invalid.span(), "only #[doc] attributes are allowed here")
+            }
 
-    docs.push(doc!("\n# Other Properties\n"));
-    docs.push(doc!("Properties that have special meaning in this widget:"));
+            p.attrs = prop_docs;
 
-    docs.push(doc!("\nAll widgets are open-ended and accept any property."));
-    docs.push(doc!("See [zero_ui::properties] for more information."));
+            if p.is_required() {
+                required_docs.push((b.target, p));
+            } else if p.default_value.is_some() {
+                default_docs.push((b.target, p));
+            } else {
+                other_docs.push((b.target, p));
+            }
+        }
+    }
+
+    print_required_section(&mut docs, required_docs);
+    print_provided_section(&mut docs, default_docs);
+    print_aliases_section(&mut docs, other_docs);
 
     let ident = input.ident;
     let mut imports = input.imports;
@@ -308,6 +323,11 @@ impl ToTokens for PropertyDeclaration {
         tokens.extend(ts)
     }
 }
+impl PropertyDeclaration {
+    pub fn is_required(&self) -> bool {
+        self.default_value.as_ref().map(|v| v.is_required()).unwrap_or_default()
+    }
+}
 
 pub struct PropertyAssign {
     attrs: Vec<Attribute>,
@@ -395,6 +415,14 @@ impl ToTokens for PropertyDefaultValue {
         }
     }
 }
+impl PropertyDefaultValue {
+    pub fn is_required(&self) -> bool {
+        match self {
+            PropertyDefaultValue::Required => true,
+            _ => false,
+        }
+    }
+}
 
 pub enum PropertyValue {
     Fields(Punctuated<FieldValue, Token![,]>),
@@ -453,124 +481,66 @@ impl ToTokens for DefaultBlockTarget {
     }
 }
 
-macro_rules! demo {
-    ($($tt:tt)*) => {};
+fn finish_docs_header(docs: &mut Vec<Attribute>) {
+    docs.push(doc!("</div>")); // finish item level docs.
 }
 
-// Input:
-demo! {
-    /// Docs of widget macro named button.
-    //`button` also becomes a mod.
-    // `container` and `other` is another widget that button inherits from.
-    pub button: container + other;
+fn print_required_section(docs: &mut Vec<Attribute>, required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    print_section(docs, "required-properties", "Required properties", required_docs);
+}
 
-    // Uses inserted in the `button!` macro call.
-    use crate::properties::{margin, align, Alignment, BorderStyle, on_click};
-    use crate::core::types::{rgb, rgba};
+fn print_provided_section(docs: &mut Vec<Attribute>, default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    print_section(docs, "provided-properties", "Provided properties", default_docs);
+}
 
-    // Properties applied to the macro child.
-    default(child) {
-        // Property declaration without default value, if not set does not apply.
-        // If set applies margin to child.
-        padding -> margin;
-        // Property declaration with default value, if not set still applies with
-        // default value, only does not apply if set with `unset!`.
-        content_align -> align: Alignment::CENTER;
-        // Property declaration using that does not alias the property name.
-        background_color: rgb(255, 255, 255);
+fn print_aliases_section(docs: &mut Vec<Attribute>, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    print_section_header(docs, "other-properties", "Other properties");
+    for p in other_docs {
+        print_property(docs, p);
+    }
+    docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class="mod">*</span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##));
+    print_section_footer(docs);
+}
 
-        // to have a property apply to child and not `self` you can write:
-        background_gradient -> background_gradient;
+fn print_section(docs: &mut Vec<Attribute>, id: &str, title: &str, properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    if properties.is_empty() {
+        return;
     }
 
-    // Properties applied to the macro child properties.
-    // Same sintax as `default(child)`.
-    default(self) {
-        border: 4., (rgba(0, 0, 0, 0.0), BorderStyle::Dashed);
-        // When `required!` appears in the default values place the user
-        // gets an error if the property is not set.
-        on_click: required!;
+    print_section_header(docs, id, title);
+    for p in properties {
+        print_property(docs, p);
     }
+    print_section_footer(docs);
+}
 
-    // `when({bool expr})` blocks set properties given a condition. The
-    // expression can contain `self.{property}` and `child.{property}` to reference
-    // potentially live updating properties, every time this properties update the
-    // expression is rechecked.
-    when(self.is_mouse_over) {
-        // Sets the properties when the expression is true.
-        // the sintax in when blocks is like the sintax of properties
-        // in the generated macro
-        background_color: rgba(0, 0, 0, 0);
-        background_gradient: {
-            start: (0.0, 0.0),
-            end: (1.0, 1.0),
-            stops: vec![rgb(255, 0, 0), rgb(0, 255, 0), rgb(0, 0, 255)],
-        };
-    }
+fn print_section_header(docs: &mut Vec<Attribute>, id: &str, title: &str) {
+    docs.push(doc!(
+        r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
+        <div class="methods" style="display: block;">"##,
+        id,
+        title
+    ));
+}
 
-    /// Optionaly you can wrap the child into widgets, or do any custom code.
-    ///
-    /// This is evaluated after the `default(child)` and before the `default(self)`.
-    => {
-        let ct = container! {
-            property: "";
-            => child
-        };
-        println!("button created");
-        ct
+fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
+    docs.push(doc!(
+        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<a class="mod">{2}</a></code></h3>"##,
+        p.ident,
+        match t {
+            DefaultBlockTarget::Self_ => "self",
+            DefaultBlockTarget::Child => "child",
+        },
+        p.maps_to.as_ref().unwrap_or(&p.ident)
+    ));
+
+    if !p.attrs.is_empty() {
+        docs.push(doc!("<div class='docblock'>"));
+        docs.extend(p.attrs.drain(..));
+        docs.push(doc!("</div>"));
     }
 }
 
-// Output:
-demo! {
-    /// Docs generated by all the docs attributes and property names.
-    #[other_name_attrs]
-    #[macro_export]// if pub
-    macro_rules! button {
-        ($($tt::tt)+) => {
-            widget_new! {
-                mod button;
-
-                // uses with `crate` converted to `$crate`
-                use $crate::something;
-
-                default(child) {
-                    // all the default(child) blocks grouped or an empty block
-                }
-                default(self) {
-                    // all the default(self) blocks grouped or an empty block
-                }
-
-                // all the when blocks
-                when(expr) {}
-                when(expr) {}
-
-                // user args
-                {
-                    // zero or more property assigns; required! not allowed.
-                    // => child
-                    $($tt)+
-                }
-            }
-        };
-    }
-
-    #[doc(hidden)]
-    pub mod button {
-        use super::*;
-        use zero_ui::core::UiNode;
-
-        // => { child }
-        pub fn child(child: impl UiNode) -> impl UiNode {
-            child
-        }
-
-        // compile test of the property declarations
-        #[allow(unused)]
-        fn test(child: impl UiNode) -> impl UiNode {
-            button! {
-                => child
-            }
-        }
-    }
+fn print_section_footer(docs: &mut Vec<Attribute>) {
+    docs.push(doc!("</div>"));
 }
