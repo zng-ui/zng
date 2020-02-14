@@ -502,7 +502,9 @@ impl ToTokens for DefaultBlockTarget {
 */
 
 fn finish_docs_header(docs: &mut Vec<Attribute>) {
-    docs.push(doc!("\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>")); // finish item level docs.
+    docs.push(doc!(
+        "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>"
+    )); // finish item level docs.
 }
 
 fn print_required_section(
