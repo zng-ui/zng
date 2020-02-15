@@ -118,17 +118,22 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         #(#docs)*
         #pub_ mod #ident {
             use super::*;
-            use #imports_mod::*;
+
+            #[doc(hidden)]
+            pub mod __props {
+                pub use super::#imports_mod::*;
+            }
 
             #[doc(hidden)]
             pub fn __child(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
-                #(#macro_imports)*
+                use #imports_mod::*;
                 #child
             }
 
             #[doc(hidden)]
             #[allow(unused)]
             fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
+                use #imports_mod::*;
                 #ident! {
                     #(#test_required)*
                     => child

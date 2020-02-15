@@ -24,18 +24,20 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     let mut user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
 
+    let ident = input.ident;
+    let wgt_props = quote!(#ident::__props);
+
     let PropertyCalls {
-        let_args: let_child_args,
         set_context: set_child_props_ctx,
         set_event: set_child_props_event,
         set_outer: set_child_props_outer,
         set_inner: set_child_props_inner,
-    } = match make_property_calls(&imports, input.default_child, &mut user_sets) {
+    } = match make_property_calls(&wgt_props, &imports, input.default_child, &mut user_sets) {
         Ok(p) => p,
         Err(e) => abort_call_site!("{}", e),
     };
 
-    let mut self_calls = match make_property_calls(&imports, input.default_self, &mut user_sets) {
+    let mut self_calls = match make_property_calls(&wgt_props, &imports, input.default_self, &mut user_sets) {
         Ok(p) => p,
         Err(e) => abort!(e.span(), "{}", e),
     };
@@ -52,27 +54,20 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     };
 
     for (ident, assign) in user_sets {
-        make_property_call(&ident, assign.value, &mut self_calls, &imports, false);
+        make_property_call(&wgt_props, &ident, assign.value, &mut self_calls, &imports, false);
     }
 
     let PropertyCalls {
-        let_args: let_self_args,
-        set_context: mut set_self_props_ctx,
-        set_event: mut set_self_props_event,
-        set_outer: mut set_self_props_outer,
-        set_inner: mut set_self_props_inner,
+        set_context: set_self_props_ctx,
+        set_event: set_self_props_event,
+        set_outer: set_self_props_outer,
+        set_inner: set_self_props_inner,
     } = self_calls;
-    // TODO add user properties
-
-    let ident = input.ident;
 
     let r = quote! {{
         let __node = #child;
-        #(#let_child_args)*
 
         let __node = {
-            #imports
-
             #(#set_child_props_ctx)*
             #(#set_child_props_event)*
             #(#set_child_props_outer)*
@@ -83,12 +78,9 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
         let __node = #ident::__child(__node);
 
-        #(#let_self_args)*
         #let_id
 
         let __node = {
-            #imports
-
             #(#set_self_props_ctx)*
             #(#set_self_props_event)*
             #(#set_self_props_outer)*
@@ -104,6 +96,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 }
 
 fn make_property_calls(
+    wgt_props: &TokenStream,
     imports: &TokenStream,
     default: DefaultBlock,
     user_sets: &mut HashMap<Ident, PropertyAssign>,
@@ -139,44 +132,56 @@ fn make_property_calls(
 
         let ident = default.maps_to.unwrap_or(default.ident);
 
-        make_property_call(&ident, value, &mut r, imports, default_value);
+        make_property_call(wgt_props, &ident, value, &mut r, imports, default_value);
     }
 
     Ok(r)
 }
 
-fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls, imports: &TokenStream, default_value: bool) {
+fn make_property_call(
+    wgt_props: &TokenStream,
+    ident: &Ident,
+    value: PropertyValue,
+    r: &mut PropertyCalls,
+    imports: &TokenStream,
+    default_value: bool,
+) {
     macro_rules! arg {
         ($n:expr) => {
             self::ident(&format!("__{}_arg_{}", ident, $n))
         };
     }
 
-    let len = match value {
-        PropertyValue::Args(a) => {
-            for (i, a) in a.iter().enumerate() {
-                let arg = arg!(i);
+    let mut args_init = vec![];
+    let mut len = 0;
 
+    match value {
+        PropertyValue::Args(a) => {
+            len = a.len();
+            for a in a.iter() {
                 if default_value {
-                    r.let_args.push(quote! {
-                        let #arg = {
-                            #imports
-                            #a
-                        };
-                    });
+                    args_init.push(quote! {{
+                        #imports
+                        #a
+                    },});
                 } else {
-                    r.let_args.push(quote!(let #arg = #a;));
+                    args_init.push(quote!(#a,));
                 }
             }
-            a.len()
         }
         PropertyValue::Fields(f) => {
             let len = f.len();
 
-            let args = (0..len).map(|i| arg!(i));
+            args_init = (0..len)
+                .map(|i| {
+                    let arg = arg!(i);
+                    quote!(#arg,)
+                })
+                .collect();
+
             if default_value {
-                r.let_args.push(quote! {
-                    let (#(#args),*) = {
+                r.set_context.push(quote! {
+                    let (#(#args_init)*) = {
                         #imports
                         #ident::Args {
                             #f
@@ -184,14 +189,12 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
                     };
                 });
             } else {
-                r.let_args.push(quote! {
-                    let (#(#args),*) = #ident::Args {
+                r.set_context.push(quote! {
+                    let (#(#args_init)*) = #ident::Args {
                         #f
                     }.pop();
                 });
             }
-
-            len
         }
         PropertyValue::Todo(m) => {
             r.set_context.push(quote!(#m;));
@@ -203,7 +206,10 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
     let args = (0..len).map(|i| arg!(i));
     let args = quote!(__node, #(#args),*);
 
-    r.set_context.push(quote!(let (#args) = #ident::set_context(#args);));
+    let ident = quote!(#wgt_props::#ident);
+
+    r.set_context
+        .push(quote!(let (#args) = #ident::set_context(__node, #(#args_init)*);));
     r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
     r.set_outer.push(quote!(let (#args) = #ident::set_outer(#args);));
     r.set_inner.push(quote!(let (#args) = #ident::set_inner(#args);));
@@ -211,7 +217,6 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
 
 #[derive(Default)]
 struct PropertyCalls {
-    let_args: Vec<TokenStream>,
     set_context: Vec<TokenStream>,
     set_event: Vec<TokenStream>,
     set_outer: Vec<TokenStream>,

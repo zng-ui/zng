@@ -4,7 +4,6 @@ widget! {
     /// Base single content container.
     pub container;
 
-    use crate::core::types::rgb;
     use crate::properties::{margin, align, Alignment};
 
     default(child) {

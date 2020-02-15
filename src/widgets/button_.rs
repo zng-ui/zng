@@ -12,3 +12,11 @@ widget! {
         on_click: required!;
     }
 }
+
+fn test(child: impl crate::core::UiNode) {
+    use crate::properties::on_click;
+    let btn = button! {
+        on_click: |a|{};
+        => child
+    };
+}
