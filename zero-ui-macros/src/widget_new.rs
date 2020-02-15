@@ -190,7 +190,7 @@ fn make_property_call(
                 });
             } else {
                 r.set_context.push(quote! {
-                    let (#(#args_init)*) = #ident::Args {
+                    let (#(#args_init)*) = #wgt_props::#ident::Args {
                         #f
                     }.pop();
                 });
