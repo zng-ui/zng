@@ -386,20 +386,20 @@ impl Parse for PropertyDefaultValue {
             let fields_fork = input.fork();
             let inner;
             braced!(inner in fields_fork);
-            if let Ok(fields) = Punctuated::parse_separated_nonempty(&inner) {
+            if let Ok(fields) = Punctuated::parse_terminated(&inner) {
                 input.advance_to(&fields_fork);
                 input.parse::<Token![;]>()?;
 
                 Ok(PropertyDefaultValue::Fields(fields))
             } else if let Ok(args) = Punctuated::parse_separated_nonempty(&input) {
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                }
                 input.parse::<Token![;]>()?;
 
                 Ok(PropertyDefaultValue::Args(args))
             } else {
-                Err(Error::new(
-                    inner.span(),
-                    "expected named args block or expression block for the first arg",
-                ))
+                Err(Error::new(inner.span(), "expected one of: args, named args"))
             }
         } else if input.peek(keyword::unset) && input.peek2(Token![!]) {
             input.parse::<keyword::unset>()?;
@@ -452,20 +452,20 @@ impl Parse for PropertyValue {
             let fields_fork = input.fork();
             let inner;
             braced!(inner in fields_fork);
-            if let Ok(fields) = Punctuated::parse_separated_nonempty(&inner) {
+            if let Ok(fields) = Punctuated::parse_terminated(&inner) {
                 input.advance_to(&fields_fork);
                 input.parse::<Token![;]>()?;
 
                 Ok(PropertyValue::Fields(fields))
             } else if let Ok(args) = Punctuated::parse_separated_nonempty(&input) {
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                }
                 input.parse::<Token![;]>()?;
 
                 Ok(PropertyValue::Args(args))
             } else {
-                Err(Error::new(
-                    inner.span(),
-                    "expected named args block or expression block for the first arg",
-                ))
+                Err(Error::new(inner.span(), "expected one of: args, named args"))
             }
         } else if input.peek(keyword::unset) && input.peek2(Token![!]) {
             input.parse::<keyword::unset>()?;

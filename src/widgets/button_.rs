@@ -39,7 +39,9 @@ mod build_tests {
 
     fn _args(child: impl UiNode) -> impl UiNode {
         button! {
-            on_click: |_|{};
+            on_click: {
+                handler: |_|{},
+            };
 
             background_gradient: {
                 start: (0.0, 0.0),
