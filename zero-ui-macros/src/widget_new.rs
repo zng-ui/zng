@@ -26,7 +26,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     let PropertyCalls {
         let_args: let_child_args,
-        set_ctx: set_child_props_ctx,
+        set_context: set_child_props_ctx,
         set_event: set_child_props_event,
         set_outer: set_child_props_outer,
         set_inner: set_child_props_inner,
@@ -57,11 +57,12 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     let PropertyCalls {
         let_args: let_self_args,
-        set_ctx: mut set_self_props_ctx,
+        set_context: mut set_self_props_ctx,
         set_event: mut set_self_props_event,
         set_outer: mut set_self_props_outer,
         set_inner: mut set_self_props_inner,
     } = self_calls;
+    // TODO add user properties
 
     let ident = input.ident;
 
@@ -193,7 +194,7 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
             len
         }
         PropertyValue::Todo(m) => {
-            r.set_ctx.push(quote!(#m;));
+            r.set_context.push(quote!(#m;));
             return;
         }
         PropertyValue::Unset => return,
@@ -202,7 +203,7 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
     let args = (0..len).map(|i| arg!(i));
     let args = quote!(__node, #(#args),*);
 
-    r.set_ctx.push(quote!(let (#args) = #ident::set_context_var(#args);));
+    r.set_context.push(quote!(let (#args) = #ident::set_context(#args);));
     r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
     r.set_outer.push(quote!(let (#args) = #ident::set_outer(#args);));
     r.set_inner.push(quote!(let (#args) = #ident::set_inner(#args);));
@@ -211,7 +212,7 @@ fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls
 #[derive(Default)]
 struct PropertyCalls {
     let_args: Vec<TokenStream>,
-    set_ctx: Vec<TokenStream>,
+    set_context: Vec<TokenStream>,
     set_event: Vec<TokenStream>,
     set_outer: Vec<TokenStream>,
     set_inner: Vec<TokenStream>,

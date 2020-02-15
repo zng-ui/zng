@@ -45,7 +45,7 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 /// }
 /// # ;
 /// ```
-#[property(context_var)]
+#[property(context)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
     Cursor {
         cursor: cursor.into_local(),

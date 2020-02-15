@@ -28,7 +28,7 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
     }
 }
 
-#[property(context_var)]
+#[property(context)]
 pub fn set_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
     SetContextVar {
         child,

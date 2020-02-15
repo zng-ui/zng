@@ -32,7 +32,7 @@ impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
 ///
 /// Widgets inherit their hit-testability from their parents and by default
 /// the window widget is hit-testable, so all widgets are hit-testable by default.
-#[property(context_var)]
+#[property(context)]
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
     HitTestable {
         child,

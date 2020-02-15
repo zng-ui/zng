@@ -84,7 +84,7 @@ pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::
 
     match priority {
         Priority::Outer => {
-            set_pre.sig.ident = ident("set_context_var");
+            set_pre.sig.ident = ident("set_context");
             sorted_sets.push(set_pre.clone());
             set_pre.sig.ident = ident("set_event");
             sorted_sets.push(set_pre);
@@ -94,7 +94,7 @@ pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::
             sorted_sets.push(set_post);
         }
         Priority::Inner => {
-            set_pre.sig.ident = ident("set_context_var");
+            set_pre.sig.ident = ident("set_context");
             sorted_sets.push(set_pre.clone());
             set_pre.sig.ident = ident("set_event");
             sorted_sets.push(set_pre.clone());
@@ -104,7 +104,7 @@ pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::
             sorted_sets.push(set_priority);
         }
         Priority::Event => {
-            set_pre.sig.ident = ident("set_context_var");
+            set_pre.sig.ident = ident("set_context");
             sorted_sets.push(set_pre);
             set_priority.sig.ident = ident("set_event");
             sorted_sets.push(set_priority);
@@ -114,7 +114,7 @@ pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::
             sorted_sets.push(set_post);
         }
         Priority::ContextVar => {
-            set_priority.sig.ident = ident("set_context_var");
+            set_priority.sig.ident = ident("set_context");
             sorted_sets.push(set_priority);
             set_post.sig.ident = ident("set_event");
             sorted_sets.push(set_post.clone());
@@ -180,18 +180,18 @@ impl Parse for Priority {
                 Ok(Priority::Inner)
             } else if parsed == ident("event") {
                 Ok(Priority::Event)
-            } else if parsed == ident("context_var") {
+            } else if parsed == ident("context") {
                 Ok(Priority::ContextVar)
             } else {
                 Err(Error::new(
                     parsed.span(),
-                    format!("expected `context_var`, `event`, `outer` or `inner` found `{}`", quote!(#parsed)),
+                    format!("expected `context`, `event`, `outer` or `inner` found `{}`", quote!(#parsed)),
                 ))
             }
         } else {
             Err(Error::new(
                 Span::call_site(),
-                "missing macro argument, expected `context_var`, `event`, `outer` or `inner`",
+                "missing macro argument, expected `context`, `event`, `outer` or `inner`",
             ))
         }
     }

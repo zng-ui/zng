@@ -6,7 +6,7 @@ use crate::core::UiNode;
 use crate::{impl_ui_node, property};
 
 /// Enables a widget to receive focus.
-#[property(context_var)]
+#[property(context)]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
     Focusable {
         child,
@@ -15,7 +15,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 }
 
 /// Customizes the widget order during TAB navigation.
-#[property(context_var)]
+#[property(context)]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
     SetTabIndex {
         child,
@@ -24,7 +24,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 }
 
 /// If this widget is a focus scope.
-#[property(context_var)]
+#[property(context)]
 pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScope {
         child,
@@ -33,7 +33,7 @@ pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl 
 }
 
 /// Tab navigation within this widget.
-#[property(context_var)]
+#[property(context)]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     SetTabNav {
         child,
@@ -42,7 +42,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 }
 
 /// Arrows navigation within this widget.
-#[property(context_var)]
+#[property(context)]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     SetDirectionalNav {
         child,
