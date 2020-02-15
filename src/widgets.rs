@@ -1,5 +1,7 @@
-mod button_;
+#[macro_use]
 mod container_; // depends on container_
+#[macro_use]
+mod button_;
 
 mod text;
 mod view;

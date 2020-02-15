@@ -190,7 +190,7 @@ fn make_property_call(
                 });
             } else {
                 r.set_context.push(quote! {
-                    let (#(#args_init)*) = #wgt_props::#ident::Args {
+                    let (#(#args_init)*) = #ident::Args {
                         #f
                     }.pop();
                 });
@@ -206,7 +206,11 @@ fn make_property_call(
     let args = (0..len).map(|i| arg!(i));
     let args = quote!(__node, #(#args),*);
 
-    let ident = quote!(#wgt_props::#ident);
+    let ident = if default_value {
+        quote!(#wgt_props::#ident)
+    } else {
+        quote!(#ident)
+    };
 
     r.set_context
         .push(quote!(let (#args) = #ident::set_context(__node, #(#args_init)*);));
