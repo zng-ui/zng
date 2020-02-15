@@ -147,6 +147,33 @@ impl IntoVar<Cow<'static, str>> for String {
     }
 }
 
+impl IntoVar<LayoutPoint> for (f32, f32) {
+    type Var = OwnedVar<LayoutPoint>;
+
+    fn into_var(self) -> Self::Var {
+        let (x, y) = self;
+        OwnedVar(LayoutPoint::new(x, y))
+    }
+}
+
+impl IntoVar<LayoutSize> for (f32, f32) {
+    type Var = OwnedVar<LayoutSize>;
+
+    fn into_var(self) -> Self::Var {
+        let (w, h) = self;
+        OwnedVar(LayoutSize::new(w, h))
+    }
+}
+
+impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
+    type Var = OwnedVar<LayoutRect>;
+
+    fn into_var(self) -> Self::Var {
+        let (x, y, w, h) = self;
+        OwnedVar(LayoutRect::new(LayoutPoint::new(x, y), LayoutSize::new(w, h)))
+    }
+}
+
 use std::any::type_name;
 use std::marker::PhantomData;
 use std::sync::atomic::{self, AtomicBool};

@@ -170,7 +170,7 @@ fn make_property_call(
             }
         }
         PropertyValue::Fields(f) => {
-            let len = f.len();
+            len = f.len();
 
             args_init = (0..len)
                 .map(|i| {

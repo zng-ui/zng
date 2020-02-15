@@ -174,8 +174,17 @@ macro_rules! context_var {
             type Type = $type;
 
             fn default() -> &'static Self::Type {
-                static DEFAULT: $type = $default;
-                &DEFAULT
+                static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
+                DEFAULT.get_or_init(||{
+                    $default
+                })
+            }
+        }
+
+        impl $crate::core::var::IntoVar<$type> for $ident {
+            type Var = Self;
+            fn into_var(self) -> Self {
+                self
             }
         }
     )+};
