@@ -44,14 +44,15 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         match p.value {
             PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a)),
             PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id),
-            PropertyValue::Unset => abort_call_site!("cannot unset id"),
+            PropertyValue::Todo(m) => quote! (let __id = #m;),
+            PropertyValue::Unset => abort_call_site!("cannot unset required property `id`"),
         }
     } else {
         quote!(let __id = zero_ui::core::types::WidgetId::new_unique();)
     };
 
     for (ident, assign) in user_sets {
-        make_property_call(ident, assign.value, &mut self_calls, &imports, false);
+        make_property_call(&ident, assign.value, &mut self_calls, &imports, false);
     }
 
     let PropertyCalls {
@@ -76,13 +77,15 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             #(#set_child_props_outer)*
             #(#set_child_props_inner)*
 
-            #ident::__child(__node)
+            __node
         };
+
+        let __node = #ident::__child(__node);
 
         #(#let_self_args)*
         #let_id
 
-        {
+        let __node = {
             #imports
 
             #(#set_self_props_ctx)*
@@ -90,8 +93,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             #(#set_self_props_outer)*
             #(#set_self_props_inner)*
 
-            zero_ui::core::widget(__id, __node)
-        }
+           __node
+        };
+
+        zero_ui::core::widget(__id, __node)
     }};
 
     r.into()
@@ -106,13 +111,20 @@ fn make_property_calls(
 
     for default in default.properties {
         let (value, default_value) = if let Some(p) = user_sets.remove(&default.ident) {
+            if default.is_required() && p.value.is_unset() {
+                return Err(Error::new(
+                    Span::call_site(),
+                    format!("cannot unset required property `{}`", default.ident),
+                ));
+            }
+
             (p.value, false)
         } else if let Some(d) = default.default_value {
             (
                 match d {
                     PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
                     PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
-                    PropertyDefaultValue::Unset => PropertyValue::Unset,
+                    PropertyDefaultValue::Unset => continue,
                     PropertyDefaultValue::Required => {
                         return Err(Error::new(Span::call_site(), format!("property `{}` is required", default.ident)))
                     }
@@ -126,17 +138,13 @@ fn make_property_calls(
 
         let ident = default.maps_to.unwrap_or(default.ident);
 
-        if make_property_call(ident, value, &mut r, imports, default_value) {
-            continue; // unset
-        }
+        make_property_call(&ident, value, &mut r, imports, default_value);
     }
 
     Ok(r)
 }
 
-type Unset = bool;
-
-fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls, imports: &TokenStream, default_value: bool) -> Unset {
+fn make_property_call(ident: &Ident, value: PropertyValue, r: &mut PropertyCalls, imports: &TokenStream, default_value: bool) {
     macro_rules! arg {
         ($n:expr) => {
             self::ident(&format!("__{}_arg_{}", ident, $n))
@@ -184,7 +192,11 @@ fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls,
 
             len
         }
-        PropertyValue::Unset => return true,
+        PropertyValue::Todo(m) => {
+            r.set_ctx.push(quote!(#m;));
+            return;
+        }
+        PropertyValue::Unset => return,
     };
 
     let args = (0..len).map(|i| arg!(i));
@@ -194,8 +206,6 @@ fn make_property_call(ident: Ident, value: PropertyValue, r: &mut PropertyCalls,
     r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
     r.set_outer.push(quote!(let (#args) = #ident::set_outer(#args);));
     r.set_inner.push(quote!(let (#args) = #ident::set_inner(#args);));
-
-    false
 }
 
 #[derive(Default)]

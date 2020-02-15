@@ -11,9 +11,11 @@ pub mod keyword {
     syn::custom_keyword!(unset);
     syn::custom_keyword!(when);
     syn::custom_keyword!(input);
+    syn::custom_keyword!(todo);
 }
 
 /// `widget!` implementation
+#[allow(clippy::cognitive_complexity)]
 pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut input = parse_macro_input!(input as WidgetInput);
 
@@ -31,15 +33,12 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let mut other_docs = vec![];
 
     let ident = input.ident;
-    let imports = input.imports;
+    let macro_imports = input.imports.clone();
 
-    let macro_imports = imports.clone();
-
-    let mut redirect_imports = imports;
-    for use_ in redirect_imports.iter_mut() {
+    let mut imports = input.imports;
+    for use_ in imports.iter_mut() {
         use_.vis = self::pub_vis();
     }
-
     let imports_mod = self::ident(&format!("__{}_imports", ident));
 
     let mut test_required = vec![];
@@ -98,7 +97,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         #(#attrs)*
         #export
         macro_rules! #ident {
-            ($($input:tt)+) => {
+            ($($input:tt)*) => {
                 widget_new! {
                     crate $crate;
                     mod #ident;
@@ -106,14 +105,14 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     #default_child
                     #default_self
                     #(#whens)*
-                    input:{$($input)+}
+                    input:{$($input)*}
                 }
             };
         }
 
         #[doc(hidden)]
         mod #imports_mod {
-            #(#redirect_imports)*
+            #(#imports)*
         }
 
         #(#docs)*
@@ -123,6 +122,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
             #[doc(hidden)]
             pub fn __child(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
+                #(#macro_imports)*
                 #child
             }
 
@@ -185,10 +185,10 @@ impl Parse for WidgetInput {
                 let block: DefaultBlock = input.parse()?;
                 match block.target {
                     DefaultBlockTarget::Self_ => {
-                        default_child.push(block);
+                        default_self.push(block);
                     }
                     DefaultBlockTarget::Child => {
-                        default_self.push(block);
+                        default_child.push(block);
                     }
                 }
             } else if lookahead.peek(keyword::when) {
@@ -215,6 +215,7 @@ impl Parse for WidgetInput {
     }
 }
 
+#[derive(Debug)]
 pub struct DefaultBlock {
     pub target: DefaultBlockTarget,
     pub properties: Vec<PropertyDeclaration>,
@@ -278,6 +279,7 @@ impl ToTokens for WhenBlock {
     }
 }
 
+#[derive(Debug)]
 pub struct PropertyDeclaration {
     pub attrs: Vec<Attribute>,
     pub ident: Ident,
@@ -345,17 +347,15 @@ impl PropertyDeclaration {
 }
 
 pub struct PropertyAssign {
-    attrs: Vec<Attribute>,
     pub ident: Ident,
     pub value: PropertyValue,
 }
 impl Parse for PropertyAssign {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(PropertyAssign {
-            attrs: Attribute::parse_outer(input)?,
-            ident: input.parse()?,
-            value: input.parse()?,
-        })
+        let ident = input.parse()?;
+        input.parse::<Token![:]>()?;
+        let value = input.parse()?;
+        Ok(PropertyAssign { ident, value })
     }
 }
 impl ToTokens for PropertyAssign {
@@ -366,6 +366,7 @@ impl ToTokens for PropertyAssign {
     }
 }
 
+#[derive(Debug)]
 pub enum PropertyDefaultValue {
     Fields(Punctuated<FieldValue, Token![,]>),
     Args(Punctuated<Expr, Token![,]>),
@@ -395,28 +396,21 @@ impl Parse for PropertyDefaultValue {
                     "expected named args block or expression block for the first arg",
                 ))
             }
-        } else if input.peek2(Token![!]) {
-            let lookahead = input.lookahead1();
-            if lookahead.peek(keyword::unset) {
-                input.parse::<keyword::required>()?;
-                input.parse::<Token![!]>()?;
-                input.parse::<Token![;]>()?;
-
-                Ok(PropertyDefaultValue::Unset)
-            } else if lookahead.peek(keyword::required) {
-                input.parse::<keyword::required>()?;
-                input.parse::<Token![!]>()?;
-                input.parse::<Token![;]>()?;
-
-                Ok(PropertyDefaultValue::Required)
-            } else {
-                Err(lookahead.error())
-            }
-        } else {
-            let args = Punctuated::parse_separated_nonempty(input)?;
+        } else if input.peek(keyword::unset) && input.peek2(Token![!]) {
+            input.parse::<keyword::unset>()?;
+            input.parse::<Token![!]>()?;
             input.parse::<Token![;]>()?;
-
+            Ok(PropertyDefaultValue::Unset)
+        } else if input.peek(keyword::required) && input.peek2(Token![!]) {
+            input.parse::<keyword::required>()?;
+            input.parse::<Token![!]>()?;
+            input.parse::<Token![;]>()?;
+            Ok(PropertyDefaultValue::Required)
+        } else if let Ok(args) = Punctuated::parse_separated_nonempty(input) {
+            input.parse::<Token![;]>()?;
             Ok(PropertyDefaultValue::Args(args))
+        } else {
+            Err(Error::new(input.span(), "expected one of: args, named args, `required!`, `unset!`"))
         }
     }
 }
@@ -443,16 +437,45 @@ pub enum PropertyValue {
     Fields(Punctuated<FieldValue, Token![,]>),
     Args(Punctuated<Expr, Token![,]>),
     Unset,
+    Todo(ExprMacro),
 }
 impl Parse for PropertyValue {
     fn parse(input: ParseStream) -> Result<Self> {
-        let p: PropertyDefaultValue = input.parse()?;
+        if input.peek(token::Brace) {
+            use syn::parse::discouraged::Speculative;
 
-        match p {
-            PropertyDefaultValue::Fields(f) => Ok(PropertyValue::Fields(f)),
-            PropertyDefaultValue::Args(a) => Ok(PropertyValue::Args(a)),
-            PropertyDefaultValue::Unset => Ok(PropertyValue::Unset),
-            PropertyDefaultValue::Required => Err(Error::new(input.span(), "cannot assign `required!`")),
+            let fields_fork = input.fork();
+            let inner;
+            braced!(inner in fields_fork);
+            if let Ok(fields) = Punctuated::parse_separated_nonempty(&inner) {
+                input.advance_to(&fields_fork);
+                input.parse::<Token![;]>()?;
+
+                Ok(PropertyValue::Fields(fields))
+            } else if let Ok(args) = Punctuated::parse_separated_nonempty(&input) {
+                input.parse::<Token![;]>()?;
+
+                Ok(PropertyValue::Args(args))
+            } else {
+                Err(Error::new(
+                    inner.span(),
+                    "expected named args block or expression block for the first arg",
+                ))
+            }
+        } else if input.peek(keyword::unset) && input.peek2(Token![!]) {
+            input.parse::<keyword::unset>()?;
+            input.parse::<Token![!]>()?;
+            input.parse::<Token![;]>()?;
+            Ok(PropertyValue::Unset)
+        } else if input.peek(keyword::todo) && input.peek2(Token![!]) {
+            let m = input.parse()?;
+            input.parse::<Token![;]>()?;
+            Ok(PropertyValue::Todo(m))
+        } else if let Ok(args) = Punctuated::parse_separated_nonempty(input) {
+            input.parse::<Token![;]>()?;
+            Ok(PropertyValue::Args(args))
+        } else {
+            Err(Error::new(input.span(), "expected one of: args, named args, `unset!`, `todo!(..)`"))
         }
     }
 }
@@ -462,11 +485,20 @@ impl ToTokens for PropertyValue {
             PropertyValue::Fields(f) => tokens.extend(quote!({#f})),
             PropertyValue::Args(a) => a.to_tokens(tokens),
             PropertyValue::Unset => tokens.extend(quote!(unset!)),
+            PropertyValue::Todo(m) => m.to_tokens(tokens),
+        }
+    }
+}
+impl PropertyValue {
+    pub fn is_unset(&self) -> bool {
+        match self {
+            PropertyValue::Unset => true,
+            _ => false,
         }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefaultBlockTarget {
     Self_,
     Child,
