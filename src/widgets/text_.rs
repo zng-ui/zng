@@ -94,11 +94,17 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
 ///
 /// # Example
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::widgets::{container, text};
+/// use zero_ui::properties::{font_family, font_size};
+///
 /// let hello_txt = container! {
 ///     font_family: "Arial";
 ///     font_size: 18;
 ///     => text("Hello!")
-/// }
+/// };
+/// # }
 /// ```
 pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
     TextRun {

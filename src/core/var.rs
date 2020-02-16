@@ -2032,27 +2032,31 @@ impl_merge_vars! {
 
 // #endregion MergeVar2..MergeVar8
 
-/// Initializes a new `[SharedVar]`.
+/// Initializes a new [`SharedVar`](crate::core::var::SharedVar).
 pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
     SharedVar::new(initial_value)
 }
 
-/// Initializes a new `[SwitchVar]`.
+/// Initializes a new [`SwitchVar`](crate::core::var::SwitchVar).
 ///
 /// # Arguments
 ///
 /// All arguments are separated by comma like a function call.
 ///
 /// * `index`: A positive integer that is the initial switch index.
-/// * `var0..N`: A list of [vars](crate::core::var::ObjVar), minimal 2, [crate::core::var::SwitchVarDyn]
-/// is used for more then 8 variables.
+/// * `var0..N`: A list of [vars](crate::core::var::ObjVar), minimal 2,
+/// [`SwitchVarDyn`](crate::core::var::SwitchVarDyn) is used for more then 8 variables.
 ///
 /// # Example
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # use zero_ui::prelude::var;
+/// # fn main() {
 /// let var0 = var("Read-write");
 /// let var1 = "Read-only";
 ///
 /// let switch_var = switch_var!(0, var0, var1);
+/// # }
 /// ```
 #[macro_export]
 macro_rules! switch_var {
@@ -2085,7 +2089,8 @@ macro_rules! switch_var {
     };
 }
 
-/// Initializes a merge var.
+/// Initializes a new [`Var`](crate::core::var::Var) with dynamic value made
+/// by merging multiple other variables.
 ///
 /// # Arguments
 ///
@@ -2096,35 +2101,37 @@ macro_rules! switch_var {
 ///
 /// # Example
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # use zero_ui::prelude::var;
+/// # fn main() {
 /// let var0 = var("Hello");
 /// let var1 = "World";
 ///
-/// let merge_var = merge_var!(var0, var1, |a, b|format!("{} {}!", a, b));
-///
-/// assert_eq!("Hello World!", merge_var.get(vars));
+/// let hello_world = merge_var!(var0, var1, |a, b|format!("{} {}!", a, b));
+/// # }
 /// ```
 #[macro_export]
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
-        $crate::core::MergeVar2::new($v0, $v1, $merge)
+        $crate::core::var::MergeVar2::new($v0, $v1, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
-        $crate::core::MergeVar3::new($v0, $v1, $v2, $merge)
+        $crate::core::var::MergeVar3::new($v0, $v1, $v2, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
-        $crate::core::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
+        $crate::core::var::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
-        $crate::core::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
+        $crate::core::var::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
-        $crate::core::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
+        $crate::core::var::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
-        $crate::core::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
+        $crate::core::var::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
-        $crate::core::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
+        $crate::core::var::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:ident),+) => {
         compile_error!("merge_var is only implemented to a maximum of 8 variables")

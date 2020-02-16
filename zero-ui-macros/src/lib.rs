@@ -222,13 +222,13 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)
 }
 
-/// Generates a property declaration module from a function.
+/// Declares a new widget property.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand_property(args, input)
 }
 
-/// Generates a widget macro.
+/// Declares a new widget macro.
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget::expand_widget(input)

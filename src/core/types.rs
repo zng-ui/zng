@@ -67,6 +67,8 @@ impl IntoVar<LayoutSideOffsets> for (f32, f32, f32, f32) {
 ///
 /// # Example
 /// ```
+/// use zero_ui::core::types::rgb;
+///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
 /// ```
@@ -85,6 +87,8 @@ pub fn rgb<C: Into<ColorFComponent>>(r: C, g: C, b: C) -> ColorF {
 ///
 /// # Example
 /// ```
+/// use zero_ui::core::types::rgba;
+///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
 /// let transparent = rgba(0, 0, 0, 0);

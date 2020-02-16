@@ -60,8 +60,9 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///
 /// # Example
 /// ```
+/// # #[macro_use] extern crate zero_ui;
 /// use zero_ui::{
-///     core::{types::{rgb, ToText}, var::Var, UiNode},
+///     core::{types::{rgb, rgba, ToText}, var::Var, UiNode},
 ///     properties::{text_color, font_size},
 ///     widgets::{container, text, view, View},
 /// };

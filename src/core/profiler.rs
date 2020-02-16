@@ -143,7 +143,7 @@ impl Profiler {
 ///
 /// # Macro
 ///
-/// For basic usage like in the example there is also the `[profile_scope!]` macro.
+/// For basic usage like in the example there is also the [`profile_scope!`](profile_scope) macro.
 pub struct ProfileScope {
     name: Text,
     t0: u64,

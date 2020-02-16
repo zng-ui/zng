@@ -29,21 +29,26 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
     }
 }
 
-/// Cursor property that sets the cursor.
+/// Widget property that sets the [`CursorIcon`](zero_ui::core::types::CursorIcon) when hovering the widget.
 ///
 /// # Arguments
 /// * `cursor`: The cursor to use for `child`, can be a direct [value](CursorIcon) or a [variable](zero_ui::core::Var).
 ///
 /// # Example
 /// ```
-/// # use zero_ui::properties::{text, cursor};
-/// # use zero_ui::core::CursorIcon;
-/// # use zero_ui::ui;
-/// ui! {
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::{
+///     core::types::CursorIcon,
+///     properties::cursor,
+///     widgets::{container, text}
+/// };
+///
+/// container! {
 ///     cursor: CursorIcon::Hand;
 ///     => text("Mouse over this text shows the hand cursor")
 /// }
-/// # ;
+/// # ; }
 /// ```
 #[property(context)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {

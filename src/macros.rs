@@ -1,30 +1,10 @@
-//#[macro_export]
-//macro_rules! ui {
-//    ($($mtd:ident: $($arg:expr),+;)+ => $child:expr) => {
-//        {
-//            let child = $child;
-//            $(let child = $mtd(child, $($arg),+);)+
-//            {child}
-//        }
-//    };
-//}
-
-///The enclose macro for easier cloning
-#[macro_export]
-macro_rules! enclose {
-    ( ($( $x:ident ),*) $y:expr ) => {
-        {
-            $(let $x = $x.clone();)*
-            $y
-        }
-    };
-}
-
 /// Declare and implement a unique ID type. Optionally also declare
 /// a lazy initialization type for static variables.
 ///
 /// # Examples
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
 /// uid! { pub struct PublicId(_); }
 /// uid! { struct PrivateId(_); }
 ///
@@ -39,6 +19,7 @@ macro_rules! enclose {
 /// static UNIQUE_ID: PublicIdRef = PublicId::new_lazy();
 /// let unique_id = *UNIQUE_ID;
 /// assert_eq!(unique_id, *UNIQUE_ID);
+/// # }
 /// ```
 macro_rules! uid {
     ($(
@@ -112,7 +93,7 @@ macro_rules! uid {
     )+};
 }
 
-/// Declares a [ProfileScope](crate::core::profiler::ProfileScope) variable if
+/// Declares a [`ProfileScope`](crate::core::profiler::ProfileScope) variable if
 /// the `app_profiler` feature is active.
 ///
 /// # Example
@@ -120,20 +101,26 @@ macro_rules! uid {
 /// If compiled with the `app_profiler` feature, this will register a "do-things" scope
 /// that starts when the macro was called and has the duration of the block.
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
 /// # fn do_thing() { }
 /// # fn do_another_thing() { }
 /// {
-///     profile_scope!("do-things")
+///     profile_scope!("do-things");
 ///
 ///     do_thing();
 ///     do_another_thing();
 /// }
+/// # }
 /// ```
 ///
 /// You can also format strings:
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
 /// # let thing = "";
-/// profile_scope!("do-{}", thing)
+/// profile_scope!("do-{}", thing);
+/// # }
 /// ```
 #[macro_export]
 macro_rules! profile_scope {
@@ -149,7 +136,7 @@ macro_rules! profile_scope {
     };
 }
 
-/// Declares new [StateKey](crate::core::context::StateKey) types.
+/// Declares new [`StateKey`](crate::core::context::StateKey) types.
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
@@ -162,7 +149,7 @@ macro_rules! state_key {
     )+};
 }
 
-/// Declares new [crate::core::context::ContextVar] types.
+/// Declares new [`ContextVar`](crate::core::context::ContextVar) types.
 #[macro_export]
 macro_rules! context_var {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
@@ -192,15 +179,83 @@ macro_rules! context_var {
     )+};
 }
 
-/// Declares event args `struct`s that follows the basic initialization
-/// pattern and implement `EventArgs`.
+/// Declares new [`EventArgs`](crate::core::event::EventArgs) types.
 ///
 /// # Example
 /// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::core::render::WidgetPath;
+///
 /// event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
-///         pub arg: String
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
 ///     }
 /// }
 /// ```
@@ -225,14 +280,14 @@ macro_rules! event_args {
         impl $Args {
             #[inline]
             #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
-                    timestamp,
+                    timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                 }
             }
 
-            /// Arguments for event that happened `Instant::now`.
+            /// Arguments for event that happened now (`Instant::now`).
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
@@ -247,18 +302,114 @@ macro_rules! event_args {
 
             #[inline]
             $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
+            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
                 $($concerns_widget)+
             }
         }
     )+};
 }
 
-/// Declares event args `struct`s for events whos originating action can be
-/// cancelled.
+/// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
 ///
-/// Same sintax as `[event_args!]` but the generated code also implements
-/// [crate::core::event::CancelableEventArgs]
+/// Same sintax as [`event_args!`](event_args) but the generated args is also cancelable.
+///
+/// # Example
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::core::render::WidgetPath;
+///
+/// cancelable_event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+///
+///     cancel: std::rc::Rc<std::cell::Cell<bool>>
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///             cancel: std::rc::Rc::default()
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::CancelableEventArgs for MyEventArgs {
+///     /// If a listener canceled the action.
+///     #[inline]
+///     fn cancel_requested(&self) -> bool {
+///         self.cancel.get()
+///     }
+///
+///     /// Cancel the action.
+///     ///
+///     /// Cloned args are still linked, canceling one will cancel the others.
+///     #[inline]
+///     fn cancel(&self) {
+///         self.cancel.set(true);
+///     }
+/// }
+/// ```
 #[macro_export]
 macro_rules! cancelable_event_args {
     ($(
@@ -281,15 +432,15 @@ macro_rules! cancelable_event_args {
         impl $Args {
             #[inline]
             #[allow(clippy::too_many_arguments)]
-            pub fn new(timestamp: std::time::Instant, $($arg : impl Into<$arg_ty>),*) -> Self {
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
                 $Args {
-                    timestamp,
+                    timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
                     cancel: std::rc::Rc::default()
                 }
             }
 
-            /// Arguments for event that happened `Instant::now`.
+            /// Arguments for event that happened now (`Instant::now`).
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
@@ -304,7 +455,7 @@ macro_rules! cancelable_event_args {
 
             #[inline]
             $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut WidgetContext) -> bool {
+            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
                 $($concerns_widget)+
             }
         }
@@ -326,8 +477,18 @@ macro_rules! cancelable_event_args {
     )+};
 }
 
-/// Creates a [`Text`](crate::core::types::Text) by calling the std `format!` and
+/// Creates a [`Text`](crate::core::types::Text) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
+///
+/// # Example
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::core::types::Text;
+///
+/// let text: Text = formatx!("Hello {}", "World!");
+/// # }
+/// ```
 #[macro_export]
 macro_rules! formatx {
     ($($tt:tt)*) => {

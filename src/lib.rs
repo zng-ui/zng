@@ -8,6 +8,8 @@
 //! extern crate zero_ui;
 //!
 //! use zero_ui::prelude::*;
+//!
+//! # fn main () {}
 //! ```
 
 // for proc_macros that don't have $self.
