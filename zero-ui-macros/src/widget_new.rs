@@ -14,7 +14,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let child = input.user_child_expr;
     let mut imports = input.imports;
     let mut crate_patch = IdentReplace {
-        find: self::ident("crate"),
+        find: ident!("crate"),
         replace: input.crate_,
     };
     for import in imports.iter_mut() {
@@ -42,7 +42,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         Err(e) => abort!(e.span(), "{}", e),
     };
 
-    let let_id = if let Some(p) = user_sets.remove(&self::ident("id")) {
+    let let_id = if let Some(p) = user_sets.remove(&ident!("id")) {
         match p.value {
             PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a)),
             PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id),
@@ -148,7 +148,7 @@ fn make_property_call(
 ) {
     macro_rules! arg {
         ($n:expr) => {
-            self::ident(&format!("__{}_arg_{}", ident, $n))
+            ident!("__{}_arg_{}", ident, $n)
         };
     }
 

@@ -16,7 +16,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let mut in_node_impl = false;
 
-    let ui_node = ident("UiNode");
+    let ui_node = ident!("UiNode");
 
     if let Some((_, path, _)) = input.trait_ {
         if let Some(seg) = path.segments.last() {
@@ -76,7 +76,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     };
 
     if validate_manual_del {
-        let skip = vec![ident("render"), ident("boxed")];
+        let skip = vec![ident!("render"), ident!("boxed")];
 
         for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
@@ -166,7 +166,7 @@ macro_rules! make_absents {
         let mut absents = vec![];
         let user_mtds = $user_mtds;
         $(
-        if !user_mtds.contains(&ident(stringify!($ident))) {
+        if !user_mtds.contains(&ident!(stringify!($ident))) {
             absents.push(parse_quote!{
                fn $ident $($tt)*
             });
@@ -313,28 +313,28 @@ impl Parse for Args {
         if args.peek(Ident) {
             let arg0 = args.parse::<Ident>()?;
 
-            let args = if arg0 == ident("child") {
+            let args = if arg0 == ident!("child") {
                 Args::Delegate {
                     delegate: parse_quote!(&self.child),
                     delegate_mut: parse_quote!(&mut self.child),
                 }
-            } else if arg0 == ident("children") {
+            } else if arg0 == ident!("children") {
                 Args::DelegateIter {
                     delegate_iter: parse_quote!(self.children.iter()),
                     delegate_iter_mut: parse_quote!(self.children.iter_mut()),
                 }
-            } else if arg0 == ident("none") {
+            } else if arg0 == ident!("none") {
                 Args::NoDelegate
             } else {
-                let delegate = ident("delegate");
-                let delegate_mut = ident("delegate_mut");
+                let delegate = ident!("delegate");
+                let delegate_mut = ident!("delegate_mut");
 
                 if arg0 == delegate || arg0 == delegate_mut {
                     let (delegate, delegate_mut) = parse_pair(args, arg0, delegate, delegate_mut)?;
                     Args::Delegate { delegate, delegate_mut }
                 } else {
-                    let delegate_iter = ident("delegate_iter");
-                    let delegate_iter_mut = ident("delegate_iter_mut");
+                    let delegate_iter = ident!("delegate_iter");
+                    let delegate_iter_mut = ident!("delegate_iter_mut");
 
                     if arg0 == delegate_iter || arg0 == delegate_iter_mut {
                         let (delegate_iter, delegate_iter_mut) = parse_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
@@ -422,7 +422,7 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
 }
 
 fn take_allow_missing_deletate(attrs: &mut Vec<Attribute>) -> Option<Attribute> {
-    let allow = ident("allow_missing_delegate");
+    let allow = ident!("allow_missing_delegate");
 
     if let Some(i) = attrs.iter().position(|a| a.path.get_ident() == Some(&allow)) {
         Some(attrs.remove(i))

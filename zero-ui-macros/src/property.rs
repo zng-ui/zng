@@ -1,198 +1,252 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::Span;
+use std::mem;
 use syn::spanned::Spanned;
 use syn::{parse::*, *};
-
 include!("util.rs");
 
+pub mod keyword {
+    syn::custom_keyword!(context);
+    syn::custom_keyword!(event);
+    syn::custom_keyword!(outer);
+    syn::custom_keyword!(inner);
+}
+
 #[allow(clippy::cognitive_complexity)]
-pub(crate) fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let priority = parse_macro_input!(args as Priority);
-
+pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(args as Args);
     let mut fn_ = parse_macro_input!(input as ItemFn);
-    let prop_ident = fn_.sig.ident.clone();
-    let vis = fn_.vis;
-
-    fn_.sig.ident = Ident::new("set", prop_ident.span());
-    fn_.vis = pub_vis();
-
-    if fn_.sig.output == ReturnType::Default {
-        abort_call_site!("function must return an `UiNode`")
-    }
-
-    let mut arg_names = vec![];
-    let mut arg_gen_types = vec![];
-    let mut arg_types = vec![];
 
     if fn_.sig.inputs.len() < 2 {
-        abort_call_site!("function must take a `child: impl UiNode` first and at least one other argument");
-    } else if let Some(FnArg::Receiver(_)) = fn_.sig.inputs.first() {
-        abort_call_site!("function must free-standing");
-    } else {
-        for arg in fn_.sig.inputs.iter().skip(1) {
-            if let FnArg::Typed(pat) = arg {
-                arg_types.push(pat.ty.clone());
-                if let Pat::Ident(pat) = &*pat.pat {
-                    arg_names.push(pat.ident.clone());
-                    arg_gen_types.push(ident(&format!("T{}", arg_gen_types.len() + 1)))
-                } else {
-                    abort!(arg.span(), "property arguments does not support pattern deconstruction");
-                }
-            } else {
-                abort!(arg.span(), "unexpected `self`");
-            }
-        }
+        abort!(fn_.sig.inputs.span(), "cannot be property, expected at least two arguments")
     }
 
-    let mut sorted_sets = vec![];
-    let arg_nils: Vec<_> = arg_names.iter().map(|_| quote! {()}).collect();
-    let gen_tys = if let Some(gen_lt) = fn_.sig.generics.lt_token {
-        let gen_tys = fn_.sig.generics.type_params();
-        let gen_gt = fn_.sig.generics.gt_token;
+    // extract stuff for new mod and convert the input fn into the set fn.
+    let ident = mem::replace(&mut fn_.sig.ident, ident!("set"));
+    let vis = mem::replace(&mut fn_.vis, pub_vis());
+    let (docs_attrs, other_attrs) = split_doc_other(&mut fn_.attrs);
+    let fn_doc = doc!(
+        "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
+        ident
+    );
 
-        quote! {
-            #gen_lt
-            #(#gen_tys),*
-            #gen_gt
-        }
-    } else {
-        TokenStream::new()
+    // parse arguments, convert `_: impl T` to `<__TImpl_0: T>`.
+    // this is needed to make the struct Args bounds, which are needed
+    // because type inference gets confused for closures if the bounds
+    // are not immediately apparent.
+    let mut arg_names = vec![];
+    let mut arg_tys = vec![];
+    let mut arg_decl = vec![];
+    let mut arg_wheres = vec![];
+    let mut arg_gen_tys = vec![];
+    let mut impl_tys_count = 0;
+    let mut next_impl_ty = move || {
+        let n = ident!("TImpl{}", impl_tys_count);
+        impl_tys_count += 1;
+        n
     };
-    let where_ = fn_.sig.generics.where_clause.clone();
+    for input in fn_.sig.inputs.iter().skip(1) {
+        match input {
+            FnArg::Typed(input) => {
+                if let Pat::Ident(pat) = &*input.pat {
+                    arg_names.push(pat.ident.clone());
+                } else {
+                    abort!(input.pat.span(), "cannot be property, must only use simple argument names")
+                }
 
-    let mut set_pre: ItemFn = parse_quote! {
+                match &*input.ty {
+                    Type::ImplTrait(impl_) => {
+                        let ty = next_impl_ty();
+                        arg_tys.push(parse_quote!(#ty));
+                        let bounds = &impl_.bounds;
+                        arg_decl.push(parse_quote!(#ty:#bounds));
+                        arg_gen_tys.push(ty);
+                    }
+                    Type::Path(t) => {
+                        if let Some(t) = t.path.get_ident() {
+                            if let Some(gen) = fn_.sig.generics.type_params().find(|p| &p.ident == t) {
+                                if !arg_gen_tys.contains(t) {
+                                    arg_gen_tys.push(t.clone());
+
+                                    arg_decl.push(gen.clone());
+                                    if let Some(where_) = find_where_predicate(&fn_, t) {
+                                        arg_wheres.push(where_.clone());
+                                    }
+                                }
+                            }
+                        }
+                        arg_tys.push(input.ty.clone())
+                    }
+                    _ => arg_tys.push(input.ty.clone()),
+                }
+            }
+            // can this even happen? we parsed as ItemFn
+            FnArg::Receiver(self_) => abort!(self_.span(), "cannot be property, must be stand-alone fn"),
+        }
+    }
+    let arg_decl = if arg_decl.is_empty() { quote!() } else { quote! (<#(#arg_decl),*>) };
+    let arg_wheres = if arg_wheres.is_empty() {
+        quote!()
+    } else {
+        quote!(where #(#arg_wheres),*)
+    };
+    let arg_gen_tys = if arg_gen_tys.is_empty() {
+        quote!()
+    } else {
+        quote!(<#(#arg_gen_tys),*>)
+    };
+
+    // struct Args
+    let struct_args = quote! {
+        #[doc(hidden)]
+        #[allow(unused)]
+        pub struct Args#arg_decl #arg_wheres {
+            #(#arg_names: #arg_tys),*
+        }
+        impl#arg_decl Args#arg_gen_tys #arg_wheres {
+            pub fn pop(self) -> (#(#arg_tys,)*) {
+                (#(self.#arg_names,)*)
+            }
+        }
+    };
+
+    let child_ty = quote!(impl zero_ui::core::UiNode);
+
+    // templates for compile-time sorting functions:
+    // widget_new! will generate a call to all widget properties set_context,
+    // then set_event for all, etc, the returns args of set_context are fed into
+    // set_event end so on, so we need to generate dummy functions for before and after
+    // or actual set:
+    //
+    // 1 - for before we take the set(args) and returns then.
+    let mut set_not_yet: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_pre #gen_tys (child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_types),*) #where_ {
+        pub fn set_#arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) #arg_wheres {
             (child, #(#arg_names),*)
         }
     };
-    let mut set_priority: ItemFn = parse_quote! {
+    // 2 - for our actual set we call the property::set function to make or new child
+    // and then return the new child with place-holder nils ()
+    let arg_nils = vec![quote![()]; arg_names.len()];
+    let mut set_now: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_priority #gen_tys (child: impl UiNode, #(#arg_names: #arg_types),*) -> (impl UiNode, #(#arg_nils),*) #where_ {
+        pub fn set_#arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) #arg_wheres {
             (set(child, #(#arg_names),*), #(#arg_nils),*)
         }
     };
 
-    let mut set_post: ItemFn = parse_quote! {
+    // 3 - for after we set we just pass along the nils
+    let mut set_already_done: ItemFn = parse_quote! {
         #[doc(hidden)]
         #[inline]
-        pub fn set_pos(child: impl UiNode, #(_: #arg_nils),*) -> (impl UiNode, #(#arg_nils),*) {
+        pub fn set_(child: #child_ty, #(_: #arg_nils),*) -> (#child_ty, #(#arg_nils),*) {
             (child, #(#arg_nils),*)
         }
     };
-
-    match priority {
-        Priority::Outer => {
-            set_pre.sig.ident = ident("set_context");
-            sorted_sets.push(set_pre.clone());
-            set_pre.sig.ident = ident("set_event");
-            sorted_sets.push(set_pre);
-            set_priority.sig.ident = ident("set_outer");
-            sorted_sets.push(set_priority);
-            set_post.sig.ident = ident("set_inner");
-            sorted_sets.push(set_post);
+    let mut sorted_sets = vec![];
+    match args {
+        Args::Outer => {
+            set_not_yet.sig.ident = ident!("set_context");
+            sorted_sets.push(set_not_yet.clone());
+            set_not_yet.sig.ident = ident!("set_event");
+            sorted_sets.push(set_not_yet);
+            set_now.sig.ident = ident!("set_outer");
+            sorted_sets.push(set_now);
+            set_already_done.sig.ident = ident!("set_inner");
+            sorted_sets.push(set_already_done);
         }
-        Priority::Inner => {
-            set_pre.sig.ident = ident("set_context");
-            sorted_sets.push(set_pre.clone());
-            set_pre.sig.ident = ident("set_event");
-            sorted_sets.push(set_pre.clone());
-            set_pre.sig.ident = ident("set_outer");
-            sorted_sets.push(set_pre);
-            set_priority.sig.ident = ident("set_inner");
-            sorted_sets.push(set_priority);
+        Args::Inner => {
+            set_not_yet.sig.ident = ident!("set_context");
+            sorted_sets.push(set_not_yet.clone());
+            set_not_yet.sig.ident = ident!("set_event");
+            sorted_sets.push(set_not_yet.clone());
+            set_not_yet.sig.ident = ident!("set_outer");
+            sorted_sets.push(set_not_yet);
+            set_now.sig.ident = ident!("set_inner");
+            sorted_sets.push(set_now);
         }
-        Priority::Event => {
-            set_pre.sig.ident = ident("set_context");
-            sorted_sets.push(set_pre);
-            set_priority.sig.ident = ident("set_event");
-            sorted_sets.push(set_priority);
-            set_post.sig.ident = ident("set_outer");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_inner");
-            sorted_sets.push(set_post);
+        Args::Event => {
+            set_not_yet.sig.ident = ident!("set_context");
+            sorted_sets.push(set_not_yet);
+            set_now.sig.ident = ident!("set_event");
+            sorted_sets.push(set_now);
+            set_already_done.sig.ident = ident!("set_outer");
+            sorted_sets.push(set_already_done.clone());
+            set_already_done.sig.ident = ident!("set_inner");
+            sorted_sets.push(set_already_done);
         }
-        Priority::ContextVar => {
-            set_priority.sig.ident = ident("set_context");
-            sorted_sets.push(set_priority);
-            set_post.sig.ident = ident("set_event");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_outer");
-            sorted_sets.push(set_post.clone());
-            set_post.sig.ident = ident("set_inner");
-            sorted_sets.push(set_post);
+        Args::Context => {
+            set_now.sig.ident = ident!("set_context");
+            sorted_sets.push(set_now);
+            set_already_done.sig.ident = ident!("set_event");
+            sorted_sets.push(set_already_done.clone());
+            set_already_done.sig.ident = ident!("set_outer");
+            sorted_sets.push(set_already_done.clone());
+            set_already_done.sig.ident = ident!("set_inner");
+            sorted_sets.push(set_already_done);
         }
     }
 
-    let (docs_attrs, other_attrs) = split_doc_other(&mut fn_.attrs);
-
-    let build_doc = LitStr::new(
-        &format!(
-            "Sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
-            prop_ident
-        ),
-        Span::call_site(),
-    );
-
-    let output = quote! {
+    let r = quote! {
         #(#docs_attrs)*
-        #vis mod #prop_ident {
+        #vis mod #ident {
             use super::*;
 
-            #[doc(hidden)]
-            pub struct Args<#(#arg_gen_types),*> {
-                #(pub #arg_names: #arg_gen_types),*
-            }
-            impl<#(#arg_gen_types),*>  Args<#(#arg_gen_types),*> {
-                pub fn pop(self) -> (#(#arg_gen_types),*) {
-                    (#(self.#arg_names),*)
-                }
-            }
+            #struct_args
 
+            #fn_doc
             #(#other_attrs)*
-            #[doc=#build_doc]
-            #[inline]
             #fn_
+
             #(#sorted_sets)*
         }
     };
 
-    output.into()
+    r.into()
 }
 
-#[derive(PartialEq)]
-enum Priority {
-    ContextVar,
+fn find_where_predicate<'a, 'b>(fn_: &'a ItemFn, ident: &'b Ident) -> Option<&'a WherePredicate> {
+    fn_.sig.generics.where_clause.as_ref().and_then(|w| {
+        w.predicates.iter().find(|p| {
+            if let WherePredicate::Type(p) = p {
+                if let Type::Path(p) = &p.bounded_ty {
+                    if let Some(id) = p.path.get_ident() {
+                        return id == ident;
+                    }
+                }
+            }
+            false
+        })
+    })
+}
+
+#[derive(Clone, Copy)]
+enum Args {
+    Context,
     Event,
     Outer,
     Inner,
 }
 
-impl Parse for Priority {
+impl Parse for Args {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(Ident) {
-            let parsed: Ident = input.parse()?;
+        let lookahead = input.lookahead1();
 
-            if parsed == ident("outer") {
-                Ok(Priority::Outer)
-            } else if parsed == ident("inner") {
-                Ok(Priority::Inner)
-            } else if parsed == ident("event") {
-                Ok(Priority::Event)
-            } else if parsed == ident("context") {
-                Ok(Priority::ContextVar)
-            } else {
-                Err(Error::new(
-                    parsed.span(),
-                    format!("expected `context`, `event`, `outer` or `inner` found `{}`", quote!(#parsed)),
-                ))
-            }
+        if lookahead.peek(keyword::context) {
+            input.parse::<keyword::context>()?;
+            Ok(Args::Context)
+        } else if lookahead.peek(keyword::event) {
+            input.parse::<keyword::event>()?;
+            Ok(Args::Event)
+        } else if lookahead.peek(keyword::outer) {
+            input.parse::<keyword::outer>()?;
+            Ok(Args::Outer)
+        } else if lookahead.peek(keyword::inner) {
+            input.parse::<keyword::inner>()?;
+            Ok(Args::Inner)
         } else {
-            Err(Error::new(
-                Span::call_site(),
-                "missing macro argument, expected `context`, `event`, `outer` or `inner`",
-            ))
+            Err(lookahead.error())
         }
     }
 }

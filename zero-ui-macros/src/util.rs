@@ -2,8 +2,13 @@
 
 /// `Ident` with call_site span.
 #[allow(unused)]
-fn ident(name: &str) -> Ident {
-    Ident::new(name, Span::call_site())
+macro_rules! ident {
+    ($name:expr) => {
+        proc_macro2::Ident::new($name, proc_macro2::Span::call_site())
+    };
+    ($($format_name:tt)+) => {
+        proc_macro2::Ident::new(&format!($($format_name)+), proc_macro2::Span::call_site())
+    };
 }
 
 /// generates `pub`
@@ -22,8 +27,8 @@ fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute
     let mut docs = vec![];
     let mut other_attrs = vec![];
 
-    let doc_ident = ident("doc");
-    let inline_ident = ident("inline");
+    let doc_ident = ident!("doc");
+    let inline_ident = ident!("inline");
 
     for attr in attrs.drain(..) {
         if let Some(ident) = attr.path.get_ident() {
@@ -44,7 +49,7 @@ fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute
 /// renamed.
 #[allow(unused)]
 fn zero_ui_crate_ident() -> Ident {
-    proc_macro_crate::crate_name("zero-ui").map(|n|ident(&n)).unwrap_or_else(|_|ident("zero_ui"))
+    proc_macro_crate::crate_name("zero-ui").map(|n|ident!(&n)).unwrap_or_else(|_|ident!("zero_ui"))
 }
 
 /// Same as `parse_quote` but with an `expect` message.

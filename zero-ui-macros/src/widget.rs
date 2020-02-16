@@ -39,7 +39,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     for use_ in imports.iter_mut() {
         use_.vis = self::pub_vis();
     }
-    let imports_mod = self::ident(&format!("__{}_imports", ident));
+    let imports_mod = ident!("__{}_imports", ident);
 
     let mut test_required = vec![];
 
