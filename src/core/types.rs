@@ -131,16 +131,32 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
     }
 }
 
-impl IntoVar<Cow<'static, str>> for &'static str {
-    type Var = OwnedVar<Cow<'static, str>>;
+/// Text string type, can be either a `&'static str` or a `String`.
+pub type Text = Cow<'static, str>;
+
+/// A trait for converting a value to a [`Text`](Text).
+///
+/// This trait is automatically implemented for any type which implements the [`ToString`](ToString) trait.
+pub trait ToText {
+    fn to_text(self) -> Text;
+}
+
+impl<T: ToString> ToText for T {
+    fn to_text(self) -> Text {
+        self.to_string().into()
+    }
+}
+
+impl IntoVar<Text> for &'static str {
+    type Var = OwnedVar<Text>;
 
     fn into_var(self) -> Self::Var {
         OwnedVar(Cow::from(self))
     }
 }
 
-impl IntoVar<Cow<'static, str>> for String {
-    type Var = OwnedVar<Cow<'static, str>>;
+impl IntoVar<Text> for String {
+    type Var = OwnedVar<Text>;
 
     fn into_var(self) -> Self::Var {
         OwnedVar(Cow::from(self))

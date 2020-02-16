@@ -64,7 +64,7 @@ pub trait UiNode: 'static {
     /// * `frame`: Contains the next frame draw instructions.
     fn render(&self, frame: &mut FrameBuilder);
 
-    /// Box this component, unless it is already `Box<dyn UiNode>`.
+    /// Box this node, unless it is already `Box<dyn UiNode>`.
     fn boxed(self) -> Box<dyn UiNode>
     where
         Self: Sized + 'static,

@@ -2,31 +2,7 @@ use crate::core::{context::WidgetContext, render::FrameBuilder, types::LayoutSiz
 
 macro_rules! ui_n {
     ($UiEnum: ident { $($UiNode: ident),+ }) => {
-        /// Helper type for returning more then one type of [UiNode].
-        ///
-        /// There is a helper enum type for 2 to 8 alternative Uis
-        /// named `Ui2-8`, if you need more then 8 return a `Box<dyn UiNode>` using
-        /// [boxed]([UiNode::boxed).
-        ///
-        /// # Example
-        /// ```
-        /// # use zero_ui::{core::*, properties::*, *};
-        /// # fn restart_btn() -> impl UiNode { text("Restart") }
-        /// #
-        /// fn countdown(n: usize) -> impl UiNode {
-        ///     if n > 0 {
-        ///         Ui2::A(text(format!("{}!", n)))
-        ///     } else {
-        ///         Ui2::B(v_stack((
-        ///             ui! {
-        ///                 text_color: rgb(0, 0, 128);
-        ///                 => text("Congratulations!!")
-        ///             },
-        ///             restart_btn()
-        ///         ).into()))
-        ///     }
-        /// }
-        /// ```
+        #[doc(hidden)]
         pub enum $UiEnum<$($UiNode: UiNode),+> {
             $($UiNode($UiNode)),+
         }

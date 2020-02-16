@@ -3,7 +3,7 @@ use crate::widget;
 use crate::widgets::container;
 
 context_var! {
-    /// [button] default background.
+    /// Default background of [`button!`](crate::widgets::button) widgets.
     pub struct ButtonBackground: ColorF = rgb(0, 0, 0);
 }
 
@@ -20,6 +20,7 @@ widget! {
     }
 
     default(self) {
+        /// Set to [`ButtonBackground`](crate::widgets::ButtonBackground).
         background_color: ButtonBackground;
     }
 }

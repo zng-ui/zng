@@ -167,6 +167,8 @@ macro_rules! state_key {
 macro_rules! context_var {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
         $(#[$outer])*
+        /// # ContextVar
+        /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
         #[derive(Clone, Copy)]
         $vis struct $ident;
 
@@ -322,4 +324,13 @@ macro_rules! cancelable_event_args {
             }
         }
     )+};
+}
+
+/// Creates a [`Text`](crate::core::types::Text) by calling the std `format!` and
+/// wrapping the result in a `Cow::Owned`.
+#[macro_export]
+macro_rules! formatx {
+    ($($tt:tt)*) => {
+        std::borrow::Cow::Owned(format!($($tt)*))
+    };
 }

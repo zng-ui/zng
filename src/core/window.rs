@@ -946,7 +946,7 @@ impl OwnedWindowContext {
 pub struct UiRoot {
     id: WidgetId,
     meta: LazyStateMap,
-    title: BoxLocalVar<Cow<'static, str>>,
+    title: BoxLocalVar<Text>,
     size: SharedVar<LayoutSize>,
     background_color: BoxVar<ColorF>,
     child: Box<dyn UiNode>,
@@ -955,7 +955,7 @@ pub struct UiRoot {
 // TODO widget like window! macro
 //fn window(
 //    child: impl UiNode,
-//    title: impl IntoVar<Cow<'static, str>>,
+//    title: impl IntoVar<Text>,
 //    size: impl Into<SharedVar<LayoutSize>>,
 //    background_color: impl IntoVar<ColorF>,
 //) -> UiRoot {

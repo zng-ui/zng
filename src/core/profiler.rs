@@ -5,6 +5,7 @@
 use lazy_static::*;
 use serde_json::*;
 
+use crate::core::types::Text;
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::fs::File;
@@ -30,7 +31,7 @@ struct ThreadInfo {
 
 struct Sample {
     tid: ThreadId,
-    name: Cow<'static, str>,
+    name: Text,
     t0: u64,
     t1: u64,
 }
@@ -41,7 +42,7 @@ struct ThreadProfiler {
 }
 
 impl ThreadProfiler {
-    fn push_sample(&self, name: Cow<'static, str>, t0: u64, t1: u64) {
+    fn push_sample(&self, name: Text, t0: u64, t1: u64) {
         let sample = Sample {
             tid: self.id,
             name,
@@ -144,13 +145,13 @@ impl Profiler {
 ///
 /// For basic usage like in the example there is also the `[profile_scope!]` macro.
 pub struct ProfileScope {
-    name: Cow<'static, str>,
+    name: Text,
     t0: u64,
 }
 
 impl ProfileScope {
     /// Starts a new profile scope, the start time is when this method is called.
-    pub fn new(name: impl Into<Cow<'static, str>>) -> ProfileScope {
+    pub fn new(name: impl Into<Text>) -> ProfileScope {
         let t0 = precise_time_ns();
         ProfileScope { name: name.into(), t0 }
     }

@@ -501,16 +501,16 @@ impl<'s> IntoValue<String> for &'s str {
     }
 }
 
-impl IntoValue<Cow<'static, str>> for &'static str {
-    type Value = Owned<Cow<'static, str>>;
+impl IntoValue<Text> for &'static str {
+    type Value = Owned<Text>;
 
     fn into_value(self) -> Self::Value {
         Owned(self.into())
     }
 }
 
-impl IntoValue<Cow<'static, str>> for String {
-    type Value = Owned<Cow<'static, str>>;
+impl IntoValue<Text> for String {
+    type Value = Owned<Text>;
 
     fn into_value(self) -> Self::Value {
         Owned(self.into())

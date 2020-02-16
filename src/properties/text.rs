@@ -8,7 +8,7 @@ use std::borrow::Cow;
 
 /// Sets the [FontFamily] context var.
 #[property(context)]
-pub fn font_family(child: impl UiNode, font: impl IntoVar<Cow<'static, str>>) -> impl UiNode {
+pub fn font_family(child: impl UiNode, font: impl IntoVar<Text>) -> impl UiNode {
     set_context_var::set(child, FontFamily, font)
 }
 
