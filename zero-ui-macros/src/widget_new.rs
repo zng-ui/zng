@@ -153,7 +153,7 @@ fn make_property_call(
     }
 
     let mut args_init = vec![];
-    let mut len = 0;
+    let len;
 
     match value {
         PropertyValue::Args(a) => {
@@ -184,6 +184,7 @@ fn make_property_call(
                     let (#(#args_init)*) = {
                         #imports
                         #ident::Args {
+                            __phantom: std::marker::PhantomData,
                             #f
                         }.pop()
                     };
@@ -191,6 +192,7 @@ fn make_property_call(
             } else {
                 r.set_context.push(quote! {
                     let (#(#args_init)*) = #ident::Args {
+                        __phantom: std::marker::PhantomData,
                         #f
                     }.pop();
                 });

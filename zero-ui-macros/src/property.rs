@@ -29,7 +29,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         ident
     );
 
-    // parse arguments, convert `_: impl T` to `<__TImpl_0: T>`.
+    // parse arguments, convert `_: impl T` to `<TImpl0: T>`.
     // this is needed to make the struct Args bounds, which are needed
     // because type inference gets confused for closures if the bounds
     // are not immediately apparent.
@@ -83,16 +83,44 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             FnArg::Receiver(self_) => abort!(self_.span(), "cannot be property, must be stand-alone fn"),
         }
     }
-    let arg_decl = if arg_decl.is_empty() { quote!() } else { quote! (<#(#arg_decl),*>) };
+    // we need to make a PhantomData member for all other generic types
+    // because they may be used in parts of the generics we now are used.
+    let mut arg_phantom_decl = vec![];
+    let mut arg_phantom_tys = vec![];
+    let mut arg_phantom_wheres = vec![];
+
+    if !arg_gen_tys.is_empty() {
+        for p in fn_.sig.generics.type_params() {
+            if !arg_gen_tys.contains(&p.ident) {
+                arg_phantom_tys.push(p.ident.clone());
+                arg_phantom_decl.push(p.clone());
+
+                if let Some(where_) = find_where_predicate(&fn_, &p.ident) {
+                    arg_phantom_wheres.push(where_.clone());
+                }
+            }
+        }
+    }
+
+    let arg_decl = if arg_decl.is_empty() {
+        quote!()
+    } else {
+        quote! (<#(#arg_phantom_decl,)* #(#arg_decl),*>)
+    };
     let arg_wheres = if arg_wheres.is_empty() {
         quote!()
     } else {
-        quote!(where #(#arg_wheres),*)
+        quote!(where #(#arg_phantom_wheres,)* #(#arg_wheres),*)
     };
     let arg_gen_tys = if arg_gen_tys.is_empty() {
         quote!()
     } else {
-        quote!(<#(#arg_gen_tys),*>)
+        quote!(<#(#arg_phantom_tys,)* #(#arg_gen_tys),*>)
+    };
+    let arg_phantom_tys = if arg_phantom_tys.is_empty() {
+        quote!(<()>)
+    } else {
+        quote! (<#(#arg_phantom_tys),*>)
     };
 
     // struct Args
@@ -100,7 +128,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         #[doc(hidden)]
         #[allow(unused)]
         pub struct Args#arg_decl #arg_wheres {
-            #(#arg_names: #arg_tys),*
+            pub __phantom: std::marker::PhantomData#arg_phantom_tys,
+            #(pub #arg_names: #arg_tys),*
         }
         impl#arg_decl Args#arg_gen_tys #arg_wheres {
             pub fn pop(self) -> (#(#arg_tys,)*) {
@@ -118,73 +147,67 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     // or actual set:
     //
     // 1 - for before we take the set(args) and returns then.
-    let mut set_not_yet: ItemFn = parse_quote! {
-        #[doc(hidden)]
-        #[inline]
-        pub fn set_#arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) #arg_wheres {
-            (child, #(#arg_names),*)
+    let set_not_yet = |fn_: &str| {
+        let fn_ = ident!(fn_);
+        quote! {
+            #[doc(hidden)]
+            #[inline]
+            pub fn #fn_ #arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) #arg_wheres {
+                (child, #(#arg_names),*)
+            }
         }
     };
+
     // 2 - for our actual set we call the property::set function to make or new child
     // and then return the new child with place-holder nils ()
     let arg_nils = vec![quote![()]; arg_names.len()];
-    let mut set_now: ItemFn = parse_quote! {
-        #[doc(hidden)]
-        #[inline]
-        pub fn set_#arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) #arg_wheres {
-            (set(child, #(#arg_names),*), #(#arg_nils),*)
+    let set_now = |fn_: &str| {
+        let fn_ = ident!(fn_);
+        quote! {
+            #[doc(hidden)]
+            #[inline]
+            pub fn #fn_ #arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) #arg_wheres {
+                (set(child, #(#arg_names),*), #(#arg_nils),*)
+            }
         }
     };
 
     // 3 - for after we set we just pass along the nils
-    let mut set_already_done: ItemFn = parse_quote! {
-        #[doc(hidden)]
-        #[inline]
-        pub fn set_(child: #child_ty, #(_: #arg_nils),*) -> (#child_ty, #(#arg_nils),*) {
-            (child, #(#arg_nils),*)
+    let set_already_done = |fn_: &str| {
+        let fn_ = ident!(fn_);
+        quote! {
+            #[doc(hidden)]
+            #[inline]
+            pub fn #fn_(child: #child_ty, #(_: #arg_nils),*) -> (#child_ty, #(#arg_nils),*) {
+                (child, #(#arg_nils),*)
+            }
         }
     };
-    let mut sorted_sets = vec![];
+    let mut sets = vec![];
     match args {
         Args::Outer => {
-            set_not_yet.sig.ident = ident!("set_context");
-            sorted_sets.push(set_not_yet.clone());
-            set_not_yet.sig.ident = ident!("set_event");
-            sorted_sets.push(set_not_yet);
-            set_now.sig.ident = ident!("set_outer");
-            sorted_sets.push(set_now);
-            set_already_done.sig.ident = ident!("set_inner");
-            sorted_sets.push(set_already_done);
+            sets.push(set_not_yet("set_context"));
+            sets.push(set_not_yet("set_event"));
+            sets.push(set_now("set_outer"));
+            sets.push(set_already_done("set_inner"));
         }
         Args::Inner => {
-            set_not_yet.sig.ident = ident!("set_context");
-            sorted_sets.push(set_not_yet.clone());
-            set_not_yet.sig.ident = ident!("set_event");
-            sorted_sets.push(set_not_yet.clone());
-            set_not_yet.sig.ident = ident!("set_outer");
-            sorted_sets.push(set_not_yet);
-            set_now.sig.ident = ident!("set_inner");
-            sorted_sets.push(set_now);
+            sets.push(set_not_yet("set_context"));
+            sets.push(set_not_yet("set_event"));
+            sets.push(set_not_yet("set_outer"));
+            sets.push(set_now("set_inner"));
         }
         Args::Event => {
-            set_not_yet.sig.ident = ident!("set_context");
-            sorted_sets.push(set_not_yet);
-            set_now.sig.ident = ident!("set_event");
-            sorted_sets.push(set_now);
-            set_already_done.sig.ident = ident!("set_outer");
-            sorted_sets.push(set_already_done.clone());
-            set_already_done.sig.ident = ident!("set_inner");
-            sorted_sets.push(set_already_done);
+            sets.push(set_not_yet("set_context"));
+            sets.push(set_now("set_event"));
+            sets.push(set_already_done("set_outer"));
+            sets.push(set_already_done("set_inner"));
         }
         Args::Context => {
-            set_now.sig.ident = ident!("set_context");
-            sorted_sets.push(set_now);
-            set_already_done.sig.ident = ident!("set_event");
-            sorted_sets.push(set_already_done.clone());
-            set_already_done.sig.ident = ident!("set_outer");
-            sorted_sets.push(set_already_done.clone());
-            set_already_done.sig.ident = ident!("set_inner");
-            sorted_sets.push(set_already_done);
+            sets.push(set_now("set_context"));
+            sets.push(set_already_done("set_event"));
+            sets.push(set_already_done("set_outer"));
+            sets.push(set_already_done("set_inner"));
         }
     }
 
@@ -199,7 +222,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #(#other_attrs)*
             #fn_
 
-            #(#sorted_sets)*
+            #(#sets)*
         }
     };
 
