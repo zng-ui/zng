@@ -8,26 +8,14 @@ use std::rc::Rc;
 
 // #region Traits
 
-/// Type alias for variable values.
+/// A type that can be a [`Var`](crate::core::var::Var) value.
 ///
-/// This `trait` is used like a generic type alias and is already
-/// implemented to all types it applies.
+/// # Trait Alias
+///
+/// This trait is used like a type alias for traits and is
+/// already implemented for all types it applies to.
 pub trait VarValue: Debug + Clone + 'static {}
 impl<T: Debug + Clone + 'static> VarValue for T {}
-
-/// Type alias for map functions.
-///
-/// This `trait` is used like a generic type alias and is already
-/// implemented to all types it applies.
-pub trait MapFnMut<I: VarValue, O: VarValue>: FnMut(&I) -> O + 'static {}
-impl<I: VarValue, O: VarValue, F: FnMut(&I) -> O + 'static> MapFnMut<I, O> for F {}
-
-/// Type alias for variable edit functions.
-///
-/// This `trait` is used like a generic type alias and is already
-/// implemented to all types it applies.
-pub trait ModifyFnOnce<T: VarValue>: FnOnce(&mut T) + 'static {}
-impl<T: VarValue, F: FnOnce(&mut T) + 'static> ModifyFnOnce<T> for F {}
 
 /// A variable value that is set by the ancestors of an UiNode.
 pub trait ContextVar: Clone + Copy + 'static {
@@ -118,7 +106,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     }
 
     /// Schedules a variable modification for the next update using a boxed closure.
-    fn push_modify_boxed(&self, _modify: Box<dyn ModifyFnOnce<T>>, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, _modify: Box<dyn FnOnce(&mut T) + 'static>, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
@@ -151,21 +139,26 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     type AsLocal: LocalVar<T>;
 
     /// Schedules a variable modification for the next update.
-    fn push_modify(&self, _modify: impl ModifyFnOnce<T>, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, _modify: impl FnOnce(&mut T) + 'static, _vars: &mut Updates) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
 
     /// Returns a read-only `Var<O>` that uses a closure to generate its value from this `Var<T>` every time it changes.
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M>
+    fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
     where
-        Self: Sized;
+        Self: Sized,
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue;
 
     /// Bidirectional map. Returns a `Var<O>` that uses two closures to convert to and from this `Var<T>`.
     ///
     /// Unlike [map](Var::map) the returned variable is read-write when this variable is read-write.
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
     where
-        Self: Sized;
+        Self: Sized,
+        O: VarValue,
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static;
 
     /// Ensures this variable is [always_read_only](ObjVar::always_read_only).
     fn as_read_only(self) -> Self::AsReadOnly;
@@ -192,8 +185,7 @@ pub trait IntoVar<T: VarValue> {
     }
 }
 
-/// A variable that can be one of many variables at a time, determined by
-/// a its index.
+/// A variable that can be one of many variables at a time, determined by its index.
 #[allow(clippy::len_without_is_empty)]
 pub trait SwitchVar<T: VarValue>: Var<T> + protected::SwitchVar<T> {
     /// Current variable index.
@@ -274,7 +266,7 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.push_set(new_value, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.var.push_modify_boxed(modify, updates)
     }
 }
@@ -336,11 +328,20 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
+    fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
         MapVar::new(MapVarInner::Context(MapContextVar::new(*self, map)))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, _: N) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O, M, N>(&self, map: M, _: N) -> MapVarBiDi<T, Self, O, M, N>
+    where
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static,
+        O: VarValue,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Context(MapContextVar::new(*self, map)))
     }
 
@@ -388,11 +389,20 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
     type AsLocal = Self;
 
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, mut map: M) -> MapVar<T, Self, O, M> {
+    fn map<O, M>(&self, mut map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
         MapVar::new(MapVarInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, mut map: M, _: N) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O, M, N>(&self, mut map: M, _: N) -> MapVarBiDi<T, Self, O, M, N>
+    where
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static,
+        O: VarValue,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
@@ -462,7 +472,12 @@ impl<T: VarValue> SharedVar<T> {
         }
     }
 
-    pub(crate) fn modify(self, modify: impl ModifyFnOnce<T>, _assert_vars_not_borrowed: &mut Vars, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
+    pub(crate) fn modify(
+        self,
+        modify: impl FnOnce(&mut T) + 'static,
+        _assert_vars_not_borrowed: &mut Vars,
+        cleanup: &mut Vec<Box<dyn FnOnce()>>,
+    ) {
         // SAFETY: This is safe because borrows are bound to the `Vars` instance
         // so if we have a mutable reference to it no event value is borrowed.
         modify(unsafe { &mut *self.r.data.get() });
@@ -537,7 +552,7 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         Ok(())
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         updates.push_modify_impl(move |assert, cleanup| {
             var.modify(|v: &mut T| modify(v), assert, cleanup);
@@ -550,7 +565,7 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         updates.push_modify_impl(move |assert, cleanup| {
             var.modify(modify, assert, cleanup);
@@ -558,7 +573,11 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
         Ok(())
     }
 
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
+    fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
@@ -566,7 +585,12 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
+    where
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static,
+        O: VarValue,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -651,7 +675,11 @@ impl<T: VarValue, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
+    fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
@@ -659,7 +687,12 @@ impl<T: VarValue, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
+    where
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static,
+        O: VarValue,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -694,7 +727,7 @@ struct MapSharedVar<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> {
     r: Rc<MapSharedVarInner<T, S, O, M>>,
 }
 
-struct MapBiDiSharedVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+struct MapBiDiSharedVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O + 'static, N: FnMut(&O) -> T> {
     _t: PhantomData<T>,
     source: S,
     map: RefCell<M>,
@@ -704,7 +737,7 @@ struct MapBiDiSharedVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T
 }
 
 /// A variable that maps the value of another variable.
-struct MapBiDiSharedVar<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+struct MapBiDiSharedVar<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O + 'static, N: FnMut(&O) -> T> {
     r: Rc<MapBiDiSharedVarInner<T, S, O, M, N>>,
 }
 
@@ -744,7 +777,14 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapSharedVar<T, 
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T,
+{
     fn new(source: S, map: M, map_back: N, prev_version: u32) -> Self {
         MapBiDiSharedVar {
             r: Rc::new(MapBiDiSharedVarInner {
@@ -782,13 +822,26 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> 
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapSharedVar<T, S, O, M> {
+impl<T, S, O, M> protected::Var<O> for MapSharedVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(vars), self.is_new(vars), self.version(vars))
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O> for MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> protected::Var<O> for MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(vars), self.is_new(vars), self.version(vars))
     }
@@ -798,7 +851,13 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapSharedVar<T, S, O, M> {
+impl<T, S, O, M> ObjVar<O> for MapSharedVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         self.borrow(vars)
     }
@@ -820,7 +879,14 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O> for MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> ObjVar<O> for MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         self.borrow(vars)
     }
@@ -853,7 +919,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         self.r.source.push_set((&mut *self.r.map_back.borrow_mut())(&new_value), updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut O) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let r = Rc::clone(&self.r);
         self.r.source.push_modify_boxed(
             Box::new(move |input| {
@@ -867,23 +933,46 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Clone for MapSharedVar<T, S, O, M> {
+impl<T, S, O, M> Clone for MapSharedVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn clone(&self) -> Self {
         MapSharedVar { r: Rc::clone(&self.r) }
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Clone for MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> Clone for MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn clone(&self) -> Self {
         MapBiDiSharedVar { r: Rc::clone(&self.r) }
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapSharedVar<T, S, O, M> {
+impl<T, S, O, M> Var<O> for MapSharedVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+    fn map<O2, M2>(&self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
@@ -891,7 +980,12 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapSh
         )))
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+        N2: FnMut(&O2) -> O,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -909,11 +1003,18 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapSh
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O> for MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> Var<O> for MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<O>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut O) + 'static, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let r = Rc::clone(&self.r);
         self.r.source.push_modify_boxed(
             Box::new(move |input| {
@@ -926,7 +1027,11 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         )
     }
 
-    fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+    fn map<O2, M2>(&self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
@@ -934,7 +1039,12 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         )))
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+        N2: FnMut(&O2) -> O,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -952,7 +1062,13 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for MapSharedVar<T, S, O, M> {
+impl<T, S, O, M> IntoVar<O> for MapSharedVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -960,7 +1076,14 @@ impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for M
     }
 }
 
-impl<T: VarValue, O: VarValue, S: ObjVar<T>, M: MapFnMut<T, O>, N: MapFnMut<O, T>> IntoVar<O> for MapBiDiSharedVar<T, S, O, M, N> {
+impl<T, S, O, M, N> IntoVar<O> for MapBiDiSharedVar<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1030,13 +1153,25 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapContextVar<T, S, O, M> {
+impl<T, S, O, M> protected::Var<O> for MapContextVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         protected::BindInfo::Var(self.borrow(vars), self.r.source.is_new(vars), self.r.source.version(vars))
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapContextVar<T, S, O, M> {
+impl<T, S, O, M> ObjVar<O> for MapContextVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         self.borrow(vars)
     }
@@ -1058,21 +1193,42 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Clone for MapContextVar<T, S, O, M> {
+impl<T, S, O, M> Clone for MapContextVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn clone(&self) -> Self {
         MapContextVar { r: Rc::clone(&self.r) }
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapContextVar<T, S, O, M> {
+impl<T, S, O, M> Var<O> for MapContextVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, _map: M2) -> MapVar<O, Self, O2, M2> {
+    fn map<O2, M2>(&self, _map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
         todo!("when GATs are stable")
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, _map: M2, _map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2, M2, N2>(&self, _map: M2, _map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+        N2: FnMut(&O2) -> O,
+    {
         todo!("when GATs are stable")
     }
 
@@ -1085,7 +1241,13 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapCo
     }
 }
 
-impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for MapContextVar<T, S, O, M> {
+impl<T, S, O, M> IntoVar<O> for MapContextVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1093,7 +1255,13 @@ impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for M
     }
 }
 
-impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for MapVar<T, S, O, M> {
+impl<T, S, O, M> IntoVar<O> for MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type Var = Self;
 
     fn into_var(self) -> Self::Var {
@@ -1105,13 +1273,26 @@ impl<T: VarValue, O: VarValue, M: MapFnMut<T, O>, S: ObjVar<T>> IntoVar<O> for M
 
 // #region MapVar<T> and MapVarBidi<T>
 
-enum MapVarInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> {
+enum MapVarInner<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     Owned(Rc<OwnedVar<O>>),
     Shared(MapSharedVar<T, S, O, M>),
     Context(MapContextVar<T, S, O, M>),
 }
 
-enum MapVarBiDiInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+enum MapVarBiDiInner<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     Owned(Rc<OwnedVar<O>>),
     Shared(MapBiDiSharedVar<T, S, O, M, N>),
     Context(MapContextVar<T, S, O, M>),
@@ -1121,7 +1302,13 @@ enum MapVarBiDiInner<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, 
 ///
 /// This `struct` is created by the [map](Var::map) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
-pub struct MapVar<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> {
+pub struct MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     r: MapVarInner<T, S, O, M>,
 }
 
@@ -1129,23 +1316,49 @@ pub struct MapVar<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> {
 ///
 /// This `struct` is created by the [map_bidi](Var::map_bidi) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
-pub struct MapVarBiDi<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> {
+pub struct MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     r: MapVarBiDiInner<T, S, O, M, N>,
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapVar<T, S, O, M> {
+impl<T, S, O, M> MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn new(inner: MapVarInner<T, S, O, M>) -> Self {
         MapVar { r: inner }
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O, N: FnMut(&O) -> T> MapVarBiDi<T, S, O, M, N> {
+impl<T, S, O, M, N> MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn new(inner: MapVarBiDiInner<T, S, O, M, N>) -> Self {
         MapVarBiDi { r: inner }
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O> for MapVar<T, S, O, M> {
+impl<T, S, O, M> protected::Var<O> for MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         match &self.r {
             MapVarInner::Owned(o) => o.bind_info(vars),
@@ -1155,7 +1368,14 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> protected::Var<O
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> protected::Var<O> for MapVarBiDi<T, S, O, M, N> {
+impl<T, S, O, M, N> protected::Var<O> for MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.bind_info(vars),
@@ -1169,7 +1389,13 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for MapVar<T, S, O, M> {
+impl<T, S, O, M> ObjVar<O> for MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         match &self.r {
             MapVarInner::Owned(o) => o.get(vars),
@@ -1203,7 +1429,14 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> ObjVar<O> for Ma
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> ObjVar<O> for MapVarBiDi<T, S, O, M, N> {
+impl<T, S, O, M, N> ObjVar<O> for MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.get(vars),
@@ -1260,7 +1493,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<O>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut O) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, updates),
             MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, updates),
@@ -1269,7 +1502,13 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Clone for MapVar<T, S, O, M> {
+impl<T, S, O, M> Clone for MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     fn clone(&self) -> Self {
         MapVar {
             r: match &self.r {
@@ -1281,7 +1520,14 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Clone for MapVar
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Clone for MapVarBiDi<T, S, O, M, N> {
+impl<T, S, O, M, N> Clone for MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     fn clone(&self) -> Self {
         MapVarBiDi {
             r: match &self.r {
@@ -1293,16 +1539,31 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapVar<T, S, O, M> {
+impl<T, S, O, M> Var<O> for MapVar<T, S, O, M>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+{
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+    fn map<O2, M2>(&self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(self.clone(), map, 0)))
         // TODO prev_version?
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+        N2: FnMut(&O2) -> O,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(self.clone(), map, map_back, 0)))
     }
 
@@ -1315,11 +1576,18 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>> Var<O> for MapVa
     }
 }
 
-impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>> Var<O> for MapVarBiDi<T, S, O, M, N> {
+impl<T, S, O, M, N> Var<O> for MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
     type AsReadOnly = ReadOnlyVar<O, Self>;
     type AsLocal = CloningLocalVar<O, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<O>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut O) + 'static, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify(modify, updates),
             MapVarBiDiInner::Shared(s) => s.push_modify(modify, updates),
@@ -1327,12 +1595,21 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T
         }
     }
 
-    fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+    fn map<O2, M2>(&self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(self.clone(), map, 0)))
         // TODO prev_version?
     }
 
-    fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N2: MapFnMut<O2, O>>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2> {
+    fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+        N2: FnMut(&O2) -> O,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(self.clone(), map, map_back, 0)))
     }
 
@@ -1367,15 +1644,14 @@ macro_rules! impl_switch_vars {
             is_new: Cell<bool>
         }
 
-        /// A fixed-size set of variables that can be switched on. See [switch_var!] for
-        /// the full documentation.
+        #[doc(hidden)]
         pub struct $SwitchVar<T: VarValue, $($VN: Var<T>),+> {
             r: Rc<$SwitchVarInner<T, $($VN),+>>,
         }
 
         impl<T: VarValue, $($VN: Var<T>),+> $SwitchVar<T, $($VN),+> {
             #[allow(clippy::too_many_arguments)]
-            pub fn new(index: u8, $($vn: $VN),+) -> Self {
+            pub fn new(index: u8, $($vn: impl IntoVar<T, Var=$VN>),+) -> Self {
                 assert!(index < $N);
                 $SwitchVar {
                     r: Rc::new($SwitchVarInner {
@@ -1384,7 +1660,7 @@ macro_rules! impl_switch_vars {
                         $($version: Cell::new(0),)+
                         version: Cell::new(0),
                         is_new: Cell::new(false),
-                        $($vn,)+
+                        $($vn: $vn.into_var(),)+
                     })
                 }
             }
@@ -1471,7 +1747,7 @@ macro_rules! impl_switch_vars {
                 }
             }
 
-            fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+            fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
                     $($n => self.r.$vn.push_modify_boxed(modify, updates),)+
                     _ => unreachable!(),
@@ -1489,14 +1765,16 @@ macro_rules! impl_switch_vars {
             type AsReadOnly = ReadOnlyVar<T, Self>;
             type AsLocal = CloningLocalVar<T, Self>;
 
-            fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+            fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
                 match self.r.index.get() {
                     $($n => self.r.$vn.push_modify(modify, updates),)+
                     _ => unreachable!(),
                 }
             }
 
-            fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
+            fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>  where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,{
                 MapVar::new(MapVarInner::Shared(MapSharedVar::new(
                     self.clone(),
                     map,
@@ -1504,7 +1782,7 @@ macro_rules! impl_switch_vars {
                 )))
             }
 
-            fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(
+            fn map_bidi<O: VarValue, M: FnMut(&T) -> O + 'static, N: FnMut(&O) -> T>(
                 &self,
                 map: M,
                 map_back: N,
@@ -1724,7 +2002,7 @@ impl<T: VarValue> ObjVar<T> for SwitchVarDyn<T> {
         self.r.vars[self.r.index.get()].push_set(new_value, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn ModifyFnOnce<T>>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.r.vars[self.r.index.get()].push_modify_boxed(modify, updates)
     }
 }
@@ -1739,11 +2017,15 @@ impl<T: VarValue> Var<T> for SwitchVarDyn<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl ModifyFnOnce<T>, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.push_modify_boxed(Box::new(modify), updates)
     }
 
-    fn map<O: VarValue, M: MapFnMut<T, O>>(&self, map: M) -> MapVar<T, Self, O, M> {
+    fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
         MapVar::new(MapVarInner::Shared(MapSharedVar::new(
             self.clone(),
             map,
@@ -1751,7 +2033,12 @@ impl<T: VarValue> Var<T> for SwitchVarDyn<T> {
         )))
     }
 
-    fn map_bidi<O: VarValue, M: MapFnMut<T, O>, N: MapFnMut<O, T>>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N> {
+    fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
+    where
+        M: FnMut(&T) -> O + 'static,
+        N: FnMut(&O) -> T + 'static,
+        O: VarValue,
+    {
         MapVarBiDi::new(MapVarBiDiInner::Shared(MapBiDiSharedVar::new(
             self.clone(),
             map,
@@ -1808,16 +2095,12 @@ impl<T: VarValue> IntoVar<T> for SwitchVarDyn<T> {
 macro_rules! impl_merge_vars {
     ($($MergeVar:ident<$($VN:ident),+> {
         $MergeVarInner:ident<$($TN:ident),+> {
-            merge: $MergeFnMut: ident;
             _t: $($_t: ident),+;
             v: $($vn:ident),+;
             version: $($version:ident),+;
         }
     })+) => {$(
-        pub trait $MergeFnMut<$($TN: VarValue,)+ O: VarValue> : FnMut($(&$TN),+) -> O + 'static { }
-        impl<$($TN: VarValue,)+ O: VarValue, F: FnMut($(&$TN),+) -> O + 'static> $MergeFnMut<$($TN,)+ O> for F {}
-
-        struct $MergeVarInner<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> {
+        struct $MergeVarInner<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> {
             $($_t: PhantomData<$TN>,)+
             $($vn: $VN,)+
             $($version: Cell<u32>,)+
@@ -1826,11 +2109,12 @@ macro_rules! impl_merge_vars {
             version: Cell<u32>
         }
 
-        pub struct $MergeVar<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> {
+        #[doc(hidden)]
+        pub struct $MergeVar<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> {
             r: Rc<$MergeVarInner<$($TN,)+ $($VN,)+ O, M>>
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> $MergeVar<$($TN,)+ $($VN,)+ O, M> {
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             #[allow(clippy::too_many_arguments)]
             pub fn new($($vn: $VN,)+ merge: M) -> Self {
                 $MergeVar {
@@ -1887,21 +2171,21 @@ macro_rules! impl_merge_vars {
             }
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> Clone
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> Clone
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             fn clone(&self) -> Self {
                 $MergeVar { r: Rc::clone(&self.r) }
             }
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> protected::Var<O>
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> protected::Var<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, O> {
                 protected::BindInfo::Var(self.borrow(vars), self.any_is_new(vars), self.r.version.get())
             }
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> ObjVar<O>
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> ObjVar<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
                 self.borrow(vars)
@@ -1925,12 +2209,12 @@ macro_rules! impl_merge_vars {
             }
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> Var<O>
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> Var<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             type AsReadOnly = Self;
             type AsLocal = CloningLocalVar<O, Self>;
 
-            fn map<O2: VarValue, M2: MapFnMut<O, O2>>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+            fn map<O2: VarValue, M2: FnMut(&O) -> O2>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
                 MapVar::new(MapVarInner::Shared(MapSharedVar::new(
                     self.clone(),
                     map,
@@ -1938,7 +2222,7 @@ macro_rules! impl_merge_vars {
                 )))
             }
 
-            fn map_bidi<O2: VarValue, M2: MapFnMut<O, O2>, N: MapFnMut<O2, O>>(
+            fn map_bidi<O2: VarValue, M2: FnMut(&O) -> O2, N: FnMut(&O2) -> O>(
                 &self,
                 map: M2,
                 map_back: N,
@@ -1960,7 +2244,7 @@ macro_rules! impl_merge_vars {
             }
         }
 
-        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: $MergeFnMut<$($TN,)+ O>> IntoVar<O>
+        impl<$($TN: VarValue,)+ $($VN: Var<$TN>,)+ O: VarValue, M: FnMut($(&$TN,)+) -> O + 'static> IntoVar<O>
         for $MergeVar<$($TN,)+ $($VN,)+ O, M> {
             type Var = Self;
 
@@ -1974,7 +2258,6 @@ macro_rules! impl_merge_vars {
 impl_merge_vars! {
     MergeVar2<V0, V1> {
         MergeVar2Inner<T0, T1> {
-            merge: Merge2FnMut;
             _t: _t0, _t1;
             v: v0, v1;
             version: v0_version, v1_version;
@@ -1982,7 +2265,6 @@ impl_merge_vars! {
     }
     MergeVar3<V0, V1, V2> {
         MergeVar3Inner<T0, T1, T2> {
-            merge: Merge3FnMut;
             _t: _t0, _t1, _t2;
             v: v0, v1, v2;
             version: v0_version, v1_version, v2_version;
@@ -1990,7 +2272,6 @@ impl_merge_vars! {
     }
     MergeVar4<V0, V1, V2, V3> {
         MergeVar4Inner<T0, T1, T2, T3> {
-            merge: Merge4FnMut;
             _t: _t0, _t1, _t2, _t3;
             v: v0, v1, v2, v3;
             version: v0_version, v1_version, v2_version, v3_version;
@@ -1998,7 +2279,6 @@ impl_merge_vars! {
     }
     MergeVar5<V0, V1, V2, V3, V4> {
         MergeVar5Inner<T0, T1, T2, T3, T4> {
-            merge: Merge5FnMut;
             _t: _t0, _t1, _t2, _t3, _t4;
             v: v0, v1, v2, v3, v4;
             version: v0_version, v1_version, v2_version, v3_version, v4_version;
@@ -2006,7 +2286,6 @@ impl_merge_vars! {
     }
     MergeVar6<V0, V1, V2, V3, V4, V5> {
         MergeVar6Inner<T0, T1, T2, T3, T4, T5> {
-            merge: Merge6FnMut;
             _t: _t0, _t1, _t2, _t3, _t4, _t5;
             v: v0, v1, v2, v3, v4, v5;
             version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version;
@@ -2014,7 +2293,6 @@ impl_merge_vars! {
     }
     MergeVar7<V0, V1, V2, V3, V4, V5, V6> {
         MergeVar7Inner<T0, T1, T2, T3, T4, T5, T6> {
-            merge: Merge7FnMut;
             _t: _t0, _t1, _t2, _t3, _t4, _t5, _t6;
             v: v0, v1, v2, v3, v4, v5, v6;
             version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version, v6_version;
@@ -2022,7 +2300,6 @@ impl_merge_vars! {
     }
     MergeVar8<V0, V1, V2, V3, V4, V5, V6, V7> {
         MergeVar8Inner<T0, T1, T2, T3, T4, T5, T6, T7> {
-            merge: Merge8FnMut;
             _t: _t0, _t1, _t2, _t3, _t4, _t5, _t6, _t7;
             v: v0, v1, v2, v3, v4, v5, v6, v7;
             version: v0_version, v1_version, v2_version, v3_version, v4_version, v5_version, v6_version, v7_version;
@@ -2043,8 +2320,8 @@ pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
 ///
 /// All arguments are separated by comma like a function call.
 ///
-/// * `index`: A positive integer that is the initial switch index.
-/// * `var0..N`: A list of [vars](crate::core::var::ObjVar), minimal 2,
+/// * `$index`: A positive integer that is the initial switch index.
+/// * `$v0..$vn`: A list of [vars](crate::core::var::ObjVar), minimal 2,
 /// [`SwitchVarDyn`](crate::core::var::SwitchVarDyn) is used for more then 8 variables.
 ///
 /// # Example
@@ -2061,35 +2338,35 @@ pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
 #[macro_export]
 macro_rules! switch_var {
     ($index: expr, $v0: expr, $v1: expr) => {
-        $crate::core::SwitchVar2::new($index, $v0, $v1)
+        $crate::core::var::SwitchVar2::new($index, $v0, $v1)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
-        $crate::core::SwitchVar3::new($index, $v0, $v1, $v2)
+        $crate::core::var::SwitchVar3::new($index, $v0, $v1, $v2)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
-        $crate::core::SwitchVar4::new($index, $v0, $v1, $v2)
+        $crate::core::var::SwitchVar4::new($index, $v0, $v1, $v2)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
-        $crate::core::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
+        $crate::core::var::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
-        $crate::core::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
+        $crate::core::var::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
-        $crate::core::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
+        $crate::core::var::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
-        $crate::core::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
+        $crate::core::var::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
     };
     ($index: expr, $($v:expr),+) => {
-        $crate::core::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
+        $crate::core::var::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
     };
 }
 
-/// Initializes a new [`Var`](crate::core::var::Var) with dynamic value made
+/// Initializes a new [`Var`](crate::core::var::Var) with value made
 /// by merging multiple other variables.
 ///
 /// # Arguments
@@ -2103,9 +2380,10 @@ macro_rules! switch_var {
 /// ```
 /// # #[macro_use] extern crate zero_ui;
 /// # use zero_ui::prelude::var;
+/// # use zero_ui::core::var::IntoVar;
 /// # fn main() {
 /// let var0 = var("Hello");
-/// let var1 = "World";
+/// let var1 = var("World");
 ///
 /// let hello_world = merge_var!(var0, var1, |a, b|format!("{} {}!", a, b));
 /// # }
