@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
+use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, *};
 
@@ -69,6 +70,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     print_required_section(&mut docs, &imports_mod, required_docs);
     print_provided_section(&mut docs, &imports_mod, default_docs);
     print_aliases_section(&mut docs, &imports_mod, other_docs);
+    print_whens(&mut docs, &imports_mod, &mut input.whens);
 
     let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
     let default_child = quote! {
@@ -86,10 +88,26 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     let whens = input.whens;
 
-    let child = if let Some(c) = input.child_expr {
+    let new_child = if let Some(mut c) = input.new_child {
+        c.vis = pub_vis();
         quote!(#c)
     } else {
-        quote!(child)
+        quote!(
+            pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
+                zero_ui::core::default_new_widget_child(child)
+            }
+        )
+    };
+
+    let new = if let Some(mut n) = input.new {
+        n.vis = pub_vis();
+        quote!(#n)
+    } else {
+        quote!(
+            pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::core::types::WidgetId) -> impl zero_ui::core::UiNode {
+                zero_ui::core::default_new_widget(child, id)
+            }
+        )
     };
 
     let r = quote! {
@@ -125,10 +143,16 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
 
             #[doc(hidden)]
-            pub fn __child(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
+            pub mod __init {
+                use super::*;
                 use #imports_mod::*;
-                #child
+
+                #new_child
+
+                #new
             }
+
+            pub use __init::{new_child, new};
 
             #[doc(hidden)]
             #[allow(unused)]
@@ -154,7 +178,8 @@ struct WidgetInput {
     default_child: Vec<DefaultBlock>,
     default_self: Vec<DefaultBlock>,
     whens: Vec<WhenBlock>,
-    child_expr: Option<Expr>,
+    new_child: Option<ItemFn>,
+    new: Option<ItemFn>,
 }
 impl Parse for WidgetInput {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -182,11 +207,14 @@ impl Parse for WidgetInput {
         let mut default_child = vec![];
         let mut default_self = vec![];
         let mut whens = vec![];
-        let mut child_expr = None;
+        let mut new_child = None;
+        let mut new = None;
         while !input.is_empty() {
+            let mut attrs = Attribute::parse_outer(input)?;
+
             let lookahead = input.lookahead1();
 
-            if lookahead.peek(Token![default]) {
+            if attrs.is_empty() && lookahead.peek(Token![default]) {
                 let block: DefaultBlock = input.parse()?;
                 match block.target {
                     DefaultBlockTarget::Self_ => {
@@ -197,10 +225,30 @@ impl Parse for WidgetInput {
                     }
                 }
             } else if lookahead.peek(keyword::when) {
-                whens.push(input.parse()?);
-            } else if lookahead.peek(Token![=>]) {
-                input.parse::<Token![=>]>()?;
-                child_expr = Some(input.parse()?);
+                let mut when: WhenBlock = input.parse()?;
+                // extend outer with inner
+                attrs.extend(when.attrs.drain(..));
+                when.attrs = attrs;
+
+                whens.push(when);
+            } else if lookahead.peek(Token![fn]) {
+                let mut fn_: ItemFn = input.parse()?;
+                attrs.extend(fn_.attrs.drain(..));
+                fn_.attrs = attrs;
+
+                if &ident!("new") == &fn_.sig.ident {
+                    if new.is_some() {
+                        return Err(Error::new(fn_.sig.ident.span(), "function `new` can only be defined once"));
+                    }
+                    new = Some(fn_);
+                } else if &ident!("new_child") == &fn_.sig.ident {
+                    if new_child.is_some() {
+                        return Err(Error::new(fn_.sig.ident.span(), "function `new_child` can only be defined once"));
+                    }
+                    new_child = Some(fn_);
+                } else {
+                    return Err(Error::new(fn_.sig.ident.span(), "expected one of: new, new_child"));
+                }
             } else {
                 return Err(lookahead.error());
             }
@@ -215,7 +263,8 @@ impl Parse for WidgetInput {
             default_child,
             default_self,
             whens,
-            child_expr,
+            new_child,
+            new,
         })
     }
 }
@@ -251,14 +300,15 @@ pub struct WhenBlock {
 }
 impl Parse for WhenBlock {
     fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = Attribute::parse_outer(input)?;
+        input.parse::<keyword::when>()?;
 
-        let inner;
-        parenthesized!(inner in input);
-        let condition = inner.parse()?;
+        let condition = input.parse()?;
 
         let inner;
         braced!(inner in input);
+
+        let attrs = Attribute::parse_inner(input)?;
+
         let mut properties = vec![];
         while !inner.is_empty() {
             properties.push(inner.parse()?);
@@ -367,7 +417,7 @@ impl ToTokens for PropertyAssign {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ident = &self.ident;
         let value = &self.value;
-        tokens.extend(quote!(#ident: #value))
+        tokens.extend(quote!(#ident: #value;))
     }
 }
 
@@ -625,6 +675,97 @@ fn print_property(docs: &mut Vec<Attribute>, imports_mod: &Ident, (t, p): (Defau
 
 fn print_section_footer(docs: &mut Vec<Attribute>) {
     docs.push(doc!("</div>"));
+}
+
+fn print_whens(docs: &mut Vec<Attribute>, imports_mod: &Ident, whens: &mut [WhenBlock]) {
+    let mut whens: Vec<_> = whens.iter_mut().filter(|w| !w.properties.is_empty()).collect();
+    if whens.is_empty() {
+        return;
+    }
+
+    print_section_header(docs, "conditional-properties", "Conditional properties");
+
+    let mut used_when_ids = HashSet::with_capacity(whens.len());
+
+    for when in whens.iter_mut() {
+        let condition = &when.condition;
+        let condition = quote!(#condition).to_string();
+
+        let mut in_in_replace = false;
+        let mut when_id: String = condition
+            .chars()
+            .filter_map(|c| {
+                if c.is_alphanumeric() {
+                    in_in_replace = false;
+                    Some(c)
+                } else if !in_in_replace {
+                    in_in_replace = true;
+                    Some('_')
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let mut i = 0;
+        let when_id_len = when_id.len();
+        while used_when_ids.contains(&when_id) {
+            when_id.truncate(when_id_len);
+            when_id.push_str(&i.to_string());
+            i += 1;
+        }
+        used_when_ids.insert(when_id.clone());
+
+        docs.push(doc!(
+            r##"<h3 id="wgwhen.{0}" class="method"><code id='{0}.v'><a href='#wgwhen.{0}' class='fnname'>when</a> "##,
+            when_id
+        ));
+
+        // TODO actual formatting.
+        let mut next_is_property = false;
+        let mut condition_span = String::new();
+        let mut prev_point = false;
+        for w in condition.split_whitespace() {
+            if next_is_property {
+                if w == "." {
+                    condition_span.push('.');
+                } else {
+                    next_is_property = false;
+                    docs.push(doc!("{}", condition_span.trim()));
+                    condition_span = String::new();
+
+                    docs.push(doc!("<span class='wgprop'>"));
+                    docs.push(doc!("\n[<span class='mod'>{0}</span>]({1}::{0})\n", w, imports_mod));
+                    docs.push(doc!("<ul style='display:none;'></ul></span>"));
+                }
+            } else if w == "self" || w == "child" {
+                next_is_property = true;
+                if !prev_point {
+                    condition_span.push(' ');
+                }
+                condition_span.push_str(w)
+            } else if w.chars().all(|c| c.is_alphanumeric()) {
+                if !prev_point {
+                    condition_span.push(' ');
+                }
+                condition_span.push_str(w);
+            } else {
+                condition_span.push_str(w);
+            }
+
+            prev_point = w == "." || w == "!";
+        }
+
+        docs.push(doc!("<ul style='display:none;'></ul></code></h3>"));
+
+        if !when.attrs.is_empty() {
+            docs.push(doc!("<div class='docblock'>\n"));
+            docs.extend(when.attrs.drain(..));
+            docs.push(doc!("\n</div>"));
+        }
+    }
+
+    print_section_footer(docs);
 }
 
 // #endregion docs hack

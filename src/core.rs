@@ -134,8 +134,17 @@ pub struct ValidateWidgetIdArgs {
     pub id: WidgetId,
 }
 
-/// Creates a widget bondary.
-pub fn widget(id: WidgetId, child: impl UiNode) -> impl UiNode {
+/// This is called by the default widget! new_child function.
+#[inline]
+#[doc(hidden)]
+pub fn default_new_widget_child<C: UiNode>(child: C) -> C {
+    child
+}
+
+/// This is called by the default widget! new function.
+#[inline]
+#[doc(hidden)]
+pub fn default_new_widget(child: impl UiNode, id: WidgetId) -> impl UiNode {
     Widget {
         id,
         state: LazyStateMap::default(),

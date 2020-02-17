@@ -76,7 +76,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             __node
         };
 
-        let __node = #ident::__child(__node);
+        let __node = #ident::new_child(__node);
 
         #let_id
 
@@ -89,7 +89,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
            __node
         };
 
-        zero_ui::core::widget(__id, __node)
+        #ident::new(__node, __id)
     }};
 
     r.into()
