@@ -92,7 +92,12 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         c.vis = pub_vis();
         quote!(#c)
     } else {
+        let fn_doc = doc!(
+            "Manually initializes the `{0}` widget content.\n\nSee [the module level documentation](super) for more.",
+            ident
+        );
         quote!(
+            #fn_doc
             pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
                 zero_ui::core::default_new_widget_child(child)
             }
@@ -103,7 +108,12 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         n.vis = pub_vis();
         quote!(#n)
     } else {
+        let fn_doc = doc!(
+            "Manually initializes the `{0}` widget.\n\nSee [the module level documentation](super) for more.",
+            ident
+        );
         quote!(
+            #fn_doc
             pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::core::types::WidgetId) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
@@ -683,7 +693,7 @@ fn print_whens(docs: &mut Vec<Attribute>, imports_mod: &Ident, whens: &mut [When
         return;
     }
 
-    print_section_header(docs, "conditional-properties", "Conditional properties");
+    print_section_header(docs, "conditional-assigns", "Conditional assigns");
 
     let mut used_when_ids = HashSet::with_capacity(whens.len());
 
