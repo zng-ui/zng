@@ -141,6 +141,8 @@ macro_rules! profile_scope {
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
         $(#[$outer])*
+        /// # StateKey
+        /// This `struct` is a [`StateKey`](zero_ui::core::context::StateKey).
         $vis struct $ident;
 
         impl $crate::core::context::StateKey for $ident {

@@ -1,3 +1,5 @@
+//! Core infrastruture required for runing a zero-ui app.
+
 pub mod animation;
 pub mod app;
 pub mod context;
@@ -129,7 +131,7 @@ pub fn validate_widget_id_args(id: WidgetId) -> WidgetId {
 /// This is used in widget macros to validate `id: {id: ?};`.
 #[doc(hidden)]
 pub struct ValidateWidgetIdArgs {
-    id: WidgetId,
+    pub id: WidgetId,
 }
 
 /// Creates a widget bondary.

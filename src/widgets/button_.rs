@@ -24,33 +24,3 @@ widget! {
         background_color: ButtonBackground;
     }
 }
-
-mod build_tests {
-    use super::*;
-    use crate::core::UiNode;
-    use crate::properties::*;
-
-    fn _basic(child: impl UiNode) -> impl UiNode {
-        button! {
-            on_click: |_|{};
-            background_gradient: (0.0, 0.0), (1.0, 1.0), vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
-            => child
-        }
-    }
-
-    fn _args(child: impl UiNode) -> impl UiNode {
-        button! {
-            on_click: {
-                handler: |_|{},
-            };
-
-            background_gradient: {
-                start: (0.0, 0.0),
-                end: (1.0, 1.0),
-                stops: vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)]
-            };
-
-            => child
-        }
-    }
-}

@@ -1,3 +1,4 @@
+//! Layout widgets.
 mod align;
 mod stacks;
 

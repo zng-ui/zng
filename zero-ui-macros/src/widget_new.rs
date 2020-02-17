@@ -44,8 +44,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     let let_id = if let Some(p) = user_sets.remove(&ident!("id")) {
         match p.value {
-            PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a)),
-            PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id),
+            PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a);),
+            PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id;),
             PropertyValue::Todo(m) => quote! (let __id = #m;),
             PropertyValue::Unset => abort_call_site!("cannot unset required property `id`"),
         }

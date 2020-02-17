@@ -1,3 +1,5 @@
+//! Common widget properties.
+
 mod background;
 mod border_;
 mod context_var;
