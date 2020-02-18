@@ -5,7 +5,7 @@ use crate::widgets::container;
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.
     pub struct ButtonBackground: ColorF = rgb(0, 0, 0);
-    pub struct ButtonBackgroundHover: ColorF = rgb(0, 0, 0);
+    pub struct ButtonBackgroundHovered: ColorF = rgb(0, 0, 0);
     pub struct ButtonBackgroundPressed: ColorF = rgb(0, 0, 0);
     pub struct ButtonBackgroundDisabled: ColorF = rgb(0, 0, 0);
 }
@@ -32,12 +32,12 @@ widget! {
 
     /// When the pointer device is over this button.
     when self.is_hovered  {
-        background_color: ButtonBackgroundHover;
+        background_color: ButtonBackgroundHovered;
     }
 
     /// When the pointer device is over this button.
     when self.is_hovered && self.is_focused {
-        background_color: ButtonBackgroundHover;
+        background_color: ButtonBackgroundHovered;
     }
 
     /// When the mouse or touch pressed on this button and has not yet released.

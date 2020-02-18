@@ -15,12 +15,22 @@ pub mod keyword {
     syn::custom_keyword!(todo);
     syn::custom_keyword!(new_child);
     syn::custom_keyword!(new);
+    syn::custom_keyword!(inherit);
 }
 
 /// `widget!` implementation
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut input = parse_macro_input!(input as WidgetInput);
+    let args = parse_macro_input!(input as WidgetArgs);
+    let mut input = match args {
+        WidgetArgs::IncludeInherits { inherits_todo, rest } => {
+            let inherits: Vec<_> = inherits_todo.into_iter().map(|i| ident!("__{}", i)).collect();
+            let inherit = &inherits[0];
+            let r = quote! { #inherit! { inherit #rest } };
+            return r.into();
+        }
+        WidgetArgs::Declare(input) => *input,
+    };
 
     let (mut docs, attrs) = split_doc_other(&mut input.attrs);
     finish_docs_header(&mut docs);
@@ -151,12 +161,22 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         )
     };
 
+    let inner_ident = ident!("__{}", ident);
+
     let r = quote! {
         #[doc(hidden)]
         #(#attrs)*
         #export
         macro_rules! #ident {
             ($($input:tt)*) => {
+                #inner_ident!{new $($input)*}
+            };
+        }
+
+        #[doc(hidden)]
+        #export
+        macro_rules! #inner_ident {
+            (new $($input:tt)*) => {
                 widget_new! {
                     crate $crate;
                     mod #ident;
@@ -166,7 +186,24 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     #(#whens)*
                     new_child(#(#new_child_properties),*)
                     new(#(#new_properties),*)
-                    input:{$($input)*}
+                    input{$($input)*}
+                }
+            };
+            (inherit $($rest:tt)*) => {
+                widget! {
+                    inherit {
+                        crate $crate;
+                        mod #ident;
+                        #(#macro_imports)*
+                        #default_child
+                        #default_self
+                        #(#whens)*
+                        new_child(#(#new_child_properties),*)
+                        new(#(#new_properties),*)
+                        input{=>{}}
+                    }
+
+                    $($rest)*
                 }
             };
         }
@@ -212,20 +249,22 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     r.into()
 }
 
-struct WidgetInput {
-    attrs: Vec<Attribute>,
-    export: bool,
-    ident: Ident,
-    inherits: Punctuated<Ident, Token![+]>,
-    imports: Vec<ItemUse>,
-    default_child: Vec<DefaultBlock>,
-    default_self: Vec<DefaultBlock>,
-    whens: Vec<WhenBlock>,
-    new_child: Option<ItemFn>,
-    new: Option<ItemFn>,
+enum WidgetArgs {
+    IncludeInherits {
+        inherits_todo: Punctuated<Ident, Token![+]>,
+        rest: TokenStream,
+    },
+    Declare(Box<WidgetInput>),
 }
-impl Parse for WidgetInput {
+impl Parse for WidgetArgs {
     fn parse(input: ParseStream) -> Result<Self> {
+        let mut inherits = vec![];
+        while input.peek(keyword::inherit) {
+            input.parse::<keyword::inherit>().expect(NON_USER_ERROR);
+            let inner = non_user_braced(input);
+            inherits.push(inner.parse().expect(NON_USER_ERROR));
+        }
+
         let attrs = Attribute::parse_outer(input)?;
 
         let export = input.peek(Token![pub]);
@@ -234,13 +273,26 @@ impl Parse for WidgetInput {
         }
 
         let ident = input.parse()?;
-        let inherits = if input.peek(Token![:]) {
+        let inherits_todo = if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
             Punctuated::parse_separated_nonempty(input)?
         } else {
             Punctuated::new()
         };
         input.parse::<Token![;]>()?;
+
+        if !inherits_todo.is_empty() {
+            let rest: TokenStream = input.parse().unwrap();
+            let pub_ = if export { quote!(pub) } else { quote!() };
+            return Ok(WidgetArgs::IncludeInherits {
+                inherits_todo,
+                rest: quote! {
+                    #(#attrs)*
+                    #pub_ #ident;
+                    #rest
+                },
+            });
+        }
 
         let mut imports = vec![];
         while input.peek(Token![use]) {
@@ -297,7 +349,7 @@ impl Parse for WidgetInput {
             }
         }
 
-        Ok(WidgetInput {
+        Ok(WidgetArgs::Declare(Box::new(WidgetInput {
             attrs,
             export,
             ident,
@@ -308,8 +360,21 @@ impl Parse for WidgetInput {
             whens,
             new_child,
             new,
-        })
+        })))
     }
+}
+
+struct WidgetInput {
+    attrs: Vec<Attribute>,
+    export: bool,
+    ident: Ident,
+    inherits: Vec<crate::widget_new::WidgetNewInput>,
+    imports: Vec<ItemUse>,
+    default_child: Vec<DefaultBlock>,
+    default_self: Vec<DefaultBlock>,
+    whens: Vec<WhenBlock>,
+    new_child: Option<ItemFn>,
+    new: Option<ItemFn>,
 }
 
 #[derive(Debug)]

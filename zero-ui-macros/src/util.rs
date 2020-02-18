@@ -85,3 +85,28 @@ macro_rules! doc {
         doc
     }};
 }
+
+/// Input error not caused by the user.
+const NON_USER_ERROR: &str = "invalid non-user input";
+
+#[allow(unused)]
+fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
+    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
+        let inner;
+        // this macro inserts a return Err(..) but we want to panic
+        braced!(inner in input);
+        Ok(inner)
+    }
+    inner(input).expect(NON_USER_ERROR)
+}
+
+#[allow(unused)]
+fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
+    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
+        let inner;
+        // this macro inserts a return Err(..) but we want to panic
+        parenthesized!(inner in input);
+        Ok(inner)
+    }
+    inner(input).expect(NON_USER_ERROR)
+}

@@ -230,10 +230,7 @@ struct PropertyCalls {
     set_inner: Vec<TokenStream>,
 }
 
-/// Input error not caused by the user.
-const NON_USER_ERROR: &str = "invalid non-user input";
-
-struct WidgetNewInput {
+pub struct WidgetNewInput {
     crate_: Ident,
     ident: Ident,
     imports: Vec<ItemUse>,
@@ -273,30 +270,17 @@ impl Parse for WidgetNewInput {
         }
 
         input.parse::<keyword::new_child>().expect(NON_USER_ERROR);
-        fn new_stream(input: ParseStream) -> Result<ParseBuffer> {
-            let inner;
-            // this macro inserts a return Err(..) but we want to panic
-            parenthesized!(inner in input);
-            Ok(inner)
-        }
 
-        let new_inner = new_stream(input).expect(NON_USER_ERROR);
+        let new_inner = non_user_parenthesized(input);
         let new_child = Punctuated::parse_terminated(&new_inner)?;
 
         input.parse::<keyword::new>().expect(NON_USER_ERROR);
-        let new_inner = new_stream(input).expect(NON_USER_ERROR);
+        let new_inner = non_user_parenthesized(input);
         let new = Punctuated::parse_terminated(&new_inner)?;
 
         input.parse::<keyword::input>().expect(NON_USER_ERROR);
-        input.parse::<Token![:]>().expect(NON_USER_ERROR);
 
-        fn input_stream(input: ParseStream) -> Result<ParseBuffer> {
-            let inner;
-            // this macro inserts a return Err(..) but we want to panic
-            braced!(inner in input);
-            Ok(inner)
-        }
-        let input = input_stream(input).expect(NON_USER_ERROR);
+        let input = non_user_braced(input);
 
         let mut user_sets = vec![];
         let mut user_whens = vec![];
