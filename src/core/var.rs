@@ -122,8 +122,104 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 /// Boxed [ObjVar].
 pub type BoxVar<T> = Box<dyn ObjVar<T>>;
 
+impl<T: VarValue> protected::Var<T> for BoxVar<T> {
+    fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, T> {
+        self.as_ref().bind_info(vars)
+    }
+    fn is_context_var(&self) -> bool {
+        self.as_ref().is_context_var()
+    }
+    fn read_only_prev_version(&self) -> u32 {
+        self.as_ref().read_only_prev_version()
+    }
+}
+
+impl<T: VarValue> ObjVar<T> for BoxVar<T> {
+    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.as_ref().get(vars)
+    }
+    fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.as_ref().update(vars)
+    }
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.as_ref().is_new(vars)
+    }
+    fn version(&self, vars: &Vars) -> u32 {
+        self.as_ref().version(vars)
+    }
+    fn read_only(&self) -> bool {
+        self.as_ref().read_only()
+    }
+    fn always_read_only(&self) -> bool {
+        self.as_ref().always_read_only()
+    }
+    fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.as_ref().push_set(new_value, vars)
+    }
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.as_ref().push_modify_boxed(modify, vars)
+    }
+    fn boxed(self) -> BoxVar<T>
+    where
+        Self: Sized,
+    {
+        self
+    }
+}
+
 /// Boxed [LocalVar].
 pub type BoxLocalVar<T> = Box<dyn LocalVar<T>>;
+
+impl<T: VarValue> protected::Var<T> for BoxLocalVar<T> {
+    fn bind_info<'a>(&'a self, vars: &'a Vars) -> protected::BindInfo<'a, T> {
+        self.as_ref().bind_info(vars)
+    }
+    fn is_context_var(&self) -> bool {
+        self.as_ref().is_context_var()
+    }
+    fn read_only_prev_version(&self) -> u32 {
+        self.as_ref().read_only_prev_version()
+    }
+}
+
+impl<T: VarValue> ObjVar<T> for BoxLocalVar<T> {
+    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.as_ref().get(vars)
+    }
+    fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.as_ref().update(vars)
+    }
+    fn is_new(&self, vars: &Vars) -> bool {
+        self.as_ref().is_new(vars)
+    }
+    fn version(&self, vars: &Vars) -> u32 {
+        self.as_ref().version(vars)
+    }
+    fn read_only(&self) -> bool {
+        self.as_ref().read_only()
+    }
+    fn always_read_only(&self) -> bool {
+        self.as_ref().always_read_only()
+    }
+    fn push_set(&self, new_value: T, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.as_ref().push_set(new_value, vars)
+    }
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &mut Updates) -> Result<(), VarIsReadOnly> {
+        self.as_ref().push_modify_boxed(modify, vars)
+    }
+}
+
+impl<T: VarValue> LocalVar<T> for BoxLocalVar<T> {
+    fn get_local(&self) -> &T {
+        self.as_ref().get_local()
+    }
+    fn init_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> &'a T {
+        self.as_mut().init_local(vars)
+    }
+    fn update_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T> {
+        self.as_mut().update_local(vars)
+    }
+}
 
 /// A value that can change. Can [own the value](OwnedVar) or be a [reference](SharedVar).
 ///

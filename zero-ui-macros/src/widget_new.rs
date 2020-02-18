@@ -1,6 +1,7 @@
 use crate::widget::*;
 use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
+use syn::punctuated::Punctuated;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
 
@@ -239,6 +240,8 @@ struct WidgetNewInput {
     default_child: DefaultBlock,
     default_self: DefaultBlock,
     whens: Vec<WhenBlock>,
+    new_child: Punctuated<Ident, Token![,]>,
+    new: Punctuated<Ident, Token![,]>,
     user_sets: Vec<PropertyAssign>,
     user_whens: Vec<WhenBlock>,
     user_child_expr: Expr,
@@ -268,6 +271,21 @@ impl Parse for WidgetNewInput {
         while input.peek(keyword::when) {
             whens.push(input.parse().expect(NON_USER_ERROR));
         }
+
+        input.parse::<keyword::new_child>().expect(NON_USER_ERROR);
+        fn new_stream(input: ParseStream) -> Result<ParseBuffer> {
+            let inner;
+            // this macro inserts a return Err(..) but we want to panic
+            parenthesized!(inner in input);
+            Ok(inner)
+        }
+
+        let new_inner = new_stream(input).expect(NON_USER_ERROR);
+        let new_child = Punctuated::parse_terminated(&new_inner)?;
+
+        input.parse::<keyword::new>().expect(NON_USER_ERROR);
+        let new_inner = new_stream(input).expect(NON_USER_ERROR);
+        let new = Punctuated::parse_terminated(&new_inner)?;
 
         input.parse::<keyword::input>().expect(NON_USER_ERROR);
         input.parse::<Token![:]>().expect(NON_USER_ERROR);
@@ -304,6 +322,8 @@ impl Parse for WidgetNewInput {
                     default_child,
                     default_self,
                     whens,
+                    new_child,
+                    new,
                     user_sets,
                     user_whens,
                     user_child_expr: input.parse()?,

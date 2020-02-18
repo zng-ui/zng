@@ -1,9 +1,12 @@
 //! Common widgets.
 
 #[macro_use]
-mod container_; // depends on container_
+mod container_;
+// depends on container_
 #[macro_use]
 mod button_;
+#[macro_use]
+mod window_;
 
 mod text_;
 mod ui_n;

@@ -947,22 +947,9 @@ pub struct UiRoot {
     id: WidgetId,
     meta: LazyStateMap,
     title: BoxLocalVar<Text>,
-    size: SharedVar<LayoutSize>,
+    size: BoxVar<LayoutSize>,
     background_color: BoxVar<ColorF>,
     child: Box<dyn UiNode>,
 }
 
 // TODO widget like window! macro
-//fn window(
-//    child: impl UiNode,
-//    title: impl IntoVar<Text>,
-//    size: impl Into<SharedVar<LayoutSize>>,
-//    background_color: impl IntoVar<ColorF>,
-//) -> UiRoot {
-//    UiRoot {
-//        title: Box::new(title.into_var()),
-//        size: size.into(),
-//        background_color: Box::new(background_color.into_var()),
-//        child: Box::new(child),
-//    }
-//}

@@ -13,6 +13,8 @@ pub mod keyword {
     syn::custom_keyword!(when);
     syn::custom_keyword!(input);
     syn::custom_keyword!(todo);
+    syn::custom_keyword!(new_child);
+    syn::custom_keyword!(new);
 }
 
 /// `widget!` implementation
@@ -88,7 +90,21 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     let whens = input.whens;
 
+    let mut new_child_properties = vec![];
     let new_child = if let Some(mut c) = input.new_child {
+        for input in c.sig.inputs.iter().skip(1) {
+            match input {
+                FnArg::Typed(input) => {
+                    if let Pat::Ident(pat) = &*input.pat {
+                        new_child_properties.push(pat.ident.clone());
+                    } else {
+                        abort!(input.pat.span(), "new_child must only use simple argument names")
+                    }
+                }
+                // can this even happen? we parsed as ItemFn
+                FnArg::Receiver(self_) => abort!(self_.span(), "new_child must be stand-alone fn"),
+            }
+        }
         c.vis = pub_vis();
         quote!(#c)
     } else {
@@ -104,10 +120,25 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         )
     };
 
+    let mut new_properties = vec![];
     let new = if let Some(mut n) = input.new {
+        for input in n.sig.inputs.iter().skip(1) {
+            match input {
+                FnArg::Typed(input) => {
+                    if let Pat::Ident(pat) = &*input.pat {
+                        new_properties.push(pat.ident.clone());
+                    } else {
+                        abort!(input.pat.span(), "new must only use simple argument names")
+                    }
+                }
+                // can this even happen? we parsed as ItemFn
+                FnArg::Receiver(self_) => abort!(self_.span(), "new must be stand-alone fn"),
+            }
+        }
         n.vis = pub_vis();
         quote!(#n)
     } else {
+        new_properties.push(ident!["id"]);
         let fn_doc = doc!(
             "Manually initializes the `{0}` widget.\n\nSee [the module level documentation](super) for more.",
             ident
@@ -133,6 +164,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     #default_child
                     #default_self
                     #(#whens)*
+                    new_child(#(#new_child_properties),*)
+                    new(#(#new_properties),*)
                     input:{$($input)*}
                 }
             };
@@ -246,12 +279,12 @@ impl Parse for WidgetInput {
                 attrs.extend(fn_.attrs.drain(..));
                 fn_.attrs = attrs;
 
-                if &ident!("new") == &fn_.sig.ident {
+                if ident!("new") == fn_.sig.ident {
                     if new.is_some() {
                         return Err(Error::new(fn_.sig.ident.span(), "function `new` can only be defined once"));
                     }
                     new = Some(fn_);
-                } else if &ident!("new_child") == &fn_.sig.ident {
+                } else if ident!("new_child") == fn_.sig.ident {
                     if new_child.is_some() {
                         return Err(Error::new(fn_.sig.ident.span(), "function `new_child` can only be defined once"));
                     }
