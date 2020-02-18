@@ -21,18 +21,26 @@ pub mod keyword {
 /// `widget!` implementation
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    // arguments can be in two states:
     let args = parse_macro_input!(input as WidgetArgs);
     let mut input = match args {
+        // 1 - Is in a recursive expansion that is including the widget_new! info
+        // from the inherited widgets.
         WidgetArgs::IncludeInherits { inherits_todo, rest } => {
             let inherits: Vec<_> = inherits_todo.into_iter().map(|i| ident!("__{}", i)).collect();
             let inherit = &inherits[0];
             let r = quote! { #inherit! { inherit #rest } };
             return r.into();
         }
+        // 2 - Has collected the inherited widget_new! info or does not have any
+        // the rest of this function expands the widget.
         WidgetArgs::Declare(input) => *input,
     };
 
+    // we get the item level docs
     let (mut docs, attrs) = split_doc_other(&mut input.attrs);
+    // end insert the header termination html because we will
+    // generate custom sections to the item docs page.
     finish_docs_header(&mut docs);
 
     let (export, pub_) = if input.export {
@@ -41,21 +49,29 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         (quote!(), quote!())
     };
 
-    let mut required_docs = vec![];
-    let mut default_docs = vec![];
-    let mut other_docs = vec![];
-
     let ident = input.ident;
+
+    // imports that will be send to widget_new!.
     let macro_imports = input.imports.clone();
 
+    // imports prepared for reexporting.
     let mut imports = input.imports;
     for use_ in imports.iter_mut() {
         use_.vis = self::pub_vis();
     }
+
+    // ident of a module inside the widget mod that will reexport imports.
     let imports_mod = ident!("__{}_imports", ident);
 
-    let mut test_required = vec![];
+    // Collect some property info:
 
+    // 1 - if the property is required this will contain a `#property: todo!();`
+    // token stream to be used in the __test function.
+    let mut test_required = vec![];
+    // 2 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
+    let mut required_docs = vec![];
+    let mut default_docs = vec![];
+    let mut other_docs = vec![];
     for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
         for p in b.properties.iter_mut() {
             let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
@@ -79,11 +95,13 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     }
 
+    // Pushes the custom documentation sections.
     print_required_section(&mut docs, &imports_mod, required_docs);
     print_provided_section(&mut docs, &imports_mod, default_docs);
     print_aliases_section(&mut docs, &imports_mod, other_docs);
     print_whens(&mut docs, &imports_mod, &mut input.whens);
 
+    // Group all child properties in one DefaultBlock that will be send to widget_new!.
     let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
     let default_child = quote! {
         default(child) {
@@ -91,6 +109,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     };
 
+    // Group all self properties in one DefaultBlock that will be send to widget_new!.
     let default_self = input.default_self.into_iter().flat_map(|d| d.properties);
     let default_self = quote! {
         default(self) {
@@ -98,7 +117,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     };
 
-    let whens = input.whens;
+    let whens = input.whens;//TODO
+
 
     let mut new_child_properties = vec![];
     let new_child = if let Some(mut c) = input.new_child {
@@ -161,14 +181,21 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         )
     };
 
+    // ident of a doc(hidden) macro that is the actual macro implementation.
+    // This macro is needed because we want to have multiple match arms, but
+    // the widget macro needs to take $($tt:tt)*.
     let inner_ident = ident!("__{}", ident);
 
     let r = quote! {
+        // widget macro. Is hidden until macro 2.0 comes around.
+        // For now this simulates name-spaced macros because we
+        // require a use widget_mod for this to work.
         #[doc(hidden)]
         #(#attrs)*
         #export
         macro_rules! #ident {
             ($($input:tt)*) => {
+                // call the new variant.
                 #inner_ident!{new $($input)*}
             };
         }
@@ -176,6 +203,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         #[doc(hidden)]
         #export
         macro_rules! #inner_ident {
+            // new widget instance.
             (new $($input:tt)*) => {
                 widget_new! {
                     crate $crate;
@@ -189,6 +217,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     input{$($input)*}
                 }
             };
+            // recusive callback to widget! but this time including
+            // the widget_new! info from this widget in an inherit block.
             (inherit $($rest:tt)*) => {
                 widget! {
                     inherit {
@@ -208,20 +238,27 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
         }
 
+        // reexported macro imports, this is required outside of the widget mod
+        // for the documentation references to work.
         #[doc(hidden)]
         mod #imports_mod {
             #(#imports)*
         }
 
+        // the widget module, also the public face of the widget in the documentation.
         #(#docs)*
         #pub_ mod #ident {
             use super::*;
 
+            // imports reexported again, this is used to access properties without
+            // namespace conflict in widget_new!.
             #[doc(hidden)]
             pub mod __props {
                 pub use super::#imports_mod::*;
             }
 
+            // new functions, declared in their own mod that mixes the declaration site imports
+            // with the widget imports.
             #[doc(hidden)]
             pub mod __init {
                 use super::*;
@@ -231,9 +268,10 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
                 #new
             }
-
             pub use __init::{new_child, new};
 
+            // a test call to the widget macro, this does type validation for
+            // default property values, and UiNodes.
             #[doc(hidden)]
             #[allow(unused)]
             fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
