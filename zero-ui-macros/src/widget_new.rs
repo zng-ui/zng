@@ -10,7 +10,7 @@ include!("util.rs");
 /// `widget_new!` implementation
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as WidgetNewInput);
+    let mut input = parse_macro_input!(input as WidgetNewInput);
 
     let child = input.user_child_expr;
     let mut imports = input.imports;
@@ -24,6 +24,46 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let imports = quote!(#(#imports)*);
 
     let mut user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
+    user_sets
+        .entry(ident!("id"))
+        .or_insert_with(|| parse_quote!(id: zero_ui::core::types::WidgetId::new_unique();));
+
+    let mut new_child_args = Vec::with_capacity(input.new_child.len());
+    for new_child_prop in &input.new_child {
+        if let Some(pa) = user_sets.remove(new_child_prop) {
+            new_child_args.push(pa.value);
+        } else if let Some(p) = input.default_child.properties.iter().find(|p| &p.ident == new_child_prop) {
+            match &p.default_value {
+                Some(PropertyDefaultValue::Args(args)) => new_child_args.push(PropertyValue::Args(args.clone())),
+                Some(PropertyDefaultValue::Fields(args)) => new_child_args.push(PropertyValue::Fields(args.clone())),
+                Some(PropertyDefaultValue::Unset) | Some(PropertyDefaultValue::Required) | None => {
+                    abort!(p.ident.span(), "property `{}` is required", p.ident)
+                }
+            }
+        } else {
+            abort!(Span::call_site(), "property `{}` is required", new_child_prop)
+        }
+    }
+
+    let mut new_args = Vec::with_capacity(input.new.len());
+    for new_prop in &input.new {
+        if let Some(pa) = user_sets.remove(new_prop) {
+            new_args.push(pa.value);
+        } else if let Some(p) = input.default_child.properties.iter().find(|p| &p.ident == new_prop) {
+            match &p.default_value {
+                Some(PropertyDefaultValue::Args(args)) => new_args.push(PropertyValue::Args(args.clone())),
+                Some(PropertyDefaultValue::Fields(args)) => new_args.push(PropertyValue::Fields(args.clone())),
+                Some(PropertyDefaultValue::Unset) | Some(PropertyDefaultValue::Required) | None => {
+                    abort!(p.ident.span(), "property `{}` is required", p.ident)
+                }
+            }
+        } else {
+            abort!(Span::call_site(), "property `{}` is required", new_prop)
+        }
+    }
+
+    let new_child_args: Vec<_> = new_child_args.into_iter().map(|v| quote!(todo!())).collect();
+    let new_args: Vec<_> = new_args.into_iter().map(|v| quote!(todo!())).collect();
 
     let ident = input.ident;
     let wgt_props = quote!(#ident::__props);
@@ -77,7 +117,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             __node
         };
 
-        let __node = #ident::new_child(__node);
+        let __node = #ident::new_child(__node, #(#new_child_args),*);
 
         #let_id
 
@@ -90,7 +130,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
            __node
         };
 
-        #ident::new(__node, __id)
+        #ident::new(__node, #(#new_args),*)
     }};
 
     r.into()

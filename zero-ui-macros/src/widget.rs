@@ -64,7 +64,6 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let imports_mod = ident!("__{}_imports", ident);
 
     // Collect some property info:
-
     // 1 - if the property is required this will contain a `#property: todo!();`
     // token stream to be used in the __test function.
     let mut test_required = vec![];
@@ -117,11 +116,12 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     };
 
-    let whens = input.whens;//TODO
+    let whens = input.whens; //TODO
 
-
+    // Collect `new_child` and what properties are required by it.
     let mut new_child_properties = vec![];
-    let new_child = if let Some(mut c) = input.new_child {
+    let new_child;
+    if let Some(mut c) = input.new_child {
         for input in c.sig.inputs.iter().skip(1) {
             match input {
                 FnArg::Typed(input) => {
@@ -136,22 +136,24 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
         }
         c.vis = pub_vis();
-        quote!(#c)
+        new_child = quote!(#c);
     } else {
         let fn_doc = doc!(
             "Manually initializes the `{0}` widget content.\n\nSee [the module level documentation](super) for more.",
             ident
         );
-        quote!(
+        new_child = quote!(
             #fn_doc
             pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
                 zero_ui::core::default_new_widget_child(child)
             }
-        )
+        );
     };
 
+    // Collect `new` and what properties are required by it.
     let mut new_properties = vec![];
-    let new = if let Some(mut n) = input.new {
+    let new;
+    if let Some(mut n) = input.new {
         for input in n.sig.inputs.iter().skip(1) {
             match input {
                 FnArg::Typed(input) => {
@@ -166,19 +168,19 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
         }
         n.vis = pub_vis();
-        quote!(#n)
+        new = quote!(#n);
     } else {
         new_properties.push(ident!["id"]);
         let fn_doc = doc!(
             "Manually initializes the `{0}` widget.\n\nSee [the module level documentation](super) for more.",
             ident
         );
-        quote!(
+        new = quote!(
             #fn_doc
             pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::core::types::WidgetId) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
-        )
+        );
     };
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
@@ -217,7 +219,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     input{$($input)*}
                 }
             };
-            // recusive callback to widget! but this time including
+            // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
             (inherit $($rest:tt)*) => {
                 widget! {

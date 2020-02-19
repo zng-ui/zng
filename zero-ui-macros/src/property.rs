@@ -125,9 +125,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
     // struct Args
     let struct_args = quote! {
-        #[doc(hidden)]
+        /// Named arguments of this property.
         #[allow(unused)]
         pub struct Args#arg_decl #arg_wheres {
+            #[doc(hidden)]
             pub __phantom: std::marker::PhantomData#arg_phantom_tys,
             #(pub #arg_names: #arg_tys),*
         }

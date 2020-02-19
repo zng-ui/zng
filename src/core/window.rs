@@ -445,7 +445,7 @@ impl AppExtension for WindowManager {
 }
 
 struct OpenWindowRequest {
-    new: Box<dyn FnOnce(&AppContext) -> UiRoot>,
+    new: Box<dyn FnOnce(&AppContext) -> Window>,
     notifier: EventEmitter<WindowEventArgs>,
 }
 
@@ -509,7 +509,7 @@ impl Windows {
     }
 
     /// Requests a new window. Returns a listener that will update once when the window is opened.
-    pub fn open(&mut self, new_window: impl FnOnce(&AppContext) -> UiRoot + 'static) -> EventListener<WindowEventArgs> {
+    pub fn open(&mut self, new_window: impl FnOnce(&AppContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
         let request = OpenWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::new(false),
@@ -639,7 +639,7 @@ macro_rules! win_profile_scope {
 
 impl GlWindow {
     pub fn new(
-        new_window: Box<dyn FnOnce(&AppContext) -> UiRoot>,
+        new_window: Box<dyn FnOnce(&AppContext) -> Window>,
         ctx: &mut AppContext,
         event_loop: &EventLoopWindowTarget<AppEvent>,
         event_loop_proxy: EventLoopProxy<AppEvent>,
@@ -884,7 +884,7 @@ pub(crate) struct OwnedWindowContext {
     window_id: WindowId,
     state: WindowState,
     services: WindowServices,
-    root: UiRoot,
+    root: Window,
     api: Arc<RenderApi>,
     update: UpdateDisplayRequest,
 }
@@ -943,13 +943,30 @@ impl OwnedWindowContext {
     }
 }
 
-pub struct UiRoot {
-    id: WidgetId,
+pub struct Window {
     meta: LazyStateMap,
+    id: WidgetId,
     title: BoxLocalVar<Text>,
     size: BoxVar<LayoutSize>,
     background_color: BoxVar<ColorF>,
     child: Box<dyn UiNode>,
 }
 
-// TODO widget like window! macro
+impl Window {
+    pub fn new(
+        root_id: WidgetId,
+        title: impl IntoVar<Text>,
+        size: impl IntoVar<LayoutSize>,
+        background_color: impl IntoVar<ColorF>,
+        child: impl UiNode,
+    ) -> Self {
+        Window {
+            meta: LazyStateMap::default(),
+            id: root_id,
+            title: Box::new(title.into_local()),
+            size: size.into_var().boxed(),
+            background_color: background_color.into_var().boxed(),
+            child: child.boxed(),
+        }
+    }
+}

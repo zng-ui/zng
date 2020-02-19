@@ -34,11 +34,13 @@ pub mod widgets;
 
 pub mod prelude {
     pub use crate::core::{
+        app::App,
         types::{
             rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
             ModifiersState, MouseButton, ToText, VirtualKeyCode, WidgetId,
         },
         var::var,
+        window::{Window, Windows},
         UiNode,
     };
     pub use crate::layouts::*;

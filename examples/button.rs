@@ -1,22 +1,29 @@
-use zero_ui::core::app::*;
-use zero_ui::core::context::*;
-use zero_ui::core::types::*;
+#![recursion_limit = "256"]
 
-struct PrintDeviceKeyPresses;
-
-impl AppExtension for PrintDeviceKeyPresses {
-    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
-        if let DeviceEvent::Key(i) = event {
-            if i.virtual_keycode == Some(VirtualKeyCode::Escape) {
-                std::process::exit(0)
-            }
-            if i.state == ElementState::Pressed {
-                println!("scancode: {:?} key: {:?}", i.scancode, i.virtual_keycode);
-            }
-        }
-    }
-}
+#[macro_use]
+extern crate zero_ui;
+use zero_ui::prelude::*;
 
 fn main() {
-    App::empty().extend(PrintDeviceKeyPresses).run(|_| {});
+    App::default().run(|ctx| {
+        //ctx.services.req::<Windows>().open(|ctx| {
+        //    window! {
+        //        title: "Button Example";
+        //        => example()
+        //    }
+        //})
+    })
+}
+
+fn example() -> impl UiNode {
+    let content = var("Click Me!".to_text());
+    button! {
+        on_click: { let c = content.clone(); move |a| {
+            a.ctx().updates.push_set(&c, "Clicked!".to_text());
+        }};
+        align: Alignment::CENTER;
+        font_size: 28;
+        text_color: rgb(0, 100, 200);
+        => text(content)
+    }
 }
