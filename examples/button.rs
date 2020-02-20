@@ -16,14 +16,16 @@ fn main() {
 }
 
 fn example() -> impl UiNode {
-    let content = var("Click Me!".to_text());
+    let t = var("Click Me!");
     button! {
-        on_click: { let c = content.clone(); move |a| {
-            a.ctx().updates.push_set(&c, "Clicked!".to_text());
-        }};
+        on_click: move |a| {
+            a.ctx().updates.push_set(&t, "Clicked!".to_text());
+        };
         align: Alignment::CENTER;
         font_size: 28;
         text_color: rgb(0, 100, 200);
-        => text(content)
+        => {
+            text(t.clone())
+        }
     }
 }

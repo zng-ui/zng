@@ -2406,8 +2406,8 @@ impl_merge_vars! {
 // #endregion MergeVar2..MergeVar8
 
 /// Initializes a new [`SharedVar`](crate::core::var::SharedVar).
-pub fn var<T: VarValue>(initial_value: T) -> SharedVar<T> {
-    SharedVar::new(initial_value)
+pub fn var<T: VarValue>(initial_value: impl Into<T>) -> SharedVar<T> {
+    SharedVar::new(initial_value.into())
 }
 
 /// Initializes a new [`SwitchVar`](crate::core::var::SwitchVar).

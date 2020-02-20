@@ -353,6 +353,11 @@ version = "1.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "enclose"
+version = "1.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "euclid"
 version = "0.20.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1434,6 +1439,7 @@ version = "0.1.0"
 dependencies = [
  "bencher 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ego-tree 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enclose 1.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "font-loader 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gleam 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1507,6 +1513,7 @@ dependencies = [
 "checksum dwrote 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0bd1369e02db5e9b842a9b67bce8a2fcc043beafb2ae8a799dd482d46ea1ff0d"
 "checksum ego-tree 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3a68a4904193147e0a8dec3314640e6db742afd5f6e634f428a6af230d9b3591"
 "checksum either 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
+"checksum enclose 1.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "1056f553da426e9c025a662efa48b52e62e0a3a7648aa2d15aeaaf7f0d329357"
 "checksum euclid 0.20.7 (registry+https://github.com/rust-lang/crates.io-index)" = "3f852d320142e1cceb15dccef32ed72a9970b83109d8a4e24b1ab04d579f485d"
 "checksum expat-sys 2.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "658f19728920138342f68408b7cf7644d90d4784353d8ebc32e7e8663dbe45fa"
 "checksum fake-simd 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"

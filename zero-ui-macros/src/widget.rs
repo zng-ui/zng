@@ -63,61 +63,6 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // ident of a module inside the widget mod that will reexport imports.
     let imports_mod = ident!("__{}_imports", ident);
 
-    // Collect some property info:
-    // 1 - if the property is required this will contain a `#property: todo!();`
-    // token stream to be used in the __test function.
-    let mut test_required = vec![];
-    // 2 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
-    let mut required_docs = vec![];
-    let mut default_docs = vec![];
-    let mut other_docs = vec![];
-    for b in input.default_child.iter_mut().chain(input.default_self.iter_mut()) {
-        for p in b.properties.iter_mut() {
-            let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
-
-            if let Some(invalid) = other_attrs.into_iter().next() {
-                abort!(invalid.span(), "only #[doc] attributes are allowed here")
-            }
-
-            p.attrs = prop_docs;
-
-            if p.is_required() {
-                let ident = p.maps_to.as_ref().unwrap_or(&p.ident);
-                test_required.push(quote!(#ident: todo!();));
-
-                required_docs.push((b.target, p));
-            } else if p.default_value.is_some() {
-                default_docs.push((b.target, p));
-            } else {
-                other_docs.push((b.target, p));
-            }
-        }
-    }
-
-    // Pushes the custom documentation sections.
-    print_required_section(&mut docs, &imports_mod, required_docs);
-    print_provided_section(&mut docs, &imports_mod, default_docs);
-    print_aliases_section(&mut docs, &imports_mod, other_docs);
-    print_whens(&mut docs, &imports_mod, &mut input.whens);
-
-    // Group all child properties in one DefaultBlock that will be send to widget_new!.
-    let default_child = input.default_child.into_iter().flat_map(|d| d.properties);
-    let default_child = quote! {
-        default(child) {
-            #(#default_child)*
-        }
-    };
-
-    // Group all self properties in one DefaultBlock that will be send to widget_new!.
-    let default_self = input.default_self.into_iter().flat_map(|d| d.properties);
-    let default_self = quote! {
-        default(self) {
-            #(#default_self)*
-        }
-    };
-
-    let whens = input.whens; //TODO
-
     // Collect `new_child` and what properties are required by it.
     let mut new_child_properties = vec![];
     let new_child;
@@ -182,6 +127,86 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
         );
     };
+
+    // Group all child properties in one DefaultBlock that will be send to widget_new!.
+    let mut default_child: Vec<_> = input.default_child.into_iter().flat_map(|d| d.properties).collect();
+
+    // Group all self properties in one DefaultBlock that will be send to widget_new!.
+    let mut default_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
+
+    // add missing requried properties from new_child function.
+    for p in new_child_properties.iter() {
+        if !default_child.iter().any(|c| &c.ident == p) {
+            default_child.push(parse_quote!(#p: required!;));
+        }
+    }
+
+    // add missing required properties from new function.
+    for p in new_properties.iter() {
+        if !default_self.iter().any(|s| &s.ident == p) {
+            if p == &ident!("id") {
+                // id is provided if missing.
+                default_self.push(parse_quote!(id: zero_ui::core::types::WidgetId::new_unique();));
+            } else {
+                default_self.push(parse_quote!(#p: required!;));
+            }
+        }
+    }
+
+    // Collect some property info:
+    // 1 - if the property is required this will contain a `#property: todo!();`
+    // token stream to be used in the __test function.
+    let mut test_required = vec![];
+    // 2 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
+    let mut required_docs = vec![];
+    let mut default_docs = vec![];
+    let mut other_docs = vec![];
+    let mut default_blocks = [
+        (DefaultBlockTarget::Child, &mut default_child),
+        (DefaultBlockTarget::Self_, &mut default_self),
+    ];
+    for (target, properties) in &mut default_blocks {
+        for p in properties.iter_mut() {
+            let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
+
+            if let Some(invalid) = other_attrs.into_iter().next() {
+                abort!(invalid.span(), "only #[doc] attributes are allowed here")
+            }
+
+            p.attrs = prop_docs;
+
+            if p.is_required() {
+                let ident = p.maps_to.as_ref().unwrap_or(&p.ident);
+                test_required.push(quote!(#ident: todo!();));
+
+                required_docs.push((*target, p));
+            } else if p.default_value.is_some() {
+                default_docs.push((*target, p));
+            } else {
+                other_docs.push((*target, p));
+            }
+        }
+    }
+
+    // Pushes the custom documentation sections.
+    print_required_section(&mut docs, &imports_mod, required_docs);
+    print_provided_section(&mut docs, &imports_mod, default_docs);
+    print_aliases_section(&mut docs, &imports_mod, other_docs);
+    print_whens(&mut docs, &imports_mod, &mut input.whens);
+
+    let default_child = quote! {
+        default(child) {
+            #(#default_child)*
+        }
+    };
+
+    let default_self = quote! {
+        default(self) {
+            #(#default_self)*
+        }
+    };
+
+    let whens = input.whens; //TODO
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
     // This macro is needed because we want to have multiple match arms, but

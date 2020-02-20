@@ -12,8 +12,12 @@ include!("util.rs");
 pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut input = parse_macro_input!(input as WidgetNewInput);
 
+    // widget child expression `=> {this}`
     let child = input.user_child_expr;
+
+    // use items inside the widget.
     let mut imports = input.imports;
+    // replace the `crate` keyword with the name of the crate.
     let mut crate_patch = IdentReplace {
         find: ident!("crate"),
         replace: input.crate_,
@@ -23,89 +27,155 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     }
     let imports = quote!(#(#imports)*);
 
-    let mut user_sets: HashMap<_, _> = input.user_sets.into_iter().map(|pa| (pa.ident.clone(), pa)).collect();
-    user_sets
-        .entry(ident!("id"))
-        .or_insert_with(|| parse_quote!(id: zero_ui::core::types::WidgetId::new_unique();));
+    // property aliases.
+    let mut aliases: HashMap<Ident, Ident> = HashMap::default();
 
+    // dictionary of property assigns.
+    // 1 - start with user assigns.
+    let mut assigns: HashMap<_, _> = input
+        .user_sets
+        .into_iter()
+        // (PropertyValue, Target, IsDefault)
+        .map(|pa| (pa.ident, (pa.value, DefaultBlockTarget::Self_, false)))
+        .collect();
+
+    // 2 - add defaults, and validate required.
+    for (t, p) in input
+        .default_child
+        .properties
+        .into_iter()
+        .map(|p| (DefaultBlockTarget::Child, p))
+        .chain(input.default_self.properties.into_iter().map(|p| (DefaultBlockTarget::Self_, p)))
+    {
+        if let Some(user_assign) = assigns.get_mut(&p.ident) {
+            // correct property
+            user_assign.1 = t;
+        } else {
+            // if the user did not assign the property:
+
+            match p.default_value {
+                // but it is required, return an error
+                Some(PropertyDefaultValue::Required) => {
+                    abort_call_site!("property `{}` is required", p.ident);
+                }
+                // but it has a default value, use the default value
+                Some(PropertyDefaultValue::Fields(f)) => {
+                    assigns.insert(p.ident.clone(), (PropertyValue::Fields(f), t, true));
+                }
+                Some(PropertyDefaultValue::Args(a)) => {
+                    assigns.insert(p.ident.clone(), (PropertyValue::Args(a), t, true));
+                }
+                _ => todo!(),
+            }
+        }
+
+        // also collect aliases
+        if let Some(actual) = p.maps_to {
+            aliases.insert(p.ident, actual);
+        }
+    }
+
+    // remove assigns that are used in the `new_child` and `new` functions.
     let mut new_child_args = Vec::with_capacity(input.new_child.len());
-    for new_child_prop in &input.new_child {
-        if let Some(pa) = user_sets.remove(new_child_prop) {
-            new_child_args.push(pa.value);
-        } else if let Some(p) = input.default_child.properties.iter().find(|p| &p.ident == new_child_prop) {
-            match &p.default_value {
-                Some(PropertyDefaultValue::Args(args)) => new_child_args.push(PropertyValue::Args(args.clone())),
-                Some(PropertyDefaultValue::Fields(args)) => new_child_args.push(PropertyValue::Fields(args.clone())),
-                Some(PropertyDefaultValue::Unset) | Some(PropertyDefaultValue::Required) | None => {
-                    abort!(p.ident.span(), "property `{}` is required", p.ident)
-                }
-            }
-        } else {
-            abort!(Span::call_site(), "property `{}` is required", new_child_prop)
-        }
-    }
-
     let mut new_args = Vec::with_capacity(input.new.len());
-    for new_prop in &input.new {
-        if let Some(pa) = user_sets.remove(new_prop) {
-            new_args.push(pa.value);
-        } else if let Some(p) = input.default_child.properties.iter().find(|p| &p.ident == new_prop) {
-            match &p.default_value {
-                Some(PropertyDefaultValue::Args(args)) => new_args.push(PropertyValue::Args(args.clone())),
-                Some(PropertyDefaultValue::Fields(args)) => new_args.push(PropertyValue::Fields(args.clone())),
-                Some(PropertyDefaultValue::Unset) | Some(PropertyDefaultValue::Required) | None => {
-                    abort!(p.ident.span(), "property `{}` is required", p.ident)
-                }
+    for p in input.new_child.into_iter() {
+        // if a a user assign matches, capture its value.
+        if let Some(v) = assigns.remove(&p) {
+            assert_eq!(v.1, DefaultBlockTarget::Child, "{}", NON_USER_ERROR);
+            let mut pname = p;
+            if let Some(actual) = aliases.get(&pname) {
+                pname = actual.clone();
             }
+            new_child_args.push((v.0, pname, v.2)); // (PropertyValue, Ident, is_default)
         } else {
-            abort!(Span::call_site(), "property `{}` is required", new_prop)
+            panic!("{}", NON_USER_ERROR);
+        }
+    }
+    for p in input.new.into_iter() {
+        // if a a user assign matches, capture its value.
+        if let Some(v) = assigns.remove(&p) {
+            assert_eq!(v.1, DefaultBlockTarget::Child, "{}", NON_USER_ERROR);
+            new_args.push((v.0, p, v.2));
+        } else {
+            panic!("{}", NON_USER_ERROR);
         }
     }
 
-    let new_child_args: Vec<_> = new_child_args.into_iter().map(|v| quote!(todo!())).collect();
-    let new_args: Vec<_> = new_args.into_iter().map(|v| quote!(todo!())).collect();
+    let new_arg = |(v, p, d)| {
+        let args = property_value_to_args(v, &p, d);
+        quote!({#args.pop()}) //TODO change to use args directly?
+    };
 
+    // generate `new_child` and `new` arguments code.
+    let new_child_args: Vec<_> = new_child_args.into_iter().map(new_arg).collect();
+    let new_args: Vec<_> = new_args.into_iter().map(new_arg).collect();
+
+    // widget mod
     let ident = input.ident;
+
+    // widget inner imports mod
     let wgt_props = quote!(#ident::__props);
 
-    let PropertyCalls {
-        set_context: set_child_props_ctx,
-        set_event: set_child_props_event,
-        set_outer: set_child_props_outer,
-        set_inner: set_child_props_inner,
-    } = match make_property_calls(&wgt_props, &imports, input.default_child, &mut user_sets) {
-        Ok(p) => p,
-        Err(e) => abort_call_site!("{}", e),
-    };
-
-    let mut self_calls = match make_property_calls(&wgt_props, &imports, input.default_self, &mut user_sets) {
-        Ok(p) => p,
-        Err(e) => abort!(e.span(), "{}", e),
-    };
-
-    let let_id = if let Some(p) = user_sets.remove(&ident!("id")) {
-        match p.value {
-            PropertyValue::Args(a) => quote!(let __id = zero_ui::core::validate_widget_id_args(#a);),
-            PropertyValue::Fields(a) => quote!(let __id = zero_ui::core::ValidateWidgetIdArgs{#a}.id;),
-            PropertyValue::Todo(m) => quote! (let __id = #m;),
-            PropertyValue::Unset => abort_call_site!("cannot unset required property `id`"),
+    // generate property::set calls.
+    let mut let_child_args = vec![];
+    let mut set_child_props_ctx = vec![];
+    let mut set_child_props_event = vec![];
+    let mut set_child_props_outer = vec![];
+    let mut set_child_props_inner = vec![];
+    let mut let_self_args = vec![];
+    let mut set_self_props_ctx = vec![];
+    let mut set_self_props_event = vec![];
+    let mut set_self_props_outer = vec![];
+    let mut set_self_props_inner = vec![];
+    for (mut prop, (val, tgt, dft)) in assigns {
+        let aliased = prop.clone();
+        if let Some(actual) = aliases.get(&prop) {
+            prop = actual.clone();
         }
-    } else {
-        quote!(let __id = zero_ui::core::types::WidgetId::new_unique();)
-    };
 
-    for (ident, assign) in user_sets {
-        make_property_call(&wgt_props, &ident, assign.value, &mut self_calls, &imports, false);
+        let len;
+        match &val {
+            PropertyValue::Args(a) => {
+                len = a.len();
+            }
+            PropertyValue::Fields(f) => {
+                len = f.len();
+            }
+            PropertyValue::Todo(_) => {
+                len = 1;
+            }
+            PropertyValue::Unset => continue,
+        }
+
+        let args = property_value_to_args(val, &prop, dft);
+        let arg_names: Vec<_> = (0..len).map(|i| ident!("__{}_{}", aliased, i)).collect();
+
+        let args = quote!(let (#(#arg_names,)*) = #args.pop(););
+        let set_ctx = quote!(let (#(#arg_names,)*) = __prop::#prop::set_context(__node, #(#arg_names),*););
+        let set_event = quote!(let (#(#arg_names,)*) = __prop::#prop::set_event(__node, #(#arg_names),*););
+        let set_outer = quote!(let (#(#arg_names,)*) = __prop::#prop::set_outer(__node, #(#arg_names),*););
+        let set_inner = quote!(let (#(#arg_names,)*) = __prop::#prop::set_inner(__node, #(#arg_names),*););
+
+        match tgt {
+            DefaultBlockTarget::Self_ => {
+                let_self_args.push(args);
+                set_self_props_ctx.push(set_ctx);
+                set_self_props_event.push(set_event);
+                set_self_props_outer.push(set_outer);
+                set_self_props_inner.push(set_inner);
+            }
+            DefaultBlockTarget::Child => {
+                let_child_args.push(args);
+                set_child_props_ctx.push(set_ctx);
+                set_child_props_event.push(set_event);
+                set_child_props_outer.push(set_outer);
+                set_child_props_inner.push(set_inner);
+            }
+        }
     }
 
-    let PropertyCalls {
-        set_context: set_self_props_ctx,
-        set_event: set_self_props_event,
-        set_outer: set_self_props_outer,
-        set_inner: set_self_props_inner,
-    } = self_calls;
-
     let r = quote! {{
+        #(#let_child_args)*
         let __node = #child;
 
         let __node = {
@@ -114,12 +184,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             #(#set_child_props_outer)*
             #(#set_child_props_inner)*
 
-            __node
+            #ident::new_child(__node, #(#new_child_args),*)
         };
 
-        let __node = #ident::new_child(__node, #(#new_child_args),*);
-
-        #let_id
+        #(#let_self_args)*
 
         let __node = {
             #(#set_self_props_ctx)*
@@ -136,130 +204,20 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     r.into()
 }
 
-fn make_property_calls(
-    wgt_props: &TokenStream,
-    imports: &TokenStream,
-    default: DefaultBlock,
-    user_sets: &mut HashMap<Ident, PropertyAssign>,
-) -> Result<PropertyCalls> {
-    let mut r = PropertyCalls::default();
-
-    for default in default.properties {
-        let (value, default_value) = if let Some(p) = user_sets.remove(&default.ident) {
-            if default.is_required() && p.value.is_unset() {
-                return Err(Error::new(
-                    Span::call_site(),
-                    format!("cannot unset required property `{}`", default.ident),
-                ));
-            }
-
-            (p.value, false)
-        } else if let Some(d) = default.default_value {
-            (
-                match d {
-                    PropertyDefaultValue::Args(a) => PropertyValue::Args(a),
-                    PropertyDefaultValue::Fields(a) => PropertyValue::Fields(a),
-                    PropertyDefaultValue::Unset => continue,
-                    PropertyDefaultValue::Required => {
-                        return Err(Error::new(Span::call_site(), format!("property `{}` is required", default.ident)))
-                    }
-                },
-                true,
-            )
-        } else {
-            // no default value and user did not set
-            continue;
-        };
-
-        let ident = default.maps_to.unwrap_or(default.ident);
-
-        make_property_call(wgt_props, &ident, value, &mut r, imports, default_value);
-    }
-
-    Ok(r)
-}
-
-fn make_property_call(
-    wgt_props: &TokenStream,
-    ident: &Ident,
-    value: PropertyValue,
-    r: &mut PropertyCalls,
-    imports: &TokenStream,
-    default_value: bool,
-) {
-    macro_rules! arg {
-        ($n:expr) => {
-            ident!("__{}_arg_{}", ident, $n)
-        };
-    }
-
-    let mut args_init = vec![];
-    let len;
-
-    match value {
+fn property_value_to_args(v: PropertyValue, property_name: &Ident, is_default: bool) -> TokenStream {
+    match v {
+        PropertyValue::Fields(f) => quote!(__prop::#property_name::Args::new(#f)),
         PropertyValue::Args(a) => {
-            len = a.len();
-            for a in a.iter() {
-                if default_value {
-                    args_init.push(quote! {{
-                        #imports
-                        #a
-                    },});
-                } else {
-                    args_init.push(quote!(#a,));
+            quote! {
+                __prop::#property_name::Args {
+                    __phantom: std::marker::PhantomData,
+                    #a
                 }
             }
         }
-        PropertyValue::Fields(f) => {
-            len = f.len();
-
-            args_init = (0..len)
-                .map(|i| {
-                    let arg = arg!(i);
-                    quote!(#arg,)
-                })
-                .collect();
-
-            if default_value {
-                r.set_context.push(quote! {
-                    let (#(#args_init)*) = {
-                        #imports
-                        #ident::Args {
-                            __phantom: std::marker::PhantomData,
-                            #f
-                        }.pop()
-                    };
-                });
-            } else {
-                r.set_context.push(quote! {
-                    let (#(#args_init)*) = #ident::Args {
-                        __phantom: std::marker::PhantomData,
-                        #f
-                    }.pop();
-                });
-            }
-        }
-        PropertyValue::Todo(m) => {
-            r.set_context.push(quote!(#m;));
-            return;
-        }
-        PropertyValue::Unset => return,
-    };
-
-    let args = (0..len).map(|i| arg!(i));
-    let args = quote!(__node, #(#args),*);
-
-    let ident = if default_value {
-        quote!(#wgt_props::#ident)
-    } else {
-        quote!(#ident)
-    };
-
-    r.set_context
-        .push(quote!(let (#args) = #ident::set_context(__node, #(#args_init)*);));
-    r.set_event.push(quote!(let (#args) = #ident::set_event(#args);));
-    r.set_outer.push(quote!(let (#args) = #ident::set_outer(#args);));
-    r.set_inner.push(quote!(let (#args) = #ident::set_inner(#args);));
+        PropertyValue::Todo(t) => quote!(#t),
+        _ => panic!("{}", NON_USER_ERROR),
+    }
 }
 
 #[derive(Default)]
