@@ -100,17 +100,18 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
     }
 
+    // widget mod
+    let ident = input.ident;
+    let props = quote!(#ident::__props);
+
     let new_arg = |(v, p, d)| {
-        let args = property_value_to_args(v, &p, d);
-        quote!({#args.pop()}) //TODO change to use args directly?
+        let args = property_value_to_args(v, &p, &props, d);
+        quote!({#args})
     };
 
     // generate `new_child` and `new` arguments code.
     let new_child_args: Vec<_> = new_child_args.into_iter().map(new_arg).collect();
     let new_args: Vec<_> = new_args.into_iter().map(new_arg).collect();
-
-    // widget mod
-    let ident = input.ident;
 
     // generate property::set calls.
     let mut let_child_args = vec![];
@@ -137,20 +138,18 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             PropertyValue::Fields(f) => {
                 len = f.len();
             }
-            PropertyValue::Todo(_) => {
-                len = 1;
-            }
             PropertyValue::Unset => continue,
         }
 
-        let args = property_value_to_args(val, &prop, dft);
+        let args = property_value_to_args(val, &prop, &props, dft);
         let arg_names: Vec<_> = (0..len).map(|i| ident!("__{}_{}", aliased, i)).collect();
-
         let args = quote!(let (#(#arg_names,)*) = #args.pop(););
-        let set_ctx = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_context(__node, #(#arg_names),*););
-        let set_event = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_event(__node, #(#arg_names),*););
-        let set_outer = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_outer(__node, #(#arg_names),*););
-        let set_inner = quote!(let (#(_node, #arg_names,)*) = __props::#prop::set_inner(__node, #(#arg_names),*););
+
+        let props = if dft { quote!(#props::) } else { quote!() };
+        let set_ctx = quote!(let (__node, #(#arg_names,)*) = #props #prop::set_context(__node, #(#arg_names),*););
+        let set_event = quote!(let (__node, #(#arg_names,)*) = #props #prop::set_event(__node, #(#arg_names),*););
+        let set_outer = quote!(let (__node, #(#arg_names,)*) = #props #prop::set_outer(__node, #(#arg_names),*););
+        let set_inner = quote!(let (__node, #(#arg_names,)*) = #props #prop::set_inner(__node, #(#arg_names),*););
 
         match tgt {
             DefaultBlockTarget::Self_ => {
@@ -200,12 +199,12 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     r.into()
 }
 
-fn property_value_to_args(v: PropertyValue, property_name: &Ident, is_default: bool) -> TokenStream {
+fn property_value_to_args(v: PropertyValue, property_name: &Ident, props: &TokenStream, is_default: bool) -> TokenStream {
     match v {
         PropertyValue::Fields(f) => {
             if is_default {
                 quote! {{
-                    use __props::*;
+                    use #props::*;
                     #property_name::Args {
                         __phantom: std::marker::PhantomData,
                         #f
@@ -213,7 +212,7 @@ fn property_value_to_args(v: PropertyValue, property_name: &Ident, is_default: b
                 }}
             } else {
                 quote! {
-                    __props::#property_name::Args {
+                    #property_name::Args {
                         __phantom: std::marker::PhantomData,
                         #f
                     }
@@ -223,14 +222,13 @@ fn property_value_to_args(v: PropertyValue, property_name: &Ident, is_default: b
         PropertyValue::Args(a) => {
             if is_default {
                 quote! {{
-                    use __props::*;
+                    use #props::*;
                     #property_name::Args::new(#a)
                 }}
             } else {
-                quote!(__props::#property_name::Args::new(#a))
+                quote!(#property_name::Args::new(#a))
             }
         }
-        PropertyValue::Todo(t) => quote!(#t),
         _ => panic!("{}", NON_USER_ERROR),
     }
 }

@@ -133,6 +133,15 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #(pub #arg_names: #arg_tys),*
         }
         impl#arg_decl Args#arg_gen_tys #arg_wheres {
+            #[inline]
+            pub fn new(#(#arg_names: #arg_tys,)*) -> Self {
+                Args {
+                    __phantom: std::marker::PhantomData,
+                    #(#arg_names,)*
+                }
+            }
+            ///Return arguments in the order of the property::set function.
+            #[inline]
             pub fn pop(self) -> (#(#arg_tys,)*) {
                 (#(self.#arg_names,)*)
             }

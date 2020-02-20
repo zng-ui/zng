@@ -7,6 +7,7 @@ mod cursor_;
 mod events;
 mod focus;
 mod hit_testable_;
+mod id_;
 mod layout;
 mod text;
 
@@ -17,5 +18,6 @@ pub use cursor_::*;
 pub use events::*;
 pub use focus::*;
 pub use hit_testable_::*;
+pub use id_::*;
 pub use layout::*;
 pub use text::*;

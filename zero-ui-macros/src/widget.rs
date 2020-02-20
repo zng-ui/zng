@@ -12,7 +12,6 @@ pub mod keyword {
     syn::custom_keyword!(unset);
     syn::custom_keyword!(when);
     syn::custom_keyword!(input);
-    syn::custom_keyword!(todo);
     syn::custom_keyword!(new_child);
     syn::custom_keyword!(new);
     syn::custom_keyword!(inherit);
@@ -122,7 +121,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         );
         new = quote!(
             #fn_doc
-            pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::core::types::WidgetId) -> impl zero_ui::core::UiNode {
+            pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
         );
@@ -269,6 +268,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         // for the documentation references to work.
         #[doc(hidden)]
         mod #imports_mod {
+            pub use zero_ui::properties::id;
             #(#imports)*
         }
 
@@ -297,17 +297,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
             pub use __init::{new_child, new};
 
-            // a test call to the widget macro, this does type validation for
-            // default property values, and UiNodes.
-            #[doc(hidden)]
-            #[allow(unused)]
-            fn __test(child: impl zero_ui::core::UiNode) -> impl zero_ui::core::UiNode {
-                use #imports_mod::*;
-                #ident! {
-                    #(#test_required)*
-                    => child
-                }
-            }
+
         }
     };
 
@@ -668,8 +658,6 @@ pub enum PropertyValue {
     Args(Punctuated<Expr, Token![,]>),
     /// unset!.
     Unset,
-    /// todo!(..).
-    Todo(ExprMacro),
 }
 impl Parse for PropertyValue {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -699,10 +687,6 @@ impl Parse for PropertyValue {
             input.parse::<Token![!]>()?;
             input.parse::<Token![;]>()?;
             Ok(PropertyValue::Unset)
-        } else if input.peek(keyword::todo) && input.peek2(Token![!]) {
-            let m = input.parse()?;
-            input.parse::<Token![;]>()?;
-            Ok(PropertyValue::Todo(m))
         } else if let Ok(args) = Punctuated::parse_separated_nonempty(input) {
             input.parse::<Token![;]>()?;
             Ok(PropertyValue::Args(args))
@@ -717,7 +701,6 @@ impl ToTokens for PropertyValue {
             PropertyValue::Fields(f) => tokens.extend(quote!({#f})),
             PropertyValue::Args(a) => a.to_tokens(tokens),
             PropertyValue::Unset => tokens.extend(quote!(unset!)),
-            PropertyValue::Todo(m) => m.to_tokens(tokens),
         }
     }
 }
