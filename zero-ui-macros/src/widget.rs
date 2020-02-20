@@ -662,9 +662,13 @@ impl PropertyDefaultValue {
 }
 
 pub enum PropertyValue {
+    /// Named arguments.
     Fields(Punctuated<FieldValue, Token![,]>),
+    /// Unamed arguments.
     Args(Punctuated<Expr, Token![,]>),
+    /// unset!.
     Unset,
+    /// todo!(..).
     Todo(ExprMacro),
 }
 impl Parse for PropertyValue {

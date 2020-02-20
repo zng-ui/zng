@@ -10,7 +10,7 @@ include!("util.rs");
 /// `widget_new!` implementation
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut input = parse_macro_input!(input as WidgetNewInput);
+    let input = parse_macro_input!(input as WidgetNewInput);
 
     // widget child expression `=> {this}`
     let child = input.user_child_expr;
@@ -25,7 +25,6 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     for import in imports.iter_mut() {
         crate_patch.visit_item_use_mut(import);
     }
-    let imports = quote!(#(#imports)*);
 
     // property aliases.
     let mut aliases: HashMap<Ident, Ident> = HashMap::default();
@@ -65,7 +64,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
                 Some(PropertyDefaultValue::Args(a)) => {
                     assigns.insert(p.ident.clone(), (PropertyValue::Args(a), t, true));
                 }
-                _ => todo!(),
+                Some(PropertyDefaultValue::Unset) | None => continue,
             }
         }
 
@@ -94,7 +93,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     for p in input.new.into_iter() {
         // if a a user assign matches, capture its value.
         if let Some(v) = assigns.remove(&p) {
-            assert_eq!(v.1, DefaultBlockTarget::Child, "{}", NON_USER_ERROR);
+            assert_eq!(v.1, DefaultBlockTarget::Self_, "{}", NON_USER_ERROR);
             new_args.push((v.0, p, v.2));
         } else {
             panic!("{}", NON_USER_ERROR);
@@ -112,9 +111,6 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     // widget mod
     let ident = input.ident;
-
-    // widget inner imports mod
-    let wgt_props = quote!(#ident::__props);
 
     // generate property::set calls.
     let mut let_child_args = vec![];
@@ -151,10 +147,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         let arg_names: Vec<_> = (0..len).map(|i| ident!("__{}_{}", aliased, i)).collect();
 
         let args = quote!(let (#(#arg_names,)*) = #args.pop(););
-        let set_ctx = quote!(let (#(#arg_names,)*) = __prop::#prop::set_context(__node, #(#arg_names),*););
-        let set_event = quote!(let (#(#arg_names,)*) = __prop::#prop::set_event(__node, #(#arg_names),*););
-        let set_outer = quote!(let (#(#arg_names,)*) = __prop::#prop::set_outer(__node, #(#arg_names),*););
-        let set_inner = quote!(let (#(#arg_names,)*) = __prop::#prop::set_inner(__node, #(#arg_names),*););
+        let set_ctx = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_context(__node, #(#arg_names),*););
+        let set_event = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_event(__node, #(#arg_names),*););
+        let set_outer = quote!(let (#(__node, #arg_names,)*) = __props::#prop::set_outer(__node, #(#arg_names),*););
+        let set_inner = quote!(let (#(_node, #arg_names,)*) = __props::#prop::set_inner(__node, #(#arg_names),*););
 
         match tgt {
             DefaultBlockTarget::Self_ => {
@@ -206,26 +202,37 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 fn property_value_to_args(v: PropertyValue, property_name: &Ident, is_default: bool) -> TokenStream {
     match v {
-        PropertyValue::Fields(f) => quote!(__prop::#property_name::Args::new(#f)),
-        PropertyValue::Args(a) => {
-            quote! {
-                __prop::#property_name::Args {
-                    __phantom: std::marker::PhantomData,
-                    #a
+        PropertyValue::Fields(f) => {
+            if is_default {
+                quote! {{
+                    use __props::*;
+                    #property_name::Args {
+                        __phantom: std::marker::PhantomData,
+                        #f
+                    }
+                }}
+            } else {
+                quote! {
+                    __props::#property_name::Args {
+                        __phantom: std::marker::PhantomData,
+                        #f
+                    }
                 }
+            }
+        }
+        PropertyValue::Args(a) => {
+            if is_default {
+                quote! {{
+                    use __props::*;
+                    #property_name::Args::new(#a)
+                }}
+            } else {
+                quote!(__props::#property_name::Args::new(#a))
             }
         }
         PropertyValue::Todo(t) => quote!(#t),
         _ => panic!("{}", NON_USER_ERROR),
     }
-}
-
-#[derive(Default)]
-struct PropertyCalls {
-    set_context: Vec<TokenStream>,
-    set_event: Vec<TokenStream>,
-    set_outer: Vec<TokenStream>,
-    set_inner: Vec<TokenStream>,
 }
 
 pub struct WidgetNewInput {
