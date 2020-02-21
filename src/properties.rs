@@ -1,6 +1,6 @@
 //! Common widget properties.
 
-mod background;
+mod background_;
 mod border_;
 mod context_var;
 mod cursor_;
@@ -11,7 +11,7 @@ mod id_;
 mod layout;
 mod text;
 
-pub use background::*;
+pub use background_::*;
 pub use border_::*;
 pub use context_var::*;
 pub use cursor_::*;

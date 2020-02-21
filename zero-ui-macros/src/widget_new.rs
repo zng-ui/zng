@@ -205,14 +205,14 @@ fn property_value_to_args(v: PropertyValue, property_name: &Ident, props: &Token
                 quote! {{
                     use #props::*;
                     #property_name::NamedArgs {
-                        __phantom: std::marker::PhantomData,
+                        _phantom: std::marker::PhantomData,
                         #f
                     }
                 }}
             } else {
                 quote! {
                     #property_name::NamedArgs {
-                        __phantom: std::marker::PhantomData,
+                        _phantom: std::marker::PhantomData,
                         #f
                     }
                 }
@@ -222,10 +222,10 @@ fn property_value_to_args(v: PropertyValue, property_name: &Ident, props: &Token
             if is_default {
                 quote! {{
                     use #props::*;
-                    #property_name::args(#a)
+                    #property_name::named_args(#a)
                 }}
             } else {
-                quote!(#property_name::args(#a))
+                quote!(#property_name::named_args(#a))
             }
         }
         _ => panic!("{}", util::NON_USER_ERROR),

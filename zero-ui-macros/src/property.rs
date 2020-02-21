@@ -14,218 +14,115 @@ pub mod keyword {
 
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let args = parse_macro_input!(args as Args);
+    let priority = parse_macro_input!(args as Priority);
     let mut fn_ = parse_macro_input!(input as ItemFn);
 
     if fn_.sig.inputs.len() < 2 {
         abort!(fn_.sig.inputs.span(), "cannot be property, expected at least two arguments")
+    }
+    if fn_.sig.generics.lifetimes().next().is_some() {
+        abort!(fn_.sig.generics.span(), "lifetimes are not supported in property functions");
+    }
+    if fn_.sig.generics.const_params().next().is_some() {
+        abort!(fn_.sig.generics.span(), "const generics are not supported in property functions");
     }
 
     // extract stuff for new mod and convert the input fn into the set fn.
     let ident = mem::replace(&mut fn_.sig.ident, ident!("set"));
     let vis = mem::replace(&mut fn_.vis, util::pub_vis());
     let (docs_attrs, other_attrs) = util::split_doc_other(&mut fn_.attrs);
-    let fn_doc = doc!(
-        "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
-        ident
-    );
 
-    // parse arguments, convert `_: impl T` to `<TImpl0: T>`.
-    // this is needed to make the struct Args bounds, which are needed
-    // because type inference gets confused for closures if the bounds
-    // are not immediately apparent.
-    let mut arg_names = vec![];
+    let mut arg_idents = vec![];
     let mut arg_tys = vec![];
-    let mut arg_return_tys = vec![];
-    let mut arg_decl = vec![];
-    let mut arg_wheres = vec![];
-    let mut tys_decl = vec![];
-    let mut arg_gen_tys = vec![];
-    let mut impl_tys_count = 0;
-    let mut next_impl_ty = move || {
-        let n = ident!("TImpl{}", impl_tys_count);
-        impl_tys_count += 1;
-        n
-    };
-    for input in fn_.sig.inputs.iter().skip(1) {
-        match input {
-            FnArg::Typed(input) => {
-                if let Pat::Ident(pat) = &*input.pat {
-                    arg_names.push(pat.ident.clone());
-                } else {
-                    abort!(input.pat.span(), "cannot be property, must only use simple argument names")
+    let mut gen_idents = vec![];
+    let mut gen_bounds = vec![];
+
+    // collect basic generics (fn property<T: Bounds>)
+    for g in fn_.sig.generics.type_params() {
+        gen_idents.push(g.ident.clone());
+        gen_bounds.push(g.bounds.clone());
+    }
+
+    // merge where bounds into basic generics.
+    if let Some(where_) = &fn_.sig.generics.where_clause {
+        for p in &where_.predicates {
+            if let WherePredicate::Type(p) = p {
+                if p.lifetimes.is_some() {
+                    abort!(p.span(), "lifetime bounds are not supported in property functions")
                 }
 
-                match &*input.ty {
-                    Type::ImplTrait(impl_) => {
-                        let ty = next_impl_ty();
-                        arg_tys.push(parse_quote!(#ty));
-                        arg_return_tys.push(quote!(Self::#ty));
-
-                        let bounds = &impl_.bounds;
-                        arg_decl.push(parse_quote!(#ty:#bounds));
-
-                        tys_decl.push((ty.clone(), bounds));
-                        arg_gen_tys.push(ty);
-                    }
-                    Type::Path(t) => {
-                        let mut is_gen = false;
-                        if let Some(t) = t.path.get_ident() {
-                            if let Some(gen) = fn_.sig.generics.type_params().find(|p| &p.ident == t) {
-                                is_gen = true;
-                                if !arg_gen_tys.contains(t) {
-                                    arg_gen_tys.push(t.clone());
-
-                                    arg_decl.push(gen.clone());
-                                    if let Some(WherePredicate::Type(where_)) = find_where_predicate(&fn_, t) {
-                                        arg_wheres.push(where_.clone());
-                                        match &where_.bounded_ty {
-                                            Type::Path(ty) if ty.path.get_ident().is_some() => {
-                                                tys_decl.push((ty.path.get_ident().unwrap().clone(), &where_.bounds))
-                                            }
-                                            _ => abort!(where_.span(), "cannot be property, must only use simple where clauses"),
-                                        }
-                                    } else {
-                                        let bounds = &gen.bounds;
-                                        tys_decl.push((t.clone(), bounds));
-                                    }
+                if let Type::Path(bt) = &p.bounded_ty {
+                    if bt.qself.is_none() {
+                        if let Some(ident) = bt.path.get_ident() {
+                            if let Some(i) = gen_idents.iter().position(|gi| gi == ident) {
+                                // where T: Bounds and T is a known generic.
+                                for b in &p.bounds {
+                                    gen_bounds[i].push(b.clone());
                                 }
+                                continue;
                             }
                         }
-                        let ty = &input.ty;
-                        if is_gen {
-                            arg_return_tys.push(quote!(Self::#ty));
-                        } else {
-                            arg_return_tys.push(quote!(#ty));
-                        }
-                        arg_tys.push(ty.clone())
-                    }
-                    _ => {
-                        let ty = &input.ty;
-                        arg_return_tys.push(quote!(#ty));
                     }
                 }
-            }
-            // can this even happen? we parsed as ItemFn
-            FnArg::Receiver(self_) => abort!(self_.span(), "cannot be property, must be stand-alone fn"),
-        }
-    }
 
-    // we need to make a PhantomData member for all other generic types
-    // because they may be used in parts of the generics we now are used.
-    let mut arg_phantom_decl = vec![];
-    let mut arg_phantom_tys = vec![];
-    let mut arg_phantom_wheres = vec![];
-
-    if !arg_gen_tys.is_empty() {
-        for p in fn_.sig.generics.type_params() {
-            if !arg_gen_tys.contains(&p.ident) {
-                arg_phantom_tys.push(p.ident.clone());
-                arg_phantom_decl.push(p.clone());
-
-                if let Some(WherePredicate::Type(where_)) = find_where_predicate(&fn_, &p.ident) {
-                    arg_phantom_wheres.push(where_.clone());
-
-                    match &where_.bounded_ty {
-                        Type::Path(ty) if ty.path.get_ident().is_some() => {
-                            tys_decl.insert(0, (ty.path.get_ident().unwrap().clone(), &where_.bounds))
-                        }
-                        _ => abort!(where_.span(), "cannot be property, must only use simple where clauses"),
-                    }
-                } else {
-                    let bounds = &p.bounds;
-                    tys_decl.insert(0, (p.ident.clone(), bounds));
-                }
+                abort!(p.span(), "only bounds to local generic types are supported in property functions")
+            } else {
+                abort!(p.span(), "only type where predicates are supported in property functions")
             }
         }
     }
 
-    // Make Args trait type declarations, we need to convert phamtom types mentions in
-    // bounds to use the Self:: prefix.
-    let mut prepend_self = PrependSelf {
-        gen_names: arg_gen_tys.iter().cloned().chain(arg_phantom_tys.iter().cloned()).collect(),
-    };
-    let tys_decl: Vec<_> = tys_decl
-        .into_iter()
-        .map(|(ty, bounds)| {
-            let mut bounds = bounds.clone();
-            for bound in &mut bounds {
-                prepend_self.visit_type_param_bound_mut(bound);
-            }
-            quote!(type #ty: #bounds;)
-        })
-        .collect();
+    let mut t_impl_n = 0;
+    for a in fn_.sig.inputs.iter().skip(1) {
+        if let FnArg::Typed(a) = a {
+            if let Pat::Ident(id) = &*a.pat {
+                if id.subpat.is_none() {
+                    arg_idents.push(id.ident.clone());
 
-    let arg_decl = if arg_decl.is_empty() {
+                    let ty = &*a.ty;
+                    if let Type::ImplTrait(it) = ty {
+                        let ident = ident!("TImpl{}", t_impl_n);
+                        t_impl_n += 1;
+
+                        arg_tys.push(parse_quote!(#ident));
+
+                        gen_idents.push(ident.clone());
+                        gen_bounds.push(it.bounds.clone());
+                    } else {
+                        arg_tys.push(ty.clone());
+                    }
+                    continue;
+                }
+            }
+        }
+
+        abort!(
+            a.span(),
+            "only single type ascription (name: T) arguments are supported in property functions"
+        )
+    }
+
+    let mut phantom_idents = gen_idents.clone();
+    let mut visitor = RemoveVisitedIdents(&mut phantom_idents);
+    for ty in &mut arg_tys {
+        visitor.visit_type_mut(ty);
+    }
+
+    let mut arg_return_tys = arg_tys.clone();
+    let mut visitor = PrependSelfIfPathIdent(&gen_idents);
+    for ty in &mut arg_return_tys {
+        visitor.visit_type_mut(ty);
+    }
+
+    let args_gen_decl = if gen_idents.is_empty() {
         quote!()
     } else {
-        quote! (<#(#arg_phantom_decl,)* #(#arg_decl),*>)
+        quote!(<#(#gen_idents: #gen_bounds),*>)
     };
-    let arg_wheres = if arg_wheres.is_empty() {
+    let args_gen_use = if gen_idents.is_empty() {
         quote!()
     } else {
-        quote!(where #(#arg_phantom_wheres,)* #(#arg_wheres),*)
-    };
-    let arg_gen_tys_qt = if arg_gen_tys.is_empty() {
-        quote!()
-    } else {
-        quote!(<#(#arg_phantom_tys,)* #(#arg_gen_tys),*>)
-    };
-    let arg_phantom_tys_qt = if arg_phantom_tys.is_empty() {
-        quote!(<()>)
-    } else {
-        quote! (<#(#arg_phantom_tys),*>)
-    };
-
-    // struct Args
-    let struct_args = quote! {
-        #[doc(hidden)]
-        #[allow(unused)]
-        pub struct NamedArgs#arg_decl #arg_wheres {
-            #[doc(hidden)]
-            pub __phantom: std::marker::PhantomData#arg_phantom_tys_qt,
-            #(pub #arg_names: #arg_tys),*
-        }
-
-        /// Initializes an [`Args`](Args) instance.
-        #[inline]
-        pub fn args#arg_decl(#(#arg_names: #arg_tys,)*) -> NamedArgs#arg_gen_tys_qt #arg_wheres {
-            NamedArgs {
-                __phantom: std::marker::PhantomData,
-                #(#arg_names,)*
-            }
-        }
-
-        impl#arg_decl NamedArgs#arg_gen_tys_qt #arg_wheres {
-            #[inline]
-            pub fn pop(self) -> (#(#arg_tys,)*) {
-                (#(self.#arg_names,)*)
-            }
-        }
-
-        /// Named arguments of this property.
-        pub trait Args {
-            #(#tys_decl)*
-
-            #(fn #arg_names(&self) -> &#arg_return_tys;)*
-
-            /// Unpacks the arguments in the property::set order.
-            fn pop(self) -> (#(#arg_return_tys,)*);
-        }
-
-        impl#arg_decl Args for NamedArgs#arg_gen_tys_qt #arg_wheres {
-            #(type #arg_phantom_tys = #arg_phantom_tys;)*
-            #(type #arg_gen_tys = #arg_gen_tys;)*
-
-            #(fn #arg_names(&self) -> &#arg_return_tys {
-                &self.#arg_names
-            })*
-
-            #[inline]
-            fn pop(self) -> (#(#arg_return_tys,)*) {
-                NamedArgs::pop(self)
-            }
-        }
+        quote!(<#(#gen_idents),*>)
     };
 
     let child_ty = quote!(impl zero_ui::core::UiNode);
@@ -242,22 +139,22 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_ #arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) #arg_wheres {
-                (child, #(#arg_names),*)
+            pub fn #fn_ #args_gen_decl(child: #child_ty, #(#arg_idents: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) {
+                (child, #(#arg_idents),*)
             }
         }
     };
 
     // 2 - for our actual set we call the property::set function to make or new child
     // and then return the new child with place-holder nils ()
-    let arg_nils = vec![quote![()]; arg_names.len()];
+    let arg_nils = vec![quote![()]; arg_idents.len()];
     let set_now = |fn_: &str| {
         let fn_ = ident!(fn_);
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_ #arg_decl(child: #child_ty, #(#arg_names: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) #arg_wheres {
-                (set(child, #(#arg_names),*), #(#arg_nils),*)
+            pub fn #fn_ #args_gen_decl(child: #child_ty, #(#arg_idents: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) {
+                (set(child, #(#arg_idents),*), #(#arg_nils),*)
             }
         }
     };
@@ -274,26 +171,26 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     };
     let mut sets = vec![];
-    match args {
-        Args::Outer => {
+    match priority {
+        Priority::Outer => {
             sets.push(set_not_yet("set_context"));
             sets.push(set_not_yet("set_event"));
             sets.push(set_now("set_outer"));
             sets.push(set_already_done("set_inner"));
         }
-        Args::Inner => {
+        Priority::Inner => {
             sets.push(set_not_yet("set_context"));
             sets.push(set_not_yet("set_event"));
             sets.push(set_not_yet("set_outer"));
             sets.push(set_now("set_inner"));
         }
-        Args::Event => {
+        Priority::Event => {
             sets.push(set_not_yet("set_context"));
             sets.push(set_now("set_event"));
             sets.push(set_already_done("set_outer"));
             sets.push(set_already_done("set_inner"));
         }
-        Args::Context => {
+        Priority::Context => {
             sets.push(set_now("set_context"));
             sets.push(set_already_done("set_event"));
             sets.push(set_already_done("set_outer"));
@@ -301,77 +198,164 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     }
 
+    // generate documentation that must be formated.
+    let mod_property_doc = doc!("This module is a widget property with {} priority.", priority);
+    let fn_set_doc = doc!(
+        "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
+        ident
+    );
+    let fn_args_doc = doc!("Collects [positional](set) arguments into [named arguments](Args).");
+    let args_doc = doc!("Named arguments of the [`{0}`]({0}) property.", ident);
+    let mtd_pop_doc = doc!("Take the arguments in a tuple sorted by the position of [set](set) arguments.");
+
     let r = quote! {
+
         #(#docs_attrs)*
+        ///
+        /// # Property
+        #mod_property_doc
         #vis mod #ident {
             use super::*;
 
-            #struct_args
-
-            #fn_doc
+            #fn_set_doc
             #(#other_attrs)*
             #fn_
 
             #(#sets)*
+
+            #fn_args_doc
+            #[inline]
+            pub fn args#args_gen_decl(#(#arg_idents: #arg_tys),*) -> impl Args {
+                named_args(#(#arg_idents,)*)
+            }
+
+            #args_doc
+            pub trait Args {
+                #(type #gen_idents: #gen_bounds;)*
+
+                #(fn #arg_idents(&self) -> &#arg_return_tys;)*
+
+                #mtd_pop_doc
+                fn pop(self) -> (#(#arg_return_tys,)*);
+            }
+
+            #[doc(hidden)]
+            #[inline]
+            pub fn named_args#args_gen_decl(#(#arg_idents: #arg_tys),*) -> NamedArgs#args_gen_use {
+                NamedArgs {
+                    _phantom: std::marker::PhantomData,
+                    #(#arg_idents,)*
+                }
+            }
+
+            #[doc(hidden)]
+            pub struct NamedArgs#args_gen_decl {
+                pub _phantom: std::marker::PhantomData<(#(#phantom_idents),*)>,
+                #(pub #arg_idents: #arg_tys,)*
+            }
+
+            impl#args_gen_decl NamedArgs#args_gen_use {
+                #[inline]
+                pub fn pop(self) -> (#(#arg_tys,)*) {
+                    (#(self.#arg_idents,)*)
+                }
+            }
+
+            impl#args_gen_decl Args for NamedArgs#args_gen_use {
+                #(type #gen_idents = #gen_idents;)*
+
+                #(
+
+                #[inline]
+                fn #arg_idents(&self) -> &#arg_return_tys {
+                    &self.#arg_idents
+                }
+
+                )*
+
+                #[inline]
+                fn pop(self) -> (#(#arg_return_tys,)*) {
+                    NamedArgs::pop(self)
+                }
+            }
         }
     };
+
+    //panic!("{}", r);
 
     r.into()
 }
 
-fn find_where_predicate<'a, 'b>(fn_: &'a ItemFn, ident: &'b Ident) -> Option<&'a WherePredicate> {
-    fn_.sig.generics.where_clause.as_ref().and_then(|w| {
-        w.predicates.iter().find(|p| {
-            if let WherePredicate::Type(p) = p {
-                if let Type::Path(p) = &p.bounded_ty {
-                    if let Some(id) = p.path.get_ident() {
-                        return id == ident;
-                    }
-                }
-            }
-            false
-        })
-    })
+struct ArgInfo {
+    ident: Ident,
+    ty: ArgTypeInfo,
+}
+
+enum ArgTypeInfo {
+    /// Non-generic type.
+    Type(Type),
+    Generic {
+        ident: Ident,
+        predicates: PredicateType,
+    },
 }
 
 #[derive(Clone, Copy)]
-enum Args {
+enum Priority {
     Context,
     Event,
     Outer,
     Inner,
 }
-
-impl Parse for Args {
+impl std::fmt::Display for Priority {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Priority::Context => write!(f, "context"),
+            Priority::Event => write!(f, "event"),
+            Priority::Outer => write!(f, "outer"),
+            Priority::Inner => write!(f, "inner"),
+        }
+    }
+}
+impl Parse for Priority {
     fn parse(input: ParseStream) -> Result<Self> {
         let lookahead = input.lookahead1();
 
         if lookahead.peek(keyword::context) {
             input.parse::<keyword::context>()?;
-            Ok(Args::Context)
+            Ok(Priority::Context)
         } else if lookahead.peek(keyword::event) {
             input.parse::<keyword::event>()?;
-            Ok(Args::Event)
+            Ok(Priority::Event)
         } else if lookahead.peek(keyword::outer) {
             input.parse::<keyword::outer>()?;
-            Ok(Args::Outer)
+            Ok(Priority::Outer)
         } else if lookahead.peek(keyword::inner) {
             input.parse::<keyword::inner>()?;
-            Ok(Args::Inner)
+            Ok(Priority::Inner)
         } else {
             Err(lookahead.error())
         }
     }
 }
 
-struct PrependSelf {
-    gen_names: Vec<Ident>,
+struct RemoveVisitedIdents<'a>(&'a mut Vec<Ident>);
+
+impl<'a> VisitMut for RemoveVisitedIdents<'a> {
+    fn visit_ident_mut(&mut self, i: &mut Ident) {
+        if let Some(idx) = self.0.iter().position(|id| id == i) {
+            self.0.swap_remove(idx);
+        }
+        visit_mut::visit_ident_mut(self, i);
+    }
 }
 
-impl VisitMut for PrependSelf {
+struct PrependSelfIfPathIdent<'a>(&'a [Ident]);
+
+impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
     fn visit_path_mut(&mut self, i: &mut Path) {
         if let Some(s) = i.segments.first() {
-            if self.gen_names.contains(&s.ident) {
+            if self.0.contains(&s.ident) {
                 i.segments.insert(0, parse_quote!(Self));
             }
         }
