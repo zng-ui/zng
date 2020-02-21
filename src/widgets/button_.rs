@@ -52,6 +52,12 @@ widget! {
     }
 }
 
+macro_rules! widget_without_inner_inputs {
+    ($($tt:tt)*) => {
+    };
+}
+
+widget_without_inner_inputs! {
 /// Docs reference [rgb](rgb) works here.
 pub mod button_w {
     #[doc(hidden)]
@@ -90,4 +96,5 @@ pub mod button_w {
             ps::background_color::args(ButtonBackground)
         }
     }
+}
 }
