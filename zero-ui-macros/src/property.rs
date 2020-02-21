@@ -1,6 +1,7 @@
 use proc_macro2::Span;
 use std::mem;
 use syn::spanned::Spanned;
+use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
 include!("util.rs");
 
@@ -35,8 +36,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     // are not immediately apparent.
     let mut arg_names = vec![];
     let mut arg_tys = vec![];
+    let mut arg_return_tys = vec![];
     let mut arg_decl = vec![];
     let mut arg_wheres = vec![];
+    let mut tys_decl = vec![];
     let mut arg_gen_tys = vec![];
     let mut impl_tys_count = 0;
     let mut next_impl_ty = move || {
@@ -57,32 +60,57 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                     Type::ImplTrait(impl_) => {
                         let ty = next_impl_ty();
                         arg_tys.push(parse_quote!(#ty));
+                        arg_return_tys.push(quote!(Self::#ty));
+
                         let bounds = &impl_.bounds;
                         arg_decl.push(parse_quote!(#ty:#bounds));
+
+                        tys_decl.push((ty.clone(), bounds));
                         arg_gen_tys.push(ty);
                     }
                     Type::Path(t) => {
+                        let mut is_gen = false;
                         if let Some(t) = t.path.get_ident() {
                             if let Some(gen) = fn_.sig.generics.type_params().find(|p| &p.ident == t) {
+                                is_gen = true;
                                 if !arg_gen_tys.contains(t) {
                                     arg_gen_tys.push(t.clone());
 
                                     arg_decl.push(gen.clone());
-                                    if let Some(where_) = find_where_predicate(&fn_, t) {
+                                    if let Some(WherePredicate::Type(where_)) = find_where_predicate(&fn_, t) {
                                         arg_wheres.push(where_.clone());
+                                        match &where_.bounded_ty {
+                                            Type::Path(ty) if ty.path.get_ident().is_some() => {
+                                                tys_decl.push((ty.path.get_ident().unwrap().clone(), &where_.bounds))
+                                            }
+                                            _ => abort!(where_.span(), "cannot be property, must only use simple where clauses"),
+                                        }
+                                    } else {
+                                        let bounds = &gen.bounds;
+                                        tys_decl.push((t.clone(), bounds));
                                     }
                                 }
                             }
                         }
-                        arg_tys.push(input.ty.clone())
+                        let ty = &input.ty;
+                        if is_gen {
+                            arg_return_tys.push(quote!(Self::#ty));
+                        } else {
+                            arg_return_tys.push(quote!(#ty));
+                        }
+                        arg_tys.push(ty.clone())
                     }
-                    _ => arg_tys.push(input.ty.clone()),
+                    _ => {
+                        let ty = &input.ty;
+                        arg_return_tys.push(quote!(#ty));
+                    }
                 }
             }
             // can this even happen? we parsed as ItemFn
             FnArg::Receiver(self_) => abort!(self_.span(), "cannot be property, must be stand-alone fn"),
         }
     }
+
     // we need to make a PhantomData member for all other generic types
     // because they may be used in parts of the generics we now are used.
     let mut arg_phantom_decl = vec![];
@@ -95,12 +123,38 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 arg_phantom_tys.push(p.ident.clone());
                 arg_phantom_decl.push(p.clone());
 
-                if let Some(where_) = find_where_predicate(&fn_, &p.ident) {
+                if let Some(WherePredicate::Type(where_)) = find_where_predicate(&fn_, &p.ident) {
                     arg_phantom_wheres.push(where_.clone());
+
+                    match &where_.bounded_ty {
+                        Type::Path(ty) if ty.path.get_ident().is_some() => {
+                            tys_decl.insert(0, (ty.path.get_ident().unwrap().clone(), &where_.bounds))
+                        }
+                        _ => abort!(where_.span(), "cannot be property, must only use simple where clauses"),
+                    }
+                } else {
+                    let bounds = &p.bounds;
+                    tys_decl.insert(0, (p.ident.clone(), bounds));
                 }
             }
         }
     }
+
+    // Make Args trait type declarations, we need to convert phamtom types mentions in
+    // bounds to use the Self:: prefix.
+    let mut prepend_self = PrependSelf {
+        gen_names: arg_gen_tys.iter().cloned().chain(arg_phantom_tys.iter().cloned()).collect(),
+    };
+    let tys_decl: Vec<_> = tys_decl
+        .into_iter()
+        .map(|(ty, bounds)| {
+            let mut bounds = bounds.clone();
+            for bound in &mut bounds {
+                prepend_self.visit_type_param_bound_mut(bound);
+            }
+            quote!(type #ty: #bounds;)
+        })
+        .collect();
 
     let arg_decl = if arg_decl.is_empty() {
         quote!()
@@ -112,12 +166,12 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     } else {
         quote!(where #(#arg_phantom_wheres,)* #(#arg_wheres),*)
     };
-    let arg_gen_tys = if arg_gen_tys.is_empty() {
+    let arg_gen_tys_qt = if arg_gen_tys.is_empty() {
         quote!()
     } else {
         quote!(<#(#arg_phantom_tys,)* #(#arg_gen_tys),*>)
     };
-    let arg_phantom_tys = if arg_phantom_tys.is_empty() {
+    let arg_phantom_tys_qt = if arg_phantom_tys.is_empty() {
         quote!(<()>)
     } else {
         quote! (<#(#arg_phantom_tys),*>)
@@ -125,25 +179,51 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
     // struct Args
     let struct_args = quote! {
-        /// Named arguments of this property.
+        #[doc(hidden)]
         #[allow(unused)]
-        pub struct Args#arg_decl #arg_wheres {
+        pub struct NamedArgs#arg_decl #arg_wheres {
             #[doc(hidden)]
-            pub __phantom: std::marker::PhantomData#arg_phantom_tys,
+            pub __phantom: std::marker::PhantomData#arg_phantom_tys_qt,
             #(pub #arg_names: #arg_tys),*
         }
-        impl#arg_decl Args#arg_gen_tys #arg_wheres {
-            #[inline]
-            pub fn new(#(#arg_names: #arg_tys,)*) -> Self {
-                Args {
-                    __phantom: std::marker::PhantomData,
-                    #(#arg_names,)*
-                }
+
+        /// Initializes an [`Args`](Args) instance.
+        #[inline]
+        pub fn args#arg_decl(#(#arg_names: #arg_tys,)*) -> NamedArgs#arg_gen_tys_qt #arg_wheres {
+            NamedArgs {
+                __phantom: std::marker::PhantomData,
+                #(#arg_names,)*
             }
-            ///Return arguments in the order of the property::set function.
+        }
+
+        impl#arg_decl NamedArgs#arg_gen_tys_qt #arg_wheres {
             #[inline]
             pub fn pop(self) -> (#(#arg_tys,)*) {
                 (#(self.#arg_names,)*)
+            }
+        }
+
+        /// Named arguments of this property.
+        pub trait Args {
+            #(#tys_decl)*
+
+            #(fn #arg_names(&self) -> &#arg_return_tys;)*
+
+            /// Unpacks the arguments in the property::set order.
+            fn pop(self) -> (#(#arg_return_tys,)*);
+        }
+
+        impl#arg_decl Args for NamedArgs#arg_gen_tys_qt #arg_wheres {
+            #(type #arg_phantom_tys = #arg_phantom_tys;)*
+            #(type #arg_gen_tys = #arg_gen_tys;)*
+
+            #(fn #arg_names(&self) -> &#arg_return_tys {
+                &self.#arg_names
+            })*
+
+            #[inline]
+            fn pop(self) -> (#(#arg_return_tys,)*) {
+                NamedArgs::pop(self)
             }
         }
     };
@@ -281,5 +361,21 @@ impl Parse for Args {
         } else {
             Err(lookahead.error())
         }
+    }
+}
+
+struct PrependSelf {
+    gen_names: Vec<Ident>,
+}
+
+impl VisitMut for PrependSelf {
+    fn visit_path_mut(&mut self, i: &mut Path) {
+        if let Some(s) = i.segments.first() {
+            if self.gen_names.contains(&s.ident) {
+                i.segments.insert(0, parse_quote!(Self));
+            }
+        }
+
+        visit_mut::visit_path_mut(self, i);
     }
 }

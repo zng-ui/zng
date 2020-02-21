@@ -144,9 +144,9 @@ pub fn default_new_widget_child<C: UiNode>(child: C) -> C {
 /// This is called by the default widget! new function.
 #[inline]
 #[doc(hidden)]
-pub fn default_new_widget(child: impl UiNode, id_args: zero_ui::properties::id::Args) -> impl UiNode {
+pub fn default_new_widget(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl UiNode {
     Widget {
-        id: id_args.id,
+        id: id_args.pop().0,
         state: LazyStateMap::default(),
         child,
         area: LayoutSize::zero(),

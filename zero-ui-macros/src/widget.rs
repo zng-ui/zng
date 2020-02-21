@@ -121,7 +121,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         );
         new = quote!(
             #fn_doc
-            pub fn new(child: impl zero_ui::core::UiNode, id: zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
+            pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
         );

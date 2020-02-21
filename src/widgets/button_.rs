@@ -1,4 +1,5 @@
 use crate::core::types::{rgb, ColorF};
+pub use crate::properties::{align, background_color, on_click};
 use crate::widget;
 use crate::widgets::container;
 
@@ -48,5 +49,45 @@ widget! {
     /// When the button is not enabled.
     when !self.is_enabled {
         background_color: ButtonBackgroundDisabled;
+    }
+}
+
+/// Docs reference [rgb](rgb) works here.
+pub mod button_w {
+    #[doc(hidden)]
+    pub use super::*;
+
+    /// New child docs.
+    #[inline]
+    pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
+        zero_ui::core::default_new_widget_child(child)
+    }
+
+    /// New widget docs.
+    #[inline]
+    pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
+        zero_ui::core::default_new_widget(child, id)
+    }
+
+    // Properties used in widget.
+    #[doc(hidden)]
+    pub mod ps {
+        // validate re-export.
+        pub use super::on_click;
+
+        // Alias and validate.
+        pub use super::align as content_align;
+
+        pub use super::background_color;
+    }
+
+    // Default values from the widget.
+    #[doc(hidden)]
+    pub mod df {
+        use super::*;
+
+        pub fn background_color() -> impl ps::background_color::Args {
+            ps::background_color::args(ButtonBackground)
+        }
     }
 }
