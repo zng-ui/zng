@@ -1,11 +1,10 @@
+use crate::util;
 use crate::widget::*;
 use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
-
-include!("util.rs");
 
 /// `widget_new!` implementation
 #[allow(clippy::cognitive_complexity)]
@@ -80,23 +79,23 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     for p in input.new_child.into_iter() {
         // if a a user assign matches, capture its value.
         if let Some(v) = assigns.remove(&p) {
-            assert_eq!(v.1, DefaultBlockTarget::Child, "{}", NON_USER_ERROR);
+            assert_eq!(v.1, DefaultBlockTarget::Child, "{}", util::NON_USER_ERROR);
             let mut pname = p;
             if let Some(actual) = aliases.get(&pname) {
                 pname = actual.clone();
             }
             new_child_args.push((v.0, pname, v.2)); // (PropertyValue, Ident, is_default)
         } else {
-            panic!("{}", NON_USER_ERROR);
+            panic!("{}", util::NON_USER_ERROR);
         }
     }
     for p in input.new.into_iter() {
         // if a a user assign matches, capture its value.
         if let Some(v) = assigns.remove(&p) {
-            assert_eq!(v.1, DefaultBlockTarget::Self_, "{}", NON_USER_ERROR);
+            assert_eq!(v.1, DefaultBlockTarget::Self_, "{}", util::NON_USER_ERROR);
             new_args.push((v.0, p, v.2));
         } else {
-            panic!("{}", NON_USER_ERROR);
+            panic!("{}", util::NON_USER_ERROR);
         }
     }
 
@@ -229,7 +228,7 @@ fn property_value_to_args(v: PropertyValue, property_name: &Ident, props: &Token
                 quote!(#property_name::args(#a))
             }
         }
-        _ => panic!("{}", NON_USER_ERROR),
+        _ => panic!("{}", util::NON_USER_ERROR),
     }
 }
 
@@ -252,38 +251,38 @@ impl Parse for WidgetNewInput {
         let crate_ = input.parse()?;
         input.parse::<Token![;]>()?;
 
-        input.parse::<Token![mod]>().expect(NON_USER_ERROR);
-        let ident = input.parse().expect(NON_USER_ERROR);
+        input.parse::<Token![mod]>().expect(util::NON_USER_ERROR);
+        let ident = input.parse().expect(util::NON_USER_ERROR);
         input.parse::<Token![;]>()?;
 
         let mut imports = vec![];
         while input.peek(Token![use]) {
-            imports.push(input.parse().expect(NON_USER_ERROR));
+            imports.push(input.parse().expect(util::NON_USER_ERROR));
         }
 
-        let default_child: DefaultBlock = input.parse().expect(NON_USER_ERROR);
+        let default_child: DefaultBlock = input.parse().expect(util::NON_USER_ERROR);
         default_child.assert(DefaultBlockTarget::Child);
 
-        let default_self: DefaultBlock = input.parse().expect(NON_USER_ERROR);
+        let default_self: DefaultBlock = input.parse().expect(util::NON_USER_ERROR);
         default_self.assert(DefaultBlockTarget::Self_);
 
         let mut whens = vec![];
         while input.peek(keyword::when) {
-            whens.push(input.parse().expect(NON_USER_ERROR));
+            whens.push(input.parse().expect(util::NON_USER_ERROR));
         }
 
-        input.parse::<keyword::new_child>().expect(NON_USER_ERROR);
+        input.parse::<keyword::new_child>().expect(util::NON_USER_ERROR);
 
-        let new_inner = non_user_parenthesized(input);
+        let new_inner = util::non_user_parenthesized(input);
         let new_child = Punctuated::parse_terminated(&new_inner)?;
 
-        input.parse::<keyword::new>().expect(NON_USER_ERROR);
-        let new_inner = non_user_parenthesized(input);
+        input.parse::<keyword::new>().expect(util::NON_USER_ERROR);
+        let new_inner = util::non_user_parenthesized(input);
         let new = Punctuated::parse_terminated(&new_inner)?;
 
-        input.parse::<keyword::input>().expect(NON_USER_ERROR);
+        input.parse::<keyword::input>().expect(util::NON_USER_ERROR);
 
-        let input = non_user_braced(input);
+        let input = util::non_user_braced(input);
 
         let mut user_sets = vec![];
         let mut user_whens = vec![];
@@ -332,12 +331,12 @@ impl Parse for WidgetNewInput {
 impl DefaultBlock {
     pub fn assert(&self, expected: DefaultBlockTarget) {
         if self.target != expected {
-            panic!("{}: expected default({})", NON_USER_ERROR, quote!(#expected))
+            panic!("{}: expected default({})", util::NON_USER_ERROR, quote!(#expected))
         }
 
         for p in &self.properties {
             if !p.attrs.is_empty() {
-                panic!("{}: unexpected attributes", NON_USER_ERROR)
+                panic!("{}: unexpected attributes", util::NON_USER_ERROR)
             }
         }
     }

@@ -1,3 +1,4 @@
+use crate::util;
 use proc_macro2::Span;
 use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
@@ -6,13 +7,11 @@ use syn::visit::{self, Visit};
 use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
-include!("util.rs");
-
 pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args as Args);
     let mut input = parse_macro_input!(input as ItemImpl);
 
-    let crate_ = zero_ui_crate_ident();
+    let crate_ = util::zero_ui_crate_ident();
 
     let mut in_node_impl = false;
 

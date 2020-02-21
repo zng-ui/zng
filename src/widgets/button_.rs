@@ -54,8 +54,7 @@ widget! {
 }
 
 macro_rules! widget_without_inner_inputs {
-    ($($tt:tt)*) => {
-    };
+    ($($tt:tt)*) => {};
 }
 
 widget_without_inner_inputs! {

@@ -6,6 +6,9 @@ extern crate quote;
 use proc_macro::TokenStream;
 use proc_macro_hack::proc_macro_hack;
 
+#[macro_use]
+mod util;
+
 mod impl_ui_node;
 mod property;
 pub(crate) mod widget;

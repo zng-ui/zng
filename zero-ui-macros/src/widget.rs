@@ -1,10 +1,9 @@
+use crate::util;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, *};
-
-include!("util.rs");
 
 pub mod keyword {
     syn::custom_keyword!(child);
@@ -37,7 +36,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     };
 
     // we get the item level docs
-    let (mut docs, attrs) = split_doc_other(&mut input.attrs);
+    let (mut docs, attrs) = util::split_doc_other(&mut input.attrs);
     // end insert the header termination html because we will
     // generate custom sections to the item docs page.
     finish_docs_header(&mut docs);
@@ -56,7 +55,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // imports prepared for reexporting.
     let mut imports = input.imports;
     for use_ in imports.iter_mut() {
-        use_.vis = self::pub_vis();
+        use_.vis = util::pub_vis();
     }
 
     // ident of a module inside the widget mod that will reexport imports.
@@ -79,7 +78,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 FnArg::Receiver(self_) => abort!(self_.span(), "new_child must be stand-alone fn"),
             }
         }
-        c.vis = pub_vis();
+        c.vis = util::pub_vis();
         new_child = quote!(#c);
     } else {
         let fn_doc = doc!(
@@ -111,7 +110,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 FnArg::Receiver(self_) => abort!(self_.span(), "new must be stand-alone fn"),
             }
         }
-        n.vis = pub_vis();
+        n.vis = util::pub_vis();
         new = quote!(#n);
     } else {
         new_properties.push(ident!["id"]);
@@ -166,7 +165,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     ];
     for (target, properties) in &mut default_blocks {
         for p in properties.iter_mut() {
-            let (prop_docs, other_attrs) = split_doc_other(&mut p.attrs);
+            let (prop_docs, other_attrs) = util::split_doc_other(&mut p.attrs);
 
             if let Some(invalid) = other_attrs.into_iter().next() {
                 abort!(invalid.span(), "only #[doc] attributes are allowed here")
@@ -315,9 +314,9 @@ impl Parse for WidgetArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut inherits = vec![];
         while input.peek(keyword::inherit) {
-            input.parse::<keyword::inherit>().expect(NON_USER_ERROR);
-            let inner = non_user_braced(input);
-            inherits.push(inner.parse().expect(NON_USER_ERROR));
+            input.parse::<keyword::inherit>().expect(util::NON_USER_ERROR);
+            let inner = util::non_user_braced(input);
+            inherits.push(inner.parse().expect(util::NON_USER_ERROR));
         }
 
         let attrs = Attribute::parse_outer(input)?;

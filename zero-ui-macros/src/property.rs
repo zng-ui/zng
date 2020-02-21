@@ -1,9 +1,9 @@
+use crate::util;
 use proc_macro2::Span;
 use std::mem;
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
-include!("util.rs");
 
 pub mod keyword {
     syn::custom_keyword!(context);
@@ -23,8 +23,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
     // extract stuff for new mod and convert the input fn into the set fn.
     let ident = mem::replace(&mut fn_.sig.ident, ident!("set"));
-    let vis = mem::replace(&mut fn_.vis, pub_vis());
-    let (docs_attrs, other_attrs) = split_doc_other(&mut fn_.attrs);
+    let vis = mem::replace(&mut fn_.vis, util::pub_vis());
+    let (docs_attrs, other_attrs) = util::split_doc_other(&mut fn_.attrs);
     let fn_doc = doc!(
         "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
         ident
