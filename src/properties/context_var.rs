@@ -47,6 +47,7 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
 ///     set_context_var(child, FontSize, size)
 /// }
 /// # }
+/// ```
 pub fn set_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
     SetContextVar {
         child,

@@ -59,6 +59,22 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
     }
 }
 
+/// Helper for declaring properties that set a listener to an event.
+///
+/// # Example
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::properties::{on_event, OnEventArgs};
+/// use zero_ui::core::{UiNode, keyboard::{KeyDown, KeyInputArgs}};
+///
+/// /// Sets an event listener for the [`KeyDown`](KeyDown) event.
+/// #[property(event)]
+/// pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
+///     on_event(child, KeyDown, handler)
+/// }
+/// # }
+/// ```
 pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
     OnEvent {
         child,
@@ -125,6 +141,7 @@ pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<Key
     on_event(child, KeyInput, handler)
 }
 
+/// Sets an event listener for the [`KeyDown`](KeyDown) event.
 #[property(event)]
 pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event(child, KeyDown, handler)
