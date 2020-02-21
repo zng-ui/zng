@@ -1,4 +1,5 @@
 use crate::core::types::{rgb, ColorF};
+#[doc(hidden)]
 pub use crate::properties::{align, background_color, on_click};
 use crate::widget;
 use crate::widgets::container;
