@@ -1,10 +1,11 @@
 use crate::widget;
 
+#[doc(hidden)]
+pub use crate::properties::{align, margin, Alignment};
+
 widget! {
     /// Base single content container.
     pub container;
-
-    use crate::properties::{margin, align, Alignment};
 
     default(child) {
         /// Content margin.

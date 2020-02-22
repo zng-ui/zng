@@ -125,8 +125,6 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote!(<#(#gen_idents),*>)
     };
 
-    let child_ty = quote!(impl zero_ui::core::UiNode);
-
     // templates for compile-time sorting functions:
     // widget_new! will generate a call to all widget properties set_context,
     // then set_event for all, etc, the returns args of set_context are fed into
@@ -139,34 +137,34 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_ #args_gen_decl(child: #child_ty, #(#arg_idents: #arg_tys),*) -> (#child_ty, #(#arg_tys),*) {
-                (child, #(#arg_idents),*)
+            pub fn #fn_<C: zero_ui::core::UiNode, A: Args>(child: C, args: A) -> (C, A) {
+                (child, args)
             }
         }
     };
 
     // 2 - for our actual set we call the property::set function to make or new child
-    // and then return the new child with place-holder nils ()
-    let arg_nils = vec![quote![()]; arg_idents.len()];
+    // and then return the new child with place-holder nil ()
     let set_now = |fn_: &str| {
         let fn_ = ident!(fn_);
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_ #args_gen_decl(child: #child_ty, #(#arg_idents: #arg_tys),*) -> (#child_ty, #(#arg_nils),*) {
-                (set(child, #(#arg_idents),*), #(#arg_nils),*)
+            pub fn #fn_(child: impl zero_ui::core::UiNode, args: impl Args) -> (impl zero_ui::core::UiNode, ()) {
+                let (#(#arg_idents,)*) = args.pop();
+                (set(child, #(#arg_idents),*), ())
             }
         }
     };
 
-    // 3 - for after we set we just pass along the nils
+    // 3 - for after we set we just pass along the nil
     let set_already_done = |fn_: &str| {
         let fn_ = ident!(fn_);
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_(child: #child_ty, #(_: #arg_nils),*) -> (#child_ty, #(#arg_nils),*) {
-                (child, #(#arg_nils),*)
+            pub fn #fn_<C: zero_ui::core::UiNode>(child: C, args: ()) -> (C, ()) {
+                (child, ())
             }
         }
     };
@@ -199,7 +197,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     }
 
     // generate documentation that must be formated.
-    let mod_property_doc = doc!("This module is a widget property with {} priority.", priority);
+    let mod_property_doc = doc!("This module is a widget property with `{}` priority.", priority);
     let fn_set_doc = doc!(
         "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
         ident
@@ -226,7 +224,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #fn_args_doc
             #[inline]
             pub fn args#args_gen_decl(#(#arg_idents: #arg_tys),*) -> impl Args {
-                named_args(#(#arg_idents,)*)
+                NamedArgs {
+                    _phantom: std::marker::PhantomData,
+                    #(#arg_idents,)*
+                }
             }
 
             #args_doc
@@ -240,25 +241,9 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             }
 
             #[doc(hidden)]
-            #[inline]
-            pub fn named_args#args_gen_decl(#(#arg_idents: #arg_tys),*) -> NamedArgs#args_gen_use {
-                NamedArgs {
-                    _phantom: std::marker::PhantomData,
-                    #(#arg_idents,)*
-                }
-            }
-
-            #[doc(hidden)]
             pub struct NamedArgs#args_gen_decl {
                 pub _phantom: std::marker::PhantomData<(#(#phantom_idents),*)>,
                 #(pub #arg_idents: #arg_tys,)*
-            }
-
-            impl#args_gen_decl NamedArgs#args_gen_use {
-                #[inline]
-                pub fn pop(self) -> (#(#arg_tys,)*) {
-                    (#(self.#arg_idents,)*)
-                }
             }
 
             impl#args_gen_decl Args for NamedArgs#args_gen_use {
@@ -275,7 +260,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
                 #[inline]
                 fn pop(self) -> (#(#arg_return_tys,)*) {
-                    NamedArgs::pop(self)
+                    (#(self.#arg_idents,)*)
                 }
             }
         }

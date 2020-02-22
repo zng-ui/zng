@@ -1,14 +1,11 @@
+use crate::core::types::rgb;
+#[doc(hidden)]
+pub use crate::properties::{background_color, size};
 use crate::widget;
 use crate::widgets::container;
 
 widget! {
     pub window: container;
-
-    use crate::core::types::{rgb, WidgetId};
-    use crate::core::UiNode;
-    use crate::core::var::IntoVar;
-    use crate::core::window::Window;
-    use crate::properties::{background_color, size};
 
     default(self) {
     //  title: "";

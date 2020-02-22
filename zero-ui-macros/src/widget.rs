@@ -49,18 +49,6 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     let ident = input.ident;
 
-    // imports that will be send to widget_new!.
-    let macro_imports = input.imports.clone();
-
-    // imports prepared for reexporting.
-    let mut imports = input.imports;
-    for use_ in imports.iter_mut() {
-        use_.vis = util::pub_vis();
-    }
-
-    // ident of a module inside the widget mod that will reexport imports.
-    let imports_mod = ident!("__{}_imports", ident);
-
     // Collect `new_child` and what properties are required by it.
     let mut new_child_properties = vec![];
     let new_child;
@@ -132,17 +120,19 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // Group all self properties in one DefaultBlock that will be send to widget_new!.
     let mut default_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
 
-    // add missing requried properties from new_child function.
+    // add missing requiried properties from new_child function.
     for p in new_child_properties.iter() {
         if !default_child.iter().any(|c| &c.ident == p) {
             default_child.push(parse_quote!(#p: required!;));
         }
     }
 
+    let id_ident = ident!("id");
+
     // add missing required properties from new function.
     for p in new_properties.iter() {
         if !default_self.iter().any(|s| &s.ident == p) {
-            if p == &ident!("id") {
+            if p == &id_ident {
                 // id is provided if missing.
                 default_self.push(parse_quote!(id: zero_ui::core::types::WidgetId::new_unique();));
             } else {
@@ -152,10 +142,13 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     }
 
     // Collect some property info:
-    // 1 - if the property is required this will contain a `#property: todo!();`
-    // token stream to be used in the __test function.
-    let mut test_required = vec![];
-    // 2 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
+    // 1 - Property use clauses and defaults.
+    let mut use_props = vec![];
+    let mut fn_prop_dfts = vec![];
+    // 2 - Generate widget_new property metadata.
+    let mut built_child = vec![];
+    let mut built_self = vec![];
+    // 3 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
     let mut required_docs = vec![];
     let mut default_docs = vec![];
     let mut other_docs = vec![];
@@ -173,10 +166,44 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
             p.attrs = prop_docs;
 
-            if p.is_required() {
-                let ident = p.maps_to.as_ref().unwrap_or(&p.ident);
-                test_required.push(quote!(#ident: todo!();));
+            let is_required = p.is_required();
 
+            // 1
+            let ident = &p.ident;
+            if let Some(maps_to) = &p.maps_to {
+                use_props.push(quote!(pub use super::#maps_to as #ident;))
+            } else if ident == &id_ident {
+                use_props.push(quote!(
+                    pub use zero_ui::properties::id;
+                ))
+            } else {
+                use_props.push(quote!(pub use super::#ident;))
+            }
+            if !is_required {
+                if let Some(dft) = &p.default_value {
+                    fn_prop_dfts.push(quote! {
+                        pub fn #ident() -> impl ps::#ident::Args {
+                            ps::#ident::args(#dft)
+                        }
+                    });
+                }
+            }
+
+            // 2
+            let built = match target {
+                DefaultBlockTarget::Child => &mut built_child,
+                DefaultBlockTarget::Self_ => &mut built_self,
+            };
+            if is_required {
+                built.push(quote!(r #ident));
+            } else if p.default_value.is_some() {
+                built.push(quote!(d #ident));
+            } else {
+                built.push(quote!(l #ident));
+            }
+
+            // 3
+            if is_required {
                 required_docs.push((*target, p));
             } else if p.default_value.is_some() {
                 default_docs.push((*target, p));
@@ -187,29 +214,22 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     }
 
     // Pushes the custom documentation sections.
-    print_required_section(&mut docs, &imports_mod, required_docs);
-    print_provided_section(&mut docs, &imports_mod, default_docs);
-    print_aliases_section(&mut docs, &imports_mod, other_docs);
-    print_whens(&mut docs, &imports_mod, &mut input.whens);
-
-    let default_child = quote! {
-        default(child) {
-            #(#default_child)*
-        }
-    };
-
-    let default_self = quote! {
-        default(self) {
-            #(#default_self)*
-        }
-    };
-
-    let whens = input.whens; //TODO
+    print_required_section(&mut docs, required_docs);
+    print_provided_section(&mut docs, default_docs);
+    print_aliases_section(&mut docs, other_docs);
+    print_whens(&mut docs, &mut input.whens);
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
     // This macro is needed because we want to have multiple match arms, but
     // the widget macro needs to take $($tt:tt)*.
     let inner_ident = ident!("__{}", ident);
+
+    let widget_new_tokens = quote! {
+        m #ident
+        c { #(#built_child),* }
+        s { #(#built_self),* }
+        n (#(#new_child_properties),*) (#(#new_properties),*)
+    };
 
     let r = quote! {
         // widget macro. Is hidden until macro 2.0 comes around.
@@ -231,15 +251,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             // new widget instance.
             (new $($input:tt)*) => {
                 widget_new! {
-                    crate $crate;
-                    mod #ident;
-                    #(#macro_imports)*
-                    #default_child
-                    #default_self
-                    #(#whens)*
-                    new_child(#(#new_child_properties),*)
-                    new(#(#new_properties),*)
-                    input{$($input)*}
+                    #widget_new_tokens
+                    i { $($input)* }
                 }
             };
             // recursive callback to widget! but this time including
@@ -247,15 +260,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             (inherit $($rest:tt)*) => {
                 widget! {
                     inherit {
-                        crate $crate;
-                        mod #ident;
-                        #(#macro_imports)*
-                        #default_child
-                        #default_self
-                        #(#whens)*
-                        new_child(#(#new_child_properties),*)
-                        new(#(#new_properties),*)
-                        input{=>{}}
+                        #widget_new_tokens
+                        i { =>{} }
                     }
 
                     $($rest)*
@@ -263,42 +269,32 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
         }
 
-        // reexported macro imports, this is required outside of the widget mod
-        // for the documentation references to work.
-        #[doc(hidden)]
-        mod #imports_mod {
-            pub use zero_ui::properties::id;
-            #(#imports)*
-        }
-
         // the widget module, also the public face of the widget in the documentation.
         #(#docs)*
         #pub_ mod #ident {
-            use super::*;
-
-            // imports reexported again, this is used to access properties without
-            // namespace conflict in widget_new!.
             #[doc(hidden)]
-            pub mod __props {
-                pub use super::#imports_mod::*;
+            pub use super::*;
+
+            #new_child
+            #new
+
+            // Properties used in self.
+            #[doc(hidden)]
+            pub mod ps {
+                #(#use_props)*
             }
 
-            // new functions, declared in their own mod that mixes the declaration site imports
-            // with the widget imports.
+            // Default values from the widget.
             #[doc(hidden)]
-            pub mod __init {
+            pub mod df {
                 use super::*;
-                use #imports_mod::*;
 
-                #new_child
-
-                #new
+                #(#fn_prop_dfts)*
             }
-            pub use __init::{new_child, new};
-
-
         }
     };
+
+    //panic!("{}", r);
 
     r.into()
 }
@@ -346,11 +342,6 @@ impl Parse for WidgetArgs {
                     #rest
                 },
             });
-        }
-
-        let mut imports = vec![];
-        while input.peek(Token![use]) {
-            imports.push(input.parse()?);
         }
 
         let mut default_child = vec![];
@@ -408,7 +399,6 @@ impl Parse for WidgetArgs {
             export,
             ident,
             inherits,
-            imports,
             default_child,
             default_self,
             whens,
@@ -423,7 +413,6 @@ struct WidgetInput {
     export: bool,
     ident: Ident,
     inherits: Vec<crate::widget_new::WidgetNewInput>,
-    imports: Vec<ItemUse>,
     default_child: Vec<DefaultBlock>,
     default_self: Vec<DefaultBlock>,
     whens: Vec<WhenBlock>,
@@ -755,26 +744,18 @@ fn finish_docs_header(docs: &mut Vec<Attribute>) {
     )); // finish item level docs.
 }
 
-fn print_required_section(
-    docs: &mut Vec<Attribute>,
-    imports_mod: &Ident,
-    required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
-) {
-    print_section(docs, imports_mod, "required-properties", "Required properties", required_docs);
+fn print_required_section(docs: &mut Vec<Attribute>, required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    print_section(docs, "required-properties", "Required properties", required_docs);
 }
 
-fn print_provided_section(
-    docs: &mut Vec<Attribute>,
-    imports_mod: &Ident,
-    default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
-) {
-    print_section(docs, imports_mod, "provided-properties", "Provided properties", default_docs);
+fn print_provided_section(docs: &mut Vec<Attribute>, default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+    print_section(docs, "provided-properties", "Provided properties", default_docs);
 }
 
-fn print_aliases_section(docs: &mut Vec<Attribute>, imports_mod: &Ident, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
+fn print_aliases_section(docs: &mut Vec<Attribute>, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
     print_section_header(docs, "other-properties", "Other properties");
     for p in other_docs {
-        print_property(docs, imports_mod, p);
+        print_property(docs, p);
     }
     docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##));
     docs.push(doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n"));
@@ -782,20 +763,14 @@ fn print_aliases_section(docs: &mut Vec<Attribute>, imports_mod: &Ident, other_d
     print_section_footer(docs);
 }
 
-fn print_section(
-    docs: &mut Vec<Attribute>,
-    imports_mod: &Ident,
-    id: &str,
-    title: &str,
-    properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>,
-) {
+fn print_section(docs: &mut Vec<Attribute>, id: &str, title: &str, properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
     if properties.is_empty() {
         return;
     }
 
     print_section_header(docs, id, title);
     for p in properties {
-        print_property(docs, imports_mod, p);
+        print_property(docs, p);
     }
     print_section_footer(docs);
 }
@@ -809,7 +784,7 @@ fn print_section_header(docs: &mut Vec<Attribute>, id: &str, title: &str) {
     ));
 }
 
-fn print_property(docs: &mut Vec<Attribute>, imports_mod: &Ident, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
+fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         p.ident,
@@ -819,9 +794,8 @@ fn print_property(docs: &mut Vec<Attribute>, imports_mod: &Ident, (t, p): (Defau
         },
     ));
     docs.push(doc!(
-        "\n[<span class='mod'>{0}</span>]({1}::{0})\n",
+        "\n[<span class='mod'>{0}</span>]({0})\n",
         p.maps_to.as_ref().unwrap_or(&p.ident),
-        imports_mod
     ));
     docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
 
@@ -836,7 +810,7 @@ fn print_section_footer(docs: &mut Vec<Attribute>) {
     docs.push(doc!("</div>"));
 }
 
-fn print_whens(docs: &mut Vec<Attribute>, imports_mod: &Ident, whens: &mut [WhenBlock]) {
+fn print_whens(docs: &mut Vec<Attribute>, whens: &mut [WhenBlock]) {
     let mut whens: Vec<_> = whens.iter_mut().filter(|w| !w.properties.is_empty()).collect();
     if whens.is_empty() {
         return;
@@ -894,7 +868,7 @@ fn print_whens(docs: &mut Vec<Attribute>, imports_mod: &Ident, whens: &mut [When
                     condition_span = String::new();
 
                     docs.push(doc!("<span class='wgprop'>"));
-                    docs.push(doc!("\n[<span class='mod'>{0}</span>]({1}::{0})\n", w, imports_mod));
+                    docs.push(doc!("\n[<span class='mod'>{0}</span>]({0})\n", w));
                     docs.push(doc!("<ul style='display:none;'></ul></span>"));
                 }
             } else if w == "self" || w == "child" {

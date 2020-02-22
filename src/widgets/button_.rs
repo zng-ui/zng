@@ -16,9 +16,6 @@ widget! {
     /// A clickable container.
     pub button: container;
 
-    use crate::properties::{on_click, background_color};
-    use crate::widgets::ButtonBackground;
-
     default(self) {
         /// Button click event.
         on_click: required!;
@@ -51,50 +48,4 @@ widget! {
     when !self.is_enabled {
         background_color: ButtonBackgroundDisabled;
     }
-}
-
-macro_rules! widget_without_inner_inputs {
-    ($($tt:tt)*) => {};
-}
-
-widget_without_inner_inputs! {
-/// Docs reference [rgb](rgb) works here.
-pub mod button_w {
-    #[doc(hidden)]
-    pub use super::*;
-
-    /// New child docs.
-    #[inline]
-    pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
-        zero_ui::core::default_new_widget_child(child)
-    }
-
-    /// New widget docs.
-    #[inline]
-    pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
-        zero_ui::core::default_new_widget(child, id)
-    }
-
-    // Properties used in widget.
-    #[doc(hidden)]
-    pub mod ps {
-        // validate re-export.
-        pub use super::on_click;
-
-        // Alias and validate.
-        pub use super::align as content_align;
-
-        pub use super::background_color;
-    }
-
-    // Default values from the widget.
-    #[doc(hidden)]
-    pub mod df {
-        use super::*;
-
-        pub fn background_color() -> impl ps::background_color::Args {
-            ps::background_color::args(ButtonBackground)
-        }
-    }
-}
 }
