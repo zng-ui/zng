@@ -19,6 +19,7 @@ pub use fill::*;
 pub use text_::*;
 pub use ui_n::*;
 pub use view_::*;
+pub use window_::*;
 
 /// Tests on the widget! code generator.
 mod build_tests {

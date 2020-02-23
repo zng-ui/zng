@@ -48,64 +48,69 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     };
 
     let ident = input.ident;
+    let id_ident = ident!("id");
 
     // Collect `new_child` and what properties are required by it.
-    let mut new_child_properties = vec![];
+    let new_child_properties;
     let new_child;
-    if let Some(mut c) = input.new_child {
-        for input in c.sig.inputs.iter().skip(1) {
-            match input {
-                FnArg::Typed(input) => {
-                    if let Pat::Ident(pat) = &*input.pat {
-                        new_child_properties.push(pat.ident.clone());
-                    } else {
-                        abort!(input.pat.span(), "new_child must only use simple argument names")
-                    }
-                }
-                // can this even happen? we parsed as ItemFn
-                FnArg::Receiver(self_) => abort!(self_.span(), "new_child must be stand-alone fn"),
+    if let Some(c) = input.new_child {
+        let attrs = c.attrs;
+        let child = c.child;
+        let output = c.output;
+        let block = c.block;
+        let prs = c.properties;
+        let pr_args = prs.iter().map(|i| {
+            if i == &id_ident {
+                quote!(impl zero_ui::properties::id::Args)
+            } else {
+                quote!(impl #i::Args)
             }
-        }
-        c.vis = util::pub_vis();
-        new_child = quote!(#c);
+        });
+
+        new_child = quote! {
+            #(#attrs)*
+            pub fn new_child(#child: impl zero_ui::core::UiNode, #(#prs: #pr_args),*) -> #output
+            #block
+        };
+        new_child_properties = prs;
     } else {
-        let fn_doc = doc!(
-            "Manually initializes the `{0}` widget content.\n\nSee [the module level documentation](super) for more.",
-            ident
-        );
+        let fn_doc = doc!("Manually initializes a new [`{0}`](super) content.", ident);
         new_child = quote!(
             #fn_doc
+            #[inline]
             pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
                 zero_ui::core::default_new_widget_child(child)
             }
         );
+        new_child_properties = vec![];
     };
 
     // Collect `new` and what properties are required by it.
-    let mut new_properties = vec![];
+    let new_properties;
     let new;
-    if let Some(mut n) = input.new {
-        for input in n.sig.inputs.iter().skip(1) {
-            match input {
-                FnArg::Typed(input) => {
-                    if let Pat::Ident(pat) = &*input.pat {
-                        new_properties.push(pat.ident.clone());
-                    } else {
-                        abort!(input.pat.span(), "new must only use simple argument names")
-                    }
-                }
-                // can this even happen? we parsed as ItemFn
-                FnArg::Receiver(self_) => abort!(self_.span(), "new must be stand-alone fn"),
+    if let Some(n) = input.new {
+        let attrs = n.attrs;
+        let child = n.child;
+        let output = n.output;
+        let block = n.block;
+        let prs = n.properties;
+        let pr_args = prs.iter().map(|i| {
+            if i == &id_ident {
+                quote!(impl zero_ui::properties::id::Args)
+            } else {
+                quote!(impl #i::Args)
             }
-        }
-        n.vis = util::pub_vis();
-        new = quote!(#n);
+        });
+
+        new = quote! {
+            #(#attrs)*
+            pub fn new(#child: impl zero_ui::core::UiNode, #(#prs: #pr_args),*) -> #output
+            #block
+        };
+        new_properties = prs;
     } else {
-        new_properties.push(ident!["id"]);
-        let fn_doc = doc!(
-            "Manually initializes the `{0}` widget.\n\nSee [the module level documentation](super) for more.",
-            ident
-        );
+        new_properties = vec![ident!["id"]];
+        let fn_doc = doc!("Manually initializes a new [`{0}`](super).", ident);
         new = quote!(
             #fn_doc
             pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
@@ -126,8 +131,6 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             default_child.push(parse_quote!(#p: required!;));
         }
     }
-
-    let id_ident = ident!("id");
 
     // add missing required properties from new function.
     for p in new_properties.iter() {
@@ -372,22 +375,23 @@ impl Parse for WidgetArgs {
 
                 whens.push(when);
             } else if lookahead.peek(Token![fn]) {
-                let mut fn_: ItemFn = input.parse()?;
+                let mut fn_: NewFn = input.parse()?;
                 attrs.extend(fn_.attrs.drain(..));
                 fn_.attrs = attrs;
 
-                if ident!("new") == fn_.sig.ident {
-                    if new.is_some() {
-                        return Err(Error::new(fn_.sig.ident.span(), "function `new` can only be defined once"));
+                match fn_.target {
+                    DefaultBlockTarget::Self_ => {
+                        if new.is_some() {
+                            return Err(Error::new(fn_.ident.span(), "function `new` can only be defined once"));
+                        }
+                        new = Some(fn_);
                     }
-                    new = Some(fn_);
-                } else if ident!("new_child") == fn_.sig.ident {
-                    if new_child.is_some() {
-                        return Err(Error::new(fn_.sig.ident.span(), "function `new_child` can only be defined once"));
+                    DefaultBlockTarget::Child => {
+                        if new_child.is_some() {
+                            return Err(Error::new(fn_.ident.span(), "function `new_child` can only be defined once"));
+                        }
+                        new_child = Some(fn_);
                     }
-                    new_child = Some(fn_);
-                } else {
-                    return Err(Error::new(fn_.sig.ident.span(), "expected one of: new, new_child"));
                 }
             } else {
                 return Err(lookahead.error());
@@ -416,8 +420,8 @@ struct WidgetInput {
     default_child: Vec<DefaultBlock>,
     default_self: Vec<DefaultBlock>,
     whens: Vec<WhenBlock>,
-    new_child: Option<ItemFn>,
-    new: Option<ItemFn>,
+    new_child: Option<NewFn>,
+    new: Option<NewFn>,
 }
 
 #[derive(Debug)]
@@ -481,6 +485,62 @@ impl ToTokens for WhenBlock {
             when(#condition) {
                 #(#properties)*
             }
+        })
+    }
+}
+
+pub struct NewFn {
+    attrs: Vec<Attribute>,
+    target: DefaultBlockTarget,
+    ident: Ident,
+    child: Ident,
+    properties: Vec<Ident>,
+    output: Type,
+    block: Block,
+}
+impl Parse for NewFn {
+    fn parse(input: ParseStream) -> Result<Self> {
+        input.parse::<Token![fn]>()?;
+
+        let lookahread = input.lookahead1();
+
+        let target;
+        let ident;
+        if lookahread.peek(keyword::new) {
+            ident = input.parse()?;
+            target = DefaultBlockTarget::Self_;
+        } else if lookahread.peek(keyword::new_child) {
+            input.parse::<keyword::new_child>()?;
+            ident = input.parse()?;
+            target = DefaultBlockTarget::Child;
+        } else {
+            return Err(lookahread.error());
+        };
+
+        let inner;
+        parenthesized!(inner in input);
+        let args: Punctuated<Ident, Token![,]> = Punctuated::parse_terminated(&inner)?;
+        if args.is_empty() {
+            return Err(Error::new(input.span(), "expected at least one input (child)"));
+        }
+        let mut properties: Vec<_> = args.into_iter().collect();
+        let child = properties.remove(0);
+
+        input.parse::<Token![->]>()?;
+        let output = input.parse()?;
+
+        let block = input.parse()?;
+
+        let attrs = vec![];
+
+        Ok(NewFn {
+            attrs,
+            ident,
+            target,
+            child,
+            properties,
+            output,
+            block,
         })
     }
 }

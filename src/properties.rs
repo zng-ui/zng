@@ -10,6 +10,7 @@ mod hit_testable_;
 mod id_;
 mod layout;
 mod text;
+mod title_;
 
 pub use background_::*;
 pub use border_::*;
@@ -21,3 +22,4 @@ pub use hit_testable_::*;
 pub use id_::*;
 pub use layout::*;
 pub use text::*;
+pub use title_::*;
