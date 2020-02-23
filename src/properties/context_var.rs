@@ -33,7 +33,7 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
+/// # fn main() -> () { }
 /// use zero_ui::properties::set_context_var;
 /// use zero_ui::core::{UiNode, var::IntoVar};
 ///
@@ -46,7 +46,6 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
 /// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
 ///     set_context_var(child, FontSize, size)
 /// }
-/// # }
 /// ```
 pub fn set_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
     SetContextVar {

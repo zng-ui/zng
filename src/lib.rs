@@ -37,7 +37,7 @@ pub mod prelude {
         app::App,
         types::{
             rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
-            ModifiersState, MouseButton, ToText, VirtualKeyCode, WidgetId,
+            ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         var::var,
         window::{Window, Windows},

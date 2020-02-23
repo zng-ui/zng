@@ -755,14 +755,6 @@ impl ToTokens for PropertyValue {
         }
     }
 }
-impl PropertyValue {
-    pub fn is_unset(&self) -> bool {
-        match self {
-            PropertyValue::Unset => true,
-            _ => false,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DefaultBlockTarget {

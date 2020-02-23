@@ -22,6 +22,7 @@ pub use view_::*;
 pub use window_::*;
 
 /// Tests on the widget! code generator.
+#[cfg(test)]
 mod build_tests {
     use super::*;
     use crate::prelude::*;

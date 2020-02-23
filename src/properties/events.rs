@@ -64,7 +64,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
+/// # fn main() { }
 /// use zero_ui::properties::{on_event, OnEventArgs};
 /// use zero_ui::core::{UiNode, keyboard::{KeyDown, KeyInputArgs}};
 ///
@@ -73,7 +73,6 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 /// pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
 ///     on_event(child, KeyDown, handler)
 /// }
-/// # }
 /// ```
 pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
     OnEvent {

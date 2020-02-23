@@ -95,7 +95,7 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
+/// # fn main() -> () {
 /// use zero_ui::widgets::{container, text};
 /// use zero_ui::properties::{font_family, font_size};
 ///

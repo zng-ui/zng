@@ -2423,12 +2423,12 @@ pub fn var<T: VarValue>(initial_value: impl Into<T>) -> SharedVar<T> {
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # use zero_ui::prelude::var;
+/// # use zero_ui::prelude::{var, text};
 /// # fn main() {
 /// let var0 = var("Read-write");
 /// let var1 = "Read-only";
 ///
-/// let switch_var = switch_var!(0, var0, var1);
+/// let t = text(switch_var!(0, var0, var1));
 /// # }
 /// ```
 #[macro_export]
@@ -2475,13 +2475,13 @@ macro_rules! switch_var {
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # use zero_ui::prelude::var;
-/// # use zero_ui::core::var::IntoVar;
+/// # use zero_ui::prelude::{var, text, Text};
+/// # use zero_ui::core::var::SharedVar;
 /// # fn main() {
-/// let var0 = var("Hello");
-/// let var1 = var("World");
+/// let var0: SharedVar<Text> = var("Hello");
+/// let var1: SharedVar<Text> = var("World");
 ///
-/// let hello_world = merge_var!(var0, var1, |a, b|format!("{} {}!", a, b));
+/// let greeting_text = text(merge_var!(var0, var1, |a, b|formatx!("{} {}!", a, b)));
 /// # }
 /// ```
 #[macro_export]

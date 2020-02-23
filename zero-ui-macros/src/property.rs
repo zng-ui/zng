@@ -72,6 +72,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     }
 
+    // collect arg types and normalize impl Trait generics.
     let mut t_impl_n = 0;
     for a in fn_.sig.inputs.iter().skip(1) {
         if let FnArg::Typed(a) = a {
@@ -102,6 +103,30 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         )
     }
 
+    // remove generics that are not used in arguments.
+    let mut unused_generics = gen_idents.clone();
+    let mut visitor = RemoveVisitedIdents(&mut unused_generics);
+    for ty in &mut arg_tys {
+        visitor.visit_type_mut(ty);
+    }
+    for bos in &mut gen_bounds {
+        for bo in bos.iter_mut() {
+            visitor.visit_type_param_bound_mut(bo);
+        }
+    }
+    let unused_gen_idx: Vec<_> = gen_idents
+        .iter()
+        .enumerate()
+        .filter(|(_, id)| unused_generics.contains(id))
+        .map(|(i, _)| i)
+        .collect();
+    for i in unused_gen_idx.into_iter().rev() {
+        gen_idents.remove(i);
+        gen_bounds.remove(i);
+    }
+
+    // generic types that are not used in struct concrete types need to
+    // be placed in a PhantomData member.
     let mut phantom_idents = gen_idents.clone();
     let mut visitor = RemoveVisitedIdents(&mut phantom_idents);
     for ty in &mut arg_tys {
@@ -112,6 +137,12 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     let mut visitor = PrependSelfIfPathIdent(&gen_idents);
     for ty in &mut arg_return_tys {
         visitor.visit_type_mut(ty);
+    }
+    let mut gen_bounds_ty = gen_bounds.clone();
+    for bos in &mut gen_bounds_ty {
+        for bo in bos.iter_mut() {
+            visitor.visit_type_param_bound_mut(bo);
+        }
     }
 
     let args_gen_decl = if gen_idents.is_empty() {
@@ -233,7 +264,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
             #args_doc
             pub trait Args {
-                #(type #gen_idents: #gen_bounds;)*
+                #(type #gen_idents: #gen_bounds_ty;)*
 
                 #(fn #arg_idents(&self) -> &#arg_return_tys;)*
 
@@ -270,20 +301,6 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     //panic!("{}", r);
 
     r.into()
-}
-
-struct ArgInfo {
-    ident: Ident,
-    ty: ArgTypeInfo,
-}
-
-enum ArgTypeInfo {
-    /// Non-generic type.
-    Type(Type),
-    Generic {
-        ident: Ident,
-        predicates: PredicateType,
-    },
 }
 
 #[derive(Clone, Copy)]
@@ -340,12 +357,12 @@ struct PrependSelfIfPathIdent<'a>(&'a [Ident]);
 
 impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
     fn visit_path_mut(&mut self, i: &mut Path) {
+        visit_mut::visit_path_mut(self, i);
+
         if let Some(s) = i.segments.first() {
             if self.0.contains(&s.ident) {
                 i.segments.insert(0, parse_quote!(Self));
             }
         }
-
-        visit_mut::visit_path_mut(self, i);
     }
 }
