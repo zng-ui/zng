@@ -1,6 +1,9 @@
-use crate::core::{types::rgb, window::Window};
+use crate::core::{
+    types::{rgb, WidgetId},
+    window::Window,
+};
 #[doc(hidden)]
-pub use crate::properties::{background_color, size, title};
+pub use crate::properties::{background_color, id, size, title};
 use crate::widget;
 use crate::widgets::container;
 
@@ -18,11 +21,14 @@ widget! {
 
         /// Window clear color.
         background_color: rgb(1.0, 1.0, 1.0);
+
+        /// Unique identifier of the window root widget.
+        root_id -> id: WidgetId::new_unique();
     }
 
     /// Manually initializes a new [`window`](super).
     #[inline]
-    fn new(child, id, title, size, background_color) -> Window {
-        Window::new(id.pop().0, title.pop().0, size.pop().0, background_color.pop().0, child)
+    fn new(child, root_id, title, size, background_color) -> Window {
+        Window::new(root_id.pop().0, title.pop().0, size.pop().0, background_color.pop().0, child)
     }
 }

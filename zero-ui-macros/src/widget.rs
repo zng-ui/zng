@@ -63,7 +63,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             if i == &id_ident {
                 quote!(impl zero_ui::properties::id::Args)
             } else {
-                quote!(impl #i::Args)
+                quote!(impl ps::#i::Args)
             }
         });
 
@@ -98,7 +98,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             if i == &id_ident {
                 quote!(impl zero_ui::properties::id::Args)
             } else {
-                quote!(impl #i::Args)
+                quote!(impl ps::#i::Args)
             }
         });
 
@@ -113,6 +113,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         let fn_doc = doc!("Manually initializes a new [`{0}`](super).", ident);
         new = quote!(
             #fn_doc
+            #[inline]
             pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
@@ -137,7 +138,9 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         if !default_self.iter().any(|s| &s.ident == p) {
             if p == &id_ident {
                 // id is provided if missing.
-                default_self.push(parse_quote!(id: zero_ui::core::types::WidgetId::new_unique();));
+                let mut p: PropertyDeclaration = parse_quote!(id: zero_ui::core::types::WidgetId::new_unique(););
+                p.attrs.push(doc!("Unique idenfier of the widget."));
+                default_self.push(p);
             } else {
                 default_self.push(parse_quote!(#p: required!;));
             }
