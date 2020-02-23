@@ -49,11 +49,15 @@ impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
     }
 }
 
+/// Custom background property. Allows using any other widget as a background.
 #[property(inner)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     Background { child, background }
 }
 
+/// Single color background property.
+///
+/// This property applies a [`fill_color`](fill_color) as [`background`](background).
 #[property(inner)]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
     Background {
@@ -62,6 +66,9 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl
     }
 }
 
+/// Linear gradient background property.
+///
+/// This property applies a [`fill_gradient`](fill_gradient) as [`background`](background).
 #[property(inner)]
 pub fn background_gradient(
     child: impl UiNode,

@@ -140,21 +140,41 @@ pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     }
 }
 
+/// Nomalized `x, y` alignment.
+///
+/// The numbers indicate how much to the right and bottom the content is moved within
+/// a larger available space.
+///
+/// This is the value of the [`align`](align) property.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Alignment(pub f32, pub f32);
 
+macro_rules! named_aligns {
+    ( $($NAME:ident = ($x:expr, $y:expr);)+ ) => {named_aligns!{$(
+        [stringify!(($x, $y))] $NAME = ($x, $y);
+    )+}};
+
+    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {$(
+        #[doc=$doc]
+        pub const $NAME: Alignment = Alignment($x, $y);
+
+    )+};
+}
+
 impl Alignment {
-    pub const TOP_LEFT: Alignment = Alignment(0.0, 0.0);
-    pub const TOP_CENTER: Alignment = Alignment(0.0, 0.5);
-    pub const TOP_RIGHT: Alignment = Alignment(0.0, 1.0);
+    named_aligns! {
+        TOP_LEFT = (0.0, 0.0);
+        TOP_CENTER = (0.0, 0.5);
+        TOP_RIGHT = (0.0, 1.0);
 
-    pub const CENTER_LEFT: Alignment = Alignment(0.0, 0.5);
-    pub const CENTER: Alignment = Alignment(0.5, 0.5);
-    pub const CENTER_RIGHT: Alignment = Alignment(1.0, 0.5);
+        CENTER_LEFT = (0.0, 0.5);
+        CENTER = (0.5, 0.5);
+        CENTER_RIGHT = (1.0, 0.5);
 
-    pub const BOTTOM_LEFT: Alignment = Alignment(0.0, 1.0);
-    pub const BOTTOM_CENTER: Alignment = Alignment(0.5, 1.0);
-    pub const BOTTOM_RIGHT: Alignment = Alignment(1.0, 1.0);
+        BOTTOM_LEFT = (0.0, 1.0);
+        BOTTOM_CENTER = (0.5, 1.0);
+        BOTTOM_RIGHT = (1.0, 1.0);
+    }
 }
 
 struct Align<T: UiNode, A: LocalVar<Alignment>> {
@@ -217,6 +237,9 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
     }
 }
 
+/// Aligns the widget within the available space.
+///
+/// The property argument is an [`Alignment`](Alignment) value.
 #[property(outer)]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
     Align {

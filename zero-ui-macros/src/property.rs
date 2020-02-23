@@ -197,14 +197,15 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     }
 
     // generate documentation that must be formated.
-    let mod_property_doc = doc!("This module is a widget property with `{}` priority.", priority);
+    let mod_property_doc = doc!("This module is a widget `{}` property.", priority);
     let fn_set_doc = doc!(
-        "Manually sets the `{0}` property.\n\nSee [the module level documentation]({0}) for more.",
-        ident
+        "Manually sets the [`{0}`]({0}) property.\n\nThis property must be set with `{1}` priority to work properly.",
+        ident,
+        priority
     );
-    let fn_args_doc = doc!("Collects [positional](set) arguments into [named arguments](Args).");
+    let fn_args_doc = doc!("Collects [`set`](set) arguments into a [named args](Args) view.");
     let args_doc = doc!("Named arguments of the [`{0}`]({0}) property.", ident);
-    let mtd_pop_doc = doc!("Take the arguments in a tuple sorted by the position of [set](set) arguments.");
+    let mtd_pop_doc = doc!("Moved the args to a tuple sorted by their position of [`args`](args) and [`set`](set).");
 
     let r = quote! {
 

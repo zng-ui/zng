@@ -29,7 +29,7 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
     }
 }
 
-/// Widget property that sets the [`CursorIcon`](zero_ui::core::types::CursorIcon) when hovering the widget.
+/// Widget property that sets the [`CursorIcon`](zero_ui::core::types::CursorIcon) displayed when hovering the widget.
 ///
 /// # Arguments
 /// * `cursor`: The cursor to use for `child`, can be a direct [value](CursorIcon) or a [variable](zero_ui::core::Var).
