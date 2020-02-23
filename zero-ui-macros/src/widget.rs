@@ -278,7 +278,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             #new_child
             #new
 
-            // Properties used in self.
+            // Properties used in widget.
             #[doc(hidden)]
             pub mod ps {
                 #(#use_props)*

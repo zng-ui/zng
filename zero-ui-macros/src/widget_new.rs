@@ -4,6 +4,7 @@ use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{parse::*, *};
+use widget::{DefaultBlockTarget, PropertyValue};
 
 pub mod keyword {
     syn::custom_keyword!(m);
@@ -21,9 +22,67 @@ pub mod keyword {
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as WidgetNewInput);
+    let widget_name = input.ident;
 
+    let map_props =
+        |default_block: BuiltDefaultBlock, target| default_block.properties.into_iter().map(move |p| (p.ident, (target, p.kind)));
+    let mut known_props: HashMap<_, _> = map_props(input.default_child, DefaultBlockTarget::Child)
+        .chain(map_props(input.default_self, DefaultBlockTarget::Self_))
+        .collect();
+        
     // declarations of property arguments in the user written order.
-    //let mut let_args = vec![];
+    let mut let_args = Vec::with_capacity(input.input.sets.len());
+    let mut setted_props = Vec::with_capacity(let_args.capacity());
+
+    for set in input.input.sets {
+        let name = ident! {"{}_args", set.ident};
+        let prop = set.ident;
+        let target;
+        let prop_prefix;
+        let required;
+        let in_widget;
+        if let Some((tgt, kind)) = known_props.remove(&prop) {
+            target = tgt;
+            prop_prefix = quote! { #widget_name::ps:: };
+            required = kind == BuiltPropertyKind::Required;
+            in_widget = true;
+        } else {
+            target = DefaultBlockTarget::Self_;
+            prop_prefix = quote! {};
+            required = false;
+            in_widget = false;
+        }
+        match set.value {
+            PropertyValue::Fields(fields) => let_args.push(quote! {
+                let #name = #prop_prefix#prop::NamedArgs{
+                    _phantom: std::marker::PhantomData,
+                    #fields
+                };
+            }),
+            PropertyValue::Args(args) => let_args.push(quote! {
+                let #name = #prop_prefix#prop::args(#args);
+            }),
+            PropertyValue::Unset => {
+                if required {
+                    abort! {prop.span(), "cannot unset required property `{}`", prop}
+                }
+            }
+        }
+
+        setted_props.push((prop, target, in_widget));
+    }
+    for (prop, (target, kind)) in known_props {
+        let name = ident! {"{}_args", prop};
+        match kind {
+            BuiltPropertyKind::Required => {
+                abort_call_site!("missing required property `{}`", prop);
+            }
+            BuiltPropertyKind::Default => let_args.push(quote! {
+                let #name = #widget_name::df::#prop();
+            }),
+            BuiltPropertyKind::Local => {}
+        }
+    }
 
     // widget child expression `=> {this}`
     let child = input.input.child_expr;
@@ -31,7 +90,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     // declarations of self property arguments.
 
     let r = quote! {{
-        //#(#let_args)*
+        #(#let_args)*
 
         let __node = #child;
 
@@ -122,6 +181,7 @@ impl Parse for BuiltProperty {
     }
 }
 
+#[derive(PartialEq, Eq)]
 enum BuiltPropertyKind {
     /// Required property.
     Required,

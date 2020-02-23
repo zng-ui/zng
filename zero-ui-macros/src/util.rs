@@ -1,8 +1,6 @@
 use proc_macro2::*;
 use syn::*;
 
-// cannot macro-export so use include!("util.rs") to import.
-
 /// `Ident` with call_site span.
 macro_rules! ident {
     ($name:expr) => {
