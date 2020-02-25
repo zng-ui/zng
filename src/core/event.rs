@@ -100,7 +100,7 @@ pub struct EventListener<T: 'static> {
 }
 impl<T: 'static> Clone for EventListener<T> {
     fn clone(&self) -> Self {
-        EventListener { chan: self.chan.clone() }
+        EventListener::new(self.chan.clone())
     }
 }
 impl<T: 'static> EventListener<T> {
@@ -126,9 +126,7 @@ impl<T: 'static> EventListener<T> {
 
     /// Listener that never updates.
     pub fn never(is_high_pressure: bool) -> Self {
-        EventListener {
-            chan: EventEmitter::new(is_high_pressure).chan,
-        }
+        EventEmitter::new(is_high_pressure).into_listener()
     }
 }
 

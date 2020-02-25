@@ -1,15 +1,14 @@
 use crate::core::app::AppEvent;
 use crate::core::event::{Event, EventEmitter, EventListener};
-use crate::core::types::{Singleton, WidgetId, WindowId};
+use crate::core::types::{WidgetId, WindowId};
 use crate::core::var::*;
-
 use fnv::FnvHashMap;
 use glutin::event_loop::EventLoopProxy;
 use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
-use std::sync::atomic::{self, AtomicU8};
+use std::sync::atomic::{self, AtomicBool, AtomicU8};
 use std::sync::Arc;
 use webrender::api::RenderApi;
 
@@ -172,12 +171,44 @@ impl UpdateNotifier {
     }
 }
 
+macro_rules! singleton_assert {
+    ($Singleton:ident) => {
+        struct $Singleton {}
+
+        impl $Singleton {
+            fn flag() -> &'static AtomicBool {
+                static ALIVE: AtomicBool = AtomicBool::new(false);
+                &ALIVE
+            }
+
+            pub fn assert_new() -> Self {
+                if Self::flag().load(atomic::Ordering::Acquire) {
+                    panic!("only a single instance of `{}` can exist at at time", stringify!($Singleton))
+                }
+
+                Self::flag().store(true, atomic::Ordering::Release);
+
+                $Singleton {}
+            }
+        }
+
+        impl Drop for $Singleton {
+            fn drop(&mut self) {
+                Self::flag().store(false, atomic::Ordering::Release);
+            }
+        }
+    };
+}
+
+singleton_assert!(SingletonEvents);
+singleton_assert!(SingletonVars);
+
 /// Access to application variables.
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Vars {
     context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
-    _singleton: Singleton<Vars>,
+    _singleton: SingletonVars,
 }
 
 pub type ContextVarStageId = (Option<WidgetId>, u32);
@@ -189,7 +220,7 @@ impl Vars {
     pub fn instance() -> Self {
         Vars {
             context_vars: RefCell::default(),
-            _singleton: Singleton::assert_new(),
+            _singleton: SingletonVars::assert_new(),
         }
     }
 
@@ -415,7 +446,7 @@ impl LazyStateMap {
 /// Only a single instance of this type exists at a time.
 pub struct Events {
     events: AnyMap,
-    _singleton: Singleton<Events>,
+    _singleton: SingletonEvents,
 }
 
 impl Events {
@@ -425,7 +456,7 @@ impl Events {
     pub fn instance() -> Self {
         Events {
             events: Default::default(),
-            _singleton: Singleton::assert_new(),
+            _singleton: SingletonEvents::assert_new(),
         }
     }
 

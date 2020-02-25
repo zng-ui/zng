@@ -193,33 +193,3 @@ impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
         OwnedVar(LayoutRect::new(LayoutPoint::new(x, y), LayoutSize::new(w, h)))
     }
 }
-
-use std::any::type_name;
-use std::marker::PhantomData;
-use std::sync::atomic::{self, AtomicBool};
-
-pub(crate) struct Singleton<S> {
-    _self: PhantomData<S>,
-}
-impl<S> Singleton<S> {
-    fn flag() -> &'static AtomicBool {
-        static ALIVE: AtomicBool = AtomicBool::new(false);
-        &ALIVE
-    }
-
-    pub fn assert_new() -> Self {
-        if Self::flag().load(atomic::Ordering::Acquire) {
-            panic!("only a single instance of `{}` can exist at at time", type_name::<S>())
-        }
-
-        Self::flag().store(true, atomic::Ordering::Release);
-
-        Singleton { _self: PhantomData }
-    }
-}
-
-impl<S> Drop for Singleton<S> {
-    fn drop(&mut self) {
-        Self::flag().store(false, atomic::Ordering::Release);
-    }
-}

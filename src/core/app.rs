@@ -252,6 +252,7 @@ impl<E: AppExtension> AppExtended<E> {
                 _ => {}
             }
 
+            let mut limit = 1000;
             loop {
                 let (mut update, display) = owned_ctx.apply_updates();
                 update |= event_update;
@@ -262,6 +263,11 @@ impl<E: AppExtension> AppExtended<E> {
                     extensions.update(update, &mut owned_ctx.borrow(event_loop));
                 } else {
                     break;
+                }
+
+                limit -= 1;
+                if limit == 0 {
+                    panic!("infinite update loop")
                 }
             }
 
