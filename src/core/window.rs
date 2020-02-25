@@ -1,7 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo, WidgetPath};
+use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo};
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
@@ -13,7 +13,6 @@ use glutin::window::WindowBuilder;
 use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::borrow::Cow;
 use std::num::NonZeroU16;
 use std::sync::Arc;
 use std::time::Instant;
@@ -255,7 +254,7 @@ impl WindowManager {
                 }
             }
 
-            // reatach context parts.
+            // reattach context parts.
             {
                 let service = ctx.services.req::<Windows>();
                 for w_ctx in w_ctxs {
@@ -297,7 +296,7 @@ impl WindowManager {
         for closing in self.window_closing.updates(ctx.events) {
             if !closing.cancel_requested() && !canceled_groups.contains(&closing.group) {
                 // not canceled and we can close the window.
-                // notify close, the window will be deinited on
+                // notify close, the window will be deinit on
                 // the next update.
                 ctx.updates
                     .push_notify(self.window_close.clone(), WindowEventArgs::now(closing.window_id));
@@ -585,7 +584,7 @@ impl Windows {
         self.windows.get(&window_id).ok_or(WindowNotFound(window_id))
     }
 
-    /// Hit-test the window lastest frame.
+    /// Hit-test the window latest frame.
     #[inline]
     pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> Result<FrameHitInfo, WindowNotFound> {
         self.req_window(window_id).map(|w| w.hit_test(point))
@@ -661,7 +660,7 @@ impl GlWindow {
             .build_windowed(window_builder, &event_loop)
             .unwrap();
 
-        // SAFETY: This is the recomended way of doing it.
+        // SAFETY: This is the recommended way of doing it.
         let context = unsafe { context.make_current().unwrap() };
 
         let gl = match context.get_api() {
@@ -729,7 +728,7 @@ impl GlWindow {
         self.ctx.take().unwrap()
     }
 
-    /// Reatches the part of the window required for updating ui-nodes.
+    /// Reattaches the part of the window required for updating ui-nodes.
     pub fn attach_context(&mut self, ctx: OwnedWindowContext) {
         assert_eq!(self.id(), ctx.id());
         self.ctx = Some(ctx);
@@ -749,7 +748,7 @@ impl GlWindow {
         }
     }
 
-    /// Recompute layout if a layout pass was required. If yes will
+    /// Re-flow layout if a layout pass was required. If yes will
     /// flag a [render] required.
     pub fn layout(&mut self) {
         let ctx = self.ctx.as_mut().unwrap();
@@ -846,10 +845,10 @@ impl GlWindow {
         self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
     }
 
-    /// Deinits renderer and OpenGl context.
+    /// Deinit renderer and OpenGl context.
     ///
     /// # Panics
-    /// If the [OwnedWindowContext] was not already deinited.
+    /// If the [OwnedWindowContext] was not already deinit.
     pub fn deinit(mut self) {
         assert!(self.ctx.is_none()); // must deinit UiNodes first.
 
