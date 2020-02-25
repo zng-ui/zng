@@ -3,3 +3,6 @@ scancode
 winit
 formatx
 vn
+req
+fnv
+Fnv

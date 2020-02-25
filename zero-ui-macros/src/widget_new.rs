@@ -34,8 +34,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
     // declarations of property arguments in the user written order.
     let mut let_args = Vec::with_capacity(input.input.sets.len());
+    let mut let_default_args = vec![];
     // metadata about [let_args].
     let mut setted_props = Vec::with_capacity(let_args.capacity());
+    let mut setted_default_props = vec![];
 
     // collects property assigns from the user.
     for set in input.input.sets {
@@ -82,12 +84,71 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             BuiltPropertyKind::Required => {
                 abort_call_site!("missing required property `{}`", prop);
             }
-            BuiltPropertyKind::Default => let_args.push(quote! {
-                let #name = #widget_name::df::#prop();
-            }),
+            BuiltPropertyKind::Default => {
+                let_default_args.push(quote! {
+                    let #name = #widget_name::df::#prop();
+                });
+                setted_default_props.push((prop, target, true));
+            }
             BuiltPropertyKind::Local => {}
         }
     }
+
+    // generate property set calls.
+
+    #[derive(Default)]
+    struct SetProps {
+        context: Vec<TokenStream>,
+        event: Vec<TokenStream>,
+        outer: Vec<TokenStream>,
+        inner: Vec<TokenStream>,
+    }
+
+    let mut set_child = SetProps::default();
+    let mut set_self = SetProps::default();
+
+    for (prop, target, in_widget) in setted_default_props.into_iter().chain(setted_props) {
+        let set;
+        let expected_new_args;
+        match target {
+            DefaultBlockTarget::Child => {
+                set = &mut set_child;
+                expected_new_args = &input.new_child;
+            }
+            DefaultBlockTarget::Self_ => {
+                set = &mut set_self;
+                expected_new_args = &input.new;
+            }
+        }
+
+        if !expected_new_args.iter().any(|a| a == &prop) {
+            let name = ident! {"{}_args", prop};
+            let props = if in_widget { quote!(#widget_name::ps::) } else { quote!() };
+            set.context
+                .push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
+            set.event.push(quote!(let (node, #name) = #props #prop::set_event(node, #name);));
+            set.outer.push(quote!(let (node, #name) = #props #prop::set_outer(node, #name);));
+            set.inner.push(quote!(let (node, #name) = #props #prop::set_inner(node, #name);));
+        }
+    }
+
+    let SetProps {
+        context: set_child_props_ctx,
+        event: set_child_props_event,
+        outer: set_child_props_outer,
+        inner: set_child_props_inner,
+    } = set_child;
+
+    let new_child_args = input.new_child.into_iter().map(|n| ident!("{}_args", n));
+
+    let SetProps {
+        context: set_self_props_ctx,
+        event: set_self_props_event,
+        outer: set_self_props_outer,
+        inner: set_self_props_inner,
+    } = set_self;
+
+    let new_args = input.new.into_iter().map(|n| ident!("{}_args", n));
 
     // widget child expression `=> {this}`
     let child = input.input.child_expr;
@@ -95,26 +156,26 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     // declarations of self property arguments.
 
     let r = quote! {{
+        #(#let_default_args)*
         #(#let_args)*
 
-        let __node = #child;
+        let node = #child;
 
         // apply child properties
-        //#(#set_child_props_ctx)*
-        //#(#set_child_props_event)*
-        //#(#set_child_props_outer)*
-        //#(#set_child_props_inner)*
+        #(#set_child_props_ctx)*
+        #(#set_child_props_event)*
+        #(#set_child_props_outer)*
+        #(#set_child_props_inner)*
 
-        //let __node = #ident::new_child(__node, #(#new_child_args),*);
+        let node = #widget_name::new_child(node, #(#new_child_args),*);
 
         // apply self properties
-        //#(#set_self_props_ctx)*
-        //#(#set_self_props_event)*
-        //#(#set_self_props_outer)*
-        //#(#set_self_props_inner)*
+        #(#set_self_props_ctx)*
+        #(#set_self_props_event)*
+        #(#set_self_props_outer)*
+        #(#set_self_props_inner)*
 
-        //#ident::new(__node, #(#new_args),*)
-        __node
+        #widget_name::new(node, #(#new_args),*)
     }};
 
     r.into()
