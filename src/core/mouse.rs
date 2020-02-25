@@ -150,7 +150,7 @@ impl Event for MouseClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse singleclick event ([click_count](MouseClickArgs::click_count) = `1`).
+/// Mouse single-click event ([click_count](MouseClickArgs::click_count) = `1`).
 pub struct MouseSingleClick;
 impl Event for MouseSingleClick {
     type Args = MouseClickArgs;

@@ -24,16 +24,20 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let input = parse_macro_input!(input as WidgetNewInput);
     let widget_name = input.ident;
 
-    let map_props =
-        |default_block: BuiltDefaultBlock, target| default_block.properties.into_iter().map(move |p| (p.ident, (target, p.kind)));
+    // map properties for collection into a HashMap.
+    let map_props = |bdb: BuiltDefaultBlock, target| bdb.properties.into_iter().map(move |p| (p.ident, (target, p.kind)));
+
+    // map of metadata of properties defined by the widget.
     let mut known_props: HashMap<_, _> = map_props(input.default_child, DefaultBlockTarget::Child)
         .chain(map_props(input.default_self, DefaultBlockTarget::Self_))
         .collect();
 
     // declarations of property arguments in the user written order.
     let mut let_args = Vec::with_capacity(input.input.sets.len());
+    // metadata about [let_args].
     let mut setted_props = Vec::with_capacity(let_args.capacity());
 
+    // collects property assigns from the user.
     for set in input.input.sets {
         let name = ident! {"{}_args", set.ident};
         let prop = set.ident;
@@ -71,6 +75,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
         setted_props.push((prop, target, in_widget));
     }
+    // collects property assigns from default widget properties.
     for (prop, (target, kind)) in known_props {
         let name = ident! {"{}_args", prop};
         match kind {

@@ -18,7 +18,7 @@ pub(crate) mod widget_new;
 ///
 /// # Usage
 ///
-/// In a inherent impl, anotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
+/// In a inherent impl, annotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```rust
 /// #[impl_ui_node(none)]
@@ -30,7 +30,7 @@ pub(crate) mod widget_new;
 /// }
 /// ```
 ///
-/// In a `UiNode` trait impl block, anotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
+/// In a `UiNode` trait impl block, annotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
 ///
 /// ```rust
 /// #[impl_ui_node(none)]
@@ -45,7 +45,7 @@ pub(crate) mod widget_new;
 ///
 /// ## `#[impl_ui_node(none)]`
 ///
-/// Generates defaults for UI components without descendents.
+/// Generates defaults for UI components without descendants.
 ///
 /// ### Defaults
 /// * Init, Updates: Does nothing, blank implementation.

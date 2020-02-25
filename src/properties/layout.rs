@@ -140,7 +140,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     }
 }
 
-/// Nomalized `x, y` alignment.
+/// Normalized `x, y` alignment.
 ///
 /// The numbers indicate how much to the right and bottom the content is moved within
 /// a larger available space.

@@ -29,7 +29,7 @@ impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
 
 /// If the widget is visible during hit-testing.
 ///
-/// When `false` the widget and is descendents do not
+/// When `false` the widget and is descendants do not
 /// participate in pointer events and do not set the cursor.
 ///
 /// Widgets inherit their hit-testability from their parents and by default

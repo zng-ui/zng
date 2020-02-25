@@ -126,7 +126,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // Group all self properties in one DefaultBlock that will be send to widget_new!.
     let mut default_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
 
-    // add missing requiried properties from new_child function.
+    // add missing required properties from new_child function.
     for p in new_child_properties.iter() {
         if !default_child.iter().any(|c| &c.ident == p) {
             default_child.push(parse_quote!(#p: required!;));
@@ -154,7 +154,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // 2 - Generate widget_new property metadata.
     let mut built_child = vec![];
     let mut built_self = vec![];
-    // 3 - Separate the property documentation. Each vec contains (DefaultBlockTarget, &mut PropertyDeclaration).
+    // 3 - Separate the property documentation. Each vector contains (DefaultBlockTarget, &mut PropertyDeclaration).
     let mut required_docs = vec![];
     let mut default_docs = vec![];
     let mut other_docs = vec![];
@@ -705,7 +705,7 @@ impl PropertyDefaultValue {
 pub enum PropertyValue {
     /// Named arguments.
     Fields(Punctuated<FieldValue, Token![,]>),
-    /// Unamed arguments.
+    /// Unnamed arguments.
     Args(Punctuated<Expr, Token![,]>),
     /// unset!.
     Unset,

@@ -53,7 +53,7 @@ pub trait AppExtension: 'static {
     #[inline]
     fn on_shutdown_requested(&mut self, _args: &ShutdownRequestedArgs, _ctx: &mut AppContext) {}
 
-    /// Called when the application is shuting down.
+    /// Called when the application is shutting down.
     ///
     /// Update requests generated during this call are ignored.
     #[inline]
@@ -195,7 +195,7 @@ impl<E: AppExtension> AppExtended<E> {
         }
     }
 
-    /// Runs the application event loop calling `start` once at the begining.
+    /// Runs the application event loop calling `start` once at the beginning.
     #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
         profile_scope!("app::run");

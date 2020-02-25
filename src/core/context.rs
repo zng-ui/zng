@@ -86,7 +86,7 @@ pub struct UpdateRequest {
     /// If should notify all that variables or events change occurred.
     pub update: bool,
     /// If should notify all that variables or events change occurred using
-    /// the hight-pressure band when applicable.
+    /// the high-pressure band when applicable.
     pub update_hp: bool,
 }
 
@@ -185,7 +185,7 @@ pub type ContextVarStageId = (Option<WidgetId>, u32);
 impl Vars {
     /// Produces the instance of `Vars`. Only a single
     /// instance can exist at a time, panics if called
-    /// again before droping the previous instance.
+    /// again before dropping the previous instance.
     pub fn instance() -> Self {
         Vars {
             context_vars: RefCell::default(),
@@ -421,7 +421,7 @@ pub struct Events {
 impl Events {
     /// Produces the instance of `Events`. Only a single
     /// instance can exist at a time, panics if called
-    /// again before droping the previous instance.
+    /// again before dropping the previous instance.
     pub fn instance() -> Self {
         Events {
             events: Default::default(),
@@ -459,7 +459,7 @@ impl Events {
 /// Identifies an application level service type.
 pub trait AppService: 'static {}
 
-/// Indentifies a window level service type.
+/// Identifies a window level service type.
 pub trait WindowService: 'static {}
 
 #[derive(Default)]
@@ -539,7 +539,7 @@ pub struct WindowServicesInit {
 impl WindowServicesInit {
     /// Register a new window service initializer.
     ///
-    /// Window services have diferent instances for each window and exist for the duration
+    /// Window services have different instances for each window and exist for the duration
     /// of that window. The `new` closure is called when a new window is created to
     pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
         self.builders.push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
@@ -609,7 +609,7 @@ impl OwnedUpdates {
     /// # Assert Borrows
     ///
     /// When variable and event values are borrowed the instance of `Vars`/`Events` is
-    /// imutable borrowed, so the requirement of borrowing both mutable here is an assert
+    /// immutable borrowed, so the requirement of borrowing both mutable here is an assert
     /// that all variable and event borrows have been dropped.
     pub fn apply_updates(
         &mut self,
@@ -655,7 +655,7 @@ impl Updates {
         }
     }
 
-    /// Clonable out-of-band notification sender.
+    /// Cloneable out-of-band notification sender.
     pub fn notifier(&self) -> &UpdateNotifier {
         &self.notifier
     }
@@ -698,7 +698,7 @@ impl Updates {
         self.update.update = true;
     }
 
-    /// Schelues a high-pressure update.
+    /// Schedules a high-pressure update.
     pub fn push_update_hp(&mut self) {
         self.update.update_hp = true;
     }
@@ -844,7 +844,7 @@ pub struct AppContext<'a> {
 pub type WindowState = StateMap;
 
 impl<'a> AppContext<'a> {
-    /// Initializes state and services for a new iwndow.
+    /// Initializes state and services for a new window.
     pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
         let mut window_state = StateMap::default();
         let mut event_state = StateMap::default();

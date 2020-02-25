@@ -158,7 +158,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
     // templates for compile-time sorting functions:
     // widget_new! will generate a call to all widget properties set_context,
-    // then set_event for all, etc, the returns args of set_context are fed into
+    // then set_event for all, etc., the returns args of set_context are fed into
     // set_event end so on, so we need to generate dummy functions for before and after
     // or actual set:
     //
@@ -227,7 +227,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     }
 
-    // generate documentation that must be formated.
+    // generate documentation that must be formatted.
     let mod_property_doc = doc!("This module is a widget `{}` property.", priority);
     let fn_set_doc = doc!(
         "Manually sets the [`{0}`]({0}) property.\n\nThis property must be set with `{1}` priority to work properly.",

@@ -1,3 +1,15 @@
 {
-    "rust.features": ["app_profiler"]
+    "rust.features": [
+        "app_profiler"
+    ],
+    "spellright.language": [
+        "en"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext",
+        "rust",
+        "toml"
+    ]
 }

@@ -64,7 +64,7 @@ pub(crate) mod protected {
     }
 }
 
-/// Error when trying to set or motify a read-only variable.
+/// Error when trying to set or modify a read-only variable.
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct VarIsReadOnly;
 
@@ -227,7 +227,7 @@ impl<T: VarValue> LocalVar<T> for BoxLocalVar<T> {
 /// to support boxing.
 ///
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
-/// support dinamic values in property definitions.
+/// support dynamic values in property definitions.
 pub trait Var<T: VarValue>: ObjVar<T> {
     /// Return type of [as_read_only](Var::as_read_only).
     type AsReadOnly: Var<T>;

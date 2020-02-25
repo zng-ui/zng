@@ -4,7 +4,7 @@ use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
-use webrender::api as wapi;
+use webrender::api as w_api;
 
 impl IntoVar<BorderDetails> for ColorF {
     type Var = OwnedVar<BorderDetails>;
@@ -131,24 +131,24 @@ impl LayoutSideOffsetsExt for LayoutSideOffsets {
     }
 }
 
-impl From<BorderStyle> for wapi::BorderStyle {
+impl From<BorderStyle> for w_api::BorderStyle {
     fn from(border_style: BorderStyle) -> Self {
-        // SAFETY: wapi::BorderStyle is also repr(u32)
+        // SAFETY: w_api::BorderStyle is also repr(u32)
         // and contains all values
         unsafe { std::mem::transmute(border_style) }
     }
 }
-impl From<BorderSide> for wapi::BorderSide {
+impl From<BorderSide> for w_api::BorderSide {
     fn from(border_side: BorderSide) -> Self {
-        wapi::BorderSide {
+        w_api::BorderSide {
             color: border_side.color,
             style: border_side.style.into(),
         }
     }
 }
-impl From<BorderDetails> for wapi::BorderDetails {
+impl From<BorderDetails> for w_api::BorderDetails {
     fn from(border_details: BorderDetails) -> Self {
-        wapi::BorderDetails::Normal(wapi::NormalBorder {
+        w_api::BorderDetails::Normal(w_api::NormalBorder {
             left: border_details.left.into(),
             right: border_details.right.into(),
             top: border_details.top.into(),
@@ -163,7 +163,7 @@ struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> 
     child: T,
     widths: L,
     details: B,
-    render_details: wapi::BorderDetails,
+    render_details: w_api::BorderDetails,
     child_rect: LayoutRect,
     final_size: LayoutSize,
     visible: bool,
@@ -243,19 +243,19 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, detai
     }
 }
 
-fn border_details_none() -> wapi::BorderDetails {
-    let side_none = wapi::BorderSide {
+fn border_details_none() -> w_api::BorderDetails {
+    let side_none = w_api::BorderSide {
         color: ColorF::BLACK,
-        style: wapi::BorderStyle::None,
+        style: w_api::BorderStyle::None,
     };
 
-    wapi::BorderDetails::Normal(wapi::NormalBorder {
+    w_api::BorderDetails::Normal(w_api::NormalBorder {
         left: side_none,
         right: side_none,
         top: side_none,
         bottom: side_none,
         radius: {
-            wapi::BorderRadius {
+            w_api::BorderRadius {
                 top_left: LayoutSize::zero(),
                 top_right: LayoutSize::zero(),
                 bottom_left: LayoutSize::zero(),

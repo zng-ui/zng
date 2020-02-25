@@ -318,8 +318,8 @@ impl<'a> WidgetFocusInfo<'a> {
             (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
 
             // Set as focus scope and not set as not focusable
-            // or set tab nav and did not set as not focus scope
-            // or set directional nav and did not set as not focus scope.
+            // or set tab navigation and did not set as not focus scope
+            // or set directional navigation and did not set as not focus scope.
             (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
                 FocusInfo::FocusScope(
                     idx.unwrap_or(TabIndex::AUTO),

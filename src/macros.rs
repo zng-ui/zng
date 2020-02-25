@@ -30,7 +30,7 @@ macro_rules! uid {
             $(#[$outer])*
             /// # Details
             /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
-            /// so IDs are unique for the process duration but order is not garanteed.
+            /// so IDs are unique for the process duration, but order is not guaranteed.
             ///
             /// Panics if you somehow reach `u64::max_value()` calls to `new`.
             #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -313,7 +313,7 @@ macro_rules! event_args {
 
 /// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
 ///
-/// Same sintax as [`event_args!`](event_args) but the generated args is also cancelable.
+/// Same syntax as [`event_args!`](event_args) but the generated args is also cancelable.
 ///
 /// # Example
 /// ```

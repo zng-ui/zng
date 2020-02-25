@@ -49,7 +49,7 @@ macro_rules! stack {
 stack!(HStack, width, height, x);
 stack!(VStack, height, width, y);
 
-/// Stack the children in a line (X). The first child at the begining (0, 0) the last child
+/// Stack the children in a line (X). The first child at the beginning (0, 0) the last child
 /// at the end (n, 0);
 pub fn h_stack<T: UiNode>(children: Stack<T>) -> impl UiNode {
     HStack { children: children.stack }

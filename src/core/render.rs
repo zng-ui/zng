@@ -236,7 +236,7 @@ impl FrameBuilder {
             .push_gradient(&self.common_item_properties(rect.clone()), rect, gradient, tile_size, tile_spacing);
     }
 
-    /// Finializes the build.
+    /// Finalizes the build.
     ///
     /// # Returns
     ///
@@ -278,7 +278,7 @@ pub struct FrameHitInfo {
 }
 
 impl FrameHitInfo {
-    /// Initializes from a webrender hit-test result.
+    /// Initializes from a Webrender hit-test result.
     ///
     /// Only item tags produced by [FrameBuilder] are expected.
     ///
@@ -653,7 +653,7 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
-    /// Widget retangle in the frame.
+    /// Widget rectangle in the frame.
     #[inline]
     pub fn bounds(self) -> &'a LayoutRect {
         &self.info().bounds
