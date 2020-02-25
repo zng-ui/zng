@@ -497,3 +497,11 @@ macro_rules! formatx {
         std::borrow::Cow::Owned(format!($($tt)*))
     };
 }
+
+/// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
+macro_rules! error_println {
+    ($($tt:tt)*) => {{
+        use colored::*;
+        eprintln!("{}: {}", "error".bright_red().bold(), format_args!($($tt)*))
+    }}
+}

@@ -8,6 +8,8 @@ extern crate enclose;
 use zero_ui::prelude::*;
 
 fn main() {
+    better_panic::install();
+
     App::default().run(|ctx| {
         ctx.services.req::<Windows>().open(|_| {
             window! {

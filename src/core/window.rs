@@ -436,8 +436,13 @@ impl AppExtension for WindowManager {
     fn deinit(&mut self, ctx: &mut AppContext) {
         let windows = std::mem::replace(&mut ctx.services.req::<Windows>().windows, Default::default());
         for (id, mut window) in windows {
-            println!("WARNING: destroying `{:?}` without closing events", id);
-            window.detach_context().deinit(ctx);
+            let w_ctx = window.detach_context();
+            error_println!(
+                "dropping `{:?} ({})` without closing events",
+                id,
+                w_ctx.root.title.get_local()
+            );
+            w_ctx.deinit(ctx);
             window.deinit();
         }
     }
@@ -618,7 +623,7 @@ struct GlWindow {
     gl_ctx: Option<WindowedContext<NotCurrent>>,
     ctx: Option<OwnedWindowContext>,
 
-    renderer: webrender::Renderer,
+    renderer: Option<webrender::Renderer>,
     pipeline_id: PipelineId,
     document_id: DocumentId,
     api: Arc<RenderApi>,
@@ -694,7 +699,7 @@ impl GlWindow {
 
         GlWindow {
             gl_ctx: Some(unsafe { context.make_not_current().unwrap() }),
-            renderer,
+            renderer: Some(renderer),
             pipeline_id: PipelineId(1, 0),
             document_id,
             frame_info: FrameInfo::blank(window_id, root.id),
@@ -828,7 +833,8 @@ impl GlWindow {
 
         let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
 
-        self.renderer.update();
+        let renderer = self.renderer.as_mut().unwrap();
+        renderer.update();
 
         let size = context.window().inner_size();
         let size = LayoutSize::new(size.width as f32, size.height as f32);
@@ -837,8 +843,8 @@ impl GlWindow {
         let device_size = size * units::LayoutToDeviceScale::new(dpi_factor);
         let device_size = units::DeviceIntSize::new(device_size.width as i32, device_size.height as i32);
 
-        self.renderer.render(device_size).unwrap();
-        let _ = self.renderer.flush_pipeline_info();
+        renderer.render(device_size).unwrap();
+        let _ = renderer.flush_pipeline_info();
 
         context.swap_buffers().ok();
 
@@ -851,12 +857,19 @@ impl GlWindow {
     /// If the [OwnedWindowContext] was not already deinit.
     pub fn deinit(mut self) {
         assert!(self.ctx.is_none()); // must deinit UiNodes first.
+        self.deinit_renderer();
+    }
 
-        win_profile_scope!(self.id(), "", "deinit::self");
-
-        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
-        self.renderer.deinit();
-        unsafe { context.make_not_current().unwrap() };
+    /// Returns `false` if renderer was already dropped.
+    fn deinit_renderer(&mut self) -> bool {
+        if let Some(renderer) = self.renderer.take() {
+            let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
+            renderer.deinit();
+            unsafe { context.make_not_current().unwrap() };
+            true
+        } else {
+            false
+        }
     }
 
     /// Hit-test the latest frame.
@@ -874,6 +887,14 @@ impl GlWindow {
     /// Latest frame info.
     pub fn frame_info(&self) -> &FrameInfo {
         &self.frame_info
+    }
+}
+
+impl Drop for GlWindow {
+    fn drop(&mut self) {
+        if self.deinit_renderer() {
+            error_println!("dropping window without calling `GlWindow::deinit`");
+        }
     }
 }
 
