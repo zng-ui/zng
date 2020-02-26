@@ -6,6 +6,7 @@ use crate::core::{
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
+use std::mem;
 
 /// An [App] extension.
 pub trait AppExtension: 'static {
@@ -252,10 +253,10 @@ impl<E: AppExtension> AppExtended<E> {
                 _ => {}
             }
 
-            let mut limit = 1000;
+            let mut limit = 100_000;
             loop {
                 let (mut update, display) = owned_ctx.apply_updates();
-                update |= event_update;
+                update |= mem::replace(&mut event_update, UpdateRequest::default());
                 sequence_update |= display;
 
                 if update.update || update.update_hp {
@@ -267,7 +268,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 limit -= 1;
                 if limit == 0 {
-                    panic!("infinite update loop")
+                    panic!("immediate update loop reached limit of `100_000` repeats")
                 }
             }
 
