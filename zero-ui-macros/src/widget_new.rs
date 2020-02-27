@@ -309,6 +309,11 @@ impl Parse for NewWidgetInput {
             }
         }
 
-        todo!()
+        // if user input is empty, use a lookahead to make an error message.
+        let error = input.lookahead1();
+        error.peek(Ident);
+        error.peek(widget::keyword::when);
+        error.peek(Token![=>]);
+        Err(error.error())
     }
 }
