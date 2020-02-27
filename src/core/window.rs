@@ -437,11 +437,7 @@ impl AppExtension for WindowManager {
         let windows = std::mem::replace(&mut ctx.services.req::<Windows>().windows, Default::default());
         for (id, mut window) in windows {
             let w_ctx = window.detach_context();
-            error_println!(
-                "dropping `{:?} ({})` without closing events",
-                id,
-                w_ctx.root.title.get_local()
-            );
+            error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get_local());
             w_ctx.deinit(ctx);
             window.deinit();
         }

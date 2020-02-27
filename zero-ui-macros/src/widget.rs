@@ -1,3 +1,4 @@
+use crate::widget_new::BuiltProperty;
 use crate::util;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
@@ -26,7 +27,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         // from the inherited widgets.
         WidgetArgs::IncludeInherits { inherits_todo, rest } => {
             let inherits: Vec<_> = inherits_todo.into_iter().map(|i| ident!("__{}", i)).collect();
-            let inherit = &inherits[0];
+            let inherit = &inherits[0]; //TODO: multiple inherits.
             let r = quote! { #inherit! { inherit #rest } };
             return r.into();
         }
@@ -120,30 +121,28 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         );
     };
 
-    // Group all child properties in one DefaultBlock that will be send to widget_new!.
-    let mut default_child: Vec<_> = input.default_child.into_iter().flat_map(|d| d.properties).collect();
+    //Flatten inherited properties. -------- NOTE: actual modifications started on this line, this is planned to be changed 
+    let (mut dft_child_inherits, mut dft_self_inherits): (Vec<_>, Vec<_>) = input
+        .inherits
+        .into_iter()
+        .flat_map(|d| d.default_child.properties.into_iter().zip(d.default_self.properties))
+        .unzip();
 
-    // Group all self properties in one DefaultBlock that will be send to widget_new!.
-    let mut default_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
+    //Flatten child properties.
+    let mut dft_child: Vec<_> = input.default_child.into_iter().flat_map(|d| d.properties).collect();
 
-    // add missing required properties from new_child function.
+    //Flatten self properties.
+    let mut dft_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
+
+    // validates property capture.
     for p in new_child_properties.iter() {
-        if !default_child.iter().any(|c| &c.ident == p) {
-            default_child.push(parse_quote!(#p: required!;));
+        if !dft_child.iter().any(|c| &c.ident == p) {
+            abort!(p.span(), "`new_child` cannot capture undefined property `{}`", p);
         }
     }
-
-    // add missing required properties from new function.
     for p in new_properties.iter() {
-        if !default_self.iter().any(|s| &s.ident == p) {
-            if p == &id_ident {
-                // id is provided if missing.
-                let mut p: PropertyDeclaration = parse_quote!(id: zero_ui::core::types::WidgetId::new_unique(););
-                p.attrs.push(doc!("Unique idenfier of the widget."));
-                default_self.push(p);
-            } else {
-                default_self.push(parse_quote!(#p: required!;));
-            }
+        if !dft_self.iter().any(|s| &s.ident == p) {
+            abort!(p.span(), "`new` cannot capture undefined property `{}`", p);
         }
     }
 
@@ -158,9 +157,61 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let mut required_docs = vec![];
     let mut default_docs = vec![];
     let mut other_docs = vec![];
+
+    // TODO: use InputProperty to group child properties and self properties preserving their order,
+    //       deal with unset,
+    //       overwrite repeats,
+    //       if it didn't have inherit then inherit a (yet to be made) widget that has the id property.
+    //
+    // Idea: HashSet with a key to a reference
+
+
+
+
+
+    let mut default_inherits = [
+        (DefaultBlockTarget::Child, &mut dft_child_inherits),
+        (DefaultBlockTarget::Self_, &mut dft_self_inherits),
+    ];
+    for inherit in &mut input.inherits {
+        default_inherits.push((&inherit.ident, DefaultBlockTarget::Child, &mut inherit.default_child));
+        default_inherits.push((&inherit.ident, DefaultBlockTarget::Self_, &mut inherit.default_self))
+    }
+    for (widget, target, p) in &mut default_inherits {
+        for p in p.properties.iter_mut() {
+            use crate::widget_new::BuiltPropertyKind::{Default as BPDefault, Local, Required};
+
+            // 1
+            let ident = &p.ident;
+            use_props.push(quote!(pub use super::#widget::ps::#ident;));
+
+            if p.kind == BPDefault {
+                fn_prop_dfts.push(quote! {
+                    #[inline]
+                    pub fn #ident() -> impl ps::#ident::Args {
+                        #widget::df::#ident()
+                    }
+                });
+            }
+
+            // 2
+            let built = match target {
+                DefaultBlockTarget::Child => &mut built_child,
+                DefaultBlockTarget::Self_ => &mut built_self,
+            };
+            match p.kind {
+                Required => built.push(quote!(r #ident)),
+                BPDefault => built.push(quote!(d #ident)),
+                Local => built.push(quote!(l #ident)),
+            }
+
+            // 3
+            //TODO
+        }
+    }
     let mut default_blocks = [
-        (DefaultBlockTarget::Child, &mut default_child),
-        (DefaultBlockTarget::Self_, &mut default_self),
+        (DefaultBlockTarget::Child, &mut dft_child),
+        (DefaultBlockTarget::Self_, &mut dft_self),
     ];
     for (target, properties) in &mut default_blocks {
         for p in properties.iter_mut() {
@@ -188,6 +239,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             if !is_required {
                 if let Some(dft) = &p.default_value {
                     fn_prop_dfts.push(quote! {
+                        #[inline]
                         pub fn #ident() -> impl ps::#ident::Args {
                             ps::#ident::args(#dft)
                         }
@@ -303,6 +355,22 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     //panic!("{}", r);
 
     r.into()
+}
+
+enum InputProperty<'a>{
+    Built{
+        prop: BuiltProperty,
+        widget: &'a Ident
+    },
+    Declaration(PropertyDeclaration)
+}
+impl<'a> InputProperty<'a>{
+    fn ident(&self) -> &Ident{
+        match self {
+            InputProperty::Built{prop,..} => &prop.ident,
+            InputProperty::Declaration(d) => &d.ident,
+        }
+    }
 }
 
 enum WidgetArgs {

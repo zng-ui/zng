@@ -183,8 +183,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
 pub struct WidgetNewInput {
     pub ident: Ident,
-    default_child: BuiltDefaultBlock,
-    default_self: BuiltDefaultBlock,
+    pub default_child: BuiltDefaultBlock,
+    pub default_self: BuiltDefaultBlock,
     new_child: Punctuated<Ident, Token![,]>,
     new: Punctuated<Ident, Token![,]>,
     input: NewWidgetInput,
@@ -221,8 +221,8 @@ impl Parse for WidgetNewInput {
     }
 }
 
-struct BuiltDefaultBlock {
-    properties: Punctuated<BuiltProperty, Token![,]>,
+pub struct BuiltDefaultBlock {
+    pub properties: Punctuated<BuiltProperty, Token![,]>,
 }
 
 impl Parse for BuiltDefaultBlock {
@@ -234,9 +234,9 @@ impl Parse for BuiltDefaultBlock {
     }
 }
 
-struct BuiltProperty {
-    kind: BuiltPropertyKind,
-    ident: Ident,
+pub struct BuiltProperty {
+    pub kind: BuiltPropertyKind,
+    pub ident: Ident,
 }
 
 impl Parse for BuiltProperty {
@@ -248,7 +248,7 @@ impl Parse for BuiltProperty {
 }
 
 #[derive(PartialEq, Eq)]
-enum BuiltPropertyKind {
+pub enum BuiltPropertyKind {
     /// Required property.
     Required,
     /// Property is provided by the widget.
