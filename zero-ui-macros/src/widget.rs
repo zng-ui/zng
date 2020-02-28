@@ -1,21 +1,10 @@
-use crate::widget_new::BuiltProperty;
 use crate::util;
+use crate::widget_new::BuiltPropertyKind;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, *};
-
-pub mod keyword {
-    syn::custom_keyword!(child);
-    syn::custom_keyword!(required);
-    syn::custom_keyword!(unset);
-    syn::custom_keyword!(when);
-    syn::custom_keyword!(input);
-    syn::custom_keyword!(new_child);
-    syn::custom_keyword!(new);
-    syn::custom_keyword!(inherit);
-}
 
 /// `widget!` implementation
 #[allow(clippy::cognitive_complexity)]
@@ -40,7 +29,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let (mut docs, attrs) = util::split_doc_other(&mut input.attrs);
     // end insert the header termination html because we will
     // generate custom sections to the item docs page.
-    finish_docs_header(&mut docs);
+    push_item_docs_close(&mut docs);
 
     let (export, pub_) = if input.export {
         (quote!(#[macro_export]), quote!(pub))
@@ -48,8 +37,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         (quote!(), quote!())
     };
 
-    let ident = input.ident;
-    let id_ident = ident!("id");
+    let widget_name = input.ident;
 
     // Collect `new_child` and what properties are required by it.
     let new_child_properties;
@@ -59,23 +47,15 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         let child = c.child;
         let output = c.output;
         let block = c.block;
-        let prs = c.properties;
-        let pr_args = prs.iter().map(|i| {
-            if i == &id_ident {
-                quote!(impl zero_ui::properties::id::Args)
-            } else {
-                quote!(impl ps::#i::Args)
-            }
-        });
-
+        let ps = c.properties;
         new_child = quote! {
             #(#attrs)*
-            pub fn new_child(#child: impl zero_ui::core::UiNode, #(#prs: #pr_args),*) -> #output
+            pub fn new_child(#child: impl zero_ui::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
             #block
         };
-        new_child_properties = prs;
+        new_child_properties = ps;
     } else {
-        let fn_doc = doc!("Manually initializes a new [`{0}`](super) content.", ident);
+        let fn_doc = doc!("Manually initializes a new [`{0}`](super) content.", widget_name);
         new_child = quote!(
             #fn_doc
             #[inline]
@@ -94,63 +74,37 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         let child = n.child;
         let output = n.output;
         let block = n.block;
-        let prs = n.properties;
-        let pr_args = prs.iter().map(|i| {
-            if i == &id_ident {
-                quote!(impl zero_ui::properties::id::Args)
-            } else {
-                quote!(impl ps::#i::Args)
-            }
-        });
+        let ps = n.properties;
 
         new = quote! {
             #(#attrs)*
-            pub fn new(#child: impl zero_ui::core::UiNode, #(#prs: #pr_args),*) -> #output
+            pub fn new(#child: impl zero_ui::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
             #block
         };
-        new_properties = prs;
+        new_properties = ps;
     } else {
         new_properties = vec![ident!["id"]];
-        let fn_doc = doc!("Manually initializes a new [`{0}`](super).", ident);
+        let fn_doc = doc!("Manually initializes a new [`{0}`](super).", widget_name);
         new = quote!(
             #fn_doc
             #[inline]
-            pub fn new(child: impl zero_ui::core::UiNode, id: impl zero_ui::properties::id::Args) -> impl zero_ui::core::UiNode {
+            pub fn new(child: impl zero_ui::core::UiNode, id: impl ps::id::Args) -> impl zero_ui::core::UiNode {
                 zero_ui::core::default_new_widget(child, id)
             }
         );
     };
 
-    //Flatten inherited properties. -------- NOTE: actual modifications started on this line, this is planned to be changed 
-    let (mut dft_child_inherits, mut dft_self_inherits): (Vec<_>, Vec<_>) = input
-        .inherits
-        .into_iter()
-        .flat_map(|d| d.default_child.properties.into_iter().zip(d.default_self.properties))
-        .unzip();
+    let mut defined_props = HashSet::new();
 
-    //Flatten child properties.
+    // flatten property declarations
     let mut dft_child: Vec<_> = input.default_child.into_iter().flat_map(|d| d.properties).collect();
-
-    //Flatten self properties.
     let mut dft_self: Vec<_> = input.default_self.into_iter().flat_map(|d| d.properties).collect();
 
-    // validates property capture.
-    for p in new_child_properties.iter() {
-        if !dft_child.iter().any(|c| &c.ident == p) {
-            abort!(p.span(), "`new_child` cannot capture undefined property `{}`", p);
-        }
-    }
-    for p in new_properties.iter() {
-        if !dft_self.iter().any(|s| &s.ident == p) {
-            abort!(p.span(), "`new` cannot capture undefined property `{}`", p);
-        }
-    }
-
-    // Collect some property info:
+    // Collect property info from local definitions:
     // 1 - Property use clauses and defaults.
     let mut use_props = vec![];
     let mut fn_prop_dfts = vec![];
-    // 2 - Generate widget_new property metadata.
+    // 2 - Generate widget_new! property metadata.
     let mut built_child = vec![];
     let mut built_self = vec![];
     // 3 - Separate the property documentation. Each vector contains (DefaultBlockTarget, &mut PropertyDeclaration).
@@ -158,62 +112,13 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let mut default_docs = vec![];
     let mut other_docs = vec![];
 
-    // TODO: use InputProperty to group child properties and self properties preserving their order,
-    //       deal with unset,
-    //       overwrite repeats,
-    //       if it didn't have inherit then inherit a (yet to be made) widget that has the id property.
-    //
-    // Idea: HashSet with a key to a reference
-
-
-
-
-
-    let mut default_inherits = [
-        (DefaultBlockTarget::Child, &mut dft_child_inherits),
-        (DefaultBlockTarget::Self_, &mut dft_self_inherits),
-    ];
-    for inherit in &mut input.inherits {
-        default_inherits.push((&inherit.ident, DefaultBlockTarget::Child, &mut inherit.default_child));
-        default_inherits.push((&inherit.ident, DefaultBlockTarget::Self_, &mut inherit.default_self))
-    }
-    for (widget, target, p) in &mut default_inherits {
-        for p in p.properties.iter_mut() {
-            use crate::widget_new::BuiltPropertyKind::{Default as BPDefault, Local, Required};
-
-            // 1
-            let ident = &p.ident;
-            use_props.push(quote!(pub use super::#widget::ps::#ident;));
-
-            if p.kind == BPDefault {
-                fn_prop_dfts.push(quote! {
-                    #[inline]
-                    pub fn #ident() -> impl ps::#ident::Args {
-                        #widget::df::#ident()
-                    }
-                });
-            }
-
-            // 2
-            let built = match target {
-                DefaultBlockTarget::Child => &mut built_child,
-                DefaultBlockTarget::Self_ => &mut built_self,
-            };
-            match p.kind {
-                Required => built.push(quote!(r #ident)),
-                BPDefault => built.push(quote!(d #ident)),
-                Local => built.push(quote!(l #ident)),
-            }
-
-            // 3
-            //TODO
-        }
-    }
     let mut default_blocks = [
         (DefaultBlockTarget::Child, &mut dft_child),
         (DefaultBlockTarget::Self_, &mut dft_self),
     ];
+
     for (target, properties) in &mut default_blocks {
+        let target = *target;
         for p in properties.iter_mut() {
             let (prop_docs, other_attrs) = util::split_doc_other(&mut p.attrs);
 
@@ -221,71 +126,174 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 abort!(invalid.span(), "only #[doc] attributes are allowed here")
             }
 
-            p.attrs = prop_docs;
-
             let is_required = p.is_required();
 
-            // 1
             let ident = &p.ident;
-            if let Some(maps_to) = &p.maps_to {
-                use_props.push(quote!(pub use super::#maps_to as #ident;))
-            } else if ident == &id_ident {
-                use_props.push(quote!(
-                    pub use zero_ui::properties::id;
-                ))
-            } else {
-                use_props.push(quote!(pub use super::#ident;))
+            if !defined_props.insert(ident) {
+                abort!(ident.span(), "property named `{}` already declared", ident);
             }
-            if !is_required {
-                if let Some(dft) = &p.default_value {
-                    fn_prop_dfts.push(quote! {
-                        #[inline]
-                        pub fn #ident() -> impl ps::#ident::Args {
-                            ps::#ident::args(#dft)
-                        }
-                    });
+
+            // 1
+            let mut unset = false;
+            if let Some(dft) = &p.default_value {
+                match dft {
+                    PropertyDefaultValue::Args(args) => {
+                        fn_prop_dfts.push(quote! {
+                            #[inline]
+                            pub fn #ident() -> impl ps::#ident::Args {
+                                ps::#ident::args(#args)
+                            }
+                        });
+                    }
+                    PropertyDefaultValue::Fields(fields) => {
+                        fn_prop_dfts.push(quote! {
+                            #[inline]
+                            pub fn #ident() -> impl ps::#ident::Args {
+                                ps::ident::NamedArgs {
+                                    _phantom: std::marker::PhantomData,
+                                    #fields
+                                }
+                            }
+                        });
+                    }
+                    PropertyDefaultValue::Unset => {
+                        unset = true;
+                    }
+                    PropertyDefaultValue::Required => {}
                 }
             }
+            if !unset {
+                // 1
+                if let Some(maps_to) = &p.maps_to {
+                    use_props.push(quote!(pub use super::#maps_to as #ident;))
+                } else {
+                    use_props.push(quote!(pub use super::#ident;))
+                }
 
-            // 2
-            let built = match target {
-                DefaultBlockTarget::Child => &mut built_child,
-                DefaultBlockTarget::Self_ => &mut built_self,
-            };
-            if is_required {
-                built.push(quote!(r #ident));
-            } else if p.default_value.is_some() {
-                built.push(quote!(d #ident));
-            } else {
-                built.push(quote!(l #ident));
-            }
+                // 2
+                let built = match target {
+                    DefaultBlockTarget::Child => &mut built_child,
+                    DefaultBlockTarget::Self_ => &mut built_self,
+                };
+                if is_required {
+                    built.push(quote!(r #ident));
+                } else if p.default_value.is_some() {
+                    built.push(quote!(d #ident));
+                } else {
+                    built.push(quote!(l #ident));
+                }
 
-            // 3
-            if is_required {
-                required_docs.push((*target, p));
-            } else if p.default_value.is_some() {
-                default_docs.push((*target, p));
-            } else {
-                other_docs.push((*target, p));
+                // 3
+                let docs = if is_required {
+                    &mut required_docs
+                } else if p.default_value.is_some() {
+                    &mut default_docs
+                } else {
+                    &mut other_docs
+                };
+                push_property_docs(docs, target, ident, &p.maps_to, prop_docs);
             }
         }
     }
 
-    // Pushes the custom documentation sections.
-    print_required_section(&mut docs, required_docs);
-    print_provided_section(&mut docs, default_docs);
-    print_aliases_section(&mut docs, other_docs);
-    print_whens(&mut docs, &mut input.whens);
+    // Collect property info from inherits:
+    // 1 - Property use clauses and defaults.
+    let mut i_use_props = vec![];
+    let mut i_fn_prop_dfts = vec![];
+    // 2 - Generate widget_new! property metadata.
+    let mut i_built_child = vec![];
+    let mut i_built_self = vec![];
+    // 3 - Separate the property documentation. Each vector contains (DefaultBlockTarget, &mut PropertyDeclaration).
+    let mut i_required_docs = vec![];
+    let mut i_default_docs = vec![];
+    let mut i_other_docs = vec![];
+
+    let mut i_default_blocks = vec![];
+    for inherit in &input.inherits {
+        let widget_name = &inherit.ident;
+        for child_prop in &inherit.default_child.properties {
+            i_default_blocks.push((widget_name, DefaultBlockTarget::Child, child_prop));
+        }
+        for self_prop in &inherit.default_self.properties {
+            i_default_blocks.push((widget_name, DefaultBlockTarget::Self_, self_prop));
+        }
+    }
+    for (widget_name, target, prop) in i_default_blocks {
+        let ident = &prop.ident;
+        if !defined_props.insert(ident) {
+            continue; // inherited property overridden
+        }
+
+        //1
+        if prop.kind == BuiltPropertyKind::Default {
+            i_fn_prop_dfts.push(quote! {
+                #[inline]
+                pub fn #ident() -> impl ps::#ident::Args {
+                    #widget_name::df::#ident()
+                }
+            });
+        }
+        i_use_props.push(quote! {
+            pub use super::#widget_name::ps::#ident;
+        });
+
+        //2
+        let built = match target {
+            DefaultBlockTarget::Child => &mut i_built_child,
+            DefaultBlockTarget::Self_ => &mut i_built_self,
+        };
+        match prop.kind {
+            BuiltPropertyKind::Required => built.push(quote!(r #ident)),
+            BuiltPropertyKind::Default => built.push(quote!(d #ident)),
+            BuiltPropertyKind::Local => built.push(quote!(l #ident)),
+        }
+
+        //3
+        let docs = match prop.kind {
+            BuiltPropertyKind::Required => &mut i_required_docs,
+            BuiltPropertyKind::Default => &mut i_default_docs,
+            BuiltPropertyKind::Local => &mut i_other_docs,
+        };
+
+        push_property_docs(docs, target, ident, &None, vec![doc!("Inherited from [`{0}`]({0}).", widget_name)]);
+    }
+
+    // validate property captures.
+    if let Some(p) = new_child_properties.iter().find(|p| !defined_props.contains(p)) {
+        abort!(p.span(), "`new_child` cannot capture undefined property `{}`", p);
+    }
+    if let Some(p) = new_properties.iter().find(|p| !defined_props.contains(p)) {
+        abort!(p.span(), "`new` cannot capture undefined property `{}`", p);
+    }
+
+    // make property documentation sections.
+    if !i_required_docs.is_empty() || !required_docs.is_empty() {
+        push_docs_section_open(&mut docs, "required-properties", "Required properties");
+        docs.extend(i_required_docs);
+        docs.extend(required_docs);
+        push_docs_section_close(&mut docs);
+    }
+    if !i_default_docs.is_empty() || !default_docs.is_empty() {
+        push_docs_section_open(&mut docs, "provided-properties", "Provided properties");
+        docs.extend(i_default_docs);
+        docs.extend(default_docs);
+        push_docs_section_close(&mut docs);
+    }
+    push_docs_section_open(&mut docs, "other-properties", "Other properties");
+    docs.extend(i_other_docs);
+    docs.extend(other_docs);
+    push_docs_all_other_props(&mut docs);
+    push_docs_section_close(&mut docs);
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
     // This macro is needed because we want to have multiple match arms, but
     // the widget macro needs to take $($tt:tt)*.
-    let inner_ident = ident!("__{}", ident);
+    let inner_wgt_name = ident!("__{}", widget_name);
 
     let widget_new_tokens = quote! {
-        m #ident
-        c { #(#built_child),* }
-        s { #(#built_self),* }
+        m #widget_name
+        c { #(#i_built_child,)* #(#built_child),* }
+        s { #(#i_built_self,)* #(#built_self),* }
         n (#(#new_child_properties),*) (#(#new_properties),*)
     };
 
@@ -293,19 +301,20 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         // widget macro. Is hidden until macro 2.0 comes around.
         // For now this simulates name-spaced macros because we
         // require a use widget_mod for this to work.
+
         #[doc(hidden)]
         #(#attrs)*
         #export
-        macro_rules! #ident {
+        macro_rules! #widget_name {
             ($($input:tt)*) => {
                 // call the new variant.
-                #inner_ident!{new $($input)*}
+                #inner_wgt_name!{new $($input)*}
             };
         }
 
         #[doc(hidden)]
         #export
-        macro_rules! #inner_ident {
+        macro_rules! #inner_wgt_name {
             // new widget instance.
             (new $($input:tt)*) => {
                 widget_new! {
@@ -315,21 +324,21 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
-            (inherit $($rest:tt)*) => {
+            (inherit $($widget_declaration:tt)*) => {
                 widget! {
                     inherit {
                         #widget_new_tokens
                         i { =>{} }
                     }
 
-                    $($rest)*
+                    $($widget_declaration)*
                 }
             };
         }
 
         // the widget module, also the public face of the widget in the documentation.
         #(#docs)*
-        #pub_ mod #ident {
+        #pub_ mod #widget_name {
             #[doc(hidden)]
             pub use super::*;
 
@@ -339,6 +348,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             // Properties used in widget.
             #[doc(hidden)]
             pub mod ps {
+                #(#i_use_props)*
                 #(#use_props)*
             }
 
@@ -347,30 +357,73 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             pub mod df {
                 use super::*;
 
+                #(#i_fn_prop_dfts)*
                 #(#fn_prop_dfts)*
             }
         }
     };
 
-    //panic!("{}", r);
-
     r.into()
 }
 
-enum InputProperty<'a>{
-    Built{
-        prop: BuiltProperty,
-        widget: &'a Ident
-    },
-    Declaration(PropertyDeclaration)
+fn push_item_docs_close(docs: &mut Vec<Attribute>) {
+    docs.push(doc!(
+        "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>"
+    )); // finish item level docs.
 }
-impl<'a> InputProperty<'a>{
-    fn ident(&self) -> &Ident{
-        match self {
-            InputProperty::Built{prop,..} => &prop.ident,
-            InputProperty::Declaration(d) => &d.ident,
-        }
+
+fn push_docs_section_open(docs: &mut Vec<Attribute>, id: &str, title: &str) {
+    docs.push(doc!(
+        r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
+        <div class="methods" style="display: block;">"##,
+        id,
+        title
+    ));
+}
+
+fn push_property_docs(
+    docs: &mut Vec<Attribute>,
+    target: DefaultBlockTarget,
+    ident: &Ident,
+    maps_to: &Option<Ident>,
+    pdocs: Vec<Attribute>,
+) {
+    docs.push(doc!(
+        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
+        ident,
+        match target {
+            DefaultBlockTarget::Self_ => "self",
+            DefaultBlockTarget::Child => "child",
+        },
+    ));
+    docs.push(doc!("\n[<span class='mod'>{0}</span>]({0})\n", maps_to.as_ref().unwrap_or(&ident),));
+    docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
+
+    if !pdocs.is_empty() {
+        docs.push(doc!("<div class='docblock'>\n"));
+        docs.extend(pdocs);
+        docs.push(doc!("\n</div>"));
     }
+}
+
+fn push_docs_all_other_props(docs: &mut Vec<Attribute>) {
+    docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##));
+    docs.push(doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n"));
+    docs.push(doc!(r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##));
+}
+
+fn push_docs_section_close(docs: &mut Vec<Attribute>) {
+    docs.push(doc!("</div>"));
+}
+
+pub mod keyword {
+    syn::custom_keyword!(child);
+    syn::custom_keyword!(required);
+    syn::custom_keyword!(unset);
+    syn::custom_keyword!(when);
+    syn::custom_keyword!(new_child);
+    syn::custom_keyword!(new);
+    syn::custom_keyword!(inherit);
 }
 
 enum WidgetArgs {
@@ -853,175 +906,3 @@ impl ToTokens for DefaultBlockTarget {
         }
     }
 }
-
-/* #region docs hack
-*
-* We emit inline html that reuses the rustdoc style to insert custom sections to a Module page.
-*
-* The result looks professional, unlike the code that makes it happen.
-*/
-
-fn finish_docs_header(docs: &mut Vec<Attribute>) {
-    docs.push(doc!(
-        "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>"
-    )); // finish item level docs.
-}
-
-fn print_required_section(docs: &mut Vec<Attribute>, required_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    print_section(docs, "required-properties", "Required properties", required_docs);
-}
-
-fn print_provided_section(docs: &mut Vec<Attribute>, default_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    print_section(docs, "provided-properties", "Provided properties", default_docs);
-}
-
-fn print_aliases_section(docs: &mut Vec<Attribute>, other_docs: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    print_section_header(docs, "other-properties", "Other properties");
-    for p in other_docs {
-        print_property(docs, p);
-    }
-    docs.push(doc!(r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##));
-    docs.push(doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n"));
-    docs.push(doc!(r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##));
-    print_section_footer(docs);
-}
-
-fn print_section(docs: &mut Vec<Attribute>, id: &str, title: &str, properties: Vec<(DefaultBlockTarget, &mut PropertyDeclaration)>) {
-    if properties.is_empty() {
-        return;
-    }
-
-    print_section_header(docs, id, title);
-    for p in properties {
-        print_property(docs, p);
-    }
-    print_section_footer(docs);
-}
-
-fn print_section_header(docs: &mut Vec<Attribute>, id: &str, title: &str) {
-    docs.push(doc!(
-        r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
-        <div class="methods" style="display: block;">"##,
-        id,
-        title
-    ));
-}
-
-fn print_property(docs: &mut Vec<Attribute>, (t, p): (DefaultBlockTarget, &mut PropertyDeclaration)) {
-    docs.push(doc!(
-        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
-        p.ident,
-        match t {
-            DefaultBlockTarget::Self_ => "self",
-            DefaultBlockTarget::Child => "child",
-        },
-    ));
-    docs.push(doc!(
-        "\n[<span class='mod'>{0}</span>]({0})\n",
-        p.maps_to.as_ref().unwrap_or(&p.ident),
-    ));
-    docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
-
-    if !p.attrs.is_empty() {
-        docs.push(doc!("<div class='docblock'>\n"));
-        docs.extend(p.attrs.drain(..));
-        docs.push(doc!("\n</div>"));
-    }
-}
-
-fn print_section_footer(docs: &mut Vec<Attribute>) {
-    docs.push(doc!("</div>"));
-}
-
-fn print_whens(docs: &mut Vec<Attribute>, whens: &mut [WhenBlock]) {
-    let mut whens: Vec<_> = whens.iter_mut().filter(|w| !w.properties.is_empty()).collect();
-    if whens.is_empty() {
-        return;
-    }
-
-    print_section_header(docs, "conditional-assigns", "Conditional assigns");
-
-    let mut used_when_ids = HashSet::with_capacity(whens.len());
-
-    for when in whens.iter_mut() {
-        let condition = &when.condition;
-        let condition = quote!(#condition).to_string();
-
-        let mut in_in_replace = false;
-        let mut when_id: String = condition
-            .chars()
-            .filter_map(|c| {
-                if c.is_alphanumeric() {
-                    in_in_replace = false;
-                    Some(c)
-                } else if !in_in_replace {
-                    in_in_replace = true;
-                    Some('_')
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let mut i = 0;
-        let when_id_len = when_id.len();
-        while used_when_ids.contains(&when_id) {
-            when_id.truncate(when_id_len);
-            when_id.push_str(&i.to_string());
-            i += 1;
-        }
-        used_when_ids.insert(when_id.clone());
-
-        docs.push(doc!(
-            r##"<h3 id="wgwhen.{0}" class="method"><code id='{0}.v'><a href='#wgwhen.{0}' class='fnname'>when</a> "##,
-            when_id
-        ));
-
-        // TODO actual formatting.
-        let mut next_is_property = false;
-        let mut condition_span = String::new();
-        let mut prev_point = false;
-        for w in condition.split_whitespace() {
-            if next_is_property {
-                if w == "." {
-                    condition_span.push('.');
-                } else {
-                    next_is_property = false;
-                    docs.push(doc!("{}", condition_span.trim()));
-                    condition_span = String::new();
-
-                    docs.push(doc!("<span class='wgprop'>"));
-                    docs.push(doc!("\n[<span class='mod'>{0}</span>]({0})\n", w));
-                    docs.push(doc!("<ul style='display:none;'></ul></span>"));
-                }
-            } else if w == "self" || w == "child" {
-                next_is_property = true;
-                if !prev_point {
-                    condition_span.push(' ');
-                }
-                condition_span.push_str(w)
-            } else if w.chars().all(|c| c.is_alphanumeric()) {
-                if !prev_point {
-                    condition_span.push(' ');
-                }
-                condition_span.push_str(w);
-            } else {
-                condition_span.push_str(w);
-            }
-
-            prev_point = w == "." || w == "!";
-        }
-
-        docs.push(doc!("<ul style='display:none;'></ul></code></h3>"));
-
-        if !when.attrs.is_empty() {
-            docs.push(doc!("<div class='docblock'>\n"));
-            docs.extend(when.attrs.drain(..));
-            docs.push(doc!("\n</div>"));
-        }
-    }
-
-    print_section_footer(docs);
-}
-
-// #endregion docs hack

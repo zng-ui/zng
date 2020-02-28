@@ -12,6 +12,8 @@ widget! {
     pub window: container;
 
     default(self) {
+        id: unset!;
+
         /// Window title.
         title: "";
         /// Window size. If set to a variable it is kept in sync.
