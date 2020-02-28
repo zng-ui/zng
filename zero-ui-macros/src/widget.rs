@@ -255,7 +255,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             BuiltPropertyKind::Local => &mut i_other_docs,
         };
 
-        push_property_docs(docs, target, ident, &None, vec![doc!("Inherited from [`{0}`](self::{0}).", widget_name)]);
+        push_inherited_property_docs(docs, target, ident, widget_name);
     }
 
     // validate property captures.
@@ -368,7 +368,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
 fn push_item_docs_close(docs: &mut Vec<Attribute>) {
     docs.push(doc!(
-        "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>"
+        "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style><script>{}</script>",
+        include_str!("widget_docs_ext.js")
     )); // finish item level docs.
 }
 
@@ -404,6 +405,23 @@ fn push_property_docs(
         docs.extend(pdocs);
         docs.push(doc!("\n</div>"));
     }
+}
+
+fn push_inherited_property_docs(docs: &mut Vec<Attribute>, target: DefaultBlockTarget, ident: &Ident, source_widget: &Ident) {
+    docs.push(doc!(
+        r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
+        ident,
+        match target {
+            DefaultBlockTarget::Self_ => "self",
+            DefaultBlockTarget::Child => "child",
+        },
+    ));
+    docs.push(doc!("\n[<span class='mod' data-inherited>{0}</span>](self::{1})\n", ident, source_widget));
+    docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
+
+    docs.push(doc!("<div class='docblock'>\n"));
+    docs.push(doc!("Inherited from [`{0}`](self::{0}).", source_widget));
+    docs.push(doc!("\n</div>"));
 }
 
 fn push_docs_all_other_props(docs: &mut Vec<Attribute>) {
