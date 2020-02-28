@@ -55,7 +55,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         };
         new_child_properties = ps;
     } else {
-        let fn_doc = doc!("Manually initializes a new [`{0}`](super) content.", widget_name);
+        let fn_doc = doc!("Manually initializes a new [`{0}`](self) content.", widget_name);
         new_child = quote!(
             #fn_doc
             #[inline]
@@ -84,7 +84,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         new_properties = ps;
     } else {
         new_properties = vec![ident!["id"]];
-        let fn_doc = doc!("Manually initializes a new [`{0}`](super).", widget_name);
+        let fn_doc = doc!("Manually initializes a new [`{0}`](self).", widget_name);
         new = quote!(
             #fn_doc
             #[inline]
@@ -255,7 +255,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             BuiltPropertyKind::Local => &mut i_other_docs,
         };
 
-        push_property_docs(docs, target, ident, &None, vec![doc!("Inherited from [`{0}`]({0}).", widget_name)]);
+        push_property_docs(docs, target, ident, &None, vec![doc!("Inherited from [`{0}`](self::{0}).", widget_name)]);
     }
 
     // validate property captures.
