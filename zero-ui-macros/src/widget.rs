@@ -107,6 +107,8 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // 2 - Generate widget_new! property metadata.
     let mut built_child = vec![];
     let mut built_self = vec![];
+    let mut built_child_docs = vec![];
+    let mut built_self_docs = vec![];
     // 3 - Separate the property documentation. Each vector contains (DefaultBlockTarget, &mut PropertyDeclaration).
     let mut required_docs = vec![];
     let mut default_docs = vec![];
@@ -171,9 +173,9 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 }
 
                 // 2
-                let built = match target {
-                    DefaultBlockTarget::Child => &mut built_child,
-                    DefaultBlockTarget::Self_ => &mut built_self,
+                let (built, built_docs) = match target {
+                    DefaultBlockTarget::Child => (&mut built_child, &mut built_child_docs),
+                    DefaultBlockTarget::Self_ => (&mut built_self, &mut built_self_docs),
                 };
                 if is_required {
                     built.push(quote!(r #ident));
@@ -182,6 +184,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 } else {
                     built.push(quote!(l #ident));
                 }
+                built_docs.push(quote! {#(#prop_docs)*});
 
                 // 3
                 let docs = if is_required {
@@ -203,18 +206,20 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // 2 - Generate widget_new! property metadata.
     let mut i_built_child = vec![];
     let mut i_built_self = vec![];
+    let mut i_built_child_docs = vec![];
+    let mut i_built_self_docs = vec![];
     // 3 - Separate the property documentation. Each vector contains (DefaultBlockTarget, &mut PropertyDeclaration).
     let mut i_required_docs = vec![];
     let mut i_default_docs = vec![];
     let mut i_other_docs = vec![];
 
     let mut i_default_blocks = vec![];
-    for inherit in &input.inherits {
+    for inherit in &mut input.inherits {
         let widget_name = &inherit.ident;
-        for child_prop in &inherit.default_child.properties {
+        for child_prop in &mut inherit.default_child.properties {
             i_default_blocks.push((widget_name, DefaultBlockTarget::Child, child_prop));
         }
-        for self_prop in &inherit.default_self.properties {
+        for self_prop in &mut inherit.default_self.properties {
             i_default_blocks.push((widget_name, DefaultBlockTarget::Self_, self_prop));
         }
     }
@@ -238,15 +243,17 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         });
 
         //2
-        let built = match target {
-            DefaultBlockTarget::Child => &mut i_built_child,
-            DefaultBlockTarget::Self_ => &mut i_built_self,
+        let (built, built_docs) = match target {
+            DefaultBlockTarget::Child => (&mut i_built_child, &mut i_built_child_docs),
+            DefaultBlockTarget::Self_ => (&mut i_built_self, &mut i_built_self_docs),
         };
         match prop.kind {
             BuiltPropertyKind::Required => built.push(quote!(r #ident)),
             BuiltPropertyKind::Default => built.push(quote!(d #ident)),
             BuiltPropertyKind::Local => built.push(quote!(l #ident)),
         }
+        let prop_docs = std::mem::replace(&mut prop.docs, Vec::default());
+        built_docs.push(quote! {#(#prop_docs)*});
 
         //3
         let docs = match prop.kind {
@@ -255,7 +262,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             BuiltPropertyKind::Local => &mut i_other_docs,
         };
 
-        push_inherited_property_docs(docs, target, ident, widget_name);
+        push_inherited_property_docs(docs, target, ident, widget_name, prop_docs);
     }
 
     // validate property captures.
@@ -297,11 +304,16 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         n (#(#new_child_properties),*) (#(#new_properties),*)
     };
 
+    let widget_inherit_tokens = quote! {
+        m #widget_name
+        c { #(#i_built_child,)* #(#built_child_docs #built_child),* }
+        s { #(#i_built_self,)* #(#built_self_docs #built_self),* }
+    };
+
     let r = quote! {
         // widget macro. Is hidden until macro 2.0 comes around.
         // For now this simulates name-spaced macros because we
         // require a use widget_mod for this to work.
-
         #[doc(hidden)]
         #(#attrs)*
         #export
@@ -327,8 +339,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             (inherit $($widget_declaration:tt)*) => {
                 widget! {
                     inherit {
-                        #widget_new_tokens
-                        i { =>{} }
+                        #widget_inherit_tokens
                     }
 
                     $($widget_declaration)*
@@ -407,7 +418,13 @@ fn push_property_docs(
     }
 }
 
-fn push_inherited_property_docs(docs: &mut Vec<Attribute>, target: DefaultBlockTarget, ident: &Ident, source_widget: &Ident) {
+fn push_inherited_property_docs(
+    docs: &mut Vec<Attribute>,
+    target: DefaultBlockTarget,
+    ident: &Ident,
+    source_widget: &Ident,
+    pdocs: Vec<Attribute>,
+) {
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         ident,
@@ -416,11 +433,16 @@ fn push_inherited_property_docs(docs: &mut Vec<Attribute>, target: DefaultBlockT
             DefaultBlockTarget::Child => "child",
         },
     ));
-    docs.push(doc!("\n[<span class='mod' data-inherited>{0}</span>](self::{1})\n", ident, source_widget));
+    docs.push(doc!(
+        "\n[<span class='mod' data-inherited>{0}</span>](self::{1})\n",
+        ident,
+        source_widget
+    ));
     docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
 
     docs.push(doc!("<div class='docblock'>\n"));
-    docs.push(doc!("Inherited from [`{0}`](self::{0}).", source_widget));
+    docs.extend(pdocs);
+    docs.push(doc!("\nInherited from [`{0}`](self::{0}).", source_widget));
     docs.push(doc!("\n</div>"));
 }
 
@@ -558,12 +580,66 @@ struct WidgetInput {
     attrs: Vec<Attribute>,
     export: bool,
     ident: Ident,
-    inherits: Vec<crate::widget_new::WidgetNewInput>,
+    inherits: Vec<InheritBlock>,
     default_child: Vec<DefaultBlock>,
     default_self: Vec<DefaultBlock>,
     whens: Vec<WhenBlock>,
     new_child: Option<NewFn>,
     new: Option<NewFn>,
+}
+
+struct InheritBlock {
+    ident: Ident,
+    default_child: InheritedDefaultBlock,
+    default_self: InheritedDefaultBlock,
+}
+
+impl Parse for InheritBlock {
+    fn parse(input: ParseStream) -> Result<Self> {
+        use crate::widget_new::keyword;
+
+        input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
+        let ident = input.parse().expect(util::NON_USER_ERROR);
+
+        input.parse::<keyword::c>().expect(util::NON_USER_ERROR);
+        let default_child = input.parse().expect(util::NON_USER_ERROR);
+
+        input.parse::<keyword::s>().expect(util::NON_USER_ERROR);
+        let default_self = input.parse().expect(util::NON_USER_ERROR);
+
+        Ok(InheritBlock {
+            ident,
+            default_child,
+            default_self,
+        })
+    }
+}
+
+struct InheritedDefaultBlock {
+    properties: Punctuated<InheritedProperty, Token![,]>,
+}
+impl Parse for InheritedDefaultBlock {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let inner;
+        braced!(inner in input);
+        let properties = Punctuated::parse_terminated(&inner)?;
+        Ok(InheritedDefaultBlock { properties })
+    }
+}
+
+struct InheritedProperty {
+    docs: Vec<Attribute>,
+    kind: BuiltPropertyKind,
+    ident: Ident,
+}
+
+impl Parse for InheritedProperty {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let docs = Attribute::parse_outer(input)?;
+        let kind = input.parse()?;
+        let ident = input.parse()?;
+        Ok(InheritedProperty { docs, kind, ident })
+    }
 }
 
 #[derive(Debug)]
