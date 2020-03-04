@@ -2,7 +2,9 @@
 
 #[macro_use]
 mod container_;
-// depends on container_
+#[macro_use]
+mod focusable_;
+// depends on container_ and focusable_
 #[macro_use]
 mod button_;
 #[macro_use]
@@ -16,6 +18,7 @@ mod view_;
 pub use button_::{button, ButtonBackground, ButtonBackgroundDisabled, ButtonBackgroundHovered, ButtonBackgroundPressed};
 pub use container_::*;
 pub use fill::*;
+pub use focusable_::*;
 pub use text_::*;
 pub use ui_n::*;
 pub use view_::*;

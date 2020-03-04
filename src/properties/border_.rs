@@ -105,6 +105,13 @@ impl BorderSide {
     pub fn visible(&self) -> bool {
         self.color.a > 0.0
     }
+    pub fn new(color: ColorF, style: BorderStyle) -> Self {
+        BorderSide { color, style }
+    }
+
+    pub fn new_solid_color(color: ColorF) -> Self {
+        Self::new(color, BorderStyle::Solid)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -119,6 +126,38 @@ impl BorderDetails {
     pub fn visible(&self) -> bool {
         self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
     }
+
+    pub fn new_solid_color(color: ColorF) -> Self {
+        Self::new_all_same(BorderSide::new_solid_color(color))
+    }
+
+    pub fn new_all_same(side: BorderSide) -> Self {
+        BorderDetails {
+            left: side,
+            right: side,
+            top: side,
+            bottom: side,
+            radius: new_border_radius_all_same_circular(0.0),
+        }
+    }
+}
+impl From<ColorF> for BorderDetails {
+    fn from(color: ColorF) -> Self {
+        BorderDetails::new_solid_color(color)
+    }
+}
+
+pub fn new_border_radius_all_same(corner_radii: LayoutSize) -> BorderRadius {
+    BorderRadius {
+        top_left: corner_radii,
+        top_right: corner_radii,
+        bottom_left: corner_radii,
+        bottom_right: corner_radii,
+    }
+}
+
+pub fn new_border_radius_all_same_circular(corner_radius: f32) -> BorderRadius {
+    new_border_radius_all_same(LayoutSize::new(corner_radius, corner_radius))
 }
 
 trait LayoutSideOffsetsExt {

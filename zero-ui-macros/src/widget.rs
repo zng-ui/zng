@@ -7,24 +7,40 @@ use syn::spanned::Spanned;
 use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` implementation
-#[allow(clippy::cognitive_complexity)]
+
 pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    // arguments can be in two states:
-    let args = parse_macro_input!(input as WidgetArgs);
-    let mut input = match args {
-        // 1 - Is in a recursive expansion that is including the widget_new! info
-        // from the inherited widgets.
-        WidgetArgs::IncludeInherits { inherits_todo, rest } => {
-            let inherits: Vec<_> = inherits_todo.into_iter().map(|i| ident!("__{}", i)).collect();
-            let inherit = &inherits[0]; //TODO: multiple inherits.
-            let r = quote! { #inherit! { inherit #rest } };
-            return r.into();
+    // arguments can be in three states:
+    match parse_macro_input!(input as WidgetArgs) {
+        // 1 - Start recursive include of inherited widgets.
+        WidgetArgs::StartInheriting { inherits, rest } => {
+            // convert all inherits to the inner widget macro name.
+            include_inherited(inherits.into_iter().map(|i| ident!("__{}", i)).collect(), rest)
         }
-        // 2 - Has collected the inherited widget_new! info or does not have any
-        // the rest of this function expands the widget.
-        WidgetArgs::Declare(input) => *input,
+        // 2 - Continue recursive include of inherited widgets.
+        WidgetArgs::ContinueInheriting { inherit_next, rest } => include_inherited(inherit_next.into_iter().collect(), rest),
+        // 3 - Now generate the widget module and macro.
+        WidgetArgs::Declare(input) => declare_widget(*input),
+    }
+}
+
+fn include_inherited(mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro::TokenStream {
+    // take the last
+    let inherit = inherits.pop().unwrap();
+
+    // other inherits still left to do.
+    let inherit_next = if inherits.is_empty() {
+        quote!()
+    } else {
+        quote!(inherit_next(#(#inherits),*))
     };
 
+    // call the inherited widget macro to prepend its inherit block.
+    let r = quote! { #inherit! { inherit { #inherit_next } #rest } };
+    r.into()
+}
+
+#[allow(clippy::cognitive_complexity)]
+fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
     // we get the item level docs
     let (mut docs, attrs) = util::split_doc_other(&mut input.attrs);
     // end insert the header termination html because we will
@@ -151,7 +167,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         fn_prop_dfts.push(quote! {
                             #[inline]
                             pub fn #ident() -> impl ps::#ident::Args {
-                                ps::ident::NamedArgs {
+                                ps::#ident::NamedArgs {
                                     _phantom: std::marker::PhantomData,
                                     #fields
                                 }
@@ -276,19 +292,19 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     // make property documentation sections.
     if !i_required_docs.is_empty() || !required_docs.is_empty() {
         push_docs_section_open(&mut docs, "required-properties", "Required properties");
-        docs.extend(i_required_docs);
         docs.extend(required_docs);
+        docs.extend(i_required_docs);
         push_docs_section_close(&mut docs);
     }
     if !i_default_docs.is_empty() || !default_docs.is_empty() {
         push_docs_section_open(&mut docs, "provided-properties", "Provided properties");
-        docs.extend(i_default_docs);
         docs.extend(default_docs);
+        docs.extend(i_default_docs);
         push_docs_section_close(&mut docs);
     }
     push_docs_section_open(&mut docs, "other-properties", "Other properties");
-    docs.extend(i_other_docs);
     docs.extend(other_docs);
+    docs.extend(i_other_docs);
     push_docs_all_other_props(&mut docs);
     push_docs_section_close(&mut docs);
 
@@ -336,13 +352,15 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             };
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
-            (inherit $($widget_declaration:tt)*) => {
+            (inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
                 widget! {
+                    $($inherit_next)*
+
                     inherit {
                         #widget_inherit_tokens
                     }
 
-                    $($widget_declaration)*
+                    $($rest)*
                 }
             };
         }
@@ -464,17 +482,33 @@ pub mod keyword {
     syn::custom_keyword!(new_child);
     syn::custom_keyword!(new);
     syn::custom_keyword!(inherit);
+    syn::custom_keyword!(inherit_next);
 }
 
 enum WidgetArgs {
-    IncludeInherits {
-        inherits_todo: Punctuated<Ident, Token![+]>,
+    StartInheriting {
+        inherits: Punctuated<Ident, Token![+]>,
+        rest: TokenStream,
+    },
+    ContinueInheriting {
+        inherit_next: Punctuated<Ident, Token![,]>,
         rest: TokenStream,
     },
     Declare(Box<WidgetInput>),
 }
 impl Parse for WidgetArgs {
     fn parse(input: ParseStream) -> Result<Self> {
+        // if already included some inherits, and has more inherits to include,
+        // return ContinueInheriting.
+        if input.peek(keyword::inherit_next) {
+            input.parse::<keyword::inherit_next>().expect(util::NON_USER_ERROR);
+            let inner = util::non_user_parenthesized(input);
+            let inherit_next = Punctuated::parse_separated_nonempty(&inner).expect(util::NON_USER_ERROR);
+            let rest = input.parse().expect(util::NON_USER_ERROR);
+            return Ok(WidgetArgs::ContinueInheriting { inherit_next, rest });
+        }
+
+        // parse already included inherit blocks.
         let mut inherits = vec![];
         while input.peek(keyword::inherit) {
             input.parse::<keyword::inherit>().expect(util::NON_USER_ERROR);
@@ -482,32 +516,43 @@ impl Parse for WidgetArgs {
             inherits.push(inner.parse().expect(util::NON_USER_ERROR));
         }
 
+        // parse widget level attributes.
         let attrs = Attribute::parse_outer(input)?;
 
+        // parse maybe `pub`.
         let export = input.peek(Token![pub]);
         if export {
             input.parse::<Token![pub]>()?;
         }
 
+        // widget name.
         let ident = input.parse()?;
-        let inherits_todo = if input.peek(Token![:]) {
+
+        // parse not started inherits.
+        let include_inherits = if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
             Punctuated::parse_separated_nonempty(input)?
         } else {
             Punctuated::new()
         };
+
+        // end widget header.
         input.parse::<Token![;]>()?;
 
-        if !inherits_todo.is_empty() {
+        // if has not started inherits, return StartInheriting.
+        if !include_inherits.is_empty() {
+            // recreate the rest of tokens without the inherits.
             let rest: TokenStream = input.parse().unwrap();
             let pub_ = if export { quote!(pub) } else { quote!() };
-            return Ok(WidgetArgs::IncludeInherits {
-                inherits_todo,
-                rest: quote! {
-                    #(#attrs)*
-                    #pub_ #ident;
-                    #rest
-                },
+            let rest = quote! {
+                #(#attrs)*
+                #pub_ #ident;
+                #rest
+            };
+
+            return Ok(WidgetArgs::StartInheriting {
+                inherits: include_inherits,
+                rest,
             });
         }
 
