@@ -19,7 +19,7 @@ extern crate self as zero_ui;
 #[macro_use]
 mod macros;
 
-pub use zero_ui_macros::{impl_ui_node, property, widget};
+pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
 
 use proc_macro_hack::proc_macro_hack;
 

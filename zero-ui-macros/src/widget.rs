@@ -8,7 +8,7 @@ use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` implementation
 
-pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand_widget(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // arguments can be in three states:
     match parse_macro_input!(input as WidgetArgs) {
         // 1 - Start recursive include of inherited widgets.
@@ -19,7 +19,7 @@ pub fn expand_widget(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         // 2 - Continue recursive include of inherited widgets.
         WidgetArgs::ContinueInheriting { inherit_next, rest } => include_inherited(inherit_next.into_iter().collect(), rest),
         // 3 - Now generate the widget module and macro.
-        WidgetArgs::Declare(input) => declare_widget(*input),
+        WidgetArgs::Declare(input) => declare_widget(mixin, *input),
     }
 }
 
@@ -40,7 +40,7 @@ fn include_inherited(mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro:
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
+fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStream {
     // we get the item level docs
     let (mut docs, attrs) = util::split_doc_other(&mut input.attrs);
     // end insert the header termination html because we will
@@ -59,6 +59,9 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
     let new_child_properties;
     let new_child;
     if let Some(c) = input.new_child {
+        if mixin {
+            abort!(c.block.span(), "'new_child' cannot be declared in mix-ins");
+        }
         let attrs = c.attrs;
         let child = c.child;
         let output = c.output;
@@ -70,6 +73,9 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
             #block
         };
         new_child_properties = ps;
+    } else if mixin {
+        new_child = quote!();
+        new_child_properties = vec![];
     } else {
         let fn_doc = doc!("Manually initializes a new [`{0}`](self) content.", widget_name);
         new_child = quote!(
@@ -86,6 +92,9 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
     let new_properties;
     let new;
     if let Some(n) = input.new {
+        if mixin {
+            abort!(n.block.span(), "'new' cannot be declared in mix-ins");
+        }
         let attrs = n.attrs;
         let child = n.child;
         let output = n.output;
@@ -98,6 +107,9 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
             #block
         };
         new_properties = ps;
+    } else if mixin {
+        new = quote!();
+        new_properties = vec![];
     } else {
         new_properties = vec![ident!["id"]];
         let fn_doc = doc!("Manually initializes a new [`{0}`](self).", widget_name);
@@ -326,30 +338,50 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
         s { #(#i_built_self,)* #(#built_self_docs #built_self),* }
     };
 
-    let r = quote! {
-        // widget macro. Is hidden until macro 2.0 comes around.
-        // For now this simulates name-spaced macros because we
-        // require a use widget_mod for this to work.
-        #[doc(hidden)]
-        #(#attrs)*
-        #export
-        macro_rules! #widget_name {
-            ($($input:tt)*) => {
-                // call the new variant.
-                #inner_wgt_name!{new $($input)*}
+    let new_rule;
+    let new_macro;
+
+    #[allow(clippy::useless_let_if_seq)] //clippy is giving a false-positive warning
+    {
+        if mixin {
+            new_rule = quote!();
+            new_macro = quote!();
+        } else {
+            new_rule = quote! {
+                (new $($input:tt)*) => {
+                    widget_new! {
+                        #widget_new_tokens
+                        i { $($input)* }
+                    }
+                };
+            };
+            new_macro = quote! {
+                //Is hidden until macro 2.0 comes around.
+                // For now this simulates name-spaced macros because we
+                // require a use widget_mod for this to work.
+                #[doc(hidden)]
+                #(#attrs)*
+                #export
+                macro_rules! #widget_name {
+                    ($($input:tt)*) => {
+                    // call the new variant.
+                    #inner_wgt_name!{new $($input)*}
+                    };
+                }
             };
         }
+    }
+
+    let r = quote! {
+        // if mixin is true then #new_macro, else is a widget macro.
+        #new_macro
 
         #[doc(hidden)]
         #export
         macro_rules! #inner_wgt_name {
-            // new widget instance.
-            (new $($input:tt)*) => {
-                widget_new! {
-                    #widget_new_tokens
-                    i { $($input)* }
-                }
-            };
+            // if mixin is true then #new_rule is nothing, else is a rule that makes a call to widget_new!.
+            #new_rule
+
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
             (inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
@@ -371,6 +403,7 @@ fn declare_widget(mut input: WidgetInput) -> proc_macro::TokenStream {
             #[doc(hidden)]
             pub use super::*;
 
+            //if mixin is true then #new_child and #new are nothing, else #new_child and #new are fns
             #new_child
             #new
 

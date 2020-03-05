@@ -2,7 +2,7 @@ use crate::core::types::{rgb, ColorF};
 #[doc(hidden)]
 pub use crate::properties::{align, background_color, on_click};
 use crate::widget;
-use crate::widgets::{container, focusable_mix};
+use crate::widgets::{container, focusable_mixin};
 
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.
@@ -14,7 +14,7 @@ context_var! {
 
 widget! {
     /// A clickable container.
-    pub button: container + focusable_mix;
+    pub button: container + focusable_mixin;
 
     default(self) {
         /// Button click event.
