@@ -130,6 +130,7 @@ impl AppExtension for FocusManager {
     }
 }
 
+/// Keyboard focus service.
 pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,

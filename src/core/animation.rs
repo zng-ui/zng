@@ -155,7 +155,7 @@ impl Mul<EasingStep> for u64 {
     type Output = Self;
 
     #[inline]
-    fn mul(self, rhs: EasingStep) -> Self {
+    fn mul(self, _rhs: EasingStep) -> Self {
         todo!()
     }
 }
@@ -229,22 +229,22 @@ pub mod easing {
     }
 
     #[inline]
-    pub fn circ(time: EasingTime) -> EasingStep {
+    pub fn circ(_time: EasingTime) -> EasingStep {
         todo!()
     }
 
     #[inline]
-    pub fn back(time: EasingTime) -> EasingStep {
+    pub fn back(_time: EasingTime) -> EasingStep {
         todo!()
     }
 
     #[inline]
-    pub fn elastic(time: EasingTime) -> EasingStep {
+    pub fn elastic(_time: EasingTime) -> EasingStep {
         todo!()
     }
 
     #[inline]
-    pub fn bounce(time: EasingTime) -> EasingStep {
+    pub fn bounce(_time: EasingTime) -> EasingStep {
         todo!()
     }
 }

@@ -403,7 +403,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             #[doc(hidden)]
             pub use super::*;
 
-            //if mixin is true then #new_child and #new are nothing, else #new_child and #new are fns
+            //if mixin is true then #new_child and #new are nothing, else #new_child and #new are functions.
             #new_child
             #new
 
@@ -493,7 +493,7 @@ fn push_inherited_property_docs(
 
     docs.push(doc!("<div class='docblock'>\n"));
     docs.extend(pdocs);
-    docs.push(doc!("\nInherited from [`{0}`](self::{0}).", source_widget));
+    docs.push(doc!("\n*Inherited from [`{0}`](self::{0}).*", source_widget));
     docs.push(doc!("\n</div>"));
 }
 
