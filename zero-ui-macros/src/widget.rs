@@ -8,7 +8,12 @@ use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` implementation
 
-pub fn expand_widget(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand_widget(mixin: bool, mut input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    if !mixin {
+        //TODO wrong recursive here, inherit calling widget!.
+        input = insert_implicit_mixin(input);
+    }
+
     // arguments can be in three states:
     match parse_macro_input!(input as WidgetArgs) {
         // 1 - Start recursive include of inherited widgets.
@@ -21,6 +26,11 @@ pub fn expand_widget(mixin: bool, input: proc_macro::TokenStream) -> proc_macro:
         // 3 - Now generate the widget module and macro.
         WidgetArgs::Declare(input) => declare_widget(mixin, *input),
     }
+}
+
+fn insert_implicit_mixin(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let r = parse_macro_input!(input as InsertImplicitMixin);
+    r.input.into()
 }
 
 fn include_inherited(mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro::TokenStream {
@@ -340,12 +350,14 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
     let new_rule;
     let new_macro;
+    let use_default;
 
     #[allow(clippy::useless_let_if_seq)] //clippy is giving a false-positive warning
     {
         if mixin {
             new_rule = quote!();
             new_macro = quote!();
+            use_default = quote!();
         } else {
             new_rule = quote! {
                 (new $($input:tt)*) => {
@@ -369,6 +381,9 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                     };
                 }
             };
+            use_default = quote!(
+                use zero_ui::widgets::implicit_mixin;
+            );
         }
     }
 
@@ -398,6 +413,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         }
 
         // the widget module, also the public face of the widget in the documentation.
+        #use_default
+
         #(#docs)*
         #pub_ mod #widget_name {
             #[doc(hidden)]
@@ -651,6 +668,43 @@ impl Parse for WidgetArgs {
             new_child,
             new,
         })))
+    }
+}
+
+struct InsertImplicitMixin {
+    input: TokenStream,
+}
+impl Parse for InsertImplicitMixin {
+    fn parse(input: ParseStream) -> Result<Self> {
+        // parse widget level attributes.
+        let attrs = Attribute::parse_outer(input)?;
+
+        let pub_ = if input.peek(Token![pub]) {
+            input.parse::<Token![pub]>()?;
+            quote!(pub)
+        } else {
+            quote!()
+        };
+
+        // widget name.
+        let ident: Ident = input.parse()?;
+
+        // parse not started inherits.
+        let implicit = if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            quote!(: implicit_mixin +)
+        } else {
+            input.parse::<Token![;]>()?;
+            quote!(: implicit_mixin;)
+        };
+        let rest: TokenStream = input.parse()?;
+
+        Ok(InsertImplicitMixin {
+            input: quote! {
+                #(#attrs)*
+                #pub_ #ident #implicit #rest
+            },
+        })
     }
 }
 

@@ -1,6 +1,8 @@
 //! Common widgets.
 
 #[macro_use]
+mod implicit_;
+#[macro_use]
 mod container_;
 #[macro_use]
 mod focusable_;
@@ -19,6 +21,7 @@ pub use button_::{button, ButtonBackground, ButtonBackgroundDisabled, ButtonBack
 pub use container_::*;
 pub use fill::*;
 pub use focusable_::*;
+pub use implicit_::*;
 pub use text_::*;
 pub use ui_n::*;
 pub use view_::*;

@@ -1,8 +1,7 @@
-use crate::prelude::WidgetId;
 use crate::widget;
 
 #[doc(hidden)]
-pub use crate::properties::{align, id, margin, Alignment};
+pub use crate::properties::{align, margin, Alignment};
 
 widget! {
     /// Base single content container.
@@ -13,10 +12,5 @@ widget! {
         padding -> margin;
         /// Content alignment.
         content_align -> align: Alignment::CENTER;
-    }
-
-    default(self) {
-        /// Unique identifier of the widget.
-        id: WidgetId::new_unique();
     }
 }
