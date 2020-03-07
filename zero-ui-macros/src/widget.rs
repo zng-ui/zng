@@ -353,11 +353,15 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         docs.extend(i_default_docs);
         push_docs_section_close(&mut docs);
     }
-    push_docs_section_open(&mut docs, "other-properties", "Other properties");
-    docs.extend(other_docs);
-    docs.extend(i_other_docs);
-    push_docs_all_other_props(&mut docs);
-    push_docs_section_close(&mut docs);
+    if !mixin || !i_other_docs.is_empty() || !other_docs.is_empty() {
+        push_docs_section_open(&mut docs, "other-properties", "Other properties");
+        docs.extend(other_docs);
+        docs.extend(i_other_docs);
+        if !mixin {
+            push_docs_all_other_props(&mut docs);
+        }
+        push_docs_section_close(&mut docs);
+    }
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
     // This macro is needed because we want to have multiple match arms, but

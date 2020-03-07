@@ -12,8 +12,6 @@ widget! {
     pub window: container;
 
     default(self) {
-        id: unset!;
-
         /// Window title.
         title: "";
         /// Window size. If set to a variable it is kept in sync.
@@ -24,6 +22,7 @@ widget! {
         /// Window clear color.
         background_color: rgb(1.0, 1.0, 1.0);
 
+        id: unset!;
         /// Unique identifier of the window root widget.
         root_id -> id: WidgetId::new_unique();
     }
