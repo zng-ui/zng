@@ -8,9 +8,8 @@ use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` implementation
 
-pub fn expand_widget(mixin: bool, mut input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    if !mixin {
-        //TODO wrong recursive here, inherit calling widget!.
+pub fn expand_widget(call_kind: CallKind, mut input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    if call_kind == CallKind::Widget {
         input = insert_implicit_mixin(input);
     }
 
@@ -19,12 +18,38 @@ pub fn expand_widget(mixin: bool, mut input: proc_macro::TokenStream) -> proc_ma
         // 1 - Start recursive include of inherited widgets.
         WidgetArgs::StartInheriting { inherits, rest } => {
             // convert all inherits to the inner widget macro name.
-            include_inherited(inherits.into_iter().map(|i| ident!("__{}", i)).collect(), rest)
+            include_inherited(
+                call_kind.is_mixin(),
+                inherits.into_iter().map(|i| ident!("__{}", i)).collect(),
+                rest,
+            )
         }
         // 2 - Continue recursive include of inherited widgets.
-        WidgetArgs::ContinueInheriting { inherit_next, rest } => include_inherited(inherit_next.into_iter().collect(), rest),
+        WidgetArgs::ContinueInheriting { inherit_next, rest } => {
+            include_inherited(call_kind.is_mixin(), inherit_next.into_iter().collect(), rest)
+        }
         // 3 - Now generate the widget module and macro.
-        WidgetArgs::Declare(input) => declare_widget(mixin, *input),
+        WidgetArgs::Declare(input) => declare_widget(call_kind.is_mixin(), *input),
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum CallKind {
+    /// Widget declaration.
+    Widget,
+    /// Mixin declaration.
+    Mixin,
+    /// Including inherited properties.
+    Inherit,
+    /// Including inherited properties for mix-in.
+    MixinInherit,
+}
+impl CallKind {
+    fn is_mixin(self) -> bool {
+        match self {
+            CallKind::Mixin | CallKind::MixinInherit => true,
+            _ => false,
+        }
     }
 }
 
@@ -33,7 +58,7 @@ fn insert_implicit_mixin(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     r.input.into()
 }
 
-fn include_inherited(mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro::TokenStream {
+fn include_inherited(mixin: bool, mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro::TokenStream {
     // take the last
     let inherit = inherits.pop().unwrap();
 
@@ -45,7 +70,11 @@ fn include_inherited(mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro:
     };
 
     // call the inherited widget macro to prepend its inherit block.
-    let r = quote! { #inherit! { inherit { #inherit_next } #rest } };
+    let r = if mixin {
+        quote! { #inherit! { mixin_inherit { #inherit_next } #rest } }
+    } else {
+        quote! { #inherit! { inherit { #inherit_next } #rest } }
+    };
     r.into()
 }
 
@@ -400,7 +429,18 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
             (inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
-                widget! {
+                zero_ui::widget_inherit! {
+                    $($inherit_next)*
+
+                    inherit {
+                        #widget_inherit_tokens
+                    }
+
+                    $($rest)*
+                }
+            };
+            (mixin_inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
+                zero_ui::widget_mixin_inherit! {
                     $($inherit_next)*
 
                     inherit {

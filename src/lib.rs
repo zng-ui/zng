@@ -19,6 +19,8 @@ extern crate self as zero_ui;
 #[macro_use]
 mod macros;
 
+#[doc(hidden)]
+pub use zero_ui_macros::{widget_inherit, widget_mixin_inherit};
 pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
 
 use proc_macro_hack::proc_macro_hack;
