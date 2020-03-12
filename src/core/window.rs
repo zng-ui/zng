@@ -1,4 +1,4 @@
-use crate::core::app::{AppEvent, AppExtension, ShutdownRequestedArgs};
+use crate::core::app::{AppEvent, AppExtension, AppProcess, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo};
@@ -329,7 +329,7 @@ impl WindowManager {
 
         let service = ctx.services.req::<Windows>();
         if service.shutdown_on_last_close && service.windows.is_empty() {
-            todo!()
+            ctx.services.req::<AppProcess>().shutdown();
         }
     }
 }

@@ -1,8 +1,9 @@
+use crate::core::event::EventEmitter;
+use crate::core::event::EventListener;
 use crate::core::{
-    context::*, focus::FocusManager, font::FontManager, gesture::GestureEvents, keyboard::KeyboardEvents, mouse::MouseEvents, types::*,
-    window::WindowManager,
+    context::*, event::CancelableEventArgs, focus::FocusManager, font::FontManager, gesture::GestureEvents, keyboard::KeyboardEvents,
+    mouse::MouseEvents, types::*, window::WindowManager,
 };
-
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
@@ -174,6 +175,45 @@ pub struct AppExtended<E: AppExtension> {
     extensions: E,
 }
 
+pub struct ShutDownCancelled;
+
+pub struct AppProcess {
+    shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
+    update_notifier: UpdateNotifier,
+}
+impl AppService for AppProcess {}
+impl AppProcess {
+    pub fn new(update_notifier: UpdateNotifier) -> Self {
+        AppProcess {
+            shutdown_requests: Vec::new(),
+            update_notifier,
+        }
+    }
+    pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
+        let emitter = EventEmitter::new(false);
+        self.shutdown_requests.push(emitter.clone());
+        self.update_notifier.push_update();
+        emitter.into_listener()
+    }
+    fn take_requests(&mut self) -> Vec<EventEmitter<ShutDownCancelled>> {
+        mem::replace(&mut self.shutdown_requests, Vec::new())
+    }
+}
+///Returns if should shutdown
+fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut AppContext, ext: &mut impl AppExtension) -> bool {
+    if shutdown_requests.is_empty() {
+        return false;
+    }
+    let args = ShutdownRequestedArgs::now();
+    ext.on_shutdown_requested(&args, ctx);
+    if args.cancel_requested() {
+        for c in shutdown_requests {
+            ctx.updates.push_notify(c, ShutDownCancelled)
+        }
+    }
+    !args.cancel_requested()
+}
+
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
     #[inline]
@@ -207,7 +247,9 @@ impl<E: AppExtension> AppExtended<E> {
 
         let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
-        extensions.init(&mut owned_ctx.borrow_init());
+        let mut init_ctx = owned_ctx.borrow_init();
+        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
+        extensions.init(&mut init_ctx);
 
         let mut in_sequence = false;
         let mut sequence_update = UpdateDisplayRequest::None;
@@ -261,7 +303,13 @@ impl<E: AppExtension> AppExtended<E> {
 
                 if update.update || update.update_hp {
                     profile_scope!("app::update");
-                    extensions.update(update, &mut owned_ctx.borrow(event_loop));
+                    let mut ctx = owned_ctx.borrow(event_loop);
+                    let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
+                    if shutdown(shutdown_requests, &mut ctx, &mut extensions) {
+                        *control_flow = ControlFlow::Exit;
+                        return;
+                    }
+                    extensions.update(update, &mut ctx);
                 } else {
                     break;
                 }

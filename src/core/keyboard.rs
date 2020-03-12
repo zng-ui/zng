@@ -99,65 +99,63 @@ impl AppExtension for KeyboardEvents {
         r.events.register::<KeyUp>(self.key_up.listener());
     }
 
-    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
-        if let DeviceEvent::ModifiersChanged(m) = event {
-            self.modifiers = *m;
-        }
-    }
-
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
-        if let WindowEvent::KeyboardInput {
-            device_id,
-            input:
-                KeyboardInput {
-                    scancode,
-                    state,
-                    virtual_keycode: key,
-                    ..
-                },
-            ..
-        } = *event
-        {
-            let mut repeat = false;
-            if state == ElementState::Pressed {
-                repeat = self.last_key_down == Some(scancode);
-                if !repeat {
-                    self.last_key_down = Some(scancode);
-                }
-            } else {
-                self.last_key_down = None;
-            }
-
-            let focused = ctx.services.get::<Focus>().and_then(|f| f.focused().cloned());
-            let target = if let Some(focused) = focused {
-                focused
-            } else {
-                ctx.services.req::<Windows>().frame_info(window_id).unwrap().root().path()
-            };
-
-            let args = KeyInputArgs {
-                timestamp: Instant::now(),
-                window_id,
+        match *event {
+            WindowEvent::KeyboardInput {
                 device_id,
-                scancode,
-                key,
-                modifiers: self.modifiers,
-                state,
-                repeat,
-                target,
-            };
-
-            ctx.updates.push_notify(self.key_input.clone(), args.clone());
-
-            match state {
-                ElementState::Pressed => {
-                    ctx.updates.push_notify(self.key_down.clone(), args);
-                    todo!()
+                input:
+                    KeyboardInput {
+                        scancode,
+                        state,
+                        virtual_keycode: key,
+                        ..
+                    },
+                ..
+            } => {
+                let mut repeat = false;
+                if state == ElementState::Pressed {
+                    repeat = self.last_key_down == Some(scancode);
+                    if !repeat {
+                        self.last_key_down = Some(scancode);
+                    }
+                } else {
+                    self.last_key_down = None;
                 }
-                ElementState::Released => {
-                    ctx.updates.push_notify(self.key_up.clone(), args);
+
+                let focused = ctx.services.get::<Focus>().and_then(|f| f.focused().cloned());
+                let target = if let Some(focused) = focused {
+                    focused
+                } else {
+                    ctx.services.req::<Windows>().frame_info(window_id).unwrap().root().path()
+                };
+
+                let args = KeyInputArgs {
+                    timestamp: Instant::now(),
+                    window_id,
+                    device_id,
+                    scancode,
+                    key,
+                    modifiers: self.modifiers,
+                    state,
+                    repeat,
+                    target,
+                };
+
+                ctx.updates.push_notify(self.key_input.clone(), args.clone());
+
+                match state {
+                    ElementState::Pressed => {
+                        ctx.updates.push_notify(self.key_down.clone(), args);
+                        todo!()
+                    }
+                    ElementState::Released => {
+                        ctx.updates.push_notify(self.key_up.clone(), args);
+                    }
                 }
             }
+            // Cache modifiers
+            WindowEvent::ModifiersChanged(m) => self.modifiers = m,
+            _ => {}
         }
     }
 }

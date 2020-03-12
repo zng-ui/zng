@@ -385,20 +385,15 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseTripleClick>(self.mouse_triple_click.listener());
     }
 
-    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
-        if let DeviceEvent::ModifiersChanged(m) = event {
-            self.modifiers = *m;
-        }
-    }
-
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match *event {
-            WindowEvent::MouseInput {
-                state, device_id, button, ..
-            } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::CursorMoved { device_id, position, .. } => {
                 self.on_cursor_moved(window_id, device_id, LayoutPoint::new(position.x as f32, position.y as f32), ctx)
             }
+            WindowEvent::MouseInput {
+                state, device_id, button, ..
+            } => self.on_mouse_input(window_id, device_id, state, button, ctx),
+            WindowEvent::ModifiersChanged(m) => self.modifiers = m,
             _ => {}
         }
     }
