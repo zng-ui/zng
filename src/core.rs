@@ -1,4 +1,4 @@
-//! Core infrastruture required for runing a zero-ui app.
+//! Core infrastructure required for running a zero-ui app.
 
 pub mod animation;
 pub mod app;
@@ -37,8 +37,8 @@ pub trait UiNode: 'static {
     /// Called every time a high pressure event update happens.
     ///
     /// # Event Pressure
-    /// Some events occur alot more times then others, for performance reasons this
-    /// event source may choose to be propagated in the this hight pressure lane.
+    /// Some events occur a lot more times then others, for performance reasons this
+    /// event source may choose to be propagated in this high-pressure lane.
     ///
     /// Event sources that are high pressure mention this in their documentation.
     fn update_hp(&mut self, ctx: &mut WidgetContext);

@@ -60,10 +60,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 /// This property applies a [`fill_color`](fill_color) as [`background`](background).
 #[property(inner)]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
-    Background {
-        child,
-        background: fill_color(color),
-    }
+    background::set(child, fill_color(color))
 }
 
 /// Linear gradient background property.
@@ -76,8 +73,5 @@ pub fn background_gradient(
     end: impl IntoVar<LayoutPoint>,
     stops: impl IntoVar<Vec<GradientStop>>,
 ) -> impl UiNode {
-    Background {
-        child,
-        background: fill_gradient(start, end, stops),
-    }
+    background::set(child, fill_gradient(start, end, stops))
 }

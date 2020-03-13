@@ -6,7 +6,7 @@ use crate::widgets::{container, focusable_mixin};
 
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.
-    pub struct ButtonBackground: ColorF = rgb(0, 0, 0);
+    pub struct ButtonBackground: ColorF = rgb(0.9, 0.9, 0.9);
     pub struct ButtonBackgroundHovered: ColorF = rgb(0, 0, 0);
     pub struct ButtonBackgroundPressed: ColorF = rgb(0, 0, 0);
     pub struct ButtonBackgroundDisabled: ColorF = rgb(0, 0, 0);

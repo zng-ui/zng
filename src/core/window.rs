@@ -348,15 +348,18 @@ impl AppExtension for WindowManager {
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match event {
-            WindowEvent::Resized(new_size) => {
-                let new_size = LayoutSize::new(new_size.width as f32, new_size.height as f32);
-
-                // raise window_resize
-                ctx.updates
-                    .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
-
-                // set the window size variable if it is not read-only.
+            WindowEvent::Resized(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    let new_size = layout_size(&window.gl_ctx);
+
+                    ctx.updates.push_layout();
+                    window.expect_layout_update();
+
+                    // raise window_resize
+                    ctx.updates
+                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
+
+                    // set the window size variable if it is not read-only.
                     let _ = ctx.updates.push_set(&window.ctx().root.size, new_size);
                 }
             }
@@ -372,19 +375,15 @@ impl AppExtension for WindowManager {
                     ctx.updates.push_update();
                 }
             }
-            WindowEvent::ScaleFactorChanged {
-                scale_factor,
-                new_inner_size,
-            } => {
-                if ctx.services.req::<Windows>().windows.contains_key(&window_id) {
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    ctx.updates.push_layout();
+                    window.expect_layout_update();
+
                     ctx.updates.push_notify(
                         self.window_scale_changed.clone(),
-                        WindowScaleChangedArgs::now(
-                            window_id,
-                            *scale_factor as f32,
-                            LayoutSize::new(new_inner_size.width as f32, new_inner_size.height as f32),
-                        ),
-                    )
+                        WindowScaleChangedArgs::now(window_id, *scale_factor as f32, layout_size(&window.gl_ctx)),
+                    );
                 }
             }
             _ => {}
@@ -612,6 +611,15 @@ impl RenderNotifier for Notifier {
     }
 }
 
+/// Descaled inner_size
+fn layout_size(gl_ctx: &Option<WindowedContext<NotCurrent>>) -> LayoutSize {
+    let window = gl_ctx.as_ref().unwrap().window();
+    let available_size = window.inner_size();
+    let scale = window.scale_factor();
+    let scale = move |u: u32| ((u as f64) / scale) as f32;
+    LayoutSize::new(scale(available_size.width), scale(available_size.height))
+}
+
 struct GlWindow {
     gl_ctx: Option<WindowedContext<NotCurrent>>,
     ctx: Option<OwnedWindowContext>,
@@ -746,6 +754,13 @@ impl GlWindow {
         }
     }
 
+    /// Manually flags [layout] to actually update on the next call.
+    ///
+    /// This is required for updates generated outside of this window but that affect this window.
+    pub fn expect_layout_update(&mut self) {
+        self.ctx.as_mut().unwrap().update |= UpdateDisplayRequest::Layout;
+    }
+
     /// Re-flow layout if a layout pass was required. If yes will
     /// flag a [render] required.
     pub fn layout(&mut self) {
@@ -756,8 +771,7 @@ impl GlWindow {
 
             ctx.update = UpdateDisplayRequest::Render;
 
-            let available_size = self.gl_ctx.as_ref().unwrap().window().inner_size();
-            let available_size = LayoutSize::new(available_size.width as f32, available_size.height as f32);
+            let available_size = layout_size(&self.gl_ctx);
 
             let desired_size = ctx.root.child.measure(available_size);
 
@@ -776,9 +790,6 @@ impl GlWindow {
 
             ctx.update = UpdateDisplayRequest::None;
 
-            let size = self.gl_ctx.as_ref().unwrap().window().inner_size();
-            let size = LayoutSize::new(size.width as f32, size.height as f32);
-
             let frame_id = Epoch({
                 let mut next = self.frame_info.frame_id().0.wrapping_add(1);
                 if next == FrameId::invalid().0 {
@@ -786,6 +797,8 @@ impl GlWindow {
                 }
                 next
             });
+
+            let size = layout_size(&self.gl_ctx);
 
             let mut frame = FrameBuilder::new(frame_id, ctx.id(), self.pipeline_id, ctx.root.id, size);
 
@@ -830,11 +843,7 @@ impl GlWindow {
         renderer.update();
 
         let size = context.window().inner_size();
-        let size = LayoutSize::new(size.width as f32, size.height as f32);
-        let dpi_factor = context.window().scale_factor() as f32;
-
-        let device_size = size * units::LayoutToDeviceScale::new(dpi_factor);
-        let device_size = units::DeviceIntSize::new(device_size.width as i32, device_size.height as i32);
+        let device_size = units::DeviceIntSize::new(size.width as i32, size.height as i32);
 
         renderer.render(device_size).unwrap();
         let _ = renderer.flush_pipeline_info();
