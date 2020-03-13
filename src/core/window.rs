@@ -656,6 +656,7 @@ impl GlWindow {
 
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to flickering
+            .with_title(root.title.get(ctx.vars).to_owned())
             .with_inner_size(LogicalSize::<f64>::new(inner_size.width.into(), inner_size.height.into()));
 
         let context = ContextBuilder::new()
@@ -954,7 +955,7 @@ impl OwnedWindowContext {
         win_profile_scope!(self, "update");
 
         // do UiNode updates
-        let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
+        let update = self.root_context(ctx, |root, ctx| root.update(ctx));
         self.update |= update;
     }
 
