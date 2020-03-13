@@ -254,17 +254,17 @@ impl UiRoot {
 
     #[inline]
     pub fn take_new_window_requests(&mut self) -> Vec<NewWindow> {
-        std::mem::replace(&mut self.next_update.windows, vec![])
+        std::mem::take(&mut self.next_update.windows)
     }
 
     #[inline]
     pub fn take_var_changes(&mut self) -> Vec<Box<dyn ValueMutCommit>> {
-        std::mem::replace(&mut self.next_update.var_changes, vec![])
+        std::mem::take(&mut self.next_update.var_changes)
     }
 
     #[inline]
     pub fn take_switch_changes(&mut self) -> Vec<Box<dyn SwitchCommit>> {
-        std::mem::replace(&mut self.next_update.switch_changes, vec![])
+        std::mem::take(&mut self.next_update.switch_changes)
     }
 
     #[inline]

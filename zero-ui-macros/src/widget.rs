@@ -319,7 +319,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             BuiltPropertyKind::Default => built.push(quote!(d #ident)),
             BuiltPropertyKind::Local => built.push(quote!(l #ident)),
         }
-        let prop_docs = std::mem::replace(&mut prop.docs, Vec::default());
+        let prop_docs = std::mem::take(&mut prop.docs);
         built_docs.push(quote! {#(#prop_docs)*});
 
         //3

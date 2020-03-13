@@ -434,7 +434,7 @@ impl AppExtension for WindowManager {
     }
 
     fn deinit(&mut self, ctx: &mut AppContext) {
-        let windows = std::mem::replace(&mut ctx.services.req::<Windows>().windows, Default::default());
+        let windows = std::mem::take(&mut ctx.services.req::<Windows>().windows);
         for (id, mut window) in windows {
             let w_ctx = window.detach_context();
             error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get_local());
@@ -502,10 +502,7 @@ impl Windows {
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashMap<WindowId, CloseTogetherGroup>) {
-        (
-            std::mem::replace(&mut self.open_requests, Vec::default()),
-            std::mem::replace(&mut self.close_requests, FnvHashMap::default()),
-        )
+        (std::mem::take(&mut self.open_requests), std::mem::take(&mut self.close_requests))
     }
 
     /// Requests a new window. Returns a listener that will update once when the window is opened.

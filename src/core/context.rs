@@ -655,10 +655,7 @@ impl OwnedUpdates {
             update(assert_vars_not_borrowed, assert_events_not_borrowed, &mut self.updates.cleanup);
         }
 
-        (
-            mem::replace(&mut self.updates.update, UpdateRequest::default()),
-            mem::replace(&mut self.updates.display_update, UpdateDisplayRequest::None),
-        )
+        (mem::take(&mut self.updates.update), mem::take(&mut self.updates.display_update))
     }
 }
 
@@ -925,7 +922,7 @@ impl<'a> AppContext<'a> {
             updates: self.updates,
         });
 
-        mem::replace(&mut self.updates.win_display_update, UpdateDisplayRequest::None)
+        mem::take(&mut self.updates.win_display_update)
     }
 }
 

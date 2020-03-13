@@ -121,7 +121,7 @@ impl FrameBuilder {
 
         let parent_id = mem::replace(&mut self.widget_id, id);
 
-        let parent_meta = mem::replace(&mut self.meta, LazyStateMap::default());
+        let parent_meta = mem::take(&mut self.meta);
 
         let mut bounds = LayoutRect::from_size(area);
         bounds.origin = self.offset;
@@ -428,7 +428,7 @@ impl FrameInfoBuilder {
     /// Takes the widget metadata already set for `id`.
     #[inline]
     pub fn take_meta(&mut self, id: WidgetInfoId) -> LazyStateMap {
-        mem::replace(&mut self.node(id).value().meta, LazyStateMap::default())
+        mem::take(&mut self.node(id).value().meta)
     }
 
     /// Sets the widget metadata for `id`.

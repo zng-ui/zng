@@ -177,6 +177,7 @@ pub struct AppExtended<E: AppExtension> {
 
 pub struct ShutDownCancelled;
 
+/// Service for managing the application process.
 pub struct AppProcess {
     shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
     update_notifier: UpdateNotifier,
@@ -189,14 +190,20 @@ impl AppProcess {
             update_notifier,
         }
     }
+
+    /// Register a request for process shutdown in the next update.
+    ///
+    /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`](ShutDownCancelled)
+    /// if the shutdown operation is cancelled.
     pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
         let emitter = EventEmitter::new(false);
         self.shutdown_requests.push(emitter.clone());
         self.update_notifier.push_update();
         emitter.into_listener()
     }
+
     fn take_requests(&mut self) -> Vec<EventEmitter<ShutDownCancelled>> {
-        mem::replace(&mut self.shutdown_requests, Vec::new())
+        mem::take(&mut self.shutdown_requests)
     }
 }
 ///Returns if should shutdown
@@ -298,7 +305,7 @@ impl<E: AppExtension> AppExtended<E> {
             let mut limit = 100_000;
             loop {
                 let (mut update, display) = owned_ctx.apply_updates();
-                update |= mem::replace(&mut event_update, UpdateRequest::default());
+                update |= mem::take(&mut event_update);
                 sequence_update |= display;
 
                 if update.update || update.update_hp {
