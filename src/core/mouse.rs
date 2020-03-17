@@ -274,10 +274,7 @@ impl MouseEvents {
                 self.click_count = self.click_count.saturating_add(1);
                 let now = Instant::now();
 
-                if self.click_count == 1 {
-                    // first mouse press, could be a click if a Released happen on the same target.
-                    self.click_target = Some(target);
-                } else if self.click_count >= 2
+                if self.click_count >= 2
                     && (now - self.last_pressed) < multi_click_time_ms()
                     && self.click_target.as_ref().unwrap() == &target
                 {
@@ -307,8 +304,9 @@ impl MouseEvents {
 
                     ctx.updates.push_notify(self.mouse_click.clone(), args);
                 } else {
-                    self.click_count = 0;
-                    self.click_target = None;
+                    // initial mouse press, could be a click if a Released happen on the same target.
+                    self.click_count = 1;
+                    self.click_target = Some(target);
                 }
                 self.last_pressed = now;
             }
