@@ -9,6 +9,8 @@ use crate::core::window::Windows;
 use std::num::NonZeroU8;
 use std::time::*;
 
+type WPos = glutin::dpi::PhysicalPosition<f64>;
+
 event_args! {
     /// [MouseMove] event args.
     pub struct MouseMoveArgs {
@@ -183,10 +185,12 @@ impl Event for MouseTripleClick {
 /// * [MouseDoubleClick]
 /// * [MouseTripleClick]
 pub struct MouseEvents {
-    /// last cursor move position.
+    /// last cursor move position (scaled).
     pos: LayoutPoint,
     /// last cursor move window.
     pos_window: Option<WindowId>,
+    /// dpi scale of [pos_window].
+    pos_dpi: f32,
 
     /// last modifiers.
     modifiers: ModifiersState,
@@ -213,6 +217,7 @@ impl Default for MouseEvents {
         MouseEvents {
             pos: LayoutPoint::default(),
             pos_window: None,
+            pos_dpi: 1.0,
 
             modifiers: ModifiersState::default(),
 
@@ -348,18 +353,36 @@ impl MouseEvents {
         }
     }
 
-    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: LayoutPoint, ctx: &mut AppContext) {
-        if position != self.pos || Some(window_id) != self.pos_window {
-            self.pos = position;
+    fn on_cursor_moved(&mut self, window_id: WindowId, device_id: DeviceId, position: WPos, ctx: &mut AppContext) {
+        let mut moved = Some(window_id) != self.pos_window;
+
+        if moved {
+            // if is over another window now.
+
             self.pos_window = Some(window_id);
+
             let windows = ctx.services.req::<Windows>();
-            let hits = windows.hit_test(window_id, position).unwrap();
+            self.pos_dpi = windows.dpi_scale(window_id).unwrap();
+        }
+
+        let pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
+
+        moved |= pos != self.pos;
+
+        if moved {
+            // if moved to another window or within the same window.
+
+            self.pos = pos;
+
+            let windows = ctx.services.req::<Windows>();
+
+            let hits = windows.hit_test(window_id, pos).unwrap();
             let frame_info = windows.frame_info(window_id).unwrap();
 
             let (target, position) = if let Some(t) = hits.target() {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
             } else {
-                (frame_info.root().path(), position)
+                (frame_info.root().path(), pos)
             };
 
             let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
@@ -385,9 +408,7 @@ impl AppExtension for MouseEvents {
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match *event {
-            WindowEvent::CursorMoved { device_id, position, .. } => {
-                self.on_cursor_moved(window_id, device_id, LayoutPoint::new(position.x as f32, position.y as f32), ctx)
-            }
+            WindowEvent::CursorMoved { device_id, position, .. } => self.on_cursor_moved(window_id, device_id, position, ctx),
             WindowEvent::MouseInput {
                 state, device_id, button, ..
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),

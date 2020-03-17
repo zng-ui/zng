@@ -587,6 +587,12 @@ impl Windows {
         self.req_window(window_id).map(|w| w.hit_test(point))
     }
 
+    /// Get the current DPI scale of the given window.
+    #[inline]
+    pub fn dpi_scale(&self, window_id: WindowId) -> Result<f32, WindowNotFound> {
+        self.req_window(window_id).map(|w| w.dpi_scale())
+    }
+
     /// Reference the window latest frame.
     #[inline]
     pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
@@ -904,6 +910,10 @@ impl GlWindow {
     /// Latest frame info.
     pub fn frame_info(&self) -> &FrameInfo {
         &self.frame_info
+    }
+
+    pub fn dpi_scale(&self) -> f32 {
+        self.gl_ctx.as_ref().unwrap().window().scale_factor() as f32
     }
 }
 
