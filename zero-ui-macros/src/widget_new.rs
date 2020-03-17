@@ -162,18 +162,18 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         let node = #child;
 
         // apply child properties
-        #(#set_child_props_ctx)*
-        #(#set_child_props_event)*
-        #(#set_child_props_outer)*
         #(#set_child_props_inner)*
+        #(#set_child_props_outer)*
+        #(#set_child_props_event)*
+        #(#set_child_props_ctx)*
 
         let node = #widget_name::new_child(node, #(#new_child_args),*);
 
         // apply self properties
-        #(#set_self_props_ctx)*
-        #(#set_self_props_event)*
-        #(#set_self_props_outer)*
         #(#set_self_props_inner)*
+        #(#set_self_props_outer)*
+        #(#set_self_props_event)*
+        #(#set_self_props_ctx)*
 
         #widget_name::new(node, #(#new_args),*)
     }};

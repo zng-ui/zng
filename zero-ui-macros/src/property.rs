@@ -201,29 +201,29 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     };
     let mut sets = vec![];
     match priority {
-        Priority::Outer => {
-            sets.push(set_not_yet("set_context"));
-            sets.push(set_not_yet("set_event"));
-            sets.push(set_now("set_outer"));
-            sets.push(set_already_done("set_inner"));
-        }
         Priority::Inner => {
-            sets.push(set_not_yet("set_context"));
-            sets.push(set_not_yet("set_event"));
-            sets.push(set_not_yet("set_outer"));
             sets.push(set_now("set_inner"));
+            sets.push(set_already_done("set_outer"));
+            sets.push(set_already_done("set_event"));
+            sets.push(set_already_done("set_context"));
+        }
+        Priority::Outer => {
+            sets.push(set_not_yet("set_inner"));
+            sets.push(set_now("set_outer"));
+            sets.push(set_already_done("set_event"));
+            sets.push(set_already_done("set_context"));
         }
         Priority::Event => {
-            sets.push(set_not_yet("set_context"));
+            sets.push(set_not_yet("set_inner"));
+            sets.push(set_not_yet("set_outer"));
             sets.push(set_now("set_event"));
-            sets.push(set_already_done("set_outer"));
-            sets.push(set_already_done("set_inner"));
+            sets.push(set_already_done("set_context"));
         }
-        Priority::Context => {
+        Priority::Context => {            
+            sets.push(set_not_yet("set_inner"));
+            sets.push(set_not_yet("set_outer"));
+            sets.push(set_not_yet("set_event"));
             sets.push(set_now("set_context"));
-            sets.push(set_already_done("set_event"));
-            sets.push(set_already_done("set_outer"));
-            sets.push(set_already_done("set_inner"));
         }
     }
 

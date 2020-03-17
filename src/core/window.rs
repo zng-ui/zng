@@ -803,9 +803,6 @@ impl GlWindow {
 
             let mut frame = FrameBuilder::new(frame_id, ctx.id(), self.pipeline_id, ctx.root.id, size);
 
-            //let clear = frame.common_item_properties(LayoutRect::from_size(size));
-            //frame.display_list().push_clear_rect(&clear);
-
             ctx.root.child.render(&mut frame);
 
             let (display_list_data, frame_info) = frame.finalize();
