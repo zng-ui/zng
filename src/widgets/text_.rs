@@ -56,7 +56,7 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         profile_scope!("text::update");
 
-        if FontFamily.is_new(ctx.vars) || FontSize.is_new(ctx.vars) {
+        if self.text.is_new(ctx.vars) || FontFamily.is_new(ctx.vars) || FontSize.is_new(ctx.vars) {
             self.init(ctx);
             ctx.updates.push_layout();
         }
