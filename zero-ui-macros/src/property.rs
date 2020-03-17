@@ -219,7 +219,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             sets.push(set_now("set_event"));
             sets.push(set_already_done("set_context"));
         }
-        Priority::Context => {            
+        Priority::Context => {
             sets.push(set_not_yet("set_inner"));
             sets.push(set_not_yet("set_outer"));
             sets.push(set_not_yet("set_event"));

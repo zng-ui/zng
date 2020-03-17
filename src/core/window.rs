@@ -350,17 +350,17 @@ impl AppExtension for WindowManager {
         match event {
             WindowEvent::Resized(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-                    let new_size = layout_size(&window.gl_ctx);
+                    if let Some(new_size) = window.new_size() {
+                        ctx.updates.push_layout();
+                        window.expect_layout_update();
 
-                    ctx.updates.push_layout();
-                    window.expect_layout_update();
+                        // raise window_resize
+                        ctx.updates
+                            .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
 
-                    // raise window_resize
-                    ctx.updates
-                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
-
-                    // set the window size variable if it is not read-only.
-                    let _ = ctx.updates.push_set(&window.ctx().root.size, new_size);
+                        // set the window size variable if it is not read-only.
+                        let _ = ctx.updates.push_set(&window.ctx().root.size, new_size);
+                    }
                 }
             }
             WindowEvent::Moved(new_position) => {
@@ -631,6 +631,8 @@ struct GlWindow {
 
     first_draw: bool,
     frame_info: FrameInfo,
+
+    size: LayoutSize,
 }
 
 macro_rules! win_profile_scope {
@@ -717,6 +719,8 @@ impl GlWindow {
             }),
 
             first_draw: true,
+
+            size: inner_size,
         }
     }
 
@@ -760,6 +764,16 @@ impl GlWindow {
     /// This is required for updates generated outside of this window but that affect this window.
     pub fn expect_layout_update(&mut self) {
         self.ctx.as_mut().unwrap().update |= UpdateDisplayRequest::Layout;
+    }
+
+    pub fn new_size(&mut self) -> Option<LayoutSize> {
+        let size = layout_size(&self.gl_ctx);
+        if size != self.size {
+            self.size = size;
+            Some(size)
+        } else {
+            None
+        }
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
