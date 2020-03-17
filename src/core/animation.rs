@@ -161,16 +161,20 @@ impl Mul<EasingStep> for u64 {
 }
 
 /// Common easing functions.
+///
+/// See also: [`EasingFn`](EasingFn).
 pub mod easing {
     use super::{EasingStep, EasingTime};
     use std::f32::consts::*;
 
     /// Applies the `ease_fn`.
+    #[inline]
     pub fn ease_in(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
         ease_fn(time)
     }
 
     /// Applies the `ease_fn` in reverse and flipped.
+    #[inline]
     pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
         ease_fn(time.reverse()).flip()
     }
@@ -229,22 +233,71 @@ pub mod easing {
     }
 
     #[inline]
-    pub fn circ(_time: EasingTime) -> EasingStep {
-        todo!()
+    pub fn circ(time: EasingTime) -> EasingStep {
+        EasingStep(1.0 - (1.0 - time.get()).sqrt())
     }
 
     #[inline]
-    pub fn back(_time: EasingTime) -> EasingStep {
-        todo!()
+    pub fn back(time: EasingTime) -> EasingStep {
+        let t = time.get();
+        EasingStep(t * t * (2.70158 * t - 1.70158))
     }
 
     #[inline]
-    pub fn elastic(_time: EasingTime) -> EasingStep {
-        todo!()
+    pub fn elastic(time: EasingTime) -> EasingStep {
+        let t = time.get();
+        let t2 = t * t;
+        EasingStep(t2 * t2 * (t * PI * 4.5).sin())
     }
 
     #[inline]
-    pub fn bounce(_time: EasingTime) -> EasingStep {
-        todo!()
+    pub fn bounce(time: EasingTime) -> EasingStep {
+        let t = time.get();
+        EasingStep((6.0 * (t - 1.0)).powf(2.0) * (t * PI * 3.5).sin().abs())
+    }
+}
+
+/// Common easing functions as an enum.
+#[derive(Debug, Clone, Copy)]
+pub enum EasingFn {
+    Linear,
+    Sine,
+    Quad,
+    Cubic,
+    Quart,
+    Quint,
+    Expo,
+    Circ,
+    Back,
+    Elastic,
+    Bounce,
+}
+
+impl EasingFn {
+    #[inline]
+    pub fn ease_in(self, time: EasingTime) -> EasingStep {
+        match self {
+            EasingFn::Linear => easing::linear(time),
+            EasingFn::Sine => easing::sine(time),
+            EasingFn::Quad => easing::quad(time),
+            EasingFn::Cubic => easing::cubic(time),
+            EasingFn::Quart => easing::quad(time),
+            EasingFn::Quint => easing::quint(time),
+            EasingFn::Expo => easing::expo(time),
+            EasingFn::Circ => easing::circ(time),
+            EasingFn::Back => easing::back(time),
+            EasingFn::Elastic => easing::elastic(time),
+            EasingFn::Bounce => easing::bounce(time),
+        }
+    }
+
+    #[inline]
+    pub fn ease_out(self, time: EasingTime) -> EasingStep {
+        easing::ease_out(|t| self.ease_in(t), time)
+    }
+
+    #[inline]
+    pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
+        easing::ease_in_out(|t| self.ease_in(t), time)
     }
 }
