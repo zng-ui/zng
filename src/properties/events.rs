@@ -192,6 +192,16 @@ pub fn on_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEven
 }
 
 #[property(event)]
+pub fn on_mouse_enter(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseHoverArgs>) + 'static) -> impl UiNode {
+    on_event(child, MouseEnter, handler)
+}
+
+#[property(event)]
+pub fn on_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseHoverArgs>) + 'static) -> impl UiNode {
+    on_event(child, MouseLeave, handler)
+}
+
+#[property(event)]
 pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, Click, handler)
 }

@@ -6,6 +6,7 @@ use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::Windows;
+use std::collections::HashSet;
 use std::num::NonZeroU8;
 use std::time::*;
 
@@ -119,6 +120,28 @@ event_args! {
             self.hits.contains(ctx.widget_id)
         }
     }
+
+    /// [MouseEnter] and [MouseLeave] event args.
+    pub struct MouseHoverArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+
+        /// Id of device that generated the event.
+        pub device_id: DeviceId,
+
+        /// Position of the mouse in the coordinates of [target](MouseClickArgs::target).
+        pub position: LayoutPoint,
+
+        /// Widgets affected by this event.
+        pub targets: HashSet<WidgetId>,
+
+        ..
+
+        /// If the widget is in [targets](MouseHoverArgs::target).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            self.targets.contains(&ctx.widget_id)
+        }
+    }
 }
 
 /// Mouse move event.
@@ -170,6 +193,18 @@ impl Event for MouseTripleClick {
     type Args = MouseClickArgs;
 }
 
+/// Mouse enters a widget area event.
+pub struct MouseEnter;
+impl Event for MouseEnter {
+    type Args = MouseHoverArgs;
+}
+
+/// Mouse leaves a widget are event.
+pub struct MouseLeave;
+impl Event for MouseLeave {
+    type Args = MouseHoverArgs;
+}
+
 /// Application extension that provides mouse events.
 ///
 /// # Events
@@ -184,6 +219,8 @@ impl Event for MouseTripleClick {
 /// * [MouseSingleClick]
 /// * [MouseDoubleClick]
 /// * [MouseTripleClick]
+/// * [MouseEnter]
+/// * [MouseLeave]
 pub struct MouseEvents {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
@@ -200,6 +237,8 @@ pub struct MouseEvents {
     click_target: Option<WidgetPath>,
     click_count: u8,
 
+    hovered_targets: HashSet<WidgetId>,
+
     mouse_move: EventEmitter<MouseMoveArgs>,
 
     mouse_input: EventEmitter<MouseInputArgs>,
@@ -210,6 +249,9 @@ pub struct MouseEvents {
     mouse_single_click: EventEmitter<MouseClickArgs>,
     mouse_double_click: EventEmitter<MouseClickArgs>,
     mouse_triple_click: EventEmitter<MouseClickArgs>,
+
+    mouse_enter: EventEmitter<MouseHoverArgs>,
+    mouse_leave: EventEmitter<MouseHoverArgs>,
 }
 
 impl Default for MouseEvents {
@@ -225,6 +267,8 @@ impl Default for MouseEvents {
             click_target: None,
             click_count: 0,
 
+            hovered_targets: HashSet::new(),
+
             mouse_move: EventEmitter::new(true),
 
             mouse_input: EventEmitter::new(false),
@@ -235,6 +279,9 @@ impl Default for MouseEvents {
             mouse_single_click: EventEmitter::new(false),
             mouse_double_click: EventEmitter::new(false),
             mouse_triple_click: EventEmitter::new(false),
+
+            mouse_enter: EventEmitter::new(false),
+            mouse_leave: EventEmitter::new(false),
         }
     }
 }
@@ -385,8 +432,23 @@ impl MouseEvents {
                 (frame_info.root().path(), pos)
             };
 
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
+            let hits_set: HashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
+            let entered_set: HashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
+            let leaved_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
 
+            self.hovered_targets = hits_set;
+
+            if !leaved_set.is_empty() {
+                let args = MouseHoverArgs::now(window_id, device_id, position, leaved_set);
+                ctx.updates.push_notify(self.mouse_leave.clone(), args);
+            }
+
+            if !entered_set.is_empty() {
+                let args = MouseHoverArgs::now(window_id, device_id, position, entered_set);
+                ctx.updates.push_notify(self.mouse_enter.clone(), args);
+            }
+
+            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
             ctx.updates.push_notify(self.mouse_move.clone(), args);
         }
     }

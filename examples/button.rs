@@ -12,17 +12,19 @@ fn main() {
 
     App::default().run(|ctx| {
         ctx.services.req::<Windows>().open(|_| {
-            let title = var("Button Example");
+            let size = var((800., 600.));
+            let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
             window! {
                 background_color: rgb(0.1, 0.1, 0.1);
-                title: title.clone();
-                => example(title)
+                size: size;
+                title: title;
+                => example()
             }
         });
     })
 }
 
-fn example(title: impl Var<Text>) -> impl UiNode {
+fn example() -> impl UiNode {
     let t = var("Click Me!");
     let t_color = var(rgb(0, 100, 200));
     let content_align = var(Alignment::BOTTOM_RIGHT);
@@ -31,7 +33,6 @@ fn example(title: impl Var<Text>) -> impl UiNode {
     button! {
         on_click: enclose!{ (t, t_color, content_align, size) move |a| {
             let u = &mut a.ctx().updates;
-            u.push_set(&title, "Clicked!".to_text()).ok();
             u.push_set(&t, "Clicked!".to_text()).ok();
             u.push_set(&t_color, rgb(100, 50, 200)).ok();
             u.push_set(&content_align, Alignment::BOTTOM_LEFT).ok();
@@ -39,7 +40,7 @@ fn example(title: impl Var<Text>) -> impl UiNode {
         }};
         content_align: content_align;
         size: size;
-        align: Alignment::BOTTOM_RIGHT;
+        align: Alignment::CENTER;
         font_size: 28;
         text_color: t_color;
         margin: 10.0;
