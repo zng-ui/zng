@@ -639,6 +639,10 @@ struct GlWindow {
     frame_info: FrameInfo,
 
     size: LayoutSize,
+    /// document area visible in this window.
+    doc_view: units::DeviceIntRect,
+    /// if [doc_view] changed and no render was called yet.
+    doc_view_changed: bool,
 }
 
 macro_rules! win_profile_scope {
@@ -727,6 +731,8 @@ impl GlWindow {
             first_draw: true,
 
             size: inner_size,
+            doc_view: units::DeviceIntRect::from_size(start_size),
+            doc_view_changed: false,
         }
     }
 
@@ -772,10 +778,18 @@ impl GlWindow {
         self.ctx.as_mut().unwrap().update |= UpdateDisplayRequest::Layout;
     }
 
-    pub fn new_size(&mut self) -> Option<LayoutSize> {
-        let size = layout_size(&self.gl_ctx);
+    fn new_size(&mut self) -> Option<LayoutSize> {
+        let window = self.gl_ctx.as_ref().unwrap().window();
+        let inner_size = window.inner_size();
+        let scale = window.scale_factor();
+        let scale = move |u: u32| ((u as f64) / scale) as f32;
+        let size = LayoutSize::new(scale(inner_size.width), scale(inner_size.height));
+
         if size != self.size {
             self.size = size;
+            let device_size = units::DeviceIntSize::new(inner_size.width as i32, inner_size.height as i32);
+            self.doc_view = units::DeviceIntRect::from_size(device_size);
+            self.doc_view_changed = true;
             Some(size)
         } else {
             None
@@ -832,6 +846,12 @@ impl GlWindow {
             let mut txn = Transaction::new();
             txn.set_display_list(frame_id, None, size, display_list_data, true);
             txn.set_root_pipeline(self.pipeline_id);
+
+            if self.doc_view_changed {
+                self.doc_view_changed = false;
+                txn.set_document_view(self.doc_view, self.dpi_scale());
+            }
+
             txn.generate_frame();
             self.api.send_transaction(self.document_id, txn);
         }

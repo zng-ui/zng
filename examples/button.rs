@@ -24,18 +24,24 @@ fn main() {
 
 fn example(title: impl Var<Text>) -> impl UiNode {
     let t = var("Click Me!");
+    let t_color = var(rgb(0, 100, 200));
+    let content_align = var(Alignment::BOTTOM_RIGHT);
+    let size = var((300.0, 200.0));
+
     button! {
-        on_click: enclose!{ (t) move |a| {
-            println!("handler click");
+        on_click: enclose!{ (t, t_color, content_align, size) move |a| {
             let u = &mut a.ctx().updates;
             u.push_set(&title, "Clicked!".to_text()).ok();
             u.push_set(&t, "Clicked!".to_text()).ok();
+            u.push_set(&t_color, rgb(100, 50, 200)).ok();
+            u.push_set(&content_align, Alignment::BOTTOM_LEFT).ok();
+            u.push_set(&size, LayoutSize::new(400.0, 100.0)).ok();
         }};
-        content_align: Alignment::BOTTOM_RIGHT;
-        size: (300.0, 200.0);
-        align: Alignment::CENTER;
+        content_align: content_align;
+        size: size;
+        align: Alignment::BOTTOM_RIGHT;
         font_size: 28;
-        text_color: rgb(0, 100, 200);
+        text_color: t_color;
         margin: 10.0;
         => {
             text(t)
