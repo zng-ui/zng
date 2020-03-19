@@ -72,7 +72,7 @@ impl<T: 'static> EventChannel<T> {
         unsafe { &*self.r.data.get() }.as_ref()
     }
 
-    /// Gets if this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.r.is_high_pressure
     }
@@ -114,12 +114,12 @@ impl<T: 'static> EventListener<T> {
         self.chan.updates(events)
     }
 
-    /// Gets if [updates](EventListener::updates) is not empty.
+    /// If [updates](EventListener::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
     }
 
-    /// Gets if this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }
@@ -177,12 +177,12 @@ impl<T: 'static> EventEmitter<T> {
         self.chan.updates(events)
     }
 
-    /// Gets if [updates](EventEmitter::updates) is not empty.
+    /// If [updates](EventEmitter::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
     }
 
-    /// Gets if this event is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this event is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }

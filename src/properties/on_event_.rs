@@ -74,6 +74,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 ///     on_event(child, KeyDown, handler)
 /// }
 /// ```
+#[inline]
 pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
     OnEvent {
         child,

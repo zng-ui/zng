@@ -466,6 +466,10 @@ impl AppExtension for MouseEvents {
         r.events.register::<MouseClick>(self.mouse_click.listener());
         r.events.register::<MouseDoubleClick>(self.mouse_double_click.listener());
         r.events.register::<MouseTripleClick>(self.mouse_triple_click.listener());
+
+        r.events.register::<MouseEnter>(self.mouse_enter.listener());
+        r.events.register::<MouseLeave>(self.mouse_leave.listener());
+
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
