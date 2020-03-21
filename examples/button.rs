@@ -27,10 +27,10 @@ fn main() {
 fn example() -> impl UiNode {
     //let t = var("Click Me!");
     let t_color = var(rgb(0, 100, 200));
-    let content_align = var(Alignment::BOTTOM_RIGHT);
+    let content_align = var(Alignment::CENTER);
     let size = var((300.0, 200.0));
-    let is_hovered = var(false);
-    let t = is_hovered.map(|b| formatx!("is_hovered: {}", b));
+    let is_state = var(false);
+    let t = is_state.map(|b| formatx!("is_pressed: {}", b));
 
     button! {
         on_click: enclose!{ (t, t_color, content_align, size) move |a| {
@@ -40,7 +40,7 @@ fn example() -> impl UiNode {
             u.push_set(&content_align, Alignment::BOTTOM_LEFT).ok();
             u.push_set(&size, LayoutSize::new(400.0, 100.0)).ok();
         }};
-        is_hovered: is_hovered;
+        is_pressed: is_state;
         content_align: content_align;
         size: size;
         align: Alignment::CENTER;

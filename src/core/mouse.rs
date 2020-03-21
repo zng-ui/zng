@@ -117,7 +117,7 @@ event_args! {
 
         /// If the widget is in [target](MouseClickArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.hits.contains(ctx.widget_id)
+            self.target.contains(ctx.widget_id)
         }
     }
 
@@ -469,7 +469,6 @@ impl AppExtension for MouseEvents {
 
         r.events.register::<MouseEnter>(self.mouse_enter.listener());
         r.events.register::<MouseLeave>(self.mouse_leave.listener());
-
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {

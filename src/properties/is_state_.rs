@@ -48,13 +48,13 @@ impl<C: UiNode, E: Event, L: Event, S: Var<bool>> IsState<C, E, L, S> {
     }
 
     fn do_enter(&mut self, ctx: &mut WidgetContext) {
-        if self.enter_listener.has_updates(ctx.events) {
+        if self.enter_listener.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             let _ = ctx.updates.push_set(&self.state, true);
         }
     }
 
     fn do_leave(&mut self, ctx: &mut WidgetContext) {
-        if self.leave_listener.has_updates(ctx.events) {
+        if self.leave_listener.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             let _ = ctx.updates.push_set(&self.state, false);
         }
     }
@@ -74,6 +74,11 @@ pub fn is_state(child: impl UiNode, enter: impl Event, leave: impl Event, state:
 }
 
 #[property(context)]
-pub fn is_hovered(child: impl UiNode, state: impl Var<bool>) -> impl UiNode{
+pub fn is_hovered(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
     is_state(child, MouseEnter, MouseLeave, state)
+}
+
+#[property(context)]
+pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
+    is_state(child, MouseDown, MouseUp, state)
 }
