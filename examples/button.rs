@@ -27,22 +27,18 @@ fn main() {
 fn example() -> impl UiNode {
     //let t = var("Click Me!");
     let t_color = var(rgb(0, 100, 200));
-    let content_align = var(Alignment::CENTER);
-    let size = var((300.0, 200.0));
-    let is_state = var(false);
-    let t = is_state.map(|b| formatx!("is_pressed: {}", b));
+    let is_hovered = var(false);
+    let is_pressed = var(false);
+    let t = merge_var!(is_hovered.clone(), is_pressed.clone(), |a, b| formatx!("{} : {}", a, b));
 
     button! {
-        on_click: enclose!{ (t, t_color, content_align, size) move |a| {
+        on_click: enclose!{ (t_color) move |a| {
             let u = &mut a.ctx().updates;
-            u.push_set(&t, "Clicked!".to_text()).ok();
             u.push_set(&t_color, rgb(100, 50, 200)).ok();
-            u.push_set(&content_align, Alignment::BOTTOM_LEFT).ok();
-            u.push_set(&size, LayoutSize::new(400.0, 100.0)).ok();
         }};
-        is_pressed: is_state;
-        content_align: content_align;
-        size: size;
+        is_hovered: is_hovered;
+        is_pressed: is_pressed;
+        size: (300.0, 200.0);
         align: Alignment::CENTER;
         font_size: 28;
         text_color: t_color;

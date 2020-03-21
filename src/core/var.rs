@@ -2236,6 +2236,10 @@ macro_rules! impl_merge_vars {
                     }
                 )+
 
+                if self.r.version.get() == 0 {
+                    sync = true;
+                }
+
                 if sync {
                     self.r.version.set(self.r.version.get().wrapping_add(1));
                     let value = (&mut *self.r.merge.borrow_mut())($(self.r.$vn.get(vars)),+);
