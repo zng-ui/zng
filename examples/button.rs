@@ -15,7 +15,6 @@ fn main() {
             let size = var((800., 600.));
             let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
             window! {
-                background_color: rgb(0.1, 0.1, 0.1);
                 size: size;
                 title: title;
                 => example()
@@ -25,23 +24,39 @@ fn main() {
 }
 
 fn example() -> impl UiNode {
-    //let t = var("Click Me!");
-    let t_color = var(rgb(0, 100, 200));
+    let t = var("Click Me!");
     let is_hovered = var(false);
     let is_pressed = var(false);
-    let t = merge_var!(is_hovered.clone(), is_pressed.clone(), |a, b| formatx!("{} : {}", a, b));
+    let mut i = 0;
+    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&h, &p| {
+        if p {
+            2
+        } else if h {
+            1
+        } else {
+            0
+        }
+    });
+
+    let background_color = switch_var!(i, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
+
 
     button! {
-        on_click: enclose!{ (t_color) move |a| {
+        on_click: enclose!{ (t, background_color) move |a| {
             let u = &mut a.ctx().updates;
-            u.push_set(&t_color, rgb(100, 50, 200)).ok();
+            u.push_set(&t, "Clicked!".into()).unwrap();
+            i += 1;
+            if i > 2 {
+                i = 0;
+            }
+            u.push_switch(background_color.clone(), i as usize);
         }};
         is_hovered: is_hovered;
         is_pressed: is_pressed;
         size: (300.0, 200.0);
         align: Alignment::CENTER;
+        background_color: background_color;
         font_size: 28;
-        text_color: t_color;
         margin: 10.0;
         => {
             text(t)

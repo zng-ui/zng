@@ -20,7 +20,7 @@ widget! {
         size: (800.0, 600.0);
 
         /// Window clear color.
-        background_color: rgb(1.0, 1.0, 1.0);
+        background_color: rgb(0.1, 0.1, 0.1);
 
         id: unset!;
         /// Unique identifier of the window root widget.

@@ -125,5 +125,5 @@ context_var! {
     pub struct FontSize: u32 = 14;
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColor: ColorF = ColorF::BLACK;
+    pub struct TextColor: ColorF = ColorF::WHITE;
 }
