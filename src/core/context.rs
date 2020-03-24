@@ -694,7 +694,12 @@ impl Updates {
     }
 
     /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: VarValue>(&mut self, var: impl Var<T>, modify: impl FnOnce(&mut T) + 'static, vars: &Vars) -> Result<(), VarIsReadOnly> {
+    pub fn push_modify<T: VarValue>(
+        &mut self,
+        var: impl Var<T>,
+        modify: impl FnOnce(&mut T) + 'static,
+        vars: &Vars,
+    ) -> Result<(), VarIsReadOnly> {
         var.push_modify(modify, vars, self)
     }
 

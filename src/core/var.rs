@@ -56,7 +56,7 @@ pub(crate) mod protected {
         fn read_only_prev_version(&self) -> u32 {
             0
         }
-    }    
+    }
 }
 
 /// Error when trying to set or modify a read-only variable.
@@ -87,21 +87,34 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 
     /// Gets if the variable is currently read-only.
     fn read_only(&self, vars: &Vars) -> bool {
+        let _ = vars;
         true
     }
 
     /// Gets if the variable is always read-only.
     fn always_read_only(&self, vars: &Vars) -> bool {
+        let _ = vars;
         true
     }
 
     /// Schedules a variable change for the next update if the variable is not [read_only](ObjVar::read_only).
-    fn push_set(&self, _new_value: T, _vars: &Vars, _updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        let _ = new_value;
+        let _ = vars;
+        let _ = updates;
         Err(VarIsReadOnly)
     }
 
     /// Schedules a variable modification for the next update using a boxed closure.
-    fn push_modify_boxed(&self, _modify: Box<dyn FnOnce(&mut T) + 'static>, _vars: &Vars, _updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
+        let _ = modify;
+        let _ = vars;
+        let _ = updates;
         Err(VarIsReadOnly)
     }
 
@@ -151,7 +164,12 @@ impl<T: VarValue> ObjVar<T> for BoxVar<T> {
     fn push_set(&self, new_value: T, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.as_ref().push_set(new_value, vars, updates)
     }
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         self.as_ref().push_modify_boxed(modify, vars, updates)
     }
     fn boxed(self) -> BoxVar<T>
@@ -199,7 +217,12 @@ impl<T: VarValue> ObjVar<T> for BoxLocalVar<T> {
     fn push_set(&self, new_value: T, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         self.as_ref().push_set(new_value, vars, updates)
     }
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         self.as_ref().push_modify_boxed(modify, vars, updates)
     }
 }
@@ -230,7 +253,10 @@ pub trait Var<T: VarValue>: ObjVar<T> {
     type AsLocal: LocalVar<T>;
 
     /// Schedules a variable modification for the next update.
-    fn push_modify(&self, _modify: impl FnOnce(&mut T) + 'static, _vars: &Vars, _updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+        let _ = modify;
+        let _ = vars;
+        let _ = updates;
         Err(VarIsReadOnly)
     }
 
@@ -347,7 +373,12 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.push_set(new_value, vars, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         self.var.push_modify_boxed(modify, vars, updates)
     }
 }
@@ -617,15 +648,15 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         self.r.version.get()
     }
 
-    fn read_only(&self, vars: &Vars) -> bool {
+    fn read_only(&self, _: &Vars) -> bool {
         false
     }
 
-    fn always_read_only(&self, vars: &Vars) -> bool {
+    fn always_read_only(&self, _: &Vars) -> bool {
         false
     }
 
-    fn push_set(&self, new_value: T, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_set(&self, new_value: T, _: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         updates.push_modify_impl(move |assert, cleanup| {
             var.modify(move |v: &mut T| *v = new_value, assert, cleanup);
@@ -633,7 +664,7 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         Ok(())
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, _: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         updates.push_modify_impl(move |assert, cleanup| {
             var.modify(|v: &mut T| modify(v), assert, cleanup);
@@ -646,7 +677,7 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
     type AsReadOnly = ReadOnlyVar<T, Self>;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify(&self, modify: impl FnOnce(&mut T) + 'static, _: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let var = self.clone();
         updates.push_modify_impl(move |assert, cleanup| {
             var.modify(modify, assert, cleanup);
@@ -997,10 +1028,17 @@ where
     }
 
     fn push_set(&self, new_value: O, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
-        self.r.source.push_set((&mut *self.r.map_back.borrow_mut())(&new_value), vars, updates)
+        self.r
+            .source
+            .push_set((&mut *self.r.map_back.borrow_mut())(&new_value), vars, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut O) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut O) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         let r = Rc::clone(&self.r);
         self.r.source.push_modify_boxed(
             Box::new(move |input| {
@@ -1576,7 +1614,12 @@ where
         }
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut O) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut O) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         match &self.r {
             MapVarBiDiInner::Owned(o) => o.push_modify_boxed(modify, vars, updates),
             MapVarBiDiInner::Shared(s) => s.push_modify_boxed(modify, vars, updates),
@@ -1863,7 +1906,7 @@ macro_rules! impl_switch_vars {
                 }
             }
 
-            fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>  
+            fn map<O, M>(&self, map: M) -> MapVar<T, Self, O, M>
             where
                 M: FnMut(&T) -> O + 'static,
                 O: VarValue,
@@ -2055,14 +2098,14 @@ impl<I: Var<usize>, T: VarValue> ObjVar<T> for SwitchVarDyn<I, T> {
         if version != self.r.versions[index].get() {
             self.r.versions[index].set(version);
             increment_ver = true;
-        } 
+        }
         let version = self.r.index.version(vars);
         if version != self.r.index_version.get() {
             self.r.index_version.set(version);
             increment_ver = true;
         }
 
-        if increment_ver{
+        if increment_ver {
             self.r.version.set(self.r.version.get().wrapping_add(1));
         }
 
@@ -2081,7 +2124,12 @@ impl<I: Var<usize>, T: VarValue> ObjVar<T> for SwitchVarDyn<I, T> {
         self.r.vars[*self.r.index.get(vars)].push_set(new_value, vars, updates)
     }
 
-    fn push_modify_boxed(&self, modify: Box<dyn FnOnce(&mut T) + 'static>, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
+    fn push_modify_boxed(
+        &self,
+        modify: Box<dyn FnOnce(&mut T) + 'static>,
+        vars: &Vars,
+        updates: &mut Updates,
+    ) -> Result<(), VarIsReadOnly> {
         self.r.vars[*self.r.index.get(vars)].push_modify_boxed(modify, vars, updates)
     }
 }
