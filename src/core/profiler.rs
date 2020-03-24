@@ -88,7 +88,7 @@ impl Profiler {
         });
     }
 
-    fn write_profile(&self, filename: &str) {
+    fn write_profile(&self, filename: &str, ignore_0ms: bool) {
         // Stop reading samples that are written after
         // write_profile() is called.
         let start_time = precise_time_ns();
@@ -102,6 +102,10 @@ impl Profiler {
             let thread_id = self.threads[sample.tid.0].name.as_str();
             let t0 = sample.t0 / 1000;
             let t1 = sample.t1 / 1000;
+
+            if ignore_0ms && t0 == t1 {
+                continue;
+            }
 
             data.push(json!({
                 "pid": 0,
@@ -176,11 +180,13 @@ impl Drop for ProfileScope {
 }
 
 /// Writes the global profile to a specific file.
-pub fn write_profile(filename: &str) {
-    GLOBAL_PROFILER.lock().unwrap().write_profile(filename);
+#[inline]
+pub fn write_profile(filename: &str, ignore_0ms: bool) {
+    GLOBAL_PROFILER.lock().unwrap().write_profile(filename, ignore_0ms);
 }
 
 /// Registers the current thread with the global profiler.
+#[inline]
 pub fn register_thread_with_profiler() {
     GLOBAL_PROFILER.lock().unwrap().register_thread();
 }

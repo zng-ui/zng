@@ -304,7 +304,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 #[cfg(feature = "app_profiler")]
                 GEvent::LoopDestroyed => {
-                    crate::core::profiler::write_profile("app_profile.json");
+                    crate::core::profiler::write_profile("app_profile.json", true);
                 }
 
                 _ => {}
