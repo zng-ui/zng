@@ -12,8 +12,8 @@ app_profiler = ["serde_json", "lazy_static"]
 zero-ui-macros = { path = "zero-ui-macros" }
 
 # proc-macro-hack
-proc-macro-hack = "0.5.11"
-proc-macro-nested = "0.1.3"
+proc-macro-hack = "0.5.14"
+proc-macro-nested = "0.1.4"
 
 # core
 raw-window-handle = "0.3.3"

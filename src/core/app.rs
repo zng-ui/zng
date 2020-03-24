@@ -246,6 +246,9 @@ impl<E: AppExtension> AppExtended<E> {
     /// Runs the application event loop calling `start` once at the beginning.
     #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
+        #[cfg(feature = "app_profiler")]
+        crate::core::profiler::register_thread_with_profiler();
+
         profile_scope!("app::run");
 
         let event_loop = EventLoop::with_user_event();
@@ -297,6 +300,11 @@ impl<E: AppExtension> AppExtended<E> {
                 GEvent::RedrawRequested(window_id) => {
                     profile_scope!("app::on_redraw_requested");
                     extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop))
+                }
+
+                #[cfg(feature = "app_profiler")]
+                GEvent::LoopDestroyed => {
+                    crate::core::profiler::write_profile("app_profile.json");
                 }
 
                 _ => {}

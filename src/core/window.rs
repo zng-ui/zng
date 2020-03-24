@@ -645,15 +645,6 @@ struct GlWindow {
     doc_view_changed: bool,
 }
 
-macro_rules! win_profile_scope {
-    ($ctx: expr, $mtd_name: tt) => {
-        win_profile_scope!($ctx.id(), $ctx.root.title.get_local(), $mtd_name)
-    };
-    ($id: expr, $title: expr, $mtd_name: tt) => {
-        profile_scope!(r#"({:?} "{}")::{}"#, $id, $title, $mtd_name)
-    };
-}
-
 impl GlWindow {
     pub fn new(
         new_window: Box<dyn FnOnce(&AppContext) -> Window>,
@@ -759,12 +750,10 @@ impl GlWindow {
 
     /// Update window vars.
     pub fn update(&mut self, vars: &Vars) {
-        let ctx = self.ctx.as_mut().unwrap();
-
-        win_profile_scope!(ctx, "update::self");
+        profile_scope!("window::update::self");
 
         let window = self.gl_ctx.as_ref().unwrap().window();
-        let r = &mut ctx.root;
+        let r = &mut self.ctx.as_mut().unwrap().root;
 
         if let Some(title) = r.title.update_local(vars) {
             window.set_title(title);
@@ -802,7 +791,7 @@ impl GlWindow {
         let ctx = self.ctx.as_mut().unwrap();
 
         if ctx.update == UpdateDisplayRequest::Layout {
-            win_profile_scope!(ctx, "layout");
+            profile_scope!("window::layout");
 
             ctx.update = UpdateDisplayRequest::Render;
 
@@ -821,7 +810,7 @@ impl GlWindow {
         let ctx = self.ctx.as_mut().unwrap();
 
         if ctx.update == UpdateDisplayRequest::Render {
-            win_profile_scope!(ctx, "render");
+            profile_scope!("window::render");
 
             ctx.update = UpdateDisplayRequest::None;
 
@@ -876,7 +865,7 @@ impl GlWindow {
     /// override your vsync settings, which means that you can't know in
     /// advance whether `swap_buffers` will block or not.
     pub fn redraw(&mut self) {
-        win_profile_scope!(self.ctx.as_ref().unwrap(), "redraw");
+        profile_scope!("window::redraw");
 
         let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
 
@@ -976,7 +965,9 @@ impl OwnedWindowContext {
 
     /// Call [UiNode::init] in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
-        win_profile_scope!(self, "init");
+        profile_scope!("window::init");
+
+        self.root.title.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.push_layout();
@@ -988,7 +979,7 @@ impl OwnedWindowContext {
 
     /// Call [UiNode::update_hp] in all nodes.
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
-        win_profile_scope!(self, "update_hp");
+        profile_scope!("window::update_hp");
 
         let update = self.root_context(ctx, |root, ctx| root.update_hp(ctx));
         self.update |= update;
@@ -996,7 +987,7 @@ impl OwnedWindowContext {
 
     /// Call [UiNode::update] in all nodes.
     pub fn update(&mut self, ctx: &mut AppContext) {
-        win_profile_scope!(self, "update");
+        profile_scope!("window::update");
 
         // do UiNode updates
         let update = self.root_context(ctx, |root, ctx| root.update(ctx));
@@ -1005,7 +996,7 @@ impl OwnedWindowContext {
 
     /// Call [UiNode::deinit] in all nodes.
     pub fn deinit(mut self, ctx: &mut AppContext) {
-        win_profile_scope!(self, "deinit");
+        profile_scope!("window::deinit");
         self.root_context(ctx, |root, ctx| root.deinit(ctx));
     }
 }
