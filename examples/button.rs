@@ -27,8 +27,7 @@ fn example() -> impl UiNode {
     let t = var("Click Me!");
     let is_hovered = var(false);
     let is_pressed = var(false);
-    let mut i = 0;
-    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&h, &p| {
+    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&h, &p| {        
         if p {
             2
         } else if h {
@@ -38,18 +37,13 @@ fn example() -> impl UiNode {
         }
     });
 
-    let background_color = switch_var!(i, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
+    let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
 
 
     button! {
         on_click: enclose!{ (t, background_color) move |a| {
-            let u = &mut a.ctx().updates;
-            u.push_set(&t, "Clicked!".into()).unwrap();
-            i += 1;
-            if i > 2 {
-                i = 0;
-            }
-            u.push_switch(background_color.clone(), i as usize);
+            let ctx = a.ctx();
+            ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();            
         }};
         is_hovered: is_hovered;
         is_pressed: is_pressed;

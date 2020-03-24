@@ -25,10 +25,10 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsHovered<C, S> {
 
         if *self.state.get(ctx.vars) {
             if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-                let _ = ctx.updates.push_set(&self.state, false);
+                let _ = ctx.updates.push_set(&self.state, false, ctx.vars);
             }
         } else if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            let _ = ctx.updates.push_set(&self.state, true);
+            let _ = ctx.updates.push_set(&self.state, true, ctx.vars);
         }
     }
 }
@@ -64,11 +64,11 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsPressed<C, S> {
         if *self.state.get(ctx.vars) {
             if self.mouse_up.has_updates(ctx.events) {
                 // if mouse_up in any place.
-                let _ = ctx.updates.push_set(&self.state, false);
+                let _ = ctx.updates.push_set(&self.state, false, ctx.vars);
             }
         } else if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             // if not pressed and mouse down inside.
-            let _ = ctx.updates.push_set(&self.state, true);
+            let _ = ctx.updates.push_set(&self.state, true, ctx.vars);
         }
     }
 }

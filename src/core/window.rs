@@ -359,7 +359,7 @@ impl AppExtension for WindowManager {
                             .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
 
                         // set the window size variable if it is not read-only.
-                        let _ = ctx.updates.push_set(&window.ctx().root.size, new_size);
+                        let _ = ctx.updates.push_set(&window.ctx().root.size, new_size, ctx.vars);
                     }
                 }
             }

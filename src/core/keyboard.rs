@@ -146,7 +146,6 @@ impl AppExtension for KeyboardEvents {
                 match state {
                     ElementState::Pressed => {
                         ctx.updates.push_notify(self.key_down.clone(), args);
-                        todo!()
                     }
                     ElementState::Released => {
                         ctx.updates.push_notify(self.key_up.clone(), args);

@@ -689,13 +689,13 @@ impl Updates {
     }
 
     /// Schedules a variable change for the next update.
-    pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T) -> Result<(), VarIsReadOnly> {
-        var.push_set(new_value, self)
+    pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T, vars: &Vars) -> Result<(), VarIsReadOnly> {
+        var.push_set(new_value, vars, self)
     }
 
     /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: VarValue>(&mut self, var: impl Var<T>, modify: impl FnOnce(&mut T) + 'static) -> Result<(), VarIsReadOnly> {
-        var.push_modify(modify, self)
+    pub fn push_modify<T: VarValue>(&mut self, var: impl Var<T>, modify: impl FnOnce(&mut T) + 'static, vars: &Vars) -> Result<(), VarIsReadOnly> {
+        var.push_modify(modify, vars, self)
     }
 
     pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vars, &mut Vec<CleanupOnce>) + 'static) {
@@ -713,12 +713,6 @@ impl Updates {
 
         self.updates
             .push(Box::new(move |_, assert, cleanup| sender.notify(args, assert, cleanup)));
-    }
-
-    /// Schedules a switch variable index change for the next update.
-    pub fn push_switch<T: VarValue>(&mut self, var: impl SwitchVar<T>, new_index: usize) {
-        self.update.update = true;
-        self.updates.push(Box::new(move |_, _, cleanup| var.modify(new_index, cleanup)));
     }
 
     /// Schedules a low-pressure update.
