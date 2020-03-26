@@ -227,7 +227,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     }
 
-    let argi: Vec<_> = (0..arg_idents.len()).map(|i|ident!("arg{}", i)).collect();
+    let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
 
     // generate documentation that must be formatted.
     let mod_property_doc = doc!("This module is a widget `{}` property.", priority);

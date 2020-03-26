@@ -1,8 +1,7 @@
 use crate::core::context::Vars;
 use crate::core::var::VarValue;
 use std::fmt::Debug;
-use std::ops::Mul;
-use std::time::Duration;
+use std::{ops::Mul, time::Duration};
 
 /// A [variable](crate::core::var::Var) animation.
 pub trait VarAnimation<T: VarValue> {
@@ -100,27 +99,13 @@ macro_rules! mul_easing_step_for_small_int {
 
             #[inline]
             fn mul(self, rhs: EasingStep) -> Self {
-                let r = f32::from(self) * rhs.0;
-
-                let min = <$ty>::min_value();
-                let min_f: f32 = min.into();
-                if r < min_f {
-                    return min;
-                }
-
-                let max = <$ty>::max_value();
-                let max_f: f32 = max.into();
-                if r > max_f {
-                    return max;
-                }
-
-                r.round() as Self
+                (self as f32 * rhs.0) as Self
             }
         }
     )+};
 }
 
-mul_easing_step_for_small_int!(u8, i8, u16, i16);
+mul_easing_step_for_small_int!(u8, i8, u16, i16, u32, i32);
 
 macro_rules! mul_easing_step_for_int  {
     ($($ty:ty),+) => {$(
@@ -129,36 +114,13 @@ macro_rules! mul_easing_step_for_int  {
 
             #[inline]
             fn mul(self, rhs: EasingStep) -> Self {
-                let r = f64::from(self) * rhs.0 as f64;
-
-                let min = <$ty>::min_value();
-                let min_f: f64 = min.into();
-                if r < min_f {
-                    return min;
-                }
-
-                let max = <$ty>::max_value();
-                let max_f: f64 = max.into();
-                if r > max_f {
-                    return max;
-                }
-
-                r.round() as Self
+                (self as f64 * rhs.0 as f64) as Self
             }
         }
     )+};
 }
 
-mul_easing_step_for_int!(u32, i32);
-
-impl Mul<EasingStep> for u64 {
-    type Output = Self;
-
-    #[inline]
-    fn mul(self, _rhs: EasingStep) -> Self {
-        todo!()
-    }
-}
+mul_easing_step_for_int!(usize, isize, u64, i64, u128, i128);
 
 /// Common easing functions.
 ///
