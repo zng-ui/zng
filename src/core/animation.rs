@@ -1,22 +1,9 @@
-use crate::core::context::Vars;
 use crate::core::var::VarValue;
 use std::fmt::Debug;
-use std::{ops::Mul, time::Duration};
-
-/// A [variable](crate::core::var::Var) animation.
-pub trait VarAnimation<T: VarValue> {
-    /// Current animating value.
-    fn get_step(&self, vars: &Vars) -> &T;
-
-    /// Update animating value.
-    fn update_step(&self, vars: &Vars) -> Option<&T>;
-
-    /// Borrow end value.
-    fn get_end(&self) -> &T;
-
-    /// Stops the animation and returns  the end value.
-    fn end(self) -> T;
-}
+use std::{
+    ops::{Add, Mul, Sub},
+    time::Duration,
+};
 
 /// Easing function value. Mostly between 0.0 and 1.0 but can over/undershot.
 #[derive(Debug, Clone, Copy)]
@@ -129,35 +116,13 @@ pub mod easing {
     use super::{EasingStep, EasingTime};
     use std::f32::consts::*;
 
-    /// Applies the `ease_fn`.
-    #[inline]
-    pub fn ease_in(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-        ease_fn(time)
-    }
-
-    /// Applies the `ease_fn` in reverse and flipped.
-    #[inline]
-    pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-        ease_fn(time.reverse()).flip()
-    }
-
-    /// Applies `ease_in` for the first half then `[ease_out]` scaled to fit a single duration (1.0).
-    pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
-        let time = EasingTime(time.get() * 2.0);
-        let step = if time.get() < 1.0 {
-            ease_in(ease_fn, time)
-        } else {
-            ease_out(ease_fn, time)
-        };
-        EasingStep(step.get() * 0.5)
-    }
-
     /// Simple linear transition, no easing, no acceleration.
     #[inline]
     pub fn linear(time: EasingTime) -> EasingStep {
         EasingStep(time.get())
     }
 
+    /// Quadratic transition.
     #[inline]
     pub fn quad(time: EasingTime) -> EasingStep {
         let t = time.get();
@@ -217,6 +182,53 @@ pub mod easing {
         let t = time.get();
         EasingStep((6.0 * (t - 1.0)).powf(2.0) * (t * PI * 3.5).sin().abs())
     }
+
+    /// Always `1.0`.
+    #[inline]
+    pub fn none(_: EasingTime) -> EasingStep {
+        EasingStep(1.0)
+    }
+}
+
+/// Applies the `ease_fn`.
+#[inline]
+pub fn ease_in(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    ease_fn(time)
+}
+
+/// Applies the `ease_fn` in reverse and flipped.
+#[inline]
+pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    ease_fn(time.reverse()).flip()
+}
+
+/// Applies `ease_in` for the first half then `[ease_out]` scaled to fit a single duration (1.0).
+pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
+    let time = EasingTime(time.get() * 2.0);
+    let step = if time.get() < 1.0 {
+        ease_in(ease_fn, time)
+    } else {
+        ease_out(ease_fn, time)
+    };
+    EasingStep(step.get() * 0.5)
+}
+
+/// Returns `ease_fn`.
+#[inline]
+pub fn ease_in_fn<E: Fn(EasingTime) -> EasingStep>(ease_fn: E) -> E {
+    ease_fn
+}
+
+/// Returns a function that applies `ease_fn` wrapped in [`ease_out`](ease_out).
+#[inline]
+pub fn ease_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
+    move |t| ease_out(|t| ease_fn(t), t)
+}
+
+/// Returns a function that applies `ease_fn` wrapped in [`ease_in_out`](ease_in_out).
+#[inline]
+pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
+    move |t| ease_in_out(|t| ease_fn(t), t)
 }
 
 /// Common easing functions as an enum.
@@ -255,11 +267,42 @@ impl EasingFn {
 
     #[inline]
     pub fn ease_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_out(|t| self.ease_in(t), time)
+        ease_out(|t| self.ease_in(t), time)
     }
 
     #[inline]
     pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
-        easing::ease_in_out(|t| self.ease_in(t), time)
+        ease_in_out(|t| self.ease_in(t), time)
+    }
+}
+
+/// A value that can be animated using [`Transition`](Transition).
+///
+/// # Trait Alias
+///
+/// This trait is used like a type alias for traits and is
+/// already implemented for all types it applies to.
+pub trait TransitionValue: Mul<EasingStep, Output = Self> + Sub<Output = Self> + Add<Output = Self> + Clone + Sized {}
+
+impl<T: Mul<EasingStep, Output = Self> + Sub<Output = Self> + Add<Output = Self> + Clone + Sized> TransitionValue for T {}
+
+/// An animated transition from one value to another.
+pub struct Transition<T: TransitionValue, E: Fn(EasingTime) -> EasingStep> {
+    from: T,
+    plus: T,
+    easing: E,
+}
+
+impl<T: TransitionValue, E: Fn(EasingTime) -> EasingStep> Transition<T, E> {
+    pub fn new(from: T, to: T, easing: E) -> Self {
+        Self {
+            plus: to - from.clone(),
+            from,
+            easing,
+        }
+    }
+
+    pub fn step(&self, time: EasingTime) -> T {
+        self.from.clone() + self.plus.clone() * (self.easing)(time)
     }
 }

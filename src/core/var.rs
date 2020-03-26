@@ -71,19 +71,47 @@ impl std::fmt::Display for VarIsReadOnly {
 
 impl std::error::Error for VarIsReadOnly {}
 
-/// Part of [Var] that can be boxed (object safe).
+/// Part of [`Var`](Var) that can be boxed (object safe).
 pub trait ObjVar<T: VarValue>: protected::Var<T> {
     /// The current value.
+    ///
+    /// If animating it is the animation final value, use [`get_step`] to get the current
+    /// animation intermediary value.
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T;
 
-    /// [get](ObjVar::get) if [is_new](ObjVar::is_new) or none.
+    /// The intermediary animating value.
+    ///
+    /// If not animating it is the same as [`get`](ObjVar::get).
+    fn get_step<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.get(vars)
+    }
+
+    /// [`get`](ObjVar::get) value if [`is_new`](ObjVar::is_new) otherwise returns `None`.
+    ///
+    /// If animating only one update happens immediately with the animation final value.
+    /// Use [`update_step`](ObjVar::update_step) to get intermediary animation values updates.
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
+
+    /// [`get_step`](ObjVar::get_step) value if [`is_animating`](ObjVar::is_animating) otherwise returns `None`.
+    ///
+    /// Animation updates happen in the [high-pressure channel](crate::core::UiNode::update_hp).
+    fn update_step<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        let _ = vars;
+        assert!(!self.is_animating(vars));
+        None
+    }
 
     /// If the value changed this update.
     fn is_new(&self, vars: &Vars) -> bool;
 
     /// Current value version. Version changes every time the value changes.
     fn version(&self, vars: &Vars) -> u32;
+
+    /// If the var is animating.
+    fn is_animating(&self, vars: &Vars) -> bool {
+        let _ = vars;
+        false
+    }
 
     /// Gets if the variable is currently read-only.
     fn read_only(&self, vars: &Vars) -> bool {
@@ -102,6 +130,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
         let _ = new_value;
         let _ = vars;
         let _ = updates;
+        assert!(self.read_only(vars));
         Err(VarIsReadOnly)
     }
 
@@ -115,6 +144,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
         let _ = modify;
         let _ = vars;
         let _ = updates;
+        assert!(self.read_only(vars));
         Err(VarIsReadOnly)
     }
 
@@ -146,11 +176,20 @@ impl<T: VarValue> ObjVar<T> for BoxVar<T> {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
         self.as_ref().get(vars)
     }
+    fn get_step<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.as_ref().get_step(vars)
+    }
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.as_ref().update(vars)
     }
+    fn update_step<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.as_ref().update_step(vars)
+    }
     fn is_new(&self, vars: &Vars) -> bool {
         self.as_ref().is_new(vars)
+    }
+    fn is_animating(&self, vars: &Vars) -> bool {
+        self.as_ref().is_animating(vars)
     }
     fn version(&self, vars: &Vars) -> u32 {
         self.as_ref().version(vars)
@@ -199,11 +238,20 @@ impl<T: VarValue> ObjVar<T> for BoxLocalVar<T> {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
         self.as_ref().get(vars)
     }
+    fn get_step<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.as_ref().get_step(vars)
+    }
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.as_ref().update(vars)
     }
+    fn update_step<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.as_ref().update_step(vars)
+    }
     fn is_new(&self, vars: &Vars) -> bool {
         self.as_ref().is_new(vars)
+    }
+    fn is_animating(&self, vars: &Vars) -> bool {
+        self.as_ref().is_animating(vars)
     }
     fn version(&self, vars: &Vars) -> u32 {
         self.as_ref().version(vars)
@@ -231,11 +279,17 @@ impl<T: VarValue> LocalVar<T> for BoxLocalVar<T> {
     fn get_local(&self) -> &T {
         self.as_ref().get_local()
     }
+    fn get_local_step(&self) -> &T {
+        self.as_ref().get_local_step()
+    }
     fn init_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> &'a T {
         self.as_mut().init_local(vars)
     }
     fn update_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T> {
         self.as_mut().update_local(vars)
+    }
+    fn update_local_step<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T> {
+        self.as_mut().update_local_step(vars)
     }
 }
 
@@ -257,6 +311,7 @@ pub trait Var<T: VarValue>: ObjVar<T> {
         let _ = modify;
         let _ = vars;
         let _ = updates;
+        assert!(self.read_only(vars));
         Err(VarIsReadOnly)
     }
 
@@ -307,11 +362,22 @@ pub trait LocalVar<T: VarValue>: ObjVar<T> {
     /// Gets the local copy of the value.
     fn get_local(&self) -> &T;
 
-    /// Initializes the local copy of the value. Mut be called on [init](crate::core::UiNode::init).
+    /// Gets the local copy of the animation intermediary value if is animating
+    /// or [`get_local`](LocalVar::get_local) if not.
+    fn get_local_step(&self) -> &T {
+        self.get_local()
+    }
+
+    /// Initializes the local copy of the value and local animating value if is animating.
+    /// Must be called on [`init`](crate::core::UiNode::init).
     fn init_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> &'a T;
 
-    /// Update the local copy of the value. Must be called every [update](crate::core::UiNode::update).
+    /// Update the local copy of the value. Must be called every [`update`](crate::core::UiNode::update).
     fn update_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T>;
+
+    /// Update the local copy of the animation intermediary value. Must be called every
+    /// [`update_hp`](crate::core::UiNode::update_hp) to support animation.
+    fn update_local_step<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T>;
 }
 
 // #endregion Traits
@@ -322,11 +388,16 @@ pub trait LocalVar<T: VarValue>: ObjVar<T> {
 pub struct CloningLocalVar<T: VarValue, V: Var<T>> {
     var: V,
     local: Option<T>,
+    local_step: Option<T>,
 }
 
 impl<T: VarValue, V: Var<T>> CloningLocalVar<T, V> {
     fn new(var: V) -> Self {
-        CloningLocalVar { var, local: None }
+        CloningLocalVar {
+            var,
+            local: None,
+            local_step: None,
+        }
     }
 }
 
@@ -349,12 +420,24 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.get(vars)
     }
 
+    fn get_step<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        self.var.get_step(vars)
+    }
+
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.var.update(vars)
     }
 
+    fn update_step<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        self.var.update_step(vars)
+    }
+
     fn is_new(&self, vars: &Vars) -> bool {
         self.var.is_new(vars)
+    }
+
+    fn is_animating(&self, vars: &Vars) -> bool {
+        self.var.is_animating(vars)
     }
 
     fn version(&self, vars: &Vars) -> u32 {
@@ -385,11 +468,18 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
 
 impl<T: VarValue, V: Var<T>> LocalVar<T> for CloningLocalVar<T, V> {
     fn get_local(&self) -> &T {
-        self.local.as_ref().expect("`init_local` was never called")
+        self.local.as_ref().expect("``init_local` must be called before using `LocalVar`")
+    }
+
+    fn get_local_step(&self) -> &T {
+        self.local_step.as_ref().unwrap_or_else(|| self.get_local())
     }
 
     fn init_local<'a, 'b>(&'a mut self, vars: &'b Vars) -> &'a T {
         self.local = Some(self.var.get(vars).clone());
+        if self.var.is_animating(vars) {
+            self.local_step = Some(self.var.get_step(vars).clone());
+        }
         self.get_local()
     }
 
@@ -397,7 +487,17 @@ impl<T: VarValue, V: Var<T>> LocalVar<T> for CloningLocalVar<T, V> {
         match self.var.update(vars) {
             Some(update) => {
                 self.local = Some(update.clone());
-                Some(self.get_local())
+                self.local.as_ref()
+            }
+            None => None,
+        }
+    }
+
+    fn update_local_step<'a, 'b>(&'a mut self, vars: &'b Vars) -> Option<&'a T> {
+        match self.var.update_step(vars) {
+            Some(update) => {
+                self.local_step = Some(update.clone());
+                self.local_step.as_ref()
             }
             None => None,
         }
@@ -532,11 +632,19 @@ impl<T: VarValue> LocalVar<T> for OwnedVar<T> {
         &self.0
     }
 
+    fn get_local_step(&self) -> &T {
+        &self.0
+    }
+
     fn init_local<'a, 'b>(&'a mut self, _: &'b Vars) -> &'a T {
         &self.0
     }
 
     fn update_local<'a, 'b>(&'a mut self, _: &'b Vars) -> Option<&'a T> {
+        None
+    }
+
+    fn update_local_step<'a, 'b>(&'a mut self, _: &'b Vars) -> Option<&'a T> {
         None
     }
 }
