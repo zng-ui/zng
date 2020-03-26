@@ -332,6 +332,25 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         push_inherited_property_docs(docs, target, ident, widget_name, prop_docs);
     }
 
+    let mut when_fns = vec![];
+    for (i, when) in input.whens.into_iter().enumerate() {
+        let fn_name = ident!("w{}", i);
+        when_fns.push(quote! {
+                    //fn #fn_name(is_hovered: impl is_hovered::Args, is_pressed: impl is_pressed::Args) -> bool {
+                    //    for _i in 0..1000 {
+                    //        if _i == 10 {
+                    //            return is_hovered
+                    //        }
+                    //    }
+                    //    is_pressed
+                    //}
+        //
+                    //fn #fn_name(__self_is_hovered: &impl is_hovered::Args) -> impl Var<bool> {
+                    //    __self_is_hovered.__arg0().map(|__self_is_hovered|!__self_is_hovered)
+                    //}
+                })
+    }
+
     // validate property captures.
     if let Some(p) = new_child_properties.iter().find(|p| !defined_props.contains(p)) {
         abort!(p.span(), "`new_child` cannot capture undefined property `{}`", p);
@@ -482,6 +501,14 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
                 #(#i_fn_prop_dfts)*
                 #(#fn_prop_dfts)*
+            }
+
+            // When expressions.
+            #[doc(hidden)]
+            pub mod we {
+                use super::*;
+
+                #(#when_fns)*
             }
         }
     };

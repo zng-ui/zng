@@ -52,7 +52,7 @@ mod build_tests {
     }
 
     fn _basic_gen() {
-        use basic_context::{args, Args};
+        use basic_context::{args, ArgsNames, ArgsPop};
         let a = args(1);
         let _ar = a.arg();
         let (_a,) = a.pop();

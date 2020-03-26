@@ -1,5 +1,11 @@
 # TODO
 
+## When Steps
+2 - widget! must generate function that takes property args reference and returns a `impl Var<bool>`.
+2.a - function generated must handle `{self|child}.{property}(.{{arg_index}|arg_name})`.
+3 - widget! must pass metadata about when functions to widget_new!
+4 - ?
+
 ## Core
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
@@ -69,8 +75,8 @@ Widgets that contain many elements that must be loaded on demand.
 
 ## Dialogs
 
-* Message dialogs (themable?).
-* File dialogs (not themable?).
+* Message dialogs (themeable?).
+* File dialogs (not themeable?).
 
 ## Window Widgets
 

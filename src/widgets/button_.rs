@@ -1,6 +1,6 @@
 use crate::core::types::{rgb, ColorF};
 #[doc(hidden)]
-pub use crate::properties::{align, background_color, on_click};
+pub use crate::properties::{align, background_color, is_hovered, is_pressed, on_click};
 use crate::widget;
 use crate::widgets::{container, focusable_mixin};
 
@@ -25,7 +25,7 @@ widget! {
     }
 
     /// When the pointer device is over this button.
-    when self.is_hovered  {
+    when self.is_hovered {
         background_color: ButtonBackgroundHovered;
     }
 
@@ -35,7 +35,16 @@ widget! {
     }
 
     /// When the button is not enabled.
-    when !self.is_enabled {
+    when {
+        for i in 0..1000 {
+            if i == 10 {
+                return self.is_hovered
+                // self.is_hovered.0
+                // self.is_hovered.state
+            }
+        }
+        self.is_pressed
+    } {
         background_color: ButtonBackgroundDisabled;
     }
 }

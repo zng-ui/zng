@@ -182,7 +182,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #[doc(hidden)]
             #[inline]
             pub fn #fn_(child: impl zero_ui::core::UiNode, args: impl Args) -> (impl zero_ui::core::UiNode, ()) {
-                let (#(#arg_idents,)*) = args.pop();
+                let (#(#arg_idents,)*) = ArgsPop::pop(args);
                 (set(child, #(#arg_idents),*), ())
             }
         }
@@ -227,6 +227,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     }
 
+    let argi: Vec<_> = (0..arg_idents.len()).map(|i|ident!("arg{}", i)).collect();
+
     // generate documentation that must be formatted.
     let mod_property_doc = doc!("This module is a widget `{}` property.", priority);
     let fn_set_doc = doc!(
@@ -235,7 +237,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         priority
     );
     let fn_args_doc = doc!("Collects [`set`](set) arguments into a [named args](Args) view.");
-    let args_doc = doc!("Named arguments of the [`{0}`]({0}) property.", ident);
+    let args_doc = doc!("View of arguments of the [`{0}`]({0}) property.", ident);
+    let args_names_doc = doc!("Named arguments of the [`{0}`]({0}) property.", ident);
+    let args_positional_doc = doc!("Positional arguments of the [`{0}`]({0}) property.", ident);
+    let args_pop_doc = doc!("Deconstructor of named arguments of the [`{0}`]({0}) property.", ident);
     let mtd_pop_doc = doc!("Moved the args to a tuple sorted by their position of [`args`](args) and [`set`](set).");
 
     let r = quote! {
@@ -262,15 +267,30 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 }
             }
 
-            #args_doc
-            pub trait Args {
+            #args_names_doc
+            pub trait ArgsNames {
                 #(type #gen_idents: #gen_bounds_ty;)*
 
                 #(fn #arg_idents(&self) -> &#arg_return_tys;)*
+            }
+
+            #args_positional_doc
+            pub trait ArgsPositional {
+                #(type #gen_idents: #gen_bounds_ty;)*
+
+                #(fn #argi(&self) -> &#arg_return_tys;)*
+            }
+
+            #args_pop_doc
+            pub trait ArgsPop {
+                #(type #gen_idents: #gen_bounds_ty;)*
 
                 #mtd_pop_doc
                 fn pop(self) -> (#(#arg_return_tys,)*);
             }
+
+            #args_doc
+            pub trait Args: ArgsNames + ArgsPositional + ArgsPop { }
 
             #[doc(hidden)]
             pub struct NamedArgs#args_gen_decl {
@@ -278,7 +298,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 #(pub #arg_idents: #arg_tys,)*
             }
 
-            impl#args_gen_decl Args for NamedArgs#args_gen_use {
+            impl#args_gen_decl ArgsNames for NamedArgs#args_gen_use {
                 #(type #gen_idents = #gen_idents;)*
 
                 #(
@@ -289,12 +309,31 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 }
 
                 )*
+            }
+
+            impl#args_gen_decl ArgsPositional for NamedArgs#args_gen_use {
+                #(type #gen_idents = #gen_idents;)*
+
+                #(
+
+                #[inline]
+                fn #argi(&self) -> &#arg_return_tys {
+                    &self.#arg_idents
+                }
+
+                )*
+            }
+
+            impl#args_gen_decl ArgsPop for NamedArgs#args_gen_use {
+                #(type #gen_idents = #gen_idents;)*
 
                 #[inline]
                 fn pop(self) -> (#(#arg_return_tys,)*) {
                     (#(self.#arg_idents,)*)
                 }
             }
+
+            impl#args_gen_decl Args for NamedArgs#args_gen_use { }
         }
     };
 
