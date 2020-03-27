@@ -4,6 +4,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use std::collections::HashSet;
 use syn::spanned::Spanned;
+use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` implementation
@@ -333,22 +334,25 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
 
     let mut when_fns = vec![];
-    for (i, when) in input.whens.into_iter().enumerate() {
+    for (i, mut when) in input.whens.into_iter().enumerate() {
+        let mut visitor = WhenConditionVisitor::default();
+        visitor.visit_expr_mut(&mut when.condition);
+
         let fn_name = ident!("w{}", i);
         when_fns.push(quote! {
-                    //fn #fn_name(is_hovered: impl is_hovered::Args, is_pressed: impl is_pressed::Args) -> bool {
-                    //    for _i in 0..1000 {
-                    //        if _i == 10 {
-                    //            return is_hovered
-                    //        }
-                    //    }
-                    //    is_pressed
-                    //}
-        //
-                    //fn #fn_name(__self_is_hovered: &impl is_hovered::Args) -> impl Var<bool> {
-                    //    __self_is_hovered.__arg0().map(|__self_is_hovered|!__self_is_hovered)
-                    //}
-                })
+            //fn #fn_name(is_hovered: impl is_hovered::Args, is_pressed: impl is_pressed::Args) -> bool {
+            //    for _i in 0..1000 {
+            //        if _i == 10 {
+            //            return is_hovered
+            //        }
+            //    }
+            //    is_pressed
+            //}
+            //
+            //fn #fn_name(__self_is_hovered: &impl is_hovered::Args) -> impl Var<bool> {
+            //    __self_is_hovered.__arg0().map(|__self_is_hovered|!__self_is_hovered)
+            //}
+        })
     }
 
     // validate property captures.
@@ -1200,6 +1204,68 @@ impl ToTokens for DefaultBlockTarget {
         match self {
             DefaultBlockTarget::Self_ => tokens.extend(quote!(self)),
             DefaultBlockTarget::Child => tokens.extend(quote!(child)),
+        }
+    }
+}
+
+#[derive(Debug)]
+struct WhenPropertyAccess {
+    owner: Ident,
+    property: Ident,
+    member: Option<Member>,
+}
+
+#[derive(Default)]
+struct WhenConditionVisitor {
+    properties: Vec<WhenPropertyAccess>,
+}
+
+impl VisitMut for WhenConditionVisitor {
+    //visit expressions like:
+    // self.is_hovered
+    // child.is_hovered.0
+    // self.is_hovered.state
+    fn visit_expr_field_mut(&mut self, expr_field: &mut ExprField) {
+        //get self or child
+        fn get_owner(expr_path: &ExprPath) -> Option<Ident> {
+            if let Some(ident) = expr_path.path.get_ident() {
+                if ident == &ident!("self") || ident == &ident!("child") {
+                    return Some(ident.clone());
+                }
+            }
+            None
+        }
+        let mut continue_visiting = true;
+        match &mut *expr_field.base {
+            // self.is_hovered
+            Expr::Path(expr_path) => {
+                if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), expr_field.member.clone()) {
+                    self.properties.push(WhenPropertyAccess {
+                        owner,
+                        property,
+                        member: None,
+                    });
+                    continue_visiting = false;
+                }
+            }
+            // self.is_hovered.0
+            // child.is_hovered.state
+            Expr::Field(i_expr_field) => {
+                if let Expr::Path(expr_path) = &mut *i_expr_field.base {
+                    if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), i_expr_field.member.clone()) {
+                        self.properties.push(WhenPropertyAccess {
+                            owner,
+                            property,
+                            member: Some(expr_field.member.clone()),
+                        });
+                        continue_visiting = false;
+                    }
+                }
+            }
+            _ => {}
+        }
+        if continue_visiting {
+            visit_mut::visit_expr_field_mut(self, expr_field);
         }
     }
 }

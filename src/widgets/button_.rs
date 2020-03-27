@@ -38,9 +38,9 @@ widget! {
     when {
         for i in 0..1000 {
             if i == 10 {
-                return self.is_hovered
-                // self.is_hovered.0
-                // self.is_hovered.state
+                return child.is_hovered.state
+            } else if i %30 == 0 {
+                return self.is_hovered.0
             }
         }
         self.is_pressed
