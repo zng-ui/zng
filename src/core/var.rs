@@ -300,7 +300,7 @@ impl<T: VarValue> LocalVar<T> for BoxLocalVar<T> {
 ///
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
 /// support dynamic values in property definitions.
-pub trait Var<T: VarValue>: ObjVar<T> {
+pub trait Var<T: VarValue>: ObjVar<T> + Clone {
     /// Return type of [as_read_only](Var::as_read_only).
     type AsReadOnly: Var<T>;
     /// Return type of [as_local](Var::as_local).
@@ -571,6 +571,7 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
 // #region OwnedVar<T>
 
 /// [Var] implementer that owns the value.
+#[derive(Clone)]
 pub struct OwnedVar<T: VarValue>(pub T);
 
 impl<T: VarValue> protected::Var<T> for OwnedVar<T> {

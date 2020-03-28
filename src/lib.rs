@@ -29,6 +29,7 @@ use proc_macro_hack::proc_macro_hack;
 #[proc_macro_hack(support_nested)]
 pub use zero_ui_macros::widget_new;
 
+#[macro_use]
 pub mod core;
 pub mod layouts;
 pub mod properties;

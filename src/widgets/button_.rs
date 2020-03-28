@@ -29,22 +29,26 @@ widget! {
         background_color: ButtonBackgroundHovered;
     }
 
-    /// When the mouse or touch pressed on this button and has not yet released.
-    when self.is_pressed  {
-        background_color: ButtonBackgroundPressed;
-    }
+    ///// When the mouse or touch pressed on this button and has not yet released.
+    //when !self.is_pressed  {
+    //    background_color: ButtonBackgroundPressed;
+    //}
+    //
+    ///// When the button is not enabled.
+    //when {
+    //    for i in 0..1000 {
+    //        if i == 10 {
+    //            return child.is_hovered.state
+    //        } else if i %30 == 0 {
+    //            return self.is_hovered.0
+    //        }
+    //    }
+    //    self.is_pressed && test(self.content_align)
+    //} {
+    //    background_color: ButtonBackgroundDisabled;
+    //}
+}
 
-    /// When the button is not enabled.
-    when {
-        for i in 0..1000 {
-            if i == 10 {
-                return child.is_hovered.state
-            } else if i %30 == 0 {
-                return self.is_hovered.0
-            }
-        }
-        self.is_pressed
-    } {
-        background_color: ButtonBackgroundDisabled;
-    }
+fn test(a: crate::properties::Alignment) -> bool {
+    a == crate::properties::Alignment::CENTER
 }

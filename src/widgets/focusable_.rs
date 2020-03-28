@@ -25,10 +25,10 @@ widget_mixin! {
         };
     }
 
-    when(self.is_focused) {
-        focused_border: {
-            widths: FocusedBorderWidths,
-            details: FocusedBorderDetails
-        };
-    }
+    //when self.is_focused {
+    //    focused_border: {
+    //        widths: FocusedBorderWidths,
+    //        details: FocusedBorderDetails
+    //    };
+    //}
 }

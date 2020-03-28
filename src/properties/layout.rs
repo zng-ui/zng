@@ -146,7 +146,7 @@ pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
 /// a larger available space.
 ///
 /// This is the value of the [`align`](align) property.
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Alignment(pub f32, pub f32);
 
 macro_rules! named_aligns {

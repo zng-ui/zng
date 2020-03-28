@@ -2,7 +2,7 @@ use crate::util;
 use crate::widget_new::BuiltPropertyKind;
 use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, punctuated::Punctuated, *};
@@ -338,20 +338,84 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let mut visitor = WhenConditionVisitor::default();
         visitor.visit_expr_mut(&mut when.condition);
 
+        // dedup property members.
+        let property_members: HashMap<_, _> = visitor.properties.iter().map(|p| (&p.new_name, p)).collect();
+        if property_members.is_empty() {
+            abort!(when.span(), "`when` condition must reference properties")
+        }
+
+        // dedup properties.
+        let property_params: HashMap<_, _> = property_members
+            .values()
+            .map(|p| (&p.property, ident!("{}_{}", p.owner, p.property)))
+            .collect();
+
+        let condition = when.condition;
+
+        // is single bool property if expression is only a reference to a property.
+        // ex.: when self.is_pressed {}
+        let single_bool_prop = if let Expr::Path(p) = &condition {
+            debug_assert_eq!(property_members.len(), 1);
+            p.path.get_ident() == Some(property_members.keys().next().unwrap())
+        } else {
+            false
+        };
+
         let fn_name = ident!("w{}", i);
+
+        let properties = property_params.keys();
+        let param_names = property_params.values();
+        let pss = properties
+            .clone()
+            .map(|p| if defined_props.contains(p) { quote! (ps::) } else { quote!() });
+        let params = quote!(#(#param_names: &impl #pss#properties::Args),*);
+
+        let local_names = property_members.keys();
+        let param_names = property_members.values().map(|p| &property_params[&p.property]);
+        let members = property_members.values().map(|p| {
+            let property = &p.property;
+            let ps = if defined_props.contains(property) {
+                quote! (ps::)
+            } else {
+                quote!()
+            };
+            match &p.member {
+                Member::Named(ident) => quote!(#ps#property::ArgsNames::#ident),
+                Member::Unnamed(i) => {
+                    let argi = ident!("arg{}", i.index);
+                    quote!(#ps#property::ArgsPositional::#argi)
+                }
+            }
+        });
+
+        let init_locals = quote! {
+            #(let #local_names = #members(#param_names);)*
+        };
+
+        let return_ = if property_members.len() == 1 {
+            let new_name = property_members.keys().next().unwrap();
+            if single_bool_prop {
+                quote!(#new_name.clone())
+            } else {
+                quote!(#new_name.map(|#new_name|{
+                    #condition
+                }))
+            }
+        } else {
+            let new_names = property_members.keys();
+            let args = new_names.clone();
+            quote! {
+                merge_var!(#(#new_names.clone(), )* |#(#args),*|{
+                    #condition
+                })
+            }
+        };
+
         when_fns.push(quote! {
-            //fn #fn_name(is_hovered: impl is_hovered::Args, is_pressed: impl is_pressed::Args) -> bool {
-            //    for _i in 0..1000 {
-            //        if _i == 10 {
-            //            return is_hovered
-            //        }
-            //    }
-            //    is_pressed
-            //}
-            //
-            //fn #fn_name(__self_is_hovered: &impl is_hovered::Args) -> impl Var<bool> {
-            //    __self_is_hovered.__arg0().map(|__self_is_hovered|!__self_is_hovered)
-            //}
+            fn #fn_name(#params) -> impl zero_ui::core::var::Var<bool> {
+                #init_locals
+                #return_
+            }
         })
     }
 
@@ -1212,7 +1276,8 @@ impl ToTokens for DefaultBlockTarget {
 struct WhenPropertyAccess {
     owner: Ident,
     property: Ident,
-    member: Option<Member>,
+    member: Member,
+    new_name: Ident,
 }
 
 #[derive(Default)]
@@ -1225,7 +1290,7 @@ impl VisitMut for WhenConditionVisitor {
     // self.is_hovered
     // child.is_hovered.0
     // self.is_hovered.state
-    fn visit_expr_field_mut(&mut self, expr_field: &mut ExprField) {
+    fn visit_expr_mut(&mut self, expr: &mut Expr) {
         //get self or child
         fn get_owner(expr_path: &ExprPath) -> Option<Ident> {
             if let Some(ident) = expr_path.path.get_ident() {
@@ -1236,36 +1301,46 @@ impl VisitMut for WhenConditionVisitor {
             None
         }
         let mut continue_visiting = true;
-        match &mut *expr_field.base {
-            // self.is_hovered
-            Expr::Path(expr_path) => {
-                if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), expr_field.member.clone()) {
-                    self.properties.push(WhenPropertyAccess {
-                        owner,
-                        property,
-                        member: None,
-                    });
-                    continue_visiting = false;
-                }
-            }
-            // self.is_hovered.0
-            // child.is_hovered.state
-            Expr::Field(i_expr_field) => {
-                if let Expr::Path(expr_path) = &mut *i_expr_field.base {
-                    if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), i_expr_field.member.clone()) {
+
+        if let Expr::Field(expr_field) = expr {
+            match &mut *expr_field.base {
+                // self.is_hovered
+                Expr::Path(expr_path) => {
+                    if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), expr_field.member.clone()) {
                         self.properties.push(WhenPropertyAccess {
+                            new_name: ident!("{}_{}_0", owner, property),
                             owner,
                             property,
-                            member: Some(expr_field.member.clone()),
+                            member: parse_quote!(0),
                         });
                         continue_visiting = false;
                     }
                 }
+                // self.is_hovered.0
+                // child.is_hovered.state
+                Expr::Field(i_expr_field) => {
+                    if let Expr::Path(expr_path) = &mut *i_expr_field.base {
+                        if let (Some(owner), Member::Named(property)) = (get_owner(expr_path), i_expr_field.member.clone()) {
+                            let member = expr_field.member.clone();
+                            self.properties.push(WhenPropertyAccess {
+                                new_name: ident!("{}_{}_{}", owner, property, quote!(#member)),
+                                owner,
+                                property,
+                                member,
+                            });
+                            continue_visiting = false;
+                        }
+                    }
+                }
+                _ => {}
             }
-            _ => {}
         }
+
         if continue_visiting {
-            visit_mut::visit_expr_field_mut(self, expr_field);
+            visit_mut::visit_expr_mut(self, expr);
+        } else {
+            let replacement = self.properties.last().unwrap().new_name.clone();
+            *expr = Expr::Path(parse_quote!(#replacement));
         }
     }
 }
