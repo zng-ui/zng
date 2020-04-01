@@ -4,6 +4,7 @@ pub use crate::properties::{align, background_color, is_hovered, is_pressed, on_
 use crate::widget;
 use crate::widgets::{container, focusable_mixin};
 
+
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.
     pub struct ButtonBackground: ColorF = rgb(0.2, 0.2, 0.2);
@@ -24,29 +25,29 @@ widget! {
         background_color: ButtonBackground;
     }
 
-    /// When the pointer device is over this button.
-    when self.is_hovered {
-        background_color: ButtonBackgroundHovered;
-    }
+    ///// When the pointer device is over this button.
+    //when self.is_hovered {
+    //    background_color: ButtonBackgroundHovered;
+    //}
 
-    ///// When the mouse or touch pressed on this button and has not yet released.
-    //when !self.is_pressed  {
-    //    background_color: ButtonBackgroundPressed;
-    //}
-    //
-    ///// When the button is not enabled.
-    //when {
-    //    for i in 0..1000 {
-    //        if i == 10 {
-    //            return child.is_hovered.state
-    //        } else if i %30 == 0 {
-    //            return self.is_hovered.0
-    //        }
-    //    }
-    //    self.is_pressed && test(self.content_align)
-    //} {
-    //    background_color: ButtonBackgroundDisabled;
-    //}
+    /// When the mouse or touch pressed on this button and has not yet released.
+    when self.content_align == crate::properties::Alignment::CENTER  {
+        background_color: ButtonBackgroundPressed;
+    }
+    
+   ///// When the button is not enabled.
+   //when {
+   //    for i in 0..1000 {
+   //        if i == 10 {
+   //            return self.is_hovered.state
+   //        } else if i %30 == 0 {
+   //            return self.is_hovered.0
+   //        }
+   //    }
+   //    self.is_pressed && test(self.content_align)
+   //} {
+   //    background_color: ButtonBackgroundDisabled;
+   //}
 }
 
 fn test(a: crate::properties::Alignment) -> bool {
