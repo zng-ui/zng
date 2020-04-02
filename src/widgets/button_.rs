@@ -24,6 +24,8 @@ widget! {
         background_color: ButtonBackground;
     }
 
+    /*
+
     /// When the pointer device is over this button.
     when self.content_align == crate::properties::Alignment::CENTER {
         background_color: ButtonBackgroundHovered;
@@ -48,8 +50,6 @@ widget! {
     } {
         background_color: ButtonBackgroundDisabled;
     }
-}
 
-fn test() {
-    if 0 == { 0 } {}
+    */
 }
