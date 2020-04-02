@@ -32,11 +32,11 @@ macro_rules! impl_switch_vars {
 
         impl<I: Var<usize>, T: VarValue, $($VN: Var<T>),+> $SwitchVar<I, T, $($VN),+> {
             #[allow(clippy::too_many_arguments)]
-            pub fn new(index: I, $($vn: impl IntoVar<T, Var=$VN>),+) -> Self {
+            pub fn new(index: impl IntoVar<usize, Var=I>, $($vn: impl IntoVar<T, Var=$VN>),+) -> Self {
                 $SwitchVar {
                     r: Rc::new($SwitchVarInner {
                         _t: PhantomData,
-                        index,
+                        index: index.into_var(),
                         index_version: Cell::new(0),
                         $($version: Cell::new(0),)+
                         version: Cell::new(0),

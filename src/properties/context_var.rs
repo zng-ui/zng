@@ -38,7 +38,7 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for SetC
 /// use zero_ui::core::{UiNode, var::IntoVar};
 ///
 /// context_var! {
-///     pub struct FontSize: u32 = 14;
+///     pub struct FontSize: u32 = const 14;
 /// }
 ///
 /// /// Sets the [`FontSize`](FontSize) context var.
