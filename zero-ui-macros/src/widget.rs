@@ -947,18 +947,26 @@ impl Parse for WhenBlock {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<keyword::when>()?;
 
+        // when condition is an `Expr`, but the expr parser
+        // can consume the property assignment block because it matches
+        // the struct initialization pattern.
+        //
+        // To avoid this we buffer parse BLOCK or ANY until we find
+        // the next WHEN_BLOCK, then we use the last block as the property
+        // assignment block and the previous tokens as the condition expression.
+
         enum BufferItem<'a> {
             Brace(ParseBuffer<'a>),
             Other(proc_macro2::TokenTree),
         }
         let mut buffer = vec![];
-
         while !input.is_empty() {
             if input.peek(token::Brace) {
                 let raw_block;
                 braced!(raw_block in input);
                 buffer.push(BufferItem::Brace(raw_block));
             } else if input.peek(keyword::when) || input.peek(Token![#]) {
+                // WHEN_BLOCK starts with `when` or outer attributes.
                 break;
             } else {
                 let token: proc_macro2::TokenTree = input.parse()?;
@@ -966,9 +974,9 @@ impl Parse for WhenBlock {
             }
         }
 
+        // parse property assignment.
         let attrs;
         let mut properties = vec![];
-
         if let Some(BufferItem::Brace(inner)) = buffer.pop() {
             attrs = Attribute::parse_inner(input)?;
             while !inner.is_empty() {
@@ -978,6 +986,7 @@ impl Parse for WhenBlock {
             return Err(Error::new(input.span(), "expected property assign block"));
         };
 
+        // parse condition.
         let mut condition = TokenStream::new();
         for item in buffer {
             match item {
@@ -988,7 +997,6 @@ impl Parse for WhenBlock {
                 BufferItem::Other(t) => condition.extend(quote!(#t)),
             }
         }
-
         let condition = syn::parse2(condition)?;
 
         Ok(WhenBlock {
