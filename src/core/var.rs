@@ -883,7 +883,7 @@ impl<T: VarValue, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
     }
 }
 
-impl<T: VarValue, V: Var<T> + Clone> Clone for ReadOnlyVar<T, V> {
+impl<T: VarValue, V: Var<T>> Clone for ReadOnlyVar<T, V> {
     fn clone(&self) -> Self {
         ReadOnlyVar {
             _t: PhantomData,
@@ -892,7 +892,7 @@ impl<T: VarValue, V: Var<T> + Clone> Clone for ReadOnlyVar<T, V> {
     }
 }
 
-impl<T: VarValue, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
+impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<T, Self>;
 
@@ -928,6 +928,14 @@ impl<T: VarValue, V: Var<T> + Clone> Var<T> for ReadOnlyVar<T, V> {
 
     fn as_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
+    }
+}
+
+impl<T: VarValue, V: Var<T>> IntoVar<T> for ReadOnlyVar<T, V> {
+    type Var = Self;
+    #[inline]
+    fn into_var(self) -> Self::Var {
+        self
     }
 }
 
@@ -1854,6 +1862,22 @@ where
 
     fn as_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
+    }
+}
+
+impl<T, S, O, M, N> IntoVar<O> for MapVarBiDi<T, S, O, M, N>
+where
+    T: VarValue,
+    S: ObjVar<T>,
+    O: VarValue,
+    M: FnMut(&T) -> O + 'static,
+    N: FnMut(&O) -> T + 'static,
+{
+    type Var = Self;
+
+    #[inline]
+    fn into_var(self) -> Self::Var {
+        self
     }
 }
 

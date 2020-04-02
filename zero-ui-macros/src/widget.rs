@@ -368,7 +368,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let pss = properties
             .clone()
             .map(|p| if defined_props.contains(p) { quote! (ps::) } else { quote!() });
-        let params = quote!(#(#param_names: &impl #pss#properties::Args),*); {}       
+        let params = quote!(#(#param_names: &impl #pss#properties::Args),*);
+        {}
 
         let local_names = property_members.keys();
         let param_names = property_members.values().map(|p| &property_params[&p.property]);
@@ -944,22 +945,35 @@ pub struct WhenBlock {
 }
 impl Parse for WhenBlock {
     fn parse(input: ParseStream) -> Result<Self> {
+        // we use `ExprIf` parse because we need the private
+        // function `syn::expr::parsing::expr_no_struct` to
+        // parse the condition expression.
+
+        // require `when`.
         input.parse::<keyword::when>()?;
-        let mut if_ = quote! ( if );
+
+        // recreate a TokenStream where `when` is `if`.
+        let mut if_ = quote!(if);
         if_.extend(input.parse::<TokenStream>()?);
 
-        panic!{"hello {}", quote!{#if_}}
-        let condition = input.parse()?;
+        let if_: ExprIf = syn::parse2(if_)?;
 
-        let inner;
-        braced!(inner in input);
+        let condition = *if_.cond;
+        let attrs = if_.attrs;
 
-        let attrs = Attribute::parse_inner(input)?;
+        let ps = if_.then_branch;
+        let ps = quote!(#ps);
 
-        let mut properties = vec![];
-        while !inner.is_empty() {
-            properties.push(inner.parse()?);
-        }
+        let parse_properties = |input: ParseStream| {
+            let inner;
+            braced!(inner in input);
+            let mut properties = vec![];
+            while !inner.is_empty() {
+                properties.push(inner.parse()?);
+            }
+            Ok(properties)
+        };
+        let properties = parse_properties.parse2(ps)?;
 
         Ok(WhenBlock {
             attrs,
