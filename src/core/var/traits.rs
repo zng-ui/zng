@@ -70,7 +70,7 @@ impl std::error::Error for VarIsReadOnly {}
 pub trait ObjVar<T: VarValue>: protected::Var<T> {
     /// The current value.
     ///
-    /// If animating it is the animation final value, use [`get_step`] to get the current
+    /// If animating it is the animation final value, use [`get_step`](ObjVar::get_step) to get the current
     /// animation intermediary value.
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T;
 
@@ -152,7 +152,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     }
 }
 
-/// A value that can change. Can [own the value](OwnedVar) or be a [reference](SharedVar).
+/// A value that can change. Can [own the value](crate::core::var::OwnedVar) or be a [reference](crate::core::var::SharedVar).
 ///
 /// This is the complete generic trait, the non-generic methods are defined in [ObjVar]
 /// to support boxing.

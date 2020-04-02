@@ -137,7 +137,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [targets](MouseHoverArgs::target).
+        /// If the widget is in [targets](MouseHoverArgs::targets).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.targets.contains(&ctx.widget_id)
         }
@@ -226,7 +226,7 @@ pub struct MouseEvents {
     pos: LayoutPoint,
     /// last cursor move window.
     pos_window: Option<WindowId>,
-    /// dpi scale of [pos_window].
+    /// dpi scale of `pos_window`.
     pos_dpi: f32,
 
     /// last modifiers.

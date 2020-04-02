@@ -442,7 +442,7 @@ impl<I: Var<usize>, T: VarValue> IntoVar<T> for SwitchVarDyn<I, T> {
     }
 }
 
-/// Initializes a new [`SwitchVar`](crate::core::var::SwitchVar).
+/// Initializes a new switch var.
 ///
 /// # Arguments
 ///
