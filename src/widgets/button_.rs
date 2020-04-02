@@ -25,28 +25,31 @@ widget! {
     }
 
     /// When the pointer device is over this button.
-    when self.is_hovered {
+    when self.content_align == crate::properties::Alignment::CENTER {
+        background_color: ButtonBackgroundHovered;
         background_color: ButtonBackgroundHovered;
     }
 
-    ///// When the mouse or touch pressed on this button and has not yet released.
-    //when  self.is_pressed  {
-    //    background_color: ButtonBackgroundPressed;
-    //}
+    /// When the mouse or touch pressed on this button and has not yet released.
+    when  self.is_pressed  {
+        background_color: ButtonBackgroundPressed;
+    }
 
-   ///// When the button is not enabled.
-   //when {
-   //    for i in 0..1000 {
-   //        if i == 10 {
-   //            return self.is_hovered.state
-   //        } else if i %30 == 0 {
-   //            return self.is_hovered.0
-   //        }
-   //    }
-   //    self.is_pressed
-   //} {
-   //    background_color: ButtonBackgroundDisabled;
-   //}
+    /// When the button is not enabled.
+    when {
+        for i in 0..1000 {
+            if i == 10 {
+                return self.is_hovered.state
+            } else if i %30 == 0 {
+                return self.is_hovered.0
+            }
+        }
+        self.is_pressed
+    } {
+        background_color: ButtonBackgroundDisabled;
+    }
 }
 
-//TODO support properties with IntoVar parameters.
+fn test() {
+    if 0 == { 0 } {}
+}

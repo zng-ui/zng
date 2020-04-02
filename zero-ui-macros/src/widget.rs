@@ -945,35 +945,51 @@ pub struct WhenBlock {
 }
 impl Parse for WhenBlock {
     fn parse(input: ParseStream) -> Result<Self> {
-        // we use `ExprIf` parse because we need the private
-        // function `syn::expr::parsing::expr_no_struct` to
-        // parse the condition expression.
-
-        // require `when`.
         input.parse::<keyword::when>()?;
 
-        // recreate a TokenStream where `when` is `if`.
-        let mut if_ = quote!(if);
-        if_.extend(input.parse::<TokenStream>()?);
+        enum BufferItem<'a> {
+            Brace(ParseBuffer<'a>),
+            Other(proc_macro2::TokenTree),
+        }
+        let mut buffer = vec![];
 
-        let if_: ExprIf = syn::parse2(if_)?;
+        while !input.is_empty() {
+            if input.peek(token::Brace) {
+                let raw_block;
+                braced!(raw_block in input);
+                buffer.push(BufferItem::Brace(raw_block));
+            } else if input.peek(keyword::when) || input.peek(Token![#]) {
+                break;
+            } else {
+                let token: proc_macro2::TokenTree = input.parse()?;
+                buffer.push(BufferItem::Other(token));
+            }
+        }
 
-        let condition = *if_.cond;
-        let attrs = if_.attrs;
+        let attrs;
+        let mut properties = vec![];
 
-        let ps = if_.then_branch;
-        let ps = quote!(#ps);
-
-        let parse_properties = |input: ParseStream| {
-            let inner;
-            braced!(inner in input);
-            let mut properties = vec![];
+        if let Some(BufferItem::Brace(inner)) = buffer.pop() {
+            attrs = Attribute::parse_inner(input)?;
             while !inner.is_empty() {
                 properties.push(inner.parse()?);
             }
-            Ok(properties)
+        } else {
+            return Err(Error::new(input.span(), "expected property assign block"));
         };
-        let properties = parse_properties.parse2(ps)?;
+
+        let mut condition = TokenStream::new();
+        for item in buffer {
+            match item {
+                BufferItem::Brace(inner) => {
+                    let inner: TokenStream = inner.parse()?;
+                    condition.extend(quote!({#inner}));
+                }
+                BufferItem::Other(t) => condition.extend(quote!(#t)),
+            }
+        }
+
+        let condition = syn::parse2(condition)?;
 
         Ok(WhenBlock {
             attrs,
