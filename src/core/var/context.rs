@@ -7,7 +7,10 @@ use std::{
     rc::Rc,
 };
 
-impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for V {
+/// [`ContextVar`](ContextVar) var. Use [`context_var!`](context_var!) to generate context variables.
+pub struct ContextVarImpl<V: ContextVar>(PhantomData<V>);
+
+impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for ContextVarImpl<V> {
     fn bind_info<'a, 'b>(&'a self, _: &'b Vars) -> protected::BindInfo<'a, T> {
         protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default(), None)
     }
@@ -17,7 +20,21 @@ impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for V {
     }
 }
 
-impl<T: VarValue, V: ContextVar<Type = T>> ObjVar<T> for V {
+impl<T: VarValue, V: ContextVar<Type = T>> Clone for ContextVarImpl<V> {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl<T: VarValue, V: ContextVar<Type = T>> Copy for ContextVarImpl<V> {}
+
+impl<T: VarValue, V: ContextVar<Type = T>> Default for ContextVarImpl<V> {
+    fn default() -> Self {
+        ContextVarImpl(PhantomData)
+    }
+}
+
+impl<T: VarValue, V: ContextVar<Type = T>> ObjVar<T> for ContextVarImpl<V> {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
         vars.context::<V>()
     }
@@ -35,7 +52,7 @@ impl<T: VarValue, V: ContextVar<Type = T>> ObjVar<T> for V {
     }
 }
 
-impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
+impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for ContextVarImpl<V> {
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<T, Self>;
 
@@ -62,6 +79,15 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for V {
 
     fn as_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
+    }
+}
+
+impl<T: VarValue, V: ContextVar<Type = T>> IntoVar<T> for ContextVarImpl<V> {
+    type Var = Self;
+
+    #[inline]
+    fn into_var(self) -> Self::Var {
+        self
     }
 }
 
@@ -239,4 +265,94 @@ where
     fn into_var(self) -> Self::Var {
         self
     }
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __context_var {
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = const $default:expr;) => {
+        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+
+            static DEFAULT: $type = $default;
+            &DEFAULT
+
+        };);
+    };
+
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = once $default:expr;) => {
+        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+
+            static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
+            DEFAULT.get_or_init(||{
+                $default
+            })
+
+        };);
+    };
+
+    (gen => $(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $DEFAULT:expr;) => {
+        $(#[$outer])*
+        /// # ContextVar
+        /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
+        #[derive(Clone, Copy)]
+        $vis struct $ident;
+
+        impl $ident {
+            /// Context var as [`Var`](zero_ui::core::var::Var).
+            #[inline]
+            pub fn as_var(self) -> $crate::core::var::ContextVarImpl<Self> {
+                $crate::core::var::ContextVarImpl::<Self>::default()
+            }
+
+            /// [`Var`](zero_ui::core::var::Var) that represents this context var.
+            #[inline]
+            pub fn var() -> $crate::core::var::ContextVarImpl<Self> {
+                Self.as_var()
+            }
+        }
+
+        impl $crate::core::var::ContextVar for $ident {
+            type Type = $type;
+
+            fn default() -> &'static Self::Type {
+               $DEFAULT
+            }
+        }
+
+        impl $crate::core::var::IntoVar<$type> for $ident {
+            type Var = $crate::core::var::ContextVarImpl<Self>;
+            #[inline]
+            fn into_var(self) -> Self::Var {
+                self.as_var()
+            }
+        }
+    };
+}
+
+/// Declares new [`ContextVar`](crate::core::context::ContextVar) types.
+///
+/// # Examples
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// # #[derive(Debug, Clone)]
+/// # struct NotConst(u8);
+/// # fn init_val() -> NotConst { NotConst(10) }
+/// #
+/// context_var! {
+///     /// A public documented property with default value initialization that is `const`.
+///     /// Will use a static variable.
+///     pub struct Property1: u8 = const 10;
+///
+///     // A private property with default value that is not `const`. Will evaluate
+///     // and cache the default on the first usage.
+///     struct Property2: NotConst = once init_val();
+/// }
+/// # }
+/// ```
+#[macro_export]
+macro_rules! context_var {
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $mode:ident $default:expr;)+) => {$(
+        __context_var!($(#[$outer])* $vis struct $ident: $type = $mode $default;);
+    )+};
 }

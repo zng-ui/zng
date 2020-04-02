@@ -159,7 +159,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 ///
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
 /// support dynamic values in property definitions.
-pub trait Var<T: VarValue>: ObjVar<T> + Clone {
+pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
     /// Return type of [as_read_only](Var::as_read_only).
     type AsReadOnly: Var<T>;
     /// Return type of [as_local](Var::as_local).

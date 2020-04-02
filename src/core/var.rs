@@ -1,5 +1,6 @@
 mod boxed;
 mod cloning;
+#[macro_use]
 mod context;
 mod map;
 #[macro_use]
@@ -13,6 +14,7 @@ mod traits;
 
 pub use boxed::*;
 pub use cloning::*;
+pub use context::*;
 pub use map::*;
 pub use merge::*;
 pub use owned::*;

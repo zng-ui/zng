@@ -24,27 +24,6 @@ impl IntoVar<BorderDetails> for ColorF {
     }
 }
 
-impl<V: Var<ColorF>> IntoVar<BorderDetails> for V {
-    #[allow(clippy::type_complexity)]
-    type Var = MapVar<ColorF, Self, BorderDetails, Box<dyn FnMut(&ColorF) -> BorderDetails>>;
-
-    fn into_var(self) -> Self::Var {
-        self.map(Box::new(|color: &ColorF| {
-            let border_side = BorderSide {
-                color: *color,
-                style: BorderStyle::Solid,
-            };
-            BorderDetails {
-                left: border_side,
-                right: border_side,
-                top: border_side,
-                bottom: border_side,
-                radius: BorderRadius::zero(),
-            }
-        }))
-    }
-}
-
 impl IntoVar<BorderDetails> for (ColorF, BorderStyle) {
     type Var = OwnedVar<BorderDetails>;
 

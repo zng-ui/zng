@@ -3,8 +3,7 @@ use crate::core::font::*;
 use crate::core::render::FrameBuilder;
 use crate::core::types::Text;
 use crate::core::types::*;
-use crate::core::var::*;
-use crate::core::var::{IntoVar, Var};
+use crate::core::var::{IntoVar, ObjVar, Var};
 use crate::core::UiNode;
 use crate::impl_ui_node;
 use std::borrow::Cow;
@@ -23,10 +22,11 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         profile_scope!("text::init");
 
-        self.color = *TextColor.get(ctx.vars);
-        let font_size = *FontSize.get(ctx.vars);
+        self.color = *TextColor::var().get(ctx.vars);
+        let font_size = *FontSize::var().get(ctx.vars);
 
-        let font_family = &FontFamily.get(ctx.vars);
+        let font_family = FontFamily::var();
+        let font_family = font_family.get(ctx.vars);
         let font = ctx.window_services.req::<Fonts>().get(font_family, font_size);
 
         let font_size = font_size as f32;
@@ -56,12 +56,12 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         profile_scope!("text::update");
 
-        if self.text.is_new(ctx.vars) || FontFamily.is_new(ctx.vars) || FontSize.is_new(ctx.vars) {
+        if self.text.is_new(ctx.vars) || FontFamily::var().is_new(ctx.vars) || FontSize::var().is_new(ctx.vars) {
             self.init(ctx);
             ctx.updates.push_layout();
         }
 
-        if let Some(&color) = TextColor.update(ctx.vars) {
+        if let Some(&color) = TextColor::var().update(ctx.vars) {
             self.color = color;
             ctx.updates.push_render();
         }
@@ -119,11 +119,11 @@ pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
-    pub struct FontFamily: Text = Cow::Borrowed("Sans-Serif");
+    pub struct FontFamily: Text = const Cow::Borrowed("Sans-Serif");
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSize: u32 = 14;
+    pub struct FontSize: u32 = const 14;
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColor: ColorF = ColorF::WHITE;
+    pub struct TextColor: ColorF = const ColorF::WHITE;
 }

@@ -151,36 +151,6 @@ macro_rules! state_key {
     )+};
 }
 
-/// Declares new [`ContextVar`](crate::core::context::ContextVar) types.
-#[macro_export]
-macro_rules! context_var {
-    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $default:expr;)+) => {$(
-        $(#[$outer])*
-        /// # ContextVar
-        /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
-        #[derive(Clone, Copy)]
-        $vis struct $ident;
-
-        impl $crate::core::var::ContextVar for $ident {
-            type Type = $type;
-
-            fn default() -> &'static Self::Type {
-                static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
-                DEFAULT.get_or_init(||{
-                    $default
-                })
-            }
-        }
-
-        impl $crate::core::var::IntoVar<$type> for $ident {
-            type Var = Self;
-            fn into_var(self) -> Self {
-                self
-            }
-        }
-    )+};
-}
-
 /// Declares new [`EventArgs`](crate::core::event::EventArgs) types.
 ///
 /// # Example
