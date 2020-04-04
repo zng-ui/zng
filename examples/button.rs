@@ -40,7 +40,7 @@ fn example() -> impl UiNode {
     let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
 
     button! {
-        on_click: enclose!{ (t, background_color) move |a| {
+        on_click: enclose!{ (t,  background_color) move |a| {
             let ctx = a.ctx();
             ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
         }};

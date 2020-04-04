@@ -290,6 +290,13 @@ macro_rules! __context_var {
         };);
     };
 
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = return $default:expr;) => {
+        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+            $default
+        };);
+    };
+
+
     (gen => $(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $DEFAULT:expr;) => {
         $(#[$outer])*
         /// # ContextVar
