@@ -3,7 +3,7 @@ use crate::core::var::IntoVar;
 use crate::core::UiNode;
 use crate::properties::set_context_var;
 use crate::property;
-use crate::widgets::{FontFamily, FontSize, TextColor};
+use crate::widgets::{FontFamily, FontSize, TextColor, TextTransform, TextTransformFn};
 
 /// Sets the [`FontFamily`](FontFamily) context var.
 #[property(context)]
@@ -21,4 +21,10 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
 #[property(context)]
 pub fn text_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
     set_context_var(child, TextColor, color)
+}
+
+/// Sets the [`TextTransform`](TextTransform) context var.
+#[property(context)]
+pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
+    set_context_var(child, TextTransform, transform)
 }
