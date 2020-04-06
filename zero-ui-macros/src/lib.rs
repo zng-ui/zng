@@ -324,9 +324,23 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Declares a new widget macro and module.
 ///
-/// Widgets are a preset of properties and `when` conditions, they can also rename properties
-/// and have custom initialization functions. They can also inherit from multiple other widgets and
-/// widget mix-ins.
+/// Widgets are a preset of properties with optional custom initialization.
+///
+/// Things that can defined in widgets:
+///
+/// * _**Default Properties:**_ If the user of your widget does not set the property the default
+/// value is used.
+///
+/// * _**New Properties:**_ New properties that internally map to another property. New property names
+/// do not override their internal property, allowing the user to set both.
+///
+/// * _**Required Properties:**_ Setting a property with `required!` forces the user to set
+/// the property during use.
+///
+/// * _**Conditional Properties:**_ You can use `when` blocks to conditionally set properties.
+///
+/// * _**Retargeted Properties:**_ Usually properties apply according to their priority, widgets can
+/// define that some properties are applied early.
 ///
 /// # Syntax
 ///
@@ -334,7 +348,31 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Expands to
 ///
-/// TODO
+/// The macro expands to a module declaration with the same name and visibility, and a doc-hidden
+/// `macro_rules!` macro of the same name. If the widget is `pub` the new macro is `#[macro_export]`.
+///
+/// In the generated module you can find the two functions `new` and `new_child`, they are used automatically
+/// when the widget is instantiated but you can also call then manually. Manual calls can be used to include
+/// inherited widgets custom initialization.
+///
+/// ## Internals
+///
+/// In the generated module some public but doc-hidden items are generated, this items
+/// are used during widget instantiation.
+///
+/// ## Why a macro/mod pair
+///
+/// When [Macros 2.0](https://github.com/rust-lang/rust/issues/39412) is stable this will change, but
+/// for now the macro and module pair simulate macro namespaces, you import all macros from the widgets
+/// crate at the start:
+/// ```
+/// #[macro_use]
+/// extern crate widget_crate;
+/// ```
+/// but the widget macros use the short path to the module so you still need to write:
+/// ```
+/// use widget_crate::widgets::button;
+/// ```
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget::expand_widget(CallKind::Widget, input)
@@ -406,7 +444,7 @@ pub fn widget(input: TokenStream) -> TokenStream {
 ///
 /// ## Internals
 ///
-/// Within the generated module some public but doc-hidden items are generated, this items
+/// In the generated module some public but doc-hidden items are generated, this items
 /// are used during widget instantiation.
 #[proc_macro]
 pub fn widget_mixin(input: TokenStream) -> TokenStream {
