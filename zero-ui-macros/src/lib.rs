@@ -291,11 +291,28 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Declares a new widget property.
 ///
+/// # Argument
 ///
+/// The macro attribute takes one argument that indicates what is the priority of applying the property in a widget.
+///
+/// The priorities by outermost first:
+///
+/// * `context`: The property setups some widget context metadata. It is applied around all other properties of the widget.
+/// * `event`: The property is an event handler. It is applied inside the widget context but around all other properties.
+/// * `outer`: The property does something visual around the widget, like a margin or border.
+/// It is applied around the core visual properties of the widget.
+/// * `inner`: The property does something visual inside the widget, like fill color.
+/// It is applied inside all other properties of the widget.
 ///
 /// # Usage
 ///
-/// Annotate
+/// Annotate a standalone function to transform it into a property module.
+///
+/// The function must take at least two arguments and return the property [node](zero_ui::core::UiNode). The first
+/// argument must be the property child node, the other arguments the property values.
+///
+/// It is recommended that the property values have the type [`IntoVar<T>`](zero_ui::core::var::IntoVar) and the
+/// property node supports [`Var<T>`](zero_ui::core::var::Var) updates.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand_property(args, input)
