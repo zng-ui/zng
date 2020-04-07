@@ -46,11 +46,11 @@ fn example() -> impl UiNode {
         }};
         is_hovered: is_hovered;
         is_pressed: is_pressed;
+        margin: 10.0;
         size: (300.0, 200.0);
         align: Alignment::CENTER;
         background_color: background_color;
         font_size: 28;
-        margin: 10.0;
         => {
             text(t)
         }
