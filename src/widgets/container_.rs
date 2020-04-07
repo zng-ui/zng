@@ -7,7 +7,7 @@ widget! {
     /// Base single content container.
     pub container;
 
-    default(child) {
+    default_child {
         /// Content margin.
         padding -> margin;
         /// Content alignment.

@@ -182,10 +182,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut default_docs = vec![];
     let mut other_docs = vec![];
 
-    let mut default_blocks = [
-        (DefaultBlockTarget::Child, &mut dft_child),
-        (DefaultBlockTarget::Self_, &mut dft_self),
-    ];
+    let mut default_blocks = [(WidgetItemTarget::Child, &mut dft_child), (WidgetItemTarget::Self_, &mut dft_self)];
 
     for (target, properties) in &mut default_blocks {
         let target = *target;
@@ -242,8 +239,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
                 // 2
                 let (built, built_docs) = match target {
-                    DefaultBlockTarget::Child => (&mut built_child, &mut built_child_docs),
-                    DefaultBlockTarget::Self_ => (&mut built_self, &mut built_self_docs),
+                    WidgetItemTarget::Child => (&mut built_child, &mut built_child_docs),
+                    WidgetItemTarget::Self_ => (&mut built_self, &mut built_self_docs),
                 };
                 if is_required {
                     built.push(quote!(r #ident));
@@ -285,10 +282,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     for inherit in &mut input.inherits {
         let widget_name = &inherit.ident;
         for child_prop in &mut inherit.default_child.properties {
-            i_default_blocks.push((widget_name, DefaultBlockTarget::Child, child_prop));
+            i_default_blocks.push((widget_name, WidgetItemTarget::Child, child_prop));
         }
         for self_prop in &mut inherit.default_self.properties {
-            i_default_blocks.push((widget_name, DefaultBlockTarget::Self_, self_prop));
+            i_default_blocks.push((widget_name, WidgetItemTarget::Self_, self_prop));
         }
     }
     for (widget_name, target, prop) in i_default_blocks {
@@ -312,8 +309,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         //2
         let (built, built_docs) = match target {
-            DefaultBlockTarget::Child => (&mut i_built_child, &mut i_built_child_docs),
-            DefaultBlockTarget::Self_ => (&mut i_built_self, &mut i_built_self_docs),
+            WidgetItemTarget::Child => (&mut i_built_child, &mut i_built_child_docs),
+            WidgetItemTarget::Self_ => (&mut i_built_self, &mut i_built_self_docs),
         };
         match prop.kind {
             BuiltPropertyKind::Required => built.push(quote!(r #ident)),
@@ -601,19 +598,13 @@ fn push_docs_section_open(docs: &mut Vec<Attribute>, id: &str, title: &str) {
     ));
 }
 
-fn push_property_docs(
-    docs: &mut Vec<Attribute>,
-    target: DefaultBlockTarget,
-    ident: &Ident,
-    maps_to: &Option<Ident>,
-    pdocs: Vec<Attribute>,
-) {
+fn push_property_docs(docs: &mut Vec<Attribute>, target: WidgetItemTarget, ident: &Ident, maps_to: &Option<Ident>, pdocs: Vec<Attribute>) {
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         ident,
         match target {
-            DefaultBlockTarget::Self_ => "self",
-            DefaultBlockTarget::Child => "child",
+            WidgetItemTarget::Self_ => "self",
+            WidgetItemTarget::Child => "child",
         },
     ));
     docs.push(doc!("\n[<span class='mod'>{0}</span>]({0})\n", maps_to.as_ref().unwrap_or(&ident),));
@@ -628,7 +619,7 @@ fn push_property_docs(
 
 fn push_inherited_property_docs(
     docs: &mut Vec<Attribute>,
-    target: DefaultBlockTarget,
+    target: WidgetItemTarget,
     ident: &Ident,
     source_widget: &Ident,
     pdocs: Vec<Attribute>,
@@ -637,8 +628,8 @@ fn push_inherited_property_docs(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         ident,
         match target {
-            DefaultBlockTarget::Self_ => "self",
-            DefaultBlockTarget::Child => "child",
+            WidgetItemTarget::Self_ => "self",
+            WidgetItemTarget::Child => "child",
         },
     ));
     docs.push(doc!(
@@ -665,7 +656,7 @@ fn push_docs_section_close(docs: &mut Vec<Attribute>) {
 }
 
 pub mod keyword {
-    syn::custom_keyword!(child);
+    syn::custom_keyword!(default_child);
     syn::custom_keyword!(required);
     syn::custom_keyword!(unset);
     syn::custom_keyword!(when);
@@ -756,13 +747,13 @@ impl Parse for WidgetArgs {
 
             let lookahead = input.lookahead1();
 
-            if attrs.is_empty() && lookahead.peek(Token![default]) {
+            if attrs.is_empty() && (lookahead.peek(Token![default]) || lookahead.peek(keyword::default_child)) {
                 let block: DefaultBlock = input.parse()?;
                 match block.target {
-                    DefaultBlockTarget::Self_ => {
+                    WidgetItemTarget::Self_ => {
                         default_self.push(block);
                     }
-                    DefaultBlockTarget::Child => {
+                    WidgetItemTarget::Child => {
                         default_child.push(block);
                     }
                 }
@@ -779,13 +770,13 @@ impl Parse for WidgetArgs {
                 fn_.attrs = attrs;
 
                 match fn_.target {
-                    DefaultBlockTarget::Self_ => {
+                    WidgetItemTarget::Self_ => {
                         if new.is_some() {
                             return Err(Error::new(fn_.ident.span(), "function `new` can only be defined once"));
                         }
                         new = Some(fn_);
                     }
-                    DefaultBlockTarget::Child => {
+                    WidgetItemTarget::Child => {
                         if new_child.is_some() {
                             return Err(Error::new(fn_.ident.span(), "function `new_child` can only be defined once"));
                         }
@@ -916,16 +907,22 @@ impl Parse for InheritedProperty {
 
 #[derive(Debug)]
 pub struct DefaultBlock {
-    pub target: DefaultBlockTarget,
+    pub target: WidgetItemTarget,
     pub properties: Vec<PropertyDeclaration>,
 }
 impl Parse for DefaultBlock {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![default]>()?;
+        let expect = input.lookahead1();
 
-        let inner;
-        parenthesized!(inner in input);
-        let target = inner.parse()?;
+        let target = if expect.peek(Token![default]) {
+            input.parse::<Token![default]>()?;
+            WidgetItemTarget::Self_
+        } else if expect.peek(keyword::default_child) {
+            input.parse::<keyword::default_child>()?;
+            WidgetItemTarget::Child
+        } else {
+            return Err(expect.error());
+        };
 
         let inner;
         braced!(inner in input);
@@ -1021,7 +1018,7 @@ impl ToTokens for WhenBlock {
 
 pub struct NewFn {
     attrs: Vec<Attribute>,
-    target: DefaultBlockTarget,
+    target: WidgetItemTarget,
     ident: Ident,
     child: Ident,
     properties: Vec<Ident>,
@@ -1038,11 +1035,11 @@ impl Parse for NewFn {
         let ident;
         if lookahread.peek(keyword::new) {
             ident = input.parse()?;
-            target = DefaultBlockTarget::Self_;
+            target = WidgetItemTarget::Self_;
         } else if lookahread.peek(keyword::new_child) {
             input.parse::<keyword::new_child>()?;
             ident = input.parse()?;
-            target = DefaultBlockTarget::Child;
+            target = WidgetItemTarget::Child;
         } else {
             return Err(lookahread.error());
         };
@@ -1283,34 +1280,11 @@ impl ToTokens for PropertyValue {
     }
 }
 
+// Target of a default block or new fn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DefaultBlockTarget {
+pub enum WidgetItemTarget {
     Self_,
     Child,
-}
-impl Parse for DefaultBlockTarget {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let lookahead = input.lookahead1();
-        if lookahead.peek(Token![self]) {
-            input.parse::<Token![self]>()?;
-
-            Ok(DefaultBlockTarget::Self_)
-        } else if lookahead.peek(keyword::child) {
-            input.parse::<keyword::child>()?;
-
-            Ok(DefaultBlockTarget::Child)
-        } else {
-            Err(lookahead.error())
-        }
-    }
-}
-impl ToTokens for DefaultBlockTarget {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            DefaultBlockTarget::Self_ => tokens.extend(quote!(self)),
-            DefaultBlockTarget::Child => tokens.extend(quote!(child)),
-        }
-    }
 }
 
 #[derive(Debug)]

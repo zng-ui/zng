@@ -4,7 +4,7 @@ use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
 use syn::punctuated::Punctuated;
 use syn::{parse::*, *};
-use widget::{DefaultBlockTarget, PropertyValue};
+use widget::{PropertyValue, WidgetItemTarget};
 
 pub mod keyword {
     syn::custom_keyword!(m);
@@ -28,8 +28,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let map_props = |bdb: BuiltDefaultBlock, target| bdb.properties.into_iter().map(move |p| (p.ident, (target, p.kind)));
 
     // map of metadata of properties defined by the widget.
-    let mut known_props: HashMap<_, _> = map_props(input.default_child, DefaultBlockTarget::Child)
-        .chain(map_props(input.default_self, DefaultBlockTarget::Self_))
+    let mut known_props: HashMap<_, _> = map_props(input.default_child, WidgetItemTarget::Child)
+        .chain(map_props(input.default_self, WidgetItemTarget::Self_))
         .collect();
 
     // declarations of property arguments in the user written order.
@@ -53,7 +53,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             required = kind == BuiltPropertyKind::Required;
             in_widget = true;
         } else {
-            target = DefaultBlockTarget::Self_;
+            target = WidgetItemTarget::Self_;
             prop_prefix = quote! {};
             required = false;
             in_widget = false;
@@ -111,11 +111,11 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         let set;
         let expected_new_args;
         match target {
-            DefaultBlockTarget::Child => {
+            WidgetItemTarget::Child => {
                 set = &mut set_child;
                 expected_new_args = &input.new_child;
             }
-            DefaultBlockTarget::Self_ => {
+            WidgetItemTarget::Self_ => {
                 set = &mut set_self;
                 expected_new_args = &input.new;
             }

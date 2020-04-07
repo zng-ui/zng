@@ -354,7 +354,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// The example code declares a public widget named `button`.
-/// 
+///
 /// ## Inheritance
 ///
 /// Widgets can include properties from other widgets and widget mix-ins.
@@ -445,9 +445,9 @@ pub fn widget(input: TokenStream) -> TokenStream {
 ///
 ///     // Properties that are applied to the widget that inherits the mix-in.
 ///     //
-///     // Multiple `default` blocks can be declared, the targets can be `self` or `child`,
+///     // Multiple `default` and `default_child` blocks can be declared,
 ///     // see the `widget!` macro for more details about property targets.
-///     default(self) {
+///     default {
 ///
 ///         /// Documentation for this property in this widget mix-in.
 ///         //

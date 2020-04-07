@@ -16,7 +16,7 @@ widget! {
     /// A clickable container.
     pub button: container + focusable_mixin;
 
-    default(self) {
+    default {
         /// Button click event.
         on_click: required!;
 

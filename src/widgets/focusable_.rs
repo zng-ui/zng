@@ -13,7 +13,7 @@ widget_mixin! {
     /// high-light border.
     pub focusable_mixin;
 
-    default(self) {
+    default {
 
         /// Enables keyboard focusing in this widget.
         focusable: true;
