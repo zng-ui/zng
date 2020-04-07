@@ -142,7 +142,6 @@ pub enum TextTransformFn {
     None,
     Uppercase,
     Lowercase,
-    Capitalize,
     Custom(Rc<dyn Fn(&str) -> Cow<str>>),
 }
 
@@ -152,7 +151,6 @@ impl TextTransformFn {
             TextTransformFn::None => Cow::Borrowed(text),
             TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
             TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
-            TextTransformFn::Capitalize => Cow::Owned(todo!()),
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
@@ -168,7 +166,6 @@ impl fmt::Debug for TextTransformFn {
             TextTransformFn::None => write!(f, "None"),
             TextTransformFn::Uppercase => write!(f, "Uppercase"),
             TextTransformFn::Lowercase => write!(f, "Lowercase"),
-            TextTransformFn::Capitalize => write!(f, "Capitalize"),
             TextTransformFn::Custom(_) => write!(f, "Custom"),
         }
     }
