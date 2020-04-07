@@ -344,6 +344,53 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Syntax
 ///
+/// Widgets start with a declaration of the visibility and main documentation.
+///
+/// ```
+/// widget! {
+///     /// Widget documentation.
+///     pub button;
+/// }
+/// ```
+///
+/// The example code declares a public widget named `button`.
+/// 
+/// ## Inheritance
+///
+/// Widgets can include properties from other widgets and widget mix-ins.
+///
+/// ```
+/// widget! {
+///     pub button: container + focusable_mixin;
+/// }
+/// ```
+///
+/// The example core declares a widget that inherits the properties from the
+/// `container` widget and `focusable_mixin` mix-in.
+///
+/// Properties are inherited left-to-right so `container` first then `focusable_mixin` on-top. Properties
+/// with the same name get overridden.
+///
+/// All widgets also inherit from [`implicit_mixin`](zero_ui::widgets::implicit_mixin) before all other inherits.
+///
+/// ## Properties
+///
+/// TODO
+///
+/// ## Early Properties
+///
+/// TODO
+///
+/// ## Conditional Properties
+///
+/// TODO
+///
+/// ## Special Property Values
+///
+/// TODO
+///
+/// ## Custom Initialization
+///
 /// TODO
 ///
 /// # Expands to
