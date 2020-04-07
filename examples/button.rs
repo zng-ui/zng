@@ -48,8 +48,8 @@ fn example() -> impl UiNode {
         is_pressed: is_pressed;
         margin: 10.0;
         size: (300.0, 200.0);
-        align: Alignment::CENTER;
         background_color: background_color;
+        align: Alignment::CENTER;
         font_size: 28;
         => {
             text(t)

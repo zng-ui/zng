@@ -101,6 +101,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         context: Vec<TokenStream>,
         event: Vec<TokenStream>,
         outer: Vec<TokenStream>,
+        size: Vec<TokenStream>,
         inner: Vec<TokenStream>,
     }
 
@@ -124,10 +125,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         if !expected_new_args.iter().any(|a| a == &prop) {
             let name = ident! {"{}_args", prop};
             let props = if in_widget { quote!(#widget_name::ps::) } else { quote!() };
-            set.context
-                .push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
+            set.context.push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
             set.event.push(quote!(let (node, #name) = #props #prop::set_event(node, #name);));
             set.outer.push(quote!(let (node, #name) = #props #prop::set_outer(node, #name);));
+            set.size.push(quote!(let (node, #name) = #props #prop::set_size(node, #name);));
             set.inner.push(quote!(let (node, #name) = #props #prop::set_inner(node, #name);));
         }
     }
@@ -136,6 +137,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         context: set_child_props_ctx,
         event: set_child_props_event,
         outer: set_child_props_outer,
+        size: set_child_props_size,
         inner: set_child_props_inner,
     } = set_child;
 
@@ -145,6 +147,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         context: set_self_props_ctx,
         event: set_self_props_event,
         outer: set_self_props_outer,
+        size: set_self_props_size,
         inner: set_self_props_inner,
     } = set_self;
 
@@ -163,6 +166,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
         // apply child properties
         #(#set_child_props_inner)*
+        #(#set_child_props_size)*
         #(#set_child_props_outer)*
         #(#set_child_props_event)*
         #(#set_child_props_ctx)*
@@ -171,6 +175,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
 
         // apply self properties
         #(#set_self_props_inner)*
+        #(#set_self_props_size)*
         #(#set_self_props_outer)*
         #(#set_self_props_event)*
         #(#set_self_props_ctx)*

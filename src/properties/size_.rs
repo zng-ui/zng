@@ -42,7 +42,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     }
 }
 
-#[property(outer)]
+#[property(size)]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<LayoutSize>) -> impl UiNode {
     MinSize {
         child,
@@ -86,7 +86,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
     }
 }
 
-#[property(outer)]
+#[property(size)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<LayoutSize>) -> impl UiNode {
     MaxSize {
         child,
@@ -127,11 +127,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
+        //TODO clip content.
         frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
     }
 }
 
-#[property(outer)]
+#[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     ExactSize {
         child,

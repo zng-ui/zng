@@ -301,6 +301,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// * `event`: The property is an event handler. It is applied inside the widget context but around all other properties.
 /// * `outer`: The property does something visual around the widget, like a margin or border.
 /// It is applied around the core visual properties of the widget.
+/// * `size`: The property defines the size boundary of the widget.
 /// * `inner`: The property does something visual inside the widget, like fill color.
 /// It is applied inside all other properties of the widget.
 ///

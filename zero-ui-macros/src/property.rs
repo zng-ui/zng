@@ -9,6 +9,7 @@ pub mod keyword {
     syn::custom_keyword!(context);
     syn::custom_keyword!(event);
     syn::custom_keyword!(outer);
+    syn::custom_keyword!(size);
     syn::custom_keyword!(inner);
 }
 
@@ -203,24 +204,35 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     match priority {
         Priority::Inner => {
             sets.push(set_now("set_inner"));
+            sets.push(set_already_done("set_size"));
+            sets.push(set_already_done("set_outer"));
+            sets.push(set_already_done("set_event"));
+            sets.push(set_already_done("set_context"));
+        }
+        Priority::Size => {
+            sets.push(set_not_yet("set_inner"));
+            sets.push(set_now("set_size"));
             sets.push(set_already_done("set_outer"));
             sets.push(set_already_done("set_event"));
             sets.push(set_already_done("set_context"));
         }
         Priority::Outer => {
             sets.push(set_not_yet("set_inner"));
+            sets.push(set_not_yet("set_size"));
             sets.push(set_now("set_outer"));
             sets.push(set_already_done("set_event"));
             sets.push(set_already_done("set_context"));
         }
         Priority::Event => {
             sets.push(set_not_yet("set_inner"));
+            sets.push(set_not_yet("set_size"));
             sets.push(set_not_yet("set_outer"));
             sets.push(set_now("set_event"));
             sets.push(set_already_done("set_context"));
         }
         Priority::Context => {
             sets.push(set_not_yet("set_inner"));
+            sets.push(set_not_yet("set_size"));
             sets.push(set_not_yet("set_outer"));
             sets.push(set_not_yet("set_event"));
             sets.push(set_now("set_context"));
@@ -347,6 +359,7 @@ enum Priority {
     Context,
     Event,
     Outer,
+    Size,
     Inner,
 }
 impl std::fmt::Display for Priority {
@@ -355,6 +368,7 @@ impl std::fmt::Display for Priority {
             Priority::Context => write!(f, "context"),
             Priority::Event => write!(f, "event"),
             Priority::Outer => write!(f, "outer"),
+            Priority::Size => write!(f, "size"),
             Priority::Inner => write!(f, "inner"),
         }
     }
@@ -372,6 +386,9 @@ impl Parse for Priority {
         } else if lookahead.peek(keyword::outer) {
             input.parse::<keyword::outer>()?;
             Ok(Priority::Outer)
+        } else if lookahead.peek(keyword::size) {
+            input.parse::<keyword::size>()?;
+            Ok(Priority::Size)
         } else if lookahead.peek(keyword::inner) {
             input.parse::<keyword::inner>()?;
             Ok(Priority::Inner)
