@@ -1,5 +1,6 @@
 //! Common widget properties.
 
+mod align_;
 mod background_;
 mod border_;
 mod context_var;
@@ -8,11 +9,12 @@ mod focus;
 mod hit_testable_;
 mod id_;
 mod is_state_;
-mod layout;
 mod on_event_;
+mod size_;
 mod text;
 mod title_;
 
+pub use align_::*;
 pub use background_::*;
 pub use border_::*;
 pub use context_var::*;
@@ -21,8 +23,8 @@ pub use focus::*;
 pub use hit_testable_::*;
 pub use id_::*;
 pub use is_state_::*;
-pub use layout::*;
 pub use on_event_::*;
+pub use size_::*;
 pub use text::*;
 pub use title_::*;
 
