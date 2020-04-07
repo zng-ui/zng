@@ -123,17 +123,20 @@ impl<T: UiNode> UiNode for Widget<T> {
     }
 }
 
-/// This is called by the default widget! new_child function.
+/// This is called by the default widgets `new_child` function.
+///
+/// Nothing is done in this function, `child` is returned directly.
 #[inline]
-#[doc(hidden)]
-pub fn default_new_widget_child<C: UiNode>(child: C) -> C {
+pub fn default_widget_new_child<C: UiNode>(child: C) -> C {
     child
 }
 
-/// This is called by the default widget! new function.
+/// This is called by the default widgets `new` function.
+///
+/// A new widget context is introduced by this function. `child` is wrapped in a node that calls
+/// [`WidgetContext::widget_context`](WidgetContext::widget_context) and [`FrameBuilder::push_widget`] to define the widget.
 #[inline]
-#[doc(hidden)]
-pub fn default_new_widget(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl UiNode {
+pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl UiNode {
     Widget {
         id: id_args.pop().0,
         state: LazyStateMap::default(),

@@ -125,7 +125,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         if !expected_new_args.iter().any(|a| a == &prop) {
             let name = ident! {"{}_args", prop};
             let props = if in_widget { quote!(#widget_name::ps::) } else { quote!() };
-            set.context.push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
+            set.context
+                .push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
             set.event.push(quote!(let (node, #name) = #props #prop::set_event(node, #name);));
             set.outer.push(quote!(let (node, #name) = #props #prop::set_outer(node, #name);));
             set.size.push(quote!(let (node, #name) = #props #prop::set_size(node, #name);));

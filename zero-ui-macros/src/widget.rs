@@ -122,7 +122,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             #fn_doc
             #[inline]
             pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
-                zero_ui::core::default_new_widget_child(child)
+                zero_ui::core::default_widget_new_child(child)
             }
         );
         new_child_properties = vec![];
@@ -157,7 +157,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             #fn_doc
             #[inline]
             pub fn new(child: impl zero_ui::core::UiNode, id: impl ps::id::Args) -> impl zero_ui::core::UiNode {
-                zero_ui::core::default_new_widget(child, id)
+                zero_ui::core::default_widget_new(child, id)
             }
         );
     };

@@ -343,6 +343,9 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// * _**Retargeted Properties:**_ Usually properties apply according to their priority, widgets can
 /// define that some properties are applied early.
 ///
+/// * _**Custom Initialization:**_ Each widget can have two functions `new_child` and `new`. This functions receive and return
+/// `UiNodes` and can also capture property values and use then in customized ways.
+///
 /// # Syntax
 ///
 /// Widgets start with a declaration of the visibility and main documentation.
@@ -376,25 +379,171 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ## Properties
 ///
-/// TODO
+/// Properties can be set within three different blocks, `default {}`, `default_child {}` and `when $expr {}`.
 ///
-/// ## Early Properties
+/// Properties in the `default_child` blocks are applied directly to the widget child before all others, those in the
+/// `default` blocks are applied to the `new_child` function result and those in the `when` blocks change the other
+/// properties when the condition is true.
 ///
-/// TODO
+/// ## Setting Properties
+///
+/// Properties can be set just like in a widget macro:
+///
+/// ```
+/// widget! {
+///     pub button;
+///
+///     default {
+///         /// Documentation for this property in the widget.
+///         background_color: rgb(0, 200, 0);
+///         border: {
+///             widths: 1.0,
+///             details: rgb(0, 100, 0)
+///         };
+///     }
+/// }
+/// ```
+/// The example code presets `background_color` and `border` for the widget. If users of `button!` don't set
+/// this two properties, the preset values are used for every button.
+///
+/// Setting the same property name again overrides the previous value.
+///
+/// ## Special Property Values
+///
+/// Properties can also be set to `unset!` or `required!`.
+///
+/// ### `unset!`
+///
+/// Unset can be used to remove an inherited property preset.
+///
+/// ```
+/// widget! {
+///     pub button: container;
+///
+///     default_child {
+///         content_align: unset!;
+///     }
+/// }
+/// ```
+/// The example code inherits `content_align` from `container`, it is preset to `Alignment::CENTER`. You could set it
+/// to a different alignment but the property would still be used for every `button!` user, setting it to `unset!` makes
+/// the property have no default value.
+///
+/// The `button!` users can still set it, but if they don't no property `UiNode` is inserted.
+///
+/// ### `required!`
+///
+/// Required properties don't have a preset value but widget users must set then.
+///
+/// ```
+/// widget! {
+///     pub button;
+///
+///     default {
+///         on_click: required!;
+///     }
+/// }
+/// ```
+/// The example code requires `button!` users to set `on_click`, if they don't set it they get the
+/// compile error ``"missing required property `on_click`"``.
+///
+/// ##  New Properties
+///
+/// New property names can be defined in the context of the widget, they use the implementation of another property
+/// but have a special name in the widget.
+///
+/// ```
+/// widget! {
+///     pub container;
+///
+///     default_child {
+///         padding -> margin;
+///         content_align -> align: Alignment::CENTER;
+///     }
+/// }
+/// ```
+/// The example code defines two new properties, `padding` and `content_align`. The two properties
+/// can be set by users of the `container!` widget.
+///
+/// The `padding` property has no default value, but if the users of `container!` set it a `margin` is applied
+/// (to the container child in this case).
+///
+/// The `content_align` property has a default value, so `align` is applied automatically but can be
+///  overridden by `container!` users.
+///
+/// New properties are not aliases, users of `container!` can set both `padding` and `margin` and both are applied.
 ///
 /// ## Conditional Properties
 ///
 /// TODO
 ///
-/// ## Special Property Values
-///
-/// TODO
-///
 /// ## Custom Initialization
 ///
-/// TODO
+/// All widgets have two functions, `new_child` and `new`, they have a default implementation but can be overridden by the widget.
 ///
-/// # Expands to
+/// ```
+/// widget! {
+///     pub my_widget;
+///
+///     default {
+///         on_event: required!;
+///     }
+///
+///     #[inline]
+///     fn new_child(child) -> impl UiNode {
+///         special::set(child, true)
+///     }
+///
+///     /// Custom docs for `my_widget::new`.
+///     #[inline]
+///     fn new(child, id, on_event) -> MyWidget {
+///         MyWidget {
+///             child,
+///             id: id.pop().0,
+///             handler: on_event.pop().0
+///         }
+///     }
+/// }
+/// ```
+/// The example code provides a custom definition for both functions. The functions need to have at least one
+/// parameter and return a value, `new_child` return type must implement [`UiNode`](zero_ui::core::UiNode).
+///
+/// Both functions take at least one argument that is the child `UiNode`, followed by property captures. You don't write the argument types, the
+/// first argument is `impl UiNode` the others are `impl <property>::Args`.
+///
+/// The initialization functions can capture a property by mentioning then in their args, in the example code `new` captures `id` and `on_event`. When
+/// a property is captured they behave like a normal property from the widget user perspective, but the property is not actually set, the property arguments
+/// are passed to the capturing function.
+///
+/// The first argument of `new_child` is the widget child wrapped in the widget child properties, for `new` it is the result of `new_child`
+/// wrapped in all the widget properties. The return type of `new` does not need to implement `UiNode`.
+///
+/// ### Default
+///
+/// By default `new_child` calls [`default_widget_new_child`](zero_ui::core::default_widget_new_child) and `new` calls
+/// [`default_widget_new`](zero_ui::core::default_widget_new).
+///
+/// ### Inheritance
+///
+/// Widgets do not inherit initialization, if you want to use the initialization of another widget you must call the `other::new` or `other::new_child`
+/// functions manually inside the custom initialization for your widget.
+///
+/// ```
+/// widget! {
+///     pub my_window: window;
+///
+///     default {
+///         my_property: 10;
+///     }
+///
+///     fn new(child, root_id, title, size, background_color) -> Window {
+///         println!("Initializing {:?}", root_id);
+///         window::new(child, root_id, title, size, background_color)
+///     }
+/// }
+/// ```
+///
+/// # Widget Expands To
 ///
 /// The macro expands to a module declaration with the same name and visibility, and a doc-hidden
 /// `macro_rules!` macro of the same name. If the widget is `pub` the new macro is `#[macro_export]`.
@@ -402,6 +551,10 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// In the generated module you can find the two functions `new` and `new_child`, they are used automatically
 /// when the widget is instantiated but you can also call then manually. Manual calls can be used to include
 /// inherited widgets custom initialization.
+///
+/// All documentation is incorporated into specially formatted HTML that uses the
+/// rust-doc stylesheets to present the widget as a first class item. See
+/// [`window`](zero_ui::widgets::window) for an example.
 ///
 /// ## Internals
 ///
@@ -428,7 +581,7 @@ pub fn widget(input: TokenStream) -> TokenStream {
 
 /// Declares a new widget mix-in module.
 ///
-/// Widget mix-ins can be inherited by other mix-ins and widgets but cannot be instantiated.
+/// Widget mix-ins can be inherited by other mix-ins and widgets, but cannot be instantiated.
 ///
 /// # Syntax
 ///
@@ -438,39 +591,19 @@ pub fn widget(input: TokenStream) -> TokenStream {
 /// ```
 /// widget_mixin! {
 ///     /// Mix-in documentation.
-///     ///
-///     /// * By convention mix-in names have a suffix `_mixin`.
-///     /// * `pub` is optional and all visibility modifiers are supported.
-///     /// * The mix-in can inherit from others by using `.._mixin: other + another;`.
 ///     pub focusable_mixin;
 ///
-///     // Properties that are applied to the widget that inherits the mix-in.
-///     //
-///     // Multiple `default` and `default_child` blocks can be declared,
-///     // see the `widget!` macro for more details about property targets.
 ///     default {
 ///
 ///         /// Documentation for this property in this widget mix-in.
-///         //
-///         // See the `widget!` macro documentation for more
-///         // details about how this properties can be declared and set.
 ///         focusable: true;
 ///
-///         // New property names can be declared for the widget only, They use another property
-///         // internally but don't override the other property.
-///         //
-///         // In this case `focused_border` is a new property for widgets that
-///         // inherit `focusable_mixin`, but `border` can also be set for the same widgets.
 ///         focused_border -> border: {
 ///             widths: LayoutSideOffsets::new_all_same(0.0),
 ///             details: FocusedBorderDetails
 ///         };
 ///     }
 ///
-///     // Conditional property values that are applied to the widget that inherits the mix-in.
-///     //
-///     // Multiple `when` blocks can be declared. See the `widget!` macro documentation for more
-///     // details about conditional property values.
 ///     when self.is_focused {
 ///         focused_border: {
 ///             widths: FocusedBorderWidths,
