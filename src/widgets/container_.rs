@@ -1,7 +1,7 @@
 use crate::widget;
 
 #[doc(hidden)]
-pub use crate::properties::{align, margin, Alignment};
+pub use crate::properties::{align, clip_to_bounds, margin, Alignment};
 
 widget! {
     /// Base single content container.
@@ -12,5 +12,7 @@ widget! {
         padding -> margin;
         /// Content alignment.
         content_align -> align: Alignment::CENTER;
+        /// Content overflow clipping.
+        clip_to_bounds -> clip_to_bounds;
     }
 }

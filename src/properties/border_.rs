@@ -236,7 +236,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
                 self.render_details,
             );
         }
-        frame.push_node(&self.child, &self.child_rect);
+        frame.push_offsetted(&self.child, self.child_rect.origin);
     }
 }
 

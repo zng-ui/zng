@@ -10,7 +10,6 @@ use crate::{impl_ui_node, property};
 struct MinSize<T: UiNode, S: LocalVar<LayoutSize>> {
     child: T,
     min_size: S,
-    final_size: LayoutSize,
 }
 
 #[impl_ui_node(child)]
@@ -33,12 +32,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.final_size = self.min_size.get_local().max(final_size);
-        self.child.arrange(self.final_size);
+        let final_size = self.min_size.get_local().max(final_size);
+        self.child.arrange(final_size);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
+        self.child.render(frame)
     }
 }
 
@@ -47,14 +46,12 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<LayoutSize>) -> impl 
     MinSize {
         child,
         min_size: min_size.into_local(),
-        final_size: LayoutSize::zero(),
     }
 }
 
 struct MaxSize<T: UiNode, S: LocalVar<LayoutSize>> {
     child: T,
     max_size: S,
-    final_size: LayoutSize,
 }
 
 #[impl_ui_node(child)]
@@ -77,12 +74,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.final_size = self.max_size.get_local().min(final_size);
-        self.child.arrange(self.final_size);
+        let final_size = self.max_size.get_local().min(final_size);
+        self.child.arrange(final_size);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
+        self.child.render(frame)
     }
 }
 
@@ -91,14 +88,12 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<LayoutSize>) -> impl 
     MaxSize {
         child,
         max_size: max_size.into_local(),
-        final_size: LayoutSize::zero(),
     }
 }
 
 struct ExactSize<T: UiNode, S: LocalVar<LayoutSize>> {
     child: T,
     size: S,
-    final_size: LayoutSize,
 }
 
 #[impl_ui_node(child)]
@@ -120,15 +115,13 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
         self.child.measure(*self.size.get_local())
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        let size = *self.size.get_local();
-        self.child.arrange(size);
-        self.final_size = final_size.min(size);
+    fn arrange(&mut self, _: LayoutSize) {
+        self.child.arrange(*self.size.get_local());
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
         //TODO clip content.
-        frame.push_node(&self.child, &LayoutRect::from_size(self.final_size));
+        self.child.render(frame)
     }
 }
 
@@ -137,6 +130,5 @@ pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     ExactSize {
         child,
         size: size.into_local(),
-        final_size: LayoutSize::zero(),
     }
 }

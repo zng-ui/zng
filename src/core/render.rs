@@ -154,19 +154,22 @@ impl FrameBuilder {
         self.hit_testable = parent_hit_testable;
     }
 
+    #[inline]
+    pub fn push_clipped(&mut self, node: &impl UiNode, bounds: LayoutSize) {}
+
     /// Calls [render](UiNode::render) for `node` inside a new reference frame made from `rect`.
     #[inline]
-    pub fn push_node(&mut self, node: &impl UiNode, rect: &LayoutRect) {
+    pub fn push_offsetted(&mut self, node: &impl UiNode, offset: LayoutPoint) {
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
-            rect.origin,
+            offset,
             parent_spatial_id,
             TransformStyle::Flat,
             PropertyBinding::default(),
             ReferenceFrameKind::Transform,
         );
 
-        let offset = rect.origin.to_vector();
+        let offset = offset.to_vector();
         self.offset += offset;
 
         node.render(self);

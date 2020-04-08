@@ -3,6 +3,7 @@
 mod align_;
 mod background_;
 mod border_;
+mod clip_to_bounds_;
 mod context_var;
 mod cursor_;
 mod focus;
@@ -18,6 +19,7 @@ mod title_;
 pub use align_::*;
 pub use background_::*;
 pub use border_::*;
+pub use clip_to_bounds_::*;
 pub use context_var::*;
 pub use cursor_::*;
 pub use focus::*;

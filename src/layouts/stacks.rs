@@ -39,7 +39,7 @@ macro_rules! stack {
 
             fn render(&self, frame: &mut FrameBuilder) {
                 for c in self.children.iter() {
-                    frame.push_node(&c.child, &c.rect);
+                    c.render(frame)
                 }
             }
         }
@@ -102,7 +102,7 @@ impl<T: UiNode> UiNode for StackEntry<T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_node(&self.child, &self.rect);
+        frame.push_offsetted(&self.child, self.rect.origin);
     }
 }
 
