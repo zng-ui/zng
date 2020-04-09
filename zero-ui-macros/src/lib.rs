@@ -475,7 +475,43 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ## Conditional Properties
 ///
-/// TODO
+/// Properties can be conditionally set using `when` blocks.
+///
+/// ```
+/// widget! {
+///     pub button;
+///
+///     default {
+///         background_color: rgb(50, 50, 50);
+///     }
+///
+///     when self.is_mouse_over {
+///         background_color: rgb(70, 70, 70);
+///     }
+/// }
+/// ```
+/// The example code changes the `background_color` property value every time `is_mouse_over` is `true`. Properties
+/// can be set normally inside the `when` blocks and the condition expression can reference properties using
+/// `self.property_name`.
+///
+/// The condition expression is like the `if` expression, supporting any expression that results in a `bool` value. If
+/// you reference a property inside the expression the condition refreshes when the property changes.
+///
+/// All of the following are valid:
+///
+/// ```
+/// when true { }
+///
+/// when self.is_state { }
+///
+/// when self.is_state && self.is_another_state { }
+///
+/// when self.property == "Value" { }
+///
+/// when some_fn(self.property) { }
+/// ```
+/// The only requirement is that the property has a value that implements [`Default`](Default) if you did not set it
+/// in a `default` or `default_child` block.
 ///
 /// ## Custom Initialization
 ///
