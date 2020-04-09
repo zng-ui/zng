@@ -267,7 +267,7 @@ impl FrameBuilder {
     }
 }
 
-/// Complement of [ItemTag] that indicates the hit area of a widget.
+/// Complement of [`ItemTag`](ItemTag) that indicates the hit area of a widget.
 pub const WIDGET_HIT_AREA: u16 = u16::max_value();
 
 fn unpack_cursor(raw: u16) -> CursorIcon {
@@ -300,17 +300,17 @@ pub struct FrameHitInfo {
 impl FrameHitInfo {
     /// Initializes from a Webrender hit-test result.
     ///
-    /// Only item tags produced by [FrameBuilder] are expected.
+    /// Only item tags produced by [`FrameBuilder`](FrameBuilder) are expected.
     ///
     /// The tag format is:
     ///
-    /// * `u64`: Raw [WidgetId].
-    /// * `u16`: Raw [CursorIcon] or `WIDGET_HIT_AREA`.
+    /// * `u64`: Raw [`WidgetId`](WidgetId).
+    /// * `u16`: Raw [`CursorIcon`](CursorIcon) or `WIDGET_HIT_AREA`.
     ///
     /// Only widgets that are where hit by a cursor tag and `WIDGET_HIT_AREA` tag are included in
     /// the final result.
     ///
-    /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [HitInfo::point].
+    /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [`HitInfo::point`](HitInfo::point).
     #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
         let mut candidates = Vec::default();
@@ -411,7 +411,7 @@ impl FrameHitInfo {
     }
 }
 
-/// [FrameInfo] builder.
+/// [`FrameInfo`](FrameInfo) builder.
 pub struct FrameInfoBuilder {
     window_id: WindowId,
     frame_id: FrameId,
@@ -489,7 +489,7 @@ pub struct WidgetInfoId(ego_tree::NodeId);
 
 /// Information about a rendered frame.
 ///
-/// Instantiated using [FrameInfoBuilder].
+/// Instantiated using [`FrameInfoBuilder`](FrameInfoBuilder).
 pub struct FrameInfo {
     window_id: WindowId,
     frame_id: FrameId,
@@ -549,7 +549,7 @@ impl FrameInfo {
     }
 }
 
-/// Full address of a widget in a specific [FrameInfo].
+/// Full address of a widget in a specific [`FrameInfo`](FrameInfo).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WidgetPath {
     node_id: Option<ego_tree::NodeId>,
@@ -629,7 +629,7 @@ struct WidgetInfoInner {
     meta: LazyStateMap,
 }
 
-/// Reference to a widget info in a [FrameInfo].
+/// Reference to a widget info in a [`FrameInfo`](FrameInfo).
 #[derive(Clone, Copy)]
 pub struct WidgetInfo<'a> {
     frame: &'a FrameInfo,
@@ -918,7 +918,7 @@ fn is_in_direction(direction: WidgetOrientation, origin: LayoutPoint, candidate:
     false
 }
 
-/// Orientation of a [WidgetInfo] relative to another point.
+/// Orientation of a [`WidgetInfo`](WidgetInfo) relative to another point.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum WidgetOrientation {
     Left,

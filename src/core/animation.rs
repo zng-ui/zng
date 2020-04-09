@@ -56,8 +56,8 @@ impl EasingTime {
     }
 }
 
-/// A [VarValue] that is the final value of a transition animation and
-/// can be multiplied by a [EasingStep] to get an intermediary value of the
+/// A [`VarValue`](VarValue) that is the final value of a transition animation and
+/// can be multiplied by a [`EasingStep`](EasingStep) to get an intermediary value of the
 /// same type.
 pub trait EasingVarValue: VarValue + Mul<EasingStep, Output = Self> {}
 
@@ -202,7 +202,7 @@ pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime
     ease_fn(time.reverse()).flip()
 }
 
-/// Applies `ease_in` for the first half then `[ease_out]` scaled to fit a single duration (1.0).
+/// Applies `ease_in` for the first half then [`ease_out`](ease_out) scaled to fit a single duration (1.0).
 pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     let time = EasingTime(time.get() * 2.0);
     let step = if time.get() < 1.0 {

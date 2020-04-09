@@ -333,10 +333,10 @@ impl Vars {
     }
 }
 
-/// A key to a value in a [StateMap].
+/// A key to a value in a [`StateMap`](StateMap).
 ///
 /// The type that implements this trait is the key. You
-/// can use the [state_key!] macro.
+/// can use the [`state_key!`](state_key!) macro.
 pub trait StateKey: 'static {
     /// The value type.
     type Type: 'static;
@@ -356,7 +356,7 @@ impl StateMap {
             .map(|any| *any.downcast::<S::Type>().unwrap())
     }
 
-    /// Sets a value that is its own [StateKey].
+    /// Sets a value that is its own [`StateKey`](StateKey).
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.map
             .insert(TypeId::of::<S>(), Box::new(value))
@@ -394,7 +394,7 @@ impl StateMap {
     }
 }
 
-/// A [StateMap] that only takes one `usize` of memory if not used.
+/// A [`StateMap`](StateMap) that only takes one `usize` of memory if not used.
 #[derive(Default)]
 pub struct LazyStateMap {
     m: Option<Box<StateMap>>,
@@ -417,7 +417,7 @@ impl LazyStateMap {
         self.borrow_mut().set(key, value)
     }
 
-    /// Sets a value that is its own [StateKey].
+    /// Sets a value that is its own [`StateKey`](StateKey).
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.borrow_mut().set_single(value)
     }
@@ -533,7 +533,7 @@ impl AppServicesInit {
         self.m.m.insert(service)
     }
 
-    /// Moves the registered services into a new [AppServices].
+    /// Moves the registered services into a new [`AppServices`](AppServices).
     pub fn services(&mut self) -> &mut AppServices {
         &mut self.m
     }
@@ -606,7 +606,7 @@ impl WindowServices {
     }
 }
 
-/// Executor access to [Updates].
+/// Executor access to [`Updates`](Updates).
 pub struct OwnedUpdates {
     pub updates: Updates,
 }
@@ -661,7 +661,7 @@ impl OwnedUpdates {
 
 /// Schedule of actions to apply after an update.
 ///
-/// An instance of this struct can be build by [OwnedUpdates].
+/// An instance of this struct can be build by [`OwnedUpdates`](OwnedUpdates).
 pub struct Updates {
     notifier: UpdateNotifier,
     update: UpdateRequest,
@@ -743,9 +743,9 @@ impl Updates {
     }
 }
 
-/// Owner of [AppContext] objects.
+/// Owner of [`AppContext`](AppContext) objects.
 ///
-/// Because [Vars] and [Events] can only have one instance
+/// Because [`Vars`](Vars) and [`Events`](Events) can only have one instance
 /// and this `struct` owns both you can only have one instance
 /// of this at a time.
 pub struct OwnedAppContext {
@@ -796,7 +796,7 @@ impl OwnedAppContext {
         }
     }
 
-    /// Takes the request that generated an [AppEvent::Update].
+    /// Takes the request that generated an [`AppEvent::Update`](AppEvent::Update).
     pub fn take_request(&mut self) -> UpdateRequest {
         self.updates.take_request()
     }
@@ -818,7 +818,7 @@ pub struct AppInitContext<'a> {
     ///
     /// ### Note
     /// In the application initialization context there are no variable updates, so
-    /// `[Var::update]` is always none.
+    /// `[`Var::update`](Var::update)` is always none.
     pub vars: &'a Vars,
 
     /// Events listener access and registration.

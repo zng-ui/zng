@@ -19,7 +19,7 @@ use std::time::Instant;
 use webrender::api::*;
 
 event_args! {
-    /// [WindowOpen], [WindowClose] event args.
+    /// [`WindowOpen`](WindowOpen), [`WindowClose`](WindowClose) event args.
     pub struct WindowEventArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -32,7 +32,7 @@ event_args! {
         }
     }
 
-    /// [WindowResize] event args.
+    /// [`WindowResize`](WindowResize) event args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
@@ -45,7 +45,7 @@ event_args! {
         }
     }
 
-    /// [WindowMove] event args.
+    /// [`WindowMove`](WindowMove) event args.
     pub struct WindowMoveArgs {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
@@ -58,7 +58,7 @@ event_args! {
         }
     }
 
-    /// [WindowScaleChanged] event args.
+    /// [`WindowScaleChanged`](WindowScaleChanged) event args.
     pub struct WindowScaleChangedArgs {
         pub window_id: WindowId,
         pub new_scale_factor: f32,
@@ -73,7 +73,7 @@ event_args! {
     }
 }
 cancelable_event_args! {
-    /// [WindowCloseRequested] event args.
+    /// [`WindowCloseRequested`](WindowCloseRequested) event args.
     pub struct WindowCloseRequestedArgs {
         pub window_id: WindowId,
         group: CloseTogetherGroup,
@@ -448,13 +448,13 @@ struct OpenWindowRequest {
     notifier: EventEmitter<WindowEventArgs>,
 }
 
-/// Response message of [Windows::close] and [Windows::close_together].
+/// Response message of [`Windows::close`](Windows::close) and [`Windows::close_together`](Windows::close_together).
 #[derive(Debug)]
 pub enum CloseWindowResult {
-    /// Notifying [WindowClose].
+    /// Notifying [`WindowClose`](WindowClose).
     Close,
 
-    /// [WindowCloseRequested] canceled.
+    /// [`WindowCloseRequested`](WindowCloseRequested) canceled.
     Cancel,
 }
 
@@ -518,7 +518,7 @@ impl Windows {
         notice
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of the [WindowCloseRequested] event.
+    /// Starts closing a window, the operation can be canceled by listeners of the [`WindowCloseRequested`](WindowCloseRequested) event.
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
@@ -544,7 +544,7 @@ impl Windows {
         }
     }
 
-    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [WindowCloseRequested] event.
+    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [`WindowCloseRequested`](WindowCloseRequested) event.
     /// If canceled none of the windows are closed.
     ///
     /// Returns a listener that will update once with the result of the operation.
@@ -639,9 +639,9 @@ struct GlWindow {
     frame_info: FrameInfo,
 
     size: LayoutSize,
-    /// document area visible in this window.
+    // document area visible in this window.
     doc_view: units::DeviceIntRect,
-    /// if [doc_view] changed and no render was called yet.
+    // if [doc_view] changed and no render was called yet.
     doc_view_changed: bool,
 }
 
@@ -729,7 +729,7 @@ impl GlWindow {
 
     /// Window id.
     pub fn id(&self) -> WindowId {
-        // this method is required for [win_profile_scope!] to work with [GlWindow] and [OwnedWindowContext].
+        // this method is required for [win_profile_scope!] to work with [`GlWindow`](GlWindow) and [`OwnedWindowContext`](OwnedWindowContext).
         self.gl_ctx.as_ref().unwrap().window().id()
     }
 
@@ -760,7 +760,7 @@ impl GlWindow {
         }
     }
 
-    /// Manually flags [layout] to actually update on the next call.
+    /// Manually flags layout to actually update on the next call.
     ///
     /// This is required for updates generated outside of this window but that affect this window.
     pub fn expect_layout_update(&mut self) {
@@ -786,7 +786,7 @@ impl GlWindow {
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
-    /// flag a [render] required.
+    /// flag a render required.
     pub fn layout(&mut self) {
         let ctx = self.ctx.as_mut().unwrap();
 
@@ -886,7 +886,7 @@ impl GlWindow {
     /// Deinit renderer and OpenGl context.
     ///
     /// # Panics
-    /// If the [OwnedWindowContext] was not already deinit.
+    /// If the [`OwnedWindowContext`](OwnedWindowContext) was not already deinit.
     pub fn deinit(mut self) {
         assert!(self.ctx.is_none()); // must deinit UiNodes first.
         self.deinit_renderer();
@@ -934,8 +934,8 @@ impl Drop for GlWindow {
     }
 }
 
-/// The part of a [GlWindow] that must be detached to provide update notifications
-/// that still permit borrowing the owning [GlWindow].
+/// The part of a [`GlWindow`](GlWindow) that must be detached to provide update notifications
+/// that still permit borrowing the owning [`GlWindow`](GlWindow).
 pub(crate) struct OwnedWindowContext {
     window_id: WindowId,
     state: WindowState,
@@ -948,7 +948,7 @@ pub(crate) struct OwnedWindowContext {
 impl OwnedWindowContext {
     /// Window id.
     pub fn id(&self) -> WindowId {
-        // this method is required for [win_profile_scope!] to work with [GlWindow] and [OwnedWindowContext].
+        // this method is required for [`win_profile_scope!`](win_profile_scope!) to work with [`GlWindow`](GlWindow) and [`OwnedWindowContext`](OwnedWindowContext).
         self.window_id
     }
 
@@ -963,7 +963,7 @@ impl OwnedWindowContext {
         })
     }
 
-    /// Call [UiNode::init] in all nodes.
+    /// Call [`UiNode::init`](UiNode::init) in all nodes.
     pub fn init(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::init");
 
@@ -977,7 +977,7 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [UiNode::update_hp] in all nodes.
+    /// Call [`UiNode::update_hp`](UiNode::update_hp) in all nodes.
     pub fn update_hp(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::update_hp");
 
@@ -985,7 +985,7 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [UiNode::update] in all nodes.
+    /// Call [`UiNode::update`](UiNode::update) in all nodes.
     pub fn update(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::update");
 
@@ -994,7 +994,7 @@ impl OwnedWindowContext {
         self.update |= update;
     }
 
-    /// Call [UiNode::deinit] in all nodes.
+    /// Call [`UiNode::deinit`](UiNode::deinit) in all nodes.
     pub fn deinit(mut self, ctx: &mut AppContext) {
         profile_scope!("window::deinit");
         self.root_context(ctx, |root, ctx| root.deinit(ctx));

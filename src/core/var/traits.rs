@@ -157,7 +157,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 /// This is the complete generic trait, the non-generic methods are defined in [ObjVar]
 /// to support boxing.
 ///
-/// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
+/// Cannot be implemented outside of zero-ui crate. Use this together with [`IntoVar`](IntoVar) to
 /// support dynamic values in property definitions.
 pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
     /// Return type of [`as_read_only`](Var::as_read_only).

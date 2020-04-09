@@ -1,7 +1,7 @@
 use super::{protected, LocalVar, ObjVar, VarIsReadOnly, VarValue};
 use crate::core::context::{Updates, Vars};
 
-/// Boxed [ObjVar].
+/// Boxed [`ObjVar`](ObjVar).
 pub type BoxVar<T> = Box<dyn ObjVar<T>>;
 
 impl<T: VarValue> protected::Var<T> for BoxVar<T> {
@@ -63,7 +63,7 @@ impl<T: VarValue> ObjVar<T> for BoxVar<T> {
     }
 }
 
-/// Boxed [LocalVar].
+/// Boxed [`LocalVar`](LocalVar).
 pub type BoxLocalVar<T> = Box<dyn LocalVar<T>>;
 
 impl<T: VarValue> protected::Var<T> for BoxLocalVar<T> {

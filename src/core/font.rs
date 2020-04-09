@@ -8,7 +8,7 @@ use std::sync::Arc;
 use webrender::api::units::Au;
 use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 
-/// Application extension that provides the [Fonts] window service.
+/// Application extension that provides the [`Fonts`](Fonts) window service.
 #[derive(Default)]
 pub struct FontManager;
 

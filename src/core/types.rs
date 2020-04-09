@@ -22,7 +22,7 @@ impl WidgetId {
     ///
     /// # Safety
     ///
-    /// This is only safe if called with a value provided by [WidgetId::get].
+    /// This is only safe if called with a value provided by [`WidgetId::get`](WidgetId::get).
     pub unsafe fn from_raw(raw: u64) -> WidgetId {
         WidgetId(std::num::NonZeroU64::new_unchecked(raw))
     }
@@ -97,7 +97,7 @@ pub fn rgba<C: Into<ColorFComponent>, A: Into<ColorFComponent>>(r: C, g: C, b: C
     ColorF::new(r.into().0, g.into().0, b.into().0, a.into().0)
 }
 
-/// [rgb] and [rgba] argument conversion helper.
+/// [`rgb`](rgb) and [`rgba`](rgba) argument conversion helper.
 pub struct ColorFComponent(pub f32);
 impl From<f32> for ColorFComponent {
     fn from(f: f32) -> Self {

@@ -282,7 +282,7 @@ struct SwitchVarDynInner<I: Var<usize>, T: 'static> {
     version: Cell<u32>,
 }
 
-/// A dynamically-sized set of variables that can be switched on. See [switch_var!] for
+/// A dynamically-sized set of variables that can be switched on. See [`switch_var!`](switch_var!) for
 /// the full documentation.
 pub struct SwitchVarDyn<I: Var<usize>, T: VarValue> {
     r: Rc<SwitchVarDynInner<I, T>>,

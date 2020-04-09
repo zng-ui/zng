@@ -9,7 +9,7 @@ use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
 
 event_args! {
-    /// [FocusChanged] event args.
+    /// [`FocusChanged`](FocusChanged) event args.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
         pub prev_focus: Option<WidgetPath>,
@@ -94,8 +94,8 @@ impl Event for FocusChanged {
     type Args = FocusChangedArgs;
 }
 
-/// Application extension that manages keyboard focus. Provides the [FocusChanged] event
-/// and [Focus] service.
+/// Application extension that manages keyboard focus. Provides the [`FocusChanged`](FocusChanged) event
+/// and [`Focus`](Focus) service.
 pub struct FocusManager {
     focused: Option<WidgetId>,
     focus_changed: EventEmitter<FocusChangedArgs>,
@@ -232,7 +232,7 @@ impl<'a> FrameFocusInfo<'a> {
     /// Reference to the root widget in the frame.
     ///
     /// The root is usually a focusable focus scope but it may not be. This
-    /// is the only method that returns a [WidgetFocusInfo] that may not be focusable.
+    /// is the only method that returns a [`WidgetFocusInfo`](WidgetFocusInfo) that may not be focusable.
     #[inline]
     pub fn root(&self) -> WidgetFocusInfo {
         WidgetFocusInfo::new(self.info.root())
@@ -251,12 +251,12 @@ impl<'a> FrameFocusInfo<'a> {
     }
 }
 
-/// [WidgetInfo] extensions that build a [WidgetFocusInfo].
+/// [`WidgetInfo`](WidgetInfo) extensions that build a [`WidgetFocusInfo`](WidgetFocusInfo).
 pub trait WidgetInfoFocusExt<'a> {
-    /// Wraps the [WidgetInfo] in a [WidgetFocusInfo] even if it is not focusable.
+    /// Wraps the [`WidgetInfo`](WidgetInfo) in a [`WidgetFocusInfo`](WidgetFocusInfo) even if it is not focusable.
     fn as_focus_info(self) -> WidgetFocusInfo<'a>;
 
-    /// Returns a wrapped [WidgetFocusInfo] if the [WidgetInfo] is focusable.
+    /// Returns a wrapped [`WidgetFocusInfo`](WidgetFocusInfo) if the [`WidgetInfo`](WidgetInfo) is focusable.
     fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
 }
 
@@ -275,7 +275,7 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     }
 }
 
-/// [WidgetInfo] wrapper that uses focus metadata for computing navigation.
+/// [`WidgetInfo`](WidgetInfo) wrapper that uses focus metadata for computing navigation.
 #[derive(Clone, Copy)]
 pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
@@ -437,7 +437,7 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 }
 
-/// Filter-maps an iterator of [WidgetInfo] to [WidgetFocusInfo].
+/// Filter-maps an iterator of [`WidgetInfo`](WidgetInfo) to [`WidgetFocusInfo`](WidgetFocusInfo).
 pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
 }

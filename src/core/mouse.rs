@@ -13,7 +13,7 @@ use std::time::*;
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
 event_args! {
-    /// [MouseMove] event args.
+    /// [`MouseMove`](MouseMove) event args.
     pub struct MouseMoveArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -41,7 +41,7 @@ event_args! {
          }
     }
 
-    /// [MouseInput], [MouseDown], [MouseUp] event args.
+    /// [`MouseInput`](MouseInput), [`MouseDown`](MouseDown), [`MouseUp`](MouseUp) event args.
     pub struct MouseInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -75,7 +75,7 @@ event_args! {
         }
     }
 
-    /// [MouseClick] event args.
+    /// [`MouseClick`](MouseClick) event args.
     pub struct MouseClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -101,12 +101,12 @@ event_args! {
 
         /// Full path to the widget that got clicked.
         ///
-        /// A widget is clicked if the [MouseDown] and [MouseUp] happen
+        /// A widget is clicked if the [`MouseDown`](MouseDown) and [`MouseUp`](MouseUp) happen
         /// in sequence in the same widget. Subsequent clicks (double, triple)
-        /// happen on [MouseDown].
+        /// happen on [`MouseDown`](MouseDown).
         ///
-        /// If a [MouseDown] happen in a child widget and the pointer is dragged
-        /// to a larger parent widget and then let go ([MouseUp]), the click target
+        /// If a [`MouseDown`](MouseDown) happen in a child widget and the pointer is dragged
+        /// to a larger parent widget and then let go ([`MouseUp`](MouseUp)), the click target
         /// is the parent widget.
         ///
         /// Multi-clicks (`[click_count](MouseClickArgs::click_count) > 1`) only happen to
@@ -121,7 +121,7 @@ event_args! {
         }
     }
 
-    /// [MouseEnter] and [MouseLeave] event args.
+    /// [`MouseEnter`](MouseEnter) and [`MouseLeave`](MouseLeave) event args.
     pub struct MouseHoverArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,

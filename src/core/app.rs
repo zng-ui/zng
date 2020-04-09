@@ -9,7 +9,7 @@ use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
 use std::mem;
 
-/// An [App] extension.
+/// An [`App`](App) extension.
 pub trait AppExtension: 'static {
     /// Type id of this extension.
     #[inline]

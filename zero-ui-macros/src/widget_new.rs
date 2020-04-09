@@ -35,7 +35,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     // declarations of property arguments in the user written order.
     let mut let_args = Vec::with_capacity(input.input.sets.len());
     let mut let_default_args = vec![];
-    // metadata about [let_args].
+    // metadata about let_args.
     let mut setted_props = Vec::with_capacity(let_args.capacity());
     let mut setted_default_props = vec![];
 
