@@ -154,22 +154,39 @@ impl FrameBuilder {
         self.hit_testable = parent_hit_testable;
     }
 
+    /// Calls [render](UiNode::render) for `node` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
     #[inline]
-    pub fn push_clipped(&mut self, node: &impl UiNode, bounds: LayoutSize) {}
+    pub fn push_clipped(&mut self, node: &impl UiNode, bounds: LayoutSize) {
+        let parent_clip_id = self.clip_id;
 
-    /// Calls [render](UiNode::render) for `node` inside a new reference frame made from `rect`.
+        self.clip_id = self.display_list.define_clip(
+            &SpaceAndClipInfo {
+                spatial_id: self.spatial_id,
+                clip_id: self.clip_id,
+            },
+            LayoutRect::from_size(bounds),
+            None,
+            None,
+        );
+
+        node.render(self);
+
+        self.clip_id = parent_clip_id;
+    }
+
+    /// Calls [render](UiNode::render) for `node` inside a new reference frame positioned by `origin`.
     #[inline]
-    pub fn push_offsetted(&mut self, node: &impl UiNode, offset: LayoutPoint) {
+    pub fn push_offsetted(&mut self, node: &impl UiNode, position: LayoutPoint) {
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
-            offset,
+            position,
             parent_spatial_id,
             TransformStyle::Flat,
             PropertyBinding::default(),
             ReferenceFrameKind::Transform,
         );
 
-        let offset = offset.to_vector();
+        let offset = position.to_vector();
         self.offset += offset;
 
         node.render(self);

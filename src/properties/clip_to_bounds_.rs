@@ -36,8 +36,9 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
     fn render(&self, frame: &mut FrameBuilder) {
         if *self.clip.get_local() {
             frame.push_clipped(&self.child, self.bounds)
+        } else {
+            self.child.render(frame);
         }
-        self.child.render(frame);
     }
 }
 
