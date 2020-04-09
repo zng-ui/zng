@@ -102,7 +102,7 @@ impl<T: UiNode> UiNode for StackEntry<T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_offsetted(&self.child, self.rect.origin);
+        frame.push_reference_frame(self.rect.origin, |frame| self.child.render(frame));
     }
 }
 

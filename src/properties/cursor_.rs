@@ -25,7 +25,7 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_cursor(*self.cursor.get_local(), &self.child);
+        frame.push_cursor(*self.cursor.get_local(), |frame| self.child.render(frame));
     }
 }
 

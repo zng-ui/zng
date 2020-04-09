@@ -45,7 +45,7 @@ impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_offsetted(&self.child, self.child_rect.origin);
+        frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
     }
 }
 

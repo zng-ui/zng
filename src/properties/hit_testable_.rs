@@ -23,7 +23,7 @@ impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_hit_testable(&self.child, *self.hit_testable.get_local());
+        frame.push_hit_testable(*self.hit_testable.get_local(), |frame| self.child.render(frame));
     }
 }
 

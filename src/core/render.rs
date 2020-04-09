@@ -76,10 +76,10 @@ impl FrameBuilder {
         self.spatial_id
     }
 
-    /// Current widget [ItemTag]. The first number is the raw [widget_id](FrameBuilder::widget_id),
-    /// the second number is the raw [cursor](FrameBuilder::cursor).
+    /// Current widget [`ItemTag`]. The first number is the raw [`widget_id`](FrameBuilder::widget_id),
+    /// the second number is the raw [`cursor`](FrameBuilder::cursor).
     ///
-    /// For more details on how the ItemTag is used see [FrameHitInfo::new].
+    /// For more details on how the ItemTag is used see [`FrameHitInfo::new`](FrameHitInfo::new).
     #[inline]
     pub fn item_tag(&self) -> ItemTag {
         (self.widget_id.get(), self.cursor as u16)
@@ -105,7 +105,7 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls [render](UiNode::render) for `node` inside a new widget context.
+    /// Calls [`render`](UiNode::render) for `node` inside a new widget context.
     pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // The hit-test bounding-box used to take the coordinates of the widget hit
         // if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
@@ -137,8 +137,8 @@ impl FrameBuilder {
         self.info_id = parent_node;
     }
 
-    /// Push a hit-test `rect` using [common_item_properties](FrameBuilder::common_item_properties)
-    /// if [hit_testable](FrameBuilder::hit_testable) is `true`.
+    /// Push a hit-test `rect` using [`common_item_properties`](FrameBuilder::common_item_properties)
+    /// if [`hit_testable`](FrameBuilder::hit_testable) is `true`.
     #[inline]
     pub fn push_hit_test(&mut self, rect: LayoutRect) {
         if self.hit_testable {
@@ -146,17 +146,17 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls [render](UiNode::render) for `node` while [hit_testable](FrameBuilder::hit_testable) is set to `hit_testable`.
+    /// Calls `f` while [`hit_testable`](FrameBuilder::hit_testable) is set to `hit_testable`.
     #[inline]
-    pub fn push_hit_testable(&mut self, node: &impl UiNode, hit_testable: bool) {
+    pub fn push_hit_testable(&mut self, hit_testable: bool, f: impl FnOnce(&mut FrameBuilder)) {
         let parent_hit_testable = mem::replace(&mut self.hit_testable, hit_testable);
-        node.render(self);
+        f(self);
         self.hit_testable = parent_hit_testable;
     }
 
-    /// Calls [render](UiNode::render) for `node` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
+    /// Calls `f` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
     #[inline]
-    pub fn push_clipped(&mut self, node: &impl UiNode, bounds: LayoutSize) {
+    pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
         let parent_clip_id = self.clip_id;
 
         self.clip_id = self.display_list.define_clip(
@@ -169,41 +169,41 @@ impl FrameBuilder {
             None,
         );
 
-        node.render(self);
+        f(self);
 
         self.clip_id = parent_clip_id;
     }
 
-    /// Calls [render](UiNode::render) for `node` inside a new reference frame positioned by `origin`.
+    /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
-    pub fn push_offsetted(&mut self, node: &impl UiNode, position: LayoutPoint) {
+    pub fn push_reference_frame(&mut self, origin: LayoutPoint, f: impl FnOnce(&mut FrameBuilder)) {
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
-            position,
+            origin,
             parent_spatial_id,
             TransformStyle::Flat,
             PropertyBinding::default(),
             ReferenceFrameKind::Transform,
         );
 
-        let offset = position.to_vector();
+        let offset = origin.to_vector();
         self.offset += offset;
 
-        node.render(self);
+        f(self);
 
         self.display_list.pop_reference_frame();
         self.spatial_id = parent_spatial_id;
         self.offset -= offset;
     }
 
-    /// Push a border using [common_item_properties](FrameBuilder::common_item_properties).
+    /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
         self.display_list
             .push_border(&self.common_item_properties(rect.clone()), rect, widths, details);
     }
 
-    /// Push a text run using [common_item_properties](FrameBuilder::common_item_properties).
+    /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_text(
         &mut self,
@@ -223,23 +223,23 @@ impl FrameBuilder {
         );
     }
 
-    /// Calls [render](UiNode::render) for `node` while [item_tag](FrameBuilder::item_tag) indicates the `cursor`.
+    /// Calls `f` while [`item_tag`](FrameBuilder::item_tag) indicates the `cursor`.
     ///
     /// Note that for the cursor to be used `node` or its children must push a hit-testable item.
     #[inline]
-    pub fn push_cursor(&mut self, cursor: CursorIcon, node: &impl UiNode) {
+    pub fn push_cursor(&mut self, cursor: CursorIcon, f: impl FnOnce(&mut FrameBuilder)) {
         let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
-        node.render(self);
+        f(self);
         self.cursor = parent_cursor;
     }
 
-    /// Push a color rectangle using [common_item_properties](FrameBuilder::common_item_properties).
+    /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_color(&mut self, rect: LayoutRect, color: ColorF) {
         self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
-    /// Push a linear gradient rectangle using [common_item_properties](FrameBuilder::common_item_properties).
+    /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
         self.display_list.push_stops(stops);
