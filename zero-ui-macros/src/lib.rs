@@ -318,6 +318,55 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// # Expands to
 ///
 /// TODO
+///
+/// # Naming Convention
+///
+/// Most properties are named after what they add to the widget. A widget has a `margin` or is `enabled`. Some properties
+/// have a special prefix, `on_` for events and `is_` for widget state probing.
+///
+/// ## Event Listeners
+///
+/// Properties that setup an event listener are named `on_<event_name>` and take a direct closure (not a var). It is
+/// recommended that you use [`on_event`](zero_ui::properties::on_event) to implement event properties. If not possible
+/// try to use [`OnEventArgs`](zero_ui::properties::OnEventArgs) at least.
+///
+/// ```
+/// #[property(event)]
+/// pub fn on_key_input(
+///     child: impl UiNode,
+///     handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static
+/// ) -> impl UiNode {
+///     on_event(child, KeyInput, handler)
+/// }
+/// ```
+///
+/// ## State Probing
+///
+/// Properties that provide a `bool` value when the widget is in a state are named `is_<state>` and take a TODO(special var?).
+///
+/// ```
+/// #[property(context)]
+/// pub fn is_pressed(child: impl UiNode, state: TODOStateVar) -> impl UiNode {
+///     IsPressed {
+///         ..
+///     }
+/// }
+/// ```
+/// Normal boolean properties are not named with the `is_` prefix. For example `enabled` and `clip_to_bounds` are boolean
+/// but they react to the user value not the other way around.
+///
+/// ## Context Variables
+///
+/// Every public [`ContextVar`](zero_ui::core::var::ContextVar) must have a property that sets the var, they use the same
+/// name of the variable in snake_case. You can use [`with_context_var`](zero_ui::properties::with_context_var) to implement
+/// then.
+///
+/// ```
+/// #[property(context)]
+/// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
+///     with_context_var(child, FontSize, size)
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand_property(args, input)
