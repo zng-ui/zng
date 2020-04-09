@@ -30,12 +30,12 @@ event_args! {
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
 
-        /// Full path to the top-most hit in [hits](MouseMoveArgs::hits).
+        /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
         pub target: WidgetPath,
 
         ..
 
-        /// If the widget is in [target](MouseMoveArgs::target).
+        /// If the widget is in [`target`](MouseMoveArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
          }
@@ -52,24 +52,24 @@ event_args! {
         /// Which mouse button generated the event.
         pub button: MouseButton,
 
-        /// Position of the mouse in the coordinates of [target](MouseInputArgs::target).
+        /// Position of the mouse in the coordinates of [`target`](MouseInputArgs::target).
         pub position: LayoutPoint,
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
-        /// The state the [button](MouseInputArgs::button) was changed to.
+        /// The state the [`button`](MouseInputArgs::button) was changed to.
         pub state: ElementState,
 
         /// Hit-test result for the mouse point in the window.
         pub hits: FrameHitInfo,
 
-        /// Full path to the top-most hit in [hits](MouseInputArgs::hits).
+        /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
         pub target: WidgetPath,
 
         ..
 
-        /// If the widget is in [target](MouseInputArgs::target).
+        /// If the widget is in [`target`](MouseInputArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
         }
@@ -86,7 +86,7 @@ event_args! {
         /// Which mouse button generated the event.
         pub button: MouseButton,
 
-        /// Position of the mouse in the coordinates of [target](MouseClickArgs::target).
+        /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
         pub position: LayoutPoint,
 
          /// What modifier keys where pressed when this event happened.
@@ -115,7 +115,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [target](MouseClickArgs::target).
+        /// If the widget is in [`target`](MouseClickArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
         }
@@ -129,7 +129,7 @@ event_args! {
         /// Id of device that generated the event.
         pub device_id: DeviceId,
 
-        /// Position of the mouse in the coordinates of [target](MouseClickArgs::target).
+        /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
         pub position: LayoutPoint,
 
         /// Widgets affected by this event.
@@ -137,7 +137,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [targets](MouseHoverArgs::targets).
+        /// If the widget is in [`targets`](MouseHoverArgs::targets).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.targets.contains(&ctx.widget_id)
         }
@@ -169,25 +169,25 @@ impl Event for MouseUp {
     type Args = MouseInputArgs;
 }
 
-/// Mouse click event, any [click_count](MouseClickArgs::click_count).
+/// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
 pub struct MouseClick;
 impl Event for MouseClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse single-click event ([click_count](MouseClickArgs::click_count) = `1`).
+/// Mouse single-click event (`[click_count](MouseClickArgs::click_count) == 1`).
 pub struct MouseSingleClick;
 impl Event for MouseSingleClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse double-click event ([click_count](MouseClickArgs::click_count) = `2`).
+/// Mouse double-click event (`[click_count](MouseClickArgs::click_count) == 2`).
 pub struct MouseDoubleClick;
 impl Event for MouseDoubleClick {
     type Args = MouseClickArgs;
 }
 
-/// Mouse triple-click event ([click_count](MouseClickArgs::click_count) = `3`).
+/// Mouse triple-click event (`[click_count](MouseClickArgs::click_count) == 3`).
 pub struct MouseTripleClick;
 impl Event for MouseTripleClick {
     type Args = MouseClickArgs;

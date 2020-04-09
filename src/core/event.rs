@@ -64,7 +64,7 @@ impl<T: 'static> EventChannel<T> {
         }
     }
 
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update](crate::core::UiNode::update).
+    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, _events: &'a Events) -> &'a [T] {
         // SAFETY: This is safe because we are bounding the value lifetime with
         // the `Events` lifetime and we require a mutable reference to `Events` to
@@ -72,7 +72,7 @@ impl<T: 'static> EventChannel<T> {
         unsafe { &*self.r.data.get() }.as_ref()
     }
 
-    /// If this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.r.is_high_pressure
     }
@@ -109,17 +109,17 @@ impl<T: 'static> EventListener<T> {
         EventListener { chan }
     }
 
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update](crate::core::UiNode::update).
+    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
     }
 
-    /// If [updates](EventListener::updates) is not empty.
+    /// If [`updates`](EventListener::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
     }
 
-    /// If this update is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }
@@ -149,7 +149,7 @@ impl<T: 'static> EventEmitter<T> {
     /// New event emitter.
     ///
     /// # Arguments
-    /// * `is_high_pressure`: If this event is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// * `is_high_pressure`: If this event is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
     pub fn new(is_high_pressure: bool) -> Self {
         EventEmitter {
             chan: EventChannel {
@@ -172,17 +172,17 @@ impl<T: 'static> EventEmitter<T> {
         self.chan.has_listeners()
     }
 
-    /// Gets a reference to the updates that happened in between calls of [UiNode::update](crate::core::UiNode::update).
+    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
     }
 
-    /// If [updates](EventEmitter::updates) is not empty.
+    /// If [`updates`](EventEmitter::updates) is not empty.
     pub fn has_updates<'a>(&'a self, events: &'a Events) -> bool {
         !self.updates(events).is_empty()
     }
 
-    /// If this event is notified using the [UiNode::update_hp](crate::core::UiNode::update_hp) method.
+    /// If this event is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }

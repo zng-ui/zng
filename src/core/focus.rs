@@ -20,7 +20,7 @@ event_args! {
         ..
 
         /// If the widget is [prev_focus](FocusChangedArgs::prev_focus) or
-        /// [new_focus](FocusChangedArgs::new_focus).
+        /// [`new_focus`](FocusChangedArgs::new_focus).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
                 if prev.widget_id() == ctx.widget_id {
@@ -58,13 +58,13 @@ impl TabIndex {
     /// Widget is focused during TAB navigation using its order of declaration.
     pub const AUTO: TabIndex = TabIndex(u32::max_value());
 
-    /// If is [SKIP](TabIndex::SKIP).
+    /// If is [`SKIP`](TabIndex::SKIP).
     #[inline]
     pub fn is_skip(self) -> bool {
         self == Self::SKIP
     }
 
-    /// If is [AUTO](TabIndex::AUTO).
+    /// If is [`AUTO`](TabIndex::AUTO).
     #[inline]
     pub fn is_auto(self) -> bool {
         self == Self::AUTO

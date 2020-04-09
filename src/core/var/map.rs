@@ -46,7 +46,7 @@ where
 
 /// A variable that maps from and to another variable.
 ///
-/// This `struct` is created by the [map_bidi](Var::map_bidi) method and is a temporary adapter until
+/// This `struct` is created by the [`map_bidi`](Var::map_bidi) method and is a temporary adapter until
 /// [GATs](https://github.com/rust-lang/rust/issues/44265) are stable.
 pub struct MapVarBiDi<T, S, O, M, N>
 where

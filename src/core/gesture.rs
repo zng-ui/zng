@@ -19,7 +19,7 @@ pub enum ClickArgsSource {
         /// Which mouse button generated the event.
         button: MouseButton,
 
-        /// Position of the mouse in the coordinates of [target](MouseClickArgs::target).
+        /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
         position: LayoutPoint,
 
         /// Hit-test result for the mouse point in the window, at the moment the click event
@@ -59,7 +59,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [target](ClickArgs::target).
+        /// If the widget is in [`target`](ClickArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
         }
@@ -88,7 +88,7 @@ impl From<MouseClickArgs> for ClickArgs {
 impl TryFrom<KeyInputArgs> for ClickArgs {
     type Error = KeyInputArgs;
 
-    /// Converts to click args if `[key_input_is_click](&args)`, otherwise returns
+    /// Converts to click args if `[key_input_is_click](key_input_is_click)(&args)`, otherwise returns
     /// the key input args.
     #[inline]
     fn try_from(args: KeyInputArgs) -> Result<Self, Self::Error> {
@@ -108,7 +108,7 @@ impl TryFrom<KeyInputArgs> for ClickArgs {
     }
 }
 
-/// If is a [return](VirtualKeyCode::Return) key press and [target](KeyInputArgs::target) is some widget.
+/// If is a [`Return`](VirtualKeyCode::Return) key press and [`target`](KeyInputArgs::target) is some widget.
 #[inline]
 pub fn key_input_is_click(args: &KeyInputArgs) -> bool {
     args.key == Some(VirtualKeyCode::Return) && args.state == ElementState::Pressed
@@ -242,19 +242,19 @@ impl Event for Click {
     type Args = ClickArgs;
 }
 
-/// [Click] when the [click_count](ClickArgs::click_count) is `1`.
+/// [Click] when the [`click_count`](ClickArgs::click_count) is `1`.
 pub struct SingleClick;
 impl Event for SingleClick {
     type Args = ClickArgs;
 }
 
-/// [Click] when the [click_count](ClickArgs::click_count) is `2`.
+/// [Click] when the [`click_count`](ClickArgs::click_count) is `2`.
 pub struct DoubleClick;
 impl Event for DoubleClick {
     type Args = ClickArgs;
 }
 
-/// [Click] when the [click_count](ClickArgs::click_count) is `3`.
+/// [Click] when the [`click_count`](ClickArgs::click_count) is `3`.
 pub struct TripleClick;
 impl Event for TripleClick {
     type Args = ClickArgs;

@@ -120,7 +120,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
         true
     }
 
-    /// Schedules a variable change for the next update if the variable is not [read_only](ObjVar::read_only).
+    /// Schedules a variable change for the next update if the variable is not [`read_only`](ObjVar::read_only).
     fn push_set(&self, new_value: T, vars: &Vars, updates: &mut Updates) -> Result<(), VarIsReadOnly> {
         let _ = new_value;
         let _ = vars;
@@ -160,9 +160,9 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 /// Cannot be implemented outside of zero-ui crate. Use this together with [IntoVar] to
 /// support dynamic values in property definitions.
 pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
-    /// Return type of [as_read_only](Var::as_read_only).
+    /// Return type of [`as_read_only`](Var::as_read_only).
     type AsReadOnly: Var<T>;
-    /// Return type of [as_local](Var::as_local).
+    /// Return type of [`as_local`](Var::as_local).
     type AsLocal: LocalVar<T>;
 
     /// Schedules a variable modification for the next update.
@@ -183,7 +183,7 @@ pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
 
     /// Bidirectional map. Returns a `Var<O>` that uses two closures to convert to and from this `Var<T>`.
     ///
-    /// Unlike [map](Var::map) the returned variable is read-write when this variable is read-write.
+    /// Unlike [`map`](Var::map) the returned variable is read-write when this variable is read-write.
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
     where
         Self: Sized,
@@ -191,7 +191,7 @@ pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
         M: FnMut(&T) -> O + 'static,
         N: FnMut(&O) -> T + 'static;
 
-    /// Ensures this variable is [always_read_only](ObjVar::always_read_only).
+    /// Ensures this variable is [`always_read_only`](ObjVar::always_read_only).
     fn as_read_only(self) -> Self::AsReadOnly;
 
     /// Returns a [variable](LocalVar) that keeps the current value locally so

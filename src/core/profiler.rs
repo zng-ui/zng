@@ -128,7 +128,7 @@ impl Profiler {
     }
 }
 
-/// Named profile scope. The scope start time is when [new](ProfileScope::new) is called,
+/// Named profile scope. The scope start time is when [`new`](ProfileScope::new) is called,
 /// the scope duration is the time it was alive.
 ///
 /// # Example

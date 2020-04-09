@@ -565,13 +565,13 @@ impl WidgetPath {
         self.window_id
     }
 
-    /// The frame of [window_id](WidgetPath::window_id) this path was computed.
+    /// The frame of [`window_id`](WidgetPath::window_id) this path was computed.
     #[inline]
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
     }
 
-    /// Widgets that contain [widget_id](WidgetPath::widget_id), root first.
+    /// Widgets that contain [`widget_id`](WidgetPath::widget_id), root first.
     #[inline]
     pub fn ancestors(&self) -> &[WidgetId] {
         &self.path[..self.path.len() - 2]
@@ -583,7 +583,7 @@ impl WidgetPath {
         self.path[self.path.len() - 1]
     }
 
-    /// [ancestors](WidgetPath::ancestors) and [widget_id](WidgetPath::widget_id), root first.
+    /// [`ancestors`](WidgetPath::ancestors) and [`widget_id`](WidgetPath::widget_id), root first.
     #[inline]
     pub fn widgets_path(&self) -> &[WidgetId] {
         &self.path[..]
@@ -597,7 +597,7 @@ impl WidgetPath {
 
     /// Get the inner most widget parent shared by both `self` and `other`.
     ///
-    /// The [frame_id](WidgetPath::frame_id) of `self` is used in the result.
+    /// The [`frame_id`](WidgetPath::frame_id) of `self` is used in the result.
     #[inline]
     pub fn shared_ancestor(&self, other: &WidgetPath) -> Option<WidgetPath> {
         if self.window_id == other.window_id {
@@ -699,7 +699,7 @@ impl<'a> WidgetInfo<'a> {
 
     /// Reference to the widget that contains this widget.
     ///
-    /// Is `None` only for [root](FrameInfo::root).
+    /// Is `None` only for [`root`](FrameInfo::root).
     #[inline]
     pub fn parent(self) -> Option<Self> {
         self.node().parent().map(move |n| WidgetInfo::new(self.frame, n.id()))

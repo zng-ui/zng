@@ -114,7 +114,7 @@ impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
         self.stop_propagation = true;
     }
 
-    /// Finished call to handler, returns if should [stop_propagation](OnEventArgs::stop_propagation).
+    /// Finished call to handler, returns if should [`stop_propagation`](OnEventArgs::stop_propagation).
     pub fn handled(self) -> bool {
         self.stop_propagation
     }

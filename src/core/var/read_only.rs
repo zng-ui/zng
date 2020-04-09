@@ -5,9 +5,9 @@ use super::{
 use crate::core::context::Vars;
 use std::marker::PhantomData;
 
-/// A variable that is [always_read_only](ObjVar::always_read_only).
+/// A variable that is [`always_read_only`](ObjVar::always_read_only).
 ///
-/// This `struct` is created by the [as_read_only](Var::as_read_only) method in variables
+/// This `struct` is created by the [`as_read_only`](Var::as_read_only) method in variables
 /// that are not `always_read_only`.
 pub struct ReadOnlyVar<T: VarValue, V: Var<T> + Clone> {
     _t: PhantomData<T>,
@@ -31,7 +31,7 @@ impl<T: VarValue, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
         self.var.get(vars)
     }
 
-    /// [get](ObjVar::get) if [is_new](ObjVar::is_new) or none.
+    /// [`get`](ObjVar::get) if [`is_new`](ObjVar::is_new) or none.
     fn update<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
         self.var.update(vars)
     }
