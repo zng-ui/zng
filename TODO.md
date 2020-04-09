@@ -38,8 +38,7 @@ Things that must be done first because they influence the core API design that i
 
 ## Basic Layout
 
-* Align.
-* Min/Max size.
+* Set min_width..max_height only.
 * Grid.
 * WrapPanel.
 * DockPanel.

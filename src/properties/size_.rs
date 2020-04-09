@@ -1,6 +1,5 @@
 use crate::core::{
     context::WidgetContext,
-    render::FrameBuilder,
     types::*,
     var::{IntoVar, LocalVar},
     UiNode,
@@ -34,10 +33,6 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     fn arrange(&mut self, final_size: LayoutSize) {
         let final_size = self.min_size.get_local().max(final_size);
         self.child.arrange(final_size);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        self.child.render(frame)
     }
 }
 
@@ -77,10 +72,6 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
         let final_size = self.max_size.get_local().min(final_size);
         self.child.arrange(final_size);
     }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        self.child.render(frame)
-    }
 }
 
 #[property(size)]
@@ -111,17 +102,26 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        self.child.measure(*self.size.get_local())
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut size = *self.size.get_local();
+        if size.width.is_infinite() {
+            size.width = available_size.width;
+        }
+        if size.height.is_infinite() {
+            size.height = available_size.height;
+        }
+        self.child.measure(size)
     }
 
-    fn arrange(&mut self, _: LayoutSize) {
-        self.child.arrange(*self.size.get_local());
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        //TODO clip content.
-        self.child.render(frame)
+    fn arrange(&mut self, final_size: LayoutSize) {
+        let mut size = *self.size.get_local();
+        if size.width.is_infinite() {
+            size.width = final_size.width;
+        }
+        if size.height.is_infinite() {
+            size.height = final_size.height;
+        }
+        self.child.arrange(size);
     }
 }
 
@@ -130,5 +130,83 @@ pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     ExactSize {
         child,
         size: size.into_local(),
+    }
+}
+
+struct ExactWidth<T: UiNode, W: LocalVar<f32>> {
+    child: T,
+    width: W,
+}
+
+#[impl_ui_node(child)]
+impl<T: UiNode, W: LocalVar<f32>> UiNode for ExactWidth<T, W> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.width.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.width.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+        available_size.width = *self.width.get_local();
+        self.child.measure(available_size)
+    }
+
+    fn arrange(&mut self, mut final_size: LayoutSize) {
+        final_size.width = *self.width.get_local();
+        self.child.arrange(final_size)
+    }
+}
+
+#[property(size)]
+pub fn width(child: impl UiNode, width: impl IntoVar<f32>) -> impl UiNode {
+    ExactWidth {
+        child,
+        width: width.into_local(),
+    }
+}
+
+struct ExactHeight<T: UiNode, H: LocalVar<f32>> {
+    child: T,
+    height: H,
+}
+
+#[impl_ui_node(child)]
+impl<T: UiNode, H: LocalVar<f32>> UiNode for ExactHeight<T, H> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.height.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.height.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
+        }
+
+        self.child.update(ctx);
+    }
+
+    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+        available_size.height = *self.height.get_local();
+        self.child.measure(available_size)
+    }
+
+    fn arrange(&mut self, mut final_size: LayoutSize) {
+        final_size.height = *self.height.get_local();
+        self.child.arrange(final_size)
+    }
+}
+
+#[property(size)]
+pub fn height(child: impl UiNode, height: impl IntoVar<f32>) -> impl UiNode {
+    ExactHeight {
+        child,
+        height: height.into_local(),
     }
 }
