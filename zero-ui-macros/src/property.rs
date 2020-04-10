@@ -183,7 +183,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #[doc(hidden)]
             #[inline]
             pub fn #fn_(child: impl zero_ui::core::UiNode, args: impl Args) -> (impl zero_ui::core::UiNode, ()) {
-                let (#(#arg_idents,)*) = ArgsPop::pop(args);
+                let (#(#arg_idents,)*) = ArgsUnwrap::unwrap(args);
                 (set(child, #(#arg_idents),*), ())
             }
         }
@@ -249,11 +249,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         priority
     );
     let fn_args_doc = doc!("Collects [`set`](set) arguments into a [named args](Args) view.");
-    let args_doc = doc!("View of arguments of the [`{0}`]({0}) property.", ident);
-    let args_names_doc = doc!("Named arguments of the [`{0}`]({0}) property.", ident);
-    let args_positional_doc = doc!("Positional arguments of the [`{0}`]({0}) property.", ident);
-    let args_pop_doc = doc!("Deconstructor of named arguments of the [`{0}`]({0}) property.", ident);
-    let mtd_pop_doc = doc!("Moved the args to a tuple sorted by their position of [`args`](args) and [`set`](set).");
+    let args_doc = doc!("Packed arguments of the [`{0}`]({0}) property.", ident);
+    let args_named_doc = doc!("View of the [`{0}`]({0}) property arguments by name.", ident);
+    let args_numbered_doc = doc!("View of the [`{0}`]({0}) property arguments by position.", ident);
+    let args_unwrap_doc = doc!("Unpacks the arguments of the [`{0}`]({0}) property.", ident);
 
     let r = quote! {
 
@@ -279,30 +278,29 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 }
             }
 
-            #args_names_doc
-            pub trait ArgsNames {
+            #args_named_doc
+            pub trait ArgsNamed {
                 #(type #gen_idents: #gen_bounds_ty;)*
 
                 #(fn #arg_idents(&self) -> &#arg_return_tys;)*
             }
 
-            #args_positional_doc
-            pub trait ArgsPositional {
+            #args_numbered_doc
+            pub trait ArgsNumbered {
                 #(type #gen_idents: #gen_bounds_ty;)*
 
                 #(fn #argi(&self) -> &#arg_return_tys;)*
             }
 
-            #args_pop_doc
-            pub trait ArgsPop {
+            #args_unwrap_doc
+            pub trait ArgsUnwrap {
                 #(type #gen_idents: #gen_bounds_ty;)*
 
-                #mtd_pop_doc
-                fn pop(self) -> (#(#arg_return_tys,)*);
+                fn unwrap(self) -> (#(#arg_return_tys,)*);
             }
 
             #args_doc
-            pub trait Args: ArgsNames + ArgsPositional + ArgsPop { }
+            pub trait Args: ArgsNamed + ArgsNumbered + ArgsUnwrap { }
 
             #[doc(hidden)]
             pub struct NamedArgs#args_gen_decl {
@@ -310,7 +308,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 #(pub #arg_idents: #arg_tys,)*
             }
 
-            impl#args_gen_decl ArgsNames for NamedArgs#args_gen_use {
+            impl#args_gen_decl ArgsNamed for NamedArgs#args_gen_use {
                 #(type #gen_idents = #gen_idents;)*
 
                 #(
@@ -323,7 +321,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 )*
             }
 
-            impl#args_gen_decl ArgsPositional for NamedArgs#args_gen_use {
+            impl#args_gen_decl ArgsNumbered for NamedArgs#args_gen_use {
                 #(type #gen_idents = #gen_idents;)*
 
                 #(
@@ -336,11 +334,11 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                 )*
             }
 
-            impl#args_gen_decl ArgsPop for NamedArgs#args_gen_use {
+            impl#args_gen_decl ArgsUnwrap for NamedArgs#args_gen_use {
                 #(type #gen_idents = #gen_idents;)*
 
                 #[inline]
-                fn pop(self) -> (#(#arg_return_tys,)*) {
+                fn unwrap(self) -> (#(#arg_return_tys,)*) {
                     (#(self.#arg_idents,)*)
                 }
             }
