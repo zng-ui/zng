@@ -193,11 +193,11 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
         [fn measure(&mut self, available_size: #crate_::core::types::LayoutSize) -> #crate_::core::types::LayoutSize {
             let mut size = available_size;
 
-            if size.width.is_infinite() {
+            if #crate_::core::is_layout_any_size(size.width) {
                 size.width = 0.0;
             }
 
-            if size.height.is_infinite() {
+            if #crate_::core::is_layout_any_size(size.height) {
                 size.height = 0.0;
             }
 

@@ -49,7 +49,7 @@ pub trait UiNode: 'static {
     ///
     /// # Arguments
     /// * `available_size`: The total available size for the node. Can contain positive infinity to
-    /// indicate the parent will accommodate any size.
+    /// indicate the parent will accommodate any size. You can use [`is_layout_any_size`](is_layout_any_size) for that end.
     ///
     /// # Return
     /// Must return the nodes desired size. Must not contain infinity or NaN.
@@ -143,4 +143,10 @@ pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties:
         child,
         area: LayoutSize::zero(),
     }
+}
+
+/// Gets if the value indicates that any size is available during layout (positive infinity)
+#[inline]
+pub fn is_layout_any_size(f: f32) -> bool {
+    f.is_infinite() && f.is_sign_positive()
 }
