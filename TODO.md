@@ -1,8 +1,5 @@
 # TODO
 
-## Bugs
-* Not all proc macros support renamed zero_ui crate (they use zero_ui:: instead of #crate::)
-
 ## When Steps
 2 - widget! must generate function that takes property args reference and returns a `impl Var<bool>`.
 2.a - function generated must handle `{self|child}.{property}(.{{arg_index}|arg_name})`.
