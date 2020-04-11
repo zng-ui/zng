@@ -95,6 +95,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
     let widget_name = input.ident;
 
+    let crate_ = util::zero_ui_crate_ident();
+
     // Collect `new_child` and what properties are required by it.
     let new_child_properties;
     let new_child;
@@ -109,7 +111,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let ps = c.properties;
         new_child = quote! {
             #(#attrs)*
-            pub fn new_child(#child: impl zero_ui::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
+            pub fn new_child(#child: impl #crate_::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
             #block
         };
         new_child_properties = ps;
@@ -121,8 +123,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         new_child = quote!(
             #fn_doc
             #[inline]
-            pub fn new_child<C: zero_ui::core::UiNode>(child: C) -> C {
-                zero_ui::core::default_widget_new_child(child)
+            pub fn new_child<C: #crate_::core::UiNode>(child: C) -> C {
+                #crate_::core::default_widget_new_child(child)
             }
         );
         new_child_properties = vec![];
@@ -143,7 +145,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         new = quote! {
             #(#attrs)*
-            pub fn new(#child: impl zero_ui::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
+            pub fn new(#child: impl #crate_::core::UiNode, #(#ps: impl ps::#ps::Args),*) -> #output
             #block
         };
         new_properties = ps;
@@ -156,8 +158,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         new = quote!(
             #fn_doc
             #[inline]
-            pub fn new(child: impl zero_ui::core::UiNode, id: impl ps::id::Args) -> impl zero_ui::core::UiNode {
-                zero_ui::core::default_widget_new(child, id)
+            pub fn new(child: impl #crate_::core::UiNode, id: impl ps::id::Args) -> impl #crate_::core::UiNode {
+                #crate_::core::default_widget_new(child, id)
             }
         );
     };
@@ -395,7 +397,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             if single_bool_prop {
                 quote!(std::clone::Clone::clone(#new_name))
             } else {
-                quote!(zero_ui::core::var::Var::map(#new_name, |#new_name|{
+                quote!(#crate_::core::var::Var::map(#new_name, |#new_name|{
                     #condition
                 }))
             }
@@ -410,7 +412,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         };
 
         when_fns.push(quote! {
-            fn #fn_name(#params) -> impl zero_ui::core::var::Var<bool> {
+            fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
                 #init_locals
                 #return_
             }
@@ -500,7 +502,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             };
             use_default = quote!(
-                use zero_ui::widgets::implicit_mixin;
+                use #crate_::widgets::implicit_mixin;
             );
         }
     }
@@ -518,7 +520,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
             (inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
-                zero_ui::widget_inherit! {
+                #crate_::widget_inherit! {
                     $($inherit_next)*
 
                     inherit {
@@ -529,7 +531,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             };
             (mixin_inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
-                zero_ui::widget_mixin_inherit! {
+                #crate_::widget_mixin_inherit! {
                     $($inherit_next)*
 
                     inherit {

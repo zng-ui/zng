@@ -18,6 +18,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     let priority = parse_macro_input!(args as Priority);
     let mut fn_ = parse_macro_input!(input as ItemFn);
 
+    let crate_ = util::zero_ui_crate_ident();
+
     if fn_.sig.inputs.len() < 2 {
         abort!(fn_.sig.inputs.span(), "cannot be property, expected at least two arguments")
     }
@@ -169,7 +171,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_<C: zero_ui::core::UiNode, A: Args>(child: C, args: A) -> (C, A) {
+            pub fn #fn_<C: #crate_::core::UiNode, A: Args>(child: C, args: A) -> (C, A) {
                 (child, args)
             }
         }
@@ -182,7 +184,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_(child: impl zero_ui::core::UiNode, args: impl Args) -> (impl zero_ui::core::UiNode, ()) {
+            pub fn #fn_(child: impl #crate_::core::UiNode, args: impl Args) -> (impl #crate_::core::UiNode, ()) {
                 let (#(#arg_idents,)*) = ArgsUnwrap::unwrap(args);
                 (set(child, #(#arg_idents),*), ())
             }
@@ -195,7 +197,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[inline]
-            pub fn #fn_<C: zero_ui::core::UiNode>(child: C, args: ()) -> (C, ()) {
+            pub fn #fn_<C: #crate_::core::UiNode>(child: C, args: ()) -> (C, ()) {
                 (child, ())
             }
         }

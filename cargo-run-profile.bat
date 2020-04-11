@@ -1,1 +1,1 @@
-cargo run --example focus --release --features app_profiler
+cargo run --example button --release --features app_profiler
