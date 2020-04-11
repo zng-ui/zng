@@ -123,10 +123,10 @@ use widget::CallKind;
 ///     #[inline]
 ///     fn measure(&mut self, available_size: zero_ui::core::types::LayoutSize) -> zero_ui::core::types::LayoutSize {
 ///         let mut size = available_size;
-///         if size.width.is_infinite() {
+///         if zero_ui::core::is_layout_any_size(size.width) {
 ///             size.width = 0.0;
 ///         }
-///         if size.height.is_infinite() {
+///         if zero_ui::core::is_layout_any_size(size.height) {
 ///             size.height = 0.0;
 ///         }
 ///         size

@@ -1,5 +1,6 @@
 use crate::core::{
     context::WidgetContext,
+    is_layout_any_size,
     render::FrameBuilder,
     types::*,
     var::{IntoVar, LocalVar},
@@ -75,11 +76,11 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
     fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
         self.child_rect.size = self.child.measure(available_size);
 
-        if available_size.width.is_infinite() {
+        if is_layout_any_size(available_size.width) {
             available_size.width = self.child_rect.size.width;
         }
 
-        if available_size.height.is_infinite() {
+        if is_layout_any_size(available_size.height) {
             available_size.height = self.child_rect.size.height;
         }
 
