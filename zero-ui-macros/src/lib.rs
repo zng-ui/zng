@@ -317,7 +317,20 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Expands to
 ///
-/// TODO
+/// The macro replaces the function with a module with the same name, documentation and visibility. The module contains
+/// two public function `set` that is the original function and `args` that packs the property values into a single unit.
+///
+/// It also contains various traits for representing the arguments packed in a single unit:
+///
+/// * `ArgsNamed`: Contains a method named after each argument, the methods return references.
+/// * `ArgsNumbered`: Contains one method for each argument named after their position (`arg0 .. argN`). The methods return references.
+/// * `ArgsUnwrap`: Unwraps the arguments into a tuple with each argument in their original position.
+/// * `Args`: Implements all other arg traits, can be constructed by calling `property::args(..)`.
+///
+/// ## Internals
+///
+/// The generated module also includes some public but doc-hidden items, they are used during widget initialization to
+/// support named property arguments and implement the property priorities sorting.
 ///
 /// # Naming Convention
 ///
@@ -584,8 +597,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     fn new(child, id, on_event) -> MyWidget {
 ///         MyWidget {
 ///             child,
-///             id: id.pop().0,
-///             handler: on_event.pop().0
+///             id: id.unwrap().0,
+///             handler: on_event.unwrap().0
 ///         }
 ///     }
 /// }

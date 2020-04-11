@@ -378,10 +378,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 quote!()
             };
             match &p.member {
-                Member::Named(ident) => quote!(#ps#property::ArgsNames::#ident),
+                Member::Named(ident) => quote!(#ps#property::ArgsNamed::#ident),
                 Member::Unnamed(i) => {
                     let argi = ident!("arg{}", i.index);
-                    quote!(#ps#property::ArgsPositional::#argi)
+                    quote!(#ps#property::ArgsNumbered::#argi)
                 }
             }
         });

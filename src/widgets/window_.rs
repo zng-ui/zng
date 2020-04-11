@@ -30,6 +30,6 @@ widget! {
     /// Manually initializes a new [`window`](super).
     #[inline]
     fn new(child, root_id, title, size, background_color) -> Window {
-        Window::new(root_id.pop().0, title.pop().0, size.pop().0, background_color.pop().0, child)
+        Window::new(root_id.unwrap().0, title.unwrap().0, size.unwrap().0, background_color.unwrap().0, child)
     }
 }
