@@ -69,7 +69,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 /// use zero_ui::core::{UiNode, keyboard::{KeyDown, KeyInputArgs}};
 ///
 /// /// Sets an event listener for the [`KeyDown`](KeyDown) event.
-/// #[property(event)]
+/// #[property(event, not_when)]
 /// pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
 ///     on_event(child, KeyDown, handler)
 /// }
@@ -136,88 +136,88 @@ impl<E: Event> StateKey for StopPropagation<E> {
     type Type = ();
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event(child, KeyInput, handler)
 }
 
 /// Sets an event listener for the [`KeyDown`](KeyDown) event.
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event(child, KeyDown, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_key_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event(child, KeyUp, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_move(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseMoveArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseMove, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseInput, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseDown, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_up(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseInputArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseUp, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_single_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseDoubleClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseSingleClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseClickArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseTripleClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_enter(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseHoverArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseEnter, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<MouseHoverArgs>) + 'static) -> impl UiNode {
     on_event(child, MouseLeave, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, Click, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_single_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, SingleClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_double_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, DoubleClick, handler)
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, TripleClick, handler)
 }
@@ -238,7 +238,7 @@ macro_rules! on_ctx_mtd {
         }
 
         $(#[$outer])*
-        #[property(event)]
+        #[property(event, not_when)]
         pub fn $on_mtd(child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
             $OnCtxMtd {
                 child,
@@ -269,7 +269,7 @@ impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRender<C, F> {
     }
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
     OnRender { child, handler }
 }
@@ -287,7 +287,7 @@ impl<C: UiNode, F: FnMut(LayoutSize) + 'static> UiNode for OnArrange<C, F> {
     }
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize) + 'static) -> impl UiNode {
     OnArrange { child, handler }
 }
@@ -317,7 +317,7 @@ impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMe
     }
 }
 
-#[property(event)]
+#[property(event, not_when)]
 pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> LayoutSize + 'static) -> impl UiNode {
     OnMeasure { child, handler }
 }

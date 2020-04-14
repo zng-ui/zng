@@ -37,3 +37,17 @@
 * Ui::focus_state_changed(focus_state: &struct FocusState)
 * FocusState::key_state(key) -> KeyState
   * enum KeyState { NotFocused, Focused(Active/NotActive) }
+
+## When Idea
+
+When is implemented using clone that can cause a very small extra cost, before this we tried:
+
+* Use IntoVar early.
+* Use the vars to generate when condition expression var.
+* Make property arguments again from vars.
+
+For property values that are not var this wrapped and unwrapped a OwnedVar, for args (Var, IntoVar) the
+types match, so there is no cost because OwnedVar is zero-cost.
+
+The problem was that we could not codify the intermediary types for the vars for the when expression, if we
+think of a solution for this in the future we should replace the current implementation.

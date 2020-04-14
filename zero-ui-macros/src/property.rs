@@ -1,5 +1,5 @@
 use crate::util;
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenStream};
 use std::mem;
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
@@ -11,11 +11,12 @@ pub mod keyword {
     syn::custom_keyword!(outer);
     syn::custom_keyword!(size);
     syn::custom_keyword!(inner);
+    syn::custom_keyword!(not_when);
 }
 
 #[allow(clippy::cognitive_complexity)]
 pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let priority = parse_macro_input!(args as Priority);
+    let PropertyArgs { priority, not_when } = parse_macro_input!(args as PropertyArgs);
     let mut fn_ = parse_macro_input!(input as ItemFn);
 
     let crate_ = util::zero_ui_crate_ident();
@@ -243,6 +244,21 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
     let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
 
+    let when_assert = if not_when {
+        //TODO error for widget users
+        quote! {}
+    } else {
+        let arg_clone: Vec<_> = arg_idents.iter().map(|_| impl_clone()).collect();
+        quote! {
+            //TODO use original arguments for this assert.
+            #[doc(hidden)]
+            #[allow(unused)]
+            fn _assert_args_clone#args_gen_decl(#(#arg_idents: #arg_tys),*) -> (#(#arg_clone,)*) {
+                (#(#arg_idents,)*)
+            }
+        }
+    };
+
     // generate documentation that must be formatted.
     let mod_property_doc = doc!("This module is a widget `{}` property.", priority);
     let fn_set_doc = doc!(
@@ -279,6 +295,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                     #(#arg_idents,)*
                 }
             }
+
+            #when_assert
 
             #args_named_doc
             pub trait ArgsNamed {
@@ -354,6 +372,25 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     r.into()
 }
 
+struct PropertyArgs {
+    priority: Priority,
+    not_when: bool,
+}
+impl Parse for PropertyArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let priority = input.parse()?;
+        let not_when = if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+            input.parse::<keyword::not_when>()?;
+            true
+        } else {
+            false
+        };
+
+        Ok(PropertyArgs { priority, not_when })
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Priority {
     Context,
@@ -421,4 +458,8 @@ impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
             }
         }
     }
+}
+
+fn impl_clone() -> TokenStream {
+    quote! {impl Clone}
 }

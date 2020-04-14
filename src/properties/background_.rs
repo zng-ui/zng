@@ -50,7 +50,7 @@ impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
 }
 
 /// Custom background property. Allows using any other widget as a background.
-#[property(inner)]
+#[property(inner, not_when)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     Background { child, background }
 }

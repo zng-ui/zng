@@ -87,18 +87,18 @@ mod build_tests {
     }
 
     #[property(context)]
-    fn no_bounds<A>(child: impl UiNode, a: A) -> impl UiNode {
+    fn no_bounds<A: Clone>(child: impl UiNode, a: A) -> impl UiNode {
         let _a = no_bounds::args(a);
         child
     }
 
-    #[property(context)]
+    #[property(context, not_when)]
     fn no_bounds_phantom<A, B: Into<A>>(child: impl UiNode, b: B) -> impl UiNode {
         let _b = no_bounds_phantom::args(b);
         child
     }
 
-    #[property(context)]
+    #[property(context, not_when)]
     fn no_bounds_not_arg<A, B>(_child: A, b: B) -> impl UiNode {
         let _b = no_bounds_not_arg::args(b);
         crate::widgets::text("")

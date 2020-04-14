@@ -200,7 +200,7 @@ pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
 }
 
 /// A value-to-[var](Var) conversion that consumes the value.
-pub trait IntoVar<T: VarValue> {
+pub trait IntoVar<T: VarValue>: Clone {
     type Var: Var<T> + 'static;
 
     /// Converts the source value into a var.
