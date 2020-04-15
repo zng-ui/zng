@@ -194,12 +194,12 @@ impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
     }
 }
 
-/// A type that can be a [`property`](zero_ui::property) argument for properties that can be used in where expressions.
+/// A type that can be a [`property`](zero_ui::property) argument for properties that can be used in when expressions.
 ///
 /// # Trait Alias
 ///
 /// This trait is used like a type alias for traits and is
 /// already implemented for all types it applies to.
-pub trait ArgWhereCompatible: Clone {}
+pub trait ArgWhenCompatible: Clone {}
 
-impl<T: Clone> ArgWhereCompatible for T {}
+impl<T: Clone> ArgWhenCompatible for T {}

@@ -259,7 +259,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[allow(unused)]
-            pub fn _assert_allow_where#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where{
+            pub fn _assert_allow_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where{
                 (#(#arg_idents,)*)
             }
         }
@@ -467,5 +467,5 @@ impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
 }
 
 fn impl_clone(span: Span, crate_: &Ident) -> TokenStream {
-    quote_spanned! {span=> impl #crate_::core::types::ArgWhereCompatible}
+    quote_spanned! {span=> impl #crate_::core::types::ArgWhenCompatible}
 }
