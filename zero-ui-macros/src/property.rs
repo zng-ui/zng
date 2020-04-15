@@ -245,15 +245,21 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
 
     let when_assert = if not_when {
-        //TODO error for widget users
         quote! {}
     } else {
-        let arg_clone: Vec<_> = arg_idents.iter().map(|_| impl_clone()).collect();
+        let args: Vec<_> = fn_.sig.inputs.iter().skip(1).collect();
+        let gen_params = fn_.sig.generics.params.clone();
+        let gen_params = if gen_params.is_empty() {
+            quote! {}
+        } else {
+            quote! {<#gen_params>}
+        };
+        let gen_where = fn_.sig.generics.where_clause.clone();
+        let arg_clone: Vec<_> = args.iter().map(|a| impl_clone(a.span(), &crate_)).collect();
         quote! {
-            //TODO use original arguments for this assert.
             #[doc(hidden)]
             #[allow(unused)]
-            fn _assert_args_clone#args_gen_decl(#(#arg_idents: #arg_tys),*) -> (#(#arg_clone,)*) {
+            pub fn _assert_allow_where#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where{
                 (#(#arg_idents,)*)
             }
         }
@@ -460,6 +466,6 @@ impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
     }
 }
 
-fn impl_clone() -> TokenStream {
-    quote! {impl Clone}
+fn impl_clone(span: Span, crate_: &Ident) -> TokenStream {
+    quote_spanned! {span=> impl #crate_::core::types::ArgWhereCompatible}
 }

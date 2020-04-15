@@ -193,3 +193,13 @@ impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
         OwnedVar(LayoutRect::new(LayoutPoint::new(x, y), LayoutSize::new(w, h)))
     }
 }
+
+/// A type that can be a [`property`](zero_ui::property) argument for properties that can be used in where expressions.
+///
+/// # Trait Alias
+///
+/// This trait is used like a type alias for traits and is
+/// already implemented for all types it applies to.
+pub trait ArgWhereCompatible: Clone {}
+
+impl<T: Clone> ArgWhereCompatible for T {}
