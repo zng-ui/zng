@@ -505,7 +505,7 @@ fn get_ty_ident(ty: &Type) -> Option<&Ident> {
 
 fn cleanup_arg_ty(ty: String) -> String {
     let is_gen = ty.contains('<');
-    let link_gen_args = is_gen && !ty.contains('=') && ty.matches('<').take(2).count() != 2;
+    let link_gen_args = is_gen && !ty.contains('=') && ty.matches('<').take(2).count() == 1;
 
     let ty = ty
         .replace(" < ", "&lt;")
