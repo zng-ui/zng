@@ -35,6 +35,7 @@ pub mod layouts;
 pub mod properties;
 pub mod widgets;
 
+/// All the types you need to build an app.
 pub mod prelude {
     pub use crate::core::{
         app::App,

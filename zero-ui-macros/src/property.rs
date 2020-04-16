@@ -243,11 +243,11 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
     }
 
     let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
+    let args: Vec<_> = fn_.sig.inputs.iter().skip(1).collect();
 
     let when_assert = if not_when {
         quote! {}
     } else {
-        let args: Vec<_> = fn_.sig.inputs.iter().skip(1).collect();
         let gen_params = fn_.sig.generics.params.clone();
         let gen_params = if gen_params.is_empty() {
             quote! {}
@@ -259,14 +259,37 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[allow(unused)]
-            pub fn _assert_allow_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where{
+            pub fn _assert_allow_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where {
                 (#(#arg_idents,)*)
             }
         }
     };
 
     // generate documentation that must be formatted.
-    let mod_property_doc = doc!("This module is a widget `{}` property.", priority);
+    let mod_property_doc = doc!(
+        "This module is a widget `{}` property. It {} be used in widget `when` expressions.",
+        priority,
+        if not_when { "cannot" } else { "can also" }
+    );
+    let mod_property_args_doc = doc!(
+        "{}",
+        arg_idents
+            .iter()
+            .zip(arg_tys.iter())
+            .enumerate()
+            .map(|(i, (a, t))| {
+                let t = if let Some(ti) = get_ty_ident(t).and_then(|t| gen_idents.iter().position(|gt| gt == t)) {
+                    let bounds = &gen_bounds[ti];
+                    let bounds = cleanup_arg_ty(quote!(#bounds).to_string());
+                    format!("<span class='kw'>impl</span> {}", bounds)
+                } else {
+                    cleanup_arg_ty(quote!(#t).to_string())
+                };
+
+                format!("{}. <code class='rust'>{}: {}</code>\n", i, a, t)
+            })
+            .collect::<String>()
+    );
     let fn_set_doc = doc!(
         "Manually sets the [`{0}`]({0}) property.\n\nThis property must be set with `{1}` priority to work properly.",
         ident,
@@ -284,6 +307,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         ///
         /// # Property
         #mod_property_doc
+        /// ## Arguments
+        #mod_property_args_doc
         #vis mod #ident {
             use super::*;
 
@@ -468,4 +493,35 @@ impl<'a> VisitMut for PrependSelfIfPathIdent<'a> {
 
 fn impl_clone(span: Span, crate_: &Ident) -> TokenStream {
     quote_spanned! {span=> impl #crate_::core::types::ArgWhenCompatible}
+}
+
+fn get_ty_ident(ty: &Type) -> Option<&Ident> {
+    if let Type::Path(p) = ty {
+        p.path.get_ident()
+    } else {
+        None
+    }
+}
+
+fn cleanup_arg_ty(ty: String) -> String {
+    let is_gen = ty.contains('<');
+    let link_gen_args = is_gen && !ty.contains('=') && !ty.matches('<').take(2).count() != 2;
+
+    let ty = ty
+        .replace(" < ", "&lt;")
+        .replace(" > ", "&gt;")
+        .replace(" >", "&gt;")
+        .replace(" :: ", "::")
+        .replace(" = ", "=");
+
+    if is_gen {
+        let ty = format!("[{}", ty.replacen("&lt;", "]&lt;", 1));
+        if link_gen_args {
+            ty.replace("&lt;", "&lt;[").replace(", ", "], [").replace("&gt;", "]&gt;")
+        } else {
+            ty
+        }
+    } else {
+        format!("[{}]", ty)
+    }
 }

@@ -31,9 +31,6 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 
 /// Widget property that sets the [`CursorIcon`](zero_ui::core::types::CursorIcon) displayed when hovering the widget.
 ///
-/// # Arguments
-/// * `cursor`: The cursor to use for `child`, can be a direct [value](CursorIcon) or a [variable](zero_ui::core::Var).
-///
 /// # Example
 /// ```
 /// # #[macro_use] extern crate zero_ui;
@@ -54,6 +51,18 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
     Cursor {
         cursor: cursor.into_local(),
+        child,
+    }
+}
+
+pub trait TestGen<A>: Clone {
+    type Assoc;
+}
+
+#[property(context)]
+pub fn test_property(child: impl UiNode, cursor: impl TestGen<u32, Assoc = u8>) -> impl UiNode {
+    Cursor {
+        cursor: CursorIcon::Default.into_local(),
         child,
     }
 }

@@ -194,7 +194,7 @@ impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
     }
 }
 
-/// A type that can be a [`property`](zero_ui::property) argument for properties that can be used in when expressions.
+/// A type that can be a [`property`]((../zero_ui/attr.property.html)) argument for properties that can be used in when expressions.
 ///
 /// # Trait Alias
 ///
