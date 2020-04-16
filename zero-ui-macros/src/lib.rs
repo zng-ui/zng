@@ -355,11 +355,11 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ## State Probing
 ///
-/// Properties that provide a `bool` value when the widget is in a state are named `is_<state>` and take a TODO(special var?).
+/// Properties that provide a `bool` value when the widget is in a state are named `is_<state_name>` and take a `bool` var.
 ///
 /// ```
 /// #[property(context)]
-/// pub fn is_pressed(child: impl UiNode, state: TODOStateVar) -> impl UiNode {
+/// pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
 ///     IsPressed {
 ///         ..
 ///     }

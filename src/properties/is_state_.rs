@@ -1,9 +1,20 @@
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::mouse::*;
-use crate::core::var::Var;
+use crate::core::var::{Var, VarIsReadOnly};
 use crate::core::UiNode;
 use crate::{impl_ui_node, property};
+
+trait ResultVarReadOnlyExt {
+    fn warn_err(self, property: &str);
+}
+impl ResultVarReadOnlyExt for Result<(), VarIsReadOnly> {
+    fn warn_err(self, property: &str) {
+        if self.is_err() {
+            eprintln!("error: cannot update `{}` because it is set to a read-only var", property)
+        }
+    }
+}
 
 struct IsHovered<C: UiNode, S: Var<bool>> {
     child: C,
@@ -25,10 +36,10 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsHovered<C, S> {
 
         if *self.state.get(ctx.vars) {
             if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-                let _ = ctx.updates.push_set(&self.state, false, ctx.vars);
+                ctx.updates.push_set(&self.state, false, ctx.vars).warn_err("is_hovered");
             }
         } else if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            let _ = ctx.updates.push_set(&self.state, true, ctx.vars);
+            ctx.updates.push_set(&self.state, true, ctx.vars).warn_err("is_hovered");
         }
     }
 }
@@ -64,11 +75,11 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsPressed<C, S> {
         if *self.state.get(ctx.vars) {
             if self.mouse_up.has_updates(ctx.events) {
                 // if mouse_up in any place.
-                let _ = ctx.updates.push_set(&self.state, false, ctx.vars);
+                ctx.updates.push_set(&self.state, false, ctx.vars).warn_err("is_pressed");
             }
         } else if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             // if not pressed and mouse down inside.
-            let _ = ctx.updates.push_set(&self.state, true, ctx.vars);
+            ctx.updates.push_set(&self.state, true, ctx.vars).warn_err("is_pressed");
         }
     }
 }
