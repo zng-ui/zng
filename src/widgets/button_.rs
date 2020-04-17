@@ -25,15 +25,14 @@ widget! {
     }
 
 
-/*
+
     /// When the pointer device is over this button.
     when self.content_align == crate::properties::Alignment::CENTER {
-        background_color: ButtonBackgroundHovered;
         background_color: ButtonBackgroundHovered;
     }
 
     /// When the mouse or touch pressed on this button and has not yet released.
-    when  self.is_pressed  {
+    when self.is_pressed  {
         background_color: ButtonBackgroundPressed;
     }
 
@@ -50,6 +49,4 @@ widget! {
     } {
         background_color: ButtonBackgroundDisabled;
     }
-
-    */
 }

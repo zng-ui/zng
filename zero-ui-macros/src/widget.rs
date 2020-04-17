@@ -351,15 +351,6 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         let condition = when.condition;
 
-        // is single bool property if expression is only a reference to a property.
-        // ex.: when self.is_pressed {}
-        let single_bool_prop = if let Expr::Path(p) = &condition {
-            debug_assert_eq!(property_members.len(), 1);
-            p.path.get_ident() == Some(property_members.keys().next().unwrap())
-        } else {
-            false
-        };
-
         let fn_name = ident!("w{}", i);
 
         let properties = property_params.keys();
@@ -389,15 +380,17 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         });
 
         let init_locals = quote! {
-            #(let #local_names = #members(#param_names);)*
+            #(let #local_names = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#members(#param_names)));)*
         };
 
         let return_ = if property_members.len() == 1 {
             let new_name = property_members.keys().next().unwrap();
-            if single_bool_prop {
-                quote!(std::clone::Clone::clone(#new_name))
+            if !visitor.found_mult_exprs {
+                // if is only a reference to a property.
+                // ex.: when self.is_pressed {}
+                quote!(#new_name)
             } else {
-                quote!(#crate_::core::var::Var::map(#new_name, |#new_name|{
+                quote!(#crate_::core::var::Var::map(&#new_name, |#new_name|{
                     #condition
                 }))
             }
@@ -405,7 +398,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             let new_names = property_members.keys();
             let args = new_names.clone();
             quote! {
-                merge_var!(#(std::clone::Clone::clone(#new_names), )* |#(#args),*|{
+                merge_var!(#(#new_names, )* |#(#args),*|{
                     #condition
                 })
             }
@@ -1299,12 +1292,13 @@ struct WhenPropertyAccess {
 #[derive(Default)]
 struct WhenConditionVisitor {
     properties: Vec<WhenPropertyAccess>,
+    found_mult_exprs: bool,
 }
 
 impl VisitMut for WhenConditionVisitor {
     //visit expressions like:
     // self.is_hovered
-    // child.is_hovered.0
+    // self.is_hovered.0
     // self.is_hovered.state
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
         //get self or child
@@ -1330,7 +1324,7 @@ impl VisitMut for WhenConditionVisitor {
                     }
                 }
                 // self.is_hovered.0
-                // child.is_hovered.state
+                // self.is_hovered.state
                 Expr::Field(i_expr_field) => {
                     if let Expr::Path(expr_path) = &mut *i_expr_field.base {
                         if let (true, Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
@@ -1349,6 +1343,7 @@ impl VisitMut for WhenConditionVisitor {
         }
 
         if continue_visiting {
+            self.found_mult_exprs = true;
             visit_mut::visit_expr_mut(self, expr);
         } else {
             let replacement = self.properties.last().unwrap().new_name.clone();

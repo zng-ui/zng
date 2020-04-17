@@ -27,10 +27,10 @@ fn example() -> impl UiNode {
     let t = var("Click Me!");
     let is_hovered = var(false);
     let is_pressed = var(false);
-    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&h, &p| {
-        if p {
+    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&hovered, &pressed| {
+        if pressed {
             2
-        } else if h {
+        } else if hovered {
             1
         } else {
             0
