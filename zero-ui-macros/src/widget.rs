@@ -353,11 +353,12 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         let fn_name = ident!("w{}", i);
 
-        let properties = property_params.keys();
+        let properties: Vec<_> = property_params.keys().collect();
         let param_names = property_params.values();
-        let pss = properties
-            .clone()
-            .map(|p| if defined_props.contains(p) { quote! (ps::) } else { quote!() });
+        let pss: Vec<_> = properties
+            .iter()
+            .map(|&p| if defined_props.contains(p) { quote! (ps::) } else { quote!() })
+            .collect();
         let params = quote!(#(#param_names: &impl #pss#properties::Args),*);
         {}
 
@@ -378,6 +379,9 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             }
         });
+
+        //fix this
+        let props_when_compatible = quote!{{#({type assert = #pss#properties::is_allowed_in_when;})*}};
 
         let init_locals = quote! {
             #(let #local_names = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#members(#param_names)));)*
@@ -406,6 +410,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         when_fns.push(quote! {
             fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
+                #props_when_compatible
                 #init_locals
                 #return_
             }

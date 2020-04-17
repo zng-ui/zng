@@ -259,7 +259,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote! {
             #[doc(hidden)]
             #[allow(unused)]
-            pub fn _assert_allow_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where {
+            pub fn is_allowed_in_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where {
                 (#(#arg_idents,)*)
             }
         }
