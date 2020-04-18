@@ -334,83 +334,95 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
     let mut when_fns = vec![];
     for (i, mut when) in input.whens.into_iter().enumerate() {
+        let condition_span = when.condition.span();
+
         let mut visitor = WhenConditionVisitor::default();
         visitor.visit_expr_mut(&mut when.condition);
 
         // dedup property members.
         let property_members: HashMap<_, _> = visitor.properties.iter().map(|p| (&p.new_name, p)).collect();
         if property_members.is_empty() {
-            abort!(when.span(), "`when` condition must reference properties")
+            abort!(condition_span.span(), "`when` condition must reference properties")
         }
 
         // dedup properties.
         let property_params: HashMap<_, _> = property_members
             .values()
-            .map(|p| (&p.property, ident!("self_{}", p.property)))
+            .map(|p| (&p.property, ident_spanned!(p.property.span()=> "self_{}", p.property)))
             .collect();
 
         let condition = when.condition;
 
         let fn_name = ident!("w{}", i);
 
-        let properties: Vec<_> = property_params.keys().collect();
-        let param_names = property_params.values();
-        let pss: Vec<_> = properties
-            .iter()
-            .map(|&p| if defined_props.contains(p) { quote! (ps::) } else { quote!() })
-            .collect();
-        let params = quote!(#(#param_names: &impl #pss#properties::Args),*);
-        {}
+        let mut params = vec![];
+        let mut asserts = vec![];
+
+        for (p, param) in property_params.iter() {
+            let ps = if defined_props.contains(p) {
+                quote_spanned! (p.span()=> ps::)
+            } else {
+                quote!()
+            };
+            params.push(quote_spanned!(p.span()=> #param: &impl #ps#p::Args));
+            {}
+            asserts.push(quote_spanned!(p.span()=> use #ps#p::is_allowed_in_when;));
+        }
+        let params = quote!(#(#params),*);
+        let asserts = quote!(#({#[allow(unused)]#asserts})*);
 
         let local_names = property_members.keys();
         let param_names = property_members.values().map(|p| &property_params[&p.property]);
         let members = property_members.values().map(|p| {
             let property = &p.property;
             let ps = if defined_props.contains(property) {
-                quote! (ps::)
+                quote_spanned!(property.span()=> ps::)
             } else {
                 quote!()
             };
             match &p.member {
-                Member::Named(ident) => quote!(#ps#property::ArgsNamed::#ident),
+                Member::Named(ident) => quote_spanned!(property.span()=> #ps#property::ArgsNamed::#ident),
                 Member::Unnamed(i) => {
-                    let argi = ident!("arg{}", i.index);
-                    quote!(#ps#property::ArgsNumbered::#argi)
+                    let argi = ident_spanned!(property.span()=> "arg{}", i.index);
+                    quote_spanned!(property.span()=> #ps#property::ArgsNumbered::#argi)
                 }
             }
         });
 
-        //fix this
-        let props_when_compatible = quote! {#({use #pss#properties::is_allowed_in_when;})*};
-
-        let init_locals = quote! {
-            #(let #local_names = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#members(#param_names)));)*
-        };
+        let mut init_locals = vec![];
+        for ((local_name, member), param) in local_names.zip(members).zip(param_names) {
+            let mut crate_ = crate_.clone();
+            crate_.set_span(local_name.span());
+            init_locals.push(quote_spanned! {local_name.span()=>
+                let #local_name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#member(#param)));
+            })
+        }
+        let init_locals = quote!(#(#init_locals)*);
 
         let return_ = if property_members.len() == 1 {
             let new_name = property_members.keys().next().unwrap();
             if !visitor.found_mult_exprs {
                 // if is only a reference to a property.
                 // ex.: when self.is_pressed {}
-                quote!(#new_name)
+                quote_spanned!(new_name.span()=>  #[allow(clippy::let_and_return)]let r = #new_name;r)
             } else {
-                quote!(#crate_::core::var::Var::map(&#new_name, |#new_name|{
+                quote_spanned!(condition_span=> #crate_::core::var::Var::map(&#new_name, |#new_name|{
                     #condition
                 }))
             }
         } else {
             let new_names = property_members.keys();
             let args = new_names.clone();
-            quote! {
+            quote_spanned! {condition_span=>
                 merge_var!(#(#new_names, )* |#(#args),*|{
                     #condition
                 })
             }
         };
 
-        when_fns.push(quote! {
+        when_fns.push(quote_spanned! {condition_span=>
             fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
-                #props_when_compatible
+                #asserts
                 #init_locals
                 #return_
             }
@@ -1320,7 +1332,7 @@ impl VisitMut for WhenConditionVisitor {
                 Expr::Path(expr_path) => {
                     if let (true, Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
                         self.properties.push(WhenPropertyAccess {
-                            new_name: ident!("self_{}_0", property),
+                            new_name: ident_spanned!(property.span()=> "self_{}_0", property),
                             property,
                             member: parse_quote!(0),
                         });
@@ -1334,7 +1346,7 @@ impl VisitMut for WhenConditionVisitor {
                         if let (true, Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
                             let member = expr_field.member.clone();
                             self.properties.push(WhenPropertyAccess {
-                                new_name: ident!("self_{}_{}", property, quote!(#member)),
+                                new_name: ident_spanned!(property.span()=> "self_{}_{}", property, quote!(#member)),
                                 property,
                                 member,
                             });

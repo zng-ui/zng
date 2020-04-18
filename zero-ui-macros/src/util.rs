@@ -1,13 +1,20 @@
 use proc_macro2::*;
 use syn::*;
 
+/// `Ident` with custom span.
+macro_rules! ident_spanned {
+    ($span:expr=> $name:expr) => {
+        proc_macro2::Ident::new($name, $span)
+    };
+    ($span:expr=> $($format_name:tt)+) => {
+        proc_macro2::Ident::new(&format!($($format_name)+), $span)
+    };
+}
+
 /// `Ident` with call_site span.
 macro_rules! ident {
-    ($name:expr) => {
-        proc_macro2::Ident::new($name, proc_macro2::Span::call_site())
-    };
-    ($($format_name:tt)+) => {
-        proc_macro2::Ident::new(&format!($($format_name)+), proc_macro2::Span::call_site())
+    ($($tt:tt)*) => {
+        ident_spanned!(proc_macro2::Span::call_site()=> $($tt)*)
     };
 }
 

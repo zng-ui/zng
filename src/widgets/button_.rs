@@ -50,8 +50,8 @@ widget! {
         background_color: ButtonBackgroundDisabled;
     }
 
-   //// test
-   //when self.on_click {
-   //    background_color: ButtonBackgroundDisabled;
-   //}
+   // test
+   when self.on_click {
+       background_color: ButtonBackgroundDisabled;
+   }
 }
