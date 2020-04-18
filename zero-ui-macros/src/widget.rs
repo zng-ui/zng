@@ -381,7 +381,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         });
 
         //fix this
-        let props_when_compatible = quote!{{#({type assert = #pss#properties::is_allowed_in_when;})*}};
+        let props_when_compatible = quote! {#({use #pss#properties::is_allowed_in_when;})*};
 
         let init_locals = quote! {
             #(let #local_names = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#members(#param_names)));)*
@@ -542,12 +542,11 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         }
 
         // the widget module, also the public face of the widget in the documentation.
-        #use_default
-
         #(#docs)*
         #pub_ mod #widget_name {
             #[doc(hidden)]
             pub use super::*;
+            #use_default
 
             //if mixin is true then #new_child and #new are nothing, else #new_child and #new are functions.
             #new_child

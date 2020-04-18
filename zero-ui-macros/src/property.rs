@@ -257,17 +257,25 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         let gen_where = fn_.sig.generics.where_clause.clone();
         let arg_clone: Vec<_> = args.iter().map(|a| impl_clone(a.span(), &crate_)).collect();
         quote! {
-            #[doc(hidden)]
-            #[allow(unused)]
-            pub fn is_allowed_in_when#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where {
-                (#(#arg_idents,)*)
+            // this mod is used in widgets to assert the property is permitted in when conditions.
+            pub mod is_allowed_in_when {
+                use super::*;
+
+                // this function is used to assert the property arguments can be used in when conditions
+                // at compile time.
+                #[doc(hidden)]
+                #[allow(unused)]
+                fn assert#gen_params(#(#args),*) -> (#(#arg_clone,)*) #gen_where {
+                    (#(#arg_idents,)*)
+                }
             }
+
         }
     };
 
     // generate documentation that must be formatted.
     let mod_property_doc = doc!(
-        "This module is a widget `{}` property. It {} be used in widget `when` expressions.",
+        "This module is a widget `{}` property. It {} be used in widget `when` condition expressions.",
         priority,
         if not_when { "cannot" } else { "can also" }
     );
