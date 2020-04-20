@@ -54,15 +54,3 @@ pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNo
         child,
     }
 }
-
-pub trait TestGen<A>: Clone {
-    type Assoc;
-}
-
-#[property(context)]
-pub fn test_property(child: impl UiNode, cursor: impl TestGen<u32, Assoc = u8>) -> impl UiNode {
-    Cursor {
-        cursor: CursorIcon::Default.into_local(),
-        child,
-    }
-}
