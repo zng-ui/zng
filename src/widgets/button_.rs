@@ -51,7 +51,7 @@ widget! {
     }
 
    // test
-   when self.on_click {
-       background_color: ButtonBackgroundDisabled;
-   }
+   //when self.on_click {
+   //    background_color: ButtonBackgroundDisabled;
+   //}
 }

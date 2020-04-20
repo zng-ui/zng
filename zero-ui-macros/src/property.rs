@@ -258,6 +258,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         let arg_clone: Vec<_> = args.iter().map(|a| impl_clone(a.span(), &crate_)).collect();
         quote! {
             // this mod is used in widgets to assert the property is permitted in when conditions.
+            #[doc(hidden)]
             pub mod is_allowed_in_when {
                 use super::*;
 
@@ -279,25 +280,45 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         priority,
         if not_when { "cannot" } else { "can also" }
     );
-    let mod_property_args_doc = doc!(
-        "{}",
-        arg_idents
-            .iter()
-            .zip(arg_tys.iter())
-            .enumerate()
-            .map(|(i, (a, t))| {
-                let t = if let Some(ti) = get_ty_ident(t).and_then(|t| gen_idents.iter().position(|gt| gt == t)) {
-                    let bounds = &gen_bounds[ti];
-                    let bounds = cleanup_arg_ty(quote!(#bounds).to_string());
-                    format!("<span class='kw'>impl</span> {}", bounds)
-                } else {
-                    cleanup_arg_ty(quote!(#t).to_string())
-                };
 
-                format!("{}. <code class='rust'>{}: {}</code>\n", i, a, t)
-            })
-            .collect::<String>()
-    );
+    let mut mod_property_args_doc = String::new();
+    let mut z_args = Vec::with_capacity(1);
+    {
+        use std::fmt::Write;
+        let b = &mut mod_property_args_doc;
+        macro_rules! wln { ($($tt:tt)*) => { let _ = writeln!(b, $($tt)*); } }
+
+        wln!("<div id='args_example'>\n");
+        wln!("```");
+        wln!("# fn args(");
+        for (i, (a, t)) in arg_idents.iter().zip(arg_tys.iter()).enumerate() {
+            let t = if let Some(ti) = get_ty_ident(t).and_then(|t| gen_idents.iter().position(|gt| gt == t)) {
+                let bounds = &gen_bounds[ti];
+                if bounds.is_empty() {
+                    z_args.push(quote!(#t));
+                    cleanup_arg_ty(quote!(#t).to_string())
+                } else {
+                    z_args.push(quote!(impl #bounds));
+                    {}
+                    let bounds = cleanup_arg_ty(quote!(#bounds).to_string());
+                    format!("impl {}", bounds)
+                }
+            } else {
+                z_args.push(quote!(#t));
+                cleanup_arg_ty(quote!(#t).to_string())
+            };
+
+            wln!("{}: {}, // .{}", a, t, i);
+        }
+        wln!("# ) {{}}");
+        wln!("```\n");
+        wln!("</div>");
+        wln!("<script>{}</script>", include_str!("property_args_ext.js"));
+        wln!("<style>a[href='fn.z.html']{{ display: none; }}</style>");
+        wln!("<iframe id='args_example_load' style='display:none;' src='fn.z.html' onload='on_example_load()'></iframe>");
+    }
+    let mod_property_args_doc = doc!("{}", mod_property_args_doc);
+
     let fn_set_doc = doc!(
         "Manually sets the [`{0}`]({0}) property.\n\nThis property must be set with `{1}` priority to work properly.",
         ident,
@@ -403,6 +424,9 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             }
 
             impl#args_gen_decl Args for NamedArgs#args_gen_use { }
+
+            #[allow(unused)]
+            pub fn z#args_gen_decl(#(#arg_idents: #z_args),*) { }
         }
     };
 
@@ -512,24 +536,9 @@ fn get_ty_ident(ty: &Type) -> Option<&Ident> {
 }
 
 fn cleanup_arg_ty(ty: String) -> String {
-    let is_gen = ty.contains('<');
-    let link_gen_args = is_gen && !ty.contains('=') && ty.matches('<').take(2).count() == 1;
-
-    let ty = ty
-        .replace(" < ", "&lt;")
-        .replace(" > ", "&gt;")
-        .replace(" >", "&gt;")
+    ty.replace(" < ", "<")
+        .replace(" > ", ">")
+        .replace(" >", ">")
         .replace(" :: ", "::")
-        .replace(" = ", "=");
-
-    if is_gen {
-        let ty = format!("[{}", ty.replacen("&lt;", "]&lt;", 1));
-        if link_gen_args {
-            ty.replace("&lt;", "&lt;[").replace(", ", "], [").replace("&gt;", "]&gt;")
-        } else {
-            ty
-        }
-    } else {
-        format!("[{}]", ty)
-    }
+        .replace(" = ", "=")
 }
