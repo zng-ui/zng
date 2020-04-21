@@ -1,7 +1,8 @@
-function on_example_load() {
-    var load = document.getElementById("args_example_load");
-    var full_doc = load.contentDocument || load.contentWindow.document;
-    var full = full_doc.querySelector(".rust");
+function on_example_load(e) {
+    document.getElementById("args_example_load").remove();
+    var full = document.createElement("div");
+    full.innerHTML = e.data;
+    var full = full.childNodes[0];
     var basic = document.getElementById("args_example");
     var first_ident = basic.querySelector(".ident").textContent + ':';
     var example_started = false;
@@ -18,5 +19,6 @@ function on_example_load() {
             }
         }
     }
-    load.remove();
+    full.remove();
 }
+window.addEventListener("message", on_example_load);
