@@ -93,3 +93,18 @@ pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
         mouse_up: EventListener::never(false),
     }
 }
+
+struct IsFocused<C: UiNode, S: Var<bool>> {
+    child: C,
+    state: S,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, S: Var<bool>> UiNode for IsFocused<C, S> {
+    //TODO, implement this
+}
+
+#[property(context)]
+pub fn is_focused(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
+    IsFocused { child, state }
+}

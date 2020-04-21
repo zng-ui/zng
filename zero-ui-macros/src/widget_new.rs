@@ -10,6 +10,7 @@ pub mod keyword {
     syn::custom_keyword!(m);
     syn::custom_keyword!(c);
     syn::custom_keyword!(s);
+    syn::custom_keyword!(w);
     syn::custom_keyword!(n);
     syn::custom_keyword!(i);
 
@@ -191,6 +192,7 @@ pub struct WidgetNewInput {
     pub ident: Ident,
     pub default_child: BuiltDefaultBlock,
     pub default_self: BuiltDefaultBlock,
+    pub whens: BuiltWhens,
     new_child: Punctuated<Ident, Token![,]>,
     new: Punctuated<Ident, Token![,]>,
     input: NewWidgetInput,
@@ -207,6 +209,9 @@ impl Parse for WidgetNewInput {
         input.parse::<keyword::s>().expect(util::NON_USER_ERROR);
         let default_self = input.parse().expect(util::NON_USER_ERROR);
 
+        input.parse::<keyword::w>().expect(util::NON_USER_ERROR);
+        let whens = input.parse().expect(util::NON_USER_ERROR);
+
         input.parse::<keyword::n>().expect(util::NON_USER_ERROR);
         let inner = util::non_user_parenthesized(input);
         let new_child = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
@@ -220,6 +225,7 @@ impl Parse for WidgetNewInput {
             ident,
             default_child,
             default_self,
+            whens,
             new_child,
             new,
             input,
@@ -237,6 +243,16 @@ impl Parse for BuiltDefaultBlock {
         braced!(inner in input);
         let properties = Punctuated::parse_terminated(&inner)?;
         Ok(BuiltDefaultBlock { properties })
+    }
+}
+
+pub struct BuiltWhens {}
+
+impl Parse for BuiltWhens {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let inner;
+        braced!(inner in input);
+        Ok(BuiltWhens {})
     }
 }
 

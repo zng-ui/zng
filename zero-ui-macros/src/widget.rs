@@ -281,6 +281,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut i_other_docs = vec![];
 
     let mut i_default_blocks = vec![];
+    let mut i_whens = vec![];
     for inherit in &mut input.inherits {
         let widget_name = &inherit.ident;
         for child_prop in &mut inherit.default_child.properties {
@@ -288,6 +289,9 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         }
         for self_prop in &mut inherit.default_self.properties {
             i_default_blocks.push((widget_name, WidgetItemTarget::Self_, self_prop));
+        }
+        for (i, when) in inherit.whens.whens.iter().enumerate() {
+            i_whens.push((widget_name, i, when));
         }
     }
     for (widget_name, target, prop) in i_default_blocks {
@@ -333,7 +337,22 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
 
     let mut when_fns = vec![];
-    for (i, mut when) in input.whens.into_iter().enumerate() {
+    //let mut i_whens =
+
+    for (widget_name, index, when) in i_whens {
+        let args = when.args.iter();
+        let inner_args = when.args.iter();
+        let inner_fn = ident!("w{}", index);
+        let fn_name = ident!("w{}", when_fns.len());
+
+        when_fns.push(quote! {
+            fn #fn_name(#(#args: &impl #widget_name::ps::args::Args),*) -> impl #crate_::core::var::Var<bool> {
+                #widget_name::we::#inner_fn(#(#inner_args),*)
+            }
+        })
+    }
+
+    for mut when in input.whens.into_iter() {
         let condition_span = when.condition.span();
 
         let mut visitor = WhenConditionVisitor::default();
@@ -353,7 +372,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         let condition = when.condition;
 
-        let fn_name = ident!("w{}", i);
+        let fn_name = ident!("w{}", when_fns.len());
 
         let mut params = vec![];
         let mut asserts = vec![];
@@ -382,8 +401,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             };
             match &p.member {
                 Member::Named(ident) => quote_spanned!(property.span()=> #ps#property::ArgsNamed::#ident),
-                Member::Unnamed(i) => {
-                    let argi = ident_spanned!(property.span()=> "arg{}", i.index);
+                Member::Unnamed(idx) => {
+                    let argi = ident_spanned!(property.span()=> "arg{}", idx.index);
                     quote_spanned!(property.span()=> #ps#property::ArgsNumbered::#argi)
                 }
             }
@@ -469,20 +488,21 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         m #widget_name
         c { #(#i_built_child,)* #(#built_child),* }
         s { #(#i_built_self,)* #(#built_self),* }
+        w {  }
         n (#(#new_child_properties),*) (#(#new_properties),*)
     };
-
     let widget_inherit_tokens = quote! {
         m #widget_name
         c { #(#i_built_child,)* #(#built_child_docs #built_child),* }
         s { #(#i_built_self,)* #(#built_self_docs #built_self),* }
-    };
+        w {  }
+    }; //TODO, missing i_built docs
 
     let new_rule;
     let new_macro;
     let use_default;
 
-    #[allow(clippy::useless_let_if_seq)] //clippy is giving a false-positive warning
+    //clippy is giving a false-positive warning, without the braces
     {
         if mixin {
             new_rule = quote!();
@@ -866,6 +886,7 @@ struct InheritBlock {
     ident: Ident,
     default_child: InheritedDefaultBlock,
     default_self: InheritedDefaultBlock,
+    whens: InheritedWhens,
 }
 
 impl Parse for InheritBlock {
@@ -881,10 +902,14 @@ impl Parse for InheritBlock {
         input.parse::<keyword::s>().expect(util::NON_USER_ERROR);
         let default_self = input.parse().expect(util::NON_USER_ERROR);
 
+        input.parse::<keyword::w>().expect(util::NON_USER_ERROR);
+        let whens = input.parse().expect(util::NON_USER_ERROR);
+
         Ok(InheritBlock {
             ident,
             default_child,
             default_self,
+            whens,
         })
     }
 }
@@ -898,6 +923,40 @@ impl Parse for InheritedDefaultBlock {
         braced!(inner in input);
         let properties = Punctuated::parse_terminated(&inner)?;
         Ok(InheritedDefaultBlock { properties })
+    }
+}
+
+struct InheritedWhens {
+    whens: Punctuated<InheritedWhen, Token![,]>,
+}
+
+impl Parse for InheritedWhens {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let inner;
+        braced!(inner in input);
+        let whens = Punctuated::parse_terminated(&inner)?;
+        Ok(InheritedWhens { whens })
+    }
+}
+
+struct InheritedWhen {
+    docs: Vec<Attribute>,
+    args: Punctuated<Ident, Token![,]>,
+    sets: Punctuated<Ident, Token![,]>,
+}
+impl Parse for InheritedWhen {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let docs = Attribute::parse_outer(input)?;
+
+        let inner;
+        parenthesized!(inner in input);
+        let args = Punctuated::parse_terminated(&inner)?;
+
+        let inner;
+        braced!(inner in input);
+        let sets = Punctuated::parse_terminated(&inner)?;
+
+        Ok(InheritedWhen { docs, args, sets })
     }
 }
 

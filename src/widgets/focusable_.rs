@@ -1,6 +1,6 @@
 use crate::core::types::{rgba, LayoutSideOffsets};
 #[doc(hidden)]
-pub use crate::properties::{border, focusable, id, BorderDetails};
+pub use crate::properties::{border, focusable, id, is_focused, BorderDetails};
 use crate::widget_mixin;
 
 context_var! {
@@ -25,10 +25,10 @@ widget_mixin! {
         };
     }
 
-    //when self.is_focused {
-    //    focused_border: {
-    //        widths: FocusedBorderWidths,
-    //        details: FocusedBorderDetails
-    //    };
-    //}
+    when self.is_focused {
+        focused_border: {
+            widths: FocusedBorderWidths,
+            details: FocusedBorderDetails
+        };
+    }
 }
