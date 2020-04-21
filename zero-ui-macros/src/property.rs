@@ -314,8 +314,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         wln!("```\n");
         wln!("</div>");
         wln!("<script>{}</script>", include_str!("property_args_ext.js"));
-        wln!("<style>a[href='fn.z.html']{{ display: none; }}</style>");
-        wln!("<iframe id='args_example_load' style='display:none;' src='fn.z.html'></iframe>");
+        wln!("<style>a[href='fn.__.html']{{ display: none; }}</style>");
+        wln!("<iframe id='args_example_load' style='display:none;' src='fn.__.html'></iframe>");
     }
     let mod_property_args_doc = doc!("{}", mod_property_args_doc);
     let z_js = doc!("<span></span>\n\n<script>{}</script>", include_str!("property_z_ext.js"));
@@ -325,7 +325,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         ident,
         priority
     );
-    let hide_z = doc!("<style>a[href='fn.z.html']{{ display: none; }}</style>");
+    let hide_z = doc!("<style>a[href='fn.__.html']{{ display: none; }}</style>");
     let fn_args_doc = doc!("Collects [`set`](set) arguments into a [named args](Args) view.");
     let args_doc = doc!("Packed arguments of the [`{0}`]({0}) property.", ident);
     let args_named_doc = doc!("View of the [`{0}`]({0}) property arguments by name.", ident);
@@ -431,7 +431,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
             #z_js
             #[allow(unused)]
-            pub fn z#args_gen_decl(#(#arg_idents: #z_args),*) { }
+            pub fn __#args_gen_decl(#(#arg_idents: #z_args),*) { }
         }
     };
 
