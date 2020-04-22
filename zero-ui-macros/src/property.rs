@@ -289,8 +289,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         macro_rules! wln { ($($tt:tt)*) => { let _ = writeln!(b, $($tt)*); } }
 
         wln!("<div id='args_example'>\n");
-        wln!("```");
-        wln!("# macro_rules! args {{ () => {{");
+        wln!("```text");
         for (i, (a, t)) in arg_idents.iter().zip(arg_tys.iter()).enumerate() {
             let t = if let Some(ti) = get_ty_ident(t).and_then(|t| gen_idents.iter().position(|gt| gt == t)) {
                 let bounds = &gen_bounds[ti];
@@ -301,16 +300,15 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                     z_args.push(quote!(impl #bounds));
                     {}
                     let bounds = cleanup_arg_ty(quote!(#bounds).to_string());
-                    format!("impl {}", bounds)
+                    format!("<span class='kw'>impl</span> {}", bounds)
                 }
             } else {
                 z_args.push(quote!(#t));
                 cleanup_arg_ty(quote!(#t).to_string())
             };
 
-            wln!("{}: {}, // .{}", a, t, i);
+            wln!("<span class='ident'>{}</span>: {}, <span class='comment'>// .{}</span>", a, t, i);
         }
-        wln!("# }} }}");
         wln!("```\n");
         wln!("</div>");
         wln!("<script>{}</script>", include_str!("property_args_ext.js"));
@@ -541,9 +539,84 @@ fn get_ty_ident(ty: &Type) -> Option<&Ident> {
 }
 
 fn cleanup_arg_ty(ty: String) -> String {
-    ty.replace(" < ", "<")
-        .replace(" > ", ">")
-        .replace(" >", ">")
-        .replace(" :: ", "::")
-        .replace(" = ", "=")
+    let mut r = String::with_capacity(ty.len());
+    let mut lifetime = false;
+    let mut word = String::with_capacity(3);
+    for c in ty.chars() {
+        if word.is_empty() {
+            if c.is_alphabetic() || c == '_' {
+                word.push(c);
+            } else {
+                push_html_scape(&mut r, c);
+                lifetime |= c == '\'';
+            }
+        } else if c.is_alphanumeric() || c == '_' {
+            word.push(c);
+        } else {
+            push_word(&mut r, &word, lifetime);
+            push_html_scape(&mut r, c);
+            word.clear();
+            lifetime = false;
+        }
+    }
+    if !word.is_empty() {
+        push_word(&mut r, &word, lifetime);
+    }
+    if r.ends_with(' ') {
+        r.truncate(r.len() - 1);
+    }
+    r
+}
+
+fn push_word(r: &mut String, word: &str, lifetime: bool) {
+    match word {
+        w @ "mut" | w @ "impl" | w @ "dyn" => {
+            r.push_str("<span class='kw'>");
+            r.push_str(w);
+            r.push_str("</span> ")
+        }
+        w => {
+            if lifetime {
+                r.push_str(w);
+                r.push(' ');
+            } else {
+                r.push_str("<span class='ident'>");
+                r.push_str(w);
+                r.push_str("</span>")
+            }
+        }
+    }
+}
+
+fn push_html_scape(r: &mut String, c: char) {
+    match c {
+        ' ' => {}
+        '<' => r.push_str("&lt;"),
+        '>' => r.push_str("&gt;"),
+        '"' => r.push_str("&quot;"),
+        '&' => r.push_str("&amp;"),
+        '\'' => r.push_str("&#x27;"),
+        ',' => r.push_str(", "),
+        '+' => r.push_str(" + "),
+        c => r.push(c),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_cleanup_arg_ty(input: &str, expected: &str) {
+        let r = cleanup_arg_ty(input.to_owned());
+        assert_eq!(r.as_str(), expected);
+    }
+
+    #[test]
+    fn cleanup_arg_ty_tests() {
+        assert_cleanup_arg_ty("& ' static str", "&amp;&#x27;static <span class='ident'>str</span>");
+        assert_cleanup_arg_ty(
+            "crate_name :: ns :: IntoVar < impl Trait >",
+            "<span class='ident'>crate_name</span>::<span class='ident'>ns</span>::<span class='ident'>IntoVar</span>&lt;<span class='kw'>impl</span> <span class='ident'>Trait</span>&gt;",
+        );
+    }
 }
