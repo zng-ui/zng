@@ -290,7 +290,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
         wln!("<div id='args_example'>\n");
         wln!("```");
-        wln!("# fn args(");
+        wln!("# macro_rules! args {{ () => {{");
         for (i, (a, t)) in arg_idents.iter().zip(arg_tys.iter()).enumerate() {
             let t = if let Some(ti) = get_ty_ident(t).and_then(|t| gen_idents.iter().position(|gt| gt == t)) {
                 let bounds = &gen_bounds[ti];
@@ -310,7 +310,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
 
             wln!("{}: {}, // .{}", a, t, i);
         }
-        wln!("# ) {{}}");
+        wln!("# }} }}");
         wln!("```\n");
         wln!("</div>");
         wln!("<script>{}</script>", include_str!("property_args_ext.js"));

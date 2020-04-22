@@ -49,7 +49,10 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
 ///
 /// # Example
 /// ```
+/// # #![recursion_limit="256"]
+/// # #[macro_use] extern crate zero_ui;
 /// # use zero_ui::prelude::*;
+/// # fn main() {
 /// container! {
 ///     background_color: rgb(255, 0, 0);
 ///     size: (200.0, 300.0);
@@ -63,6 +66,7 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
 ///         => text("1000x1000 green clipped to 200x300")
 ///     }
 /// }
+/// # ;}
 /// ```
 #[property(inner)]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
