@@ -42,6 +42,28 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
     }
 }
 
+/// Clips the widget child to the area of the widget when set to `true`.
+///
+/// The clip is a simple rectangular area that matches the widget size. Any content rendered
+/// outsize the widget size bounds is clipped.
+///
+/// # Example
+/// ```
+/// # use zero_ui::prelude::*;
+/// container! {
+///     background_color: rgb(255, 0, 0);
+///     size: (200.0, 300.0);
+///     clip_to_bounds: true;
+///     
+///     => container! {
+///         background_color: rgb(0, 255, 0);
+///         // fixed size ignores the layout available size.
+///         size: (1000.0, 1000.0);
+///
+///         => text("1000x1000 green clipped to 200x300")
+///     }
+/// }
+/// ```
 #[property(inner)]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
     ClipToBounds {
