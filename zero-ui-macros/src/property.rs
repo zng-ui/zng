@@ -569,20 +569,21 @@ fn cleanup_arg_ty(ty: String) -> String {
 }
 
 fn push_word(r: &mut String, word: &str, lifetime: bool) {
-    match word {
-        w @ "mut" | w @ "impl" | w @ "dyn" => {
-            r.push_str("<span class='kw'>");
-            r.push_str(w);
-            r.push_str("</span> ")
-        }
-        w => {
-            if lifetime {
-                r.push_str(w);
-                r.push(' ');
-            } else {
+    if lifetime {
+        r.push_str(word);
+        r.push(' ');
+    } else {
+        match syn::parse_str::<syn::Ident>(word) {
+            Ok(_) => {
                 r.push_str("<span class='ident'>");
-                r.push_str(w);
+                r.push_str(word);
                 r.push_str("</span>")
+            }
+            Err(_) => {
+                // Ident parse does not allow keywords.
+                r.push_str("<span class='kw'>");
+                r.push_str(word);
+                r.push_str("</span> ")
             }
         }
     }
