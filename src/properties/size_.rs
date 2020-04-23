@@ -287,7 +287,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
 /// When set the widget is sized with the given value, independent of the parent available size.
 ///
 /// If the width or height is set to [positive infinity](is_layout_any_size) then the normal layout measuring happens.
-/// 
+///
 /// # Example
 /// ```
 /// # #![recursion_limit="256"]

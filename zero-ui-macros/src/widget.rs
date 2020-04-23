@@ -493,10 +493,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     };
     let widget_inherit_tokens = quote! {
         m #widget_name
-        c { #(#i_built_child,)* #(#built_child_docs #built_child),* }
-        s { #(#i_built_self,)* #(#built_self_docs #built_self),* }
+        c { #(#i_built_child_docs #i_built_child,)* #(#built_child_docs #built_child),* }
+        s { #(#i_built_self_docs #i_built_self,)* #(#built_self_docs #built_self),* }
         w {  }
-    }; //TODO, missing i_built docs
+    };
 
     let new_rule;
     let new_macro;
