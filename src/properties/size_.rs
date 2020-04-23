@@ -282,6 +282,26 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
     }
 }
 
+/// Size of the widget.
+///
+/// When set the widget is sized with the given value, independent of the parent available size.
+///
+/// If the width or height is set to [positive infinity](is_layout_any_size) then the normal layout measuring happens.
+/// 
+/// # Example
+/// ```
+/// # #![recursion_limit="256"]
+/// # #[macro_use] extern crate zero_ui;
+/// # use zero_ui::prelude::*;
+/// # fn main() {
+/// container! {
+///     background_color: rgb(255, 0, 0);
+///     size: (200.0, 300.0);
+///     
+///     => text("200x300 red")
+/// }
+/// # ;}
+/// ```
 #[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
     ExactSize {
