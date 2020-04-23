@@ -246,13 +246,35 @@ impl Parse for BuiltDefaultBlock {
     }
 }
 
-pub struct BuiltWhens {}
+pub struct BuiltWhens {
+    whens: Punctuated<BuiltWhen, Token![,]>,
+}
 
 impl Parse for BuiltWhens {
     fn parse(input: ParseStream) -> Result<Self> {
         let inner;
         braced!(inner in input);
-        Ok(BuiltWhens {})
+        let whens = Punctuated::parse_terminated(&inner)?;
+        Ok(BuiltWhens { whens })
+    }
+}
+
+struct BuiltWhen {
+    args: Punctuated<Ident, Token![,]>,
+    sets: Punctuated<Ident, Token![,]>,
+}
+
+impl Parse for BuiltWhen {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let inner;
+        parenthesized!(inner in input);
+        let args = Punctuated::parse_terminated(&inner)?;
+
+        let inner;
+        braced!(inner in input);
+        let sets = Punctuated::parse_terminated(&inner)?;
+
+        Ok(BuiltWhen { args, sets })
     }
 }
 

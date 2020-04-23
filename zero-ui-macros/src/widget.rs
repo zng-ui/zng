@@ -198,7 +198,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             let is_required = p.is_required();
 
             let ident = &p.ident;
-            if !defined_props.insert(ident) {
+            if !defined_props.insert(ident.clone()) {
                 abort!(ident.span(), "property named `{}` already declared", ident);
             }
 
@@ -296,7 +296,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
     for (widget_name, target, prop) in i_default_blocks {
         let ident = &prop.ident;
-        if !defined_props.insert(ident) {
+        if !defined_props.insert(ident.clone()) {
             continue; // inherited property overridden
         }
 
@@ -337,19 +337,38 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
 
     let mut when_fns = vec![];
-    //let mut i_whens =
+    let mut built_whens_inht = vec![];
+    let mut built_whens_new = vec![];
 
     for (widget_name, index, when) in i_whens {
+        for p in when.args.iter() {
+            if defined_props.insert(p.clone()) {
+                use_props.push(quote!(pub use super::#widget_name::ps::#p;));
+            }
+        }
+
         let args = when.args.iter();
         let inner_args = when.args.iter();
         let inner_fn = ident!("w{}", index);
         let fn_name = ident!("w{}", when_fns.len());
 
         when_fns.push(quote! {
-            fn #fn_name(#(#args: &impl #widget_name::ps::args::Args),*) -> impl #crate_::core::var::Var<bool> {
+            #[inline]
+            pub fn #fn_name(#(#args: &impl ps::#args::Args),*) -> impl #crate_::core::var::Var<bool> {
                 #widget_name::we::#inner_fn(#(#inner_args),*)
             }
-        })
+        });
+
+        let args = when.args.iter();
+        let sets = when.sets.iter();
+        let built_when = quote!(( #(#args),* ) { #(#sets),* });
+
+        let docs = when.docs.iter();
+        built_whens_inht.push(quote! {
+           #(#docs)* #built_when
+        });
+
+        built_whens_new.push(built_when);
     }
 
     for mut when in input.whens.into_iter() {
@@ -377,15 +396,14 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let mut params = vec![];
         let mut asserts = vec![];
 
-        for (p, param) in property_params.iter() {
-            let ps = if defined_props.contains(p) {
-                quote_spanned! (p.span()=> ps::)
-            } else {
-                quote!()
-            };
-            params.push(quote_spanned!(p.span()=> #param: &impl #ps#p::Args));
+        for (&p, param) in property_params.iter() {
+            if defined_props.insert(p.clone()) {
+                use_props.push(quote!(pub use super::#p;));
+            }
+
+            params.push(quote_spanned!(p.span()=> #param: &impl ps::#p::Args));
             {}
-            asserts.push(quote_spanned!(p.span()=> use #ps#p::is_allowed_in_when;));
+            asserts.push(quote_spanned!(p.span()=> use ps::#p::is_allowed_in_when;));
         }
         let params = quote!(#(#params),*);
         let asserts = quote!(#({#[allow(unused)]#asserts})*);
@@ -394,16 +412,12 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let param_names = property_members.values().map(|p| &property_params[&p.property]);
         let members = property_members.values().map(|p| {
             let property = &p.property;
-            let ps = if defined_props.contains(property) {
-                quote_spanned!(property.span()=> ps::)
-            } else {
-                quote!()
-            };
+
             match &p.member {
-                Member::Named(ident) => quote_spanned!(property.span()=> #ps#property::ArgsNamed::#ident),
+                Member::Named(ident) => quote_spanned!(property.span()=> ps::#property::ArgsNamed::#ident),
                 Member::Unnamed(idx) => {
                     let argi = ident_spanned!(property.span()=> "arg{}", idx.index);
-                    quote_spanned!(property.span()=> #ps#property::ArgsNumbered::#argi)
+                    quote_spanned!(property.span()=> ps::#property::ArgsNumbered::#argi)
                 }
             }
         });
@@ -440,12 +454,23 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         };
 
         when_fns.push(quote_spanned! {condition_span=>
-            fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
+            #[inline]
+            pub fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
                 #asserts
                 #init_locals
                 #return_
             }
-        })
+        });
+
+        let args = property_params.keys();
+        let sets = when.properties.iter().map(|p| &p.ident);
+        let built_when = quote!( ( #(#args),* ) { #(#sets),* } );
+        let docs = when.attrs.iter();
+        built_whens_inht.push(quote! {
+            #(#docs)* #built_when
+        });
+
+        built_whens_new.push(built_when);
     }
 
     // validate property captures.
@@ -488,14 +513,14 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         m #widget_name
         c { #(#i_built_child,)* #(#built_child),* }
         s { #(#i_built_self,)* #(#built_self),* }
-        w {  }
+        w { #(#built_whens_new),* }
         n (#(#new_child_properties),*) (#(#new_properties),*)
     };
     let widget_inherit_tokens = quote! {
         m #widget_name
         c { #(#i_built_child_docs #i_built_child,)* #(#built_child_docs #built_child),* }
         s { #(#i_built_self_docs #i_built_self,)* #(#built_self_docs #built_self),* }
-        w {  }
+        w { #(#built_whens_inht),* }
     };
 
     let new_rule;
