@@ -102,16 +102,15 @@ macro_rules! uid {
 /// that starts when the macro was called and has the duration of the block.
 /// ```
 /// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
+/// # fn main()
+/// {
 /// # fn do_thing() { }
 /// # fn do_another_thing() { }
-/// {
 ///     profile_scope!("do-things");
 ///
 ///     do_thing();
 ///     do_another_thing();
 /// }
-/// # }
 /// ```
 ///
 /// You can also format strings:

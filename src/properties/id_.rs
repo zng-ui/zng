@@ -10,6 +10,6 @@ use crate::property;
 #[property(context)]
 pub fn id<C: UiNode>(child: C, id: WidgetId) -> C {
     let _id = id;
-    eprintln!("id property cannot be set directly, must be captured in widget!'s new()");
+    error_println!("id property cannot be set directly, must be captured in widget!'s new()");
     child
 }

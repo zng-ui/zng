@@ -258,7 +258,7 @@ impl Vars {
                 drop(context_vars);
 
                 if circular_binding {
-                    eprintln!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
+                    error_println!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
                 } else {
                     self.with_context_impl(type_id, ContextVarEntry::ContextVar(var, AnyRef::pack(default), meta), f)
                 }

@@ -11,7 +11,7 @@ trait ResultVarReadOnlyExt {
 impl ResultVarReadOnlyExt for Result<(), VarIsReadOnly> {
     fn warn_err(self, property: &str) {
         if self.is_err() {
-            eprintln!("error: cannot update `{}` because it is set to a read-only var", property)
+            error_println!("cannot update `{}` because it is set to a read-only var", property)
         }
     }
 }
