@@ -233,12 +233,32 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             }
             if !unset {
                 // 1
+                fn search_inherited(inherits: &[InheritBlock], ident: &Ident) -> TokenStream {
+                    let mut import = quote! {};
+                    for inherit in inherits {
+                        for p in inherit
+                            .default_self
+                            .properties
+                            .iter()
+                            .chain(inherit.default_child.properties.iter())
+                        {
+                            if &p.ident == ident {
+                                let mut mod_name = inherit.ident.clone();
+                                mod_name.set_span(ident.span());
+                                import = quote_spanned! {ident.span()=> #mod_name::ps::}
+                            }
+                        }
+                    }
+                    import
+                }
                 if let Some(maps_to) = &p.maps_to {
+                    let import = search_inherited(&input.inherits, maps_to);
                     let mut ident = ident.clone();
                     ident.set_span(maps_to.span());
-                    use_props.push(quote_spanned!(maps_to.span()=> pub use super::#maps_to as #ident;))
+                    use_props.push(quote_spanned!(maps_to.span()=> pub use super::#import#maps_to as #ident;))
                 } else {
-                    use_props.push(quote_spanned!(ident.span()=> pub use super::#ident;))
+                    let import = search_inherited(&input.inherits, ident);
+                    use_props.push(quote_spanned!(ident.span()=> pub use super::#import#ident;))
                 }
 
                 // 2

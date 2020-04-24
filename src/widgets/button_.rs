@@ -22,11 +22,7 @@ widget! {
 
         /// Set to [`ButtonBackground`](crate::widgets::ButtonBackground).
         background_color: ButtonBackground;
-
-        //content_align: crate::properties::Alignment::TOP_LEFT; // TODO allow resetting inherited property.
     }
-
-
 
     /// When the pointer device is over this button.
     when self.content_align == crate::properties::Alignment::CENTER {
