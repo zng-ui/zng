@@ -234,9 +234,11 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             if !unset {
                 // 1
                 if let Some(maps_to) = &p.maps_to {
-                    use_props.push(quote!(pub use super::#maps_to as #ident;))
+                    let mut ident = ident.clone();
+                    ident.set_span(maps_to.span());
+                    use_props.push(quote_spanned!(maps_to.span()=> pub use super::#maps_to as #ident;))
                 } else {
-                    use_props.push(quote!(pub use super::#ident;))
+                    use_props.push(quote_spanned!(ident.span()=> pub use super::#ident;))
                 }
 
                 // 2
@@ -309,8 +311,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             });
         }
-        i_use_props.push(quote! {
-            pub use super::#widget_name::ps::#ident;
+        let mut mod_name = widget_name.clone();
+        mod_name.set_span(ident.span());
+        i_use_props.push(quote_spanned! {ident.span()=>
+            pub use super::#mod_name::ps::#ident;
         });
 
         //2
@@ -343,7 +347,9 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     for (widget_name, index, when) in i_whens {
         for p in when.args.iter() {
             if defined_props.insert(p.clone()) {
-                use_props.push(quote!(pub use super::#widget_name::ps::#p;));
+                let mut mod_name = widget_name.clone();
+                mod_name.set_span(p.span());
+                use_props.push(quote_spanned!(p.span()=> pub use super::#mod_name::ps::#p;));
             }
         }
 
@@ -398,7 +404,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         for (&p, param) in property_params.iter() {
             if defined_props.insert(p.clone()) {
-                use_props.push(quote!(pub use super::#p;));
+                use_props.push(quote_spanned!(p.span()=> pub use super::#p;));
             }
 
             params.push(quote_spanned!(p.span()=> #param: &impl ps::#p::Args));

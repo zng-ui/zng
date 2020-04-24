@@ -23,7 +23,7 @@ widget! {
         /// Set to [`ButtonBackground`](crate::widgets::ButtonBackground).
         background_color: ButtonBackground;
 
-        //content_align: crate::properties::Alignment::TOP_LEFT; TODO allow resetting inherited property.
+        //content_align: crate::properties::Alignment::TOP_LEFT; // TODO allow resetting inherited property.
     }
 
 
@@ -51,9 +51,4 @@ widget! {
     } {
         background_color: ButtonBackgroundDisabled;
     }
-
-   // test
-   //when self.on_click {
-   //    background_color: ButtonBackgroundDisabled;
-   //}
 }
