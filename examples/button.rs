@@ -24,35 +24,56 @@ fn main() {
 }
 
 fn example() -> impl UiNode {
-    let t = var("Click Me!");
-    let is_hovered = var(false);
-    let is_pressed = var(false);
-    let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&hovered, &pressed| {
-        if pressed {
-            2
-        } else if hovered {
-            1
-        } else {
-            0
-        }
-    });
-
-    let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
+    let t = var("Click Me!"); 
 
     button! {
-        on_click: enclose!{ (t,  background_color) move |a| {
+        on_click: enclose!{ (t) move |a| {
             let ctx = a.ctx();
             ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
         }};
-        is_hovered: is_hovered;
-        is_pressed: is_pressed;
         margin: 10.0;
         size: (300.0, 200.0);
-        background_color: background_color;
         align: Alignment::CENTER;
         font_size: 28;
         => {
             text(t)
         }
     }
+}
+
+#[allow(unused)]
+macro_rules! temp {
+    () => {
+        let t = var("Click Me!");
+
+        let is_hovered = var(Default::default());
+        let is_pressed = var(Default::default());
+        let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&hovered, &pressed| {
+            if pressed {
+                2
+            } else if hovered {
+                1
+            } else {
+                0
+            }
+        });    
+        let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
+    
+        button! {
+            on_click: enclose!{ (t,  background_color) move |a| {
+                let ctx = a.ctx();
+                ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
+            }};
+            is_hovered: is_hovered;
+            is_pressed: is_pressed;
+            margin: 10.0;
+            size: (300.0, 200.0);
+            background_color: background_color;
+            align: Alignment::CENTER;
+            font_size: 28;
+            => {
+                text(t)
+            }
+        }
+    };
 }
