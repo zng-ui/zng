@@ -93,14 +93,14 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             BuiltPropertyKind::Local => {}
         }
     }
-    
+
     for when in input.whens.whens {
         for prop in when.args {
             if !setted_props.iter().any(|p| p.0 == prop) {
                 // when property has no initial value.
                 let name = ident!("{}_args", prop);
                 let crate_ = util::zero_ui_crate_ident();
-               
+
                 let_default_args.push(quote! {
                     let #name = #widget_name::ps::#prop::args(#crate_::core::var::var(false));
                 });

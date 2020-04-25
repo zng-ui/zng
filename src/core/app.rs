@@ -25,41 +25,59 @@ pub trait AppExtension: 'static {
 
     /// Initializes this extension.
     #[inline]
-    fn init(&mut self, _ctx: &mut AppInitContext) {}
+    fn init(&mut self, ctx: &mut AppInitContext) {
+        let _ = ctx;
+    }
 
     /// Called when the OS sends an event to a device.
     #[inline]
-    fn on_device_event(&mut self, _device_id: DeviceId, _event: &DeviceEvent, _ctx: &mut AppContext) {}
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
+        let _ = (device_id, event, ctx);
+    }
 
     /// Called when the OS sends an event to a window.
     #[inline]
-    fn on_window_event(&mut self, _window_id: WindowId, _event: &WindowEvent, _ctx: &mut AppContext) {}
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        let _ = (window_id, event, ctx);
+    }
 
     /// Called when a new frame is ready to be presented.
     #[inline]
-    fn on_new_frame_ready(&mut self, _window_id: WindowId, _ctx: &mut AppContext) {}
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let _ = (window_id, ctx);
+    }
 
     /// Called every update after the Ui update.
     #[inline]
-    fn update(&mut self, _update: UpdateRequest, _ctx: &mut AppContext) {}
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        let _ = (update, ctx);
+    }
 
     /// Called after every sequence of updates if display update was requested.
     #[inline]
-    fn update_display(&mut self, _update: UpdateDisplayRequest, _ctx: &mut AppContext) {}
+    fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
+        let _ = (update, ctx);
+    }
 
     /// Called when the OS sends a request for re-drawing the last frame.
     #[inline]
-    fn on_redraw_requested(&mut self, _window_id: WindowId, _ctx: &mut AppContext) {}
+    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let _ = (window_id, ctx);
+    }
 
     /// Called when a shutdown was requested.
     #[inline]
-    fn on_shutdown_requested(&mut self, _args: &ShutdownRequestedArgs, _ctx: &mut AppContext) {}
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        let _ = (args, ctx);
+    }
 
     /// Called when the application is shutting down.
     ///
     /// Update requests generated during this call are ignored.
     #[inline]
-    fn deinit(&mut self, _ctx: &mut AppContext) {}
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        let _ = ctx;
+    }
 }
 
 cancelable_event_args! {
