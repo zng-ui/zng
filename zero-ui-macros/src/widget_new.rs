@@ -36,9 +36,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     // declarations of property arguments in the user written order.
     let mut let_args = Vec::with_capacity(input.input.sets.len());
     let mut let_default_args = vec![];
-    // metadata about let_args.
+    // metadata about let_args and let_default_args.
     let mut setted_props = Vec::with_capacity(let_args.capacity());
-    let mut setted_default_props = vec![];
 
     // collects property assigns from the user.
     for set in input.input.sets {
@@ -80,7 +79,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     }
     // collects property assigns from default widget properties.
     for (prop, (target, kind)) in known_props {
-        let name = ident! {"{}_args", prop};
+        let name = ident!("{}_args", prop);
         match kind {
             BuiltPropertyKind::Required => {
                 abort_call_site!("missing required property `{}`", prop);
@@ -89,9 +88,24 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
                 let_default_args.push(quote! {
                     let #name = #widget_name::df::#prop();
                 });
-                setted_default_props.push((prop, target, true));
+                setted_props.push((prop, target, true));
             }
             BuiltPropertyKind::Local => {}
+        }
+    }
+    
+    for when in input.whens.whens {
+        for prop in when.args {
+            if !setted_props.iter().any(|p| p.0 == prop) {
+                // when property has no initial value.
+                let name = ident!("{}_args", prop);
+                let crate_ = util::zero_ui_crate_ident();
+               
+                let_default_args.push(quote! {
+                    let #name = #widget_name::ps::#prop::args(#crate_::core::var::var(false));
+                });
+                setted_props.push((prop, WidgetItemTarget::Self_, true));
+            }
         }
     }
 
@@ -109,7 +123,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let mut set_child = SetProps::default();
     let mut set_self = SetProps::default();
 
-    for (prop, target, in_widget) in setted_default_props.into_iter().chain(setted_props) {
+    for (prop, target, in_widget) in setted_props {
         let set;
         let expected_new_args;
         match target {

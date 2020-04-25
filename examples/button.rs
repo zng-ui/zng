@@ -24,7 +24,7 @@ fn main() {
 }
 
 fn example() -> impl UiNode {
-    let t = var("Click Me!"); 
+    let t = var("Click Me!");
 
     button! {
         on_click: enclose!{ (t) move |a| {
@@ -56,9 +56,9 @@ macro_rules! temp {
             } else {
                 0
             }
-        });    
+        });
         let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
-    
+
         button! {
             on_click: enclose!{ (t,  background_color) move |a| {
                 let ctx = a.ctx();

@@ -51,9 +51,12 @@ pub fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attri
 /// returns `zero_ui` or the name used in `Cargo.toml` if the crate was
 /// renamed.
 pub fn zero_ui_crate_ident() -> Ident {
-    proc_macro_crate::crate_name("zero-ui")
-        .map(|n| ident!(&n))
-        .unwrap_or_else(|_| ident!("zero_ui"))
+    use once_cell::sync::OnceCell;
+    static CRATE: OnceCell<String> = OnceCell::new();
+
+    let crate_ = CRATE.get_or_init(|| proc_macro_crate::crate_name("zero-ui").unwrap_or_else(|_| "zero_ui".to_owned()));
+
+    Ident::new(crate_.as_str(), Span::call_site())
 }
 
 /// Same as `parse_quote` but with an `expect` message.
