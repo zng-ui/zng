@@ -350,7 +350,8 @@ pub struct StateMap {
 }
 
 impl StateMap {
-    pub fn set<S: StateKey>(&mut self, _key: S, value: S::Type) -> Option<S::Type> {
+    pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
+        let _ = key;
         self.map
             .insert(TypeId::of::<S>(), Box::new(value))
             .map(|any| *any.downcast::<S::Type>().unwrap())
@@ -363,11 +364,13 @@ impl StateMap {
             .map(|any| *any.downcast::<S>().unwrap())
     }
 
-    pub fn contains<S: StateKey>(&self, _key: S) -> bool {
+    pub fn contains<S: StateKey>(&self, key: S) -> bool {
+        let _ = key;
         self.map.contains_key(&TypeId::of::<S>())
     }
 
-    pub fn get<S: StateKey>(&self, _key: S) -> Option<&S::Type> {
+    pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
+        let _ = key;
         if let Some(any) = self.map.get(&TypeId::of::<S>()) {
             Some(any.downcast_ref::<S::Type>().unwrap())
         } else {
@@ -375,7 +378,8 @@ impl StateMap {
         }
     }
 
-    pub fn get_mut<S: StateKey>(&mut self, _key: S) -> Option<&mut S::Type> {
+    pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
+        let _ = key;
         if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
             Some(any.downcast_mut::<S::Type>().unwrap())
         } else {
@@ -389,7 +393,8 @@ impl StateMap {
     }
 
     /// Gets if a state key without value is set.
-    pub fn flagged<S: StateKey<Type = ()>>(&self, _key: S) -> bool {
+    pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
+        let _ = key;
         self.map.contains_key(&TypeId::of::<S>())
     }
 }

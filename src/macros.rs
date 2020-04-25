@@ -278,6 +278,29 @@ macro_rules! event_args {
             }
         }
     )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
 }
 
 /// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
@@ -383,6 +406,7 @@ macro_rules! event_args {
 /// ```
 #[macro_export]
 macro_rules! cancelable_event_args {
+
     ($(
         $(#[$outer:meta])*
         $vis:vis struct $Args:ident {
@@ -446,6 +470,29 @@ macro_rules! cancelable_event_args {
             }
         }
     )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        cancelable_event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
 }
 
 /// Creates a [`Text`](crate::core::types::Text) by calling the `format!` macro and

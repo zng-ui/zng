@@ -85,7 +85,7 @@ cancelable_event_args! {
     pub struct ShutdownRequestedArgs {
         ..
         /// Always true.
-        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
+        fn concerns_widget(&self, _: &mut WidgetContext) -> bool {
             true
         }
     }
