@@ -210,7 +210,7 @@ mod bezier {
     /* This Source Code Form is subject to the terms of the Mozilla Public
      * License, v. 2.0. If a copy of the MPL was not distributed with this
      * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
-     
+
     const NEWTON_METHOD_ITERATIONS: u8 = 8;
 
     /// A unit cubic Bézier curve, used for timing functions in CSS transitions and animations.

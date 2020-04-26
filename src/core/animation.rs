@@ -114,6 +114,7 @@ mul_easing_step_for_int!(usize, isize, u64, i64, u128, i128);
 /// See also: [`EasingFn`](EasingFn).
 pub mod easing {
     use super::{EasingStep, EasingTime};
+    use crate::core::types::Bezier;
     use std::f32::consts::*;
 
     /// Simple linear transition, no easing, no acceleration.
@@ -181,6 +182,17 @@ pub mod easing {
     pub fn bounce(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep((6.0 * (t - 1.0)).powf(2.0) * (t * PI * 3.5).sin().abs())
+    }
+
+    /// X coordinate is time, Y coordinate is function advancement.
+    /// The nominal range for both is 0 to 1.
+    ///
+    /// The start and end points are always (0, 0) and (1, 1) so that a transition or animation
+    /// starts at 0% and ends at 100%.
+    #[inline]
+    pub fn cubic_bezier(x1: f32, y1: f32, x2: f32, y2: f32, time: EasingTime) -> EasingStep {
+        let t = time.get() as f64;
+        EasingStep(Bezier::new(x1, y1, x2, y2).solve(t, 0.00001) as f32)
     }
 
     /// Always `1.0`.
