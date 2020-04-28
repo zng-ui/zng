@@ -32,9 +32,4 @@ widget! {
     when self.is_pressed  {
         background_color: ButtonBackgroundPressed;
     }
-
-    /// test
-    when self.is_pressed && self.is_hovered   {
-        background_color: ButtonBackgroundPressed;
-    }
 }

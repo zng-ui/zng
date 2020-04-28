@@ -97,10 +97,9 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let mut let_when_vars = Vec::with_capacity(input.whens.whens.len());
 
     for (i, when) in input.whens.whens.into_iter().enumerate() {
-        let wn = ident!("w{}", i);        
-        let when_args: Vec<_> = when.args.iter().map(|p| {println!("{:?}", p); ident!("{}_args", p)}).collect();
-        println!("{:?}", when_args);
-        let_when_vars.push(quote!{let #wn = #widget_name::we::#wn(#(&#when_args),*);});
+        let wn = ident!("w{}", i);
+        let when_args: Vec<_> = when.args.iter().map(|p| ident!("{}_args", p)).collect();
+        let_when_vars.push(quote! {let #wn = #widget_name::we::#wn(#(&#when_args),*);});
 
         for (prop, name) in when.args.into_iter().zip(when_args) {
             if !setted_props.iter().any(|p| p.0 == prop) {
