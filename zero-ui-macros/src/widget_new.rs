@@ -94,11 +94,17 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
     }
 
-    for when in input.whens.whens {
-        for prop in when.args {
+    let mut let_when_vars = Vec::with_capacity(input.whens.whens.len());
+
+    for (i, when) in input.whens.whens.into_iter().enumerate() {
+        let wn = ident!("w{}", i);        
+        let when_args: Vec<_> = when.args.iter().map(|p| {println!("{:?}", p); ident!("{}_args", p)}).collect();
+        println!("{:?}", when_args);
+        let_when_vars.push(quote!{let #wn = #widget_name::we::#wn(#(&#when_args),*);});
+
+        for (prop, name) in when.args.into_iter().zip(when_args) {
             if !setted_props.iter().any(|p| p.0 == prop) {
-                // when property has no initial value.
-                let name = ident!("{}_args", prop);
+                // if property has no initial value.
                 let crate_ = util::zero_ui_crate_ident();
 
                 let_default_args.push(quote! {
@@ -177,6 +183,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let r = quote! {{
         #(#let_default_args)*
         #(#let_args)*
+        #(#let_when_vars)*
 
         let node = #child;
 

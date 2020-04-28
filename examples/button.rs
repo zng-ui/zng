@@ -46,8 +46,8 @@ macro_rules! temp {
     () => {
         let t = var("Click Me!");
 
-        let is_hovered = var(Default::default());
-        let is_pressed = var(Default::default());
+        let is_hovered = var(false);
+        let is_pressed = var(false);
         let iv = merge_var!(is_hovered.clone(), is_pressed.clone(), |&hovered, &pressed| {
             if pressed {
                 2
