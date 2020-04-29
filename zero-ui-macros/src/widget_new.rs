@@ -1,7 +1,8 @@
 use crate::util;
 use crate::widget::{self, PropertyAssign, WhenBlock};
 use proc_macro2::{Span, TokenStream};
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
+use std::rc::Rc;
 use syn::punctuated::Punctuated;
 use syn::{parse::*, *};
 use widget::{PropertyValue, WidgetItemTarget};
@@ -24,6 +25,7 @@ pub mod keyword {
 pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as WidgetNewInput);
     let widget_name = input.ident;
+    let crate_ = util::zero_ui_crate_ident();
 
     // map properties for collection into a HashMap.
     let map_props = |bdb: BuiltDefaultBlock, target| bdb.properties.into_iter().map(move |p| (p.ident, (target, p.kind)));
@@ -95,22 +97,67 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     }
 
     let mut let_when_vars = Vec::with_capacity(input.whens.whens.len());
+    let mut prop_wns_map = HashMap::new();
 
+    // collect when var declarations
     for (i, when) in input.whens.whens.into_iter().enumerate() {
         let wn = ident!("w{}", i);
         let when_args: Vec<_> = when.args.iter().map(|p| ident!("{}_args", p)).collect();
         let_when_vars.push(quote! {let #wn = #widget_name::we::#wn(#(&#when_args),*);});
 
-        for (prop, name) in when.args.into_iter().zip(when_args) {
+        for (prop, prop_args) in when.args.into_iter().zip(when_args) {
+            // if property has no initial value.
             if !setted_props.iter().any(|p| p.0 == prop) {
-                // if property has no initial value.
-                let crate_ = util::zero_ui_crate_ident();
-
                 let_default_args.push(quote! {
-                    let #name = #widget_name::ps::#prop::args(#crate_::core::var::var(false));
+                    let #prop_args = #widget_name::ps::#prop::args(#crate_::core::var::var(false));
                 });
-                setted_props.push((prop, WidgetItemTarget::Self_, true));
+                setted_props.push((prop.clone(), WidgetItemTarget::Self_, true));
             }
+        }
+
+        let wn = Rc::new(wn);
+
+        for prop in when.sets.into_iter() {
+            match prop_wns_map.entry(prop) {
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert(vec![wn.clone()]);
+                }
+                hash_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().push(wn.clone());
+                }
+            }
+        }
+    }
+
+    let mut prop_when_indexes = Vec::with_capacity(prop_wns_map.len());
+
+    // collect
+    for (prop, wns) in prop_wns_map {
+        let prop_idx = ident!("{}_index", prop);
+
+        if wns.len() == 1 {
+            let wn = &wns[0];
+            prop_when_indexes.push(quote! {
+                let #prop_idx = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1 } else { 0 });
+            });
+        } else {
+            let wns_input = wns.iter().map(|wn| {
+                if Rc::strong_count(&wn) == 1 {
+                    quote!(#wn)
+                } else {
+                    quote!(#wn.clone())
+                }
+            });
+
+            let wns_rev = wns.iter().rev();
+            let wns_i = (1..=wns.len()).rev();
+
+            prop_when_indexes.push(quote! {
+                let #prop_idx = merge_var!(#(#wns_input),* , |#(&#wns),*|{
+                    #(if #wns_rev { #wns_i })else*
+                    else { 0 }
+                });
+            });
         }
     }
 
@@ -183,6 +230,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         #(#let_default_args)*
         #(#let_args)*
         #(#let_when_vars)*
+        #(#prop_when_indexes)*
 
         let node = #child;
 
