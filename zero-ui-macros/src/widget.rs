@@ -363,6 +363,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut when_fns = vec![];
     let mut built_whens_inht = vec![];
     let mut built_whens_new = vec![];
+    let mut mod_when_dfts = vec![];
 
     for (widget_name, index, when) in i_whens {
         for p in when.args.iter() {
@@ -382,6 +383,21 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             #[inline]
             pub fn #fn_name(#(#args: &impl ps::#args::Args),*) -> impl #crate_::core::var::Var<bool> {
                 #widget_name::we::#inner_fn(#(#inner_args),*)
+            }
+        });
+
+        let sets = when.sets.iter().map(|s| {
+            quote! {
+                #[inline]
+                pub fn #s() -> impl ps::#s::Args {
+                    #widget_name::df::#inner_fn::#s()
+                }
+            }
+        });
+        mod_when_dfts.push(quote! {
+            pub mod #fn_name {
+                use super::*;
+                #(#sets)*
             }
         });
 
@@ -485,6 +501,40 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 #asserts
                 #init_locals
                 #return_
+            }
+        });
+
+        let sets = when.properties.iter().map(|p| {
+            let ident = &p.ident;
+            let value = match &p.value {
+                PropertyValue::Args(args) => {
+                    quote! {
+                        ps::#ident::args(#args)
+                    }
+                }
+                PropertyValue::Fields(fields) => {
+                    quote! {
+                        ps::#ident::NamedArgs {
+                            _phantom: std::marker::PhantomData,
+                            #fields
+                        }
+                    }
+                }
+                PropertyValue::Unset => abort!(ident.span(), "cannot unset in when"),
+            };
+
+            quote! {
+                #[inline]
+                pub fn #ident() -> impl ps::#ident::Args {
+                    #value
+                }
+            }
+        });
+
+        mod_when_dfts.push(quote! {
+            pub mod #fn_name {
+                use super::*;
+                #(#sets)*
             }
         });
 
@@ -649,6 +699,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
                 #(#i_fn_prop_dfts)*
                 #(#fn_prop_dfts)*
+                #(#mod_when_dfts)*
             }
 
             // When expressions.
