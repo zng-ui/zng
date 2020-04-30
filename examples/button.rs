@@ -57,7 +57,11 @@ macro_rules! temp {
                 0
             }
         });
-        let background_color = switch_var!(iv, ButtonBackground, ButtonBackgroundHovered, ButtonBackgroundPressed);
+        let background_default_args = background_color::args(ButtonBackground);
+        let background_hovered_args = background_color::args(ButtonBackgroundHovered);
+        let background_pressed_args = background_color::args(ButtonBackgroundPressed);
+
+        let background_color = switch_var!(iv, background_default_args.0, background_hovered_args.0, background_pressed_args.0);
 
         button! {
             on_click: enclose!{ (t,  background_color) move |a| {

@@ -283,3 +283,39 @@ fn border_details_none() -> w_api::BorderDetails {
         do_aa: true,
     })
 }
+
+mod border_todo {
+    use super::border::*;
+
+    //mod border {
+
+    fn switch2(idx: impl crate::core::var::Var<usize>, arg_0: impl Args, arg_1: impl Args) -> impl Args {
+        let (arg_0_widths, arg_0_details) = arg_0.unwrap();
+        let (arg_1_widths, arg_1_details) = arg_1.unwrap();
+
+        let widths = switch_var!(idx.clone(), arg_0_widths, arg_1_widths);
+        let details = switch_var!(idx, arg_0_details, arg_1_details);
+
+        args(widths, details)
+    }
+
+    fn switch3(idx: impl crate::core::var::Var<usize>, arg_0: impl Args, arg_1: impl Args, arg_2: impl Args) -> impl Args {
+        let (arg_0_widths, arg_0_details) = arg_0.unwrap();
+        let (arg_1_widths, arg_1_details) = arg_1.unwrap();
+        let (arg_2_widths, arg_2_details) = arg_2.unwrap();
+
+        let widths = switch_var!(idx.clone(), arg_0_widths, arg_1_widths, arg_2_widths);
+        let details = switch_var!(idx, arg_0_details, arg_1_details, arg_2_details);
+
+        args(widths, details)
+    }
+
+    //.
+    //.
+    //.
+    //fn switch8 [...]
+
+    //fn switchdyn(..){ }
+
+    //} <- end of mod border
+}
