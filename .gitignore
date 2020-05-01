@@ -2,3 +2,4 @@
 **/*.rs.bk
 app_profile.json
 **/*.expanded.rs
+dump.rs
