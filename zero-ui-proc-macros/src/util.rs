@@ -94,6 +94,7 @@ macro_rules! doc {
 }
 
 /// Generates a string with the code of `input` parse stream. The stream is not modified.
+#[allow(unused)]
 macro_rules! dump_parse {
     ($input:ident) => {{
       let input = $input.fork();

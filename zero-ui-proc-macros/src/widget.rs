@@ -68,9 +68,9 @@ fn include_inherited(mixin: bool, mut inherits: Punctuated<Path, Token![+]>, res
 
     // call the inherited widget macro to prepend its inherit block.
     let r = if mixin {
-        quote! { #inherit! { => mixin_inherit { #inherit_next } #rest } }
+        quote! { #inherit! { => mixin_inherit { #inherit; #inherit_next } #rest } }
     } else {
-        quote! { #inherit! { => inherit { #inherit_next } #rest } }
+        quote! { #inherit! { => inherit { #inherit; #inherit_next } #rest } }
     };
     r.into()
 }
@@ -250,10 +250,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                     let import = search_inherited(&input.inherits, maps_to);
                     let mut ident = ident.clone();
                     ident.set_span(maps_to.span());
-                    use_props.push(quote_spanned!(maps_to.span()=> pub use super::#import#maps_to as #ident;))
+                    use_props.push(quote_spanned!(maps_to.span()=> pub use#import#maps_to as #ident;))
                 } else {
                     let import = search_inherited(&input.inherits, ident);
-                    use_props.push(quote_spanned!(ident.span()=> pub use super::#import#ident;))
+                    use_props.push(quote_spanned!(ident.span()=> pub use #import#ident;))
                 }
 
                 // 2
@@ -300,18 +300,19 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut i_default_blocks = vec![];
     let mut i_whens = vec![];
     for inherit in &mut input.inherits {
-        let widget_name = &inherit.path;
+        let widget_name = &inherit.ident;
+        let widget_path = &inherit.path;
         for child_prop in &mut inherit.default_child.properties {
-            i_default_blocks.push((widget_name, WidgetItemTarget::Child, child_prop));
+            i_default_blocks.push((widget_name, widget_path, WidgetItemTarget::Child, child_prop));
         }
         for self_prop in &mut inherit.default_self.properties {
-            i_default_blocks.push((widget_name, WidgetItemTarget::Self_, self_prop));
+            i_default_blocks.push((widget_name, widget_path, WidgetItemTarget::Self_, self_prop));
         }
         for (i, when) in inherit.whens.whens.iter().enumerate() {
-            i_whens.push((widget_name, i, when));
+            i_whens.push((widget_name, widget_path, i, when));
         }
     }
-    for (widget_name, target, prop) in i_default_blocks {
+    for (widget_name, widget_path, target, prop) in i_default_blocks {
         let ident = &prop.ident;
         if !defined_props.insert(ident.clone()) {
             continue; // inherited property overridden
@@ -322,12 +323,12 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             i_fn_prop_dfts.push(quote! {
                 #[inline]
                 pub fn #ident() -> impl ps::#ident::Args {
-                    #widget_name::df::#ident()
+                    #widget_path::df::#ident()
                 }
             });
         }
         i_use_props.push(quote_spanned! {ident.span()=>
-            pub use super::#widget_name::ps::#ident;
+            pub use #widget_path::ps::#ident;
         });
 
         //2
@@ -350,7 +351,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             BuiltPropertyKind::Local => &mut i_other_docs,
         };
 
-        push_inherited_property_docs(docs, target, ident, widget_name, prop_docs);
+        push_inherited_property_docs(docs, target, ident, widget_path, widget_name, prop_docs);
     }
 
     let mut when_fns = vec![];
@@ -358,10 +359,10 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut built_whens_new = vec![];
     let mut mod_when_dfts = vec![];
 
-    for (widget_name, index, when) in i_whens {
+    for (_, widget_path, index, when) in i_whens {
         for p in when.args.iter() {
             if defined_props.insert(p.clone()) {
-                use_props.push(quote_spanned!(p.span()=> pub use super::#widget_name::ps::#p;));
+                use_props.push(quote_spanned!(p.span()=> pub use #widget_path::ps::#p;));
             }
         }
 
@@ -373,7 +374,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         when_fns.push(quote! {
             #[inline]
             pub fn #fn_name(#(#args: &impl ps::#args::Args),*) -> impl #crate_::core::var::Var<bool> {
-                #widget_name::we::#inner_fn(#(#inner_args),*)
+                #widget_path::we::#inner_fn(#(#inner_args),*)
             }
         });
 
@@ -381,7 +382,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             quote! {
                 #[inline]
                 pub fn #s() -> impl ps::#s::Args {
-                    #widget_name::df::#inner_fn::#s()
+                    #widget_path::df::#inner_fn::#s()
                 }
             }
         });
@@ -431,7 +432,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
 
         for (&p, param) in property_params.iter() {
             if defined_props.insert(p.clone()) {
-                use_props.push(quote_spanned!(p.span()=> pub use super::#p;));
+                use_props.push(quote_spanned!(p.span()=> pub use #p;));
             }
 
             params.push(quote_spanned!(p.span()=> #param: &impl ps::#p::Args));
@@ -619,22 +620,24 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         macro_rules! #wgt_macro_name {
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
-            (=> inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
+            (=> inherit { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
                 #crate_::widget_inherit! {
                     $($inherit_next)*
 
                     inherit {
+                        $named_as;
                         #widget_inherit_tokens
                     }
 
                     $($rest)*
                 }
             };
-            (=> mixin_inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
+            (=> mixin_inherit { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
                 #crate_::widget_mixin_inherit! {
                     $($inherit_next)*
 
                     inherit {
+                        $named_as;
                         #widget_inherit_tokens
                     }
 
@@ -663,6 +666,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             // Properties used in widget.
             #[doc(hidden)]
             pub mod ps {
+                pub use super::*;
+
                 #(#i_use_props)*
                 #(#use_props)*
             }
@@ -730,10 +735,11 @@ fn push_inherited_property_docs(
     target: WidgetItemTarget,
     ident: &Ident,
     source_widget: &Path,
+    source_widget_name: &Ident,
     pdocs: Vec<Attribute>,
 ) {
-    let source_widget = quote!(#source_widget);
-    
+    let source_widget = format!("{}", quote!(#source_widget)).replace(" :: ", "::");
+
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         ident,
@@ -742,16 +748,12 @@ fn push_inherited_property_docs(
             WidgetItemTarget::Child => "child",
         },
     ));
-    docs.push(doc!(
-        "\n[<span class='mod' data-inherited>{0}</span>](self::{1})\n",
-        ident,
-        source_widget
-    ));
+    docs.push(doc!("\n[<span class='mod' data-inherited>{}</span>]({})\n", ident, source_widget));
     docs.push(doc!("<ul style='display:none;'></ul></span></code></h3>"));
 
     docs.push(doc!("<div class='docblock'>\n"));
     docs.extend(pdocs);
-    docs.push(doc!("\n*Inherited from [`{0}`](self::{0}).*", source_widget));
+    docs.push(doc!("\n*Inherited from [`{}`]({}).*", source_widget_name, source_widget));
     docs.push(doc!("\n</div>"));
 }
 
@@ -963,6 +965,7 @@ struct WidgetInput {
 }
 
 struct InheritBlock {
+    ident: Ident,
     path: Path,
     default_child: InheritedDefaultBlock,
     default_self: InheritedDefaultBlock,
@@ -973,8 +976,11 @@ impl Parse for InheritBlock {
     fn parse(input: ParseStream) -> Result<Self> {
         use crate::widget_new::keyword;
 
-        input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
         let path = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<Token![;]>().expect(util::NON_USER_ERROR);
+
+        input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
+        let ident = input.parse().expect(util::NON_USER_ERROR);
 
         input.parse::<keyword::c>().expect(util::NON_USER_ERROR);
         let default_child = input.parse().expect(util::NON_USER_ERROR);
@@ -986,6 +992,7 @@ impl Parse for InheritBlock {
         let whens = input.parse().expect(util::NON_USER_ERROR);
 
         Ok(InheritBlock {
+            ident,
             path,
             default_child,
             default_self,
