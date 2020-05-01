@@ -282,7 +282,7 @@ struct SwitchVarDynInner<I: Var<usize>, T: 'static> {
     version: Cell<u32>,
 }
 
-/// A dynamically-sized set of variables that can be switched on. See [`switch_var!`](switch_var!) for
+/// A dynamically-sized set of variables that can be switched on. See [`switch_var!`](macro.switch_var.html) for
 /// the full documentation.
 pub struct SwitchVarDyn<I: Var<usize>, T: VarValue> {
     r: Rc<SwitchVarDynInner<I, T>>,
@@ -464,7 +464,7 @@ impl<I: Var<usize>, T: VarValue> IntoVar<T> for SwitchVarDyn<I, T> {
 /// # }
 /// ```
 #[macro_export]
-macro_rules! switch_var {
+macro_rules! __switch_var {
     ($index: expr, $v0: expr, $v1: expr) => {
         $crate::core::var::SwitchVar2::new($index, $v0, $v1)
     };
@@ -493,3 +493,6 @@ macro_rules! switch_var {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
     };
 }
+
+#[doc(inline)]
+pub use __switch_var as switch_var;

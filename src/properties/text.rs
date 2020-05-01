@@ -1,8 +1,8 @@
+use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::IntoVar;
 use crate::core::UiNode;
 use crate::properties::with_context_var;
-use crate::property;
 use crate::widgets::{FontFamily, FontSize, TextColor, TextTransform, TextTransformFn};
 
 /// Sets the [`FontFamily`](FontFamily) context var.

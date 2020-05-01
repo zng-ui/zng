@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-/// [`ContextVar`](ContextVar) var. Use [`context_var!`](context_var!) to generate context variables.
+/// [`ContextVar`](ContextVar) var. Use [`context_var!`](macro.context_var.html) to generate context variables.
 pub struct ContextVarImpl<V: ContextVar>(PhantomData<V>);
 
 impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for ContextVarImpl<V> {
@@ -269,9 +269,9 @@ where
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __context_var {
+macro_rules! __context_var_inner {
     ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = const $default:expr;) => {
-        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+        $crate:: __context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
 
             static DEFAULT: $type = $default;
             &DEFAULT
@@ -280,7 +280,7 @@ macro_rules! __context_var {
     };
 
     ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = once $default:expr;) => {
-        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+        $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
 
             static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
             DEFAULT.get_or_init(||{
@@ -291,7 +291,7 @@ macro_rules! __context_var {
     };
 
     ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = return $default:expr;) => {
-        __context_var!(gen => $(#[$outer])* $vis struct $ident: $type = {
+        $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
             $default
         };);
     };
@@ -358,8 +358,11 @@ macro_rules! __context_var {
 /// # }
 /// ```
 #[macro_export]
-macro_rules! context_var {
+macro_rules! __context_var {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $mode:ident $default:expr;)+) => {$(
-        __context_var!($(#[$outer])* $vis struct $ident: $type = $mode $default;);
+        $crate::__context_var_inner!($(#[$outer])* $vis struct $ident: $type = $mode $default;);
     )+};
 }
+
+#[doc(inline)]
+pub use __context_var as context_var;

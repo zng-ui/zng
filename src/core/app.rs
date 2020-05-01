@@ -1,8 +1,15 @@
 use crate::core::event::EventEmitter;
 use crate::core::event::EventListener;
 use crate::core::{
-    context::*, event::CancelableEventArgs, focus::FocusManager, font::FontManager, gesture::GestureEvents, keyboard::KeyboardEvents,
-    mouse::MouseEvents, types::*, window::WindowManager,
+    context::*,
+    event::{cancelable_event_args, CancelableEventArgs},
+    focus::FocusManager,
+    font::FontManager,
+    gesture::GestureEvents,
+    keyboard::KeyboardEvents,
+    mouse::MouseEvents,
+    types::*,
+    window::WindowManager,
 };
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -264,8 +271,10 @@ impl<E: AppExtension> AppExtended<E> {
     /// Runs the application event loop calling `start` once at the beginning.
     #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
+        use crate::core::profiler::*;
+
         #[cfg(feature = "app_profiler")]
-        crate::core::profiler::register_thread_with_profiler();
+        register_thread_with_profiler();
 
         profile_scope!("app::run");
 

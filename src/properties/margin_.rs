@@ -5,7 +5,7 @@ use crate::core::{
     var::{IntoVar, Var},
     UiNode,
 };
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
     child: T,

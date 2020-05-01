@@ -3,10 +3,11 @@ use crate::core::event::*;
 use crate::core::gesture::*;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
+use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::types::LayoutSize;
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     child: C,

@@ -250,7 +250,7 @@ impl_merge_vars! {
 /// # }
 /// ```
 #[macro_export]
-macro_rules! merge_var {
+macro_rules! __merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
         $crate::core::var::MergeVar2::new($v0, $v1, $merge)
     };
@@ -279,3 +279,6 @@ macro_rules! merge_var {
         compile_error!("this macro takes 3 or more parameters (var0, var1, .., merge_fn")
     };
 }
+
+#[doc(inline)]
+pub use __merge_var as merge_var;

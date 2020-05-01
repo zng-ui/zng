@@ -5,7 +5,10 @@ extern crate zero_ui;
 #[macro_use]
 extern crate enclose;
 
-use zero_ui::{core::var::Var, prelude::*};
+use zero_ui::{
+    core::{types::formatx, var::Var},
+    prelude::*,
+};
 
 fn main() {
     better_panic::install();

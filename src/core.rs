@@ -1,8 +1,5 @@
 //! Core infrastructure required for running a zero-ui app.
 
-#[macro_use]
-pub mod var;
-
 pub mod animation;
 pub mod app;
 pub mod context;
@@ -15,9 +12,11 @@ pub mod mouse;
 pub mod profiler;
 pub mod render;
 pub mod types;
+pub mod var;
 pub mod window;
 
-use crate::impl_ui_node;
+pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
+
 use context::{LazyStateMap, WidgetContext};
 use render::FrameBuilder;
 use types::{LayoutSize, WidgetId};

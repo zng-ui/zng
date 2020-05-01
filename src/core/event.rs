@@ -201,3 +201,354 @@ impl<T: 'static> EventEmitter<T> {
         self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
     }
 }
+
+/// Declares new [`EventArgs`](crate::core::event::EventArgs) types.
+///
+/// # Example
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::core::render::WidgetPath;
+///
+/// event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! __event_args {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+        }
+        impl $Args {
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                }
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+        }
+        impl $crate::core::event::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+
+            #[inline]
+            $(#[$concerns_widget_outer])*
+            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
+                $($concerns_widget)+
+            }
+        }
+    )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        $crate::event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
+}
+
+#[doc(inline)]
+pub use __event_args as event_args;
+
+/// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
+///
+/// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
+///
+/// # Example
+/// ```
+/// # #[macro_use] extern crate zero_ui;
+/// # fn main() {
+/// use zero_ui::core::render::WidgetPath;
+///
+/// cancelable_event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// # }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+///
+///     cancel: std::rc::Rc<std::cell::Cell<bool>>
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///             cancel: std::rc::Rc::default()
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::CancelableEventArgs for MyEventArgs {
+///     /// If a listener canceled the action.
+///     #[inline]
+///     fn cancel_requested(&self) -> bool {
+///         self.cancel.get()
+///     }
+///
+///     /// Cancel the action.
+///     ///
+///     /// Cloned args are still linked, canceling one will cancel the others.
+///     #[inline]
+///     fn cancel(&self) {
+///         self.cancel.set(true);
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! __cancelable_event_args {
+
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+            cancel: std::rc::Rc<std::cell::Cell<bool>>
+        }
+        impl $Args {
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    cancel: std::rc::Rc::default()
+                }
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+        }
+        impl $crate::core::event::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+
+            #[inline]
+            $(#[$concerns_widget_outer])*
+            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
+                $($concerns_widget)+
+            }
+        }
+        impl $crate::core::event::CancelableEventArgs for $Args {
+            /// If a listener canceled the action.
+            #[inline]
+            fn cancel_requested(&self) -> bool {
+                self.cancel.get()
+            }
+
+            /// Cancel the action.
+            ///
+            /// Cloned args are still linked, canceling one will cancel the others.
+            #[inline]
+            fn cancel(&self) {
+                self.cancel.set(true);
+            }
+        }
+    )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        $crate::__cancelable_event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
+}
+
+#[doc(inline)]
+pub use __cancelable_event_args as cancelable_event_args;

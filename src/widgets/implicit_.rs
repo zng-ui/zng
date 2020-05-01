@@ -1,5 +1,5 @@
+use crate::core::widget_mixin;
 use crate::prelude::WidgetId;
-use crate::widget_mixin;
 
 #[doc(hidden)]
 pub use crate::properties::id;

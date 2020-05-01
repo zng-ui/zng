@@ -3,7 +3,7 @@ use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 use webrender::api as w_api;
 
 impl IntoVar<BorderDetails> for ColorF {
@@ -286,6 +286,7 @@ fn border_details_none() -> w_api::BorderDetails {
 
 mod border_todo {
     use super::border::*;
+    use crate::core::var::switch_var;
 
     //mod border {
 

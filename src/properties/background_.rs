@@ -3,8 +3,8 @@ use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
+use crate::core::{impl_ui_node, property};
 use crate::widgets::{fill_color, fill_gradient};
-use crate::{impl_ui_node, property};
 
 struct Background<T: UiNode, B: UiNode> {
     child: T,

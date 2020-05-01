@@ -4,7 +4,7 @@ use crate::core::{
     var::{IntoVar, Var},
     UiNode,
 };
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct Title<C: UiNode, T: Var<Text>> {
     child: C,

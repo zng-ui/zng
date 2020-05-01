@@ -5,7 +5,7 @@ use crate::core::{
     var::{IntoVar, LocalVar},
     UiNode,
 };
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct ClipToBounds<T: UiNode, S: LocalVar<bool>> {
     child: T,

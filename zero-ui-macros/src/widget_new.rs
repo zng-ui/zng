@@ -153,7 +153,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             let wns_i = (1..=wns.len()).rev();
 
             prop_when_indexes.push(quote! {
-                let #prop_idx = merge_var!(#(#wns_input),* , |#(&#wns),*|{
+                let #prop_idx = #crate_::core::var::merge_var!(#(#wns_input),* , |#(&#wns),*|{
                     #(if #wns_rev { #wns_i })else*
                     else { 0 }
                 });

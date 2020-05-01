@@ -3,7 +3,7 @@ use crate::core::event::*;
 use crate::core::mouse::*;
 use crate::core::var::{Var, VarIsReadOnly};
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 trait ResultVarReadOnlyExt {
     fn warn_err(self, property: &str);

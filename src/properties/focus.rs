@@ -3,7 +3,7 @@ use crate::core::focus::*;
 use crate::core::render::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 /// Enables a widget to receive focus.
 #[property(context)]

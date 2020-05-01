@@ -35,9 +35,9 @@ pub use title_::*;
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
 mod build_tests {
+    use crate::core::property;
     use crate::core::var::*;
     use crate::prelude::*;
-    use crate::property;
 
     #[property(context)]
     fn basic_context(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {

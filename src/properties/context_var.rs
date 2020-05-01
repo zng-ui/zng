@@ -1,7 +1,7 @@
 use crate::core::context::*;
+use crate::core::impl_ui_node;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::impl_ui_node;
 
 struct WithContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
     child: U,

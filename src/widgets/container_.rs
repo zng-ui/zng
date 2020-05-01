@@ -1,4 +1,4 @@
-use crate::widget;
+use crate::core::widget;
 
 #[doc(hidden)]
 pub use crate::properties::{align, clip_to_bounds, margin, Alignment};

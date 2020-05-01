@@ -336,11 +336,29 @@ impl Vars {
 /// A key to a value in a [`StateMap`](StateMap).
 ///
 /// The type that implements this trait is the key. You
-/// can use the [`state_key!`](state_key!) macro.
+/// can use the [`state_key!`](macro.state_key.html) macro.
 pub trait StateKey: 'static {
     /// The value type.
     type Type: 'static;
 }
+
+/// Declares new [`StateKey`](crate::core::context::StateKey) types.
+#[macro_export]
+macro_rules! __state_key {
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
+        $(#[$outer])*
+        /// # StateKey
+        /// This `struct` is a [`StateKey`](zero_ui::core::context::StateKey).
+        $vis struct $ident;
+
+        impl $crate::core::context::StateKey for $ident {
+            type Type = $type;
+        }
+    )+};
+}
+
+#[doc(inline)]
+pub use __state_key as state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.

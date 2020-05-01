@@ -1,10 +1,10 @@
+use crate::core::widget;
 use crate::core::{
     types::{rgb, WidgetId},
     window::Window,
 };
 #[doc(hidden)]
 pub use crate::properties::{background_color, id, size, title};
-use crate::widget;
 use crate::widgets::container;
 
 widget! {

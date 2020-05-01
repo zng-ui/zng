@@ -1,6 +1,7 @@
 use crate::core::app::{AppEvent, AppExtension, AppProcess, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::profiler::profile_scope;
 use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo};
 use crate::core::types::*;
 use crate::core::var::*;

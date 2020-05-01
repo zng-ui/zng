@@ -2,7 +2,7 @@ use crate::core::context::*;
 use crate::core::render::FrameBuilder;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct HitTestable<U: UiNode, H: LocalVar<bool>> {
     child: U,

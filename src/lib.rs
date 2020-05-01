@@ -12,14 +12,19 @@
 //!
 //! # fn main () {}
 //! ```
+//! <style>h2#macros, h2#macros + table { display: none !important; }</style>
 
 // for proc_macros that don't have $self.
 extern crate self as zero_ui;
 
-#[macro_use]
-mod macros;
+/// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
+macro_rules! error_println {
+    ($($tt:tt)*) => {{
+        use colored::*;
+        eprintln!("{}: {}", "error".bright_red().bold(), format_args!($($tt)*))
+    }}
+}
 
-pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
 #[doc(hidden)]
 pub use zero_ui_macros::{widget_inherit, widget_mixin_inherit};
 
@@ -29,7 +34,6 @@ use proc_macro_hack::proc_macro_hack;
 #[proc_macro_hack(support_nested)]
 pub use zero_ui_macros::widget_new;
 
-#[macro_use]
 pub mod core;
 pub mod layouts;
 pub mod properties;

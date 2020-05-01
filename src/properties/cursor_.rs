@@ -3,7 +3,7 @@ use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::{impl_ui_node, property};
+use crate::core::{impl_ui_node, property};
 
 struct Cursor<T: UiNode, C: LocalVar<CursorIcon>> {
     cursor: C,

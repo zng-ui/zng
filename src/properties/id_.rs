@@ -1,5 +1,4 @@
-use crate::core::{types::WidgetId, UiNode};
-use crate::property;
+use crate::core::{property, types::WidgetId, UiNode};
 
 /// Widget id.
 ///

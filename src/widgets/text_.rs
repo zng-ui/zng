@@ -1,11 +1,12 @@
 use crate::core::context::*;
 use crate::core::font::*;
+use crate::core::impl_ui_node;
+use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::types::Text;
 use crate::core::types::*;
-use crate::core::var::{IntoVar, ObjVar, Var};
+use crate::core::var::{context_var, IntoVar, ObjVar, Var};
 use crate::core::UiNode;
-use crate::impl_ui_node;
 use std::{borrow::Cow, fmt, rc::Rc};
 
 struct TextRun<T: Var<Text>> {

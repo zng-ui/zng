@@ -1,14 +1,11 @@
 mod boxed;
 mod cloning;
-#[macro_use]
 mod context;
 mod map;
-#[macro_use]
 mod merge;
 mod owned;
 mod read_only;
 mod shared;
-#[macro_use]
 mod switch;
 mod traits;
 

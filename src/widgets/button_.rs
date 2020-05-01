@@ -1,7 +1,8 @@
 use crate::core::types::{rgb, ColorF};
+use crate::core::var::context_var;
+use crate::core::widget;
 #[doc(hidden)]
 pub use crate::properties::{align, background_color, is_hovered, is_pressed, on_click};
-use crate::widget;
 use crate::widgets::{container, focusable_mixin};
 
 context_var! {
