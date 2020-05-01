@@ -1,9 +1,6 @@
 #![recursion_limit = "256"]
 
-#[macro_use]
-extern crate zero_ui;
-#[macro_use]
-extern crate enclose;
+use enclose::enclose;
 
 use zero_ui::{
     core::{types::formatx, var::Var},
