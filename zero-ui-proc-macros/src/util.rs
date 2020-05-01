@@ -93,6 +93,15 @@ macro_rules! doc {
     }};
 }
 
+/// Generates a string with the code of `input` parse stream. The stream is not modified.
+macro_rules! dump_parse {
+    ($input:ident) => {{
+      let input = $input.fork();
+      let tokens: TokenStream = input.parse().unwrap();
+      format!("{}", quote!(#tokens))
+    }};
+}
+
 /// Input error not caused by the user.
 pub const NON_USER_ERROR: &str = "invalid non-user input";
 

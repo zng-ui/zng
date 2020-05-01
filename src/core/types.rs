@@ -183,27 +183,7 @@ impl<T: ToString> ToText for T {
     }
 }
 
-/// Creates a [`Text`](crate::core::types::Text) by calling the `format!` macro and
-/// wrapping the result in a `Cow::Owned`.
-///
-/// # Example
-/// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
-/// use zero_ui::core::types::Text;
-///
-/// let text: Text = formatx!("Hello {}", "World!");
-/// # }
-/// ```
-#[macro_export]
-macro_rules! __formatx {
-    ($($tt:tt)*) => {
-        std::borrow::Cow::Owned(format!($($tt)*))
-    };
-}
-
-#[doc(inline)]
-pub use __formatx as formatx;
+pub use zero_ui_macros::formatx;
 
 impl IntoVar<Text> for &'static str {
     type Var = OwnedVar<Text>;

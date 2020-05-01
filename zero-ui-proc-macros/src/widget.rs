@@ -54,7 +54,7 @@ fn insert_implicit_mixin(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     r.input.into()
 }
 
-fn include_inherited(mixin: bool, mut inherits: Punctuated<Ident, Token![+]>, rest: TokenStream) -> proc_macro::TokenStream {
+fn include_inherited(mixin: bool, mut inherits: Punctuated<Path, Token![+]>, rest: TokenStream) -> proc_macro::TokenStream {
     // take the last
     let inherit = inherits.pop().unwrap();
 
@@ -62,7 +62,8 @@ fn include_inherited(mixin: bool, mut inherits: Punctuated<Ident, Token![+]>, re
     let inherit_next = if inherits.is_empty() {
         quote!()
     } else {
-        quote!(inherit_next(#inherits))
+        let inherits = inherits.iter();
+        quote!(inherit_next(#(#inherits)+*))
     };
 
     // call the inherited widget macro to prepend its inherit block.
@@ -238,8 +239,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                             .chain(inherit.default_child.properties.iter())
                         {
                             if &p.ident == ident {
-                                let mut mod_name = inherit.ident.clone();
-                                mod_name.set_span(ident.span());
+                                let mod_name = &inherit.path;
                                 import = quote_spanned! {ident.span()=> #mod_name::ps::}
                             }
                         }
@@ -300,7 +300,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     let mut i_default_blocks = vec![];
     let mut i_whens = vec![];
     for inherit in &mut input.inherits {
-        let widget_name = &inherit.ident;
+        let widget_name = &inherit.path;
         for child_prop in &mut inherit.default_child.properties {
             i_default_blocks.push((widget_name, WidgetItemTarget::Child, child_prop));
         }
@@ -326,10 +326,8 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             });
         }
-        let mut mod_name = widget_name.clone();
-        mod_name.set_span(ident.span());
         i_use_props.push(quote_spanned! {ident.span()=>
-            pub use super::#mod_name::ps::#ident;
+            pub use super::#widget_name::ps::#ident;
         });
 
         //2
@@ -363,9 +361,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     for (widget_name, index, when) in i_whens {
         for p in when.args.iter() {
             if defined_props.insert(p.clone()) {
-                let mut mod_name = widget_name.clone();
-                mod_name.set_span(p.span());
-                use_props.push(quote_spanned!(p.span()=> pub use super::#mod_name::ps::#p;));
+                use_props.push(quote_spanned!(p.span()=> pub use super::#widget_name::ps::#p;));
             }
         }
 
@@ -576,8 +572,6 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
 
     // ident of a doc(hidden) macro that is the actual macro implementation.
-    // This macro is needed because we want to have multiple match arms, but
-    // the widget macro needs to take $($tt:tt)*.
     let wgt_macro_name = ident!("__{}_{}", widget_name, Uuid::new_v4().to_simple());
 
     let widget_new_tokens = quote! {
@@ -604,16 +598,11 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             use_default = quote!();
         } else {
             new_rule = quote! {
-                (=> new $($input:tt)*) => {
-                    widget_new! {
+                ($($input:tt)*) => {
+                    #crate_::widget_new! {
                         #widget_new_tokens
                         i { $($input)* }
                     }
-                };
-
-                ($($input:tt)*) => {
-                    // call the new variant.
-                    #wgt_macro_name!{=> new $($input)*}
                 };
             };
             use_default = quote!(
@@ -740,9 +729,11 @@ fn push_inherited_property_docs(
     docs: &mut Vec<Attribute>,
     target: WidgetItemTarget,
     ident: &Ident,
-    source_widget: &Ident,
+    source_widget: &Path,
     pdocs: Vec<Attribute>,
 ) {
+    let source_widget = quote!(#source_widget);
+    
     docs.push(doc!(
         r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
         ident,
@@ -787,11 +778,11 @@ pub mod keyword {
 
 enum WidgetArgs {
     StartInheriting {
-        inherits: Punctuated<Ident, Token![+]>,
+        inherits: Punctuated<Path, Token![+]>,
         rest: TokenStream,
     },
     ContinueInheriting {
-        inherit_next: Punctuated<Ident, Token![+]>,
+        inherit_next: Punctuated<Path, Token![+]>,
         rest: TokenStream,
     },
     Declare(Box<WidgetInput>),
@@ -800,7 +791,7 @@ impl Parse for WidgetArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         // if already included some inherits, and has more inherits to include,
         // return ContinueInheriting.
-        if input.peek(keyword::inherit_next) {           
+        if input.peek(keyword::inherit_next) {
             input.parse::<keyword::inherit_next>().expect(util::NON_USER_ERROR);
             let inner = util::non_user_parenthesized(input);
             let inherit_next = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
@@ -940,12 +931,13 @@ impl Parse for InsertImplicitMixin {
         let ident: Ident = input.parse()?;
 
         // parse not started inherits.
+        let crate_ = util::zero_ui_crate_ident();
         let implicit = if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
-            quote!(: implicit_mixin +)
+            quote!(: #crate_::widgets::implicit_mixin +)
         } else {
             input.parse::<Token![;]>()?;
-            quote!(: implicit_mixin;)
+            quote!(: #crate_::widgets::implicit_mixin;)
         };
         let rest: TokenStream = input.parse()?;
 
@@ -971,7 +963,7 @@ struct WidgetInput {
 }
 
 struct InheritBlock {
-    ident: Ident,
+    path: Path,
     default_child: InheritedDefaultBlock,
     default_self: InheritedDefaultBlock,
     whens: InheritedWhens,
@@ -982,7 +974,7 @@ impl Parse for InheritBlock {
         use crate::widget_new::keyword;
 
         input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
-        let ident = input.parse().expect(util::NON_USER_ERROR);
+        let path = input.parse().expect(util::NON_USER_ERROR);
 
         input.parse::<keyword::c>().expect(util::NON_USER_ERROR);
         let default_child = input.parse().expect(util::NON_USER_ERROR);
@@ -994,7 +986,7 @@ impl Parse for InheritBlock {
         let whens = input.parse().expect(util::NON_USER_ERROR);
 
         Ok(InheritBlock {
-            ident,
+            path,
             default_child,
             default_self,
             whens,

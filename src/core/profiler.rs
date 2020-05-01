@@ -199,47 +199,4 @@ mod profiler_impl {
 #[cfg(feature = "app_profiler")]
 pub use profiler_impl::*;
 
-/// Declares a [`ProfileScope`](crate::core::profiler::ProfileScope) variable if
-/// the `app_profiler` feature is active.
-///
-/// # Example
-///
-/// If compiled with the `app_profiler` feature, this will register a "do-things" scope
-/// that starts when the macro was called and has the duration of the block.
-/// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main()
-/// {
-/// # fn do_thing() { }
-/// # fn do_another_thing() { }
-///     profile_scope!("do-things");
-///
-///     do_thing();
-///     do_another_thing();
-/// }
-/// ```
-///
-/// You can also format strings:
-/// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
-/// # let thing = "";
-/// profile_scope!("do-{}", thing);
-/// # }
-/// ```
-#[macro_export]
-macro_rules! __profile_scope {
-    ($name:expr) => {
-        #[cfg(feature = "app_profiler")]
-        let _profile_scope =
-            $crate::core::profiler::ProfileScope::new($name);
-    };
-    ($($args:tt)+) => {
-        #[cfg(feature = "app_profiler")]
-        let _profile_scope =
-            $crate::core::profiler::ProfileScope::new(format!($($args)+));
-    };
-}
-
-#[doc(inline)]
-pub use __profile_scope as profile_scope;
+pub use zero_ui_macros::profile_scope;

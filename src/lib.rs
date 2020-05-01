@@ -12,7 +12,6 @@
 //!
 //! # fn main () {}
 //! ```
-//! <style>h2#macros, h2#macros + table { display: none !important; }</style>
 
 // for proc_macros that don't have $self.
 extern crate self as zero_ui;
@@ -26,13 +25,7 @@ macro_rules! error_println {
 }
 
 #[doc(hidden)]
-pub use zero_ui_macros::{widget_inherit, widget_mixin_inherit};
-
-use proc_macro_hack::proc_macro_hack;
-
-#[doc(hidden)]
-#[proc_macro_hack(support_nested)]
-pub use zero_ui_macros::widget_new;
+pub use zero_ui_macros::{widget_inherit, widget_mixin_inherit, widget_new};
 
 pub mod core;
 pub mod layouts;

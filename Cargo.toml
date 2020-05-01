@@ -11,10 +11,6 @@ app_profiler = ["serde_json", "lazy_static"]
 # local
 zero-ui-macros = { path = "zero-ui-macros" }
 
-# proc-macro-hack
-proc-macro-hack = "0.5.15"
-proc-macro-nested = "0.1.4"
-
 # core
 raw-window-handle = "0.3.3"
 winapi = "0.3.8"
@@ -40,7 +36,7 @@ enclose = "1.1.8"
 better-panic = "0.2.0"
 
 [workspace]
-members = ["zero-ui-macros"]
+members = ["zero-ui-proc-macros", "zero-ui-macros"]
 
 #[[bench]]
 #name = "value_changed"

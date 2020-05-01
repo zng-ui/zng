@@ -342,23 +342,7 @@ pub trait StateKey: 'static {
     type Type: 'static;
 }
 
-/// Declares new [`StateKey`](crate::core::context::StateKey) types.
-#[macro_export]
-macro_rules! __state_key {
-    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
-        $(#[$outer])*
-        /// # StateKey
-        /// This `struct` is a [`StateKey`](zero_ui::core::context::StateKey).
-        $vis struct $ident;
-
-        impl $crate::core::context::StateKey for $ident {
-            type Type = $type;
-        }
-    )+};
-}
-
-#[doc(inline)]
-pub use __state_key as state_key;
+pub use zero_ui_macros::state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.
