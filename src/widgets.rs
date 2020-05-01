@@ -1,15 +1,10 @@
 //! Common widgets.
 
-#[macro_use]
-mod implicit_;
-#[macro_use]
 mod container_;
-#[macro_use]
 mod focusable_;
+mod implicit_;
 // depends on container_ and focusable_
-#[macro_use]
 mod button_;
-#[macro_use]
 mod window_;
 
 mod fill;
@@ -17,11 +12,11 @@ mod text_;
 mod ui_n;
 mod view_;
 
-pub use button_::*;
-pub use container_::*;
-pub use fill::*;
-pub use focusable_::*;
 pub use implicit_::*;
+pub use focusable_::*;
+pub use container_::*;
+pub use button_::*;
+pub use fill::*;
 pub use text_::*;
 pub use ui_n::*;
 pub use view_::*;

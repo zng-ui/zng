@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, punctuated::Punctuated, *};
+use uuid::Uuid;
 
 /// `widget!` implementation
 
@@ -19,16 +20,10 @@ pub fn expand_widget(call_kind: CallKind, mut input: proc_macro::TokenStream) ->
         // 1 - Start recursive include of inherited widgets.
         WidgetArgs::StartInheriting { inherits, rest } => {
             // convert all inherits to the inner widget macro name.
-            include_inherited(
-                call_kind.is_mixin(),
-                inherits.into_iter().map(|i| ident!("__{}", i)).collect(),
-                rest,
-            )
+            include_inherited(call_kind.is_mixin(), inherits, rest)
         }
         // 2 - Continue recursive include of inherited widgets.
-        WidgetArgs::ContinueInheriting { inherit_next, rest } => {
-            include_inherited(call_kind.is_mixin(), inherit_next.into_iter().collect(), rest)
-        }
+        WidgetArgs::ContinueInheriting { inherit_next, rest } => include_inherited(call_kind.is_mixin(), inherit_next, rest),
         // 3 - Now generate the widget module and macro.
         WidgetArgs::Declare(input) => declare_widget(call_kind.is_mixin(), *input),
     }
@@ -59,7 +54,7 @@ fn insert_implicit_mixin(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     r.input.into()
 }
 
-fn include_inherited(mixin: bool, mut inherits: Vec<Ident>, rest: TokenStream) -> proc_macro::TokenStream {
+fn include_inherited(mixin: bool, mut inherits: Punctuated<Ident, Token![+]>, rest: TokenStream) -> proc_macro::TokenStream {
     // take the last
     let inherit = inherits.pop().unwrap();
 
@@ -67,14 +62,14 @@ fn include_inherited(mixin: bool, mut inherits: Vec<Ident>, rest: TokenStream) -
     let inherit_next = if inherits.is_empty() {
         quote!()
     } else {
-        quote!(inherit_next(#(#inherits),*))
+        quote!(inherit_next(#inherits))
     };
 
     // call the inherited widget macro to prepend its inherit block.
     let r = if mixin {
-        quote! { #inherit! { mixin_inherit { #inherit_next } #rest } }
+        quote! { #inherit! { => mixin_inherit { #inherit_next } #rest } }
     } else {
-        quote! { #inherit! { inherit { #inherit_next } #rest } }
+        quote! { #inherit! { => inherit { #inherit_next } #rest } }
     };
     r.into()
 }
@@ -583,7 +578,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     // ident of a doc(hidden) macro that is the actual macro implementation.
     // This macro is needed because we want to have multiple match arms, but
     // the widget macro needs to take $($tt:tt)*.
-    let inner_wgt_name = ident!("__{}", widget_name);
+    let wgt_macro_name = ident!("__{}_{}", widget_name, Uuid::new_v4().to_simple());
 
     let widget_new_tokens = quote! {
         m #widget_name
@@ -600,37 +595,26 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     };
 
     let new_rule;
-    let new_macro;
     let use_default;
 
     //clippy is giving a false-positive warning, without the braces
     {
         if mixin {
             new_rule = quote!();
-            new_macro = quote!();
             use_default = quote!();
         } else {
             new_rule = quote! {
-                (new $($input:tt)*) => {
+                (=> new $($input:tt)*) => {
                     widget_new! {
                         #widget_new_tokens
                         i { $($input)* }
                     }
                 };
-            };
-            new_macro = quote! {
-                //Is hidden until macro 2.0 comes around.
-                // For now this simulates name-spaced macros because we
-                // require a use widget_mod for this to work.
-                #[doc(hidden)]
-                #(#attrs)*
-                #export
-                macro_rules! #widget_name {
-                    ($($input:tt)*) => {
+
+                ($($input:tt)*) => {
                     // call the new variant.
-                    #inner_wgt_name!{new $($input)*}
-                    };
-                }
+                    #wgt_macro_name!{=> new $($input)*}
+                };
             };
             use_default = quote!(
                 use #crate_::widgets::implicit_mixin;
@@ -639,18 +623,14 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
     }
 
     let r = quote! {
-        // if mixin is true then #new_macro, else is a widget macro.
-        #new_macro
 
         #[doc(hidden)]
+        #(#attrs)*
         #export
-        macro_rules! #inner_wgt_name {
-            // if mixin is true then #new_rule is nothing, else is a rule that makes a call to widget_new!.
-            #new_rule
-
+        macro_rules! #wgt_macro_name {
             // recursive callback to widget! but this time including
             // the widget_new! info from this widget in an inherit block.
-            (inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
+            (=> inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
                 #crate_::widget_inherit! {
                     $($inherit_next)*
 
@@ -661,7 +641,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                     $($rest)*
                 }
             };
-            (mixin_inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
+            (=> mixin_inherit { $($inherit_next:tt)* } $($rest:tt)*) => {
                 #crate_::widget_mixin_inherit! {
                     $($inherit_next)*
 
@@ -672,7 +652,13 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                     $($rest)*
                 }
             };
+
+             // if mixin is true then #new_rule is nothing, else is a rule that makes a call to widget_new!.
+             #new_rule
         }
+
+        #[doc(hidden)]
+        pub use #wgt_macro_name as #widget_name;
 
         // the widget module, also the public face of the widget in the documentation.
         #(#docs)*
@@ -805,7 +791,7 @@ enum WidgetArgs {
         rest: TokenStream,
     },
     ContinueInheriting {
-        inherit_next: Punctuated<Ident, Token![,]>,
+        inherit_next: Punctuated<Ident, Token![+]>,
         rest: TokenStream,
     },
     Declare(Box<WidgetInput>),
@@ -814,10 +800,10 @@ impl Parse for WidgetArgs {
     fn parse(input: ParseStream) -> Result<Self> {
         // if already included some inherits, and has more inherits to include,
         // return ContinueInheriting.
-        if input.peek(keyword::inherit_next) {
+        if input.peek(keyword::inherit_next) {           
             input.parse::<keyword::inherit_next>().expect(util::NON_USER_ERROR);
             let inner = util::non_user_parenthesized(input);
-            let inherit_next = Punctuated::parse_separated_nonempty(&inner).expect(util::NON_USER_ERROR);
+            let inherit_next = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
             let rest = input.parse().expect(util::NON_USER_ERROR);
             return Ok(WidgetArgs::ContinueInheriting { inherit_next, rest });
         }
