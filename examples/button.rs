@@ -2,10 +2,7 @@
 
 use enclose::enclose;
 
-use zero_ui::{
-    core::var::Var,
-    prelude::*,
-};
+use zero_ui::{core::var::Var, prelude::*};
 
 fn main() {
     better_panic::install();

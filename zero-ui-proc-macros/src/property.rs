@@ -1,10 +1,10 @@
 use crate::util;
 use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use std::mem;
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
-use quote::ToTokens;
 use uuid::Uuid;
 
 pub mod keyword {
@@ -162,9 +162,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote!(<#(#gen_idents),*>)
     };
 
-    
     let set_args_macro_name = ident!("__set_args_{}", Uuid::new_v4().to_simple());
-    
+
     let set_args = quote! {
         #[doc(hidden)]
         #[inline]
@@ -185,7 +184,6 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         #[doc(hidden)]
         pub use #set_args_macro_name as set_args;
     };
-   
 
     let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
     let args: Vec<_> = fn_.sig.inputs.iter().skip(1).collect();
@@ -414,11 +412,11 @@ enum Priority {
 impl ToTokens for Priority {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match *self {
-            Priority::Context => tokens.extend(quote!{context}),
-            Priority::Event => tokens.extend(quote!{event}),
-            Priority::Outer => tokens.extend(quote!{outer}),
-            Priority::Size => tokens.extend(quote!{size}),
-            Priority::Inner => tokens.extend(quote!{inner}),
+            Priority::Context => tokens.extend(quote! {context}),
+            Priority::Event => tokens.extend(quote! {event}),
+            Priority::Outer => tokens.extend(quote! {outer}),
+            Priority::Size => tokens.extend(quote! {size}),
+            Priority::Inner => tokens.extend(quote! {inner}),
         }
     }
 }

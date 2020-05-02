@@ -129,49 +129,49 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
     inner(input).expect(NON_USER_ERROR)
 }
 
-/// Macro partial output.
-/// Wait for https://github.com/rust-lang/rust/issues/54140
-#[allow(unused)]
-#[derive(Default)]
-pub struct MacroContext {
-    out: TokenStream,
-    err: TokenStream,
-}
-
-impl MacroContext {
-    pub fn new() -> MacroContext {
-        MacroContext::default()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.out.is_empty() && self.err.is_empty()
-    }
-
-    pub fn has_errors(&self) -> bool {
-        !self.err.is_empty()
-    }
-
-    /// Adds an error.
-    pub fn err(&mut self, span: Span, msg: String) {
-        self.err.extend(quote_spanned!(span=> compile_error!(#msg)));
-    }
-
-    /// Parse a value, if it fails the error is registered and `fallback` is called to generate
-    /// a placeholder value to continue parsing.
-    pub fn parse<T: syn::parse::Parse>(&mut self, input: ParseStream, fallback: impl FnOnce() -> T) -> T {
-        match input.parse::<T>() {
-            Ok(r) => r,
-            Err(e) => {
-                self.err(e.span(), e.to_string());
-                fallback()
-            }
-        }
-    }
-
-    /// Emits final stream.
-    pub fn emit(self) -> proc_macro::TokenStream {
-        let mut out = self.err;
-        out.extend(self.out);
-        out.into()
-    }
-}
+// Wait for https://github.com/rust-lang/rust/issues/54140
+///// Macro partial output.
+//
+//#[derive(Default)]
+//pub struct MacroContext {
+//    out: TokenStream,
+//    err: TokenStream,
+//}
+//
+//impl MacroContext {
+//    pub fn new() -> MacroContext {
+//        MacroContext::default()
+//    }
+//
+//    pub fn is_empty(&self) -> bool {
+//        self.out.is_empty() && self.err.is_empty()
+//    }
+//
+//    pub fn has_errors(&self) -> bool {
+//        !self.err.is_empty()
+//    }
+//
+//    /// Adds an error.
+//    pub fn err(&mut self, span: Span, msg: String) {
+//        self.err.extend(quote_spanned!(span=> compile_error!(#msg)));
+//    }
+//
+//    /// Parse a value, if it fails the error is registered and `fallback` is called to generate
+//    /// a placeholder value to continue parsing.
+//    pub fn parse<T: syn::parse::Parse>(&mut self, input: ParseStream, fallback: impl FnOnce() -> T) -> T {
+//        match input.parse::<T>() {
+//            Ok(r) => r,
+//            Err(e) => {
+//                self.err(e.span(), e.to_string());
+//                fallback()
+//            }
+//        }
+//    }
+//
+//    /// Emits final stream.
+//    pub fn emit(self) -> proc_macro::TokenStream {
+//        let mut out = self.err;
+//        out.extend(self.out);
+//        out.into()
+//    }
+//}
