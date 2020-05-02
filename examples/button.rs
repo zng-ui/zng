@@ -3,7 +3,7 @@
 use enclose::enclose;
 
 use zero_ui::{
-    core::{types::formatx, var::Var},
+    core::var::Var,
     prelude::*,
 };
 

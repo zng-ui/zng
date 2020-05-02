@@ -250,7 +250,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                     let import = search_inherited(&input.inherits, maps_to);
                     let mut ident = ident.clone();
                     ident.set_span(maps_to.span());
-                    use_props.push(quote_spanned!(maps_to.span()=> pub use#import#maps_to as #ident;))
+                    use_props.push(quote_spanned!(maps_to.span()=> pub use #import#maps_to as #ident;))
                 } else {
                     let import = search_inherited(&input.inherits, ident);
                     use_props.push(quote_spanned!(ident.span()=> pub use #import#ident;))

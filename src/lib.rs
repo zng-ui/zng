@@ -61,7 +61,7 @@ pub mod prelude {
     pub use crate::core::{
         app::App,
         types::{
-            rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
+            rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, formatx, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
             ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         var::var,
