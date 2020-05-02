@@ -4,6 +4,8 @@ use std::mem;
 use syn::spanned::Spanned;
 use syn::visit_mut::{self, VisitMut};
 use syn::{parse::*, *};
+use quote::ToTokens;
+use uuid::Uuid;
 
 pub mod keyword {
     syn::custom_keyword!(context);
@@ -160,87 +162,30 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         quote!(<#(#gen_idents),*>)
     };
 
-    // templates for compile-time sorting functions:
-    // widget_new! will generate a call to all widget properties set_context,
-    // then set_event for all, etc., the returns args of set_context are fed into
-    // set_event end so on, so we need to generate dummy functions for before and after
-    // or actual set:
-    //
-    // 1 - for before we take the set(args) and returns then.
-    let set_not_yet = |fn_: &str| {
-        let fn_ = ident!(fn_);
-        quote! {
-            #[doc(hidden)]
-            #[inline]
-            pub fn #fn_<C: #crate_::core::UiNode, A: Args>(child: C, args: A) -> (C, A) {
-                (child, args)
-            }
+    
+    let set_args_macro_name = ident!("__set_args_{}", Uuid::new_v4().to_simple());
+    
+    let set_args = quote! {
+        #[doc(hidden)]
+        #[inline]
+        pub fn set_args(child: impl #crate_::core::UiNode, args: impl Args) -> impl #crate_::core::UiNode {
+            let (#(#arg_idents,)*) = ArgsUnwrap::unwrap(args);
+            set(child, #(#arg_idents),*)
         }
-    };
 
-    // 2 - for our actual set we call the property::set function to make or new child
-    // and then return the new child with place-holder nil ()
-    let set_now = |fn_: &str| {
-        let fn_ = ident!(fn_);
-        quote! {
-            #[doc(hidden)]
-            #[inline]
-            pub fn #fn_(child: impl #crate_::core::UiNode, args: impl Args) -> (impl #crate_::core::UiNode, ()) {
-                let (#(#arg_idents,)*) = ArgsUnwrap::unwrap(args);
-                (set(child, #(#arg_idents),*), ())
-            }
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #set_args_macro_name {
+            (#priority, $me:path, $child:ident, $args:ident) => {
+                let $child = $me($child, $args);
+            };
+            ($($ignore:tt)*) => {}
         }
-    };
 
-    // 3 - for after we set we just pass along the nil
-    let set_already_done = |fn_: &str| {
-        let fn_ = ident!(fn_);
-        quote! {
-            #[doc(hidden)]
-            #[inline]
-            pub fn #fn_<C: #crate_::core::UiNode>(child: C, args: ()) -> (C, ()) {
-                (child, ())
-            }
-        }
+        #[doc(hidden)]
+        pub use #set_args_macro_name as set_args;
     };
-    let mut sets = vec![];
-    match priority {
-        Priority::Inner => {
-            sets.push(set_now("set_inner"));
-            sets.push(set_already_done("set_size"));
-            sets.push(set_already_done("set_outer"));
-            sets.push(set_already_done("set_event"));
-            sets.push(set_already_done("set_context"));
-        }
-        Priority::Size => {
-            sets.push(set_not_yet("set_inner"));
-            sets.push(set_now("set_size"));
-            sets.push(set_already_done("set_outer"));
-            sets.push(set_already_done("set_event"));
-            sets.push(set_already_done("set_context"));
-        }
-        Priority::Outer => {
-            sets.push(set_not_yet("set_inner"));
-            sets.push(set_not_yet("set_size"));
-            sets.push(set_now("set_outer"));
-            sets.push(set_already_done("set_event"));
-            sets.push(set_already_done("set_context"));
-        }
-        Priority::Event => {
-            sets.push(set_not_yet("set_inner"));
-            sets.push(set_not_yet("set_size"));
-            sets.push(set_not_yet("set_outer"));
-            sets.push(set_now("set_event"));
-            sets.push(set_already_done("set_context"));
-        }
-        Priority::Context => {
-            sets.push(set_not_yet("set_inner"));
-            sets.push(set_not_yet("set_size"));
-            sets.push(set_not_yet("set_outer"));
-            sets.push(set_not_yet("set_event"));
-            sets.push(set_now("set_context"));
-        }
-    }
+   
 
     let argi: Vec<_> = (0..arg_idents.len()).map(|i| ident!("arg{}", i)).collect();
     let args: Vec<_> = fn_.sig.inputs.iter().skip(1).collect();
@@ -346,7 +291,7 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
             #(#other_attrs)*
             #fn_
 
-            #(#sets)*
+            #set_args
 
             #fn_args_doc
             #hide_z
@@ -465,6 +410,19 @@ enum Priority {
     Size,
     Inner,
 }
+
+impl ToTokens for Priority {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match *self {
+            Priority::Context => tokens.extend(quote!{context}),
+            Priority::Event => tokens.extend(quote!{event}),
+            Priority::Outer => tokens.extend(quote!{outer}),
+            Priority::Size => tokens.extend(quote!{size}),
+            Priority::Inner => tokens.extend(quote!{inner}),
+        }
+    }
+}
+
 impl std::fmt::Display for Priority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {

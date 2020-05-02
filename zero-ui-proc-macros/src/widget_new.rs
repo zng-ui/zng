@@ -192,12 +192,12 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         if !expected_new_args.iter().any(|a| a == &prop) {
             let name = ident! {"{}_args", prop};
             let props = if in_widget { quote!(#widget_name::ps::) } else { quote!() };
-            set.context
-                .push(quote!(let (node, #name) = #props #prop::set_context(node, #name);));
-            set.event.push(quote!(let (node, #name) = #props #prop::set_event(node, #name);));
-            set.outer.push(quote!(let (node, #name) = #props #prop::set_outer(node, #name);));
-            set.size.push(quote!(let (node, #name) = #props #prop::set_size(node, #name);));
-            set.inner.push(quote!(let (node, #name) = #props #prop::set_inner(node, #name);));
+            set.context.push(quote!(#props#prop::set_args!(context, #props#prop::set_args, node, #name);));
+            set.event.push(quote!(#props#prop::set_args!(event, #props#prop::set_args, node, #name);));
+            set.outer.push(quote!(#props#prop::set_args!(outer, #props#prop::set_args, node, #name);));
+            set.size.push(quote!(#props#prop::set_args!(size, #props#prop::set_args, node, #name);));
+            set.inner.push(quote!(#props#prop::set_args!(inner, #props#prop::set_args, node, #name);));
+            //NOTE: Sends ::set_args instead of doing it in the set_args! macro because of a limitation in macro_rules
         }
     }
 
