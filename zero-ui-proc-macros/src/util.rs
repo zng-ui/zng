@@ -136,7 +136,7 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
 // Wait for https://github.com/rust-lang/rust/issues/54140 ?
 #[allow(unused)]
 macro_rules! idea {()=>{
-    /// Macro output builder.
+/// Macro output builder.
 #[derive(Default)]
 pub struct MacroOutput {
     out: TokenStream,
@@ -162,13 +162,8 @@ impl MacroOutput {
     }
 
     /// Add tokens to output.
-    pub fn out(&mut self, t: TokenStream) {
-        self.out.extend(t)
-    }
-
-    /// Add a doc attribute to output.
-    pub fn doc(&mut self, doc: impl Into<DocAttr>) {
-        self.out.extend(doc.into().emit())
+    pub fn out(&mut self, t: impl ToTokens) {
+        t.to_tokens(&mut self.out);
     }
 
     /// Parse a value.
@@ -234,13 +229,13 @@ impl MacroOutput {
 #[derive(Default)]
 pub struct DocAttr {
     doc: String,
-    section_state: DocSectionState
+    section_state: DocSectionState,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 enum DocSectionState {
     Open,
-    Close
+    Close,
 }
 
 impl Default for DocSectionState {
@@ -251,6 +246,7 @@ impl Default for DocSectionState {
 }
 
 use fmt::Write;
+use quote::ToTokens;
 
 impl DocAttr {
     pub fn new() -> Self {
@@ -267,12 +263,13 @@ impl DocAttr {
             self.push_section_close();
         }
         self.section_state = DocSectionState::Open;
-        writeln!(&mut self.doc,
+        writeln!(
+            &mut self.doc,
             r##"\n<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
             <div class="methods" style="display: block;">"##,
-            id,
-            title
-        ).unwrap();
+            id, title
+        )
+        .unwrap();
     }
 
     pub fn push_section_close(&mut self) {
@@ -288,10 +285,12 @@ impl DocAttr {
     pub fn push_css(&mut self, css: &str) {
         writeln!(&mut self.doc, "\n<script>{}</script>", css).unwrap();
     }
+}
 
-    pub fn emit(self) -> TokenStream {
-        let doc = self.doc;
-        quote!(#[doc=#doc])
+impl ToTokens for DocAttr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let doc = &self.doc;
+        tokens.extend(quote!(#[doc(doc=#doc)]));
     }
 }
 
@@ -310,7 +309,10 @@ impl From<String> for DocAttr {
 
 impl<'a> From<&'a str> for DocAttr {
     fn from(s: &'a str) -> Self {
-        DocAttr { doc: s.to_owned(), ..Self::new() }
+        DocAttr {
+            doc: s.to_owned(),
+            ..Self::new()
+        }
     }
 }
 }}
