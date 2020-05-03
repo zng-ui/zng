@@ -1,5 +1,9 @@
 use parse::ParseStream;
 use proc_macro2::*;
+use std::fmt;
+use syn::parse::discouraged::Speculative;
+use syn::parse::{Error as ParseError, Parse};
+use syn::punctuated::Punctuated;
 use syn::*;
 
 /// `Ident` with custom span.
@@ -129,49 +133,184 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
     inner(input).expect(NON_USER_ERROR)
 }
 
-// Wait for https://github.com/rust-lang/rust/issues/54140
-///// Macro partial output.
-//
-//#[derive(Default)]
-//pub struct MacroContext {
-//    out: TokenStream,
-//    err: TokenStream,
-//}
-//
-//impl MacroContext {
-//    pub fn new() -> MacroContext {
-//        MacroContext::default()
-//    }
-//
-//    pub fn is_empty(&self) -> bool {
-//        self.out.is_empty() && self.err.is_empty()
-//    }
-//
-//    pub fn has_errors(&self) -> bool {
-//        !self.err.is_empty()
-//    }
-//
-//    /// Adds an error.
-//    pub fn err(&mut self, span: Span, msg: String) {
-//        self.err.extend(quote_spanned!(span=> compile_error!(#msg)));
-//    }
-//
-//    /// Parse a value, if it fails the error is registered and `fallback` is called to generate
-//    /// a placeholder value to continue parsing.
-//    pub fn parse<T: syn::parse::Parse>(&mut self, input: ParseStream, fallback: impl FnOnce() -> T) -> T {
-//        match input.parse::<T>() {
-//            Ok(r) => r,
-//            Err(e) => {
-//                self.err(e.span(), e.to_string());
-//                fallback()
-//            }
-//        }
-//    }
-//
-//    /// Emits final stream.
-//    pub fn emit(self) -> proc_macro::TokenStream {
-//        let mut out = self.err;
-//        out.extend(self.out);
-//        out.into()
-//    }
-//}
+// Wait for https://github.com/rust-lang/rust/issues/54140 ?
+#[allow(unused)]
+macro_rules! idea {()=>{
+    /// Macro output builder.
+#[derive(Default)]
+pub struct MacroOutput {
+    out: TokenStream,
+    err: TokenStream,
+}
+
+impl MacroOutput {
+    pub fn new() -> MacroOutput {
+        MacroOutput::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.out.is_empty() && self.err.is_empty()
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.err.is_empty()
+    }
+
+    /// Adds an error.
+    pub fn err(&mut self, span: Span, msg: String) {
+        self.err.extend(quote_spanned!(span=> compile_error!{#msg}));
+    }
+
+    /// Add tokens to output.
+    pub fn out(&mut self, t: TokenStream) {
+        self.out.extend(t)
+    }
+
+    /// Add a doc attribute to output.
+    pub fn doc(&mut self, doc: impl Into<DocAttr>) {
+        self.out.extend(doc.into().emit())
+    }
+
+    /// Parse a value.
+    ///
+    /// # Recover
+    /// If parsing fails `recover` is called. It receives the error and the `input` stream at the position before parsing was
+    /// called. It has to advance the stream to the next potentially valid code and return a placeholder value for the failed parsing.
+    pub fn parse<T: Parse>(&mut self, input: ParseStream, recover: impl FnOnce(ParseError, ParseStream) -> T) -> T {
+        let try_input = input.fork();
+        match try_input.parse::<T>() {
+            Ok(r) => {
+                input.advance_to(&try_input);
+                r
+            }
+            Err(e) => {
+                self.err(e.span(), e.to_string());
+                recover(e, input)
+            }
+        }
+    }
+
+    /// Parse a value.
+    ///
+    /// # Recover
+    /// If parsing fails `recover` is called. It receives the error and the `input` stream at the position before parsing was
+    /// called. It has to advance the stream to the next potentially valid code and return a placeholder value for the failed parsing.
+    pub fn parse_terminated<T, P: Parse>(
+        &mut self,
+        input: ParseStream,
+        parser: fn(ParseStream) -> Result<T>,
+        recover: impl FnOnce(ParseError, ParseStream) -> Punctuated<T, P>,
+    ) -> Punctuated<T, P> {
+        let try_input = input.fork();
+        match try_input.parse_terminated::<T, P>(parser) {
+            Ok(r) => {
+                input.advance_to(&try_input);
+                r
+            }
+            Err(e) => {
+                self.err(e.span(), e.to_string());
+                recover(e, input)
+            }
+        }
+    }
+
+    /// Extends output and errors from `other`.
+    pub fn extend(&mut self, other: Self) {
+        self.out.extend(other.out);
+        self.err.extend(other.err);
+    }
+
+    /// Emits final stream.
+    pub fn emit(self) -> proc_macro::TokenStream {
+        let mut out = self.err;
+        out.extend(self.out);
+        out.into()
+    }
+}
+
+/// Documentation attribute builder.
+///
+/// Use the std `write!` macros to write to this doc.
+#[derive(Default)]
+pub struct DocAttr {
+    doc: String,
+    section_state: DocSectionState
+}
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+enum DocSectionState {
+    Open,
+    Close
+}
+
+impl Default for DocSectionState {
+    fn default() -> Self {
+        // starts open of the rust-doc creates the item section.
+        DocSectionState::Open
+    }
+}
+
+use fmt::Write;
+
+impl DocAttr {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push_str(&mut self, string: &str) {
+        self.doc.push_str(string);
+    }
+
+    /// Opens a custom docs section, closes the section the previous section if it is open.
+    pub fn push_section_open(&mut self, id: &str, title: &str) {
+        if self.section_state == DocSectionState::Open {
+            self.push_section_close();
+        }
+        self.section_state = DocSectionState::Open;
+        writeln!(&mut self.doc,
+            r##"\n<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
+            <div class="methods" style="display: block;">"##,
+            id,
+            title
+        ).unwrap();
+    }
+
+    pub fn push_section_close(&mut self) {
+        assert!(self.section_state == DocSectionState::Open, "docs section already closed");
+        self.section_state = DocSectionState::Close;
+        writeln!(&mut self.doc, "\n</div>").unwrap();
+    }
+
+    pub fn push_js(&mut self, js: &str) {
+        writeln!(&mut self.doc, "\n<script>{}</script>", js).unwrap();
+    }
+
+    pub fn push_css(&mut self, css: &str) {
+        writeln!(&mut self.doc, "\n<script>{}</script>", css).unwrap();
+    }
+
+    pub fn emit(self) -> TokenStream {
+        let doc = self.doc;
+        quote!(#[doc=#doc])
+    }
+}
+
+impl fmt::Write for DocAttr {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.doc.push_str(s);
+        Ok(())
+    }
+}
+
+impl From<String> for DocAttr {
+    fn from(doc: String) -> Self {
+        DocAttr { doc, ..Self::new() }
+    }
+}
+
+impl<'a> From<&'a str> for DocAttr {
+    fn from(s: &'a str) -> Self {
+        DocAttr { doc: s.to_owned(), ..Self::new() }
+    }
+}
+}}
