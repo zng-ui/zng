@@ -133,17 +133,30 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
     inner(input).expect(NON_USER_ERROR)
 }
 
-// Wait for https://github.com/rust-lang/rust/issues/54140 ?
 #[allow(unused)]
-macro_rules! idea {()=>{
 /// Macro output builder.
-#[derive(Default)]
+/// Wait for https://github.com/rust-lang/rust/issues/54140 ?
 pub struct MacroOutput {
-    out: TokenStream,
+    out: Vec<(Delimiter, TokenStream)>,
     err: TokenStream,
 }
 
+impl Default for MacroOutput {
+    fn default() -> Self {
+        MacroOutput {
+            out: vec![(Delimiter::None, TokenStream::new())],
+            err: TokenStream::new(),
+        }
+    }
+}
+
+#[allow(unused)]
 impl MacroOutput {
+    fn out_mut(&mut self) -> &mut TokenStream {
+        let last_i = self.out.len() - 1;
+        &mut self.out[last_i].1
+    }
+
     pub fn new() -> MacroOutput {
         MacroOutput::default()
     }
@@ -156,14 +169,35 @@ impl MacroOutput {
         !self.err.is_empty()
     }
 
+    pub fn current_group(&self) -> Option<Delimiter> {
+        if self.out.len() == 1 {
+            None
+        } else {
+            Some(self.out[self.out.len() - 1].0)
+        }
+    }
+
     /// Adds an error.
     pub fn err(&mut self, span: Span, msg: String) {
         self.err.extend(quote_spanned!(span=> compile_error!{#msg}));
     }
 
+    /// Opens a new group, all future tokens go into this group until [`close_group`](MacroOutput::close_group) is called.
+    pub fn open_group(&mut self, delimeter: Delimiter) {
+        self.out.push((delimeter, TokenStream::new()))
+    }
+
+    /// Close the current open group, `expected` validates the group type.
+    pub fn close_group(&mut self, expected: Delimiter) {
+        assert!(self.out.len() > 1, "no open group to close");
+        let (actual, last) = self.out.pop().unwrap();
+        assert_eq!(expected, actual);
+        Group::new(actual, last).to_tokens(self.out_mut());
+    }
+
     /// Add tokens to output.
     pub fn out(&mut self, t: impl ToTokens) {
-        t.to_tokens(&mut self.out);
+        t.to_tokens(self.out_mut());
     }
 
     /// Parse a value.
@@ -216,18 +250,23 @@ impl MacroOutput {
     }
 
     /// Emits final stream.
-    pub fn emit(self) -> proc_macro::TokenStream {
+    pub fn emit(mut self) -> proc_macro::TokenStream {
+        if let Some(g) = self.current_group() {
+            panic!("group `{:?}` is open", g);
+        }
         let mut out = self.err;
-        out.extend(self.out);
+        out.extend(self.out.remove(0).1);
         out.into()
     }
 }
 
+#[allow(unused)]
 /// Documentation attribute builder.
 ///
 /// Use the std `write!` macros to write to this doc.
 #[derive(Default)]
 pub struct DocAttr {
+    inner: bool,
     doc: String,
     section_state: DocSectionState,
 }
@@ -248,9 +287,17 @@ impl Default for DocSectionState {
 use fmt::Write;
 use quote::ToTokens;
 
+#[allow(unused)]
 impl DocAttr {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn new_inner() -> Self {
+        Self {
+            inner: true,
+            ..Self::new()
+        }
     }
 
     pub fn push_str(&mut self, string: &str) {
@@ -290,7 +337,11 @@ impl DocAttr {
 impl ToTokens for DocAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let doc = &self.doc;
-        tokens.extend(quote!(#[doc(doc=#doc)]));
+        if self.inner {
+            tokens.extend(quote!(#![doc(doc=#doc)]));
+        } else {
+            tokens.extend(quote!(#[doc(doc=#doc)]));
+        }
     }
 }
 
@@ -315,4 +366,3 @@ impl<'a> From<&'a str> for DocAttr {
         }
     }
 }
-}}
