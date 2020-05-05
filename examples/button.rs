@@ -32,8 +32,34 @@ fn example() -> impl UiNode {
         size: (300.0, 200.0);
         align: Alignment::CENTER;
         font_size: 28;
+
         => {
             text(t)
         }
     }
+}
+
+#[allow(unused)]
+macro_rules! TODO {
+    () => {
+        button! {
+            on_click: |_|println!("Button clicked!");
+            // remove `=>`?
+            content: {
+                container! {
+                    content: "Click Me!"
+                }
+            };
+
+            margin: 10.0;
+            size: (300.0, 200.0);
+            align: Alignment::CENTER;
+            font_size: 28;
+    
+            // when only at the end?
+            when self.is_pressed {
+                font_size: 30;
+            }
+        }
+    };
 }
