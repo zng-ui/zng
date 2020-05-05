@@ -217,6 +217,29 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     };
 
+    let switch_args_unique = ident!("__switch_args_{}", Uuid::new_v4().to_simple());    
+    let arg_n = (0..arg_idents.len()).map(Index::from);
+    let last_arg_i = arg_idents.len() - 1;
+    let idx_clone = (0..arg_idents.len()).map(|i|{
+        if last_arg_i == i { quote! {} } else { quote!(.clone()) }
+    });
+    let switch_args = quote! {
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #switch_args_unique {
+            ($idx:ident, $($arg:ident),*) => {{
+                $(let $arg = $arg.unwrap();)*;
+
+                #(
+                    let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg.#arg_n),*);
+                )*
+
+                args(#(#arg_idents),*)
+            }};
+        }
+        pub use #switch_args_unique as switch_args;
+    };
+
     // generate documentation that must be formatted.
     let mod_property_doc = doc!(
         "This module is a widget `{}` property. It {} be used in widget `when` condition expressions.",
@@ -300,6 +323,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
                     #(#arg_idents,)*
                 }
             }
+
+            #switch_args
 
             #when_assert
 
