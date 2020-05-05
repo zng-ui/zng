@@ -130,15 +130,16 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     }
 
     let mut prop_when_indexes = Vec::with_capacity(prop_wns_map.len());
+    let mut let_switches = Vec::with_capacity(prop_when_indexes.len());
 
-    // collect
+    // collect switches
     for (prop, wns) in prop_wns_map {
         let prop_idx = ident!("{}_index", prop);
 
         if wns.len() == 1 {
             let wn = &wns[0];
             prop_when_indexes.push(quote! {
-                let #prop_idx = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1 } else { 0 });
+                let #prop_idx = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
             });
         } else {
             let wns_input = wns.iter().map(|wn| {
@@ -155,11 +156,19 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
             prop_when_indexes.push(quote! {
                 let #prop_idx = #crate_::core::var::merge_var!(#(#wns_input),* , |#(&#wns),*|{
                     #(if #wns_rev { #wns_i })else*
-                    else { 0 }
+                    else { 0usize }
                 });
             });
         }
-    }
+
+        let prop_args = ident!("{}_args", prop);
+        let_switches.push(quote! {           
+            let #prop_args = {
+                #(let #wns = #widget_name::df::#wns::#prop();)*
+                #widget_name::ps::#prop::switch_args!(#widget_name::ps::#prop, #prop_idx, #prop_args, #(#wns),*)
+            };
+        });
+    }    
 
     // generate property set calls.
 
@@ -236,6 +245,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         #(#let_args)*
         #(#let_when_vars)*
         #(#prop_when_indexes)*
+        #(#let_switches)*
 
         let node = #child;
 

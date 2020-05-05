@@ -175,8 +175,8 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #set_args_macro_name {
-            (#priority, $me:path, $child:ident, $args:ident) => {
-                let $child = $me($child, $args);
+            (#priority, $set_args_path:path, $child:ident, $args:ident) => {
+                let $child = $set_args_path($child, $args);
             };
             ($($ignore:tt)*) => {}
         }
@@ -227,8 +227,10 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #switch_args_unique {
-            ($idx:ident, $($arg:ident),*) => {{
-                $(let $arg = $arg.unwrap();)*;
+            ($property_path:path, $idx:ident, $($arg:ident),*) => {{
+                use $property_path::{args, ArgsUnwrap};
+
+                $(let $arg = ArgsUnwrap::unwrap($arg);)*;
 
                 #(
                     let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg.#arg_n),*);
