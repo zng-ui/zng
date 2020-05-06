@@ -1119,8 +1119,14 @@ impl Parse for WhenBlock {
                 let raw_block;
                 braced!(raw_block in input);
                 buffer.push(BufferItem::Brace(raw_block));
-            } else if input.peek(keyword::when) || input.peek(Token![#]) {
-                // WHEN_BLOCK starts with `when` or outer attributes.
+            } else if input.peek(keyword::when)
+                || input.peek(Token![#])
+                || input.peek(keyword::default_child)
+                || input.peek(Token![default])
+                || input.peek(Token![fn])
+                || input.peek(Token![=>])
+            {
+                //found next item
                 break;
             } else {
                 let token: proc_macro2::TokenTree = input.parse()?;

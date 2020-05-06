@@ -33,6 +33,11 @@ fn example() -> impl UiNode {
         align: Alignment::CENTER;
         font_size: 28;
 
+        // when only at the end?
+        when self.is_pressed {
+            font_size: 30;
+        }
+
         => {
             text(t)
         }
@@ -55,7 +60,7 @@ macro_rules! TODO {
             size: (300.0, 200.0);
             align: Alignment::CENTER;
             font_size: 28;
-    
+
             // when only at the end?
             when self.is_pressed {
                 font_size: 30;

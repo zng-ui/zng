@@ -217,11 +217,15 @@ pub fn expand_property(args: proc_macro::TokenStream, input: proc_macro::TokenSt
         }
     };
 
-    let switch_args_unique = ident!("__switch_args_{}", Uuid::new_v4().to_simple());    
+    let switch_args_unique = ident!("__switch_args_{}", Uuid::new_v4().to_simple());
     let arg_n = (0..arg_idents.len()).map(Index::from);
     let last_arg_i = arg_idents.len() - 1;
-    let idx_clone = (0..arg_idents.len()).map(|i|{
-        if last_arg_i == i { quote! {} } else { quote!(.clone()) }
+    let idx_clone = (0..arg_idents.len()).map(|i| {
+        if last_arg_i == i {
+            quote! {}
+        } else {
+            quote!(.clone())
+        }
     });
     let switch_args = quote! {
         #[doc(hidden)]

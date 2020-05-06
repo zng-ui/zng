@@ -129,6 +129,11 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
     }
 
+    for (i, when) in input.input.whens.into_iter().enumerate() {
+        let wn = ident!("local_w{}", i);
+        let_when_vars.push(quote! { let #wn = ();})
+    }
+
     let mut prop_when_indexes = Vec::with_capacity(prop_wns_map.len());
     let mut let_switches = Vec::with_capacity(prop_when_indexes.len());
 
@@ -162,13 +167,13 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
 
         let prop_args = ident!("{}_args", prop);
-        let_switches.push(quote! {           
+        let_switches.push(quote! {
             let #prop_args = {
                 #(let #wns = #widget_name::df::#wns::#prop();)*
                 #widget_name::ps::#prop::switch_args!(#widget_name::ps::#prop, #prop_idx, #prop_args, #(#wns),*)
             };
         });
-    }    
+    }
 
     // generate property set calls.
 
