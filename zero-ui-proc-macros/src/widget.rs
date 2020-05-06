@@ -423,10 +423,6 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             .map(|p| (&p.property, ident_spanned!(p.property.span()=> "self_{}", p.property)))
             .collect();
 
-        let condition = when.condition;
-
-        let fn_name = ident!("w{}", when_fns.len());
-
         let mut params = vec![];
         let mut asserts = vec![];
 
@@ -466,6 +462,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         }
         let init_locals = quote!(#(#init_locals)*);
 
+        let condition = when.condition;
         let return_ = if property_members.len() == 1 {
             let new_name = property_members.keys().next().unwrap();
             if !visitor.found_mult_exprs {
@@ -487,6 +484,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
             }
         };
 
+        let fn_name = ident!("w{}", when_fns.len());
         when_fns.push(quote_spanned! {condition_span=>
             #[inline]
             pub fn #fn_name(#params) -> impl #crate_::core::var::Var<bool> {
