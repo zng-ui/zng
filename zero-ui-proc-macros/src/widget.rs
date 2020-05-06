@@ -1449,16 +1449,16 @@ pub enum WidgetItemTarget {
 }
 
 #[derive(Debug)]
-struct WhenPropertyAccess {
-    property: Ident,
-    member: Member,
-    new_name: Ident,
+pub struct WhenPropertyAccess {
+    pub property: Ident,
+    pub member: Member,
+    pub new_name: Ident,
 }
 
 #[derive(Default)]
-struct WhenConditionVisitor {
-    properties: Vec<WhenPropertyAccess>,
-    found_mult_exprs: bool,
+pub struct WhenConditionVisitor {
+    pub properties: Vec<WhenPropertyAccess>,
+    pub found_mult_exprs: bool,
 }
 
 impl VisitMut for WhenConditionVisitor {

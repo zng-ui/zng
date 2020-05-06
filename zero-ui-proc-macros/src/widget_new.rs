@@ -5,7 +5,9 @@ use std::collections::{hash_map, HashMap};
 use std::rc::Rc;
 use syn::punctuated::Punctuated;
 use syn::{parse::*, *};
-use widget::{PropertyValue, WidgetItemTarget};
+use widget::{PropertyValue, WidgetItemTarget, WhenConditionVisitor};
+use spanned::Spanned;
+use visit_mut::VisitMut;
 
 pub mod keyword {
     syn::custom_keyword!(m);
@@ -129,7 +131,25 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
     }
 
-    for (i, when) in input.input.whens.into_iter().enumerate() {
+    for (i, mut when) in input.input.whens.into_iter().enumerate() {
+        let condition_span = when.condition.span();
+
+        let mut visitor = WhenConditionVisitor::default();
+        visitor.visit_expr_mut(&mut when.condition);
+
+        // dedup property members.
+        let property_members: HashMap<_, _> = visitor.properties.iter().map(|p| (&p.new_name, p)).collect();
+        if property_members.is_empty() {
+            abort!(condition_span.span(), "`when` condition must reference properties")
+        }
+
+        // dedup properties.
+        let property_args: HashMap<_, _> = property_members
+            .values()
+            .map(|p| (&p.property, ident_spanned!(p.property.span()=> "{}_args", p.property)))
+            .collect();
+
+            
         let wn = ident!("local_w{}", i);
         let_when_vars.push(quote! { let #wn = ();})
     }
