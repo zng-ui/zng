@@ -1,0 +1,1 @@
+cargo +nightly rustc --example button --profile=check -- -Zunstable-options --pretty=expanded > dump.rs

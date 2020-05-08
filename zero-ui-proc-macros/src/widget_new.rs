@@ -1,13 +1,13 @@
 use crate::util;
 use crate::widget::{self, PropertyAssign, WhenBlock};
 use proc_macro2::{Span, TokenStream};
-use std::collections::{hash_map, HashMap};
+use spanned::Spanned;
+use std::collections::{hash_map, HashMap, HashSet};
 use std::rc::Rc;
 use syn::punctuated::Punctuated;
 use syn::{parse::*, *};
-use widget::{PropertyValue, WidgetItemTarget, WhenConditionVisitor};
-use spanned::Spanned;
 use visit_mut::VisitMut;
+use widget::{PropertyValue, WhenConditionVisitor, WidgetItemTarget};
 
 pub mod keyword {
     syn::custom_keyword!(m);
@@ -36,6 +36,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let mut known_props: HashMap<_, _> = map_props(input.default_child, WidgetItemTarget::Child)
         .chain(map_props(input.default_self, WidgetItemTarget::Self_))
         .collect();
+
+    let mut props_in_widget: HashSet<_> = known_props.keys().cloned().collect();
 
     // declarations of property arguments in the user written order.
     let mut let_args = Vec::with_capacity(input.input.sets.len());
@@ -108,6 +110,8 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         let_when_vars.push(quote! {let #wn = #widget_name::we::#wn(#(&#when_args),*);});
 
         for (prop, prop_args) in when.args.into_iter().zip(when_args) {
+            props_in_widget.insert(prop.clone());
+
             // if property has no initial value.
             if !setted_props.iter().any(|p| p.0 == prop) {
                 let_default_args.push(quote! {
@@ -120,12 +124,14 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         let wn = Rc::new(wn);
 
         for prop in when.sets.into_iter() {
+            let value_init = quote!(#widget_name::df::#wn::#prop());
+            let full_name = quote!(#widget_name::ps::#prop);
             match prop_wns_map.entry(prop) {
                 hash_map::Entry::Vacant(entry) => {
-                    entry.insert(vec![wn.clone()]);
+                    entry.insert((full_name, vec![(wn.clone(), value_init)]));
                 }
                 hash_map::Entry::Occupied(mut entry) => {
-                    entry.get_mut().push(wn.clone());
+                    entry.get_mut().1.push((wn.clone(), value_init));
                 }
             }
         }
@@ -146,28 +152,137 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         // dedup properties.
         let property_args: HashMap<_, _> = property_members
             .values()
-            .map(|p| (&p.property, ident_spanned!(p.property.span()=> "{}_args", p.property)))
+            .map(|p| (&p.property, ident!("{}_args", p.property)))
             .collect();
 
-            
-        let wn = ident!("local_w{}", i);
-        let_when_vars.push(quote! { let #wn = ();})
+        let mut asserts = vec![];
+        for (&p, _) in property_args.iter() {
+            let ns = if props_in_widget.contains(p) {
+                let mut widget_name = widget_name.clone();
+                widget_name.set_span(p.span());
+                quote_spanned!(p.span()=> #widget_name::ps::#p)
+            } else {
+                quote!(#p)
+            };
+            asserts.push(quote_spanned!(p.span()=> use #ns::is_allowed_in_when;));
+        }
+        let asserts = quote!(#({#[allow(unused)]#asserts})*);
+
+        let local_names = property_members.keys();
+        let members = property_members.values().map(|p| {
+            let property = &p.property;
+            let property = if props_in_widget.contains(property) {
+                let mut widget_name = widget_name.clone();
+                widget_name.set_span(property.span());
+                quote_spanned!(property.span()=> #widget_name::ps::#property)
+            } else {
+                quote!(#property)
+            };
+
+            match &p.member {
+                Member::Named(ident) => quote_spanned!(property.span()=> #property::ArgsNamed::#ident),
+                Member::Unnamed(idx) => {
+                    let argi = ident_spanned!(property.span()=> "arg{}", idx.index);
+                    quote_spanned!(property.span()=> #property::ArgsNumbered::#argi)
+                }
+            }
+        });
+        let arg_names = property_members.values().map(|p| &property_args[&p.property]);
+
+        let mut init_locals = vec![];
+        for ((local_name, member), args) in local_names.zip(members).zip(arg_names) {
+            let mut crate_ = crate_.clone();
+            crate_.set_span(local_name.span());
+            init_locals.push(quote_spanned! {local_name.span()=>
+                let #local_name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#member(&#args)));
+            })
+        }
+        let init_locals = quote!(#(#init_locals)*);
+
+        let condition = when.condition;
+        let return_ = if property_members.len() == 1 {
+            let new_name = property_members.keys().next().unwrap();
+            if !visitor.found_mult_exprs {
+                // if is only a reference to a property.
+                // ex.: when self.is_pressed {}
+                quote_spanned!(new_name.span()=>  #[allow(clippy::let_and_return)]let r = #new_name;r)
+            } else {
+                quote_spanned!(condition_span=> #crate_::core::var::Var::map(&#new_name, |#new_name|{
+                    #condition
+                }))
+            }
+        } else {
+            let new_names = property_members.keys();
+            let args = new_names.clone();
+            quote_spanned! {condition_span=>
+                merge_var!(#(#new_names, )* |#(#args),*|{
+                    #condition
+                })
+            }
+        };
+
+        let local_wn = ident!("local_w{}", i);
+        let_when_vars.push(quote! {
+            let #local_wn = {
+                #asserts
+                #init_locals
+                #return_
+            };
+        });
+
+        let local_wn = Rc::new(local_wn);
+
+        for p in when.properties.into_iter() {
+            let name = p.ident;
+
+            let full_name = if props_in_widget.contains(&name) {
+                let mut widget_name = widget_name.clone();
+                widget_name.set_span(name.span());
+                quote_spanned!(name.span()=> #widget_name::ps::#name)
+            } else {
+                quote!(#name)
+            };
+
+            let init_value = match p.value {
+                PropertyValue::Fields(fields) => quote! {
+                    #full_name::NamedArgs{
+                        _phantom: std::marker::PhantomData,
+                        #fields
+                    }
+                },
+                PropertyValue::Args(args) => quote! {
+                    #full_name::args(#args)
+                },
+                PropertyValue::Unset => {
+                    abort! {name.span(), "cannot unset in when"}
+                }
+            };
+
+            match prop_wns_map.entry(name) {
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert((full_name, vec![(local_wn.clone(), init_value)]));
+                }
+                hash_map::Entry::Occupied(mut entry) => {
+                    entry.get_mut().1.push((local_wn.clone(), init_value));
+                }
+            }
+        }
     }
 
     let mut prop_when_indexes = Vec::with_capacity(prop_wns_map.len());
     let mut let_switches = Vec::with_capacity(prop_when_indexes.len());
 
     // collect switches
-    for (prop, wns) in prop_wns_map {
+    for (prop, (full_name, wns)) in prop_wns_map {
         let prop_idx = ident!("{}_index", prop);
 
         if wns.len() == 1 {
-            let wn = &wns[0];
+            let wn = &wns[0].0;
             prop_when_indexes.push(quote! {
                 let #prop_idx = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
             });
         } else {
-            let wns_input = wns.iter().map(|wn| {
+            let wns_input = wns.iter().map(|(wn, _)| {
                 if Rc::strong_count(&wn) == 1 {
                     quote!(#wn)
                 } else {
@@ -175,8 +290,9 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
                 }
             });
 
-            let wns_rev = wns.iter().rev();
             let wns_i = (1..=wns.len()).rev();
+            let wns = wns.iter().map(|(w, _)| w);
+            let wns_rev = wns.clone().rev();
 
             prop_when_indexes.push(quote! {
                 let #prop_idx = #crate_::core::var::merge_var!(#(#wns_input),* , |#(&#wns),*|{
@@ -187,10 +303,13 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
         }
 
         let prop_args = ident!("{}_args", prop);
+        let value_init = wns.iter().map(|(_, vi)| vi);
+        let wns = wns.iter().map(|(w, _)| w);
+        let let_wns = wns.clone();
         let_switches.push(quote! {
             let #prop_args = {
-                #(let #wns = #widget_name::df::#wns::#prop();)*
-                #widget_name::ps::#prop::switch_args!(#widget_name::ps::#prop, #prop_idx, #prop_args, #(#wns),*)
+                #(let #let_wns = #value_init;)*
+                #full_name::switch_args!(#full_name, #prop_idx, #prop_args, #(#wns),*)
             };
         });
     }

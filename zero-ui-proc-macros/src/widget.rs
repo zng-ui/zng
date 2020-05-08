@@ -439,7 +439,6 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
         let asserts = quote!(#({#[allow(unused)]#asserts})*);
 
         let local_names = property_members.keys();
-        let param_names = property_members.values().map(|p| &property_params[&p.property]);
         let members = property_members.values().map(|p| {
             let property = &p.property;
 
@@ -451,6 +450,7 @@ fn declare_widget(mixin: bool, mut input: WidgetInput) -> proc_macro::TokenStrea
                 }
             }
         });
+        let param_names = property_members.values().map(|p| &property_params[&p.property]);
 
         let mut init_locals = vec![];
         for ((local_name, member), param) in local_names.zip(members).zip(param_names) {

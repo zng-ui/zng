@@ -34,7 +34,7 @@ fn example() -> impl UiNode {
         font_size: 28;
 
         // when only at the end?
-        when self.is_pressed {
+        when self.is_hovered {
             font_size: 30;
         }
 
@@ -62,7 +62,7 @@ macro_rules! TODO {
             font_size: 28;
 
             // when only at the end?
-            when self.is_pressed {
+            when self.is_hovered {
                 font_size: 30;
             }
         }
