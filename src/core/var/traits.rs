@@ -181,6 +181,8 @@ pub trait Var<T: VarValue>: ObjVar<T> + Clone + IntoVar<T, Var = Self> {
         M: FnMut(&T) -> O + 'static,
         O: VarValue;
 
+    //TODO into_map
+
     /// Bidirectional map. Returns a `Var<O>` that uses two closures to convert to and from this `Var<T>`.
     ///
     /// Unlike [`map`](Var::map) the returned variable is read-write when this variable is read-write.
