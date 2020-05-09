@@ -369,10 +369,68 @@ impl<E: AppExtension> AppExtended<E> {
             }
         })
     }
+
+    /// Initializes extensions in headless mode and returns an [`AppHeadless`](AppHeadless).
+    #[inline]
+    pub fn run_headless(self) -> AppHeadless<E> {
+        #[cfg(feature = "app_profiler")]
+        crate::core::profiler::register_thread_with_profiler();
+
+        #[cfg(feature = "app_profiler")]
+        let profile_scope = crate::core::profiler::ProfileScope::new("app::run_headless");
+
+        let mut owned_ctx = OwnedAppContext::new_headless();
+
+        let mut extensions = self.extensions;
+        AppHeadless {
+            extensions,
+            owned_ctx,
+
+            #[cfg(feature = "app_profiler")]
+            profile_scope,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub enum AppEvent {
     NewFrameReady(WindowId),
     Update,
+}
+
+/// A headless app controller.
+pub struct AppHeadless<E: AppExtension> {
+    extensions: E,
+    owned_ctx: OwnedAppContext,
+    #[cfg(feature = "app_profiler")]
+    profile_scope: crate::core::profiler::ProfileScope,
+}
+
+impl<E: AppExtension> AppHeadless<E> {
+    /// Headless state.
+    pub fn state(&self) -> &StateMap {
+        self.owned_ctx.headless_state().unwrap()
+    }
+
+    /// Mutable headless state.
+    pub fn state_mut(&mut self) -> &mut StateMap {
+        self.owned_ctx.headless_state_mut().unwrap()
+    }
+
+    /// If headless rendering is enabled.
+    pub fn render_enabled(&self) -> bool {
+        self.state().get(EnableHeadlessRender).copied().unwrap_or_default()
+    }
+
+    /// Enable or disable headless rendering.
+    ///
+    /// This sets the [`EnableHeadlessRender`](EnableHeadlessRender) state.
+    pub fn enable_render(&mut self, enabled: bool) {
+        self.state_mut().set(EnableHeadlessRender, enabled);
+    }
+}
+
+state_key! {
+    /// If render is enabled in [headless mode](AppExtended::run_headless).
+    pub struct EnableHeadlessRender: bool;
 }

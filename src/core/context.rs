@@ -758,6 +758,7 @@ impl Updates {
 pub struct OwnedAppContext {
     event_loop: EventLoopProxy<AppEvent>,
     app_state: StateMap,
+    headless_state: Option<StateMap>,
     vars: Vars,
     events: Events,
     services: AppServicesInit,
@@ -766,10 +767,11 @@ pub struct OwnedAppContext {
 }
 
 impl OwnedAppContext {
-    /// Produces the single instance of `AppContext`.
+    /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(event_loop: EventLoopProxy<AppEvent>) -> Self {
         OwnedAppContext {
             app_state: StateMap::default(),
+            headless_state: None,
             vars: Vars::instance(),
             events: Events::instance(),
             services: AppServicesInit::default(),
@@ -779,9 +781,30 @@ impl OwnedAppContext {
         }
     }
 
+    /// Creates an `AppContext` in headless mode.
+    pub fn new_headless() -> Self {
+        todo!() // allow only one instance here too?
+    }
+
+    /// If the context is in headless mode.
+    pub fn is_headless(&self) -> bool {
+        self.headless_state.is_some()
+    }
+
+    /// State that lives for the duration of a headless application.
+    pub fn headless_state(&self) -> Option<&StateMap> {
+        self.headless_state.as_ref()
+    }
+
+    /// State that lives for the duration of a headless application.
+    pub fn headless_state_mut(&mut self) -> Option<&mut StateMap> {
+        self.headless_state.as_mut()
+    }
+
     pub fn borrow_init(&mut self) -> AppInitContext {
         AppInitContext {
             app_state: &mut self.app_state,
+            headless: HeadlessInfo::new(self.headless_state.as_mut()),
             event_loop: &self.event_loop,
             vars: &self.vars,
             events: &mut self.events,
@@ -794,6 +817,7 @@ impl OwnedAppContext {
     pub fn borrow<'a>(&'a mut self, event_loop: &'a EventLoopWindowTarget<AppEvent>) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
+            headless: HeadlessInfo::new(self.headless_state.as_mut()),
             vars: &self.vars,
             events: &self.events,
             services: self.services.services(),
@@ -813,10 +837,36 @@ impl OwnedAppContext {
     }
 }
 
+/// Information about a headless app context.
+pub struct HeadlessInfo<'a> {
+    state: Option<&'a mut StateMap>,
+}
+
+impl<'a> HeadlessInfo<'a> {
+    fn new(state: Option<&'a mut StateMap>) -> Self {
+        HeadlessInfo { state }
+    }
+
+    /// If the application is running in headless mode.
+    pub fn is_headless(&self) -> bool {
+        self.state.is_some()
+    }
+
+    /// State that lives for the duration of the headless application.
+    pub fn state(&'a mut self) -> Option<&'a mut StateMap> {
+        match &mut self.state {
+            None => None,
+            Some(state) => Some(state),
+        }
+    }
+}
+
 /// App extension initialization context.
 pub struct AppInitContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
+    /// Information about this context if it is running in headless mode.
+    pub headless: HeadlessInfo<'a>,
 
     /// Reference to the `winit` event loop.
     pub event_loop: &'a EventLoopProxy<AppEvent>,
@@ -864,6 +914,8 @@ pub struct AppInitContext<'a> {
 pub struct AppContext<'a> {
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
+    /// Information about this context if it is running in headless mode.
+    pub headless: HeadlessInfo<'a>,
 
     pub vars: &'a Vars,
     pub events: &'a Events,
