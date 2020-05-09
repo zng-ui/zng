@@ -24,8 +24,6 @@ macro_rules! state_key {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
 /// use zero_ui::core::render::WidgetPath;
 ///
 /// event_args! {
@@ -47,7 +45,6 @@ macro_rules! state_key {
 ///     // multiple structs can be declared in the same call.
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
-/// # }
 /// ```
 ///
 /// Expands to:
@@ -179,8 +176,6 @@ macro_rules! event_args {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
 /// use zero_ui::core::render::WidgetPath;
 ///
 /// cancelable_event_args! {
@@ -202,7 +197,6 @@ macro_rules! event_args {
 ///     // multiple structs can be declared in the same call.
 ///     // pub struct MyOtherEventArgs { /**/ }
 /// }
-/// # }
 /// ```
 ///
 /// Expands to:
@@ -373,7 +367,6 @@ macro_rules! cancelable_event_args {
 /// If compiled with the `app_profiler` feature, this will register a "do-things" scope
 /// that starts when the macro was called and has the duration of the block.
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main()
 /// {
 /// # fn do_thing() { }
@@ -387,7 +380,6 @@ macro_rules! cancelable_event_args {
 ///
 /// You can also format strings:
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main() {
 /// # let thing = "";
 /// profile_scope!("do-{}", thing);
@@ -412,7 +404,6 @@ macro_rules! profile_scope {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main() {
 /// use zero_ui::core::types::Text;
 ///
@@ -499,7 +490,6 @@ macro_rules! __context_var_inner {
 ///
 /// # Examples
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main() {
 /// # #[derive(Debug, Clone)]
 /// # struct NotConst(u8);
@@ -535,7 +525,6 @@ macro_rules! context_var {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # use zero_ui::prelude::{var, text, Text};
 /// # use zero_ui::core::var::SharedVar;
 /// # fn main() {
@@ -588,7 +577,6 @@ macro_rules! merge_var {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # use zero_ui::prelude::{var, text};
 /// # fn main() {
 /// let var0 = var("Read-write");

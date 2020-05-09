@@ -64,10 +64,9 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main() { }
 /// use zero_ui::properties::{on_event, OnEventArgs};
-/// use zero_ui::core::{UiNode, keyboard::{KeyDown, KeyInputArgs}};
+/// use zero_ui::core::{UiNode, keyboard::{KeyDown, KeyInputArgs}, property};
 ///
 /// /// Sets an event listener for the [`KeyDown`](KeyDown) event.
 /// #[property(event, not_when)]

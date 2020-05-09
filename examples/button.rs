@@ -2,21 +2,19 @@
 
 use enclose::enclose;
 
-use zero_ui::{core::var::Var, prelude::*};
+use zero_ui::prelude::*;
 
 fn main() {
     better_panic::install();
 
-    App::default().run(|ctx| {
-        ctx.services.req::<Windows>().open(|_| {
-            let size = var((800., 600.));
-            let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
-            window! {
-                size: size;
-                title: title;
-                => example()
-            }
-        });
+    App::default().run_window(|_| {
+        let size = var((800., 600.));
+        let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
+        window! {
+            size: size;
+            title: title;
+            => example()
+        }
     })
 }
 

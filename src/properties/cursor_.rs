@@ -33,19 +33,13 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
-/// # fn main() {
-/// use zero_ui::{
-///     core::types::CursorIcon,
-///     properties::cursor,
-///     widgets::{container, text}
-/// };
+/// use zero_ui::prelude::*;
 ///
 /// container! {
 ///     cursor: CursorIcon::Hand;
 ///     => text("Mouse over this text shows the hand cursor")
 /// }
-/// # ; }
+/// # ;
 /// ```
 #[property(context)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {

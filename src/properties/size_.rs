@@ -290,17 +290,14 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
 ///
 /// # Example
 /// ```
-/// # #![recursion_limit="256"]
-/// # #[macro_use] extern crate zero_ui;
-/// # use zero_ui::prelude::*;
-/// # fn main() {
+/// use zero_ui::prelude::*;
 /// container! {
 ///     background_color: rgb(255, 0, 0);
 ///     size: (200.0, 300.0);
 ///     
 ///     => text("200x300 red")
 /// }
-/// # ;}
+/// # ;
 /// ```
 #[property(size)]
 pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {

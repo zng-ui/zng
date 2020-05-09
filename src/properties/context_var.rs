@@ -32,10 +32,9 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 ///
 /// # Example
 /// ```
-/// # #[macro_use] extern crate zero_ui;
 /// # fn main() -> () { }
 /// use zero_ui::properties::with_context_var;
-/// use zero_ui::core::{UiNode, var::IntoVar};
+/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property};
 ///
 /// context_var! {
 ///     pub struct FontSize: u32 = const 14;

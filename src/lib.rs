@@ -4,20 +4,18 @@
 //! Zero-Ui is a pure Rust UI framework.
 //!
 //! # Example
-//! ```
+//! ```no_run
 //! use zero_ui::prelude::*;
 //!
 //! fn main () {
-//!     App::default().run(|ctx| {
-//!         ctx.services.req::<Windows>().open(|_| {
-//!             let size = var((800., 600.));
-//!             let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
-//!             window! {
-//!                 size: size;
-//!                 title: title;
-//!                 => example()
-//!             }
-//!         });
+//!     App::default().run_window(|_| {
+//!         let size = var((800., 600.));
+//!         let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
+//!         window! {
+//!             size: size;
+//!             title: title;
+//!             => example()
+//!         }
 //!     })
 //! }
 //!
@@ -64,8 +62,8 @@ pub mod prelude {
             formatx, rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
             ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
-        var::var,
-        window::{Window, Windows},
+        var::{var, SharedVar, Var},
+        window::{AppRunWindow, Window, Windows},
         UiNode,
     };
     pub use crate::layouts::*;

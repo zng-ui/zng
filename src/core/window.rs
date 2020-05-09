@@ -1,4 +1,4 @@
-use crate::core::app::{AppEvent, AppExtension, AppProcess, ShutdownRequestedArgs};
+use crate::core::app::{AppEvent, AppExtended, AppExtension, AppProcess, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::profiler::profile_scope;
@@ -1027,5 +1027,44 @@ impl Window {
             background_color: background_color.into_var().boxed(),
             child: child.boxed(),
         }
+    }
+}
+
+/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`](AppExtended)
+pub trait AppRunWindow {
+    /// Runs the application event loop and requests a new window.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zero_ui::prelude::*;
+    ///
+    /// App::default().run_window(|_| {
+    ///     window! {
+    ///         => text("Window 1")
+    ///     }
+    /// })   
+    /// ```
+    ///
+    /// Which is a shortcut for:
+    /// ```no_run
+    /// use zero_ui::prelude::*;
+    ///
+    /// App::default().run(|ctx| {
+    ///     ctx.services.req::<Windows>().open(|_| {
+    ///         window! {
+    ///             => text("Window 1")
+    ///         }
+    ///     });
+    /// })   
+    /// ```
+    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static);
+}
+
+impl<E: AppExtension> AppRunWindow for AppExtended<E> {
+    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static) {
+        self.run(|ctx| {
+            ctx.services.req::<Windows>().open(new_window);
+        })
     }
 }
