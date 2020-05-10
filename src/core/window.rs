@@ -580,7 +580,7 @@ impl Windows {
 
     /// Reference a running window.
     #[inline]
-    pub fn window<'a>(&'a self, window_id: WindowId) -> Result<RunningWindow<'a>, WindowNotFound> {
+    pub fn window(&self, window_id: WindowId) -> Result<RunningWindow, WindowNotFound> {
         self.windows.get(&window_id).ok_or(WindowNotFound(window_id)).map(RunningWindow)
     }
 }
