@@ -306,7 +306,7 @@ impl EventLoop {
     ///
     /// If called when headless panics with the message: `"cannot run headless EventLoop"`.
     ///
-    /// [`ControlFlow`]: crate::event_loop::ControlFlow
+    /// [`ControlFlow`]: glutin::event_loop::ControlFlow
     #[inline]
     pub fn run_headed<F>(self, mut event_handler: F) -> !
     where
@@ -503,7 +503,7 @@ impl<E: AppExtension> AppExtended<E> {
         })
     }
 
-    /// Initializes extensions in headless mode and returns an [`AppHeadless`](AppHeadless).
+    /// Initializes extensions in headless mode and returns an [`HeadlessApp`](HeadlessApp).
     #[inline]
     pub fn run_headless(self) -> HeadlessApp<E> {
         #[cfg(feature = "app_profiler")]
