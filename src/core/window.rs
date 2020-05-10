@@ -545,7 +545,7 @@ impl Windows {
         }
     }
 
-    /// Requests closing multiple windows together, the operation can be canceled by listeners of the 
+    /// Requests closing multiple windows together, the operation can be canceled by listeners of the
     /// [`WindowCloseRequested`](WindowCloseRequested) event. If canceled none of the windows are closed.
     ///
     /// Returns a listener that will update once with the result of the operation.
@@ -578,26 +578,39 @@ impl Windows {
         Ok(notifier.into_listener())
     }
 
-    fn req_window(&self, window_id: WindowId) -> Result<&GlWindow, WindowNotFound> {
-        self.windows.get(&window_id).ok_or(WindowNotFound(window_id))
+    /// Reference a running window.
+    #[inline]
+    pub fn window<'a>(&'a self, window_id: WindowId) -> Result<RunningWindow<'a>, WindowNotFound> {
+        self.windows.get(&window_id).ok_or(WindowNotFound(window_id)).map(RunningWindow)
+    }
+}
+
+/// Reference to a running window.
+pub struct RunningWindow<'a>(&'a GlWindow);
+
+impl<'a> RunningWindow<'a> {
+    /// Window id.
+    #[inline]
+    pub fn id(&self) -> WindowId {
+        self.0.id()
     }
 
-    /// Hit-test the window latest frame.
+    /// Current DPI scale.
     #[inline]
-    pub fn hit_test(&self, window_id: WindowId, point: LayoutPoint) -> Result<FrameHitInfo, WindowNotFound> {
-        self.req_window(window_id).map(|w| w.hit_test(point))
+    pub fn dpi_scale(&self) -> f32 {
+        self.0.dpi_scale()
     }
 
-    /// Get the current DPI scale of the given window.
+    /// Latest frame info.
     #[inline]
-    pub fn dpi_scale(&self, window_id: WindowId) -> Result<f32, WindowNotFound> {
-        self.req_window(window_id).map(|w| w.dpi_scale())
+    pub fn frame_info(&self) -> &'a FrameInfo {
+        self.0.frame_info()
     }
 
-    /// Reference the window latest frame.
+    /// Hit-test the latest frame.
     #[inline]
-    pub fn frame_info(&self, window_id: WindowId) -> Result<&FrameInfo, WindowNotFound> {
-        self.req_window(window_id).map(|w| w.frame_info())
+    pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
+        self.0.hit_test(point)
     }
 }
 

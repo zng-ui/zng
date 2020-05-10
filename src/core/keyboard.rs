@@ -126,7 +126,7 @@ impl AppExtension for KeyboardEvents {
                 let target = if let Some(focused) = focused {
                     focused
                 } else {
-                    ctx.services.req::<Windows>().frame_info(window_id).unwrap().root().path()
+                    ctx.services.req::<Windows>().window(window_id).unwrap().frame_info().root().path()
                 };
 
                 let args = KeyInputArgs {

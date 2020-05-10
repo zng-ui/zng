@@ -17,7 +17,10 @@ use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
 use std::any::{type_name, TypeId};
-use std::{sync::{Mutex, Arc}, mem};
+use std::{
+    mem,
+    sync::{Arc, Mutex},
+};
 
 /// An [`App`](App) extension.
 pub trait AppExtension: 'static {
@@ -288,8 +291,8 @@ impl EventLoop {
             EventLoopInner::Headless(uev) => {
                 let mut user_events = uev.lock().unwrap();
                 mem::take(&mut user_events)
-            },
-            _ => panic!("cannot take user events from headed EventLoop")
+            }
+            _ => panic!("cannot take user events from headed EventLoop"),
         }
     }
 
@@ -366,9 +369,9 @@ impl EventLoopProxy {
     pub fn is_headless(&self) -> bool {
         match &self.0 {
             EventLoopProxyInner::Headless(_) => true,
-            EventLoopProxyInner::Glutin(_) => false
+            EventLoopProxyInner::Glutin(_) => false,
         }
-    }   
+    }
 
     pub fn send_event(&self, event: AppEvent) {
         match &self.0 {
@@ -376,7 +379,7 @@ impl EventLoopProxy {
             EventLoopProxyInner::Headless(uev) => {
                 let mut user_events = uev.lock().unwrap();
                 user_events.push(event);
-            },
+            }
         }
     }
 }
@@ -591,7 +594,7 @@ impl<E: AppExtension> HeadlessApp<E> {
         profile_scope!("headless_app::on_app_event");
     }
 
-    /// 
+    ///
     pub fn take_app_events(&mut self) -> Vec<AppEvent> {
         self.event_loop.take_headless_app_events()
     }

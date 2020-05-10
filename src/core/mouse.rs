@@ -295,8 +295,9 @@ impl MouseEvents {
         };
 
         let windows = ctx.services.req::<Windows>();
-        let hits = windows.hit_test(window_id, position).unwrap();
-        let frame_info = windows.frame_info(window_id).unwrap();
+        let window = windows.window(window_id).unwrap();
+        let hits = window.hit_test(position);
+        let frame_info = window.frame_info();
 
         let (target, position) = if let Some(t) = hits.target() {
             (frame_info.find(t.widget_id).unwrap().path(), t.point)
@@ -409,7 +410,7 @@ impl MouseEvents {
             self.pos_window = Some(window_id);
 
             let windows = ctx.services.req::<Windows>();
-            self.pos_dpi = windows.dpi_scale(window_id).unwrap();
+            self.pos_dpi = windows.window(window_id).unwrap().dpi_scale();
         }
 
         let pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
@@ -422,9 +423,10 @@ impl MouseEvents {
             self.pos = pos;
 
             let windows = ctx.services.req::<Windows>();
+            let window = windows.window(window_id).unwrap();
 
-            let hits = windows.hit_test(window_id, pos).unwrap();
-            let frame_info = windows.frame_info(window_id).unwrap();
+            let hits = window.hit_test(pos);
+            let frame_info = window.frame_info();
 
             let (target, position) = if let Some(t) = hits.target() {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
