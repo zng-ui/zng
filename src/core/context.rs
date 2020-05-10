@@ -1,10 +1,8 @@
-use crate::core::app::AppEvent;
+use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::types::{WidgetId, WindowId};
 use crate::core::var::*;
 use fnv::FnvHashMap;
-use glutin::event_loop::EventLoopProxy;
-use glutin::event_loop::EventLoopWindowTarget;
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
@@ -130,13 +128,13 @@ pub struct UpdateNotifier {
 }
 
 struct UpdateNotifierInner {
-    event_loop: EventLoopProxy<AppEvent>,
+    event_loop: EventLoopProxy,
     request: AtomicU8,
 }
 
 impl UpdateNotifier {
     #[inline]
-    fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+    fn new(event_loop: EventLoopProxy) -> Self {
         UpdateNotifier {
             r: Arc::new(UpdateNotifierInner {
                 event_loop,
@@ -152,7 +150,7 @@ impl UpdateNotifier {
     fn set(&self, update: u8) {
         let old = self.r.request.fetch_or(update, atomic::Ordering::Relaxed);
         if old == 0 {
-            let _ = self.r.event_loop.send_event(AppEvent::Update);
+            self.r.event_loop.send_event(AppEvent::Update);
         }
     }
 
@@ -619,7 +617,7 @@ pub struct OwnedUpdates {
 }
 
 impl OwnedUpdates {
-    pub fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+    pub fn new(event_loop: EventLoopProxy) -> Self {
         OwnedUpdates {
             updates: Updates::new(event_loop),
         }
@@ -679,7 +677,7 @@ pub struct Updates {
 }
 
 impl Updates {
-    fn new(event_loop: EventLoopProxy<AppEvent>) -> Self {
+    fn new(event_loop: EventLoopProxy) -> Self {
         Updates {
             notifier: UpdateNotifier::new(event_loop),
             update: UpdateRequest::default(),
@@ -756,7 +754,7 @@ impl Updates {
 /// and this `struct` owns both you can only have one instance
 /// of this at a time.
 pub struct OwnedAppContext {
-    event_loop: EventLoopProxy<AppEvent>,
+    event_loop: EventLoopProxy,
     app_state: StateMap,
     headless_state: Option<StateMap>,
     vars: Vars,
@@ -768,7 +766,7 @@ pub struct OwnedAppContext {
 
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
-    pub fn instance(event_loop: EventLoopProxy<AppEvent>) -> Self {
+    pub fn instance(event_loop: EventLoopProxy) -> Self {
         OwnedAppContext {
             app_state: StateMap::default(),
             headless_state: None,
@@ -779,11 +777,6 @@ impl OwnedAppContext {
             updates: OwnedUpdates::new(event_loop.clone()),
             event_loop,
         }
-    }
-
-    /// Creates an `AppContext` in headless mode.
-    pub fn new_headless() -> Self {
-        todo!() // allow only one instance here too?
     }
 
     /// If the context is in headless mode.
@@ -814,7 +807,7 @@ impl OwnedAppContext {
         }
     }
 
-    pub fn borrow<'a>(&'a mut self, event_loop: &'a EventLoopWindowTarget<AppEvent>) -> AppContext<'a> {
+    pub fn borrow<'a>(&'a mut self, event_loop: EventLoopWindowTarget<'a>) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
             headless: HeadlessInfo::new(self.headless_state.as_mut()),
@@ -824,12 +817,7 @@ impl OwnedAppContext {
             window_services: &self.window_services,
             updates: &mut self.updates.updates,
             event_loop,
-        }        
-    }
-
-    pub fn borrow_headless<'a>(&'a mut self) -> AppContext<'a> {
-        assert!(self.headless_state.is_some());
-        todo!()
+        }
     }
 
     /// Takes the request that generated an [`AppEvent::Update`](AppEvent::Update).
@@ -873,8 +861,8 @@ pub struct AppInitContext<'a> {
     /// Information about this context if it is running in headless mode.
     pub headless: HeadlessInfo<'a>,
 
-    /// Reference to the `winit` event loop.
-    pub event_loop: &'a EventLoopProxy<AppEvent>,
+    /// Reference to the event loop.
+    pub event_loop: &'a EventLoopProxy,
 
     /// Variables access.
     ///
@@ -928,7 +916,7 @@ pub struct AppContext<'a> {
     pub window_services: &'a WindowServicesInit,
     pub updates: &'a mut Updates,
 
-    pub event_loop: &'a EventLoopWindowTarget<AppEvent>,
+    pub event_loop: EventLoopWindowTarget<'a>,
 }
 
 /// Custom state associated with a window.

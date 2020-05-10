@@ -1,4 +1,4 @@
-use crate::core::app::{AppEvent, AppExtended, AppExtension, AppProcess, ShutdownRequestedArgs};
+use crate::core::app::{AppEvent, AppExtended, AppExtension, AppProcess, EventLoopProxy, ShutdownRequestedArgs};
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::profiler::profile_scope;
@@ -9,7 +9,7 @@ use crate::core::UiNode;
 use fnv::FnvHashMap;
 use gleam::gl;
 use glutin::dpi::LogicalSize;
-use glutin::event_loop::{EventLoopProxy, EventLoopWindowTarget};
+use glutin::event_loop::EventLoopWindowTarget;
 use glutin::window::WindowBuilder;
 use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
@@ -150,7 +150,7 @@ impl Event for WindowClose {
 ///
 /// * [Windows]
 pub struct WindowManager {
-    event_loop_proxy: Option<EventLoopProxy<AppEvent>>,
+    event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
     window_open: EventEmitter<WindowEventArgs>,
     window_resize: EventEmitter<WindowResizeArgs>,
@@ -196,7 +196,7 @@ impl WindowManager {
             let mut w = GlWindow::new(
                 request.new,
                 ctx,
-                ctx.event_loop,
+                ctx.event_loop.headed_target().unwrap(),
                 self.event_loop_proxy.as_ref().unwrap().clone(),
                 Arc::clone(&self.ui_threads),
             );
@@ -604,7 +604,7 @@ impl Windows {
 #[derive(Clone)]
 struct Notifier {
     window_id: WindowId,
-    event_loop: EventLoopProxy<AppEvent>,
+    event_loop: EventLoopProxy,
 }
 impl RenderNotifier for Notifier {
     fn clone(&self) -> Box<dyn RenderNotifier> {
@@ -651,7 +651,7 @@ impl GlWindow {
         new_window: Box<dyn FnOnce(&AppContext) -> Window>,
         ctx: &mut AppContext,
         event_loop: &EventLoopWindowTarget<AppEvent>,
-        event_loop_proxy: EventLoopProxy<AppEvent>,
+        event_loop_proxy: EventLoopProxy,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let root = new_window(ctx);

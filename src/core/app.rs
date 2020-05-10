@@ -1,5 +1,6 @@
 use crate::core::event::EventEmitter;
 use crate::core::event::EventListener;
+use crate::core::profiler::*;
 use crate::core::{
     context::*,
     event::{cancelable_event_args, CancelableEventArgs},
@@ -12,10 +13,11 @@ use crate::core::{
     window::WindowManager,
 };
 use glutin::event::Event as GEvent;
-use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::event_loop::{
+    ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
+};
 use std::any::{type_name, TypeId};
-use std::mem;
-use crate::core::profiler::*;
+use std::{sync::{Mutex, Arc}, mem};
 
 /// An [`App`](App) extension.
 pub trait AppExtension: 'static {
@@ -247,6 +249,138 @@ fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut A
     !args.cancel_requested()
 }
 
+#[derive(Debug)]
+enum EventLoopInner {
+    Glutin(GEventLoop<AppEvent>),
+    Headless(Arc<Mutex<Vec<AppEvent>>>),
+}
+
+/// Provides a way to retrieve events from the system and from the windows that were registered to the events loop.
+/// Can be a fake headless event loop too.
+#[derive(Debug)]
+pub struct EventLoop(EventLoopInner);
+
+impl EventLoop {
+    /// Initializes a new event loop.
+    pub fn new(headless: bool) -> Self {
+        if headless {
+            EventLoop(EventLoopInner::Headless(Default::default()))
+        } else {
+            EventLoop(EventLoopInner::Glutin(GEventLoop::with_user_event()))
+        }
+    }
+
+    /// If the event loop is a headless.
+    pub fn is_headless(&self) -> bool {
+        match &self.0 {
+            EventLoopInner::Headless(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Takes the headless user events send since the last call.
+    ///
+    /// # Panics
+    ///
+    /// If the event loop is not headless panics with the message: `"cannot take user events from headed EventLoop`.
+    pub fn take_headless_app_events(&self) -> Vec<AppEvent> {
+        match &self.0 {
+            EventLoopInner::Headless(uev) => {
+                let mut user_events = uev.lock().unwrap();
+                mem::take(&mut user_events)
+            },
+            _ => panic!("cannot take user events from headed EventLoop")
+        }
+    }
+
+    /// Hijacks the calling thread and initializes the winit event loop with the provided
+    /// closure. Since the closure is `'static`, it must be a `move` closure if it needs to
+    /// access any data from the calling context.
+    ///
+    /// See the [`ControlFlow`] docs for information on how changes to `&mut ControlFlow` impact the
+    /// event loop's behavior.
+    ///
+    /// Any values not passed to this function will *not* be dropped.
+    ///
+    /// # Panics
+    ///
+    /// If called when headless panics with the message: `"cannot run headless EventLoop"`.
+    ///
+    /// [`ControlFlow`]: crate::event_loop::ControlFlow
+    #[inline]
+    pub fn run_headed<F>(self, mut event_handler: F) -> !
+    where
+        F: 'static + FnMut(GEvent<'_, AppEvent>, EventLoopWindowTarget<'_>, &mut ControlFlow),
+    {
+        match self.0 {
+            EventLoopInner::Glutin(el) => el.run(move |e, l, c| event_handler(e, EventLoopWindowTarget(Some(l)), c)),
+            EventLoopInner::Headless(_) => panic!("cannot run headless EventLoop"),
+        }
+    }
+
+    /// Borrows a [`EventLoopWindowTarget`](EventLoopWindowTarget).
+    #[inline]
+    pub fn window_target(&self) -> EventLoopWindowTarget<'_> {
+        match &self.0 {
+            EventLoopInner::Glutin(el) => EventLoopWindowTarget(Some(el)),
+            EventLoopInner::Headless(_) => EventLoopWindowTarget(None),
+        }
+    }
+
+    /// Creates an [`EventLoopProxy`](EventLoopProxy) that can be used to dispatch user events to the main event loop.
+    pub fn create_proxy(&self) -> EventLoopProxy {
+        match &self.0 {
+            EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Glutin(el.create_proxy())),
+            EventLoopInner::Headless(evs) => EventLoopProxy(EventLoopProxyInner::Headless(Arc::clone(evs))),
+        }
+    }
+}
+
+/// Target that associates windows with an [`EventLoop`](EventLoop).
+#[derive(Debug, Clone, Copy)]
+pub struct EventLoopWindowTarget<'a>(Option<&'a GEventLoopWindowTarget<AppEvent>>);
+
+impl<'a> EventLoopWindowTarget<'a> {
+    /// If this window target is a dummy for a headless context.
+    pub fn is_headless(self) -> bool {
+        self.0.is_none()
+    }
+
+    /// Get the actual window target.
+    pub fn headed_target(self) -> Option<&'a GEventLoopWindowTarget<AppEvent>> {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone)]
+enum EventLoopProxyInner {
+    Glutin(GEventLoopProxy<AppEvent>),
+    Headless(Arc<Mutex<Vec<AppEvent>>>),
+}
+
+/// Used to send custom events to [`EventLoop`](EventLoop).
+#[derive(Debug, Clone)]
+pub struct EventLoopProxy(EventLoopProxyInner);
+
+impl EventLoopProxy {
+    pub fn is_headless(&self) -> bool {
+        match &self.0 {
+            EventLoopProxyInner::Headless(_) => true,
+            EventLoopProxyInner::Glutin(_) => false
+        }
+    }   
+
+    pub fn send_event(&self, event: AppEvent) {
+        match &self.0 {
+            EventLoopProxyInner::Glutin(elp) => elp.send_event(event).unwrap(),
+            EventLoopProxyInner::Headless(uev) => {
+                let mut user_events = uev.lock().unwrap();
+                user_events.push(event);
+            },
+        }
+    }
+}
+
 impl<E: AppExtension> AppExtended<E> {
     /// Gets if the application is already extended with the extension type.
     #[inline]
@@ -277,7 +411,7 @@ impl<E: AppExtension> AppExtended<E> {
 
         profile_scope!("app::run");
 
-        let event_loop = EventLoop::with_user_event();
+        let event_loop = EventLoop::new(false);
 
         let mut extensions = self.extensions;
 
@@ -290,9 +424,9 @@ impl<E: AppExtension> AppExtended<E> {
         let mut in_sequence = false;
         let mut sequence_update = UpdateDisplayRequest::None;
 
-        start(&mut owned_ctx.borrow(&event_loop));
+        start(&mut owned_ctx.borrow(event_loop.window_target()));
 
-        event_loop.run(move |event, event_loop, control_flow| {
+        event_loop.run_headed(move |event, event_loop, control_flow| {
             profile_scope!("app::event");
 
             *control_flow = ControlFlow::Wait;
@@ -378,7 +512,9 @@ impl<E: AppExtension> AppExtended<E> {
         #[cfg(feature = "app_profiler")]
         let profile_scope = ProfileScope::new("app::run_headless");
 
-        let mut owned_ctx = OwnedAppContext::new_headless();
+        let event_loop = EventLoop::new(false);
+
+        let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
         let mut extensions = self.extensions;
 
@@ -387,6 +523,7 @@ impl<E: AppExtension> AppExtended<E> {
         extensions.init(&mut init_ctx);
 
         HeadlessApp {
+            event_loop,
             extensions,
             owned_ctx,
 
@@ -406,6 +543,7 @@ pub enum AppEvent {
 
 /// A headless app controller.
 pub struct HeadlessApp<E: AppExtension> {
+    event_loop: EventLoop,
     extensions: E,
     owned_ctx: OwnedAppContext,
     #[cfg(feature = "app_profiler")]
@@ -438,19 +576,30 @@ impl<E: AppExtension> HeadlessApp<E> {
     /// Notifies extensions of a device event.
     pub fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
         profile_scope!("headless_app::on_device_event");
-        self.extensions.on_device_event(device_id, event, &mut self.owned_ctx.borrow_headless());
+        self.extensions
+            .on_device_event(device_id, event, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
     }
 
     /// Notifies extensions of a window event.
     pub fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
         profile_scope!("headless_app::on_device_event");
-        self.extensions.on_window_event(window_id, event, &mut self.owned_ctx.borrow_headless());
+        self.extensions
+            .on_window_event(window_id, event, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
+    }
+
+    pub fn on_app_event(&mut self, event: &AppEvent) {
+        profile_scope!("headless_app::on_app_event");
+    }
+
+    /// 
+    pub fn take_app_events(&mut self) -> Vec<AppEvent> {
+        self.event_loop.take_headless_app_events()
     }
 
     /// Runs a custom action in the headless app context.
     pub fn with_context(&mut self, action: impl FnOnce(&mut AppContext)) {
         profile_scope!("headless_app::with_context");
-        action(&mut self.owned_ctx.borrow_headless())
+        action(&mut self.owned_ctx.borrow(self.event_loop.window_target()))
     }
 
     /// Does updates after events and custom actions.
@@ -466,7 +615,7 @@ impl<E: AppExtension> HeadlessApp<E> {
 
             if update.update || update.update_hp {
                 profile_scope!("headless_app::update");
-                let mut ctx = self.owned_ctx.borrow_headless();
+                let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
                 let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
                 if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
                     return ControlFlow::Exit;
@@ -484,7 +633,8 @@ impl<E: AppExtension> HeadlessApp<E> {
 
         if sequence_update.is_some() {
             profile_scope!("headless_app::update_display");
-            self.extensions.update_display(sequence_update, &mut self.owned_ctx.borrow_headless());
+            self.extensions
+                .update_display(sequence_update, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
         }
 
         ControlFlow::Wait
