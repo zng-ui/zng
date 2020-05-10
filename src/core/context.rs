@@ -824,7 +824,12 @@ impl OwnedAppContext {
             window_services: &self.window_services,
             updates: &mut self.updates.updates,
             event_loop,
-        }
+        }        
+    }
+
+    pub fn borrow_headless<'a>(&'a mut self) -> AppContext<'a> {
+        assert!(self.headless_state.is_some());
+        todo!()
     }
 
     /// Takes the request that generated an [`AppEvent::Update`](AppEvent::Update).

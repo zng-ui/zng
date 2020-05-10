@@ -15,6 +15,7 @@ use glutin::event::Event as GEvent;
 use glutin::event_loop::{ControlFlow, EventLoop};
 use std::any::{type_name, TypeId};
 use std::mem;
+use crate::core::profiler::*;
 
 /// An [`App`](App) extension.
 pub trait AppExtension: 'static {
@@ -271,8 +272,6 @@ impl<E: AppExtension> AppExtended<E> {
     /// Runs the application event loop calling `start` once at the beginning.
     #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
-        use crate::core::profiler::*;
-
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
@@ -337,7 +336,7 @@ impl<E: AppExtension> AppExtended<E> {
                 _ => {}
             }
 
-            let mut limit = 100_000;
+            let mut limit = UPDATE_LIMIT;
             loop {
                 let (mut update, display) = owned_ctx.apply_updates();
                 update |= mem::take(&mut event_update);
@@ -358,7 +357,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 limit -= 1;
                 if limit == 0 {
-                    panic!("immediate update loop reached limit of `100_000` repeats")
+                    panic!("immediate update loop reached limit of `{}` repeats", UPDATE_LIMIT)
                 }
             }
 
@@ -372,17 +371,22 @@ impl<E: AppExtension> AppExtended<E> {
 
     /// Initializes extensions in headless mode and returns an [`AppHeadless`](AppHeadless).
     #[inline]
-    pub fn run_headless(self) -> AppHeadless<E> {
+    pub fn run_headless(self) -> HeadlessApp<E> {
         #[cfg(feature = "app_profiler")]
-        crate::core::profiler::register_thread_with_profiler();
+        register_thread_with_profiler();
 
         #[cfg(feature = "app_profiler")]
-        let profile_scope = crate::core::profiler::ProfileScope::new("app::run_headless");
+        let profile_scope = ProfileScope::new("app::run_headless");
 
         let mut owned_ctx = OwnedAppContext::new_headless();
 
         let mut extensions = self.extensions;
-        AppHeadless {
+
+        let mut init_ctx = owned_ctx.borrow_init();
+        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
+        extensions.init(&mut init_ctx);
+
+        HeadlessApp {
             extensions,
             owned_ctx,
 
@@ -392,6 +396,8 @@ impl<E: AppExtension> AppExtended<E> {
     }
 }
 
+const UPDATE_LIMIT: u32 = 100_000;
+
 #[derive(Debug)]
 pub enum AppEvent {
     NewFrameReady(WindowId),
@@ -399,14 +405,14 @@ pub enum AppEvent {
 }
 
 /// A headless app controller.
-pub struct AppHeadless<E: AppExtension> {
+pub struct HeadlessApp<E: AppExtension> {
     extensions: E,
     owned_ctx: OwnedAppContext,
     #[cfg(feature = "app_profiler")]
-    profile_scope: crate::core::profiler::ProfileScope,
+    profile_scope: ProfileScope,
 }
 
-impl<E: AppExtension> AppHeadless<E> {
+impl<E: AppExtension> HeadlessApp<E> {
     /// Headless state.
     pub fn state(&self) -> &StateMap {
         self.owned_ctx.headless_state().unwrap()
@@ -419,18 +425,73 @@ impl<E: AppExtension> AppHeadless<E> {
 
     /// If headless rendering is enabled.
     pub fn render_enabled(&self) -> bool {
-        self.state().get(EnableHeadlessRender).copied().unwrap_or_default()
+        self.state().get(HeadlessRenderEnabled).copied().unwrap_or_default()
     }
 
     /// Enable or disable headless rendering.
     ///
-    /// This sets the [`EnableHeadlessRender`](EnableHeadlessRender) state.
+    /// This sets the [`HeadlessRenderEnabled`](HeadlessRenderEnabled) state.
     pub fn enable_render(&mut self, enabled: bool) {
-        self.state_mut().set(EnableHeadlessRender, enabled);
+        self.state_mut().set(HeadlessRenderEnabled, enabled);
+    }
+
+    /// Notifies extensions of a device event.
+    pub fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent) {
+        profile_scope!("headless_app::on_device_event");
+        self.extensions.on_device_event(device_id, event, &mut self.owned_ctx.borrow_headless());
+    }
+
+    /// Notifies extensions of a window event.
+    pub fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent) {
+        profile_scope!("headless_app::on_device_event");
+        self.extensions.on_window_event(window_id, event, &mut self.owned_ctx.borrow_headless());
+    }
+
+    /// Runs a custom action in the headless app context.
+    pub fn with_context(&mut self, action: impl FnOnce(&mut AppContext)) {
+        profile_scope!("headless_app::with_context");
+        action(&mut self.owned_ctx.borrow_headless())
+    }
+
+    /// Does updates after events and custom actions.
+    pub fn update(&mut self) -> ControlFlow {
+        let mut event_update = self.owned_ctx.take_request();
+        let mut sequence_update = UpdateDisplayRequest::None;
+
+        let mut limit = UPDATE_LIMIT;
+        loop {
+            let (mut update, display) = self.owned_ctx.apply_updates();
+            update |= mem::take(&mut event_update);
+            sequence_update |= display;
+
+            if update.update || update.update_hp {
+                profile_scope!("headless_app::update");
+                let mut ctx = self.owned_ctx.borrow_headless();
+                let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
+                if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
+                    return ControlFlow::Exit;
+                }
+                self.extensions.update(update, &mut ctx);
+            } else {
+                break;
+            }
+
+            limit -= 1;
+            if limit == 0 {
+                panic!("immediate update loop reached limit of `{}` repeats", UPDATE_LIMIT)
+            }
+        }
+
+        if sequence_update.is_some() {
+            profile_scope!("headless_app::update_display");
+            self.extensions.update_display(sequence_update, &mut self.owned_ctx.borrow_headless());
+        }
+
+        ControlFlow::Wait
     }
 }
 
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
-    pub struct EnableHeadlessRender: bool;
+    pub struct HeadlessRenderEnabled: bool;
 }
