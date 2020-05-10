@@ -545,8 +545,8 @@ impl Windows {
         }
     }
 
-    /// Requests closing multi-windows together, the operation can be canceled by listeners of the [`WindowCloseRequested`](WindowCloseRequested) event.
-    /// If canceled none of the windows are closed.
+    /// Requests closing multiple windows together, the operation can be canceled by listeners of the 
+    /// [`WindowCloseRequested`](WindowCloseRequested) event. If canceled none of the windows are closed.
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close_together(
@@ -614,7 +614,7 @@ impl RenderNotifier for Notifier {
     fn wake_up(&self) {}
 
     fn new_frame_ready(&self, _: DocumentId, _scrolled: bool, _composite_needed: bool, _: Option<u64>) {
-        let _ = self.event_loop.send_event(AppEvent::NewFrameReady(self.window_id));
+        self.event_loop.send_event(AppEvent::NewFrameReady(self.window_id));
     }
 }
 
