@@ -3,3 +3,4 @@
 app_profile.json
 **/*.expanded.rs
 dump.rs
+screenshot.png

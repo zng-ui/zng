@@ -16,7 +16,7 @@ use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::num::NonZeroU16;
 use std::sync::Arc;
-use std::time::Instant;
+use std::{rc::Rc, time::Instant};
 use webrender::api::*;
 
 event_args! {
@@ -612,6 +612,16 @@ impl<'a> RunningWindow<'a> {
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
         self.0.hit_test(point)
     }
+
+    /// Take a screenshot.
+    pub fn screenshot(&self, rect: LayoutRect) -> (image::RgbImage, image::jpeg::PixelDensity) {
+        self.0.screenshot(rect)
+    }
+
+    /// Current inner size.
+    pub fn size(&self) -> LayoutSize {
+        self.0.size()
+    }
 }
 
 #[derive(Clone)]
@@ -641,6 +651,7 @@ fn layout_size(gl_ctx: &Option<WindowedContext<NotCurrent>>) -> LayoutSize {
 }
 
 struct GlWindow {
+    gl: Rc<dyn gl::Gl>,
     gl_ctx: Option<WindowedContext<NotCurrent>>,
     ctx: Option<OwnedWindowContext>,
 
@@ -717,6 +728,7 @@ impl GlWindow {
         let (state, services) = ctx.new_window(window_id, &api);
 
         GlWindow {
+            gl,
             gl_ctx: Some(unsafe { context.make_not_current().unwrap() }),
             renderer: Some(renderer),
             pipeline_id: PipelineId(1, 0),
@@ -743,7 +755,6 @@ impl GlWindow {
 
     /// Window id.
     pub fn id(&self) -> WindowId {
-        // this method is required for [win_profile_scope!] to work with [`GlWindow`](GlWindow) and [`OwnedWindowContext`](OwnedWindowContext).
         self.gl_ctx.as_ref().unwrap().window().id()
     }
 
@@ -935,8 +946,60 @@ impl GlWindow {
         &self.frame_info
     }
 
+    /// Current DPI scale.
     pub fn dpi_scale(&self) -> f32 {
         self.gl_ctx.as_ref().unwrap().window().scale_factor() as f32
+    }
+
+    /// Take a screenshot.
+    pub fn screenshot(&self, rect: LayoutRect) -> (image::RgbImage, image::jpeg::PixelDensity) {
+        // calculate intersection with window in physical pixels.
+        let (x, y, width, height, dpi) = {
+            let window = self.gl_ctx.as_ref().unwrap().window();
+            let dpi = window.scale_factor() as f32;
+            let max_size = window.inner_size();
+            let max_rect = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(max_size.width as f32, max_size.height as f32));
+            let rect = rect * euclid::Scale::new(dpi);
+            let rect = rect.intersection(&max_rect).unwrap_or_default();
+            (
+                rect.origin.x as u32,
+                // read_pixels (0, 0) is the lower left corner.
+                (max_rect.size.height - rect.origin.y - rect.size.height).max(0.0) as u32,
+                rect.size.width as u32,
+                rect.size.height as u32,
+                dpi,
+            )
+        };
+
+        //println!("screenshot x:{} y:{} w:{} h:{}", x, y, width, height);
+
+        let dpi = image::jpeg::PixelDensity::dpi((96f32 * dpi) as u16);
+
+        if width == 0 || height == 0 {
+            return (image::RgbImage::new(0, 0), dpi);
+        }
+
+        //let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
+
+        let pixels = self
+            .gl
+            .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
+
+        //self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
+
+        let mut pixels_flipped = Vec::with_capacity(pixels.len());
+        for v in (0..height as _).rev() {
+            let s = 3 * v as usize * width as usize;
+            let o = 3 * width as usize;
+            pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
+        }
+
+        (image::RgbImage::from_raw(width, height, pixels_flipped).unwrap(), dpi)
+    }
+
+    /// Inner size
+    pub fn size(&self) -> LayoutSize {
+        layout_size(&self.gl_ctx)
     }
 }
 
