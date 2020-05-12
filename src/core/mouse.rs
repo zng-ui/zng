@@ -199,7 +199,7 @@ impl Event for MouseEnter {
     type Args = MouseHoverArgs;
 }
 
-/// Mouse leaves a widget are event.
+/// Mouse leaves a widget area event.
 pub struct MouseLeave;
 impl Event for MouseLeave {
     type Args = MouseHoverArgs;
@@ -436,12 +436,12 @@ impl MouseEvents {
 
             let hits_set: HashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
             let entered_set: HashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
-            let leaved_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
+            let left_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
 
             self.hovered_targets = hits_set;
 
-            if !leaved_set.is_empty() {
-                let args = MouseHoverArgs::now(window_id, device_id, position, leaved_set);
+            if !left_set.is_empty() {
+                let args = MouseHoverArgs::now(window_id, device_id, position, left_set);
                 ctx.updates.push_notify(self.mouse_leave.clone(), args);
             }
 
@@ -452,6 +452,14 @@ impl MouseEvents {
 
             let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
             ctx.updates.push_notify(self.mouse_move.clone(), args);
+        }
+    }
+
+    fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
+        if !self.hovered_targets.is_empty() {
+            let left_set = std::mem::take(&mut self.hovered_targets);
+            let args =  MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
+            ctx.updates.push_notify(self.mouse_leave.clone(), args);
         }
     }
 }
@@ -480,6 +488,7 @@ impl AppExtension for MouseEvents {
                 state, device_id, button, ..
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::ModifiersChanged(m) => self.modifiers = m,
+            WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
             _ => {}
         }
     }
