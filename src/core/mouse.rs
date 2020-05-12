@@ -458,7 +458,7 @@ impl MouseEvents {
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if !self.hovered_targets.is_empty() {
             let left_set = std::mem::take(&mut self.hovered_targets);
-            let args =  MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
+            let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
             ctx.updates.push_notify(self.mouse_leave.clone(), args);
         }
     }

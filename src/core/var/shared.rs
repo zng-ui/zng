@@ -138,11 +138,16 @@ impl<T: VarValue> Var<T> for SharedVar<T> {
         M: FnMut(&T) -> O + 'static,
         O: VarValue,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.r.version.get().wrapping_sub(1),
-        )))
+        self.clone().into_map(map)
+    }
+
+    fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
+        let prev_version = self.r.version.get().wrapping_sub(1);
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, prev_version)))
     }
 
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
@@ -445,11 +450,16 @@ where
         O2: VarValue,
         M2: FnMut(&O) -> O2,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.r.output_version.get().wrapping_sub(1),
-        )))
+        self.clone().into_map(map)
+    }
+
+    fn into_map<O2, M2>(self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
+        let prev_version = self.r.output_version.get().wrapping_sub(1);
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, prev_version)))
     }
 
     fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
@@ -505,11 +515,16 @@ where
         O2: VarValue,
         M2: FnMut(&O) -> O2,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.r.output_version.get().wrapping_sub(1),
-        )))
+        self.clone().into_map(map)
+    }
+
+    fn into_map<O2, M2>(self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
+        let prev_version = self.r.output_version.get().wrapping_sub(1);
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, prev_version)))
     }
 
     fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>

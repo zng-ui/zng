@@ -135,10 +135,15 @@ macro_rules! impl_merge_vars {
             type AsLocal = CloningLocalVar<O, Self>;
 
             fn map<O2: VarValue, M2: FnMut(&O) -> O2>(&self, map: M2) -> MapVar<O, Self, O2, M2> {
+                self.clone().into_map(map)
+            }
+
+            fn into_map<O2: VarValue, M2: FnMut(&O) -> O2>(self, map: M2) -> MapVar<O, Self, O2, M2> {
+                let prev_version = self.r.version.get().wrapping_sub(1);
                 MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-                    self.clone(),
+                    self,
                     map,
-                    self.r.version.get().wrapping_sub(1),
+                    prev_version,
                 )))
             }
 

@@ -207,7 +207,7 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
                 // ex.: when self.is_pressed {}
                 quote_spanned!(new_name.span()=>  #[allow(clippy::let_and_return)]let r = #new_name;r)
             } else {
-                quote_spanned!(condition_span=> #crate_::core::var::Var::map(&#new_name, |#new_name|{
+                quote_spanned!(condition_span=> #crate_::core::var::Var::into_map(#new_name, |#new_name|{
                     #condition
                 }))
             }

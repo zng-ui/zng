@@ -61,7 +61,15 @@ impl<T: VarValue, V: ContextVar<Type = T>> Var<T> for ContextVarImpl<V> {
         M: FnMut(&T) -> O + 'static,
         O: VarValue,
     {
-        MapVar::new(MapVarInner::Context(MapContextVar::new(*self, map)))
+        self.into_map(map)
+    }
+
+    fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
+        MapVar::new(MapVarInner::Context(MapContextVar::new(self, map)))
     }
 
     fn map_bidi<O, M, N>(&self, map: M, _: N) -> MapVarBiDi<T, Self, O, M, N>
@@ -214,6 +222,14 @@ where
     type AsLocal = CloningLocalVar<O, Self>;
 
     fn map<O2, M2>(&self, _map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
+        todo!("when GATs are stable")
+    }
+
+    fn into_map<O2, M2>(self, _map: M2) -> MapVar<O, Self, O2, M2>
     where
         O2: VarValue,
         M2: FnMut(&O) -> O2,

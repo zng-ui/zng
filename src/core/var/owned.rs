@@ -42,6 +42,14 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         MapVar::new(MapVarInner::Owned(Rc::new(OwnedVar(map(&self.0)))))
     }
 
+    fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
+        self.map(map)
+    }
+
     fn map_bidi<O, M, N>(&self, mut map: M, _: N) -> MapVarBiDi<T, Self, O, M, N>
     where
         M: FnMut(&T) -> O + 'static,

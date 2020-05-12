@@ -291,8 +291,16 @@ where
         O2: VarValue,
         M2: FnMut(&O) -> O2,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self.clone(), map, 0)))
+        self.clone().into_map(map)
         // TODO prev_version?
+    }
+
+    fn into_map<O2, M2>(self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, 0)))
     }
 
     fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>
@@ -337,8 +345,16 @@ where
         O2: VarValue,
         M2: FnMut(&O) -> O2,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self.clone(), map, 0)))
+        self.clone().into_map(map)
         // TODO prev_version?
+    }
+
+    fn into_map<O2, M2>(self, map: M2) -> MapVar<O, Self, O2, M2>
+    where
+        O2: VarValue,
+        M2: FnMut(&O) -> O2,
+    {
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, 0)))
     }
 
     fn map_bidi<O2, M2, N2>(&self, map: M2, map_back: N2) -> MapVarBiDi<O, Self, O2, M2, N2>

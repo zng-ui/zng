@@ -65,11 +65,16 @@ impl<T: VarValue, V: Var<T>> Var<T> for ReadOnlyVar<T, V> {
         M: FnMut(&T) -> O + 'static,
         O: VarValue,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.var.read_only_prev_version(),
-        )))
+        self.clone().into_map(map)
+    }
+
+    fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
+        let prev_version = self.var.read_only_prev_version();
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, prev_version)))
     }
 
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>

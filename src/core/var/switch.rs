@@ -166,10 +166,19 @@ macro_rules! impl_switch_vars {
                 M: FnMut(&T) -> O + 'static,
                 O: VarValue,
             {
+                self.clone().into_map(map)
+            }
+
+            fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+            where
+                M: FnMut(&T) -> O + 'static,
+                O: VarValue,
+            {
+                let prev_version = self.r.version.get().wrapping_sub(1);
                 MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-                    self.clone(),
+                    self,
                     map,
-                    self.r.version.get().wrapping_sub(1),
+                    prev_version,
                 )))
             }
 
@@ -404,11 +413,16 @@ impl<I: Var<usize>, T: VarValue> Var<T> for SwitchVarDyn<I, T> {
         M: FnMut(&T) -> O + 'static,
         O: VarValue,
     {
-        MapVar::new(MapVarInner::Shared(MapSharedVar::new(
-            self.clone(),
-            map,
-            self.r.version.get().wrapping_sub(1),
-        )))
+        self.clone().into_map(map)
+    }
+
+    fn into_map<O, M>(self, map: M) -> MapVar<T, Self, O, M>
+    where
+        M: FnMut(&T) -> O + 'static,
+        O: VarValue,
+    {
+        let prev_version = self.r.version.get().wrapping_sub(1);
+        MapVar::new(MapVarInner::Shared(MapSharedVar::new(self, map, prev_version)))
     }
 
     fn map_bidi<O, M, N>(&self, map: M, map_back: N) -> MapVarBiDi<T, Self, O, M, N>
