@@ -15,8 +15,8 @@ use glutin::{Api, ContextBuilder, GlRequest};
 use glutin::{NotCurrent, WindowedContext};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::num::NonZeroU16;
+use std::rc::Rc;
 use std::sync::Arc;
-use std::{rc::Rc, time::Instant};
 use webrender::api::*;
 
 event_args! {
@@ -201,10 +201,7 @@ impl WindowManager {
                 Arc::clone(&self.ui_threads),
             );
 
-            let args = WindowEventArgs {
-                timestamp: Instant::now(),
-                window_id: w.id(),
-            };
+            let args = WindowEventArgs::now(w.id());
 
             let mut w_ctx = w.detach_context();
             ctx.services.req::<Windows>().windows.insert(args.window_id, w);
@@ -534,6 +531,14 @@ impl Windows {
         }
     }
 
+    /// Captures a `rect` of the current frame of the window.
+    pub fn screenshot(&mut self, window_id: WindowId, rect: LayoutRect) -> Result<ScreenshotData, WindowNotFound> {
+        self.windows
+            .get_mut(&window_id)
+            .map(|w| w.screenshot(rect))
+            .ok_or(WindowNotFound(window_id))
+    }
+
     fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
         self.close_requests.insert(window_id, set);
         use std::collections::hash_map::Entry::*;
@@ -611,11 +616,6 @@ impl<'a> RunningWindow<'a> {
     #[inline]
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
         self.0.hit_test(point)
-    }
-
-    /// Take a screenshot.
-    pub fn screenshot(&self, rect: LayoutRect) -> (image::RgbImage, image::jpeg::PixelDensity) {
-        self.0.screenshot(rect)
     }
 
     /// Current inner size.
@@ -952,7 +952,7 @@ impl GlWindow {
     }
 
     /// Take a screenshot.
-    pub fn screenshot(&self, rect: LayoutRect) -> (image::RgbImage, image::jpeg::PixelDensity) {
+    pub fn screenshot(&mut self, rect: LayoutRect) -> ScreenshotData {
         // calculate intersection with window in physical pixels.
         let (x, y, width, height, dpi) = {
             let window = self.gl_ctx.as_ref().unwrap().window();
@@ -971,21 +971,30 @@ impl GlWindow {
             )
         };
 
-        //println!("screenshot x:{} y:{} w:{} h:{}", x, y, width, height);
-
-        let dpi = image::jpeg::PixelDensity::dpi((96f32 * dpi) as u16);
-
         if width == 0 || height == 0 {
-            return (image::RgbImage::new(0, 0), dpi);
+            return ScreenshotData {
+                pixels: vec![],
+                width,
+                height,
+                dpi,
+            };
         }
 
-        //let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
+        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
+        context.swap_buffers().ok();
 
         let pixels = self
             .gl
             .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
 
-        //self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
+        context.swap_buffers().ok();
+
+        let error = self.gl.get_error();
+        if error != gl::NO_ERROR {
+            panic!("read_pixels error: {:#x}", error)
+        }
+
+        self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
 
         let mut pixels_flipped = Vec::with_capacity(pixels.len());
         for v in (0..height as _).rev() {
@@ -994,12 +1003,30 @@ impl GlWindow {
             pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
         }
 
-        (image::RgbImage::from_raw(width, height, pixels_flipped).unwrap(), dpi)
+        ScreenshotData {
+            pixels: pixels_flipped,
+            width,
+            height,
+            dpi,
+        }
     }
 
     /// Inner size
     pub fn size(&self) -> LayoutSize {
         layout_size(&self.gl_ctx)
+    }
+}
+
+pub struct ScreenshotData {
+    /// RGB8
+    pub pixels: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+    pub dpi: f32,
+}
+impl ScreenshotData {
+    pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
+        image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgb8)
     }
 }
 

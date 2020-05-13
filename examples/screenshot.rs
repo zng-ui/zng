@@ -10,7 +10,7 @@ fn main() {
         window! {
             title: "Screenshot Example";
             => button! {
-                on_click:|a| take_screenshot(a.ctx());
+                on_click: |a|take_screenshot(a.ctx());
                 align: Alignment::CENTER;
 
                 => text("Window screenshot")
@@ -20,7 +20,8 @@ fn main() {
 }
 
 fn take_screenshot(ctx: &mut WidgetContext) {
-    let window = ctx.services.req::<Windows>().window(ctx.window_id).unwrap();
-    let (img, _dpi) = window.screenshot(LayoutRect::from_size(window.size()));
+    let windows = ctx.services.req::<Windows>();
+    let size = windows.window(ctx.window_id).unwrap().size();
+    let img = windows.screenshot(ctx.window_id, LayoutRect::from_size(size)).unwrap();
     img.save("screenshot.png").unwrap();
 }

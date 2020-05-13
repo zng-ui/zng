@@ -531,7 +531,7 @@ impl<E: AppExtension> AppExtended<E> {
             owned_ctx,
 
             #[cfg(feature = "app_profiler")]
-            profile_scope,
+            _pf: profile_scope,
         }
     }
 }
@@ -550,7 +550,7 @@ pub struct HeadlessApp<E: AppExtension> {
     extensions: E,
     owned_ctx: OwnedAppContext,
     #[cfg(feature = "app_profiler")]
-    profile_scope: ProfileScope,
+    _pf: ProfileScope,
 }
 
 impl<E: AppExtension> HeadlessApp<E> {
