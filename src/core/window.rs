@@ -1,23 +1,71 @@
-use crate::core::app::{AppEvent, AppExtended, AppExtension, AppProcess, EventLoopProxy, ShutdownRequestedArgs};
-use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::profiler::profile_scope;
-use crate::core::render::{FrameBuilder, FrameHitInfo, FrameInfo};
-use crate::core::types::*;
-use crate::core::var::*;
-use crate::core::UiNode;
+use super::event::{cancelable_event_args, event_args, CancelableEvent, CancelableEventArgs, Event, EventEmitter, EventListener};
+use super::profiler::profile_scope;
+use super::{
+    app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
+    context::{
+        AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Vars, WidgetContext,
+        WindowServices, WindowState,
+    },
+    render::{FrameBuilder, FrameHitInfo, FrameInfo},
+    types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, Text, WidgetId, WindowEvent, WindowId},
+    var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
+    UiNode,
+};
+use app::{AppExtended, AppExtension, AppProcess};
 use fnv::FnvHashMap;
 use gleam::gl;
-use glutin::dpi::LogicalSize;
-use glutin::event_loop::EventLoopWindowTarget;
-use glutin::window::WindowBuilder;
-use glutin::{Api, ContextBuilder, GlRequest};
-use glutin::{NotCurrent, WindowedContext};
+use glutin::{
+    dpi::LogicalSize as WLogicalSize,
+    window::{Window as GlutinWindow, WindowBuilder},
+    Api, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
+};
 use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::cell::RefCell;
 use std::num::NonZeroU16;
-use std::rc::Rc;
-use std::sync::Arc;
-use webrender::api::*;
+use std::{mem, rc::Rc, sync::Arc};
+use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
+
+type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
+type CloseTogetherGroup = Option<NonZeroU16>;
+
+/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`](AppExtended)
+pub trait AppRunWindow {
+    /// Runs the application event loop and requests a new window.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zero_ui::prelude::*;
+    ///
+    /// App::default().run_window(|_| {
+    ///     window! {
+    ///         => text("Window 1")
+    ///     }
+    /// })   
+    /// ```
+    ///
+    /// Which is a shortcut for:
+    /// ```no_run
+    /// use zero_ui::prelude::*;
+    ///
+    /// App::default().run(|ctx| {
+    ///     ctx.services.req::<Windows>().open(|_| {
+    ///         window! {
+    ///             => text("Window 1")
+    ///         }
+    ///     });
+    /// })   
+    /// ```
+    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static);
+}
+
+impl<E: AppExtension> AppRunWindow for AppExtended<E> {
+    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static) {
+        self.run(|ctx| {
+            ctx.services.req::<Windows>().open(new_window);
+        })
+    }
+}
 
 event_args! {
     /// [`WindowOpen`](WindowOpen), [`WindowClose`](WindowClose) event args.
@@ -186,6 +234,116 @@ impl Default for WindowManager {
     }
 }
 
+impl AppExtension for WindowManager {
+    fn init(&mut self, r: &mut AppInitContext) {
+        self.event_loop_proxy = Some(r.event_loop.clone());
+        r.services.register(Windows::new(r.updates.notifier().clone()));
+        r.events.register::<WindowOpen>(self.window_open.listener());
+        r.events.register::<WindowResize>(self.window_resize.listener());
+        r.events.register::<WindowMove>(self.window_move.listener());
+        r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
+        r.events.register::<WindowCloseRequested>(self.window_closing.listener());
+        r.events.register::<WindowClose>(self.window_close.listener());
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        match event {
+            WindowEvent::Resized(_) => {
+                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    let new_size = window.size();
+                    ctx.updates.push_layout();
+                    window.expect_layout_update();
+                    window.resize_next_render();
+                    // raise window_resize
+                    ctx.updates
+                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
+
+                    // set the window size variable if it is not read-only.
+                    let _ = ctx.updates.push_set(&window.wn_ctx.borrow().root.size, new_size, ctx.vars);
+                }
+            }
+            WindowEvent::Moved(new_position) => {
+                let new_position = LayoutPoint::new(new_position.x as f32, new_position.y as f32);
+                ctx.updates
+                    .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
+            }
+            WindowEvent::CloseRequested => {
+                let wins = ctx.services.req::<Windows>();
+                if wins.windows.contains_key(&window_id) {
+                    wins.close_requests.insert(window_id, None);
+                    ctx.updates.push_update();
+                }
+            }
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    ctx.updates.push_layout();
+                    window.expect_layout_update();
+
+                    ctx.updates.push_notify(
+                        self.window_scale_changed.clone(),
+                        WindowScaleChangedArgs::now(window_id, *scale_factor as f32, window.size()),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        self.update_open_close(ctx);
+        self.update_pump(update, ctx);
+        self.update_closing(update, ctx);
+        self.update_close(update, ctx);
+    }
+
+    fn update_display(&mut self, _: UpdateDisplayRequest, ctx: &mut AppContext) {
+        // Pump layout and render in all windows.
+        // The windows don't do an update unless they recorded
+        // an update request for layout or render.
+        for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
+            window.layout();
+            window.render();
+        }
+    }
+
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+            window.request_redraw();
+        }
+    }
+
+    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+            window.redraw();
+        }
+    }
+
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        if !args.cancel_requested() {
+            let service = ctx.services.req::<Windows>();
+            if service.shutdown_on_last_close {
+                let windows: Vec<WindowId> = service.windows.keys().copied().collect();
+                if !windows.is_empty() {
+                    args.cancel();
+                    service.close_together(windows).unwrap();
+                }
+            }
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        let windows = mem::take(&mut ctx.services.req::<Windows>().windows);
+        for (id, window) in windows {
+            {
+                let mut w_ctx = window.wn_ctx.borrow_mut();
+                error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get_local());
+                w_ctx.deinit(ctx);
+            }
+            window.deinit();
+        }
+    }
+}
+
 impl WindowManager {
     /// Respond to open/close requests.
     fn update_open_close(&mut self, ctx: &mut AppContext) {
@@ -193,25 +351,20 @@ impl WindowManager {
         let (open, close) = ctx.services.req::<Windows>().take_requests();
 
         for request in open {
-            let mut w = GlWindow::new(
+            let w = OpenWindow::new(
                 request.new,
                 ctx,
-                ctx.event_loop.headed_target().unwrap(),
+                ctx.event_loop,
                 self.event_loop_proxy.as_ref().unwrap().clone(),
                 Arc::clone(&self.ui_threads),
             );
 
             let args = WindowEventArgs::now(w.id());
 
-            let mut w_ctx = w.detach_context();
+            let wn_ctx = w.wn_ctx.clone();
+            let mut wn_ctx = wn_ctx.borrow_mut();
             ctx.services.req::<Windows>().windows.insert(args.window_id, w);
-            w_ctx.init(ctx);
-            ctx.services
-                .req::<Windows>()
-                .windows
-                .get_mut(&args.window_id)
-                .unwrap()
-                .attach_context(w_ctx);
+            wn_ctx.init(ctx);
 
             // notify the window requester
             ctx.updates.push_notify(request.notifier, args.clone());
@@ -230,40 +383,32 @@ impl WindowManager {
     fn update_pump(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update_hp || update.update {
             // detach context part so we can let a window content access its own window.
-            let mut w_ctxs: Vec<_> = ctx
+            let mut wn_ctxs: Vec<_> = ctx
                 .services
                 .req::<Windows>()
                 .windows
                 .iter_mut()
-                .map(|(_, w)| w.detach_context())
+                .map(|(_, w)| w.wn_ctx.clone())
                 .collect();
 
             // high-pressure pump.
             if update.update_hp {
-                for w_ctx in w_ctxs.iter_mut() {
-                    w_ctx.update_hp(ctx);
+                for wn_ctx in wn_ctxs.iter_mut() {
+                    wn_ctx.borrow_mut().update_hp(ctx);
                 }
             }
 
             // low-pressure pump.
             if update.update {
-                for w_ctx in w_ctxs.iter_mut() {
-                    w_ctx.update(ctx);
-                }
-            }
-
-            // reattach context parts.
-            {
-                let service = ctx.services.req::<Windows>();
-                for w_ctx in w_ctxs {
-                    service.windows.get_mut(&w_ctx.id()).unwrap().attach_context(w_ctx);
+                for wn_ctx in wn_ctxs.iter_mut() {
+                    wn_ctx.borrow_mut().update(ctx);
                 }
             }
 
             // do window vars update.
             if update.update {
                 for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-                    window.update(ctx.vars);
+                    window.update_window_vars(ctx.vars);
                 }
             }
         }
@@ -319,8 +464,8 @@ impl WindowManager {
         }
 
         for close in self.window_close.updates(ctx.events) {
-            if let Some(mut w) = ctx.services.req::<Windows>().windows.remove(&close.window_id) {
-                w.detach_context().deinit(ctx);
+            if let Some(w) = ctx.services.req::<Windows>().windows.remove(&close.window_id) {
+                w.wn_ctx.clone().borrow_mut().deinit(ctx);
                 w.deinit();
             }
         }
@@ -332,154 +477,17 @@ impl WindowManager {
     }
 }
 
-impl AppExtension for WindowManager {
-    fn init(&mut self, r: &mut AppInitContext) {
-        self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.notifier().clone()));
-        r.events.register::<WindowOpen>(self.window_open.listener());
-        r.events.register::<WindowResize>(self.window_resize.listener());
-        r.events.register::<WindowMove>(self.window_move.listener());
-        r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
-        r.events.register::<WindowCloseRequested>(self.window_closing.listener());
-        r.events.register::<WindowClose>(self.window_close.listener());
-    }
-
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
-        match event {
-            WindowEvent::Resized(_) => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-                    if let Some(new_size) = window.new_size() {
-                        ctx.updates.push_layout();
-                        window.expect_layout_update();
-
-                        // raise window_resize
-                        ctx.updates
-                            .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
-
-                        // set the window size variable if it is not read-only.
-                        let _ = ctx.updates.push_set(&window.ctx().root.size, new_size, ctx.vars);
-                    }
-                }
-            }
-            WindowEvent::Moved(new_position) => {
-                let new_position = LayoutPoint::new(new_position.x as f32, new_position.y as f32);
-                ctx.updates
-                    .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
-            }
-            WindowEvent::CloseRequested => {
-                let wins = ctx.services.req::<Windows>();
-                if wins.windows.contains_key(&window_id) {
-                    wins.close_requests.insert(window_id, None);
-                    ctx.updates.push_update();
-                }
-            }
-            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-                    ctx.updates.push_layout();
-                    window.expect_layout_update();
-
-                    ctx.updates.push_notify(
-                        self.window_scale_changed.clone(),
-                        WindowScaleChangedArgs::now(window_id, *scale_factor as f32, layout_size(&window.gl_ctx)),
-                    );
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-            window.request_redraw();
-        }
-    }
-
-    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-            window.redraw();
-        }
-    }
-
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        self.update_open_close(ctx);
-        self.update_pump(update, ctx);
-        self.update_closing(update, ctx);
-        self.update_close(update, ctx);
-    }
-
-    fn update_display(&mut self, _: UpdateDisplayRequest, ctx: &mut AppContext) {
-        // Pump layout and render in all windows.
-        // The windows don't do an update unless they recorded
-        // an update request for layout or render.
-        for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-            window.layout();
-            window.render();
-        }
-    }
-
-    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
-        if !args.cancel_requested() {
-            let service = ctx.services.req::<Windows>();
-            if service.shutdown_on_last_close {
-                let windows: Vec<WindowId> = service.windows.keys().copied().collect();
-                if !windows.is_empty() {
-                    args.cancel();
-                    service.close_together(windows).unwrap();
-                }
-            }
-        }
-    }
-
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        let windows = std::mem::take(&mut ctx.services.req::<Windows>().windows);
-        for (id, mut window) in windows {
-            let w_ctx = window.detach_context();
-            error_println!("dropping `{:?} ({})` without closing events", id, w_ctx.root.title.get_local());
-            w_ctx.deinit(ctx);
-            window.deinit();
-        }
-    }
-}
-
-struct OpenWindowRequest {
-    new: Box<dyn FnOnce(&AppContext) -> Window>,
-    notifier: EventEmitter<WindowEventArgs>,
-}
-
-/// Response message of [`Windows::close`](Windows::close) and [`Windows::close_together`](Windows::close_together).
-#[derive(Debug)]
-pub enum CloseWindowResult {
-    /// Notifying [`WindowClose`](WindowClose).
-    Close,
-
-    /// [`WindowCloseRequested`](WindowCloseRequested) canceled.
-    Cancel,
-}
-
-/// Window not found error.
-#[derive(Debug)]
-pub struct WindowNotFound(pub WindowId);
-
-impl std::fmt::Display for WindowNotFound {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "window `{:?}` is not opened in `Windows` service", self.0)
-    }
-}
-
-impl std::error::Error for WindowNotFound {}
-
-type CloseTogetherGroup = Option<NonZeroU16>;
-
 /// Windows service.
 pub struct Windows {
     /// If shutdown is requested when there are no more windows open, `true` by default.
     pub shutdown_on_last_close: bool,
 
+    windows: FnvHashMap<WindowId, OpenWindow>,
+
     open_requests: Vec<OpenWindowRequest>,
     close_requests: FnvHashMap<WindowId, CloseTogetherGroup>,
     next_group: u16,
     close_listeners: FnvHashMap<WindowId, Vec<EventEmitter<CloseWindowResult>>>,
-    windows: FnvHashMap<WindowId, GlWindow>,
     update_notifier: UpdateNotifier,
 }
 
@@ -496,10 +504,6 @@ impl Windows {
             windows: FnvHashMap::default(),
             update_notifier,
         }
-    }
-
-    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashMap<WindowId, CloseTogetherGroup>) {
-        (std::mem::take(&mut self.open_requests), std::mem::take(&mut self.close_requests))
     }
 
     /// Requests a new window. Returns a listener that will update once when the window is opened.
@@ -528,25 +532,6 @@ impl Windows {
             Ok(notice)
         } else {
             Err(WindowNotFound(window_id))
-        }
-    }
-
-    /// Captures a `rect` of the current frame of the window.
-    pub fn screenshot(&mut self, window_id: WindowId, rect: LayoutRect) -> Result<ScreenshotData, WindowNotFound> {
-        self.windows
-            .get_mut(&window_id)
-            .map(|w| w.screenshot(rect))
-            .ok_or(WindowNotFound(window_id))
-    }
-
-    fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
-        self.close_requests.insert(window_id, set);
-        use std::collections::hash_map::Entry::*;
-        match self.close_listeners.entry(window_id) {
-            Vacant(ve) => {
-                ve.insert(vec![notifier]);
-            }
-            Occupied(mut oe) => oe.get_mut().push(notifier),
         }
     }
 
@@ -583,98 +568,107 @@ impl Windows {
         Ok(notifier.into_listener())
     }
 
+    fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
+        self.close_requests.insert(window_id, set);
+        use std::collections::hash_map::Entry::*;
+        match self.close_listeners.entry(window_id) {
+            Vacant(ve) => {
+                ve.insert(vec![notifier]);
+            }
+            Occupied(mut oe) => oe.get_mut().push(notifier),
+        }
+    }
+
     /// Reference a running window.
     #[inline]
-    pub fn window(&self, window_id: WindowId) -> Result<RunningWindow, WindowNotFound> {
-        self.windows.get(&window_id).ok_or(WindowNotFound(window_id)).map(RunningWindow)
+    pub fn window(&self, window_id: WindowId) -> Result<&OpenWindow, WindowNotFound> {
+        self.windows.get(&window_id).ok_or(WindowNotFound(window_id))
+    }
+
+    fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashMap<WindowId, CloseTogetherGroup>) {
+        (mem::take(&mut self.open_requests), mem::take(&mut self.close_requests))
     }
 }
 
-/// Reference to a running window.
-pub struct RunningWindow<'a>(&'a GlWindow);
+struct OpenWindowRequest {
+    new: Box<dyn FnOnce(&AppContext) -> Window>,
+    notifier: EventEmitter<WindowEventArgs>,
+}
 
-impl<'a> RunningWindow<'a> {
-    /// Window id.
-    #[inline]
-    pub fn id(&self) -> WindowId {
-        self.0.id()
-    }
+/// Response message of [`Windows::close`](Windows::close) and [`Windows::close_together`](Windows::close_together).
+#[derive(Debug)]
+pub enum CloseWindowResult {
+    /// Notifying [`WindowClose`](WindowClose).
+    Close,
 
-    /// Current DPI scale.
-    #[inline]
-    pub fn dpi_scale(&self) -> f32 {
-        self.0.dpi_scale()
-    }
+    /// [`WindowCloseRequested`](WindowCloseRequested) canceled.
+    Cancel,
+}
 
-    /// Latest frame info.
-    #[inline]
-    pub fn frame_info(&self) -> &'a FrameInfo {
-        self.0.frame_info()
-    }
+/// Window not found error.
+#[derive(Debug)]
+pub struct WindowNotFound(pub WindowId);
 
-    /// Hit-test the latest frame.
-    #[inline]
-    pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        self.0.hit_test(point)
-    }
-
-    /// Current inner size.
-    pub fn size(&self) -> LayoutSize {
-        self.0.size()
+impl std::fmt::Display for WindowNotFound {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "window `{:?}` is not opened in `Windows` service", self.0)
     }
 }
 
-#[derive(Clone)]
-struct Notifier {
-    window_id: WindowId,
-    event_loop: EventLoopProxy,
+impl std::error::Error for WindowNotFound {}
+
+/// Window configuration.
+pub struct Window {
+    meta: LazyStateMap,
+    id: WidgetId,
+    title: BoxLocalVar<Text>,
+    size: BoxVar<LayoutSize>,
+    background_color: BoxVar<ColorF>,
+    child: Box<dyn UiNode>,
 }
-impl RenderNotifier for Notifier {
-    fn clone(&self) -> Box<dyn RenderNotifier> {
-        Box::new(Clone::clone(self))
+
+impl Window {
+    pub fn new(
+        root_id: WidgetId,
+        title: impl IntoVar<Text>,
+        size: impl IntoVar<LayoutSize>,
+        background_color: impl IntoVar<ColorF>,
+        child: impl UiNode,
+    ) -> Self {
+        Window {
+            meta: LazyStateMap::default(),
+            id: root_id,
+            title: Box::new(title.into_local()),
+            size: size.into_var().boxed(),
+            background_color: background_color.into_var().boxed(),
+            child: child.boxed(),
+        }
     }
-
-    fn wake_up(&self) {}
-
-    fn new_frame_ready(&self, _: DocumentId, _scrolled: bool, _composite_needed: bool, _: Option<u64>) {
-        self.event_loop.send_event(AppEvent::NewFrameReady(self.window_id));
-    }
 }
 
-/// Descaled inner_size
-fn layout_size(gl_ctx: &Option<WindowedContext<NotCurrent>>) -> LayoutSize {
-    let window = gl_ctx.as_ref().unwrap().window();
-    let available_size = window.inner_size();
-    let scale = window.scale_factor();
-    let scale = move |u: u32| ((u as f64) / scale) as f32;
-    LayoutSize::new(scale(available_size.width), scale(available_size.height))
-}
+/// An open window.
+pub struct OpenWindow {
+    gl_ctx: RefCell<GlContext>,
+    wn_ctx: Rc<RefCell<OwnedWindowContext>>,
 
-struct GlWindow {
-    gl: Rc<dyn gl::Gl>,
-    gl_ctx: Option<WindowedContext<NotCurrent>>,
-    ctx: Option<OwnedWindowContext>,
-
-    renderer: Option<webrender::Renderer>,
+    renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    api: Arc<RenderApi>,
 
     first_draw: bool,
     frame_info: FrameInfo,
 
-    size: LayoutSize,
     // document area visible in this window.
     doc_view: units::DeviceIntRect,
     // if [doc_view] changed and no render was called yet.
     doc_view_changed: bool,
 }
 
-impl GlWindow {
-    pub fn new(
+impl OpenWindow {
+    fn new(
         new_window: Box<dyn FnOnce(&AppContext) -> Window>,
         ctx: &mut AppContext,
-        event_loop: &EventLoopWindowTarget<AppEvent>,
+        event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
@@ -685,26 +679,11 @@ impl GlWindow {
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to flickering
             .with_title(root.title.get(ctx.vars).to_owned())
-            .with_inner_size(LogicalSize::<f64>::new(inner_size.width.into(), inner_size.height.into()));
+            .with_inner_size(WLogicalSize::<f64>::new(inner_size.width.into(), inner_size.height.into()));
 
-        let context = ContextBuilder::new()
-            .with_gl(GlRequest::GlThenGles {
-                opengl_version: (3, 2),
-                opengles_version: (3, 0),
-            })
-            .build_windowed(window_builder, &event_loop)
-            .unwrap();
+        let mut gl_ctx = GlContext::new(window_builder, event_loop.headed_target().expect("headless window not implemented"));
 
-        // SAFETY: This is the recommended way of doing it.
-        let context = unsafe { context.make_current().unwrap() };
-
-        let gl = match context.get_api() {
-            Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-            Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
-            Api::WebGl => panic!("WebGl is not supported"),
-        };
-
-        let dpi_factor = context.window().scale_factor() as f32;
+        let dpi_factor = gl_ctx.window().scale_factor() as f32;
 
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
@@ -714,224 +693,66 @@ impl GlWindow {
         };
 
         let notifier = Box::new(Notifier {
-            window_id: context.window().id(),
+            window_id: gl_ctx.window().id(),
             event_loop: event_loop_proxy,
         });
 
         let start_size = inner_size * units::LayoutToDeviceScale::new(dpi_factor);
         let start_size = units::DeviceIntSize::new(start_size.width as i32, start_size.height as i32);
-        let (renderer, sender) = webrender::Renderer::new(gl.clone(), notifier, opts, None, start_size).unwrap();
+        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl().clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
         let document_id = api.add_document(start_size, 0);
 
-        let window_id = context.window().id();
+        let window_id = gl_ctx.window().id();
         let (state, services) = ctx.new_window(window_id, &api);
 
-        GlWindow {
-            gl,
-            gl_ctx: Some(unsafe { context.make_not_current().unwrap() }),
-            renderer: Some(renderer),
-            pipeline_id: PipelineId(1, 0),
-            document_id,
-            frame_info: FrameInfo::blank(window_id, root.id),
-            api: Arc::clone(&api),
+        gl_ctx.make_not_current();
 
-            ctx: Some(OwnedWindowContext {
-                window_id,
+        let frame_info = FrameInfo::blank(window_id, root.id);
+
+        OpenWindow {
+            gl_ctx: RefCell::new(gl_ctx),
+            wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
+                api,
+                root,
                 state,
                 services,
-                root,
-                api,
+                window_id,
                 update: UpdateDisplayRequest::Layout,
-            }),
+            })),
+            renderer: RendererState::Running(renderer),
+            document_id,
+            pipeline_id: PipelineId(1, 0),
 
             first_draw: true,
+            frame_info,
 
-            size: inner_size,
             doc_view: units::DeviceIntRect::from_size(start_size),
             doc_view_changed: false,
         }
     }
 
-    /// Window id.
     pub fn id(&self) -> WindowId {
-        self.gl_ctx.as_ref().unwrap().window().id()
+        self.gl_ctx.borrow().window().id()
     }
 
-    pub fn ctx(&mut self) -> &mut OwnedWindowContext {
-        self.ctx.as_mut().unwrap()
+    /// Size of the window content.
+    pub fn size(&self) -> LayoutSize {
+        let gl_ctx = self.gl_ctx.borrow();
+        let wn = gl_ctx.window();
+        let s = wn.scale_factor() as f32;
+        let p_size = wn.inner_size();
+        LayoutSize::new(p_size.width as f32 / s, p_size.height as f32 / s)
     }
 
-    /// Detaches the part of the window required for updating ui-nodes.
-    pub fn detach_context(&mut self) -> OwnedWindowContext {
-        self.ctx.take().unwrap()
-    }
-
-    /// Reattaches the part of the window required for updating ui-nodes.
-    pub fn attach_context(&mut self, ctx: OwnedWindowContext) {
-        assert_eq!(self.id(), ctx.id());
-        self.ctx = Some(ctx);
-    }
-
-    /// Update window vars.
-    pub fn update(&mut self, vars: &Vars) {
-        profile_scope!("window::update::self");
-
-        let window = self.gl_ctx.as_ref().unwrap().window();
-        let r = &mut self.ctx.as_mut().unwrap().root;
-
-        if let Some(title) = r.title.update_local(vars) {
-            window.set_title(title);
-        }
-    }
-
-    /// Manually flags layout to actually update on the next call.
-    ///
-    /// This is required for updates generated outside of this window but that affect this window.
-    pub fn expect_layout_update(&mut self) {
-        self.ctx.as_mut().unwrap().update |= UpdateDisplayRequest::Layout;
-    }
-
-    fn new_size(&mut self) -> Option<LayoutSize> {
-        let window = self.gl_ctx.as_ref().unwrap().window();
-        let inner_size = window.inner_size();
-        let scale = window.scale_factor();
-        let scale = move |u: u32| ((u as f64) / scale) as f32;
-        let size = LayoutSize::new(scale(inner_size.width), scale(inner_size.height));
-
-        if size != self.size {
-            self.size = size;
-            let device_size = units::DeviceIntSize::new(inner_size.width as i32, inner_size.height as i32);
-            self.doc_view = units::DeviceIntRect::from_size(device_size);
-            self.doc_view_changed = true;
-            Some(size)
-        } else {
-            None
-        }
-    }
-
-    /// Re-flow layout if a layout pass was required. If yes will
-    /// flag a render required.
-    pub fn layout(&mut self) {
-        let ctx = self.ctx.as_mut().unwrap();
-
-        if ctx.update == UpdateDisplayRequest::Layout {
-            profile_scope!("window::layout");
-
-            ctx.update = UpdateDisplayRequest::Render;
-
-            let available_size = layout_size(&self.gl_ctx);
-
-            let desired_size = ctx.root.child.measure(available_size);
-
-            let final_size = desired_size.min(available_size);
-
-            ctx.root.child.arrange(final_size);
-        }
-    }
-
-    /// Render a frame if one was required.
-    pub fn render(&mut self) {
-        let ctx = self.ctx.as_mut().unwrap();
-
-        if ctx.update == UpdateDisplayRequest::Render {
-            profile_scope!("window::render");
-
-            ctx.update = UpdateDisplayRequest::None;
-
-            let frame_id = Epoch({
-                let mut next = self.frame_info.frame_id().0.wrapping_add(1);
-                if next == FrameId::invalid().0 {
-                    next = next.wrapping_add(1);
-                }
-                next
-            });
-
-            let size = layout_size(&self.gl_ctx);
-
-            let mut frame = FrameBuilder::new(frame_id, ctx.id(), self.pipeline_id, ctx.root.id, size);
-
-            ctx.root.child.render(&mut frame);
-
-            let (display_list_data, frame_info) = frame.finalize();
-
-            self.frame_info = frame_info;
-
-            let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, None, size, display_list_data, true);
-            txn.set_root_pipeline(self.pipeline_id);
-
-            if self.doc_view_changed {
-                self.doc_view_changed = false;
-                txn.set_document_view(self.doc_view, self.dpi_scale());
-            }
-
-            txn.generate_frame();
-            self.api.send_transaction(self.document_id, txn);
-        }
-    }
-
-    /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
-    /// from the OS after calling this.
-    pub fn request_redraw(&mut self) {
-        let context = self.gl_ctx.as_ref().unwrap();
-        if self.first_draw {
-            context.window().set_visible(true); // OS generates a RequestRedraw here
-            self.first_draw = false;
-        } else {
-            context.window().request_redraw();
-        }
-    }
-
-    /// Redraws the last ready frame and swaps buffers.
-    ///
-    /// **`swap_buffers` Warning**: if you enabled vsync, this function will block until the
-    /// next time the screen is refreshed. However drivers can choose to
-    /// override your vsync settings, which means that you can't know in
-    /// advance whether `swap_buffers` will block or not.
-    pub fn redraw(&mut self) {
-        profile_scope!("window::redraw");
-
-        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
-
-        let renderer = self.renderer.as_mut().unwrap();
-        renderer.update();
-
-        let size = context.window().inner_size();
-        let device_size = units::DeviceIntSize::new(size.width as i32, size.height as i32);
-
-        renderer.render(device_size).unwrap();
-        let _ = renderer.flush_pipeline_info();
-
-        context.swap_buffers().ok();
-
-        self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
-    }
-
-    /// Deinit renderer and OpenGl context.
-    ///
-    /// # Panics
-    /// If the [`OwnedWindowContext`](OwnedWindowContext) was not already deinit.
-    pub fn deinit(mut self) {
-        assert!(self.ctx.is_none()); // must deinit UiNodes first.
-        self.deinit_renderer();
-    }
-
-    /// Returns `false` if renderer was already dropped.
-    fn deinit_renderer(&mut self) -> bool {
-        if let Some(renderer) = self.renderer.take() {
-            let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
-            renderer.deinit();
-            unsafe { context.make_not_current().unwrap() };
-            true
-        } else {
-            false
-        }
+    /// Scale factor used by this window, all `Layout*` values are already scaled by this value.
+    pub fn dpi_scale(&self) -> f32 {
+        self.gl_ctx.borrow().window().scale_factor() as f32
     }
 
     /// Hit-test the latest frame.
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        let r = self.api.hit_test(
+        let r = self.wn_ctx.borrow().api.hit_test(
             self.document_id,
             Some(self.pipeline_id),
             units::WorldPoint::new(point.x, point.y),
@@ -946,16 +767,18 @@ impl GlWindow {
         &self.frame_info
     }
 
-    /// Current DPI scale.
-    pub fn dpi_scale(&self) -> f32 {
-        self.gl_ctx.as_ref().unwrap().window().scale_factor() as f32
+    /// Take a screenshot of the full window area.
+    pub fn screenshot(&self) -> ScreenshotData {
+        self.screenshot_rect(LayoutRect::from_size(self.size()))
     }
 
-    /// Take a screenshot.
-    pub fn screenshot(&mut self, rect: LayoutRect) -> ScreenshotData {
+    /// Take a screenshot of a window area.
+    pub fn screenshot_rect(&self, rect: LayoutRect) -> ScreenshotData {
+        let mut gl_ctx = self.gl_ctx.borrow_mut();
+
         // calculate intersection with window in physical pixels.
         let (x, y, width, height, dpi) = {
-            let window = self.gl_ctx.as_ref().unwrap().window();
+            let window = gl_ctx.window();
             let dpi = window.scale_factor() as f32;
             let max_size = window.inner_size();
             let max_rect = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(max_size.width as f32, max_size.height as f32));
@@ -980,21 +803,21 @@ impl GlWindow {
             };
         }
 
-        let context = unsafe { self.gl_ctx.take().unwrap().make_current().unwrap() };
-        context.swap_buffers().ok();
+        gl_ctx.make_current();
+        gl_ctx.swap_buffers();
 
-        let pixels = self
+        let pixels = gl_ctx
             .gl
             .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
 
-        context.swap_buffers().ok();
+        gl_ctx.swap_buffers();
 
-        let error = self.gl.get_error();
+        let error = gl_ctx.gl.get_error();
         if error != gl::NO_ERROR {
             panic!("read_pixels error: {:#x}", error)
         }
 
-        self.gl_ctx = Some(unsafe { context.make_not_current().unwrap() });
+        gl_ctx.make_not_current();
 
         let mut pixels_flipped = Vec::with_capacity(pixels.len());
         for v in (0..height as _).rev() {
@@ -1011,36 +834,168 @@ impl GlWindow {
         }
     }
 
-    /// Inner size
-    pub fn size(&self) -> LayoutSize {
-        layout_size(&self.gl_ctx)
+    /// Manually flags layout to actually update on the next call.
+    ///
+    /// This is required for updates generated outside of this window but that affect this window.
+    fn expect_layout_update(&mut self) {
+        self.wn_ctx.borrow_mut().update |= UpdateDisplayRequest::Layout;
+    }
+
+    fn update_window_vars(&mut self, vars: &Vars) {
+        profile_scope!("window::update_window_vars");
+
+        let gl_ctx = self.gl_ctx.borrow();
+        let window = gl_ctx.window();
+        let r = &mut self.wn_ctx.borrow_mut().root;
+
+        if let Some(title) = r.title.update_local(vars) {
+            window.set_title(title);
+        }
+    }
+
+    /// Re-flow layout if a layout pass was required. If yes will
+    /// flag a render required.
+    fn layout(&mut self) {
+        let mut ctx = self.wn_ctx.borrow_mut();
+
+        if ctx.update == UpdateDisplayRequest::Layout {
+            profile_scope!("window::layout");
+
+            ctx.update = UpdateDisplayRequest::Render;
+
+            let available_size = self.size();
+
+            let desired_size = ctx.root.child.measure(available_size);
+
+            let final_size = desired_size.min(available_size);
+
+            ctx.root.child.arrange(final_size);
+        }
+    }
+
+    fn resize_next_render(&mut self) {
+        let inner_size = self.gl_ctx.borrow().window().inner_size();
+        let device_size = units::DeviceIntSize::new(inner_size.width as i32, inner_size.height as i32);
+        self.doc_view = units::DeviceIntRect::from_size(device_size);
+        self.doc_view_changed = true;
+    }
+
+    /// Render a frame if one was required.
+    fn render(&mut self) {
+        let mut ctx = self.wn_ctx.borrow_mut();
+
+        if ctx.update == UpdateDisplayRequest::Render {
+            profile_scope!("window::render");
+
+            ctx.update = UpdateDisplayRequest::None;
+
+            let frame_id = Epoch({
+                let mut next = self.frame_info.frame_id().0.wrapping_add(1);
+                if next == FrameId::invalid().0 {
+                    next = next.wrapping_add(1);
+                }
+                next
+            });
+
+            let size = self.size();
+            let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size);
+
+            ctx.root.child.render(&mut frame);
+
+            let (display_list_data, frame_info) = frame.finalize();
+
+            self.frame_info = frame_info;
+
+            let mut txn = Transaction::new();
+            txn.set_display_list(frame_id, None, size, display_list_data, true);
+            txn.set_root_pipeline(self.pipeline_id);
+
+            if self.doc_view_changed {
+                self.doc_view_changed = false;
+                txn.set_document_view(self.doc_view, self.dpi_scale());
+            }
+
+            txn.generate_frame();
+            ctx.api.send_transaction(self.document_id, txn);
+        }
+    }
+
+    /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
+    /// from the OS after calling this.
+    fn request_redraw(&mut self) {
+        if self.first_draw {
+            self.gl_ctx.borrow().window().set_visible(true); // OS generates a RequestRedraw here
+            self.first_draw = false;
+        } else {
+            self.gl_ctx.borrow().window().request_redraw();
+        }
+    }
+
+    /// Redraws the last ready frame and swaps buffers.
+    ///
+    /// **`swap_buffers` Warning**: if you enabled vsync, this function will block until the
+    /// next time the screen is refreshed. However drivers can choose to
+    /// override your vsync settings, which means that you can't know in
+    /// advance whether `swap_buffers` will block or not.
+    fn redraw(&mut self) {
+        profile_scope!("window::redraw");
+
+        let mut context = self.gl_ctx.borrow_mut();
+        context.make_current();
+
+        let renderer = self.renderer.borrow_mut();
+        renderer.update();
+
+        let size = context.window().inner_size();
+        let device_size = units::DeviceIntSize::new(size.width as i32, size.height as i32);
+
+        renderer.render(device_size).unwrap();
+        let _ = renderer.flush_pipeline_info();
+
+        context.swap_buffers();
+        context.make_not_current();
+    }
+
+    fn deinited(&self) -> bool {
+        self.renderer.deinited()
+    }
+
+    fn deinit(mut self) {
+        assert!(!self.deinited());
+        self.gl_ctx.borrow_mut().make_current();
+        self.renderer.deinit();
+        self.gl_ctx.borrow_mut().make_not_current();
     }
 }
 
+impl Drop for OpenWindow {
+    fn drop(&mut self) {
+        if !self.deinited() {
+            self.renderer.deinit();
+            error_println!("dropping window without calling `OpenWindow::deinit`");
+        }
+    }
+}
+
+/// Window screenshot image data.
 pub struct ScreenshotData {
     /// RGB8
     pub pixels: Vec<u8>,
+    /// Width in pixels.
     pub width: u32,
+    /// Height in pixels.
     pub height: u32,
+    /// Dpi scale when the screenshot was  take.
     pub dpi: f32,
 }
 impl ScreenshotData {
+    /// Encode and save the screenshot image.
     pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
         image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgb8)
     }
 }
 
-impl Drop for GlWindow {
-    fn drop(&mut self) {
-        if self.deinit_renderer() {
-            error_println!("dropping window without calling `GlWindow::deinit`");
-        }
-    }
-}
-
-/// The part of a [`GlWindow`](GlWindow) that must be detached to provide update notifications
-/// that still permit borrowing the owning [`GlWindow`](GlWindow).
-pub(crate) struct OwnedWindowContext {
+struct OwnedWindowContext {
     window_id: WindowId,
     state: WindowState,
     services: WindowServices,
@@ -1050,12 +1005,6 @@ pub(crate) struct OwnedWindowContext {
 }
 
 impl OwnedWindowContext {
-    /// Window id.
-    pub fn id(&self) -> WindowId {
-        // this method is required for [`win_profile_scope!`](win_profile_scope!) to work with [`GlWindow`](GlWindow) and [`OwnedWindowContext`](OwnedWindowContext).
-        self.window_id
-    }
-
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
@@ -1099,75 +1048,138 @@ impl OwnedWindowContext {
     }
 
     /// Call [`UiNode::deinit`](UiNode::deinit) in all nodes.
-    pub fn deinit(mut self, ctx: &mut AppContext) {
+    pub fn deinit(&mut self, ctx: &mut AppContext) {
         profile_scope!("window::deinit");
         self.root_context(ctx, |root, ctx| root.deinit(ctx));
     }
 }
 
-pub struct Window {
-    meta: LazyStateMap,
-    id: WidgetId,
-    title: BoxLocalVar<Text>,
-    size: BoxVar<LayoutSize>,
-    background_color: BoxVar<ColorF>,
-    child: Box<dyn UiNode>,
+#[derive(Clone)]
+struct Notifier {
+    window_id: WindowId,
+    event_loop: EventLoopProxy,
+}
+impl RenderNotifier for Notifier {
+    fn clone(&self) -> Box<dyn RenderNotifier> {
+        Box::new(Clone::clone(self))
+    }
+
+    fn wake_up(&self) {}
+
+    fn new_frame_ready(&self, _: DocumentId, _scrolled: bool, _composite_needed: bool, _: Option<u64>) {
+        self.event_loop.send_event(app::AppEvent::NewFrameReady(self.window_id));
+    }
 }
 
-impl Window {
-    pub fn new(
-        root_id: WidgetId,
-        title: impl IntoVar<Text>,
-        size: impl IntoVar<LayoutSize>,
-        background_color: impl IntoVar<ColorF>,
-        child: impl UiNode,
-    ) -> Self {
-        Window {
-            meta: LazyStateMap::default(),
-            id: root_id,
-            title: Box::new(title.into_local()),
-            size: size.into_var().boxed(),
-            background_color: background_color.into_var().boxed(),
-            child: child.boxed(),
+#[allow(clippy::large_enum_variant)]
+enum RendererState {
+    Running(webrender::Renderer),
+    Deinited,
+}
+
+impl RendererState {
+    fn deinit(&mut self) {
+        match mem::replace(self, RendererState::Deinited) {
+            RendererState::Running(r) => r.deinit(),
+            RendererState::Deinited => panic!("renderer already deinited"),
+        }
+    }
+
+    fn borrow_mut(&mut self) -> &mut webrender::Renderer {
+        match self {
+            RendererState::Running(wr) => wr,
+            RendererState::Deinited => panic!("cannot borrow deinited renderer"),
+        }
+    }
+
+    fn deinited(&self) -> bool {
+        match self {
+            RendererState::Deinited => true,
+            _ => false,
         }
     }
 }
 
-/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`](AppExtended)
-pub trait AppRunWindow {
-    /// Runs the application event loop and requests a new window.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use zero_ui::prelude::*;
-    ///
-    /// App::default().run_window(|_| {
-    ///     window! {
-    ///         => text("Window 1")
-    ///     }
-    /// })   
-    /// ```
-    ///
-    /// Which is a shortcut for:
-    /// ```no_run
-    /// use zero_ui::prelude::*;
-    ///
-    /// App::default().run(|ctx| {
-    ///     ctx.services.req::<Windows>().open(|_| {
-    ///         window! {
-    ///             => text("Window 1")
-    ///         }
-    ///     });
-    /// })   
-    /// ```
-    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static);
+enum GlContextState {
+    Current(WindowedContext<PossiblyCurrent>),
+    NotCurrent(WindowedContext<NotCurrent>),
+    Changing,
 }
 
-impl<E: AppExtension> AppRunWindow for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static) {
-        self.run(|ctx| {
-            ctx.services.req::<Windows>().open(new_window);
-        })
+struct GlContext {
+    ctx: GlContextState,
+    gl: Rc<dyn gl::Gl>,
+}
+
+impl GlContext {
+    pub fn new(window_builder: WindowBuilder, event_loop: &HeadedEventLoopWindowTarget) -> Self {
+        let context = ContextBuilder::new()
+            .with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 2),
+                opengles_version: (3, 0),
+            })
+            .build_windowed(window_builder, &event_loop)
+            .unwrap();
+
+        let context = unsafe { context.make_current().expect("couldn't make `GlContext` current") };
+
+        let gl = match context.get_api() {
+            Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+            Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+            Api::WebGl => panic!("WebGl is not supported"),
+        };
+
+        GlContext {
+            ctx: GlContextState::Current(context),
+            gl,
+        }
+    }
+
+    pub fn gl(&self) -> &Rc<dyn gl::Gl> {
+        &self.gl
+    }
+
+    pub fn window(&self) -> &GlutinWindow {
+        match &self.ctx {
+            GlContextState::Current(c) => c.window(),
+            GlContextState::NotCurrent(c) => c.window(),
+            GlContextState::Changing => unreachable!(),
+        }
+    }
+
+    pub fn make_current(&mut self) {
+        self.ctx = match std::mem::replace(&mut self.ctx, GlContextState::Changing) {
+            GlContextState::Current(_) => {
+                panic!("`GlContext` already is current");
+            }
+            GlContextState::NotCurrent(c) => {
+                let c = unsafe { c.make_current().expect("couldn't make `GlContext` current") };
+                GlContextState::Current(c)
+            }
+            GlContextState::Changing => unreachable!(),
+        }
+    }
+
+    pub fn make_not_current(&mut self) {
+        self.ctx = match mem::replace(&mut self.ctx, GlContextState::Changing) {
+            GlContextState::Current(c) => {
+                let c = unsafe { c.make_not_current().expect("couldn't make `GlContext` not current") };
+                GlContextState::NotCurrent(c)
+            }
+            GlContextState::NotCurrent(_) => {
+                panic!("`GlContext` already is not current");
+            }
+            GlContextState::Changing => unreachable!(),
+        }
+    }
+
+    pub fn swap_buffers(&self) {
+        match &self.ctx {
+            GlContextState::Current(c) => c.swap_buffers().expect("failed to swap buffers"),
+            GlContextState::NotCurrent(_) => {
+                panic!("can only swap buffers of current contexts");
+            }
+            GlContextState::Changing => unreachable!(),
+        };
     }
 }

@@ -20,8 +20,6 @@ fn main() {
 }
 
 fn take_screenshot(ctx: &mut WidgetContext) {
-    let windows = ctx.services.req::<Windows>();
-    let size = windows.window(ctx.window_id).unwrap().size();
-    let img = windows.screenshot(ctx.window_id, LayoutRect::from_size(size)).unwrap();
+    let img = ctx.services.req::<Windows>().window(ctx.window_id).unwrap().screenshot();
     img.save("screenshot.png").unwrap();
 }
