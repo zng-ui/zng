@@ -26,15 +26,7 @@ fn example() -> impl UiNode {
             let ctx = a.ctx();
             ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
         }};
-        margin: 10.0;
-        size: (300.0, 200.0);
         align: Alignment::CENTER;
-        font_size: 28;
-
-        // when only at the end?
-        when self.is_hovered {
-            font_size: 30;
-        }
 
         => {
             text(t)

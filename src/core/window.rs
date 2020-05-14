@@ -865,11 +865,8 @@ impl OpenWindow {
 
             let available_size = self.size();
 
-            let desired_size = ctx.root.child.measure(available_size);
-
-            let final_size = desired_size.min(available_size);
-
-            ctx.root.child.arrange(final_size);
+            ctx.root.child.measure(available_size);
+            ctx.root.child.arrange(available_size);
         }
     }
 

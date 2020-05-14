@@ -24,6 +24,10 @@ widget! {
         background_color: ButtonBackground;
     }
 
+    default_child {
+        padding: (8.0, 16.0);
+    }
+
     /// When the pointer device is over this button.
     when self.is_hovered {
         background_color: ButtonBackgroundHovered;
