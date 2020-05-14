@@ -8,7 +8,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'zero-ui'",
+            "name": "Unit Tests: zero-ui",
             "cargo": {
                 "args": [
                     "test",
@@ -27,7 +27,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'button'",
+            "name": "Example: button",
             "cargo": {
                 "args": [
                     "build",
@@ -45,7 +45,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug example 'screenshot'",
+            "name": "Example: screenshot",
             "cargo": {
                 "args": [
                     "build",
