@@ -699,7 +699,7 @@ impl OpenWindow {
 
         let start_size = inner_size * units::LayoutToDeviceScale::new(dpi_factor);
         let start_size = units::DeviceIntSize::new(start_size.width as i32, start_size.height as i32);
-        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl().clone(), notifier, opts, None, start_size).unwrap();
+        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl.clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
         let document_id = api.add_document(start_size, 0);
 
@@ -961,7 +961,6 @@ impl OpenWindow {
     }
 
     fn deinit(mut self) {
-        assert!(!self.deinited());
         self.gl_ctx.borrow_mut().make_current();
         self.renderer.deinit();
         self.gl_ctx.borrow_mut().make_not_current();
@@ -971,7 +970,6 @@ impl OpenWindow {
 impl Drop for OpenWindow {
     fn drop(&mut self) {
         if !self.deinited() {
-            self.renderer.deinit();
             error_println!("dropping window without calling `OpenWindow::deinit`");
         }
     }
@@ -985,7 +983,7 @@ pub struct ScreenshotData {
     pub width: u32,
     /// Height in pixels.
     pub height: u32,
-    /// Dpi scale when the screenshot was  take.
+    /// Dpi scale when the screenshot was taken.
     pub dpi: f32,
 }
 impl ScreenshotData {
@@ -1112,7 +1110,7 @@ struct GlContext {
 }
 
 impl GlContext {
-    pub fn new(window_builder: WindowBuilder, event_loop: &HeadedEventLoopWindowTarget) -> Self {
+    fn new(window_builder: WindowBuilder, event_loop: &HeadedEventLoopWindowTarget) -> Self {
         let context = ContextBuilder::new()
             .with_gl(GlRequest::GlThenGles {
                 opengl_version: (3, 2),
@@ -1135,11 +1133,7 @@ impl GlContext {
         }
     }
 
-    pub fn gl(&self) -> &Rc<dyn gl::Gl> {
-        &self.gl
-    }
-
-    pub fn window(&self) -> &GlutinWindow {
+    fn window(&self) -> &GlutinWindow {
         match &self.ctx {
             GlContextState::Current(c) => c.window(),
             GlContextState::NotCurrent(c) => c.window(),
@@ -1147,7 +1141,7 @@ impl GlContext {
         }
     }
 
-    pub fn make_current(&mut self) {
+    fn make_current(&mut self) {
         self.ctx = match std::mem::replace(&mut self.ctx, GlContextState::Changing) {
             GlContextState::Current(_) => {
                 panic!("`GlContext` already is current");
@@ -1160,7 +1154,7 @@ impl GlContext {
         }
     }
 
-    pub fn make_not_current(&mut self) {
+    fn make_not_current(&mut self) {
         self.ctx = match mem::replace(&mut self.ctx, GlContextState::Changing) {
             GlContextState::Current(c) => {
                 let c = unsafe { c.make_not_current().expect("couldn't make `GlContext` not current") };
@@ -1173,7 +1167,7 @@ impl GlContext {
         }
     }
 
-    pub fn swap_buffers(&self) {
+    fn swap_buffers(&self) {
         match &self.ctx {
             GlContextState::Current(c) => c.swap_buffers().expect("failed to swap buffers"),
             GlContextState::NotCurrent(_) => {
