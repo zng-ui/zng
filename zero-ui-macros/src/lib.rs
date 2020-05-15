@@ -451,7 +451,7 @@ macro_rules! __context_var_inner {
         $(#[$outer])*
         /// # ContextVar
         /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
-        #[derive(Clone, Copy)]
+        #[derive(Debug, Clone, Copy)]
         $vis struct $ident;
 
         impl $ident {

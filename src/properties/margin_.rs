@@ -49,6 +49,7 @@ impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
     }
 }
 
+/// Margin space around the widget.
 #[property(outer)]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<LayoutSideOffsets>) -> impl UiNode {
     Margin {

@@ -202,6 +202,7 @@ pub fn on_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<M
     on_event(child, MouseLeave, handler)
 }
 
+/// Adds a handler for clicks in the widget.
 #[property(event, not_when)]
 pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ClickArgs>) + 'static) -> impl UiNode {
     on_event(child, Click, handler)
