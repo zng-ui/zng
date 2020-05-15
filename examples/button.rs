@@ -13,7 +13,10 @@ fn main() {
         window! {
             size: size;
             title: title;
-            => example()
+            => v_stack((
+                example(),
+                example()
+            ).into())
         }
     })
 }

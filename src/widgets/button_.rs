@@ -1,4 +1,4 @@
-use crate::core::types::{rgb, ColorF};
+use crate::core::types::{rgb, ColorF, LayoutSideOffsets};
 use crate::core::var::context_var;
 use crate::core::widget;
 #[doc(hidden)]
@@ -10,6 +10,7 @@ context_var! {
     pub struct ButtonBackground: ColorF = once rgb(0.2, 0.2, 0.2);
     pub struct ButtonBackgroundHovered: ColorF = once rgb(0.25, 0.25, 0.25);
     pub struct ButtonBackgroundPressed: ColorF = once rgb(0.3, 0.3, 0.3);
+    pub struct ButtonPadding: LayoutSideOffsets = once LayoutSideOffsets::new(8.0, 16.0, 8.0, 16.0);
 }
 
 widget! {
@@ -25,7 +26,8 @@ widget! {
     }
 
     default_child {
-        padding: (8.0, 16.0);
+        /// Set to [`ButtonPadding`](crate::widgets::ButtonPadding).
+        padding: ButtonPadding;
     }
 
     /// When the pointer device is over this button.
