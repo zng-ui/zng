@@ -9,7 +9,6 @@ use syn::{parse::*, punctuated::Punctuated, *};
 use uuid::Uuid;
 
 /// `widget!` implementation
-
 pub fn expand_widget(call_kind: CallKind, mut input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     if call_kind == CallKind::Widget {
         input = insert_implicit_mixin(input);
