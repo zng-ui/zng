@@ -20,7 +20,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         stage3_name,
         inheriting_name,
         mut inherits,
-        rest
+        rest,
     } = parse_macro_input!(input as WidgetInheriting);
 
     if inherits.is_empty() {
@@ -37,7 +37,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let r = quote! {
             #next_inherit! {
-                => inherit {
+                -> inherit {
                     #stage3_name;
                     #next_inherit;
                     #inherits
@@ -59,7 +59,7 @@ struct WidgetInheriting {
 impl Parse for WidgetInheriting {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![=>]>().expect(util::NON_USER_ERROR);
-        
+
         let inner = util::non_user_braced(input);
 
         let stage3_name = input.parse().expect(util::NON_USER_ERROR);

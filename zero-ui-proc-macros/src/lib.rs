@@ -15,6 +15,7 @@ pub(crate) mod widget;
 pub(crate) mod widget_new;
 mod widget_stage1;
 mod widget_stage2;
+mod widget_stage3;
 
 use widget::CallKind;
 

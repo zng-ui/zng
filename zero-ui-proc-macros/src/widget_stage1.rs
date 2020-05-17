@@ -7,17 +7,17 @@ use uuid::Uuid;
 /// `widget!` entry, parse header and expands to calls to inherited widget macros to include
 /// their internals.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let mut wgt = parse_macro_input!(input as WidgetHeader);
-    if wgt.inherit_start.is_none() {
-        wgt.inherit_start = Some(parse_quote!(:));
+    let mut wgt = parse_macro_input!(input as WidgetDeclaration);
+    if wgt.header.inherit_start.is_none() {
+        wgt.header.inherit_start = Some(parse_quote!(:));
     }
     let crate_ = util::zero_ui_crate_ident();
-    wgt.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
+    wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
 
-    let mut inherits = wgt.inherits.clone();
+    let mut inherits = wgt.header.inherits.clone();
     let first_inherit = inherits.pop().unwrap();
 
-    let stage3_entry = ident!("{}_stg3_{}", wgt.name, Uuid::new_v4().to_simple());
+    let stage3_entry = ident!("{}_stg3_{}", wgt.header.name, Uuid::new_v4().to_simple());
 
     // go to widget_stage2.
     let r = quote! {
@@ -29,8 +29,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         #first_inherit! {
-            => inherit {
-                $stage3_entry;
+            -> inherit {
+                #stage3_entry;
                 #first_inherit;
                 #inherits
             }
@@ -41,14 +41,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     r.into()
 }
 
-struct WidgetHeader {
+struct WidgetDeclaration {
+    header: WidgetHeader,
+    rest: TokenStream,
+}
+
+impl Parse for WidgetDeclaration {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let header = input.parse()?;
+        let rest = input.parse()?;
+        Ok(WidgetDeclaration { header, rest })
+    }
+}
+
+impl ToTokens for WidgetDeclaration {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.header.to_tokens(tokens);
+        self.rest.to_tokens(tokens);
+    }
+}
+
+pub(crate) struct WidgetHeader {
     attrs: Vec<Attribute>,
     vis: Visibility,
     name: Ident,
     inherit_start: Option<Token![:]>,
     inherits: Punctuated<Path, Token![+]>,
     end: Token![;],
-    rest: TokenStream,
 }
 
 impl Parse for WidgetHeader {
@@ -63,7 +82,6 @@ impl Parse for WidgetHeader {
             Punctuated::new()
         };
         let end = input.parse()?;
-        let rest = input.parse()?;
 
         Ok(WidgetHeader {
             attrs,
@@ -72,7 +90,6 @@ impl Parse for WidgetHeader {
             inherit_start,
             inherits,
             end,
-            rest,
         })
     }
 }
@@ -87,6 +104,5 @@ impl ToTokens for WidgetHeader {
         self.inherit_start.to_tokens(tokens);
         self.inherits.to_tokens(tokens);
         self.end.to_tokens(tokens);
-        self.rest.to_tokens(tokens);
     }
 }
