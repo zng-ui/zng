@@ -1,4 +1,4 @@
-use crate::util;
+use crate::util::{NON_USER_ERROR, non_user_braced, non_user_parenthesized};
 use crate::{widget_new::BuiltPropertyKind, widget_stage1::WidgetHeader};
 use proc_macro2::TokenTree;
 use proc_macro2::{Span, TokenStream};
@@ -12,6 +12,8 @@ use uuid::Uuid;
 
 /// `widget!` actual expansion, in stage3 we have all the inherited tokens to work with.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = parse_macro_input!(input as WidgetDeclaration);
+    
     todo!()
 }
 
@@ -49,12 +51,43 @@ struct WidgetDeclaration {
 
 impl Parse for WidgetDeclaration {
     fn parse(input: ParseStream) -> Result<Self> {
-        let header = input.parse().expect(util::NON_USER_ERROR);
+        let header = input.parse().expect(NON_USER_ERROR);
         let mut items = Vec::new();
         while !input.is_empty() {
-            todo!()
+            items.push(input.parse()?);
         }
         Ok(WidgetDeclaration { header, items })
+    }
+}
+
+struct InheritItem{
+    ident: Ident,
+    inherit_path: Path,
+    default: Punctuated<InheritedProperty, Token![,]>,
+    default_child: Punctuated<InheritedProperty, Token![,]>,
+    whens: Punctuated<InheritedWhen, Token![,]>,
+}
+
+
+struct InheritedProperty {}
+impl Parse for InheritedProperty{
+    fn parse(input: ParseStream) -> Result<Self> {
+        todo!()
+    }
+}
+struct InheritedWhen {
+    docs: Vec<Attribute>,
+    args: Punctuated<Ident, Token![,]>,
+    sets: Punctuated<Ident, Token![,]>,
+}
+impl Parse for InheritedWhen{
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(InheritedWhen{
+            docs: Attribute::parse_outer(input).expect(NON_USER_ERROR),
+            args: Punctuated::parse_terminated(&non_user_parenthesized(input)).expect(NON_USER_ERROR),
+            sets: Punctuated::parse_terminated(&non_user_braced(input)).expect(NON_USER_ERROR),
+
+        })
     }
 }
 
@@ -62,6 +95,29 @@ enum WgtItem {
     Default(WgtItemDefault),
     New(WgtItemNew),
     When(WgtItemWhen),
+}
+impl Parse for WgtItem {
+    fn parse(input: ParseStream) -> Result<Self> {
+
+        let lookahead = input.lookahead1();
+
+        if lookahead.peek(Token![default]) || lookahead.peek(keyword::default_child){
+            input.parse().map(WgtItem::Default)
+        } else {
+            let attrs = Attribute::parse_outer(input)?;
+            if lookahead.peek(keyword::when){
+                let mut when: WgtItemWhen = input.parse()?;
+                when.attrs = attrs;
+                Ok(WgtItem::When(when))
+            } else if lookahead.peek(Token![fn]) {
+                let mut new: WgtItemNew = input.parse()?;
+                new.attrs = attrs;
+                Ok(WgtItem::New(new))
+            } else {
+                Err(lookahead.error())
+            }
+        }
+    }
 }
 
 struct WgtItemDefault {
@@ -98,19 +154,36 @@ struct PropertyDeclaration {
     attrs: Vec<Attribute>,
     ident: Ident,
     maps_to: Option<MappedProperty>,
-    colon_token: Option<Token![:]>,
-    default_value: Option<PropertyDefaultValue>,
+    default_value: Option<(Token![:], PropertyDefaultValue)>,
     semi_token: Token![;],
 }
 impl Parse for PropertyDeclaration {
     fn parse(input: ParseStream) -> Result<Self> {
-        todo!()
+        Ok(PropertyDeclaration {
+            attrs: Attribute::parse_outer(input)?,
+            ident: input.parse()?,
+            maps_to: if input.peek(Token![->]) { Some(input.parse()?) } else { None },
+            default_value: if input.peek(Token![:]) {
+                Some((input.parse().unwrap(), input.parse()?))
+            } else {
+                None
+            },
+            semi_token: input.parse()?,
+        })
     }
 }
 
 struct MappedProperty {
     r_arrow_token: Token![->],
     ident: Ident,
+}
+impl Parse for MappedProperty {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(MappedProperty {
+            r_arrow_token: input.parse()?,
+            ident: input.parse()?,
+        })
+    }
 }
 
 enum PropertyDefaultValue {
@@ -222,7 +295,7 @@ struct WgtItemNew {
     paren_token: token::Paren,
     inputs: Punctuated<Ident, Token![,]>,
     r_arrow_token: Token![->],
-    return_type: Type,
+    return_type: Box<Type>,
     block: Block,
 }
 
@@ -260,7 +333,7 @@ impl Parse for NewTarget {
 struct WgtItemWhen {
     attrs: Vec<Attribute>,
     when_token: keyword::when,
-    condition: Expr,
+    condition: Box<Expr>,
     block: WhenBlock,
 }
 
