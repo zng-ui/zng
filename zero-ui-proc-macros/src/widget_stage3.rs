@@ -1,4 +1,4 @@
-use crate::util::{NON_USER_ERROR, non_user_braced, non_user_parenthesized};
+use crate::util::{non_user_braced, non_user_parenthesized, NON_USER_ERROR};
 use crate::{widget_new::BuiltPropertyKind, widget_stage1::WidgetHeader};
 use proc_macro2::TokenTree;
 use proc_macro2::{Span, TokenStream};
@@ -13,7 +13,7 @@ use uuid::Uuid;
 /// `widget!` actual expansion, in stage3 we have all the inherited tokens to work with.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as WidgetDeclaration);
-    
+
     todo!()
 }
 
@@ -60,7 +60,7 @@ impl Parse for WidgetDeclaration {
     }
 }
 
-struct InheritItem{
+struct InheritItem {
     ident: Ident,
     inherit_path: Path,
     default: Punctuated<InheritedProperty, Token![,]>,
@@ -68,9 +68,8 @@ struct InheritItem{
     whens: Punctuated<InheritedWhen, Token![,]>,
 }
 
-
 struct InheritedProperty {}
-impl Parse for InheritedProperty{
+impl Parse for InheritedProperty {
     fn parse(input: ParseStream) -> Result<Self> {
         todo!()
     }
@@ -80,13 +79,12 @@ struct InheritedWhen {
     args: Punctuated<Ident, Token![,]>,
     sets: Punctuated<Ident, Token![,]>,
 }
-impl Parse for InheritedWhen{
+impl Parse for InheritedWhen {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(InheritedWhen{
+        Ok(InheritedWhen {
             docs: Attribute::parse_outer(input).expect(NON_USER_ERROR),
             args: Punctuated::parse_terminated(&non_user_parenthesized(input)).expect(NON_USER_ERROR),
             sets: Punctuated::parse_terminated(&non_user_braced(input)).expect(NON_USER_ERROR),
-
         })
     }
 }
@@ -98,14 +96,13 @@ enum WgtItem {
 }
 impl Parse for WgtItem {
     fn parse(input: ParseStream) -> Result<Self> {
-
         let lookahead = input.lookahead1();
 
-        if lookahead.peek(Token![default]) || lookahead.peek(keyword::default_child){
+        if lookahead.peek(Token![default]) || lookahead.peek(keyword::default_child) {
             input.parse().map(WgtItem::Default)
         } else {
             let attrs = Attribute::parse_outer(input)?;
-            if lookahead.peek(keyword::when){
+            if lookahead.peek(keyword::when) {
                 let mut when: WgtItemWhen = input.parse()?;
                 when.attrs = attrs;
                 Ok(WgtItem::When(when))
