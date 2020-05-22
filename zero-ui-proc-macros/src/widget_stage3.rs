@@ -1,11 +1,12 @@
-use input::WidgetDeclaration;
+use quote::ToTokens;
 use syn::parse_macro_input;
 
 /// `widget!` actual expansion, in stage3 we have all the inherited tokens to work with.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as WidgetDeclaration);
-
-    todo!()
+    let input = parse_macro_input!(input as input::WidgetDeclaration);
+    let output = analysis::generate(input);
+    let output_stream = output.to_token_stream();
+    output_stream.into()
 }
 
 mod input {
@@ -13,7 +14,7 @@ mod input {
 
     use crate::util::{non_user_braced, non_user_parenthesized, NON_USER_ERROR};
     use crate::widget_stage1::WidgetHeader;
-    use proc_macro2::{TokenTree, TokenStream};
+    use proc_macro2::{TokenStream, TokenTree};
     use quote::ToTokens;
     use syn::parse::discouraged::Speculative;
     use syn::spanned::Spanned;
@@ -97,10 +98,10 @@ mod input {
         }
     }
 
-    struct InheritedProperty {
-        docs: Vec<Attribute>,
-        kind: BuiltPropertyKind,
-        ident: Ident,
+    pub struct InheritedProperty {
+        pub docs: Vec<Attribute>,
+        pub kind: BuiltPropertyKind,
+        pub ident: Ident,
     }
     impl Parse for InheritedProperty {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -113,7 +114,7 @@ mod input {
     }
 
     #[derive(PartialEq, Eq)]
-    enum BuiltPropertyKind {
+    pub enum BuiltPropertyKind {
         /// Required property.
         Required,
         /// Property is provided by the widget.
@@ -139,10 +140,10 @@ mod input {
         }
     }
 
-    struct InheritedWhen {
-        docs: Vec<Attribute>,
-        args: Punctuated<Ident, Token![,]>,
-        sets: Punctuated<Ident, Token![,]>,
+    pub struct InheritedWhen {
+        pub docs: Vec<Attribute>,
+        pub args: Punctuated<Ident, Token![,]>,
+        pub sets: Punctuated<Ident, Token![,]>,
     }
     impl Parse for InheritedWhen {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -488,6 +489,208 @@ mod input {
     }
 }
 
+mod analysis {
+    use super::input::WidgetDeclaration;
+    use super::output::WidgetOutput;
+
+    pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
+        todo!()
+    }
+}
+
 mod output {
-    
+    use super::input::{keyword, BuiltPropertyKind, InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
+    use crate::util::{uuid, zero_ui_crate_ident};
+    use proc_macro2::{Ident, TokenStream};
+    use quote::ToTokens;
+    use syn::{Attribute, Token, Visibility};
+
+    pub struct WidgetOutput {
+        macro_: WidgetMacro,
+        mod_: WidgetMod,
+    }
+    impl ToTokens for WidgetOutput {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.macro_.to_tokens(tokens);
+            self.mod_.to_tokens(tokens);
+        }
+    }
+
+    struct WidgetMacro {
+        widget_name: Ident,
+        vis: Visibility,
+        export: bool,
+        is_mixin: bool,
+        default_child: Vec<BuiltProperty>,
+        default: Vec<BuiltProperty>,
+        whens: Vec<BuiltWhen>,
+        new: BuiltNew,
+        new_child: BuiltNew,
+    }
+    impl ToTokens for WidgetMacro {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            tokens.extend(quote!( #[doc(hidden)] ));
+            if self.export {
+                tokens.extend(quote!( #[macro_export] ));
+            }
+
+            let crate_ = zero_ui_crate_ident();
+            let name = &self.widget_name;
+
+            let default = &self.default;
+            let default_child = &self.default_child;
+            let whens = &self.whens;
+            let inherit_info = quote! {
+                mod #name
+                default { #(#default),* }
+                default_child { #(#default_child),* }
+                whens { #(#whens),* }
+            };
+            let inherit_args = quote! {
+                $($inherit_next)*
+
+                inherit {
+                    $named_as;
+                    #inherit_info
+                }
+
+                $($rest)*
+            };
+            let inherit_arm = quote! {
+                (-> inherit { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+                    #crate_::widget_inherit! {
+                        #inherit_args
+                    }
+                };
+            };
+            let inherit_mixin_arm = quote! {
+                (-> inherit_mixin { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+                    #crate_::widget_mixin_inherit! {
+                        #inherit_args
+                    }
+                };
+            };
+
+            let new_arm = if self.is_mixin {
+                None
+            } else {
+                let default = self.default.iter().map(|p| p.tokens(false));
+                let default_child = self.default_child.iter().map(|p| p.tokens(false));
+                let whens = self.whens.iter().map(|p| p.tokens(false));
+                let new = &self.new;
+                let new_child = &self.new_child;
+                let widget_new_info = quote! {
+                    mod #name
+                    default { #(#default)* }
+                    default_child { #(#default_child)* }
+                    whens { #(#whens)* }
+                    new(#new)
+                    new_child(#new_child)
+                };
+                Some(quote! {
+                    ($($input:tt)*) => {
+                        #crate_::widget_new! {
+                            #widget_new_info
+                            user_input { $($input)* }
+                        }
+                    };
+                })
+            };
+
+            let unique_name = ident!("{}_{}", self.widget_name, uuid());
+            let vis = &self.vis;
+
+            tokens.extend(quote! {
+                macro_rules! #unique_name {
+                    #inherit_arm
+                    #inherit_mixin_arm
+                    #new_arm
+                }
+
+                #[doc(hidden)]
+                #vis use #unique_name as #name;
+            });
+        }
+    }
+    impl BuiltProperty {
+        fn tokens(&self, include_docs: bool) -> TokenStream {
+            let mut r = TokenStream::new();
+            if include_docs {
+                let docs = &self.docs;
+                r.extend(quote!( #(#docs)* ));
+            }
+            self.kind.to_tokens(&mut r);
+            self.ident.to_tokens(&mut r);
+            r
+        }
+    }
+    impl ToTokens for BuiltProperty {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            tokens.extend(self.tokens(true))
+        }
+    }
+    impl ToTokens for BuiltPropertyKind {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                BuiltPropertyKind::Required => keyword::required::default().to_tokens(tokens),
+                BuiltPropertyKind::Local => keyword::local::default().to_tokens(tokens),
+                BuiltPropertyKind::Default => <Token![default]>::default().to_tokens(tokens),
+            }
+        }
+    }
+    impl BuiltWhen {
+        fn tokens(&self, include_docs: bool) -> TokenStream {
+            let mut r = TokenStream::new();
+            if include_docs {
+                let docs = &self.docs;
+                r.extend(quote!( #(#docs)* ));
+            }
+            let args = &self.args;
+            let sets = &self.sets;
+            r.extend(quote! {
+                 (#args) { #sets }
+            });
+            r
+        }
+    }
+    impl ToTokens for BuiltWhen {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            tokens.extend(self.tokens(true))
+        }
+    }
+
+    struct BuiltNew {
+        properties: Vec<Ident>,
+    }
+
+    impl ToTokens for BuiltNew {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let props = &self.properties;
+            tokens.extend(quote!( #(#props),* ))
+        }
+    }
+
+    struct WidgetMod {
+        docs: Vec<Attribute>,
+        attrs: Vec<Attribute>,
+        vis: Visibility,
+        widget_name: Ident,
+    }
+
+    impl ToTokens for WidgetMod {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let attrs = self.attrs.iter().chain(&self.docs);
+            let vis = &self.vis;
+            let widget_name = &self.widget_name;
+            tokens.extend(quote! {
+                #(#attrs)*
+                #vis mod #widget_name {
+                    #[doc(hidden)]
+                    pub use super::*;
+
+                    //TODO
+                }
+            })
+        }
+    }
 }
