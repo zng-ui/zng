@@ -1,9 +1,4 @@
-use parse::ParseStream;
 use proc_macro2::*;
-use std::fmt;
-use syn::parse::discouraged::Speculative;
-use syn::parse::{Error as ParseError, Parse};
-use syn::punctuated::Punctuated;
 use syn::*;
 
 /// `Ident` with custom span.
@@ -91,9 +86,14 @@ macro_rules! abort_call_site {
 
 /// Generates a `#[doc]` attribute.
 macro_rules! doc {
+    //TODO: Remove the * and the second arm when widget.rs is deleted.
+    (*$($tt:tt)*) => {{
+        let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
+        quote!(#[doc=#doc_lit])
+    }};
     ($($tt:tt)*) => {{
-        let doc_lit = LitStr::new(&format!($($tt)*), Span::call_site());
-        let doc: Attribute = parse_quote!(#[doc=#doc_lit]);
+        let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
+        let doc: syn::Attribute = syn::parse_quote!(#[doc=#doc_lit]);
         doc
     }};
 }

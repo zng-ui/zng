@@ -503,7 +503,7 @@ mod output {
     use crate::util::{uuid, zero_ui_crate_ident};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
-    use syn::{Attribute, Token, Visibility};
+    use syn::{Attribute, Path, Token, Visibility};
 
     pub struct WidgetOutput {
         macro_: WidgetMacro,
@@ -671,7 +671,7 @@ mod output {
     }
 
     struct WidgetMod {
-        docs: Vec<Attribute>,
+        docs: WidgetDocs,
         attrs: Vec<Attribute>,
         vis: Visibility,
         widget_name: Ident,
@@ -679,11 +679,13 @@ mod output {
 
     impl ToTokens for WidgetMod {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let attrs = self.attrs.iter().chain(&self.docs);
+            let attrs = self.attrs.iter();
+            let docs = &self.docs;
             let vis = &self.vis;
             let widget_name = &self.widget_name;
             tokens.extend(quote! {
                 #(#attrs)*
+                #docs
                 #vis mod #widget_name {
                     #[doc(hidden)]
                     pub use super::*;
@@ -692,5 +694,130 @@ mod output {
                 }
             })
         }
+    }
+
+    struct WidgetDocs {
+        docs: Vec<Attribute>,
+        mixin: bool,
+        ///required properties
+        required: Vec<PropertyDocs>,
+        ///properties with provided default value
+        provided: Vec<PropertyDocs>,
+        ///properties that are defined in the widget, but have no default value and are not required
+        other: Vec<PropertyDocs>,
+    }
+
+    impl ToTokens for WidgetDocs {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            for doc in &self.docs {
+                doc.to_tokens(tokens)
+            }
+
+            doc!(
+                *"\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style><script>{}</script>",
+                include_str!("widget_docs_ext.js")
+            )
+            .to_tokens(tokens);
+
+            #[must_use]
+            fn open_section(id: &str, title: &str) -> TokenStream {
+                doc!(
+                    *r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
+                    <div class="methods" style="display: block;">"##,
+                    id,
+                    title
+                )
+            }
+            #[must_use]
+            fn close_section() -> TokenStream {
+                doc!(*"</div>")
+            }
+
+            if !self.required.is_empty() {
+                open_section("required-properties", "Required properties").to_tokens(tokens);
+                for doc in &self.required {
+                    doc.to_tokens(tokens)
+                }
+                close_section().to_tokens(tokens);
+            }
+            if !self.provided.is_empty() {
+                open_section("provided-properties", "Provided properties").to_tokens(tokens);
+                for doc in &self.provided {
+                    doc.to_tokens(tokens)
+                }
+                close_section().to_tokens(tokens);
+            }
+
+            if !self.mixin || !self.other.is_empty() {
+                open_section("other-properties", "Other properties").to_tokens(tokens);
+                for doc in &self.other {
+                    doc.to_tokens(tokens)
+                }
+                if !self.mixin {
+                    doc!(
+                        r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> 
+                        <span title="applied to self">self</span>.<span class='wgprop'>"##
+                    )
+                    .to_tokens(tokens);
+                    //generate link to properties module (needs to be separate and in between \n)
+                    doc!("\n[<span class='mod'>*</span>](zero_ui::properties)\n").to_tokens(tokens);
+                    doc!(
+                        r##"<ul style='display:none;'></ul></span></code></h3>
+                        <div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##
+                    )
+                    .to_tokens(tokens);
+                }
+                close_section().to_tokens(tokens);
+            }
+        }
+    }
+
+    struct PropertyDocs {
+        docs: Vec<Attribute>,
+        target_child: bool,
+        ident: Ident,
+        property_source: PropertySource,
+    }
+
+    impl ToTokens for PropertyDocs {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            doc!(
+                r##"<h3 id="wgproperty.{0}" class="method"><code id='{0}.v'><a href='#wgproperty.{0}' class='fnname'>{0}</a> -> <span title="applied to {1}">{1}</span>.<span class='wgprop'>"##,
+                self.ident,
+                if self.target_child { "child" } else { "self" },
+            ).to_tokens(tokens);
+
+            let mut is_inherited = false;
+            let mut source_widget = String::new();
+            match &self.property_source {
+                PropertySource::Property(p) => {
+                    doc!("\n[<span class='mod'>{0}</span>]({0})\n", p).to_tokens(tokens);
+                }
+                PropertySource::Widget(p) => {
+                    is_inherited = true;
+                    source_widget = format!("{}", quote!(#p)).replace(" :: ", "::");
+                    doc!("\n[<span class='mod' data-inherited>{}</span>]({})\n", self.ident, source_widget).to_tokens(tokens);
+                }
+            }
+
+            doc!("<ul style='display:none;'></ul></span></code></h3>").to_tokens(tokens);
+
+            if is_inherited || !self.docs.is_empty() {
+                doc!("<div class='docblock'>\n").to_tokens(tokens);
+                for doc in &self.docs {
+                    doc.to_tokens(tokens)
+                }
+                if is_inherited {
+                    let name_start = source_widget.rfind(':').map(|i| i + 1).unwrap_or_default();
+                    doc!("\n*Inherited from [`{}`]({}).*", &source_widget[name_start..], source_widget).to_tokens(tokens);
+                }
+                doc!("\n</div>").to_tokens(tokens);
+            }
+        }
+    }
+
+    enum PropertySource {
+        Property(Ident),
+        Widget(Path),
     }
 }
