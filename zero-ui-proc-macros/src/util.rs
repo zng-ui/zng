@@ -86,16 +86,27 @@ macro_rules! abort_call_site {
 
 /// Generates a `#[doc]` attribute.
 macro_rules! doc {
-    //TODO: Remove the * and the second arm when widget.rs is deleted.
-    (*$($tt:tt)*) => {{
-        let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
-        quote!(#[doc=#doc_lit])
-    }};
     ($($tt:tt)*) => {{
         let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
         let doc: syn::Attribute = syn::parse_quote!(#[doc=#doc_lit]);
         doc
     }};
+}
+
+/// Extend a TokenStream with a `#[doc]` attribute.
+macro_rules! doc_extend {
+    ($tokens:ident, $str:expr) => {
+        {
+            let doc_lit = syn::LitStr::new($str, proc_macro2::Span::call_site());
+            $tokens.extend(quote!(#[doc=#doc_lit]));
+        }
+    };
+    ($tokens:ident, $($tt:tt)*) => {
+        {
+            let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
+            $tokens.extend(quote!(#[doc=#doc_lit]));
+        }
+    }
 }
 
 /// Generates a string with the code of `input` parse stream. The stream is not modified.
