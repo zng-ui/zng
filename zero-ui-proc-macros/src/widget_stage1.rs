@@ -2,7 +2,6 @@ use crate::util;
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{parse::*, punctuated::Punctuated, *};
-use uuid::Uuid;
 
 /// `widget!` entry, parse header and expands to calls to inherited widget macros to include
 /// their internals.
@@ -17,7 +16,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut inherits = wgt.header.inherits.clone();
     let first_inherit = inherits.pop().unwrap();
 
-    let stage3_entry = ident!("{}_stg3_{}", wgt.header.name, Uuid::new_v4().to_simple());
+    let stage3_entry = ident!("{}_stg3_{}", wgt.header.name, util::uuid());
+
+    let assert_inherits = wgt.header.inherits.iter();
+
+    let wgt_init_asserts = ident!("__{}_asserts", wgt.header.name);
 
     // go to widget_stage2.
     let r = quote! {
@@ -26,6 +29,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ($($tt:tt)*) => {
                 widget_stage3!{$($tt)*}
             }
+        }
+
+        #[allow(unused)]
+        #[doc(hidden)]
+        mod #wgt_init_asserts {
+            use super::*;
+            #(use #assert_inherits;)*
         }
 
         #first_inherit! {

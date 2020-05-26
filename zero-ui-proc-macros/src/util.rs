@@ -87,8 +87,8 @@ macro_rules! abort_call_site {
 /// Generates a `#[doc]` attribute.
 macro_rules! doc {
     ($($tt:tt)*) => {{
-        let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
-        let doc: syn::Attribute = syn::parse_quote!(#[doc=#doc_lit]);
+        let doc_comment = format!($($tt)*);
+        let doc: syn::Attribute = syn::parse_quote!(#[doc=#doc_comment]);
         doc
     }};
 }
@@ -97,14 +97,14 @@ macro_rules! doc {
 macro_rules! doc_extend {
     ($tokens:ident, $str:expr) => {
         {
-            let doc_lit = syn::LitStr::new($str, proc_macro2::Span::call_site());
-            $tokens.extend(quote!(#[doc=#doc_lit]));
+            let doc_comment = $str;
+            $tokens.extend(quote!(#[doc=#doc_comment]));
         }
     };
     ($tokens:ident, $($tt:tt)*) => {
         {
-            let doc_lit = syn::LitStr::new(&format!($($tt)*), proc_macro2::Span::call_site());
-            $tokens.extend(quote!(#[doc=#doc_lit]));
+            let doc_comment = format!($($tt)*);
+            $tokens.extend(quote!(#[doc=#doc_comment]));
         }
     }
 }
