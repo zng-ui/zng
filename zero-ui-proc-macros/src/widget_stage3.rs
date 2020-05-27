@@ -506,6 +506,7 @@ mod output {
     use crate::util::{uuid, zero_ui_crate_ident};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
+    use std::fmt;
     use syn::spanned::Spanned;
     use syn::{Attribute, Expr, Path, Token, Visibility};
 
@@ -1020,10 +1021,13 @@ mod output {
 
     impl ToTokens for WidgetWhens {
         fn to_tokens(&self, tokens: &mut TokenStream) {
+            let conditions = &self.conditions;
             let tt = quote! {
                 #[doc(hidden)]
                 pub mod whens {
                     use super::*;
+
+                    #(#conditions)*
                 }
             };
             tokens.extend(tt)
@@ -1032,19 +1036,24 @@ mod output {
 
     struct WhenCondition {
         index: usize,
-        // propertyA..Z
-        // propertyA.0..n
-        // expr propertyA.0..n
+        properties: Vec<Ident>,
+        expr: WhenConditionExpr,
     }
 
     impl ToTokens for WhenCondition {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let fn_ident = ident!("w{}", self.index);
             let crate_ = zero_ui_crate_ident();
+            let p = &self.properties;
+            let expr = &self.expr;
             let tt = quote! {
                 #[inline]
-                pub fn #fn_ident() -> #crate_:::core::var::Var<bool> {
-
+                pub fn #fn_ident(#(#p: impl properties::#p::Args),*) -> #crate_:::core::var::Var<bool> {
+                    #(
+                       {#[allow(unused)]
+                        use properties::#p::is_allowed_in_when;}
+                    )*
+                    #expr
                 }
             };
             tokens.extend(tt);
@@ -1057,6 +1066,39 @@ mod output {
         Merge(Vec<WhenPropertyRef>, Box<Expr>),
     }
 
+    impl ToTokens for WhenConditionExpr {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self {
+                WhenConditionExpr::Ref(let_name) => {
+                    let name = let_name.name();
+                    tokens.extend(quote! {
+                        #[allow(clippy::let_and_return)]
+                        #let_name
+                        #name
+                    })
+                }
+                WhenConditionExpr::Map(let_name, expr) => {
+                    let name = let_name.name();
+                    let crate_ = zero_ui_crate_ident();
+                    tokens.extend(quote! {
+                        #let_name
+                        #crate_::core::var::Var::into_map(#name, |#name|{#expr})
+                    })
+                }
+                WhenConditionExpr::Merge(let_names, expr) => {
+                    let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
+                    let crate_ = zero_ui_crate_ident();
+                    tokens.extend(quote! {
+                        #(#let_names)*
+                        #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
+                            #expr
+                        })
+                    })
+                }
+            }
+        }
+    }
+
     struct WhenPropertyRef {
         property: Ident,
         arg: WhenPropertyRefArg,
@@ -1066,7 +1108,19 @@ mod output {
         pub fn name(&self) -> Ident {
             // property_0
             // property_named
-            todo!()
+            ident!("{}_{}", self.property, self.arg)
+        }
+    }
+
+    impl ToTokens for WhenPropertyRef {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let crate_ = zero_ui_crate_ident();
+            let property = &self.property;
+            let arg = &self.arg;
+            let name = self.name();
+            tokens.extend(quote! {
+                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(#property)));
+            });
         }
     }
 
@@ -1075,9 +1129,24 @@ mod output {
         Named(Ident),
     }
 
+    impl fmt::Display for WhenPropertyRefArg {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                WhenPropertyRefArg::Index(idx) => idx.fmt(f),
+                WhenPropertyRefArg::Named(ident) => ident.fmt(f),
+            }
+        }
+    }
+
     impl ToTokens for WhenPropertyRefArg {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            todo!()
+            match self {
+                WhenPropertyRefArg::Index(idx) => {
+                    let ident = ident!("arg{}", idx);
+                    tokens.extend(quote! {ArgsNumbered::#ident})
+                }
+                WhenPropertyRefArg::Named(ident) => tokens.extend(quote! {ArgsNamed::#ident}),
+            }
         }
     }
 }
