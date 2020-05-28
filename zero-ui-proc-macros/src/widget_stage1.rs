@@ -71,13 +71,13 @@ impl ToTokens for WidgetDeclaration {
     }
 }
 
-pub(crate) struct WidgetHeader {
-    attrs: Vec<Attribute>,
-    vis: Visibility,
-    name: Ident,
-    inherit_start: Option<Token![:]>,
-    inherits: Punctuated<Path, Token![+]>,
-    end: Token![;],
+pub struct WidgetHeader {
+    pub attrs: Vec<Attribute>,
+    pub vis: Visibility,
+    pub name: Ident,
+    pub inherit_start: Option<Token![:]>,
+    pub inherits: Punctuated<Path, Token![+]>,
+    pub end: Token![;],
 }
 
 impl Parse for WidgetHeader {

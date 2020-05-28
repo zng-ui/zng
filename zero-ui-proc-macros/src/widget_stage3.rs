@@ -32,7 +32,7 @@ mod input {
         syn::custom_keyword!(local);
     }
 
-    struct PropertyBlock<P> {
+    pub struct PropertyBlock<P> {
         brace_token: token::Brace,
         properties: Vec<P>,
     }
@@ -49,9 +49,9 @@ mod input {
     }
 
     pub struct WidgetDeclaration {
-        inherits: Vec<InheritItem>,
-        header: WidgetHeader,
-        items: Vec<WgtItem>,
+        pub inherits: Vec<InheritItem>,
+        pub header: WidgetHeader,
+        pub items: Vec<WgtItem>,
     }
 
     impl Parse for WidgetDeclaration {
@@ -70,12 +70,12 @@ mod input {
         }
     }
 
-    struct InheritItem {
-        ident: Ident,
-        inherit_path: Path,
-        default: Punctuated<InheritedProperty, Token![,]>,
-        default_child: Punctuated<InheritedProperty, Token![,]>,
-        whens: Punctuated<InheritedWhen, Token![,]>,
+    pub struct InheritItem {
+        pub ident: Ident,
+        pub inherit_path: Path,
+        pub default: Punctuated<InheritedProperty, Token![,]>,
+        pub default_child: Punctuated<InheritedProperty, Token![,]>,
+        pub whens: Punctuated<InheritedWhen, Token![,]>,
     }
 
     impl Parse for InheritItem {
@@ -155,7 +155,7 @@ mod input {
         }
     }
 
-    enum WgtItem {
+    pub enum WgtItem {
         Default(WgtItemDefault),
         New(WgtItemNew),
         When(WgtItemWhen),
@@ -183,9 +183,9 @@ mod input {
         }
     }
 
-    struct WgtItemDefault {
-        target: DefaultTarget,
-        block: DefaultBlock,
+    pub struct WgtItemDefault {
+        pub target: DefaultTarget,
+        pub block: DefaultBlock,
     }
 
     impl Parse for WgtItemDefault {
@@ -197,7 +197,7 @@ mod input {
         }
     }
 
-    enum DefaultTarget {
+    pub enum DefaultTarget {
         Default(Token![default]),
         DefaultChild(keyword::default_child),
     }
@@ -211,14 +211,14 @@ mod input {
         }
     }
 
-    type DefaultBlock = PropertyBlock<PropertyDeclaration>;
+    pub type DefaultBlock = PropertyBlock<PropertyDeclaration>;
 
-    struct PropertyDeclaration {
-        attrs: Vec<Attribute>,
-        ident: Ident,
-        maps_to: Option<MappedProperty>,
-        default_value: Option<(Token![:], PropertyDefaultValue)>,
-        semi_token: Token![;],
+    pub struct PropertyDeclaration {
+        pub attrs: Vec<Attribute>,
+        pub ident: Ident,
+        pub maps_to: Option<MappedProperty>,
+        pub default_value: Option<(Token![:], PropertyDefaultValue)>,
+        pub semi_token: Token![;],
     }
     impl Parse for PropertyDeclaration {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -236,9 +236,9 @@ mod input {
         }
     }
 
-    struct MappedProperty {
-        r_arrow_token: Token![->],
-        ident: Ident,
+    pub struct MappedProperty {
+        pub r_arrow_token: Token![->],
+        pub ident: Ident,
     }
     impl Parse for MappedProperty {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -249,7 +249,7 @@ mod input {
         }
     }
 
-    enum PropertyDefaultValue {
+    pub enum PropertyDefaultValue {
         /// Named arguments.
         Fields(PropertyFields),
         /// Unnamed arguments.
@@ -323,9 +323,9 @@ mod input {
         }
     }
 
-    struct PropertyUnset {
-        unset_token: keyword::unset,
-        bang_token: Token![!],
+    pub struct PropertyUnset {
+        pub unset_token: keyword::unset,
+        pub bang_token: Token![!],
     }
 
     impl Parse for PropertyUnset {
@@ -337,9 +337,9 @@ mod input {
         }
     }
 
-    struct PropertyRequired {
-        required_token: keyword::required,
-        bang_token: Token![!],
+    pub struct PropertyRequired {
+        pub required_token: keyword::required,
+        pub bang_token: Token![!],
     }
 
     impl Parse for PropertyRequired {
@@ -393,11 +393,11 @@ mod input {
         }
     }
 
-    struct WgtItemWhen {
-        attrs: Vec<Attribute>,
-        when_token: keyword::when,
-        condition: Box<Expr>,
-        block: WhenBlock,
+    pub struct WgtItemWhen {
+        pub attrs: Vec<Attribute>,
+        pub when_token: keyword::when,
+        pub condition: Box<Expr>,
+        pub block: WhenBlock,
     }
 
     impl Parse for WgtItemWhen {
@@ -448,13 +448,13 @@ mod input {
         }
     }
 
-    type WhenBlock = PropertyBlock<PropertyAssign>;
+    pub type WhenBlock = PropertyBlock<PropertyAssign>;
 
-    struct PropertyAssign {
-        ident: Ident,
-        colon_token: Token![:],
-        value: PropertyValue,
-        semi_token: Token![;],
+    pub struct PropertyAssign {
+        pub ident: Ident,
+        pub colon_token: Token![:],
+        pub value: PropertyValue,
+        pub semi_token: Token![;],
     }
 
     impl Parse for PropertyAssign {
@@ -468,7 +468,7 @@ mod input {
         }
     }
 
-    enum PropertyValue {
+    pub enum PropertyValue {
         /// Named arguments. prop1: { arg0: "value", arg1: "other value" };
         Fields(PropertyFields),
         /// Unnamed arguments. prop1: {"value"}, "other value";
@@ -491,24 +491,83 @@ mod input {
 
 mod analysis {
     use super::input::WidgetDeclaration;
-    use super::output::WidgetOutput;
+    use super::output::{when_fn_name, InheritedWhen, WhenCondition, WhenConditionExpr, WidgetOutput};
+    use std::collections::HashMap;
+    use syn::Visibility;
 
     pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
+        // check if included all inherits in the recursive call.
+        debug_assert!(input
+            .header
+            .inherits
+            .iter()
+            .rev()
+            .zip(input.inherits.iter().map(|i| &i.inherit_path))
+            .all(|(header, included)| header == included));
+
+        // #[macro_export] if `pub` or `pub(crate)`
+        let macro_export = match &input.header.vis {
+            Visibility::Public(_) => true,
+            Visibility::Restricted(r) => r.path.get_ident().map(|i| i == &ident!("crate")).unwrap_or_default(),
+            Visibility::Crate(_) | Visibility::Inherited => false,
+        };
+
+        // map that defines each property origin.
+        // widgets override properties with the same name when inheriting,
+        // the map is (property: Ident, widget: Path), the widget is `Self` for
+        // propertied declared locally.
+        let mut inheritance_map = HashMap::new();
+        for inherit in &input.inherits {
+            for property in inherit.default_child.iter().chain(inherit.default.iter()) {
+                inheritance_map.insert(property.ident.clone(), inherit.inherit_path.clone());
+            }
+        }
+        //TODO
+
+        // all `when` for the macro
+        let mut macro_whens = vec![];
+        // all inherited `when` for the mod.
+        let mut mod_whens = vec![];
+        // next available index for when function names.
+        let mut when_index = 0;
+
+        for inherit in input.inherits {
+            for child_property in inherit.default_child {}
+
+            for when in inherit.whens {
+                mod_whens.push(WhenCondition {
+                    index: when_index,
+                    properties: when.args.iter().cloned().collect(),
+                    expr: WhenConditionExpr::Inherited(InheritedWhen {
+                        widget: inherit.inherit_path.clone(),
+                        when_name: when_fn_name(when_index),
+                        properties: when.args.iter().cloned().collect(),
+                    }),
+                });
+
+                macro_whens.push(when);
+
+                when_index += 1;
+            }
+        }
+
+        debug_assert_eq!(when_index, macro_whens.len());
+        debug_assert_eq!(when_index, mod_whens.len());
+
         todo!()
     }
 }
 
 mod output {
-    use super::input::{
-        keyword, BuiltPropertyKind, InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen, NewTarget, PropertyArgs,
-        PropertyFields, WgtItemNew,
-    };
+    use super::input::{keyword, BuiltPropertyKind, NewTarget, PropertyArgs, PropertyFields, WgtItemNew};
     use crate::util::{uuid, zero_ui_crate_ident};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
     use syn::spanned::Spanned;
     use syn::{Attribute, Expr, Path, Token, Visibility};
+
+    pub use super::input::{InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
 
     pub struct WidgetOutput {
         macro_: WidgetMacro,
@@ -1034,15 +1093,19 @@ mod output {
         }
     }
 
-    struct WhenCondition {
-        index: usize,
-        properties: Vec<Ident>,
-        expr: WhenConditionExpr,
+    pub struct WhenCondition {
+        pub index: usize,
+        pub properties: Vec<Ident>,
+        pub expr: WhenConditionExpr,
+    }
+
+    pub fn when_fn_name(index: usize) -> Ident {
+        ident!("w{}", index)
     }
 
     impl ToTokens for WhenCondition {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let fn_ident = ident!("w{}", self.index);
+            let fn_ident = when_fn_name(self.index);
             let crate_ = zero_ui_crate_ident();
             let p = &self.properties;
             let expr = &self.expr;
@@ -1060,10 +1123,11 @@ mod output {
         }
     }
 
-    enum WhenConditionExpr {
+    pub enum WhenConditionExpr {
         Ref(WhenPropertyRef),
         Map(WhenPropertyRef, Box<Expr>),
         Merge(Vec<WhenPropertyRef>, Box<Expr>),
+        Inherited(InheritedWhen),
     }
 
     impl ToTokens for WhenConditionExpr {
@@ -1095,13 +1159,29 @@ mod output {
                         })
                     })
                 }
+                WhenConditionExpr::Inherited(inh) => inh.to_tokens(tokens),
             }
         }
     }
 
-    struct WhenPropertyRef {
-        property: Ident,
-        arg: WhenPropertyRefArg,
+    pub struct InheritedWhen {
+        pub widget: Path,
+        pub when_name: Ident,
+        pub properties: Vec<Ident>,
+    }
+
+    impl ToTokens for InheritedWhen {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let widget = &self.widget;
+            let properties = &self.properties;
+            let fn_ = &self.when_name;
+            tokens.extend(quote! { #widget::whens::#fn_(#(#properties),*) });
+        }
+    }
+
+    pub struct WhenPropertyRef {
+        pub property: Ident,
+        pub arg: WhenPropertyRefArg,
     }
 
     impl WhenPropertyRef {
@@ -1124,7 +1204,7 @@ mod output {
         }
     }
 
-    enum WhenPropertyRefArg {
+    pub enum WhenPropertyRefArg {
         Index(usize),
         Named(Ident),
     }
