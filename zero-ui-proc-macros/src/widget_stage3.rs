@@ -33,8 +33,8 @@ mod input {
     }
 
     pub struct PropertyBlock<P> {
-        brace_token: token::Brace,
-        properties: Vec<P>,
+        pub brace_token: token::Brace,
+        pub properties: Vec<P>,
     }
     impl<P: Parse> Parse for PropertyBlock<P> {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -490,10 +490,12 @@ mod input {
 }
 
 mod analysis {
-    use super::input::WidgetDeclaration;
+    use super::input::{DefaultTarget, NewTarget, WgtItem, WidgetDeclaration, PropertyDefaultValue, BuiltPropertyKind};
     use super::output::{when_fn_name, InheritedWhen, WhenCondition, WhenConditionExpr, WidgetOutput};
-    use std::collections::HashMap;
-    use syn::Visibility;
+    use proc_macro2::{Span, TokenStream};
+    use std::collections::{HashMap, HashSet};
+    use std::fmt;
+    use syn::{spanned::Spanned, Visibility};
 
     pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
@@ -512,17 +514,66 @@ mod analysis {
             Visibility::Crate(_) | Visibility::Inherited => false,
         };
 
+        // unwrap items
+        enum PropertyTarget {
+            Default, 
+            DefaultChild
+        }
+        let mut properties = vec![];
+        let mut new = vec![];
+        let mut new_child = vec![];
+        let mut whens = vec![];
+        for item in input.items {
+            match item {
+                WgtItem::Default(d) => match d.target {
+                    DefaultTarget::Default(_) => properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::Default, p))),
+                    DefaultTarget::DefaultChild(_) => properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::DefaultChild, p))),
+                },
+                WgtItem::New(n) => match &n.target {
+                    NewTarget::New(_) => new.push(n),
+                    NewTarget::NewChild(_) => new_child.push(n),
+                },
+                WgtItem::When(w) => whens.push(w),
+            }
+        }
+
+        //validate items
+        let mut errors = Errors::default();
+        let mut new_properties = HashSet::new();
+        properties.retain(|(_, property)| {
+            let inserted = new_properties.insert(property.ident.clone());
+            if !inserted {
+                errors.push(format!("property `{}` already declared", property.ident), property.ident.span());
+            }
+            inserted
+        });
+        for extra_new in new.iter().skip(1).chain(new_child.iter().skip(1)) {
+            errors.push(format!("function `{}` already declared", extra_new.target), extra_new.target.span())
+        }
+        for when in &mut whens {
+            let mut properties = HashSet::new();
+            when.block.properties.retain(|property|{
+                let inserted = properties.insert(property.ident.clone());
+                if !inserted{
+                    errors.push(format!("property `{}` already set", property.ident), property.ident.span());
+                }
+                inserted
+            })
+        }
+
         // map that defines each property origin.
         // widgets override properties with the same name when inheriting,
         // the map is (property: Ident, widget: Path), the widget is `Self` for
-        // propertied declared locally.
+        // properties declared locally.
         let mut inheritance_map = HashMap::new();
         for inherit in &input.inherits {
             for property in inherit.default_child.iter().chain(inherit.default.iter()) {
-                inheritance_map.insert(property.ident.clone(), inherit.inherit_path.clone());
+                inheritance_map.insert(property.ident.clone(), Some(inherit.inherit_path.clone()));
             }
         }
-        //TODO
+        for property in properties.iter() {
+            inheritance_map.insert(property.1.ident.clone(), None);
+        }
 
         // all `when` for the macro
         let mut macro_whens = vec![];
@@ -530,9 +581,27 @@ mod analysis {
         let mut mod_whens = vec![];
         // next available index for when function names.
         let mut when_index = 0;
+        //all properties that have a initial value
+        let mut inited_properties = HashSet::new();
 
         for inherit in input.inherits {
-            for child_property in inherit.default_child {}
+            for child_property in inherit.default_child {
+                if inheritance_map[&child_property.ident].as_ref() == Some(&inherit.inherit_path) {
+                    if child_property.kind == BuiltPropertyKind::Local{
+                        assert!(inited_properties.insert(child_property.ident));
+                    }
+                    todo!()
+                }
+            }
+
+            for property in inherit.default {
+                if inheritance_map[&property.ident].as_ref() == Some(&inherit.inherit_path) {
+                    if property.kind == BuiltPropertyKind::Local{
+                        assert!(inited_properties.insert(property.ident));
+                    }
+                    todo!()
+                }
+            }
 
             for when in inherit.whens {
                 mod_whens.push(WhenCondition {
@@ -550,11 +619,61 @@ mod analysis {
                 when_index += 1;
             }
         }
-
         debug_assert_eq!(when_index, macro_whens.len());
         debug_assert_eq!(when_index, mod_whens.len());
 
+        
+
+        for (target, property) in properties {
+            let mut has_value = true;
+            match property.default_value {
+                Some((_, value)) => { match value{
+                    PropertyDefaultValue::Fields(fields) => { todo!() },
+        
+                    PropertyDefaultValue::Args(args) => { todo!() },
+        
+                    PropertyDefaultValue::Unset(_) => {has_value = false},
+       
+                    PropertyDefaultValue::Required(_) => {},
+                }}
+                None => {has_value = false}
+            }
+            if has_value{
+                assert!(inited_properties.insert(property.ident));
+            }
+        }
+
+        //validation after widget properties found
+        for when in &mut whens {
+            when.block.properties.retain(|property| {
+                let used = inited_properties.contains(&property.ident);
+                if !used {
+                    errors.push(format!("property `{}` is not used in this widget", property.ident), property.ident.span());
+                }
+                used
+            })
+        }
         todo!()
+    }
+
+    #[derive(Default)]
+    pub struct Errors {
+        tokens: TokenStream,
+    }
+
+    impl Errors {
+        pub fn push(&mut self, error: impl ToString, span: Span) {
+            let error = error.to_string();
+            self.tokens.extend(quote_spanned! {span=>
+                compile_error!{#error}
+            })
+        }
+    }
+
+    impl fmt::Display for NewTarget {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", quote!(#self))
+        }
     }
 }
 
