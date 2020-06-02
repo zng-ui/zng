@@ -490,13 +490,15 @@ mod input {
 }
 
 mod analysis {
-    use super::input::{BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
-    use super::output::{when_fn_name, InheritedWhen, WhenCondition, WhenConditionExpr, WidgetOutput};
+    use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
+    use super::output::{
+        when_fn_name, BuiltNew, BuiltProperty, FinalPropertyDefaultValue, InheritedWhen, WhenCondition, WhenConditionExpr, WidgetDefault,
+        WidgetDefaults, WidgetMacro, WidgetMod, WidgetOutput, WidgetProperties, WidgetPropertyUse,
+    };
     use crate::util::Errors;
-    use proc_macro2::{Span, TokenStream};
     use std::collections::{HashMap, HashSet};
     use std::fmt;
-    use syn::{spanned::Spanned, Visibility};
+    use syn::{punctuated::Punctuated, spanned::Spanned, Visibility};
 
     pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
@@ -587,31 +589,60 @@ mod analysis {
         //all properties that have a initial value
         let mut inited_properties = HashSet::new();
 
-        for inherit in input.inherits {
-            for child_property in inherit.default_child {
-                if inheritance_map[&child_property.ident].as_ref() == Some(&inherit.inherit_path) {
-                    if child_property.kind == BuiltPropertyKind::Local {
-                        assert!(inited_properties.insert(child_property.ident));
-                    }
-                    todo!()
-                }
-            }
+        // all properties for the macro
+        let mut macro_default_child = vec![];
+        let mut macro_default = vec![];
 
-            for property in inherit.default {
-                if inheritance_map[&property.ident].as_ref() == Some(&inherit.inherit_path) {
-                    if property.kind == BuiltPropertyKind::Local {
-                        assert!(inited_properties.insert(property.ident));
+        // all properties for the mod
+        let mut mod_properties = WidgetProperties::default();
+        let mut mod_defaults = WidgetDefaults::default();
+
+        // process inherited properties and when blocks.
+        for inherit in input.inherits {
+            let inherit_path = inherit.inherit_path;
+
+            // collects all inherited property information.
+            let mut process_properties = |properties: Punctuated<input::InheritedProperty, _>, macro_defaults: &mut Vec<BuiltProperty>| {
+                for property in properties {
+                    if inheritance_map[&property.ident].as_ref() != Some(&inherit_path) {
+                        continue;
                     }
-                    todo!()
+                    // if property is not overridden:
+
+                    // if inherited required property or property with default value
+                    // it is one of the always initialized properties.
+                    if property.kind != BuiltPropertyKind::Local {
+                        assert!(inited_properties.insert(property.ident.clone()));
+                    }
+
+                    // widget mod need to re-export from inherited widget mod.
+                    mod_properties.props.push(WidgetPropertyUse::Inherited {
+                        widget: inherit_path.clone(),
+                        ident: property.ident.clone(),
+                    });
+
+                    // if the inherited property has a default value, generate a default function
+                    // that calls the function from the inherited widget mod.
+                    if property.kind == BuiltPropertyKind::Default {
+                        mod_defaults.defaults.push(WidgetDefault {
+                            property: property.ident.clone(),
+                            default: FinalPropertyDefaultValue::Inherited(inherit_path.clone()),
+                        });
+                    }
+
+                    // InheritedProperty is BuiltProperty already.
+                    macro_defaults.push(property);
                 }
-            }
+            };
+            process_properties(inherit.default, &mut macro_default);
+            process_properties(inherit.default_child, &mut macro_default_child);
 
             for when in inherit.whens {
                 mod_whens.push(WhenCondition {
                     index: when_index,
                     properties: when.args.iter().cloned().collect(),
                     expr: WhenConditionExpr::Inherited(InheritedWhen {
-                        widget: inherit.inherit_path.clone(),
+                        widget: inherit_path.clone(),
                         when_name: when_fn_name(when_index),
                         properties: when.args.iter().cloned().collect(),
                     }),
@@ -622,16 +653,15 @@ mod analysis {
                 when_index += 1;
             }
         }
-        debug_assert_eq!(when_index, macro_whens.len());
-        debug_assert_eq!(when_index, mod_whens.len());
-
-        for (target, property) in properties {
+        // process newly declared properties
+        for (_, property) in properties {
             let mut has_value = true;
+            let mut default_value = None;
+
             match property.default_value {
                 Some((_, value)) => match value {
-                    PropertyDefaultValue::Fields(fields) => todo!(),
-
-                    PropertyDefaultValue::Args(args) => todo!(),
+                    PropertyDefaultValue::Fields(fields) => default_value = Some(FinalPropertyDefaultValue::Fields(fields)),
+                    PropertyDefaultValue::Args(args) => default_value = Some(FinalPropertyDefaultValue::Args(args)),
 
                     PropertyDefaultValue::Unset(_) => has_value = false,
 
@@ -640,11 +670,29 @@ mod analysis {
                 None => has_value = false,
             }
             if has_value {
-                assert!(inited_properties.insert(property.ident));
+                assert!(inited_properties.insert(property.ident.clone()));
             }
+
+            if let Some(default) = default_value {
+                mod_defaults.defaults.push(WidgetDefault {
+                    property: property.ident.clone(),
+                    default,
+                })
+            }
+
+            mod_properties.props.push(if let Some(maps_to) = property.maps_to {
+                // property maps to another, re-export with new property name.
+                WidgetPropertyUse::Alias {
+                    ident: property.ident,
+                    original: maps_to.ident,
+                }
+            } else {
+                // property does not map to another, re-export the property mod.
+                WidgetPropertyUse::Mod(property.ident)
+            });
         }
 
-        //validation after widget properties found
+        // validation after widget properties found
         for when in &mut whens {
             when.block.properties.retain(|property| {
                 let used = inited_properties.contains(&property.ident);
@@ -657,7 +705,51 @@ mod analysis {
                 used
             })
         }
-        todo!()
+
+        debug_assert_eq!(when_index, macro_whens.len());
+        debug_assert_eq!(when_index, mod_whens.len());
+
+        fn to_built_new(n: &input::WgtItemNew) -> BuiltNew {
+            BuiltNew {
+                properties: n.inputs.iter().skip(1).cloned().collect(),
+            }
+        }
+        let macro_new = new
+            .first()
+            .map(to_built_new)
+            .unwrap_or_else(|| BuiltNew {
+                properties: vec![ident!("id")],
+            });
+        let macro_new_child = new_child
+            .first()
+            .map(to_built_new)
+            .unwrap_or_default();
+
+        WidgetOutput {
+            macro_: WidgetMacro {
+                widget_name: input.header.name.clone(),
+                vis: input.header.vis.clone(),
+                export: macro_export,
+                is_mixin: false, //TODO
+                default: macro_default,
+                default_child: macro_default_child,
+                whens: macro_whens,
+                new: macro_new,
+                new_child: macro_new_child,
+            },
+            mod_: WidgetMod {
+                docs: (),
+                attrs: (),
+                vis: input.header.vis,
+                widget_name: input.header.name,
+                is_mixin: false, //TODO
+                new: new.drain(..).next(),
+                new_child: new_child.drain(..).next(),
+                properties: mod_properties,
+                defaults: mod_defaults,
+                whens: mod_whens,
+            },
+        }
     }
 
     impl fmt::Display for NewTarget {
@@ -679,8 +771,8 @@ mod output {
     pub use super::input::{InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
 
     pub struct WidgetOutput {
-        macro_: WidgetMacro,
-        mod_: WidgetMod,
+        pub macro_: WidgetMacro,
+        pub mod_: WidgetMod,
     }
     impl ToTokens for WidgetOutput {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -689,16 +781,16 @@ mod output {
         }
     }
 
-    struct WidgetMacro {
-        widget_name: Ident,
-        vis: Visibility,
-        export: bool,
-        is_mixin: bool,
-        default_child: Vec<BuiltProperty>,
-        default: Vec<BuiltProperty>,
-        whens: Vec<BuiltWhen>,
-        new: BuiltNew,
-        new_child: BuiltNew,
+    pub struct WidgetMacro {
+        pub widget_name: Ident,
+        pub vis: Visibility,
+        pub export: bool,
+        pub is_mixin: bool,
+        pub default: Vec<BuiltProperty>,
+        pub default_child: Vec<BuiltProperty>,
+        pub whens: Vec<BuiltWhen>,
+        pub new: BuiltNew,
+        pub new_child: BuiltNew,
     }
     impl ToTokens for WidgetMacro {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -832,8 +924,9 @@ mod output {
         }
     }
 
-    struct BuiltNew {
-        properties: Vec<Ident>,
+    #[derive(Default)]
+pub struct BuiltNew {
+        pub properties: Vec<Ident>,
     }
 
     impl ToTokens for BuiltNew {
@@ -843,17 +936,17 @@ mod output {
         }
     }
 
-    struct WidgetMod {
-        docs: WidgetDocs,
-        attrs: Vec<Attribute>,
-        vis: Visibility,
-        widget_name: Ident,
-        is_mixin: bool,
-        new: Option<WgtItemNew>,
-        new_child: Option<WgtItemNew>,
-        properties: WidgetProperties,
-        defaults: WidgetDefaults,
-        whens: WidgetWhens,
+    pub struct WidgetMod {
+        pub docs: WidgetDocs,
+        pub attrs: Vec<Attribute>,
+        pub vis: Visibility,
+        pub widget_name: Ident,
+        pub is_mixin: bool,
+        pub new: Option<WgtItemNew>,
+        pub new_child: Option<WgtItemNew>,
+        pub properties: WidgetProperties,
+        pub defaults: WidgetDefaults,
+        pub whens: WidgetWhens,
     }
 
     impl ToTokens for WidgetMod {
@@ -1092,8 +1185,9 @@ mod output {
     }
 
     /// Properties used in a widget.
-    struct WidgetProperties {
-        props: Vec<WidgetPropertyUse>,
+    #[derive(Default)]
+    pub struct WidgetProperties {
+        pub props: Vec<WidgetPropertyUse>,
     }
 
     impl ToTokens for WidgetProperties {
@@ -1109,7 +1203,7 @@ mod output {
         }
     }
 
-    enum WidgetPropertyUse {
+    pub enum WidgetPropertyUse {
         Mod(Ident),
         Alias { ident: Ident, original: Ident },
         Inherited { widget: Path, ident: Ident },
@@ -1126,8 +1220,9 @@ mod output {
         }
     }
 
-    struct WidgetDefaults {
-        defaults: Vec<WidgetDefault>,
+    #[derive(Default)]
+    pub struct WidgetDefaults {
+        pub defaults: Vec<WidgetDefault>,
     }
 
     impl ToTokens for WidgetDefaults {
@@ -1144,16 +1239,16 @@ mod output {
         }
     }
 
-    struct WidgetDefault {
-        property: Ident,
-        default: PropertyDefaultValue,
+    pub struct WidgetDefault {
+        pub property: Ident,
+        pub default: FinalPropertyDefaultValue,
     }
 
     impl ToTokens for WidgetDefault {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let property = &self.property;
             let tt = match &self.default {
-                PropertyDefaultValue::Fields(f) => {
+                FinalPropertyDefaultValue::Fields(f) => {
                     let fields = &f.fields;
                     quote! {
                         property::#property::NamedArgs {
@@ -1162,11 +1257,11 @@ mod output {
                         }
                     }
                 }
-                PropertyDefaultValue::Args(a) => {
+                FinalPropertyDefaultValue::Args(a) => {
                     let args = &a.0;
                     quote!(properties::#property::args(#args))
                 }
-                PropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
+                FinalPropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
             };
             tokens.extend(quote! {
                 #[inline]
@@ -1177,7 +1272,7 @@ mod output {
         }
     }
 
-    enum PropertyDefaultValue {
+    pub enum FinalPropertyDefaultValue {
         Fields(PropertyFields),
         Args(PropertyArgs),
         Inherited(Path),
