@@ -490,8 +490,9 @@ mod input {
 }
 
 mod analysis {
-    use super::input::{DefaultTarget, NewTarget, WgtItem, WidgetDeclaration, PropertyDefaultValue, BuiltPropertyKind};
+    use super::input::{BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
     use super::output::{when_fn_name, InheritedWhen, WhenCondition, WhenConditionExpr, WidgetOutput};
+    use crate::util::Errors;
     use proc_macro2::{Span, TokenStream};
     use std::collections::{HashMap, HashSet};
     use std::fmt;
@@ -516,8 +517,8 @@ mod analysis {
 
         // unwrap items
         enum PropertyTarget {
-            Default, 
-            DefaultChild
+            Default,
+            DefaultChild,
         }
         let mut properties = vec![];
         let mut new = vec![];
@@ -527,7 +528,9 @@ mod analysis {
             match item {
                 WgtItem::Default(d) => match d.target {
                     DefaultTarget::Default(_) => properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::Default, p))),
-                    DefaultTarget::DefaultChild(_) => properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::DefaultChild, p))),
+                    DefaultTarget::DefaultChild(_) => {
+                        properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::DefaultChild, p)))
+                    }
                 },
                 WgtItem::New(n) => match &n.target {
                     NewTarget::New(_) => new.push(n),
@@ -552,9 +555,9 @@ mod analysis {
         }
         for when in &mut whens {
             let mut properties = HashSet::new();
-            when.block.properties.retain(|property|{
+            when.block.properties.retain(|property| {
                 let inserted = properties.insert(property.ident.clone());
-                if !inserted{
+                if !inserted {
                     errors.push(format!("property `{}` already set", property.ident), property.ident.span());
                 }
                 inserted
@@ -587,7 +590,7 @@ mod analysis {
         for inherit in input.inherits {
             for child_property in inherit.default_child {
                 if inheritance_map[&child_property.ident].as_ref() == Some(&inherit.inherit_path) {
-                    if child_property.kind == BuiltPropertyKind::Local{
+                    if child_property.kind == BuiltPropertyKind::Local {
                         assert!(inited_properties.insert(child_property.ident));
                     }
                     todo!()
@@ -596,7 +599,7 @@ mod analysis {
 
             for property in inherit.default {
                 if inheritance_map[&property.ident].as_ref() == Some(&inherit.inherit_path) {
-                    if property.kind == BuiltPropertyKind::Local{
+                    if property.kind == BuiltPropertyKind::Local {
                         assert!(inited_properties.insert(property.ident));
                     }
                     todo!()
@@ -622,23 +625,21 @@ mod analysis {
         debug_assert_eq!(when_index, macro_whens.len());
         debug_assert_eq!(when_index, mod_whens.len());
 
-        
-
         for (target, property) in properties {
             let mut has_value = true;
             match property.default_value {
-                Some((_, value)) => { match value{
-                    PropertyDefaultValue::Fields(fields) => { todo!() },
-        
-                    PropertyDefaultValue::Args(args) => { todo!() },
-        
-                    PropertyDefaultValue::Unset(_) => {has_value = false},
-       
-                    PropertyDefaultValue::Required(_) => {},
-                }}
-                None => {has_value = false}
+                Some((_, value)) => match value {
+                    PropertyDefaultValue::Fields(fields) => todo!(),
+
+                    PropertyDefaultValue::Args(args) => todo!(),
+
+                    PropertyDefaultValue::Unset(_) => has_value = false,
+
+                    PropertyDefaultValue::Required(_) => {}
+                },
+                None => has_value = false,
             }
-            if has_value{
+            if has_value {
                 assert!(inited_properties.insert(property.ident));
             }
         }
@@ -648,26 +649,15 @@ mod analysis {
             when.block.properties.retain(|property| {
                 let used = inited_properties.contains(&property.ident);
                 if !used {
-                    errors.push(format!("property `{}` is not used in this widget", property.ident), property.ident.span());
+                    errors.push(
+                        format!("property `{}` is not used in this widget", property.ident),
+                        property.ident.span(),
+                    );
                 }
                 used
             })
         }
         todo!()
-    }
-
-    #[derive(Default)]
-    pub struct Errors {
-        tokens: TokenStream,
-    }
-
-    impl Errors {
-        pub fn push(&mut self, error: impl ToString, span: Span) {
-            let error = error.to_string();
-            self.tokens.extend(quote_spanned! {span=>
-                compile_error!{#error}
-            })
-        }
     }
 
     impl fmt::Display for NewTarget {

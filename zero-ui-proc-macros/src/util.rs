@@ -1,4 +1,7 @@
+use parse::{Parse, ParseStream};
 use proc_macro2::*;
+use punctuated::Punctuated;
+use quote::ToTokens;
 use syn::*;
 
 /// `Ident` with custom span.
@@ -25,7 +28,7 @@ pub fn pub_vis() -> Visibility {
     })
 }
 
-///-> (docs, other_attributes)
+/// Split attributes in #[doc] and others, also removes #[inline]
 pub fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
     let mut docs = vec![];
     let mut other_attrs = vec![];
@@ -146,4 +149,97 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
 
 pub fn uuid() -> impl std::fmt::Display {
     uuid::Uuid::new_v4().to_simple()
+}
+
+/// Parse a `Punctuated` from a `TokenStream`.
+pub fn parse_terminated2<T: Parse, P: Parse>(tokens: TokenStream) -> parse::Result<Punctuated<T, P>> {
+    parse2::<PunctParser<T, P>>(tokens).map(|p| p.0)
+}
+
+struct PunctParser<T, P>(Punctuated<T, P>);
+impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Punctuated::<T, P>::parse_terminated(input).map(Self)
+    }
+}
+
+/// Collection of compile errors.
+#[derive(Default)]
+pub struct Errors {
+    tokens: TokenStream,
+}
+
+impl Errors {
+    pub fn push(&mut self, error: impl ToString, span: Span) {
+        let error = error.to_string();
+        self.tokens.extend(quote_spanned! {span=>
+            compile_error!{#error}
+        })
+    }
+
+    pub fn extend(&mut self, errors: Errors) {
+        self.tokens.extend(errors.tokens)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+}
+
+impl ToTokens for Errors {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        tokens.extend(self.tokens.clone().into_iter())
+    }
+    fn to_token_stream(&self) -> TokenStream {
+        self.tokens.clone()
+    }
+    fn into_token_stream(self) -> TokenStream {
+        self.tokens
+    }
+}
+
+/// Converts the ident to CamelCase, preserves the span.
+pub fn to_camel_case(ident: &Ident) -> Ident {
+    use heck::CamelCase;
+    Ident::new(ident.to_string().to_camel_case().as_str(), ident.span())
+}
+
+/// Separated attributes.
+pub struct Attributes {
+    pub docs: Vec<Attribute>,
+    pub inline: Option<Attribute>,
+    pub cfg: Option<Attribute>,
+    pub others: Vec<Attribute>,
+}
+
+impl Attributes {
+    pub fn new(attrs: Vec<Attribute>) -> Self {
+        let mut docs = vec![];
+        let mut inline = None;
+        let mut cfg = None;
+        let mut others = vec![];
+
+        let doc_ident = ident!("doc");
+        let inline_ident = ident!("inline");
+        let cfg_ident = ident!("cfg");
+
+        for attr in attrs {
+            if let Some(ident) = attr.path.get_ident() {
+                if ident == &doc_ident {
+                    docs.push(attr);
+                    continue;
+                } else if ident == &inline_ident {
+                    inline = Some(attr);
+                } else if ident == &cfg_ident {
+                    cfg = Some(attr);
+                } else {
+                    others.push(attr);
+                }
+            } else {
+                others.push(attr);
+            }
+        }
+
+        Attributes { docs, inline, cfg, others }
+    }
 }
