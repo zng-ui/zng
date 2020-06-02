@@ -339,11 +339,11 @@ mod analysis {
 
 mod output {
     use super::input::{Priority, PropertyArg};
-    use crate::util::{zero_ui_crate_ident, Errors};
+    use crate::util::{uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
-    use syn::{punctuated::Punctuated, Attribute, Block, Token, Type, TypeParamBound, Visibility};
+    use syn::{punctuated::Punctuated, Attribute, Block, Token, Type, TypeParamBound, Visibility, Index};
 
     pub struct PropertyMod {
         pub errors: Errors,
@@ -351,6 +351,9 @@ mod output {
         pub attrs: Vec<Attribute>,
         pub vis: Visibility,
         pub ident: Ident,
+        pub fns: PropertyFns,
+        pub tys: PropertyTypes,
+        pub macros: PropertyMacros,
     }
     impl ToTokens for PropertyMod {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -360,6 +363,9 @@ mod output {
             let attrs = &self.attrs;
             let vis = &self.vis;
             let ident = &self.ident;
+            let fns = &self.fns;
+            let tys = &self.tys;
+            let macros = &self.macros;
 
             let docs_inner = docs.inner_tokens();
 
@@ -369,9 +375,11 @@ mod output {
                 #vis mod #ident {
                     use super::*;
 
+                    #fns
+                    #tys
+                    #macros
+
                     #docs_inner
-
-
                 }
             });
         }
@@ -645,6 +653,87 @@ mod output {
     impl ToTokens for PropertyTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             todo!()
+        }
+    }
+
+    pub struct PropertyMacros {
+        priority: Priority,
+        allowed_in_when: bool,
+        arg_idents: Vec<Ident>,
+    }
+
+    impl ToTokens for PropertyMacros {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let pid = uuid(); // unique id of this property.
+
+            // set_args!
+            let set_args_ident = ident!("set_args_{}", pid);
+            let priority = &self.priority;
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #set_args_ident {
+                    (#priority, $set_args_path:path, $child:ident, $args:ident) => {
+                        let $child = $set_args_path($child, $args);
+                    };
+                    ($($ignore:tt)*) => {}
+                }
+
+                #[doc(hidden)]
+                pub use #set_args_ident as set_args;
+            });
+
+            // assert!
+            let allowed_in_when_rule = if self.allowed_in_when {
+                None
+            } else {
+                Some(quote! { compile_error!($msg); })
+            };
+            let assert_ident = ident!("assert_{}", pid);
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #assert_ident {
+                    (allowed_in_when, $msg:tt) => {
+                        #allowed_in_when_rule
+                    };
+                }
+
+                #[doc(hidden)]
+                pub use #assert_ident as assert;
+            });
+
+            // switch_args!
+            let switch_args_ident = ident!("switch_args_{}", pid);
+            let crate_ = zero_ui_crate_ident();
+            let arg_idents = &self.arg_idents;
+            let arg_n = (0..arg_idents.len()).map(Index::from);
+            let last_arg_i = arg_idents.len() - 1;
+            let idx_clone = (0..arg_idents.len()).map(|i| {
+                if last_arg_i == i {
+                    None
+                } else {
+                    Some(quote!(.clone()))
+                }
+            });
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #switch_args_ident {
+                    ($property_path:path, $idx:ident, $($arg:ident),*) => {{
+                        use $property_path::{args, ArgsUnwrap};
+
+                        $(let $arg = ArgsUnwrap::unwrap($arg);)*;
+
+                        #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg.#arg_n),*);)*
+        
+                        args(#(#arg_idents),*)
+                    }};
+                }
+
+                #[doc(hidden)]
+                pub use #switch_args_ident as switch_args;
+            });
         }
     }
 }

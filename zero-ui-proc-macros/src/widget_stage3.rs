@@ -714,16 +714,10 @@ mod analysis {
                 properties: n.inputs.iter().skip(1).cloned().collect(),
             }
         }
-        let macro_new = new
-            .first()
-            .map(to_built_new)
-            .unwrap_or_else(|| BuiltNew {
-                properties: vec![ident!("id")],
-            });
-        let macro_new_child = new_child
-            .first()
-            .map(to_built_new)
-            .unwrap_or_default();
+        let macro_new = new.first().map(to_built_new).unwrap_or_else(|| BuiltNew {
+            properties: vec![ident!("id")],
+        });
+        let macro_new_child = new_child.first().map(to_built_new).unwrap_or_default();
 
         WidgetOutput {
             macro_: WidgetMacro {
@@ -925,7 +919,7 @@ mod output {
     }
 
     #[derive(Default)]
-pub struct BuiltNew {
+    pub struct BuiltNew {
         pub properties: Vec<Ident>,
     }
 
