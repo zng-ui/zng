@@ -80,7 +80,7 @@ mod input {
     }
 
     impl Priority {
-        pub fn is_event(&self) -> bool {
+        pub fn is_event(self) -> bool {
             match self {
                 Priority::Event(_) => true,
                 _ => false,
@@ -343,7 +343,7 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
-    use syn::{punctuated::Punctuated, Attribute, Block, Token, Type, TypeParamBound, Visibility, Index};
+    use syn::{punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
 
     pub struct PropertyMod {
         pub errors: Errors,
@@ -709,13 +709,7 @@ mod output {
             let arg_idents = &self.arg_idents;
             let arg_n = (0..arg_idents.len()).map(Index::from);
             let last_arg_i = arg_idents.len() - 1;
-            let idx_clone = (0..arg_idents.len()).map(|i| {
-                if last_arg_i == i {
-                    None
-                } else {
-                    Some(quote!(.clone()))
-                }
-            });
+            let idx_clone = (0..arg_idents.len()).map(|i| if last_arg_i == i { None } else { Some(quote!(.clone())) });
             tokens.extend(quote! {
                 #[doc(hidden)]
                 #[macro_export]
@@ -726,7 +720,7 @@ mod output {
                         $(let $arg = ArgsUnwrap::unwrap($arg);)*;
 
                         #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg.#arg_n),*);)*
-        
+
                         args(#(#arg_idents),*)
                     }};
                 }
