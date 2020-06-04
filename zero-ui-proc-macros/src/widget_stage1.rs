@@ -5,13 +5,19 @@ use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` entry, parse header and expands to calls to inherited widget macros to include
 /// their internals.
-pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt = parse_macro_input!(input as WidgetDeclaration);
-    if wgt.header.inherit_start.is_none() {
-        wgt.header.inherit_start = Some(parse_quote!(:));
+
+    if !mixin {
+        if wgt.header.inherit_start.is_none() {
+            wgt.header.inherit_start = Some(parse_quote!(:));
+        }
+
+        let crate_ = util::zero_ui_crate_ident();
+        wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
+    } else if wgt.header.inherits.is_empty() {
+        return super::widget_stage3::expand(wgt.to_token_stream().into());
     }
-    let crate_ = util::zero_ui_crate_ident();
-    wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
 
     let mut inherits = wgt.header.inherits.clone();
     let first_inherit = inherits.pop().unwrap();
@@ -20,7 +26,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let assert_inherits = wgt.header.inherits.iter();
 
-    let wgt_init_asserts = ident!("__{}_asserts", wgt.header.name);
+    let wgt_init_asserts = ident!("{}_asserts", wgt.header.name);
 
     // go to widget_stage2.
     let r = quote! {
@@ -82,7 +88,7 @@ pub struct WidgetHeader {
 
 impl Parse for WidgetHeader {
     fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = Attribute::parse_inner(input)?;
+        let attrs = Attribute::parse_outer(input)?;
         let vis = input.parse()?;
         let name = input.parse()?;
         let inherit_start: Option<Token![:]> = input.parse()?;

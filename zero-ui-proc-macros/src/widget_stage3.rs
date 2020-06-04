@@ -28,6 +28,7 @@ mod input {
         syn::custom_keyword!(new);
         syn::custom_keyword!(new_child);
         syn::custom_keyword!(inherit);
+        syn::custom_keyword!(inherited_tokens);
         syn::custom_keyword!(whens);
         syn::custom_keyword!(local);
     }
@@ -57,11 +58,12 @@ mod input {
     impl Parse for WidgetDeclaration {
         fn parse(input: ParseStream) -> Result<Self> {
             let mut inherits = Vec::new();
-            while input.peek(Token![=>]) && input.peek2(keyword::inherit) {
+            while input.peek(Token![=>]) && input.peek2(keyword::inherited_tokens) {
                 inherits.push(input.parse().expect(NON_USER_ERROR));
             }
 
             let header = input.parse().expect(NON_USER_ERROR);
+
             let mut items = Vec::new();
             while !input.is_empty() {
                 items.push(input.parse()?);
@@ -87,7 +89,8 @@ mod input {
             }
 
             input.parse::<Token![=>]>().expect(NON_USER_ERROR);
-            input.parse::<keyword::inherit>().expect(NON_USER_ERROR);
+            input.parse::<keyword::inherited_tokens>().expect(NON_USER_ERROR);
+
             Ok(InheritItem {
                 ident: input.parse().expect(NON_USER_ERROR),
                 inherit_path: input.parse().expect(NON_USER_ERROR),
@@ -269,18 +272,11 @@ mod input {
     fn parse_property_value(input: ParseStream, allow_required: bool) -> Result<PropertyDefaultValue> {
         let ahead = input.fork();
         let mut buffer = TokenStream::new();
-        while !ahead.is_empty() {
+        while !ahead.is_empty() && !ahead.peek(Token![;]) {
             let tt: TokenTree = ahead.parse().unwrap();
-            if let TokenTree::Punct(p) = tt {
-                if p.as_char() == ';' {
-                    break;
-                } else {
-                    TokenTree::Punct(p).to_tokens(&mut buffer);
-                }
-            } else {
-                tt.to_tokens(&mut buffer);
-            }
+            tt.to_tokens(&mut buffer);
         }
+        input.advance_to(&ahead);
 
         if let Ok(args) = syn::parse2(buffer.clone()) {
             Ok(PropertyDefaultValue::Args(args))
@@ -493,9 +489,16 @@ mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
     use super::output::*;
     use crate::util::{Attributes, Errors};
+    use proc_macro2::Ident;
     use std::collections::{HashMap, HashSet};
     use std::fmt;
-    use syn::{punctuated::Punctuated, spanned::Spanned, Visibility};
+    use syn::{
+        parse_quote,
+        punctuated::Punctuated,
+        spanned::Spanned,
+        visit_mut::{self, VisitMut},
+        Expr, ExprPath, Member, Visibility,
+    };
 
     pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
@@ -741,8 +744,9 @@ mod analysis {
             });
         }
 
-        // validation after widget properties found
-        for when in &mut whens {
+        // process newly declared whens
+        for mut when in whens {
+            // only supports properties that have a default value.
             when.block.properties.retain(|property| {
                 let used = inited_properties.contains(&property.ident);
                 if !used {
@@ -752,7 +756,42 @@ mod analysis {
                     );
                 }
                 used
-            })
+            });
+
+            // find properties referenced in the condition expression and patches the
+            // expression so it can be used inside the transformed condition var.
+            let when_condition_span = when.condition.span();
+            let mut visitor = WhenConditionVisitor::default();
+            visitor.visit_expr_mut(&mut when.condition);
+
+            // when expressions must have at least one 'self.property'.
+            if visitor.properties.is_empty() {
+                errors.push("when condition does not reference any property", when_condition_span);
+                continue;
+            }
+
+            mod_whens.push(WhenCondition {
+                index: when_index,
+                properties: when.block.properties.iter().map(|p| &p.ident).cloned().collect(),
+                expr: if visitor.found_mult_exprs {
+                    if visitor.properties.len() == 1 {
+                        WhenConditionExpr::Map(visitor.properties[0].clone(), when.condition)
+                    } else {
+                        WhenConditionExpr::Merge(visitor.properties.clone(), when.condition)
+                    }
+                } else {
+                    WhenConditionExpr::Ref(visitor.properties[0].clone())
+                },
+            });
+
+            let attributes = Attributes::new(when.attrs);
+            macro_whens.push(input::InheritedWhen {
+                docs: attributes.docs,
+                args: visitor.properties.into_iter().map(|p| p.property).collect(),
+                sets: when.block.properties.into_iter().map(|p| p.ident).collect(),
+            });
+
+            when_index += 1;
         }
 
         debug_assert_eq!(when_index, macro_whens.len());
@@ -782,13 +821,15 @@ mod analysis {
         let new = new.drain(..).next();
         let new_child = new_child.drain(..).next();
 
+        let is_mixin = true; //TODO
+
         WidgetOutput {
             macro_: WidgetMacro {
                 cfg,
                 widget_name: input.header.name.clone(),
                 vis: input.header.vis.clone(),
                 export: macro_export,
-                is_mixin: false, //TODO
+                is_mixin,
                 default: macro_default,
                 default_child: macro_default_child,
                 whens: macro_whens,
@@ -798,7 +839,7 @@ mod analysis {
             mod_: WidgetMod {
                 docs: WidgetDocs {
                     docs,
-                    is_mixin: false, //TODO
+                    is_mixin,
                     required: docs_required,
                     provided: docs_provided,
                     other: docs_other,
@@ -806,7 +847,7 @@ mod analysis {
                 attrs,
                 vis: input.header.vis,
                 widget_name: input.header.name,
-                is_mixin: false, //TODO
+                is_mixin,
                 new,
                 new_child,
                 properties: mod_properties,
@@ -822,6 +863,82 @@ mod analysis {
             write!(f, "{}", quote!(#self))
         }
     }
+
+    #[derive(Debug)]
+    pub struct WhenPropertyAccess {
+        pub property: Ident,
+        pub member: Member,
+        pub new_name: Ident,
+    }
+
+    #[derive(Default)]
+    pub struct WhenConditionVisitor {
+        pub properties: Vec<WhenPropertyRef>,
+        pub found_mult_exprs: bool,
+    }
+
+    impl VisitMut for WhenConditionVisitor {
+        //visit expressions like:
+        // self.is_hovered
+        // self.is_hovered.0
+        // self.is_hovered.state
+        fn visit_expr_mut(&mut self, expr: &mut Expr) {
+            //get self or child
+            fn is_self(expr_path: &ExprPath) -> bool {
+                if let Some(ident) = expr_path.path.get_ident() {
+                    return ident == &ident!("self");
+                }
+                false
+            }
+            let mut continue_visiting = true;
+
+            if let Expr::Field(expr_field) = expr {
+                match &mut *expr_field.base {
+                    // self.is_hovered
+                    Expr::Path(expr_path) => {
+                        if let (true, Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
+                            self.properties.push(WhenPropertyRef {
+                                property,
+                                arg: WhenPropertyRefArg::Index(0),
+                            });
+                            continue_visiting = false;
+                        }
+                    }
+                    // self.is_hovered.0
+                    // self.is_hovered.state
+                    Expr::Field(i_expr_field) => {
+                        if let Expr::Path(expr_path) = &mut *i_expr_field.base {
+                            if let (true, Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
+                                self.properties.push(WhenPropertyRef {
+                                    property,
+                                    arg: expr_field.member.clone().into(),
+                                });
+                                continue_visiting = false;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if continue_visiting {
+                self.found_mult_exprs = true;
+                visit_mut::visit_expr_mut(self, expr);
+            } else {
+                let replacement = self.properties.last().unwrap().name();
+                *expr = parse_quote!((*#replacement));
+            }
+        }
+    }
+
+    impl From<Member> for WhenPropertyRefArg {
+        fn from(member: Member) -> Self {
+            match member {
+                Member::Named(ident) => WhenPropertyRefArg::Named(ident),
+                Member::Unnamed(i) => WhenPropertyRefArg::Index(i.index),
+            }
+        }
+    }
 }
 
 mod output {
@@ -831,7 +948,7 @@ mod output {
     use quote::ToTokens;
     use std::fmt;
     use syn::spanned::Spanned;
-    use syn::{Attribute, Expr, Path, Token, Visibility};
+    use syn::{Attribute, Expr, Member, Path, Token, Visibility};
 
     pub use super::input::{InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
 
@@ -877,7 +994,7 @@ mod output {
             let inherit_args = quote! {
                 $($inherit_next)*
 
-                inherit {
+                => inherited_tokens {
                     $named_as;
                     #inherit_info
                 }
@@ -1026,7 +1143,7 @@ mod output {
             let widget_name = &self.widget_name;
             let crate_ = zero_ui_crate_ident();
 
-            let some_mixin = if self.is_mixin { Some(()) } else { None };
+            let some_mixin = if self.is_mixin { None } else { Some(()) };
             let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::implicit_mixin; ));
             let new = some_mixin.map(|_| {
                 if let Some(new) = &self.new {
@@ -1067,7 +1184,7 @@ mod output {
                 #vis mod #widget_name {
                     #[doc(hidden)]
                     pub use super::*;
-                    #use_implicit_mixin;
+                    #use_implicit_mixin
 
                     // new functions.
                     #new
@@ -1320,7 +1437,7 @@ mod output {
                 FinalPropertyDefaultValue::Fields(f) => {
                     let fields = &f.fields;
                     quote! {
-                        property::#property::NamedArgs {
+                        properties::#property::NamedArgs {
                             _phantom: std::marker::PhantomData,
                             #fields
                         }
@@ -1354,15 +1471,17 @@ mod output {
     impl ToTokens for WidgetWhens {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let conditions = &self.conditions;
-            let tt = quote! {
-                #[doc(hidden)]
-                pub mod whens {
-                    use super::*;
+            if !conditions.is_empty() {
+                let tt = quote! {
+                    #[doc(hidden)]
+                    pub mod whens {
+                        use super::*;
 
-                    #(#conditions)*
-                }
-            };
-            tokens.extend(tt)
+                        #(#conditions)*
+                    }
+                };
+                tokens.extend(tt)
+            }
         }
     }
 
@@ -1452,6 +1571,7 @@ mod output {
         }
     }
 
+    #[derive(Clone)]
     pub struct WhenPropertyRef {
         pub property: Ident,
         pub arg: WhenPropertyRefArg,
@@ -1477,8 +1597,9 @@ mod output {
         }
     }
 
+    #[derive(Clone)]
     pub enum WhenPropertyRefArg {
-        Index(usize),
+        Index(u32),
         Named(Ident),
     }
 

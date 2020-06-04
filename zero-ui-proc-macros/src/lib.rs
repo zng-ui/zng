@@ -678,8 +678,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
-    //widget_stage1::expand(input) TODO
-    widget::expand_widget(CallKind::Widget, input)
+    widget_stage1::expand(false, input)
+    //widget::expand_widget(CallKind::Widget, input)
 }
 
 /// Declares a new widget mix-in module.
@@ -732,7 +732,8 @@ pub fn widget(input: TokenStream) -> TokenStream {
 /// are used during widget instantiation.
 #[proc_macro]
 pub fn widget_mixin(input: TokenStream) -> TokenStream {
-    widget::expand_widget(CallKind::Mixin, input)
+    widget_stage1::expand(true, input)
+    //widget::expand_widget(CallKind::Mixin, input)
 }
 
 /// Macro used by [`widget!`](widget).
