@@ -151,6 +151,7 @@ mod input {
         }
     }
 
+    #[derive(Clone)]
     pub struct PropertyArg {
         pub ident: Ident,
         pub colon_token: Token![:],
@@ -248,10 +249,15 @@ mod input {
 
 mod analysis {
     use super::input::{MacroArgs, Prefix, PropertyFn};
-    use super::output::PropertyMod;
-    use crate::util::{to_camel_case, zero_ui_crate_ident, Errors};
-    use std::mem;
-    use syn::{parse_quote, Type};
+    use super::output::{PropertyDocs, PropertyFns, PropertyMacros, PropertyMod, PropertyTypes};
+    use crate::util::{to_camel_case, zero_ui_crate_ident, Attributes, Errors};
+    use proc_macro2::Ident;
+    use std::{collections::HashSet, mem};
+    use syn::{
+        parse_quote,
+        visit::{self, Visit},
+        Type,
+    };
 
     pub fn generate(args: MacroArgs, fn_: PropertyFn) -> PropertyMod {
         let mut errors = Errors::default();
@@ -286,16 +292,18 @@ mod analysis {
             }
         }
 
+        let priority = args.priority;
+
         // explicit allowed_in_when or default.
         let allowed_in_when = args.allowed_in_when.map(|(_, _, _, b)| b.value).unwrap_or_else(|| match prefix {
             Prefix::State | Prefix::None => true,
             Prefix::Event => false,
         });
 
-        let mut args = fn_.args;
+        let mut args: Vec<_> = fn_.args.into_iter().collect();
         let crate_ = zero_ui_crate_ident();
 
-        // fix args to continue validation
+        // fix args to continue validation, this errors where already added during prefix validation.
         if args.is_empty() {
             args.push(parse_quote!(_missing_child: impl #crate_::core::UiNode));
         }
@@ -333,7 +341,78 @@ mod analysis {
             }
         }
 
-        todo!()
+        // collect more information about args.
+        let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id).collect();
+        for arg in &args {
+            let mut search = TypeSearch::new(&generic_idents);
+            search.visit_type_mut(&mut arg.ty);
+        }
+        let property_arg_idents = args.iter().skip(1).map(|a| a.ident.clone()).collect();
+
+        // separate attributes
+        let attrs = Attributes::new(fn_.attrs);
+        let mut mod_attrs = attrs.others;
+        if let Some(cfg) = attrs.cfg {
+            mod_attrs.push(cfg)
+        }
+        let set_attrs = attrs.inline.into_iter().collect();
+
+        PropertyMod {
+            errors,
+            docs: PropertyDocs {
+                user_docs: attrs.docs,
+                priority: priority.clone(),
+                allowed_in_when,
+                args: (),
+            },
+            attrs: mod_attrs,
+            vis: fn_.vis,
+            ident: fn_.ident,
+            fns: PropertyFns {
+                set_attrs,
+                generics: (),
+                args: args.clone(),
+                output: fn_.output.1,
+                block: fn_.block,
+            },
+            tys: PropertyTypes {
+                generics,
+                phantom_generics: (),
+                args,
+            },
+            macros: PropertyMacros {
+                priority,
+                allowed_in_when,
+                arg_idents: property_arg_idents,
+            },
+        }
+    }
+
+    struct TypeSearch<'a> {
+        types: &'a HashSet<&'a Ident>,
+        found_types: HashSet<&'a Ident>,
+    }
+
+    impl<'a> TypeSearch<'a> {
+        fn new(types: &'a HashSet<&'a Ident>) -> Self {
+            TypeSearch {
+                types,
+                found_types: HashSet::new(),
+            }
+        }
+    }
+
+    impl<'a> Visit<'a> for TypeSearch<'a> {
+        fn visit_type(&mut self, i: &Type) {
+            if let Type::Path(p) = i {
+                if let Some(id) = p.path.get_ident() {
+                    if let Some(&id) = self.types.get(id) {
+                        self.found_types.insert(id);
+                    }
+                }
+            }
+            visit::visit_type(self, i);
+        }
     }
 }
 
@@ -571,8 +650,9 @@ mod output {
     }
 
     pub struct PropertyFns {
-        pub attrs: Vec<Attribute>,
+        pub set_attrs: Vec<Attribute>,
         pub generics: Vec<PropertyGenParam>,
+        /// all property params (including the first child:imp UiNode).
         pub args: Vec<PropertyArg>,
         pub output: Box<Type>,
         pub block: Box<Block>,
@@ -581,7 +661,7 @@ mod output {
     impl ToTokens for PropertyFns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             // `set` function.
-            let attrs = &self.attrs;
+            let attrs = &self.set_attrs;
 
             let generics = if self.generics.is_empty() {
                 None
@@ -632,7 +712,7 @@ mod output {
     pub struct PropertyGenParam {
         pub ident: Ident,
         pub bounds: Punctuated<TypeParamBound, Token![+]>,
-        /// If this generic type is used by the property arguments (i.e. excluding the child and return type).
+        /// If this generic type is used by the property arguments (i.e. excluding the child and return types).
         pub used_by_args: bool,
     }
 
@@ -659,6 +739,7 @@ mod output {
     pub struct PropertyMacros {
         priority: Priority,
         allowed_in_when: bool,
+        /// idents of property arguments, (not the child:impl UiNode param).
         arg_idents: Vec<Ident>,
     }
 
