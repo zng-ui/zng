@@ -486,6 +486,7 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
+    use syn::spanned::Spanned;
     use syn::{punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
 
     pub struct PropertyMod {
@@ -784,8 +785,8 @@ mod output {
 
     impl ToTokens for PropertyTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let generic_idents: Vec<_> = self.generics.iter().map(|(id, _)|id).collect();
-            let generic_bounds: Vec<_> = self.generics.iter().map(|(_, b)|b).collect();
+            let generic_idents: Vec<_> = self.generics.iter().map(|(id, _)| id).collect();
+            let generic_bounds: Vec<_> = self.generics.iter().map(|(_, b)| b).collect();
             let phantom_generics = &self.phantom_generics;
             let args = &self.args;
 
@@ -800,6 +801,19 @@ mod output {
                 Some(quote!(<#(#generic_idents),*>))
             };
 
+            let args_numbered_idents: Vec<_> = (0..args.len()).map(|i| ident!("arg{}", i)).collect();
+            let args_idents: Vec<_> = args.iter().map(|a| &a.ident).collect();
+            let args_tys: Vec<_> = args
+                .iter()
+                .map(|a| {
+                    //TODO generics add Self::
+                    quote_spanned!(a.ty.span()=> #a)
+                })
+                .collect();
+
+            // TODO add Self:: to inter generic references.
+            let generic_bounds_trait_style = generic_bounds.clone();
+
             tokens.extend(quote! {
                 #[doc(hidden)]
                 pub struct NamedArgs#named_args_generics {
@@ -807,30 +821,56 @@ mod output {
                     #(pub #args,)*
                 }
 
+                /// Positional view of the property arguments.
                 pub trait ArgsNumbered {
-                    #(type #generic_idents: #generic_bounds;)*
+                    #(type #generic_idents: #generic_bounds_trait_style;)*
+
+                    #(fn #args_numbered_idents(&self) -> &#args_tys;)*
                 }
 
+                /// Named view of the property arguments.
                 pub trait ArgsNamed {
-                    #(type #generic_idents: #generic_bounds;)*
+                    #(type #generic_idents: #generic_bounds_trait_style;)*
+
+                    #(fn #args_idents(&self) -> &#args_tys;)*
                 }
 
+                /// Allows destructuring property arguments by moving then to a tuple.
                 pub trait ArgsUnwrap {
-                    #(type #generic_idents: #generic_bounds;)*
+                    #(type #generic_idents: #generic_bounds_trait_style;)*
+
+                    fn unwrap(self) -> (#(#args_tys),*)
                 }
 
+                /// Full property arguments implementation.
                 pub trait Args: ArgsNamed + ArgsNumbered + ArgsUnwrap { }
 
                 impl#named_args_generics ArgsNumbered for NamedArgs#named_args_idents {
                     #(type #generic_idents = #generic_idents;)*
+
+                    #(
+                        fn #args_numbered_idents(&self) -> &#args_tys {
+                            &self.#args_idents
+                        }
+                    )*
                 }
 
                 impl#named_args_generics ArgsNamed for NamedArgs#named_args_idents {
                     #(type #generic_idents = #generic_idents;)*
+
+                    #(
+                        fn #args_idents(&self) -> &#args_tys {
+                            &self.#args_idents
+                        }
+                    )*
                 }
 
                 impl#named_args_generics ArgsUnwrap for NamedArgs#named_args_idents {
                     #(type #generic_idents = #generic_idents;)*
+
+                    fn unwrap(self) -> (#(#args_tys),*) {
+                        (#(self.#args_idents)*)
+                    }
                 }
 
                 impl#named_args_generics Args for NamedArgs#named_args_idents { }
