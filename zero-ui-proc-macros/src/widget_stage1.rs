@@ -7,16 +7,16 @@ use syn::{parse::*, punctuated::Punctuated, *};
 /// their internals.
 pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt = parse_macro_input!(input as WidgetDeclaration);
+    let crate_ = util::zero_ui_crate_ident();
 
     if !mixin {
         if wgt.header.inherit_start.is_none() {
             wgt.header.inherit_start = Some(parse_quote!(:));
         }
 
-        let crate_ = util::zero_ui_crate_ident();
         wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
     } else if wgt.header.inherits.is_empty() {
-        return super::widget_stage3::expand(wgt.to_token_stream().into());
+        return super::widget_stage3::expand(quote! { mixin: true #wgt }.into());
     }
 
     let mut inherits = wgt.header.inherits.clone();
@@ -33,7 +33,7 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
         #[doc(hidden)]
         macro_rules! #stage3_entry {
             ($($tt:tt)*) => {
-                widget_stage3!{$($tt)*}
+                #crate_::widget_stage3!{$($tt)*}
             }
         }
 
@@ -50,6 +50,7 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
                 #first_inherit;
                 #inherits
             }
+            mixin: #mixin
             #wgt
         }
     };

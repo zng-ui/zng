@@ -345,7 +345,7 @@ mod analysis {
         let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id).collect();
         for arg in &args {
             let mut search = TypeSearch::new(&generic_idents);
-            search.visit_type_mut(&mut arg.ty);
+            search.visit_type(&mut arg.ty);
         }
         let property_arg_idents = args.iter().skip(1).map(|a| a.ident.clone()).collect();
 

@@ -25,6 +25,7 @@ mod input {
         syn::custom_keyword!(required);
         syn::custom_keyword!(unset);
         syn::custom_keyword!(when);
+        syn::custom_keyword!(mixin);
         syn::custom_keyword!(new);
         syn::custom_keyword!(new_child);
         syn::custom_keyword!(inherit);
@@ -51,6 +52,7 @@ mod input {
 
     pub struct WidgetDeclaration {
         pub inherits: Vec<InheritItem>,
+        pub mixin_signal: MixinSignal,
         pub header: WidgetHeader,
         pub items: Vec<WgtItem>,
     }
@@ -58,9 +60,11 @@ mod input {
     impl Parse for WidgetDeclaration {
         fn parse(input: ParseStream) -> Result<Self> {
             let mut inherits = Vec::new();
-            while input.peek(Token![=>]) && input.peek2(keyword::inherited_tokens) {
+            while input.peek(Token![=>]) && input.peek3(keyword::inherited_tokens) {
                 inherits.push(input.parse().expect(NON_USER_ERROR));
             }
+
+            let mixin_signal = input.parse().expect(NON_USER_ERROR);
 
             let header = input.parse().expect(NON_USER_ERROR);
 
@@ -68,7 +72,12 @@ mod input {
             while !input.is_empty() {
                 items.push(input.parse()?);
             }
-            Ok(WidgetDeclaration { inherits, header, items })
+            Ok(WidgetDeclaration {
+                inherits,
+                mixin_signal,
+                header,
+                items,
+            })
         }
     }
 
@@ -154,6 +163,21 @@ mod input {
                 docs: Attribute::parse_outer(input).expect(NON_USER_ERROR),
                 args: Punctuated::parse_terminated(&non_user_parenthesized(input)).expect(NON_USER_ERROR),
                 sets: Punctuated::parse_terminated(&non_user_braced(input)).expect(NON_USER_ERROR),
+            })
+        }
+    }
+
+    pub struct MixinSignal {
+        pub mixin_token: keyword::mixin,
+        pub colon: Token![:],
+        pub value: LitBool,
+    }
+    impl Parse for MixinSignal {
+        fn parse(input: ParseStream) -> Result<Self> {
+            Ok(MixinSignal {
+                mixin_token: input.parse()?,
+                colon: input.parse()?,
+                value: input.parse()?,
             })
         }
     }
@@ -772,7 +796,7 @@ mod analysis {
 
             mod_whens.push(WhenCondition {
                 index: when_index,
-                properties: when.block.properties.iter().map(|p| &p.ident).cloned().collect(),
+                properties: visitor.properties.iter().map(|p| &p.property).cloned().collect(),
                 expr: if visitor.found_mult_exprs {
                     if visitor.properties.len() == 1 {
                         WhenConditionExpr::Map(visitor.properties[0].clone(), when.condition)
@@ -821,7 +845,7 @@ mod analysis {
         let new = new.drain(..).next();
         let new_child = new_child.drain(..).next();
 
-        let is_mixin = true; //TODO
+        let is_mixin = input.mixin_signal.value.value;
 
         WidgetOutput {
             macro_: WidgetMacro {
@@ -948,7 +972,7 @@ mod output {
     use quote::ToTokens;
     use std::fmt;
     use syn::spanned::Spanned;
-    use syn::{Attribute, Expr, Member, Path, Token, Visibility};
+    use syn::{Attribute, Expr, Path, Token, Visibility};
 
     pub use super::input::{InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
 
@@ -985,33 +1009,23 @@ mod output {
             let default = &self.default;
             let default_child = &self.default_child;
             let whens = &self.whens;
-            let inherit_info = quote! {
-                mod #name
-                default { #(#default),* }
-                default_child { #(#default_child),* }
-                whens { #(#whens),* }
-            };
-            let inherit_args = quote! {
-                $($inherit_next)*
-
-                => inherited_tokens {
-                    $named_as;
-                    #inherit_info
-                }
-
-                $($rest)*
-            };
             let inherit_arm = quote! {
-                (-> inherit { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-                    #crate_::widget_inherit! {
-                        #inherit_args
-                    }
-                };
-            };
-            let inherit_mixin_arm = quote! {
-                (-> inherit_mixin { $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-                    #crate_::widget_mixin_inherit! {
-                        #inherit_args
+                (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+                    #crate_::widget_stage2! {
+                        => {
+                            $stage3_entry;
+                            $($inherit_next)*
+                        }
+
+                        => inherited_tokens {
+                            $named_as;
+                            mod #name
+                            default { #(#default),* }
+                            default_child { #(#default_child),* }
+                            whens { #(#whens),* }
+                        }
+
+                        $($rest)*
                     }
                 };
             };
@@ -1024,18 +1038,15 @@ mod output {
                 let whens = self.whens.iter().map(|p| p.tokens(false));
                 let new = &self.new;
                 let new_child = &self.new_child;
-                let widget_new_info = quote! {
-                    mod #name
-                    default { #(#default)* }
-                    default_child { #(#default_child)* }
-                    whens { #(#whens)* }
-                    new(#new)
-                    new_child(#new_child)
-                };
                 Some(quote! {
                     ($($input:tt)*) => {
                         #crate_::widget_new! {
-                            #widget_new_info
+                            mod #name
+                            default { #(#default)* }
+                            default_child { #(#default_child)* }
+                            whens { #(#whens)* }
+                            new(#new)
+                            new_child(#new_child)
                             user_input { $($input)* }
                         }
                     };
@@ -1053,7 +1064,6 @@ mod output {
             tokens.extend(quote! {
                 macro_rules! #unique_name {
                     #inherit_arm
-                    #inherit_mixin_arm
                     #new_arm
                 }
 
@@ -1503,7 +1513,7 @@ mod output {
             let expr = &self.expr;
             let tt = quote! {
                 #[inline]
-                pub fn #fn_ident(#(#p: impl properties::#p::Args),*) -> #crate_:::core::var::Var<bool> {
+                pub fn #fn_ident(#(#p: impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
                     #(
                        {#[allow(unused)]
                         use properties::#p::is_allowed_in_when;}
@@ -1592,7 +1602,7 @@ mod output {
             let arg = &self.arg;
             let name = self.name();
             tokens.extend(quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(#property)));
+                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(&#property)));
             });
         }
     }

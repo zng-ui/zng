@@ -47,7 +47,7 @@ macro_rules! error_println {
 }
 
 #[doc(hidden)]
-pub use zero_ui_macros::{widget_inherit, widget_mixin_inherit, widget_new};
+pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
 
 pub mod core;
 pub mod layouts;
