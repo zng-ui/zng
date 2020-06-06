@@ -157,7 +157,6 @@ mod input {
         pub colon_token: Token![:],
         pub ty: Box<Type>,
     }
-
     impl Parse for PropertyArg {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyArg {
@@ -173,7 +172,6 @@ mod input {
         pub params: Punctuated<PropertyGenericParam, Token![,]>,
         pub gt_token: Token![>],
     }
-
     impl Parse for PropertyGenerics {
         fn parse(input: ParseStream) -> Result<Self> {
             let lt_token = input.parse()?;
@@ -462,7 +460,7 @@ mod analysis {
         generics: HashMap<&'a Ident, &'a Punctuated<TypeParamBound, Token![+]>>,
     }
     impl<'a> GenericsToImpl<'a> {
-        fn new(generics: &'a Vec<(Ident, Punctuated<TypeParamBound, Token![+]>)>) -> Self {
+        fn new(generics: &'a [(Ident, Punctuated<TypeParamBound, Token![+]>)]) -> Self {
             GenericsToImpl {
                 generics: generics.iter().map(|(i, b)| (i, b)).collect(),
             }
@@ -786,7 +784,57 @@ mod output {
 
     impl ToTokens for PropertyTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            todo!()
+            let generic_idents: Vec<_> = self.generics.iter().map(|(id, _)|id).collect();
+            let generic_bounds: Vec<_> = self.generics.iter().map(|(_, b)|b).collect();
+            let phantom_generics = &self.phantom_generics;
+            let args = &self.args;
+
+            let named_args_generics = if generic_idents.is_empty() {
+                None
+            } else {
+                Some(quote!(<#(#generic_idents: #generic_bounds),*>))
+            };
+            let named_args_idents = if generic_idents.is_empty() {
+                None
+            } else {
+                Some(quote!(<#(#generic_idents),*>))
+            };
+
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                pub struct NamedArgs#named_args_generics {
+                    pub _phantom: std::marker::PhantomData<(#(#phantom_generics),*)>,
+                    #(pub #args,)*
+                }
+
+                pub trait ArgsNumbered {
+                    #(type #generic_idents: #generic_bounds;)*
+                }
+
+                pub trait ArgsNamed {
+                    #(type #generic_idents: #generic_bounds;)*
+                }
+
+                pub trait ArgsUnwrap {
+                    #(type #generic_idents: #generic_bounds;)*
+                }
+
+                pub trait Args: ArgsNamed + ArgsNumbered + ArgsUnwrap { }
+
+                impl#named_args_generics ArgsNumbered for NamedArgs#named_args_idents {
+                    #(type #generic_idents = #generic_idents;)*
+                }
+
+                impl#named_args_generics ArgsNamed for NamedArgs#named_args_idents {
+                    #(type #generic_idents = #generic_idents;)*
+                }
+
+                impl#named_args_generics ArgsUnwrap for NamedArgs#named_args_idents {
+                    #(type #generic_idents = #generic_idents;)*
+                }
+
+                impl#named_args_generics Args for NamedArgs#named_args_idents { }
+            });
         }
     }
 
