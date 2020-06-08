@@ -384,8 +384,8 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
-    property_old::expand_property(args, input)
-    //property::expand(args, input)
+    //property_old::expand_property(args, input)
+    property::expand(args, input)
 }
 
 /// Declares a new widget macro and module.

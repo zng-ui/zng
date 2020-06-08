@@ -1511,13 +1511,12 @@ mod output {
             let crate_ = zero_ui_crate_ident();
             let p = &self.properties;
             let expr = &self.expr;
+            let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
             let tt = quote! {
+                #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
+
                 #[inline]
                 pub fn #fn_ident(#(#p: impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
-                    #(
-                       {#[allow(unused)]
-                        use properties::#p::is_allowed_in_when;}
-                    )*
                     #expr
                 }
             };

@@ -137,7 +137,7 @@ pub fn default_widget_new_child<C: UiNode>(child: C) -> C {
 #[inline]
 pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl UiNode {
     Widget {
-        id: id_args.unwrap().0,
+        id: id_args.unwrap(),
         state: LazyStateMap::default(),
         child,
         area: LayoutSize::zero(),

@@ -31,7 +31,6 @@ mod input {
         Event,
         None,
     }
-
     impl Prefix {
         pub fn new(fn_ident: &Ident) -> Self {
             let ident_str = fn_ident.to_string();
@@ -53,7 +52,6 @@ mod input {
         // trailing comma
         pub comma_token: Option<Token![,]>,
     }
-
     impl Parse for MacroArgs {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(MacroArgs {
@@ -78,7 +76,6 @@ mod input {
         Size(keyword::size),
         Inner(keyword::inner),
     }
-
     impl Priority {
         pub fn is_event(self) -> bool {
             match self {
@@ -87,7 +84,6 @@ mod input {
             }
         }
     }
-
     impl Parse for Priority {
         fn parse(input: ParseStream) -> Result<Self> {
             let lookahead = input.lookahead1();
@@ -120,7 +116,6 @@ mod input {
         pub where_clause: Option<PropertyWhereClause>,
         pub block: Box<Block>,
     }
-
     impl Parse for PropertyFn {
         fn parse(input: ParseStream) -> Result<Self> {
             let args_stream;
@@ -175,9 +170,18 @@ mod input {
     impl Parse for PropertyGenerics {
         fn parse(input: ParseStream) -> Result<Self> {
             let lt_token = input.parse()?;
-
+            let mut depth = 1;
             let mut params_stream = TokenStream::new();
-            while !input.peek(Token![>]) {
+            while !input.is_empty() {
+                if input.peek(Token![<]) {
+                    depth += 1;
+                } else if input.peek(Token![>]) {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+
                 params_stream.extend(input.parse::<proc_macro2::TokenTree>());
             }
 
@@ -193,7 +197,6 @@ mod input {
         pub ident: Ident,
         pub bounds: Option<(Token![:], Punctuated<TypeParamBound, Token![+]>)>,
     }
-
     impl Parse for PropertyGenericParam {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyGenericParam {
@@ -213,7 +216,6 @@ mod input {
         pub where_token: Token![where],
         pub predicates: Punctuated<PropertyWherePredicate, Token![,]>,
     }
-
     impl Parse for PropertyWhereClause {
         fn parse(input: ParseStream) -> Result<Self> {
             let where_token = input.parse()?;
@@ -233,7 +235,6 @@ mod input {
         pub colon_token: Token![:],
         pub bounds: Punctuated<TypeParamBound, Token![+]>,
     }
-
     impl Parse for PropertyWherePredicate {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyWherePredicate {
@@ -250,7 +251,8 @@ mod analysis {
     use super::output::{
         PropertyDocArg, PropertyDocType, PropertyDocs, PropertyFns, PropertyGenParam, PropertyMacros, PropertyMod, PropertyTypes,
     };
-    use crate::util::{to_camel_case, zero_ui_crate_ident, Attributes, Errors};
+    use crate::util::{zero_ui_crate_ident, Attributes, Errors};
+    use heck::CamelCase;
     use proc_macro2::Ident;
     use std::{
         collections::{HashMap, HashSet},
@@ -335,7 +337,7 @@ mod analysis {
         for a in &mut args {
             let mut new_ty = None;
             if let Type::ImplTrait(b) = &mut *a.ty {
-                let t_ident = to_camel_case(&a.ident);
+                let t_ident = ident!("T{}", a.ident.to_string().to_camel_case());
                 let ty: Type = parse_quote!(#t_ident);
                 generics.push((t_ident, mem::take(&mut b.bounds)));
                 new_ty = Some(ty);
@@ -346,14 +348,9 @@ mod analysis {
             }
         }
 
-        // collect more information about args.
+        // generic idents lookup.
         let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id).collect();
-        let mut search = TypeSearch::new(&generic_idents);
-        for arg in &args {
-            search.visit_type(&arg.ty);
-        }
-        let phantom_generics: Vec<_> = generic_idents.difference(&search.found_types).map(|&i| i.clone()).collect();
-        let property_arg_idents = args.iter().skip(1).map(|a| a.ident.clone()).collect();
+
         let property_docs = args
             .iter()
             .skip(1)
@@ -369,6 +366,7 @@ mod analysis {
                 },
             })
             .collect();
+
         let fn_generics = generics
             .iter()
             .map(|(id, b)| {
@@ -392,6 +390,53 @@ mod analysis {
             })
             .collect();
 
+        let property_args: Vec<_> = args.iter().skip(1).cloned().collect();
+
+        let property_arg_idents = property_args.iter().map(|a| a.ident.clone()).collect();
+
+        // property arg generic types are transformed to be used in trait Args associated types.
+        let property_arg_tys: Vec<_> = property_args.iter().map(|a| (*a.ty).clone()).collect();
+        let args_tys_trait_return = {
+            let mut t = property_arg_tys;
+            let mut transform = GenericsToTraitStyle::new(&generic_idents);
+            t.iter_mut().for_each(|t| transform.visit_type_mut(t));
+            t
+        };
+
+        // generics used by property argument types.
+        let ty_generics: Vec<_> = {
+            let mut search = TypeSearch::new(&generic_idents);
+            property_args.iter().for_each(|a| search.visit_type(&a.ty));
+            generics.iter().filter(|g| search.found_types.contains(&g.0)).cloned().collect()
+        };
+
+        let generic_idents = ty_generics.iter().map(|g| &g.0).collect();
+        let args_tys_trait_decl: Vec<_> = {
+            let mut transform = GenericsToTraitStyle::new(&generic_idents);
+            ty_generics
+                .iter()
+                .map(|(_, bounds)| {
+                    let mut bounds = bounds.clone();
+                    bounds.iter_mut().for_each(|b| transform.visit_type_param_bound_mut(b));
+                    bounds
+                })
+                .collect()
+        };
+
+        // generics that need to used in a PhantomData field in the args bundle struct.
+        let phantom_generics: Vec<_> = {
+            let mut search = TypeSearch::new(&generic_idents);
+            for arg in &property_args {
+                search.visit_type(&arg.ty);
+            }
+            for bounds in &args_tys_trait_decl {
+                for bound in bounds.iter() {
+                    search.visit_type_param_bound(bound);
+                }
+            }
+            generic_idents.difference(&search.found_types).map(|&i| i.clone()).collect()
+        };
+
         // separate attributes
         let attrs = Attributes::new(fn_.attrs);
         let mut mod_attrs = attrs.others;
@@ -414,14 +459,16 @@ mod analysis {
             fns: PropertyFns {
                 set_attrs,
                 generics: fn_generics,
-                args: args.clone(),
+                args,
                 output: fn_.output.1,
                 block: fn_.block,
             },
             tys: PropertyTypes {
-                generics,
+                generics: ty_generics,
                 phantom_generics,
-                args,
+                args: property_args,
+                args_tys_trait_decl,
+                args_tys_trait_return,
             },
             macros: PropertyMacros {
                 priority,
@@ -468,6 +515,7 @@ mod analysis {
     }
     impl<'a> VisitMut for GenericsToImpl<'a> {
         fn visit_type_mut(&mut self, i: &mut Type) {
+            visit_mut::visit_type_mut(self, i);
             if let Type::Path(p) = i {
                 if let Some(id) = p.path.get_ident() {
                     if let Some(bounds) = self.generics.get(id) {
@@ -475,7 +523,28 @@ mod analysis {
                     }
                 }
             }
+        }
+    }
+
+    struct GenericsToTraitStyle<'a> {
+        generics: &'a HashSet<&'a Ident>,
+    }
+    impl<'a> GenericsToTraitStyle<'a> {
+        fn new(generics: &'a HashSet<&'a Ident>) -> Self {
+            GenericsToTraitStyle { generics }
+        }
+    }
+    impl<'a> VisitMut for GenericsToTraitStyle<'a> {
+        fn visit_type_mut(&mut self, i: &mut Type) {
             visit_mut::visit_type_mut(self, i);
+
+            if let Type::Path(p) = i {
+                if let Some(id) = p.path.get_ident() {
+                    if self.generics.contains(id) {
+                        p.path = parse_quote!(Self::#p);
+                    }
+                }
+            }
         }
     }
 }
@@ -486,7 +555,6 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
-    use syn::spanned::Spanned;
     use syn::{punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
 
     pub struct PropertyMod {
@@ -536,7 +604,6 @@ mod output {
         pub allowed_in_when: bool,
         pub args: Vec<PropertyDocArg>,
     }
-
     impl PropertyDocs {
         /// Generate dummy function for argument type links.
         fn inner_tokens(&self) -> TokenStream {
@@ -551,7 +618,6 @@ mod output {
             t
         }
     }
-
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
             doc_extend!(tokens, "\n# Property\n");
@@ -578,7 +644,6 @@ mod output {
             );
         }
     }
-
     impl ToTokens for Priority {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
@@ -590,7 +655,6 @@ mod output {
             }
         }
     }
-
     impl fmt::Display for Priority {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(f, "{}", self.to_token_stream())
@@ -602,7 +666,6 @@ mod output {
         pub ident: Ident,
         pub ty: PropertyDocType,
     }
-
     impl ToTokens for PropertyDocArg {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let ident = &self.ident;
@@ -610,7 +673,6 @@ mod output {
             tokens.extend(quote!(#ident: #ty))
         }
     }
-
     impl fmt::Display for PropertyDocArg {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
@@ -781,6 +843,10 @@ mod output {
         pub generics: Vec<(Ident, Punctuated<TypeParamBound, Token![+]>)>,
         pub phantom_generics: Vec<Ident>,
         pub args: Vec<PropertyArg>,
+        /// args.ty but with inter generics referenced updated to Self::T.
+        pub args_tys_trait_decl: Vec<Punctuated<TypeParamBound, Token![+]>>,
+        /// args.ty but with all generics updated to Self::T.
+        pub args_tys_trait_return: Vec<Type>,
     }
 
     impl ToTokens for PropertyTypes {
@@ -803,16 +869,8 @@ mod output {
 
             let args_numbered_idents: Vec<_> = (0..args.len()).map(|i| ident!("arg{}", i)).collect();
             let args_idents: Vec<_> = args.iter().map(|a| &a.ident).collect();
-            let args_tys: Vec<_> = args
-                .iter()
-                .map(|a| {
-                    //TODO generics add Self::
-                    quote_spanned!(a.ty.span()=> #a)
-                })
-                .collect();
-
-            // TODO add Self:: to inter generic references.
-            let generic_bounds_trait_style = generic_bounds.clone();
+            let args_tys = &self.args_tys_trait_return;
+            let generic_bounds_trait_style = &self.args_tys_trait_decl;
 
             tokens.extend(quote! {
                 #[doc(hidden)]
@@ -839,7 +897,7 @@ mod output {
                 pub trait ArgsUnwrap {
                     #(type #generic_idents: #generic_bounds_trait_style;)*
 
-                    fn unwrap(self) -> (#(#args_tys),*)
+                    fn unwrap(self) -> (#(#args_tys),*);
                 }
 
                 /// Full property arguments implementation.
@@ -869,7 +927,7 @@ mod output {
                     #(type #generic_idents = #generic_idents;)*
 
                     fn unwrap(self) -> (#(#args_tys),*) {
-                        (#(self.#args_idents)*)
+                        (#(self.#args_idents),*)
                     }
                 }
 

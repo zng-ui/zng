@@ -155,7 +155,6 @@ pub fn uuid() -> impl std::fmt::Display {
 pub fn parse_terminated2<T: Parse, P: Parse>(tokens: TokenStream) -> parse::Result<Punctuated<T, P>> {
     parse2::<PunctParser<T, P>>(tokens).map(|p| p.0)
 }
-
 struct PunctParser<T, P>(Punctuated<T, P>);
 impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -196,12 +195,6 @@ impl ToTokens for Errors {
     fn into_token_stream(self) -> TokenStream {
         self.tokens
     }
-}
-
-/// Converts the ident to CamelCase, preserves the span.
-pub fn to_camel_case(ident: &Ident) -> Ident {
-    use heck::CamelCase;
-    Ident::new(ident.to_string().to_camel_case().as_str(), ident.span())
 }
 
 /// Separated attributes.

@@ -63,7 +63,7 @@ mod build_tests {
         use basic_context::{args, ArgsNamed, ArgsUnwrap};
         let a = args(1);
         let _ar = a.arg();
-        let (_a,) = a.unwrap();
+        let _a = a.unwrap();
     }
 
     #[property(context)]
@@ -94,13 +94,13 @@ mod build_tests {
         child
     }
 
-    #[property(context, not_when)]
+    #[property(context, allowed_in_when: false)]
     fn no_bounds_phantom<A, B: Into<A>>(child: impl UiNode, b: B) -> impl UiNode {
         let _b = no_bounds_phantom::args(b);
         child
     }
 
-    #[property(context, not_when)]
+    #[property(context, allowed_in_when: false)]
     fn no_bounds_not_arg<A, B>(_child: A, b: B) -> impl UiNode {
         let _b = no_bounds_not_arg::args(b);
         crate::widgets::text("")
