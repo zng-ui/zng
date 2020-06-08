@@ -519,7 +519,9 @@ mod analysis {
             if let Type::Path(p) = i {
                 if let Some(id) = p.path.get_ident() {
                     if let Some(bounds) = self.generics.get(id) {
-                        *i = Type::ImplTrait(parse_quote!(impl #bounds));
+                        if !bounds.is_empty() {
+                            *i = Type::ImplTrait(parse_quote!(impl #bounds));
+                        }
                     }
                 }
             }
