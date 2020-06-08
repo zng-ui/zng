@@ -35,7 +35,7 @@ pub use text::*;
 pub use title_::*;
 
 /// Tests on the #[property(..)] code generator.
-#[cfg(test)]
+//#[cfg(test)]
 mod build_tests {
     use crate::core::property;
     use crate::core::var::*;

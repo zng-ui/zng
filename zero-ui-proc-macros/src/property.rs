@@ -407,6 +407,13 @@ mod analysis {
         let ty_generics: Vec<_> = {
             let mut search = TypeSearch::new(&generic_idents);
             property_args.iter().for_each(|a| search.visit_type(&a.ty));
+            for (id, bounds) in &generics {
+                if search.found_types.contains(id) {
+                    for bound in bounds.iter() {
+                        search.visit_type_param_bound(bound);
+                    }
+                }
+            }
             generics.iter().filter(|g| search.found_types.contains(&g.0)).cloned().collect()
         };
 
@@ -452,6 +459,7 @@ mod analysis {
                 priority,
                 allowed_in_when,
                 args: property_docs,
+                generics,
             },
             attrs: mod_attrs,
             vis: fn_.vis,
@@ -605,6 +613,7 @@ mod output {
         pub priority: Priority,
         pub allowed_in_when: bool,
         pub args: Vec<PropertyDocArg>,
+        pub generics: Vec<(Ident, Punctuated<TypeParamBound, Token![+]>)>,
     }
     impl PropertyDocs {
         /// Generate dummy function for argument type links.
@@ -612,10 +621,25 @@ mod output {
             let mut t = TokenStream::new();
             doc_extend!(t, "<span></span>\n\n<script>{}</script>", include_str!("property_z_ext.js"));
             let args = &self.args;
+
+            let generics = if self.generics.is_empty() {
+                None
+            } else {
+                let phantom = self.generics.iter().map(|(id, _)| id);
+                let phantom_bounds = self.generics.iter().map(|(_, b)| {
+                    if b.is_empty() {
+                        quote!()
+                    } else {
+                        quote! {: #b}
+                    }
+                });
+                Some(quote!(<#(#phantom #phantom_bounds),*>))
+            };
+
             t.extend(quote! {
                 // this function is hidden using CSS inserted by `PropertyFns`
                 #[allow(unused)]
-                pub fn __(#(#args),*) { }
+                pub fn __#generics(#(#args),*) { }
             });
             t
         }
