@@ -257,7 +257,8 @@ mod input {
 mod analysis {
     use super::input::{MacroArgs, Prefix, PropertyFn};
     use super::output::{
-        PropertyDocArg, PropertyDocType, PropertyDocs, PropertyFns, PropertyGenParam, PropertyMacros, PropertyMod, PropertyTypes,
+        PropertyAsserts, PropertyDocArg, PropertyDocType, PropertyDocs, PropertyFns, PropertyGenParam, PropertyMacros, PropertyMod,
+        PropertyTypes,
     };
     use crate::util::{zero_ui_crate_ident, Attributes, Errors};
     use heck::CamelCase;
@@ -284,7 +285,7 @@ mod analysis {
             Prefix::State => {
                 if fn_.args.len() != 2 {
                     errors.push(
-                        "is_* properties functions must have 2 parameters, `UiNode` and `StateVar`",
+                        "is_* properties functions must have 2 parameters, `UiNode` and `IsStateVar`",
                         fn_.paren_token.span,
                     );
                 }
@@ -499,6 +500,7 @@ mod analysis {
                 allowed_in_when,
                 arg_idents: property_arg_idents,
             },
+            asserts: PropertyAsserts { prefix },
         }
     }
 
@@ -576,7 +578,7 @@ mod analysis {
 }
 
 mod output {
-    use super::input::{Priority, PropertyArg};
+    use super::input::{Prefix, Priority, PropertyArg};
     use crate::util::{uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
@@ -592,6 +594,7 @@ mod output {
         pub fns: PropertyFns,
         pub tys: PropertyTypes,
         pub macros: PropertyMacros,
+        pub asserts: PropertyAsserts,
     }
     impl ToTokens for PropertyMod {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
@@ -604,6 +607,7 @@ mod output {
             let fns = &self.fns;
             let tys = &self.tys;
             let macros = &self.macros;
+            let asserts = &self.asserts;
 
             let docs_inner = docs.inner_tokens();
 
@@ -618,6 +622,8 @@ mod output {
                     #macros
 
                     #docs_inner
+
+                    #asserts
                 }
             });
         }
@@ -814,7 +820,6 @@ mod output {
         pub output: Box<Type>,
         pub block: Box<Block>,
     }
-
     impl ToTokens for PropertyFns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             // `set` function.
@@ -872,7 +877,6 @@ mod output {
         /// If this generic type is used by the property arguments (i.e. excluding the child and return types).
         pub used_by_args: bool,
     }
-
     impl ToTokens for PropertyArg {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             self.ident.to_tokens(tokens);
@@ -890,7 +894,6 @@ mod output {
         /// args.ty but with all generics updated to Self::T.
         pub args_tys_trait_return: Vec<Type>,
     }
-
     impl ToTokens for PropertyTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let generic_idents: Vec<_> = self.generics.iter().map(|(id, _)| id).collect();
@@ -984,7 +987,6 @@ mod output {
         /// idents of property arguments, (not the child:impl UiNode param).
         pub arg_idents: Vec<Ident>,
     }
-
     impl ToTokens for PropertyMacros {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let pid = uuid(); // unique id of this property.
@@ -1051,6 +1053,28 @@ mod output {
                 #[doc(hidden)]
                 pub use #switch_args_ident as switch_args;
             });
+        }
+    }
+
+    /// Validations that required full compiler type information.
+    pub struct PropertyAsserts {
+        pub prefix: Prefix,
+    }
+    impl ToTokens for PropertyAsserts {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match self.prefix {
+                Prefix::State => {
+                    let crate_ = zero_ui_crate_ident();
+                    tokens.extend(quote! {
+                        #[allow(unused)]
+                        fn assert_is_state(args: impl ArgsUnwrap) -> #crate_::core::var::StateVar {
+                            args.unwrap()
+                        }
+                    })
+                }
+                Prefix::Event => {}
+                Prefix::None => {}
+            }
         }
     }
 }

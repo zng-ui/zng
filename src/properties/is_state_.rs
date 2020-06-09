@@ -1,7 +1,7 @@
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::mouse::*;
-use crate::core::var::{Var, VarIsReadOnly};
+use crate::core::var::{ObjVar, StateVar, VarIsReadOnly};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
@@ -16,15 +16,15 @@ impl ResultVarReadOnlyExt for Result<(), VarIsReadOnly> {
     }
 }
 
-struct IsHovered<C: UiNode, S: Var<bool>> {
+struct IsHovered<C: UiNode> {
     child: C,
-    state: S,
+    state: StateVar,
     mouse_enter: EventListener<MouseHoverArgs>,
     mouse_leave: EventListener<MouseHoverArgs>,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<bool>> UiNode for IsHovered<C, S> {
+impl<C: UiNode> UiNode for IsHovered<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.mouse_enter = ctx.events.listen::<MouseEnter>();
@@ -45,7 +45,7 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsHovered<C, S> {
 }
 
 #[property(context)]
-pub fn is_hovered(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
+pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHovered {
         child,
         state,
@@ -54,15 +54,15 @@ pub fn is_hovered(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
     }
 }
 
-struct IsPressed<C: UiNode, S: Var<bool>> {
+struct IsPressed<C: UiNode> {
     child: C,
-    state: S,
+    state: StateVar,
     mouse_down: EventListener<MouseInputArgs>,
     mouse_up: EventListener<MouseInputArgs>,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<bool>> UiNode for IsPressed<C, S> {
+impl<C: UiNode> UiNode for IsPressed<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.mouse_down = ctx.events.listen::<MouseDown>();
@@ -85,7 +85,7 @@ impl<C: UiNode, S: Var<bool>> UiNode for IsPressed<C, S> {
 }
 
 #[property(context)]
-pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
+pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsPressed {
         child,
         state,
@@ -94,17 +94,17 @@ pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
     }
 }
 
-struct IsFocused<C: UiNode, S: Var<bool>> {
+struct IsFocused<C: UiNode> {
     child: C,
-    state: S,
+    state: StateVar,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<bool>> UiNode for IsFocused<C, S> {
+impl<C: UiNode> UiNode for IsFocused<C> {
     //TODO, implement this
 }
 
 #[property(context)]
-pub fn is_focused(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
+pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocused { child, state }
 }

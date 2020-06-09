@@ -583,3 +583,11 @@ where
 pub fn var<T: VarValue>(initial_value: impl Into<T>) -> SharedVar<T> {
     SharedVar::new(initial_value.into())
 }
+
+/// Initializes a new [`StateVar`](StateVar).
+pub fn state_var() -> StateVar {
+    var(false)
+}
+
+/// State properties (`is_*`) variable type.
+pub type StateVar = SharedVar<bool>;
