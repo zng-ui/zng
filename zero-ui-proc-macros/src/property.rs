@@ -244,7 +244,7 @@ mod input {
             while !input.peek(token::Brace) && !input.peek(Token![,]) {
                 bounds_stream.extend(input.parse::<proc_macro2::TokenTree>());
             }
-            
+
             Ok(PropertyWherePredicate {
                 ident,
                 colon_token,
@@ -336,6 +336,9 @@ mod analysis {
             .into_iter()
             .map(|p| (p.ident, p.bounds.map(|(_, b)| b).unwrap_or_default()))
             .collect();
+        // generic idents lookup.
+        let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id.clone()).collect();
+
         // 2 - consume where clause, associating the bounds with their declaration.
         for c in fn_.where_clause.map(|c| c.predicates).unwrap_or_default() {
             let i = generics.iter().position(|(p, _)| p == &c.ident).unwrap();
@@ -345,7 +348,12 @@ mod analysis {
         for a in &mut args {
             let mut new_ty = None;
             if let Type::ImplTrait(b) = &mut *a.ty {
-                let t_ident = ident!("T{}", a.ident.to_string().to_camel_case());
+                let mut t_ident = ident!("T{}", a.ident.to_string().to_camel_case());
+                let mut tn = 2;
+                while generic_idents.contains(&t_ident) {
+                    t_ident = ident!("T{}{}", a.ident.to_string().to_camel_case(), tn);
+                    tn += 1;
+                }
                 let ty: Type = parse_quote!(#t_ident);
                 generics.push((t_ident, mem::take(&mut b.bounds)));
                 new_ty = Some(ty);
@@ -356,7 +364,7 @@ mod analysis {
             }
         }
 
-        // generic idents lookup.
+        // referencing generic idents lookup.
         let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id).collect();
 
         let property_docs = args

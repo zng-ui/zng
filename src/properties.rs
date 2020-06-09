@@ -105,7 +105,7 @@ mod build_tests {
         let _b = no_bounds_not_arg::args(b);
         crate::widgets::text("")
     }
-    
+
     #[property(context)]
     fn where_bounds<A, C, B>(child: C, a: impl IntoVar<A>, b: B) -> C
     where
@@ -113,6 +113,11 @@ mod build_tests {
         A: VarValue,
         B: IntoVar<A>,
     {
+        child
+    }
+
+    #[property(context)]
+    fn generated_generic_name_collision<TC: UiNode>(child: TC, c: impl IntoVar<char>) -> TC {
         child
     }
 }
