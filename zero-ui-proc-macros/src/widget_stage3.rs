@@ -191,12 +191,18 @@ mod input {
     }
     impl Parse for WgtItem {
         fn parse(input: ParseStream) -> Result<Self> {
-            let lookahead = input.lookahead1();
-
-            if lookahead.peek(Token![default]) || lookahead.peek(keyword::default_child) {
+            if input.peek(Token![default]) || input.peek(keyword::default_child) {
                 input.parse().map(WgtItem::Default)
             } else {
                 let attrs = Attribute::parse_outer(input)?;
+
+                let lookahead = input.lookahead1();
+                if attrs.is_empty() {
+                    // add to error message.
+                    lookahead.peek(Token![default]);
+                    lookahead.peek(keyword::default_child);
+                }
+
                 if lookahead.peek(keyword::when) {
                     let mut when: WgtItemWhen = input.parse()?;
                     when.attrs = attrs;
@@ -526,15 +532,22 @@ mod analysis {
         Expr, ExprPath, Member, Visibility,
     };
 
-    pub fn generate(input: WidgetDeclaration) -> WidgetOutput {
+    pub fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
-        debug_assert!(input
-            .header
-            .inherits
-            .iter()
-            .rev()
-            .zip(input.inherits.iter().map(|i| &i.inherit_path))
-            .all(|(header, included)| header == included));
+        debug_assert!(
+            input
+                .header
+                .inherits
+                .iter()
+                .zip(input.inherits.iter().map(|i| &i.inherit_path))
+                .all(|(header, included)| header == included),
+            "inherits don't match inherited tokens"
+        );
+
+        // property resolution order is left-to-right, here we setup inherits
+        // so that the left most inherit is the last item, that caused it to
+        // override properties from the others.
+        input.inherits.reverse();
 
         // #[macro_export] if `pub` or `pub(crate)`
         let macro_export = match &input.header.vis {
@@ -604,7 +617,12 @@ mod analysis {
             }
         }
         for property in properties.iter() {
-            inheritance_map.insert(property.1.ident.clone(), None);
+            if let Some(inherited) = inheritance_map.get(&property.1.ident) {
+                //TODO overrides inherited property value but not the property origin
+                // we set the inherited property.
+            } else {
+                inheritance_map.insert(property.1.ident.clone(), None);
+            }
         }
 
         // all `when` for the macro
@@ -692,6 +710,13 @@ mod analysis {
                         properties: when.args.iter().cloned().collect(),
                     }),
                 });
+
+                mod_properties
+                    .props
+                    .extend(when.args.iter().cloned().map(|ident| WidgetPropertyUse::Inherited {
+                        widget: inherit_path.clone(),
+                        ident,
+                    }));
 
                 macro_whens.push(when);
 
@@ -795,6 +820,10 @@ mod analysis {
                 errors.push("when condition does not reference any property", when_condition_span);
                 continue;
             }
+
+            mod_properties
+                .props
+                .extend(visitor.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
 
             mod_whens.push(WhenCondition {
                 index: when_index,
@@ -1352,11 +1381,21 @@ mod output {
 
     impl ToTokens for WgtItemNew {
         fn to_tokens(&self, tokens: &mut TokenStream) {
+            //#(#[..])*
             for attr in &self.attrs {
                 attr.to_tokens(tokens)
             }
+
+            // pub
             tokens.extend(quote_spanned!(self.fn_token.span()=> pub));
+
+            // fn
             self.fn_token.to_tokens(tokens);
+
+            // #fn_name
+            self.target.to_tokens(tokens);
+
+            // (#child, #(#args),*)
             let child = self.inputs.first().unwrap();
             let mut crate_ = zero_ui_crate_ident();
             crate_.set_span(child.span());
@@ -1366,9 +1405,16 @@ mod output {
                 .iter()
                 .skip(1)
                 .map(|a| quote_spanned! {a.span()=> #a: impl properties::#a::Args});
-            tokens.extend(quote_spanned! {self.paren_token.span=> (#child, #(#args)*) });
+
+            tokens.extend(quote_spanned! {self.paren_token.span=> (#child, #(#args),*) });
+
+            // ->
             self.r_arrow_token.to_tokens(tokens);
+
+            // #Output
             self.return_type.to_tokens(tokens);
+
+            // {..}
             self.block.to_tokens(tokens);
         }
     }
