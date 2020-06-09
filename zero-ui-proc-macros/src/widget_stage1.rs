@@ -13,14 +13,13 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
         if wgt.header.inherit_start.is_none() {
             wgt.header.inherit_start = Some(parse_quote!(:));
         }
-
         wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
     } else if wgt.header.inherits.is_empty() {
         return super::widget_stage3::expand(quote! { mixin: true #wgt }.into());
     }
 
     let mut inherits = wgt.header.inherits.clone();
-    let first_inherit = inherits.pop().unwrap();
+    let first_inherit = inherits.pop().unwrap().into_value();
 
     let stage3_entry = ident!("{}_stg3_{}", wgt.header.name, util::uuid());
 

@@ -12,7 +12,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 mod input {
     #![allow(unused)]
 
-    use crate::util::{non_user_braced, non_user_parenthesized, NON_USER_ERROR};
+    use crate::util::{non_user_braced, non_user_parenthesized};
     use crate::widget_stage1::WidgetHeader;
     use proc_macro2::{TokenStream, TokenTree};
     use quote::ToTokens;
@@ -61,12 +61,12 @@ mod input {
         fn parse(input: ParseStream) -> Result<Self> {
             let mut inherits = Vec::new();
             while input.peek(Token![=>]) && input.peek3(keyword::inherited_tokens) {
-                inherits.push(input.parse().expect(NON_USER_ERROR));
+                inherits.push(input.parse().unwrap_or_else(|e| non_user_error!(e)));
             }
 
-            let mixin_signal = input.parse().expect(NON_USER_ERROR);
+            let mixin_signal = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-            let header = input.parse().expect(NON_USER_ERROR);
+            let header = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
             let mut items = Vec::new();
             while !input.is_empty() {
@@ -82,8 +82,8 @@ mod input {
     }
 
     pub struct InheritItem {
-        pub ident: Ident,
         pub inherit_path: Path,
+        pub ident: Ident,
         pub default: Punctuated<InheritedProperty, Token![,]>,
         pub default_child: Punctuated<InheritedProperty, Token![,]>,
         pub whens: Punctuated<InheritedWhen, Token![,]>,
@@ -92,20 +92,22 @@ mod input {
     impl Parse for InheritItem {
         fn parse(input: ParseStream) -> Result<Self> {
             fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
-                input.parse::<T>().expect(NON_USER_ERROR);
+                input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
                 let inner = non_user_braced(input);
-                Punctuated::parse_terminated(&inner).expect(NON_USER_ERROR)
+                Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e))
             }
 
-            input.parse::<Token![=>]>().expect(NON_USER_ERROR);
-            input.parse::<keyword::inherited_tokens>().expect(NON_USER_ERROR);
+            input.parse::<Token![=>]>().unwrap_or_else(|e| non_user_error!(e));
+            input.parse::<keyword::inherited_tokens>().unwrap_or_else(|e| non_user_error!(e));
+
+            let input = non_user_braced(input);
 
             Ok(InheritItem {
-                ident: input.parse().expect(NON_USER_ERROR),
-                inherit_path: input.parse().expect(NON_USER_ERROR),
-                default: parse_block::<Token![default], InheritedProperty>(input),
-                default_child: parse_block::<keyword::default_child, InheritedProperty>(input),
-                whens: parse_block::<keyword::whens, InheritedWhen>(input),
+                ident: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+                inherit_path: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+                default: parse_block::<Token![default], InheritedProperty>(&input),
+                default_child: parse_block::<keyword::default_child, InheritedProperty>(&input),
+                whens: parse_block::<keyword::whens, InheritedWhen>(&input),
             })
         }
     }
@@ -118,9 +120,9 @@ mod input {
     impl Parse for InheritedProperty {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedProperty {
-                docs: Attribute::parse_outer(input).expect(NON_USER_ERROR),
-                kind: input.parse().expect(NON_USER_ERROR),
-                ident: input.parse().expect(NON_USER_ERROR),
+                docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
+                kind: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+                ident: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             })
         }
     }
@@ -138,16 +140,16 @@ mod input {
     impl Parse for BuiltPropertyKind {
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) {
-                input.parse::<Token![default]>().expect(NON_USER_ERROR);
+                input.parse::<Token![default]>().unwrap_or_else(|e| non_user_error!(e));
                 Ok(BuiltPropertyKind::Default)
             } else if input.peek(keyword::local) {
-                input.parse::<keyword::local>().expect(NON_USER_ERROR);
+                input.parse::<keyword::local>().unwrap_or_else(|e| non_user_error!(e));
                 Ok(BuiltPropertyKind::Local)
             } else if input.peek(keyword::required) {
-                input.parse::<keyword::required>().expect(NON_USER_ERROR);
+                input.parse::<keyword::required>().unwrap_or_else(|e| non_user_error!(e));
                 Ok(BuiltPropertyKind::Required)
             } else {
-                panic!("{} {}", NON_USER_ERROR, "expected one of: required, default, local")
+                non_user_error!("expected one of: required, default, local")
             }
         }
     }
@@ -160,9 +162,9 @@ mod input {
     impl Parse for InheritedWhen {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedWhen {
-                docs: Attribute::parse_outer(input).expect(NON_USER_ERROR),
-                args: Punctuated::parse_terminated(&non_user_parenthesized(input)).expect(NON_USER_ERROR),
-                sets: Punctuated::parse_terminated(&non_user_braced(input)).expect(NON_USER_ERROR),
+                docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
+                args: Punctuated::parse_terminated(&non_user_parenthesized(input)).unwrap_or_else(|e| non_user_error!(e)),
+                sets: Punctuated::parse_terminated(&non_user_braced(input)).unwrap_or_else(|e| non_user_error!(e)),
             })
         }
     }
@@ -1018,8 +1020,8 @@ mod output {
                         }
 
                         => inherited_tokens {
-                            $named_as;
-                            mod #name
+                            #name
+                            $named_as
                             default { #(#default),* }
                             default_child { #(#default_child),* }
                             whens { #(#whens),* }
@@ -1161,7 +1163,7 @@ mod output {
                 } else {
                     let fn_doc = format!("Manually initializes a new [`{0}`](self).", widget_name);
                     quote!(
-                        #fn_doc
+                        #[doc=#fn_doc]
                         #[inline]
                         pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::UiNode {
                             #crate_::core::default_widget_new(child, id)

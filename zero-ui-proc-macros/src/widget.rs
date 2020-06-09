@@ -791,19 +791,19 @@ impl Parse for WidgetArgs {
         // if already included some inherits, and has more inherits to include,
         // return ContinueInheriting.
         if input.peek(keyword::inherit_next) {
-            input.parse::<keyword::inherit_next>().expect(util::NON_USER_ERROR);
+            input.parse::<keyword::inherit_next>().unwrap_or_else(|e| non_user_error!(e));
             let inner = util::non_user_parenthesized(input);
-            let inherit_next = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
-            let rest = input.parse().expect(util::NON_USER_ERROR);
+            let inherit_next = Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e));
+            let rest = input.parse().unwrap_or_else(|e| non_user_error!(e));
             return Ok(WidgetArgs::ContinueInheriting { inherit_next, rest });
         }
 
         // parse already included inherit blocks.
         let mut inherits = vec![];
         while input.peek(keyword::inherit) {
-            input.parse::<keyword::inherit>().expect(util::NON_USER_ERROR);
+            input.parse::<keyword::inherit>().unwrap_or_else(|e| non_user_error!(e));
             let inner = util::non_user_braced(input);
-            inherits.push(inner.parse().expect(util::NON_USER_ERROR));
+            inherits.push(inner.parse().unwrap_or_else(|e| non_user_error!(e)));
         }
 
         // parse widget level attributes.
@@ -973,20 +973,20 @@ impl Parse for InheritBlock {
     fn parse(input: ParseStream) -> Result<Self> {
         use crate::widget_new::keyword;
 
-        let path = input.parse().expect(util::NON_USER_ERROR);
-        input.parse::<Token![;]>().expect(util::NON_USER_ERROR);
+        let path = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        input.parse::<Token![;]>().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
-        let ident = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::m>().unwrap_or_else(|e| non_user_error!(e));
+        let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::c>().expect(util::NON_USER_ERROR);
-        let default_child = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::c>().unwrap_or_else(|e| non_user_error!(e));
+        let default_child = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::s>().expect(util::NON_USER_ERROR);
-        let default_self = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::s>().unwrap_or_else(|e| non_user_error!(e));
+        let default_self = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::w>().expect(util::NON_USER_ERROR);
-        let whens = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::w>().unwrap_or_else(|e| non_user_error!(e));
+        let whens = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
         Ok(InheritBlock {
             ident,

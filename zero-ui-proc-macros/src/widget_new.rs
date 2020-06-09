@@ -427,25 +427,25 @@ pub struct WidgetNewInput {
 
 impl Parse for WidgetNewInput {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<keyword::m>().expect(util::NON_USER_ERROR);
-        let ident = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::m>().unwrap_or_else(|e| non_user_error!(e));
+        let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::c>().expect(util::NON_USER_ERROR);
-        let default_child = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::c>().unwrap_or_else(|e| non_user_error!(e));
+        let default_child = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::s>().expect(util::NON_USER_ERROR);
-        let default_self = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::s>().unwrap_or_else(|e| non_user_error!(e));
+        let default_self = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::w>().expect(util::NON_USER_ERROR);
-        let whens = input.parse().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::w>().unwrap_or_else(|e| non_user_error!(e));
+        let whens = input.parse().unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::n>().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::n>().unwrap_or_else(|e| non_user_error!(e));
         let inner = util::non_user_parenthesized(input);
-        let new_child = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
+        let new_child = Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e));
         let inner = util::non_user_parenthesized(input);
-        let new = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
+        let new = Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e));
 
-        input.parse::<keyword::i>().expect(util::NON_USER_ERROR);
+        input.parse::<keyword::i>().unwrap_or_else(|e| non_user_error!(e));
         let input = input.parse()?;
 
         Ok(WidgetNewInput {

@@ -123,9 +123,13 @@ macro_rules! dump_parse {
 }
 
 /// Input error not caused by the user.
-pub const NON_USER_ERROR: &str = "invalid non-user input";
+macro_rules! non_user_error {
+    ($e:expr) => {
+        panic!("[{}:{}] invalid non-user input: {}", file!(), line!(), $e)
+    };
+}
 
-/// Does a `braced!` parse but panics with [`NON_USER_ERROR`](NON_USER_ERROR) if the parsing fails.
+/// Does a `braced!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
 pub fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
     fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
         let inner;
@@ -133,10 +137,10 @@ pub fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffe
         braced!(inner in input);
         Ok(inner)
     }
-    inner(input).expect(NON_USER_ERROR)
+    inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
 
-/// Does a `parenthesized!` parse but panics with [`NON_USER_ERROR`](NON_USER_ERROR) if the parsing fails.
+/// Does a `parenthesized!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
 pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
     fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
         let inner;
@@ -144,7 +148,7 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
         parenthesized!(inner in input);
         Ok(inner)
     }
-    inner(input).expect(NON_USER_ERROR)
+    inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
 
 pub fn uuid() -> impl std::fmt::Display {

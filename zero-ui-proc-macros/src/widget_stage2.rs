@@ -26,7 +26,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         r.into()
     } else {
         // recursive to widget_stage2 again.
-        let next_inherit = inherits.pop().unwrap();
+        let next_inherit = inherits.pop().unwrap().into_value();
 
         let r = quote! {
             #next_inherit! {
@@ -50,16 +50,16 @@ struct WidgetInheriting {
 
 impl Parse for WidgetInheriting {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![=>]>().expect(util::NON_USER_ERROR);
+        input.parse::<Token![=>]>().unwrap_or_else(|e| non_user_error!(e));
 
         let inner = util::non_user_braced(input);
 
-        let stage3_name = inner.parse().expect(util::NON_USER_ERROR);
-        inner.parse::<Token![;]>().expect(util::NON_USER_ERROR);
+        let stage3_name = inner.parse().unwrap_or_else(|e| non_user_error!(e));
+        inner.parse::<Token![;]>().unwrap_or_else(|e| non_user_error!(e));
 
-        let inherits = Punctuated::parse_terminated(&inner).expect(util::NON_USER_ERROR);
+        let inherits = Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e));
 
-        let rest = input.parse().expect(util::NON_USER_ERROR);
+        let rest = input.parse().unwrap_or_else(|e| non_user_error!(e));
         Ok(WidgetInheriting {
             stage3_name,
             inherits,
