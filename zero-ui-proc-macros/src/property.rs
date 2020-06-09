@@ -237,10 +237,18 @@ mod input {
     }
     impl Parse for PropertyWherePredicate {
         fn parse(input: ParseStream) -> Result<Self> {
+            let ident = input.parse()?;
+            let colon_token = input.parse()?;
+
+            let mut bounds_stream = TokenStream::new();
+            while !input.peek(token::Brace) && !input.peek(Token![,]) {
+                bounds_stream.extend(input.parse::<proc_macro2::TokenTree>());
+            }
+            
             Ok(PropertyWherePredicate {
-                ident: input.parse()?,
-                colon_token: input.parse()?,
-                bounds: Punctuated::parse_terminated(input)?,
+                ident,
+                colon_token,
+                bounds: parse_terminated2(bounds_stream)?,
             })
         }
     }

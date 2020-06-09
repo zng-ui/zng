@@ -35,7 +35,7 @@ pub use text::*;
 pub use title_::*;
 
 /// Tests on the #[property(..)] code generator.
-//#[cfg(test)]
+#[cfg(test)]
 mod build_tests {
     use crate::core::property;
     use crate::core::var::*;
@@ -104,5 +104,15 @@ mod build_tests {
     fn no_bounds_not_arg<A, B>(_child: A, b: B) -> impl UiNode {
         let _b = no_bounds_not_arg::args(b);
         crate::widgets::text("")
+    }
+    
+    #[property(context)]
+    fn where_bounds<A, C, B>(child: C, a: impl IntoVar<A>, b: B) -> C
+    where
+        C: UiNode,
+        A: VarValue,
+        B: IntoVar<A>,
+    {
+        child
     }
 }
