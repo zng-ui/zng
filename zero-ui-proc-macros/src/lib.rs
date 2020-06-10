@@ -11,7 +11,6 @@ mod util;
 
 mod impl_ui_node;
 mod property;
-pub(crate) mod widget;
 pub(crate) mod widget_new;
 mod widget_stage1;
 mod widget_stage2;
