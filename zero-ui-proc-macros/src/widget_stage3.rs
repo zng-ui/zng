@@ -613,15 +613,40 @@ mod analysis {
         let mut inheritance_map = HashMap::new();
         for inherit in &input.inherits {
             for property in inherit.default_child.iter().chain(inherit.default.iter()) {
-                inheritance_map.insert(property.ident.clone(), Some(inherit.inherit_path.clone()));
+                inheritance_map.insert(
+                    property.ident.clone(),
+                    PropertyOrigin::Inherited(inherit.inherit_path.clone(), false),
+                );
             }
         }
         for property in properties.iter() {
-            if let Some(inherited) = inheritance_map.get(&property.1.ident) {
-                //TODO overrides inherited property value but not the property origin
-                // we set the inherited property.
+            if let Some(PropertyOrigin::Inherited(_, has_new_value)) = inheritance_map.get_mut(&property.1.ident) {
+                *has_new_value = true;
             } else {
-                inheritance_map.insert(property.1.ident.clone(), None);
+                let old_value = inheritance_map.insert(property.1.ident.clone(), PropertyOrigin::New);
+                debug_assert!(old_value.is_none())
+            }
+        }
+
+        enum PropertyOrigin {
+            Inherited(syn::Path, bool),
+            New,
+        }
+
+        impl PropertyOrigin {
+            fn get_path(&self, if_has_new_value: bool) -> Option<&syn::Path> {
+                use PropertyOrigin::*;
+                match self {
+                    Inherited(path, has_new_value) if *has_new_value == if_has_new_value => Some(path),
+                    _ => None,
+                }
+            }
+
+            pub fn inherited_path(&self) -> Option<&syn::Path> {
+                self.get_path(false)
+            }
+            pub fn setted_path(&self) -> Option<&syn::Path> {
+                self.get_path(true)
             }
         }
 
@@ -655,7 +680,7 @@ mod analysis {
             let mut process_properties =
                 |target: PropertyTarget, properties: Punctuated<input::InheritedProperty, _>, macro_defaults: &mut Vec<BuiltProperty>| {
                     for property in properties {
-                        if inheritance_map[&property.ident].as_ref() != Some(&inherit_path) {
+                        if inheritance_map[&property.ident].inherited_path() != Some(&inherit_path) {
                             continue;
                         }
                         // if property is not overridden:
@@ -785,13 +810,28 @@ mod analysis {
 
             mod_properties.props.push(if let Some(maps_to) = property.maps_to {
                 // property maps to another, re-export with new property name.
-                WidgetPropertyUse::Alias {
-                    ident: property.ident,
-                    original: maps_to.ident,
+                if let Some(widget) = inheritance_map.get(&maps_to.ident).and_then(|o| o.setted_path()) {
+                    WidgetPropertyUse::AliasInherited {
+                        ident: property.ident,
+                        widget: widget.clone(),
+                        original: maps_to.ident,
+                    }
+                } else {
+                    WidgetPropertyUse::Alias {
+                        ident: property.ident,
+                        original: maps_to.ident,
+                    }
                 }
             } else {
                 // property does not map to another, re-export the property mod.
-                WidgetPropertyUse::Mod(property.ident)
+                if let Some(widget) = inheritance_map[&property.ident].setted_path() {
+                    WidgetPropertyUse::Inherited {
+                        widget: widget.clone(),
+                        ident: property.ident,
+                    }
+                } else {
+                    WidgetPropertyUse::Mod(property.ident)
+                }
             });
         }
 
@@ -1451,6 +1491,7 @@ mod output {
         Mod(Ident),
         Alias { ident: Ident, original: Ident },
         Inherited { widget: Path, ident: Ident },
+        AliasInherited { ident: Ident, widget: Path, original: Ident },
     }
 
     impl ToTokens for WidgetPropertyUse {
@@ -1459,6 +1500,7 @@ mod output {
                 WidgetPropertyUse::Mod(ident) => quote!(pub use #ident;),
                 WidgetPropertyUse::Alias { ident, original } => quote!(pub use #original as #ident;),
                 WidgetPropertyUse::Inherited { widget, ident } => quote!(pub use #widget::properties::#ident;),
+                WidgetPropertyUse::AliasInherited { ident, widget, original } => quote!(pub use #widget::properties::#original as #ident;),
             };
             tokens.extend(tt);
         }
