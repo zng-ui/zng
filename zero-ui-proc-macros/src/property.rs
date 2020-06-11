@@ -10,7 +10,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     output.to_token_stream().into()
 }
 
-mod input {
+pub mod input {
     use crate::util::parse_terminated2;
     use proc_macro2::TokenStream;
     use punctuated::Punctuated;

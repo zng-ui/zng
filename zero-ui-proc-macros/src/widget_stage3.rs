@@ -9,7 +9,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     output_stream.into()
 }
 
-mod input {
+pub mod input {
     #![allow(unused)]
 
     use crate::util::{non_user_braced, non_user_parenthesized};
@@ -1112,12 +1112,12 @@ mod output {
                 Some(quote! {
                     ($($input:tt)*) => {
                         #crate_::widget_new! {
-                            mod #name
-                            default { #(#default)* }
-                            default_child { #(#default_child)* }
-                            whens { #(#whens)* }
-                            new(#new)
-                            new_child(#new_child)
+                            #name
+                            default { #(#default),* }
+                            default_child { #(#default_child),* }
+                            whens { #(#whens),* }
+                            new { #new }
+                            new_child { #new_child }
                             user_input { $($input)* }
                         }
                     };

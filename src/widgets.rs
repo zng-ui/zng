@@ -32,7 +32,7 @@ mod build_tests {
         button! {
             on_click: |_|{};
             background_gradient: (0.0, 0.0), (1.0, 1.0), vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
-            => child
+            => {child}
         }
     }
 
@@ -48,7 +48,7 @@ mod build_tests {
                 stops: vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)]
             };
 
-            => child
+            => {child}
         }
     }
 
@@ -56,7 +56,7 @@ mod build_tests {
         button! {
             on_click: |_|{};
             id: WidgetId::new_unique();
-            => child
+            => {child}
         }
     }
 
@@ -66,7 +66,7 @@ mod build_tests {
             id: {
                 id: WidgetId::new_unique()
             };
-            => child
+            => {child}
         }
     }
 }

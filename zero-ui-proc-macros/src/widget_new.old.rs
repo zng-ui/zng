@@ -387,8 +387,10 @@ pub fn expand_widget_new(input: proc_macro::TokenStream) -> proc_macro::TokenStr
     let r = quote! {{
         #(#let_default_args)*
         #(#let_args)*
+
         #(#let_when_vars)*
         #(#prop_when_indexes)*
+        
         #(#let_switches)*
 
         let node = #child;
