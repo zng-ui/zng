@@ -39,7 +39,8 @@ fn example() -> impl UiNode {
 
 #[allow(unused)]
 macro_rules! TODO {
-    () => {
+
+    (new) => {
         button! {
             on_click: |_|println!("Button clicked!");
             // remove `=>`?
@@ -58,6 +59,35 @@ macro_rules! TODO {
             when self.is_hovered {
                 font_size: 30;
             }
+        }
+    };
+
+    (widget) => {
+        widget! {
+            // using properties?
+            content -> child!;
+            // OR
+            content: child!;//like required! but is the child
+            // OR
+            content -> child!: required!;//optional child, if not required we use a placeholder?.
+            // where to place it? default and default_child does not fit?
+
+            // using fns?
+            // OR
+            fn child(content!) -> impl UiNode {
+                child// content is an UiNode and is a required "property" in the widget.
+            }
+            // OR
+            fn child(text) -> impl UiNode {
+                text(text) // generate child node, text is a captured property?
+            }
+            // `new_child` still exists?
+
+            // how to support multiple children?
+            fn childen(?) -> ? {
+                ?
+            }
+
         }
     };
 }
