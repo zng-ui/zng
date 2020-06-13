@@ -84,7 +84,7 @@ macro_rules! TODO {
             // `new_child` still exists?
 
             // how to support multiple children?
-            fn childen(?) -> ? {
+            fn children(?) -> ? {
                 ?
             }
 

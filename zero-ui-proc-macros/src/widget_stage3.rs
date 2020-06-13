@@ -1036,7 +1036,7 @@ mod analysis {
     }
 }
 
-mod output {
+pub mod output {
     use super::input::{keyword, BuiltPropertyKind, NewTarget, PropertyArgs, PropertyFields, WgtItemNew};
     use crate::util::{uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
@@ -1602,7 +1602,7 @@ mod output {
             let p = &self.properties;
             let expr = &self.expr;
             let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
-            let tt = quote! {
+            let out = quote! {
                 #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
 
                 #[inline]
@@ -1610,7 +1610,7 @@ mod output {
                     #expr
                 }
             };
-            tokens.extend(tt);
+            tokens.extend(out);
         }
     }
 

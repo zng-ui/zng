@@ -78,7 +78,6 @@ mod input {
         When(WgtItemWhen),
         Content(UserContent),
     }
-
     impl Parse for UserInputItem {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             if input.peek2(Token![:]) {
@@ -100,7 +99,6 @@ mod input {
         fat_arrow_token: Token![=>],
         block: Block,
     }
-
     impl Parse for UserContent {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             Ok(UserContent {
@@ -115,28 +113,29 @@ mod analysis {
     use super::{input::WidgetNewInput, output::WidgetNewOutput};
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
-        todo!()
+        todo!("aaa")
     }
 }
 
 mod output {
     use crate::{
         property::input::Priority,
-        widget_stage3::input::{PropertyArgs, PropertyFields},
+        widget_stage3::input::{PropertyArgs, PropertyFields}, util::zero_ui_crate_ident,
+        widget_stage3::output::WhenConditionExpr,
     };
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use syn::Block;
 
     pub struct WidgetNewOutput {
-        args_bindings: ArgsBindings,
-        content_bindings: ContentBinding,
-        child_props_assigns: PropertyAssigns,
-        new_child_call: NewCall,
-        props_assigns: PropertyAssigns,
-        new_call: NewCall,
+        pub args_bindings: ArgsBindings,
+        pub when_bindings: WhenBindings,
+        pub content_bindings: ContentBinding,
+        pub child_props_assigns: PropertyAssigns,
+        pub new_child_call: NewCall,
+        pub props_assigns: PropertyAssigns,
+        pub new_call: NewCall,
     }
-
     impl ToTokens for WidgetNewOutput {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let mut inner = TokenStream::new();
@@ -152,19 +151,20 @@ mod output {
     }
 
     pub struct ArgsBindings {
-        args: Vec<ArgsBinding>,
+        pub args: Vec<ArgsBinding>,
+        pub state_args: Vec<StateBinding>,
     }
     impl ToTokens for ArgsBindings {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            todo!()
+            self.args.iter().for_each(|arg| arg.to_tokens(tokens));
+            self.state_args.iter().for_each(|arg| arg.to_tokens(tokens));
         }
     }
     pub struct ArgsBinding {
-        widget: Option<Ident>,
-        property: Ident,
-        value: PropertyValue,
+        pub widget: Option<Ident>,
+        pub property: Ident,
+        pub value: PropertyValue,
     }
-
     impl ToTokens for ArgsBinding {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_args", self.property);
@@ -209,6 +209,22 @@ mod output {
             tokens.extend(out)
         }
     }
+    
+    pub struct StateBinding{
+        pub widget: Ident,
+        pub property: Ident,
+    }
+    impl ToTokens for StateBinding {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let var_name = ident!("{}_args", self.property);
+            let widget = &self.widget;
+            let property = &self.property;
+            let crate_ = zero_ui_crate_ident();
+            tokens.extend(quote!{let #var_name = #widget::properties::#property::args(#crate_::core::var::state_var());})
+        }
+        
+    }
+
     pub enum PropertyValue {
         Args(PropertyArgs),
         Fields(PropertyFields),
@@ -221,7 +237,58 @@ mod output {
     }
     impl ToTokens for PropertyFields {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            todo!()
+            self.fields.to_tokens(tokens)
+        }
+    }
+
+    pub struct WhenBindings {
+        pub conditions: Vec<WhenBinding>,
+    }
+
+    pub struct WhenBinding {
+        pub index: u32,
+        pub condition: WhenCondition,
+    }
+    impl ToTokens for WhenBinding {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let var_name = ident!("local_w{}", self.index);
+            let condition = &self.condition;
+            tokens.extend(quote!{ 
+                let #var_name = {
+                    #condition
+                };
+            })
+        }        
+    }
+
+    pub enum WhenCondition {
+        Inherited{
+            widget: Ident,
+            index: u32,
+            properties: Vec<Ident>,
+        },
+        Local{
+            widget: Ident,
+            properties: Vec<Ident>,
+            expr: WhenConditionExpr,
+        }
+    }
+    impl ToTokens for WhenCondition {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            match  self {
+                WhenCondition::Inherited { widget, index, properties } => {
+                    let fn_name = ident!("w{}", index);
+                    let properties = properties.iter().map(|p| ident!("{}_args", p));
+                    tokens.extend(quote!{ #widget::whens::#fn_name(#(#properties),*)})
+                }
+                WhenCondition::Local { widget, properties: p, expr } => {
+                    let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
+                    tokens.extend(quote!{
+                        #(#widget::properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
+                        #expr
+                    })
+                }
+            }
         }
     }
 
