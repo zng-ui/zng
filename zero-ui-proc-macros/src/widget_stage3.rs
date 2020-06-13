@@ -736,6 +736,18 @@ mod analysis {
                     }),
                 });
 
+                mod_defaults.when_defaults.push(WhenDefaults {
+                    index: when_index,
+                    defaults: when
+                        .sets
+                        .iter()
+                        .map(|p| WidgetDefault {
+                            property: p.clone(),
+                            default: FinalPropertyDefaultValue::WhenInherited(inherit_path.clone()),
+                        })
+                        .collect(),
+                });
+
                 mod_properties
                     .props
                     .extend(when.args.iter().cloned().map(|ident| WidgetPropertyUse::Inherited {
@@ -864,6 +876,10 @@ mod analysis {
             mod_properties
                 .props
                 .extend(visitor.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
+
+            mod_defaults
+                .when_defaults
+                .extend(todo!("continue from here"));
 
             mod_whens.push(WhenCondition {
                 index: when_index,
@@ -1509,19 +1525,25 @@ pub mod output {
     #[derive(Default)]
     pub struct WidgetDefaults {
         pub defaults: Vec<WidgetDefault>,
+        pub when_defaults: Vec<WhenDefaults>,
     }
-
     impl ToTokens for WidgetDefaults {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let defaults = &self.defaults;
-            let tt = quote! {
+            let when_defaults = &self.when_defaults;
+            let out = quote! {
                 #[doc(hidden)]
                 pub mod defaults {
                     use super::*;
                     #(#defaults)*
                 }
+                #[doc(hidden)]
+                pub mod when_defaults {
+                    use super::*;
+                    #(#when_defaults)*
+                }
             };
-            tokens.extend(tt);
+            tokens.extend(out);
         }
     }
 
@@ -1529,7 +1551,6 @@ pub mod output {
         pub property: Ident,
         pub default: FinalPropertyDefaultValue,
     }
-
     impl ToTokens for WidgetDefault {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let property = &self.property;
@@ -1548,6 +1569,7 @@ pub mod output {
                     quote!(properties::#property::args(#args))
                 }
                 FinalPropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
+                FinalPropertyDefaultValue::WhenInherited(widget) => quote!(#widget::when_defaults::#property()),
             };
             tokens.extend(quote! {
                 #[inline]
@@ -1558,10 +1580,26 @@ pub mod output {
         }
     }
 
+    pub struct WhenDefaults {
+        pub index: usize,
+        pub defaults: Vec<WidgetDefault>,
+    }
+
+    impl ToTokens for WhenDefaults {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let mod_name = ident!("w{}", self.index);
+            let defaults = &self.defaults;
+            tokens.extend(quote! { pub mod #mod_name {
+                #(#defaults)*
+            }})
+        }
+    }
+
     pub enum FinalPropertyDefaultValue {
         Fields(PropertyFields),
         Args(PropertyArgs),
         Inherited(Path),
+        WhenInherited(Path),
     }
 
     pub struct WidgetWhens {

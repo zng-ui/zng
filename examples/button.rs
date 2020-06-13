@@ -39,7 +39,6 @@ fn example() -> impl UiNode {
 
 #[allow(unused)]
 macro_rules! TODO {
-
     (new) => {
         button! {
             on_click: |_|println!("Button clicked!");

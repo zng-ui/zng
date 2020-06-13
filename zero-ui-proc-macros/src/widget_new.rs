@@ -120,7 +120,8 @@ mod analysis {
 mod output {
     use crate::{
         property::input::Priority,
-        widget_stage3::input::{PropertyArgs, PropertyFields}, util::zero_ui_crate_ident,
+        util::zero_ui_crate_ident,
+        widget_stage3::input::{PropertyArgs, PropertyFields},
         widget_stage3::output::WhenConditionExpr,
     };
     use proc_macro2::{Ident, TokenStream};
@@ -199,7 +200,7 @@ mod output {
                         .widget
                         .as_ref()
                         .unwrap_or_else(|| non_user_error!("widget required for inherited property value"));
-                        
+
                     quote! {
                         let #var_name = #widget::defaults::#property();
                     }
@@ -209,8 +210,8 @@ mod output {
             tokens.extend(out)
         }
     }
-    
-    pub struct StateBinding{
+
+    pub struct StateBinding {
         pub widget: Ident,
         pub property: Ident,
     }
@@ -220,9 +221,8 @@ mod output {
             let widget = &self.widget;
             let property = &self.property;
             let crate_ = zero_ui_crate_ident();
-            tokens.extend(quote!{let #var_name = #widget::properties::#property::args(#crate_::core::var::state_var());})
+            tokens.extend(quote! {let #var_name = #widget::properties::#property::args(#crate_::core::var::state_var());})
         }
-        
     }
 
     pub enum PropertyValue {
@@ -253,37 +253,41 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("local_w{}", self.index);
             let condition = &self.condition;
-            tokens.extend(quote!{ 
+            tokens.extend(quote! {
                 let #var_name = {
                     #condition
                 };
             })
-        }        
+        }
     }
 
     pub enum WhenCondition {
-        Inherited{
+        Inherited {
             widget: Ident,
             index: u32,
             properties: Vec<Ident>,
         },
-        Local{
+        Local {
             widget: Ident,
             properties: Vec<Ident>,
             expr: WhenConditionExpr,
-        }
+        },
     }
     impl ToTokens for WhenCondition {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            match  self {
+            match self {
                 WhenCondition::Inherited { widget, index, properties } => {
                     let fn_name = ident!("w{}", index);
                     let properties = properties.iter().map(|p| ident!("{}_args", p));
-                    tokens.extend(quote!{ #widget::whens::#fn_name(#(#properties),*)})
+                    tokens.extend(quote! { #widget::whens::#fn_name(#(#properties),*)})
                 }
-                WhenCondition::Local { widget, properties: p, expr } => {
+                WhenCondition::Local {
+                    widget,
+                    properties: p,
+                    expr,
+                } => {
                     let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
-                    tokens.extend(quote!{
+                    tokens.extend(quote! {
                         #(#widget::properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
                         #expr
                     })
