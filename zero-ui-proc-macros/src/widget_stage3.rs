@@ -439,7 +439,7 @@ pub mod input {
                 attrs: Attribute::parse_outer(input)?,
                 when_token: input.parse()?,
                 condition: Box::new(Expr::parse_without_eager_brace(input)?),
-                block: input.parse()?
+                block: input.parse()?,
             })
         }
     }

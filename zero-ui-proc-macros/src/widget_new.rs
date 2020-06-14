@@ -244,11 +244,14 @@ mod output {
     pub struct WhenBindings {
         pub conditions: Vec<WhenBinding>,
         pub indexes: Vec<WhenPropertyIndex>,
+        pub switch_args: Vec<WhenSwitchArgs>,
     }
 
     impl ToTokens for WhenBindings {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             self.conditions.iter().for_each(|c| c.to_tokens(tokens));
+            self.indexes.iter().for_each(|c| c.to_tokens(tokens));
+            self.switch_args.iter().for_each(|c| c.to_tokens(tokens));
         }
     }
 
@@ -341,6 +344,35 @@ mod output {
     pub struct WhenConditionVar {
         pub index: u32,
         pub can_move: bool,
+    }
+
+    pub struct WhenSwitchArgs {
+        pub widget: Ident,
+        pub property: Ident,
+        /// Indexes of when blocks that set this property.
+        pub whens: Vec<u32>
+    }
+
+    impl ToTokens for WhenSwitchArgs {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let var_name = ident!("{}_args", self.property);
+
+            let widget = &self.widget;
+            let property = &self.property;
+            let property_path = quote!(#widget::properties::#property);
+
+            let index_var_name = ident!("{}_index", property);
+
+            let when_args: Vec<_> = self.whens.iter().map(|i|ident!("{}{}", property, i)).collect();
+            todo!("? init when args values");
+
+            tokens.extend(quote!{
+                let #var_name = {
+                    #(let #when_args = ?;)*
+                    #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_args),*)
+                };
+            })
+        }
     }
 
     pub struct ContentBinding {
