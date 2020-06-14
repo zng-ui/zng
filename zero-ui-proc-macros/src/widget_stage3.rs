@@ -435,49 +435,12 @@ pub mod input {
 
     impl Parse for WgtItemWhen {
         fn parse(input: ParseStream) -> Result<Self> {
-            let attrs = Attribute::parse_outer(input)?;
-            let when_token: keyword::when = input.parse()?;
-
-            let ahead = input.fork();
-
-            let mut cond_buffer = TokenStream::new();
-
-            while !ahead.is_empty() {
-                let ttree_ahead = ahead.fork();
-                let next: TokenTree = ttree_ahead.parse().unwrap();
-                if let g @ TokenTree::Group { .. } = next {
-                    // if found group in the root stream it can be a WhenBlock,
-                    // lookahead for WhenBlock.
-                    let block_ahead = ahead.fork();
-                    if let Ok(block) = block_ahead.parse::<WhenBlock>() {
-                        // it was WhenBlock, validate missing condition expression.
-                        if cond_buffer.is_empty() {
-                            return Err(Error::new(when_token.span(), "missing condition for `when` item"));
-                        }
-
-                        ahead.advance_to(&block_ahead);
-                        input.advance_to(&ahead);
-
-                        // it was WhenBlock and we have the condition expression, success!
-                        return Ok(WgtItemWhen {
-                            attrs,
-                            when_token,
-                            condition: syn::parse2(cond_buffer)?,
-                            block,
-                        });
-                    } else {
-                        // found group, but was not WhenBlock, buffer condition expression.
-                        g.to_tokens(&mut cond_buffer);
-                        ahead.advance_to(&ttree_ahead);
-                    }
-                } else {
-                    // did not find group, buffer condition expression.
-                    next.to_tokens(&mut cond_buffer);
-                    ahead.advance_to(&ttree_ahead);
-                }
-            }
-
-            Err(Error::new(when_token.span(), "expected property assign block"))
+            Ok(WgtItemWhen {
+                attrs: Attribute::parse_outer(input)?,
+                when_token: input.parse()?,
+                condition: Box::new(Expr::parse_without_eager_brace(input)?),
+                block: input.parse()?
+            })
         }
     }
 
