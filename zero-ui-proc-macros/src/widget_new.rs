@@ -243,6 +243,13 @@ mod output {
 
     pub struct WhenBindings {
         pub conditions: Vec<WhenBinding>,
+        pub indexes: Vec<WhenPropertyIndex>,
+    }
+
+    impl ToTokens for WhenBindings {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.conditions.iter().for_each(|c| c.to_tokens(tokens));
+        }
     }
 
     pub struct WhenBinding {
@@ -279,7 +286,7 @@ mod output {
                 WhenCondition::Inherited { widget, index, properties } => {
                     let fn_name = ident!("w{}", index);
                     let properties = properties.iter().map(|p| ident!("{}_args", p));
-                    tokens.extend(quote! { #widget::whens::#fn_name(#(#properties),*)})
+                    tokens.extend(quote! { #widget::whens::#fn_name(#(&#properties),*) })
                 }
                 WhenCondition::Local {
                     widget,
@@ -294,6 +301,46 @@ mod output {
                 }
             }
         }
+    }
+
+    pub struct WhenPropertyIndex {
+        pub property: Ident,
+        pub whens: Vec<WhenConditionVar>,
+    }
+    impl ToTokens for WhenPropertyIndex {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let var_name = ident!("{}_index", self.property);
+            let crate_ = zero_ui_crate_ident();
+            if self.whens.len() == 1 {
+                let wn = ident!("local_w{}", self.whens[0].index);
+                if self.whens[0].can_move {
+                    tokens.extend(quote! {
+                        let #var_name = #crate_::core::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                    });
+                } else {
+                    tokens.extend(quote! {
+                        let #var_name = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                    });
+                }
+            } else {
+                debug_assert!(!self.whens.is_empty());
+                let wns: Vec<_> = self.whens.iter().map(|i| ident!("local_w{}", i.index)).collect();
+                let wns_clone = self.whens.iter().map(|i| if i.can_move { None } else { Some(quote!(.clone())) });
+                let wns_rev = wns.iter().rev();
+                let wns_i = (1..=wns.len()).rev();
+                tokens.extend(quote! {
+                    let #var_name = #crate_::core::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
+                        #(if #wns_rev { #wns_i })else*
+                        else { 0usize }
+                    });
+                });
+            }
+        }
+    }
+
+    pub struct WhenConditionVar {
+        pub index: u32,
+        pub can_move: bool,
     }
 
     pub struct ContentBinding {

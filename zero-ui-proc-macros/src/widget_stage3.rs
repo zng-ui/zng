@@ -1674,7 +1674,7 @@ pub mod output {
                 #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
 
                 #[inline]
-                pub fn #fn_ident(#(#p: impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
+                pub fn #fn_ident(#(#p: &impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
                     #expr
                 }
             };
@@ -1759,7 +1759,7 @@ pub mod output {
             let arg = &self.arg;
             let name = self.name();
             tokens.extend(quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(&#property)));
+                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(#property)));
             });
         }
     }
