@@ -355,13 +355,18 @@ pub mod input {
         pub unset_token: keyword::unset,
         pub bang_token: Token![!],
     }
-
     impl Parse for PropertyUnset {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyUnset {
                 unset_token: input.parse()?,
                 bang_token: input.parse()?,
             })
+        }
+    }
+    impl Spanned for PropertyUnset {
+        fn span(&self) -> proc_macro2::Span {
+            let unset_span = self.unset_token.span();
+            unset_span.span().join(self.bang_token.span()).unwrap_or(unset_span)
         }
     }
 
@@ -521,6 +526,7 @@ mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
     use super::output::*;
     use crate::util::{Attributes, Errors};
+    use input::PropertyValue;
     use proc_macro2::Ident;
     use std::collections::{HashMap, HashSet};
     use std::fmt;
@@ -725,7 +731,7 @@ mod analysis {
             process_properties(PropertyTarget::Default, inherit.default, &mut macro_default);
             process_properties(PropertyTarget::DefaultChild, inherit.default_child, &mut macro_default_child);
 
-            for when in inherit.whens {
+            for (inherited_index, when) in inherit.whens.into_iter().enumerate() {
                 mod_whens.push(WhenCondition {
                     index: when_index,
                     properties: when.args.iter().cloned().collect(),
@@ -743,7 +749,7 @@ mod analysis {
                         .iter()
                         .map(|p| WidgetDefault {
                             property: p.clone(),
-                            default: FinalPropertyDefaultValue::WhenInherited(inherit_path.clone()),
+                            default: FinalPropertyDefaultValue::WhenInherited(inherit_path.clone(), inherited_index as u32),
                         })
                         .collect(),
                 });
@@ -858,7 +864,14 @@ mod analysis {
                         property.ident.span(),
                     );
                 }
-                used
+                let mut retain = used;
+
+                if let PropertyValue::Unset(unset) = &property.value {
+                    retain = false;
+                    errors.push("cannot unset property in when blocks", unset.span());
+                }
+
+                retain
             });
 
             // find properties referenced in the condition expression and patches the
@@ -876,10 +889,6 @@ mod analysis {
             mod_properties
                 .props
                 .extend(visitor.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
-
-            mod_defaults
-                .when_defaults
-                .extend(todo!("continue from here"));
 
             mod_whens.push(WhenCondition {
                 index: when_index,
@@ -899,7 +908,24 @@ mod analysis {
             macro_whens.push(input::InheritedWhen {
                 docs: attributes.docs,
                 args: visitor.properties.into_iter().map(|p| p.property).collect(),
-                sets: when.block.properties.into_iter().map(|p| p.ident).collect(),
+                sets: when.block.properties.iter().map(|p| p.ident.clone()).collect(),
+            });
+
+            mod_defaults.when_defaults.push(WhenDefaults {
+                index: when_index,
+                defaults: when
+                    .block
+                    .properties
+                    .into_iter()
+                    .map(|p| WidgetDefault {
+                        property: p.ident,
+                        default: match p.value {
+                            PropertyValue::Fields(fields) => FinalPropertyDefaultValue::Fields(fields),
+                            PropertyValue::Args(args) => FinalPropertyDefaultValue::Args(args),
+                            PropertyValue::Unset(_) => unreachable!("error case removed early"),
+                        },
+                    })
+                    .collect(),
             });
 
             when_index += 1;
@@ -1569,7 +1595,10 @@ pub mod output {
                     quote!(properties::#property::args(#args))
                 }
                 FinalPropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
-                FinalPropertyDefaultValue::WhenInherited(widget) => quote!(#widget::when_defaults::#property()),
+                FinalPropertyDefaultValue::WhenInherited(widget, index) => {
+                    let mod_name = ident!("w{}", index);
+                    quote!(#widget::when_defaults::#mod_name::#property())
+                }
             };
             tokens.extend(quote! {
                 #[inline]
@@ -1590,6 +1619,7 @@ pub mod output {
             let mod_name = ident!("w{}", self.index);
             let defaults = &self.defaults;
             tokens.extend(quote! { pub mod #mod_name {
+                use super::*;
                 #(#defaults)*
             }})
         }
@@ -1599,7 +1629,7 @@ pub mod output {
         Fields(PropertyFields),
         Args(PropertyArgs),
         Inherited(Path),
-        WhenInherited(Path),
+        WhenInherited(Path, u32),
     }
 
     pub struct WidgetWhens {
