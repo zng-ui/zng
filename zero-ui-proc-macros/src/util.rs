@@ -21,36 +21,6 @@ macro_rules! ident {
     };
 }
 
-/// generates `pub`
-pub fn pub_vis() -> Visibility {
-    Visibility::Public(VisPublic {
-        pub_token: syn::token::Pub { span: Span::call_site() },
-    })
-}
-
-/// Split attributes in #[doc] and others, also removes #[inline]
-pub fn split_doc_other(attrs: &mut Vec<Attribute>) -> (Vec<Attribute>, Vec<Attribute>) {
-    let mut docs = vec![];
-    let mut other_attrs = vec![];
-
-    let doc_ident = ident!("doc");
-    let inline_ident = ident!("inline");
-
-    for attr in attrs.drain(..) {
-        if let Some(ident) = attr.path.get_ident() {
-            if ident == &doc_ident {
-                docs.push(attr);
-                continue;
-            } else if ident == &inline_ident {
-                continue;
-            }
-        }
-        other_attrs.push(attr);
-    }
-
-    (docs, other_attrs)
-}
-
 /// returns `zero_ui` or the name used in `Cargo.toml` if the crate was
 /// renamed.
 pub fn zero_ui_crate_ident() -> Ident {
@@ -85,15 +55,6 @@ macro_rules! abort_call_site {
     ($($tt:tt)*) => {
         abort!(Span::call_site(), $($tt)*)
     };
-}
-
-/// Generates a `#[doc]` attribute.
-macro_rules! doc {
-    ($($tt:tt)*) => {{
-        let doc_comment = format!($($tt)*);
-        let doc: syn::Attribute = syn::parse_quote!(#[doc=#doc_comment]);
-        doc
-    }};
 }
 
 /// Extend a TokenStream with a `#[doc]` attribute.
@@ -180,6 +141,7 @@ impl Errors {
         })
     }
 
+    /*
     pub fn extend(&mut self, errors: Errors) {
         self.tokens.extend(errors.tokens)
     }
@@ -187,6 +149,7 @@ impl Errors {
     pub fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }
+    */
 }
 
 impl ToTokens for Errors {

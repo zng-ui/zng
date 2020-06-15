@@ -350,7 +350,7 @@ mod output {
         pub widget: Ident,
         pub property: Ident,
         /// Indexes of when blocks that set this property.
-        pub whens: Vec<u32>
+        pub whens: Vec<u32>,
     }
 
     impl ToTokens for WhenSwitchArgs {
@@ -363,10 +363,10 @@ mod output {
 
             let index_var_name = ident!("{}_index", property);
 
-            let when_args: Vec<_> = self.whens.iter().map(|i|ident!("{}{}", property, i)).collect();
+            let when_args: Vec<_> = self.whens.iter().map(|i| ident!("{}{}", property, i)).collect();
             todo!("? init when args values");
 
-            tokens.extend(quote!{
+            tokens.extend(quote! {
                 let #var_name = {
                     #(let #when_args = ?;)*
                     #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_args),*)
