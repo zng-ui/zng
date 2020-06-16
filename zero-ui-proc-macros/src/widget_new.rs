@@ -131,7 +131,7 @@ mod output {
     pub struct WidgetNewOutput {
         pub args_bindings: ArgsBindings,
         pub when_bindings: WhenBindings,
-        pub content_bindings: ContentBinding,
+        pub content_binding: ContentBinding,
         pub child_props_assigns: PropertyAssigns,
         pub new_child_call: NewCall,
         pub props_assigns: PropertyAssigns,
@@ -141,7 +141,7 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let mut inner = TokenStream::new();
             self.args_bindings.to_tokens(&mut inner);
-            self.content_bindings.to_tokens(&mut inner);
+            self.content_binding.to_tokens(&mut inner);
             self.child_props_assigns.to_tokens(&mut inner);
             self.new_child_call.to_tokens(&mut inner);
             self.props_assigns.to_tokens(&mut inner);
@@ -349,8 +349,7 @@ mod output {
     pub struct WhenSwitchArgs {
         pub widget: Ident,
         pub property: Ident,
-        /// Indexes of when blocks that set this property.
-        pub whens: Vec<u32>,
+        pub whens: Vec<WhenPropertyValue>,
     }
 
     impl ToTokens for WhenSwitchArgs {
@@ -363,16 +362,28 @@ mod output {
 
             let index_var_name = ident!("{}_index", property);
 
-            let when_args: Vec<_> = self.whens.iter().map(|i| ident!("{}{}", property, i)).collect();
-            todo!("? init when args values");
+            let when_var_names: Vec<_> = self.whens.iter().map(|w| ident!("{}{}", property, w.index)).collect();
+            let when_var_inits = self.whens.iter().map(|w| match &w.value {
+                PropertyValue::Args(a) => a.to_token_stream(),
+                PropertyValue::Fields(f) => f.to_token_stream(),
+                PropertyValue::Inherited => {
+                    let wi = ident!("w{}", w.index);
+                    quote! { #widget::when_defaults::#wi::#property() }
+                }
+            });
 
             tokens.extend(quote! {
                 let #var_name = {
-                    #(let #when_args = ?;)*
-                    #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_args),*)
+                    #(let #when_var_names = #when_var_inits;)*
+                    #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_var_names),*)
                 };
             })
         }
+    }
+
+    pub struct WhenPropertyValue {
+        pub index: u32,
+        pub value: PropertyValue,
     }
 
     pub struct ContentBinding {
