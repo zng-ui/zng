@@ -1502,12 +1502,18 @@ pub mod output {
     impl ToTokens for WidgetPropertyUse {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let tt = match self {
-                WidgetPropertyUse::Mod(ident) => quote!(pub use #ident::export as #ident;),
-                WidgetPropertyUse::Alias { ident, original } => quote!(pub use #original::export as #ident;),
-                WidgetPropertyUse::Inherited { widget, ident } => quote!(pub use #widget::properties::#ident::export as #ident;),
-                WidgetPropertyUse::AliasInherited { ident, widget, original } => {
-                    quote!(pub use #widget::properties::#original::export as #ident;)
-                }
+                WidgetPropertyUse::Mod(ident) => quote! {
+                    #ident::if_export!(pub use #ident::export as #ident;);
+                },
+                WidgetPropertyUse::Alias { ident, original } => quote! {
+                    #original::if_export!(pub use #original::export as #ident;);
+                },
+                WidgetPropertyUse::Inherited { widget, ident } => quote! {
+                    #widget::properties::#ident::if_export!(pub use #widget::properties::#ident::export as #ident;);
+                },
+                WidgetPropertyUse::AliasInherited { ident, widget, original } => quote! {
+                    #widget::properties::#original::if_export!(pub use #widget::properties::#original::export as #ident;);
+                },
             };
             tokens.extend(tt);
         }

@@ -466,6 +466,11 @@ mod analysis {
         }
         let set_attrs = attrs.inline.into_iter().collect();
 
+        let can_export = match fn_.vis {
+            syn::Visibility::Public(_) => true,
+            _ => false,
+        };
+
         PropertyMod {
             errors,
             docs: PropertyDocs {
@@ -477,7 +482,8 @@ mod analysis {
             },
             attrs: mod_attrs,
             vis: fn_.vis,
-            ident: fn_.ident,
+            can_export,
+            ident: fn_.ident.clone(),
             fns: PropertyFns {
                 set_attrs,
                 generics: fn_generics,
@@ -494,8 +500,10 @@ mod analysis {
             },
             macros: PropertyMacros {
                 priority,
+                can_export,
                 allowed_in_when,
                 arg_idents: property_arg_idents,
+                ident: fn_.ident,
             },
             asserts: PropertyAsserts { prefix },
         }
@@ -587,6 +595,7 @@ mod output {
         pub docs: PropertyDocs,
         pub attrs: Vec<Attribute>,
         pub vis: Visibility,
+        pub can_export: bool,
         pub ident: Ident,
         pub fns: PropertyFns,
         pub tys: PropertyTypes,
@@ -608,14 +617,22 @@ mod output {
 
             let docs_inner = docs.inner_tokens();
 
+            let export = if self.can_export {
+                Some(quote! {
+                    #[doc(hidden)]
+                    #vis use super::#ident as export;
+                })
+            } else {
+                None
+            };
+
             tokens.extend(quote! {
                 #docs
                 #(#attrs)*
                 #vis mod #ident {
                     use super::*;
 
-                    #[doc(hidden)]
-                    #vis use super::#ident as export;
+                    #export
 
                     #fns
                     #tys
@@ -984,6 +1001,8 @@ mod output {
     pub struct PropertyMacros {
         pub priority: Priority,
         pub allowed_in_when: bool,
+        pub ident: Ident,
+        pub can_export: bool,
         /// idents of property arguments, (not the child:impl UiNode param).
         pub arg_idents: Vec<Ident>,
     }
@@ -1014,6 +1033,7 @@ mod output {
             } else {
                 Some(quote! { compile_error!($msg); })
             };
+
             let assert_ident = ident!("assert_{}", pid);
             tokens.extend(quote! {
                 #[doc(hidden)]
@@ -1026,6 +1046,21 @@ mod output {
 
                 #[doc(hidden)]
                 pub use #assert_ident as assert;
+            });
+
+            // if_export
+            let if_export_rule = if self.can_export { quote!( $($tt)* ) } else { quote!() };
+            let if_export_ident = ident!("if_export_{}", pid);
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #if_export_ident {
+                    ($($tt:tt)*) => {
+                        #if_export_rule
+                    };
+                }
+                #[doc(hidden)]
+                pub use #if_export_ident as if_export;
             });
 
             // switch_args!
