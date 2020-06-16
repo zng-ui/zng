@@ -256,10 +256,7 @@ pub mod input {
 
 mod analysis {
     use super::input::{MacroArgs, Prefix, PropertyFn};
-    use super::output::{
-        PropertyAsserts, PropertyDocArg, PropertyDocType, PropertyDocs, PropertyFns, PropertyGenParam, PropertyMacros, PropertyMod,
-        PropertyTypes,
-    };
+    use super::output::*;
     use crate::util::{zero_ui_crate_ident, Attributes, Errors};
     use heck::CamelCase;
     use proc_macro2::Ident;

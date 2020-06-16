@@ -12,12 +12,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 mod input {
     pub use crate::{
         util::{non_user_braced, non_user_parenthesized},
-        widget_stage3::input::{InheritedProperty, InheritedWhen, PropertyAssign, WgtItemWhen},
+        widget_stage3::input::{InheritedProperty, InheritedWhen, PropertyAssign, PropertyValue as InputPropertyValue, WgtItemWhen},
     };
     use proc_macro2::Ident;
     use syn::{
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
+        spanned::Spanned,
         Block, Error, Token,
     };
 
@@ -56,7 +57,7 @@ mod input {
     }
 
     pub struct UserInput {
-        items: Vec<UserInputItem>,
+        pub items: Vec<UserInputItem>,
     }
     impl Parse for UserInput {
         fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -96,8 +97,8 @@ mod input {
     }
 
     pub struct UserContent {
-        fat_arrow_token: Token![=>],
-        block: Block,
+        pub fat_arrow_token: Token![=>],
+        pub block: Block,
     }
     impl Parse for UserContent {
         fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -107,20 +108,126 @@ mod input {
             })
         }
     }
+    impl Spanned for UserContent {
+        fn span(&self) -> proc_macro2::Span {
+            let span = self.fat_arrow_token.span();
+            span.join(self.block.span()).unwrap_or(span)
+        }
+    }
 }
 
 mod analysis {
-    use super::{input::WidgetNewInput, output::WidgetNewOutput};
+    use super::input::InputPropertyValue;
+    use super::{input::WidgetNewInput, output::*};
+    use crate::util::Errors;
+    use proc_macro2::Span;
+    use std::collections::HashMap;
+    use syn::{parse_quote, spanned::Spanned};
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
-        todo!("aaa")
+        let mut properties = vec![];
+        let mut whens = vec![];
+        let mut contents = vec![];
+        for item in input.user_input.items {
+            use super::input::UserInputItem::*;
+            match item {
+                super::input::UserInputItem::Property(p) => properties.push(p),
+                super::input::UserInputItem::When(w) => whens.push(w),
+                super::input::UserInputItem::Content(c) => contents.push(c),
+            }
+        }
+
+        //validate items
+        let mut errors = Errors::default();
+
+        for extra_contents in contents.iter().skip(1) {
+            errors.push("widget content already set", extra_contents.fat_arrow_token.span())
+        }
+        let content_block = if let Some(content) = contents.into_iter().next() {
+            content.block
+        } else {
+            errors.push("missing widget content (=> {})", Span::call_site());
+            parse_quote!({ () })
+        };
+
+        let mut user_properties = HashMap::new();
+        let mut args_bindings = vec![];
+        let mut unsetted_properties = HashMap::new();
+        let mut state_bindings = vec![];
+
+        for property in properties {
+            let value = match property.value {
+                InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
+                InputPropertyValue::Args(a) => PropertyValue::Args(a),
+                InputPropertyValue::Unset(u) => {
+                    unsetted_properties.insert(property.ident.clone(), u);
+                    continue;
+                }
+            };
+
+            user_properties.insert(property.ident.clone(), args_bindings.len());
+            args_bindings.push(ArgsBinding {
+                widget: None,
+                property: property.ident,
+                value,
+            });
+        }
+
+        for property in input.default {
+            if let Some(&i) = user_properties.get(&property.ident) {
+                args_bindings[i].widget = Some(input.name.clone());
+                continue;
+            }
+
+            use crate::widget_stage3::input::BuiltPropertyKind::*;
+            match property.kind {
+                Required => {
+                    if let Some(u) = unsetted_properties.get(&property.ident) {
+                        errors.push(format!("cannot unset required property `{}`", property.ident), u.span())
+                    } else {
+                        errors.push(format!("missing required property `{}`", property.ident), Span::call_site())
+                    }
+                }
+                Local => {}
+                Default => todo!("property inits"),
+            }
+        }
+
+        WidgetNewOutput {
+            args_bindings: ArgsBindings { args: (), state_args: () },
+            when_bindings: WhenBindings {
+                conditions: (),
+                indexes: (),
+                switch_args: (),
+            },
+            content_binding: ContentBinding { content: content_block },
+            child_props_assigns: PropertyAssigns {
+                widget_name: (),
+                properties: (),
+            },
+            new_child_call: NewCall {
+                widget_name: (),
+                is_new_child: (),
+                args: (),
+            },
+            props_assigns: PropertyAssigns {
+                widget_name: (),
+                properties: (),
+            },
+            new_call: NewCall {
+                widget_name: (),
+                is_new_child: (),
+                args: (),
+            },
+            errors,
+        }
     }
 }
 
 mod output {
     use crate::{
         property::input::Priority,
-        util::zero_ui_crate_ident,
+        util::{zero_ui_crate_ident, Errors},
         widget_stage3::input::{PropertyArgs, PropertyFields},
         widget_stage3::output::WhenConditionExpr,
     };
@@ -136,9 +243,11 @@ mod output {
         pub new_child_call: NewCall,
         pub props_assigns: PropertyAssigns,
         pub new_call: NewCall,
+        pub errors: Errors,
     }
     impl ToTokens for WidgetNewOutput {
         fn to_tokens(&self, tokens: &mut TokenStream) {
+            self.errors.to_tokens(tokens);
             let mut inner = TokenStream::new();
             self.args_bindings.to_tokens(&mut inner);
             self.content_binding.to_tokens(&mut inner);
