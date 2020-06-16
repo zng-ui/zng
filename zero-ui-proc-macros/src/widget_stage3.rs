@@ -1485,6 +1485,7 @@ pub mod output {
             tokens.extend(quote! {
                 #[doc(hidden)]
                 pub mod properties {
+                    use super::*;
                     #(#props)*
                 }
             })
@@ -1501,13 +1502,11 @@ pub mod output {
     impl ToTokens for WidgetPropertyUse {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let tt = match self {
-                WidgetPropertyUse::Mod(ident) => quote!(pub mod #ident { pub use super::super::#ident::*; }),
-                WidgetPropertyUse::Alias { ident, original } => quote!(pub mod #ident { pub use super::super::#original::*; }),
-                WidgetPropertyUse::Inherited { widget, ident } => {
-                    quote!(pub mod #ident { use super::super::*; pub use #widget::properties::#ident::*; })
-                }
+                WidgetPropertyUse::Mod(ident) => quote!(pub use #ident::export as #ident;),
+                WidgetPropertyUse::Alias { ident, original } => quote!(pub use #original::export as #ident;),
+                WidgetPropertyUse::Inherited { widget, ident } => quote!(pub use #widget::properties::#ident::export as #ident;),
                 WidgetPropertyUse::AliasInherited { ident, widget, original } => {
-                    quote!(pub mod #ident { use super::super::*; pub use #widget::properties::#original::*; })
+                    quote!(pub use #widget::properties::#original::export as #ident;)
                 }
             };
             tokens.extend(tt);

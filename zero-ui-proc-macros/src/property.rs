@@ -614,6 +614,9 @@ mod output {
                 #vis mod #ident {
                     use super::*;
 
+                    #[doc(hidden)]
+                    #vis use super::#ident as export;
+
                     #fns
                     #tys
                     #macros
