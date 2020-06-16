@@ -1,8 +1,7 @@
 use crate::core::types::{rgba, LayoutSideOffsets};
 use crate::core::var::context_var;
 use crate::core::widget_mixin;
-#[doc(hidden)]
-pub use crate::properties::{border, focusable, id, is_focused, BorderDetails};
+use crate::properties::{border, focusable, is_focused, BorderDetails};
 
 context_var! {
     pub struct FocusedBorderWidths: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);

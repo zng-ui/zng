@@ -153,7 +153,7 @@ mod analysis {
         let mut user_properties = HashMap::new();
         let mut args_bindings = vec![];
         let mut unsetted_properties = HashMap::new();
-        let mut state_bindings = vec![];
+        //let mut state_bindings = vec![];
 
         for property in properties {
             let value = match property.value {
@@ -193,34 +193,36 @@ mod analysis {
             }
         }
 
-        WidgetNewOutput {
-            args_bindings: ArgsBindings { args: (), state_args: () },
-            when_bindings: WhenBindings {
-                conditions: (),
-                indexes: (),
-                switch_args: (),
-            },
-            content_binding: ContentBinding { content: content_block },
-            child_props_assigns: PropertyAssigns {
-                widget_name: (),
-                properties: (),
-            },
-            new_child_call: NewCall {
-                widget_name: (),
-                is_new_child: (),
-                args: (),
-            },
-            props_assigns: PropertyAssigns {
-                widget_name: (),
-                properties: (),
-            },
-            new_call: NewCall {
-                widget_name: (),
-                is_new_child: (),
-                args: (),
-            },
-            errors,
-        }
+        todo!()
+
+        //WidgetNewOutput {
+        //    args_bindings: ArgsBindings { args: (), state_args: () },
+        //    when_bindings: WhenBindings {
+        //        conditions: (),
+        //        indexes: (),
+        //        switch_args: (),
+        //    },
+        //    content_binding: ContentBinding { content: content_block },
+        //    child_props_assigns: PropertyAssigns {
+        //        widget_name: (),
+        //        properties: (),
+        //    },
+        //    new_child_call: NewCall {
+        //        widget_name: (),
+        //        is_new_child: (),
+        //        args: (),
+        //    },
+        //    props_assigns: PropertyAssigns {
+        //        widget_name: (),
+        //        properties: (),
+        //    },
+        //    new_call: NewCall {
+        //        widget_name: (),
+        //        is_new_child: (),
+        //        args: (),
+        //    },
+        //    errors,
+        //}
     }
 }
 

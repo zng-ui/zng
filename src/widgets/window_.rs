@@ -3,8 +3,7 @@ use crate::core::{
     types::{rgb, WidgetId},
     window::Window,
 };
-#[doc(hidden)]
-pub use crate::properties::{background_color, id, size, title};
+use crate::properties::{background_color, size, title};
 use crate::widgets::container;
 
 widget! {

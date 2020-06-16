@@ -1,8 +1,6 @@
 use crate::core::widget_mixin;
 use crate::prelude::WidgetId;
-
-#[doc(hidden)]
-pub use crate::properties::id;
+use crate::properties::id;
 
 widget_mixin! {
     /// Mix-in inherited implicitly by all [widgets](../../../zero_ui/macro.widget.html).
