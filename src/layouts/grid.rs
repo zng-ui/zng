@@ -1,27 +1,24 @@
-use crate::core::{context::WidgetContext, impl_ui_node};
-use crate::{prelude::UiNode, properties::grid::GridVars};
+use crate::core::{impl_ui_node, types::LayoutSize, UiNode, Widget};
+use crate::properties::grid::GridChildState;
 
 struct Grid {
     columns: Vec<ColumnDef>,
     rows: Vec<RowDef>,
-    children: Vec<ChildEntry>,
-}
-
-struct ChildEntry {
-    vars: GridVars,
-    child: Box<dyn UiNode>,
-}
-
-#[impl_ui_node(child)]
-impl UiNode for ChildEntry {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
-        self.vars = GridVars::new(ctx);
-    }
+    children: Vec<Box<dyn Widget>>,
 }
 
 #[impl_ui_node(children)]
-impl UiNode for Grid {}
+impl UiNode for Grid {
+    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+        let mut size = LayoutSize::zero();
+        for child in &mut self.children {
+            child.measure(available_size);
+            let _column = child.column();
+            // TODO
+        }
+        size
+    }
+}
 
 /// A grid column definition.
 #[derive(Debug, Clone)]

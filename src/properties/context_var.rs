@@ -53,3 +53,27 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
         value: value.into_var(),
     }
 }
+
+struct SetWidgetState<U: UiNode, K: StateKey> {
+    child: U,
+    pre_init: Option<(K, K::Type)>,
+}
+
+#[impl_ui_node(child)]
+impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        if let Some((key, value)) = self.pre_init.take() {
+            ctx.widget_state.set(key, value);
+        }
+        self.child.init(ctx);
+    }
+}
+
+/// Wraps `child` in an `UiNode` that moves `key` and `value` to the [`widget_state`](WidgetContext::widget_state) on the
+/// first [`init`](UiNode::init) call.
+pub fn set_widget_state<K: StateKey>(child: impl UiNode, key: K, value: K::Type) -> impl UiNode {
+    SetWidgetState {
+        child,
+        pre_init: Some((key, value)),
+    }
+}

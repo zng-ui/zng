@@ -17,7 +17,7 @@ pub mod window;
 
 pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
 
-use context::{LazyStateMap, StateKey, WidgetContext};
+use context::{LazyStateMap, WidgetContext};
 use render::FrameBuilder;
 use types::{LayoutSize, WidgetId};
 
@@ -83,70 +83,111 @@ impl UiNode for Box<dyn UiNode> {
     }
 }
 
-struct Widget<T: UiNode> {
+struct WidgetNode<T: UiNode> {
     id: WidgetId,
     state: LazyStateMap,
     child: T,
-    area: LayoutSize,
+    size: LayoutSize,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode> UiNode for Widget<T> {
+impl<T: UiNode> UiNode for WidgetNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
-        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
-        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
-        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
-        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
-        self.area = final_size;
+        self.size = final_size;
         self.child.arrange(final_size);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_widget(self.id, self.area, &self.child);
+        frame.push_widget(self.id, self.size, &self.child);
     }
 }
 
-/// Last visited [`WidgetId`](WidgetId) in an [`UiNode`](UiNode) event method.
-///
-/// This can be used to retrieve the `WidgetId` of child widgets.
-///
-/// # Example
-/// ```
-/// # struct MyContainer {
-/// #    children: Vec<Box<dyn UiNode>>     
-/// # }
-/// # impl MyContainer {
-/// fn init(&mut self, ctx: &mut WidgetContext) {
-///     for child in &mut self.children {
-///         child.init(ctx);
-///         println!("child_id: {:?}", ctx.event_state.get(LastWidgetId).expect("child does not contain widgets."));
-///     }   
-/// }
-/// #}
-/// ```
-pub struct LastWidgetId;
-impl StateKey for LastWidgetId {
-    type Type = WidgetId;
+/// Represents an widget [`UiNode`](UiNode).
+pub trait Widget: UiNode {
+    fn id(&self) -> WidgetId;
+
+    fn state(&self) -> &LazyStateMap;
+    fn state_mut(&mut self) -> &mut LazyStateMap;
+
+    /// Last arranged size.
+    fn size(&self) -> LayoutSize;
+
+    /// Box this widget node, unless it is already `Box<dyn Widget>`.
+    fn boxed(self) -> Box<dyn Widget>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
+}
+
+impl<T: UiNode> Widget for WidgetNode<T> {
+    #[inline]
+    fn id(&self) -> WidgetId {
+        self.id
+    }
+    #[inline]
+    fn state(&self) -> &LazyStateMap {
+        &self.state
+    }
+    #[inline]
+    fn state_mut(&mut self) -> &mut LazyStateMap {
+        &mut self.state
+    }
+    #[inline]
+    fn size(&self) -> LayoutSize {
+        self.size
+    }
+}
+
+#[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+impl UiNode for Box<dyn Widget> {
+    //fn boxed(self) -> Box<dyn UiNode> {
+    //   TODO?
+    //}
+}
+
+impl Widget for Box<dyn Widget> {
+    #[inline]
+    fn id(&self) -> WidgetId {
+        self.as_ref().id()
+    }
+    #[inline]
+    fn state(&self) -> &LazyStateMap {
+        self.as_ref().state()
+    }
+    #[inline]
+    fn state_mut(&mut self) -> &mut LazyStateMap {
+        self.as_mut().state_mut()
+    }
+    #[inline]
+    fn size(&self) -> LayoutSize {
+        self.as_ref().size()
+    }
+    #[inline]
+    fn boxed(self) -> Box<dyn Widget> {
+        self
+    }
 }
 
 /// This is called by the default widgets `new_child` function.
@@ -162,12 +203,12 @@ pub fn default_widget_new_child<C: UiNode>(child: C) -> C {
 /// A new widget context is introduced by this function. `child` is wrapped in a node that calls
 /// [`WidgetContext::widget_context`](WidgetContext::widget_context) and [`FrameBuilder::push_widget`] to define the widget.
 #[inline]
-pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl UiNode {
-    Widget {
+pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl Widget {
+    WidgetNode {
         id: id_args.unwrap(),
         state: LazyStateMap::default(),
         child,
-        area: LayoutSize::zero(),
+        size: LayoutSize::zero(),
     }
 }
 

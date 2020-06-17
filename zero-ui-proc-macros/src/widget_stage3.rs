@@ -1239,7 +1239,7 @@ pub mod output {
                     quote!(
                         #[doc=#fn_doc]
                         #[inline]
-                        pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::UiNode {
+                        pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::Widget {
                             #crate_::core::default_widget_new(child, id)
                         }
                     )

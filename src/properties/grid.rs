@@ -2,12 +2,12 @@
 
 use crate::{
     core::{
-        context::{StateKey, WidgetContext},
-        impl_ui_node, property,
-        var::{BoxVar, IntoVar, ObjVar},
-        LastWidgetId, UiNode,
+        context::{StateKey, Vars},
+        property,
+        var::{BoxLocalVar, IntoVar},
+        UiNode, Widget,
     },
-    prelude::WidgetId,
+    properties::set_widget_state,
 };
 use derive_more as dm;
 
@@ -16,9 +16,9 @@ macro_rules! grid_properties {
         $(#[$value_meta:meta])*
         pub struct $Value:ident;
         struct $VarKey:ident;
-        struct $Node:ident;
         $(#[$property_meta:meta])*
         pub fn$property:ident;
+        default: $default:expr;
     )*) => {
         $(
             $(#[$value_meta])*
@@ -32,31 +32,21 @@ macro_rules! grid_properties {
                 dm::AddAssign, dm::SubAssign,
             )]
             pub struct $Value(pub usize);
+            impl Default for $Value {
+                fn default() -> Self {
+                    $Value($default)
+                }
+            }
 
             struct $VarKey;
             impl StateKey for $VarKey {
-                type Type = Option<(WidgetId, BoxVar<$Value>)>;
-            }
-
-            struct $Node<C: UiNode> {
-                child: C,
-                var: Option<BoxVar<$Value>>
-            }
-            #[impl_ui_node(child)]
-            impl<C: UiNode> UiNode for $Node<C> {
-                fn init(&mut self, ctx: &mut WidgetContext) {
-                    self.child.init(ctx);
-                    ctx.event_state.set($VarKey, Some((ctx.widget_id, self.var.take().unwrap())));
-                }
+                type Type = BoxLocalVar<$Value>;
             }
 
             $(#[$property_meta])*
             #[property(context)]
             pub fn $property(child: impl UiNode, value: impl IntoVar<$Value>) -> impl UiNode {
-                $Node {
-                    child,
-                    var: Some(value.into_var().boxed())
-                }
+                set_widget_state(child, $VarKey, Box::new(value.into_local()))
             }
         )*
     };
@@ -65,78 +55,131 @@ macro_rules! grid_properties {
 grid_properties! {
     /// Grid column index, `0` is the left-most column.
     pub struct Column;
-    struct ColumnInit;
-    struct ColumnNode;
+    struct ColumnKey;
     /// Sets the grid column the widget aligns too.
     pub fn column;
+    default: 0;
 
     /// Grid row index, `0` is the top-most row.
     pub struct Row;
-    struct RowInit;
-    struct RowNode;
+    struct RowKey;
     // Sets the grid row the widget aligns too.
     pub fn row;
+    default: 0;
 
     /// Grid column span.
     pub struct ColumnSpan;
-    struct ColumnSpanInit;
-    struct ColumnSpanNode;
+    struct ColumnSpanKey;
     /// Sets the number of columns the widget occupies.
     pub fn column_span;
+    default: 1;
 
     /// Grid row span.
     pub struct RowSpan;
-    struct RowSpanInit;
-    struct RowSpanNode;
+    struct RowSpanKey;
     /// Sets the number of rows the widget occupies.
     pub fn row_span;
+    default: 1;
 }
 
-/// Variables associated with a child widget.
+/// Grid properties getter.
 ///
-/// This type can be used for implementing grid layout containers that support the [`grid`](crate::properties::grid) properties.
-///
-/// # Grid Implementers
-///
-/// During `UiNode::init` call `GridVars::new(ctx)` after calling init in a child widget to get its grid related vars.
-pub struct GridVars {
-    pub column: BoxVar<Column>,
-    pub row: BoxVar<Row>,
-    pub column_span: BoxVar<ColumnSpan>,
-    pub row_span: BoxVar<RowSpan>,
-}
+/// Grid container implementers can use this to get cell configuration from child widgets.
+pub trait GridChildState {
+    fn column_var(&self) -> Option<&BoxLocalVar<Column>>;
+    fn row_var(&self) -> Option<&BoxLocalVar<Row>>;
+    fn column_span_var(&self) -> Option<&BoxLocalVar<ColumnSpan>>;
+    fn row_span_var(&self) -> Option<&BoxLocalVar<RowSpan>>;
 
-impl Default for GridVars {
-    fn default() -> Self {
-        GridVars {
-            column: Column(0).into_var().boxed(),
-            row: Row(0).into_var().boxed(),
-            column_span: ColumnSpan(1).into_var().boxed(),
-            row_span: RowSpan(1).into_var().boxed(),
+    fn column_var_mut(&mut self) -> Option<&mut BoxLocalVar<Column>>;
+    fn row_var_mut(&mut self) -> Option<&mut BoxLocalVar<Row>>;
+    fn column_span_var_mut(&mut self) -> Option<&mut BoxLocalVar<ColumnSpan>>;
+    fn row_span_var_mut(&mut self) -> Option<&mut BoxLocalVar<RowSpan>>;
+
+    /// Initializes the local copy of all variables.
+    fn init_local(&mut self, vars: &Vars) {
+        if let Some(var) = self.column_var_mut() {
+            var.init_local(vars);
         }
+        if let Some(var) = self.row_var_mut() {
+            var.init_local(vars);
+        }
+        if let Some(var) = self.column_span_var_mut() {
+            var.init_local(vars);
+        }
+        if let Some(var) = self.row_span_var_mut() {
+            var.init_local(vars);
+        }
+    }
+
+    /// Updates the local copy of all variables, returns if any variable updated.
+    fn update_local(&mut self, vars: &Vars) -> bool {
+        let mut has_update = false;
+        if let Some(var) = self.column_var_mut() {
+            has_update = var.update_local(vars).is_some();
+        }
+        if let Some(var) = self.row_var_mut() {
+            has_update = var.update_local(vars).is_some();
+        }
+        if let Some(var) = self.column_span_var_mut() {
+            has_update = var.update_local(vars).is_some();
+        }
+        if let Some(var) = self.row_span_var_mut() {
+            has_update = var.update_local(vars).is_some();
+        }
+        has_update
+    }
+
+    #[inline]
+    fn column(&self) -> Column {
+        self.column_var().map(|v| *v.get_local()).unwrap_or_default()
+    }
+    #[inline]
+    fn row(&self) -> Row {
+        self.row_var().map(|v| *v.get_local()).unwrap_or_default()
+    }
+    #[inline]
+    fn column_span(&self) -> ColumnSpan {
+        self.column_span_var().map(|v| *v.get_local()).unwrap_or_default()
+    }
+    #[inline]
+    fn row_span(&self) -> RowSpan {
+        self.row_span_var().map(|v| *v.get_local()).unwrap_or_default()
     }
 }
 
-impl GridVars {
-    pub fn new(ctx: &mut WidgetContext) -> Self {
-        if let Some(&child_widget_id) = ctx.event_state.get(LastWidgetId) {
-            macro_rules! get {
-                ($Key:ident or $Default:ident($default:expr)) => {
-                    ctx.event_state
-                        .get_mut($Key)
-                        .and_then(|o| o.take())
-                        .and_then(|(wid, var)| if child_widget_id == wid { Some(var) } else { None })
-                        .unwrap_or_else(|| $Default($default).into_var().boxed())
-                };
-            }
-            GridVars {
-                column: get!(ColumnInit or Column(0)),
-                row: get!(RowInit or Row(0)),
-                column_span: get!(ColumnSpanInit or ColumnSpan(1)),
-                row_span: get!(RowSpanInit or RowSpan(1)),
-            }
-        } else {
-            GridVars::default()
-        }
+impl<W: Widget> GridChildState for W {
+    #[inline]
+    fn column_var(&self) -> Option<&BoxLocalVar<Column>> {
+        self.state().get(ColumnKey)
+    }
+    #[inline]
+    fn row_var(&self) -> Option<&BoxLocalVar<Row>> {
+        self.state().get(RowKey)
+    }
+    #[inline]
+    fn column_span_var(&self) -> Option<&BoxLocalVar<ColumnSpan>> {
+        self.state().get(ColumnSpanKey)
+    }
+    #[inline]
+    fn row_span_var(&self) -> Option<&BoxLocalVar<RowSpan>> {
+        self.state().get(RowSpanKey)
+    }
+
+    #[inline]
+    fn column_var_mut(&mut self) -> Option<&mut BoxLocalVar<Column>> {
+        self.state_mut().get_mut(ColumnKey)
+    }
+    #[inline]
+    fn row_var_mut(&mut self) -> Option<&mut BoxLocalVar<Row>> {
+        self.state_mut().get_mut(RowKey)
+    }
+    #[inline]
+    fn column_span_var_mut(&mut self) -> Option<&mut BoxLocalVar<ColumnSpan>> {
+        self.state_mut().get_mut(ColumnSpanKey)
+    }
+    #[inline]
+    fn row_span_var_mut(&mut self) -> Option<&mut BoxLocalVar<RowSpan>> {
+        self.state_mut().get_mut(RowSpanKey)
     }
 }
