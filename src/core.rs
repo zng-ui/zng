@@ -17,7 +17,7 @@ pub mod window;
 
 pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
 
-use context::{LazyStateMap, WidgetContext};
+use context::{LazyStateMap, StateKey, WidgetContext};
 use render::FrameBuilder;
 use types::{LayoutSize, WidgetId};
 
@@ -95,21 +95,25 @@ impl<T: UiNode> UiNode for Widget<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
+        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
+        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
+        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
+        ctx.event_state.set(LastWidgetId, self.id);
     }
 
     fn arrange(&mut self, final_size: LayoutSize) {
@@ -120,6 +124,29 @@ impl<T: UiNode> UiNode for Widget<T> {
     fn render(&self, frame: &mut FrameBuilder) {
         frame.push_widget(self.id, self.area, &self.child);
     }
+}
+
+/// Last visited [`WidgetId`](WidgetId) in an [`UiNode`](UiNode) event method.
+///
+/// This can be used to retrieve the `WidgetId` of child widgets.
+///
+/// # Example
+/// ```
+/// # struct MyContainer {
+/// #    children: Vec<Box<dyn UiNode>>     
+/// # }
+/// # impl MyContainer {
+/// fn init(&mut self, ctx: &mut WidgetContext) {
+///     for child in &mut self.children {
+///         child.init(ctx);
+///         println!("child_id: {:?}", ctx.event_state.get(LastWidgetId).expect("child does not contain widgets."));
+///     }   
+/// }
+/// #}
+/// ```
+pub struct LastWidgetId;
+impl StateKey for LastWidgetId {
+    type Type = WidgetId;
 }
 
 /// This is called by the default widgets `new_child` function.

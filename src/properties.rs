@@ -8,6 +8,7 @@ mod clip_to_bounds_;
 mod context_var;
 mod cursor_;
 mod focus;
+pub mod grid;
 mod hit_testable_;
 mod id_;
 mod is_state_;
