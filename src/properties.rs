@@ -15,6 +15,7 @@ mod is_state_;
 mod margin_;
 mod on_event_;
 mod size_;
+mod stack;
 mod text;
 mod title_;
 
@@ -32,6 +33,7 @@ pub use is_state_::*;
 pub use margin_::*;
 pub use on_event_::*;
 pub use size_::*;
+pub use stack::*;
 pub use text::*;
 pub use title_::*;
 

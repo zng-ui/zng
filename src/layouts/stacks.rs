@@ -10,7 +10,7 @@ macro_rules! stack {
     ($Stack: ident, $stack_size: ident, $length_size: ident, $dimension: ident) => {
         struct $Stack<T> {
             children: Vec<StackEntry<T>>,
-            //TODO - interspacing - space between entries
+            //TODO - use stack_spacing
         }
         #[impl_ui_node(children)]
         impl<T: UiNode> UiNode for $Stack<T> {
