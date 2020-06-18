@@ -1,3 +1,5 @@
+//! Properties that attach a value to a widget and/or its branch.
+
 use crate::core::context::*;
 use crate::core::impl_ui_node;
 use crate::core::var::*;
@@ -69,8 +71,37 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
     }
 }
 
-/// Wraps `child` in an `UiNode` that moves `key` and `value` to the [`widget_state`](WidgetContext::widget_state) on the
-/// first [`init`](UiNode::init) call.
+/// Helper for declaring properties that set the widget state.
+///
+/// On the first [`init`](UiNode::init) `key` and `value` are moved to the [`widget_state`](WidgetContext::widget_state).
+///
+/// # Example
+/// ```
+/// # fn main() -> () { }
+/// use zero_ui::core::{property, state_key, UiNode, Widget};
+/// use zero_ui::properties::set_widget_state;
+///
+/// state_key! {
+///     pub struct FooKey: u32;
+/// }
+///
+/// #[property(context)]
+/// pub fn foo(child: impl UiNode, value: u32) -> impl UiNode {
+///     set_widget_state(child, FooKey, value)
+/// }
+///
+/// // after the property is used and the widget initializes:
+///
+/// /// Get the value from outside the widget.
+/// fn get_foo_outer(widget: &impl Widget) -> u32 {
+///     widget.state().get(FooKey).copied().unwrap_or_default()    
+/// }
+///
+/// /// Get the value from inside the widget.
+/// fn get_foo_inner(ctx: &WidgetContext) -> u32 {
+///     ctx.widget_state.get(FooKey).copied().unwrap_or_default()    
+/// }
+/// ```
 pub fn set_widget_state<K: StateKey>(child: impl UiNode, key: K, value: K::Type) -> impl UiNode {
     SetWidgetState {
         child,

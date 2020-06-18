@@ -2,8 +2,8 @@
 
 use crate::{
     core::{
-        context::{StateKey, Vars},
-        property,
+        context::Vars,
+        property, state_key,
         var::{BoxLocalVar, IntoVar},
         UiNode, Widget,
     },
@@ -38,10 +38,7 @@ macro_rules! grid_properties {
                 }
             }
 
-            struct $VarKey;
-            impl StateKey for $VarKey {
-                type Type = BoxLocalVar<$Value>;
-            }
+            state_key!{ struct $VarKey: BoxLocalVar<$Value>; }
 
             $(#[$property_meta])*
             #[property(context)]
