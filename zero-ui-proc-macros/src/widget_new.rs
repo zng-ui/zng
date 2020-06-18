@@ -118,10 +118,11 @@ mod input {
 
 mod analysis {
     use super::input::InputPropertyValue;
+    use super::input::UserInputItem;
     use super::{input::WidgetNewInput, output::*};
-    use crate::util::Errors;
-    use proc_macro2::Span;
-    use std::collections::HashMap;
+    use crate::{property::input::Prefix, util::Errors};
+    use proc_macro2::{Ident, Span};
+    use std::collections::{hash_map, HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
@@ -129,17 +130,16 @@ mod analysis {
         let mut whens = vec![];
         let mut contents = vec![];
         for item in input.user_input.items {
-            use super::input::UserInputItem::*;
             match item {
-                super::input::UserInputItem::Property(p) => properties.push(p),
-                super::input::UserInputItem::When(w) => whens.push(w),
-                super::input::UserInputItem::Content(c) => contents.push(c),
+                UserInputItem::Property(p) => properties.push(p),
+                UserInputItem::When(w) => whens.push(w),
+                UserInputItem::Content(c) => contents.push(c),
             }
         }
 
-        //validate items
         let mut errors = Errors::default();
 
+        // validate `=> {}`
         for extra_contents in contents.iter().skip(1) {
             errors.push("widget content already set", extra_contents.fat_arrow_token.span())
         }
@@ -152,15 +152,15 @@ mod analysis {
 
         let mut user_properties = HashMap::new();
         let mut args_bindings = vec![];
-        let mut unsetted_properties = HashMap::new();
-        //let mut state_bindings = vec![];
+        let mut unset_properties = HashMap::new();
 
+        // process user properties.
         for property in properties {
             let value = match property.value {
                 InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
                 InputPropertyValue::Args(a) => PropertyValue::Args(a),
                 InputPropertyValue::Unset(u) => {
-                    unsetted_properties.insert(property.ident.clone(), u);
+                    unset_properties.insert(property.ident.clone(), u);
                     continue;
                 }
             };
@@ -173,8 +173,12 @@ mod analysis {
             });
         }
 
-        for property in input.default {
+        let mut widget_defaults = HashSet::new();
+
+        // process widget properties.
+        for property in input.default.into_iter().chain(input.default_child) {
             if let Some(&i) = user_properties.get(&property.ident) {
+                // property already has user value, just change it to be found inside widget.
                 args_bindings[i].widget = Some(input.name.clone());
                 continue;
             }
@@ -182,47 +186,169 @@ mod analysis {
             use crate::widget_stage3::input::BuiltPropertyKind::*;
             match property.kind {
                 Required => {
-                    if let Some(u) = unsetted_properties.get(&property.ident) {
+                    if let Some(u) = unset_properties.get(&property.ident) {
                         errors.push(format!("cannot unset required property `{}`", property.ident), u.span())
                     } else {
                         errors.push(format!("missing required property `{}`", property.ident), Span::call_site())
                     }
                 }
                 Local => {}
-                Default => todo!("property inits"),
+                Default => {
+                    widget_defaults.insert(property.ident.clone());
+                    args_bindings.push(ArgsBinding {
+                        widget: Some(input.name.clone()),
+                        property: property.ident,
+                        value: PropertyValue::Inherited,
+                    });
+                }
             }
         }
 
-        todo!()
+        let mut state_bindings_done = HashSet::new();
+        let mut state_bindings = vec![];
+        let mut when_bindings = vec![];
+        let mut when_index = 0;
+        let mut property_indexes: HashMap<Ident, WhenPropertyIndex> = HashMap::new();
+        let mut when_index_usage = HashMap::new();
+        let mut when_switch_bindings: HashMap<Ident, WhenSwitchArgs> = HashMap::new();
 
-        //WidgetNewOutput {
-        //    args_bindings: ArgsBindings { args: (), state_args: () },
-        //    when_bindings: WhenBindings {
-        //        conditions: (),
-        //        indexes: (),
-        //        switch_args: (),
-        //    },
-        //    content_binding: ContentBinding { content: content_block },
-        //    child_props_assigns: PropertyAssigns {
-        //        widget_name: (),
-        //        properties: (),
-        //    },
-        //    new_child_call: NewCall {
-        //        widget_name: (),
-        //        is_new_child: (),
-        //        args: (),
-        //    },
-        //    props_assigns: PropertyAssigns {
-        //        widget_name: (),
-        //        properties: (),
-        //    },
-        //    new_call: NewCall {
-        //        widget_name: (),
-        //        is_new_child: (),
-        //        args: (),
-        //    },
-        //    errors,
-        //}
+        // process widget whens.
+        'when_for: for when in input.whens {
+            let mut is_bindings = vec![];
+
+            for arg in when.args {
+                if user_properties.contains_key(&arg) || state_bindings_done.contains(&arg) || widget_defaults.contains(&arg) {
+                    // user or widget already set arg or another when already uses the same property.
+                    continue;
+                } else if Prefix::new(&arg) == Prefix::State {
+                    is_bindings.push(StateBinding {
+                        widget: input.name.clone(),
+                        property: arg,
+                    })
+                } else if let Some(u) = unset_properties.get(&arg) {
+                    // TODO warning when API stabilizes.
+                    continue 'when_for;
+                } else {
+                    unreachable!("when condition property has no initial value")
+                }
+            }
+
+            // when will be used:
+
+            when_bindings.push(WhenBinding {
+                index: when_index,
+                condition: WhenCondition::Inherited {
+                    widget: input.name.clone(),
+                    index: when_index,
+                    properties: is_bindings.iter().map(|b| b.property.clone()).collect(),
+                },
+            });
+
+            for binding in is_bindings {
+                state_bindings_done.insert(binding.property.clone());
+                state_bindings.push(binding);
+            }
+
+            for property in when.sets {
+                let when_var = WhenConditionVar {
+                    index: when_index,
+                    can_move: false,
+                };
+                match when_index_usage.entry(when_index) {
+                    hash_map::Entry::Occupied(e) => {
+                        *e.get_mut() += 1;
+                    }
+                    hash_map::Entry::Vacant(e) => {
+                        e.insert(1);
+                    }
+                }
+                if let Some(entry) = property_indexes.get_mut(&property) {
+                    entry.whens.push(when_var);
+                } else {
+                    property_indexes.insert(
+                        property.clone(),
+                        WhenPropertyIndex {
+                            property: property.clone(),
+                            whens: vec![when_var],
+                        },
+                    );
+                }
+
+                let when_value = WhenPropertyValue {
+                    index: when_index,
+                    value: PropertyValue::Inherited,
+                };
+
+                if let Some(entry) = when_switch_bindings.get_mut(&property) {
+                    entry.whens.push(when_value);
+                } else {
+                    when_switch_bindings.insert(
+                        property.clone(),
+                        WhenSwitchArgs {
+                            widget: Some(input.name.clone()),
+                            property,
+                            whens: vec![when_value],
+                        },
+                    );
+                }
+            }
+
+            when_index += 1;
+        }
+
+        // process user whens.
+        for when in whens {
+            //TODO
+            when_index += 1;
+        }
+
+        let mut property_indexes: Vec<_> = property_indexes.into_iter().map(|(_, i)| i).collect();
+
+        for pi in &mut property_indexes {
+            for w in &mut pi.whens {
+                let count = &mut when_index_usage[&w.index];
+                if *count == 1 {
+                    debug_assert!(!w.can_move);
+                    w.can_move = true;
+                } else {
+                    *count -= 1;
+                }
+            }
+        }
+
+        let when_switch_bindings = when_switch_bindings.into_iter().map(|(_, i)| i).collect();
+
+        WidgetNewOutput {
+            args_bindings: ArgsBindings {
+                args: args_bindings,
+                state_args: state_bindings,
+            },
+            when_bindings: WhenBindings {
+                conditions: when_bindings,
+                indexes: property_indexes,
+                switch_args: when_switch_bindings,
+            },
+            content_binding: ContentBinding { content: content_block },
+            child_props_assigns: PropertyAssigns {
+                widget_name: (),
+                properties: (),
+            },
+            new_child_call: NewCall {
+                widget_name: (),
+                is_new_child: (),
+                args: (),
+            },
+            props_assigns: PropertyAssigns {
+                widget_name: (),
+                properties: (),
+            },
+            new_call: NewCall {
+                widget_name: (),
+                is_new_child: (),
+                args: (),
+            },
+            errors,
+        }
     }
 }
 
@@ -386,6 +512,7 @@ mod output {
         Inherited {
             widget: Ident,
             index: u32,
+            /// properties used by the condition.
             properties: Vec<Ident>,
         },
         Local {
@@ -458,7 +585,8 @@ mod output {
     }
 
     pub struct WhenSwitchArgs {
-        pub widget: Ident,
+        /// Widget name if the property exists in the widget.
+        pub widget: Option<Ident>,
         pub property: Ident,
         pub whens: Vec<WhenPropertyValue>,
     }
@@ -469,20 +597,29 @@ mod output {
 
             let widget = &self.widget;
             let property = &self.property;
-            let property_path = quote!(#widget::properties::#property);
 
             let index_var_name = ident!("{}_index", property);
 
             let when_var_names: Vec<_> = self.whens.iter().map(|w| ident!("{}{}", property, w.index)).collect();
+
             let when_var_inits = self.whens.iter().map(|w| match &w.value {
                 PropertyValue::Args(a) => a.to_token_stream(),
                 PropertyValue::Fields(f) => f.to_token_stream(),
                 PropertyValue::Inherited => {
+                    debug_assert!(
+                        widget.is_some(),
+                        "property default value is inherited, but no widget name was given"
+                    );
                     let wi = ident!("w{}", w.index);
                     quote! { #widget::when_defaults::#wi::#property() }
                 }
             });
 
+            let property_path = if let Some(widget) = &self.widget {
+                quote!(#widget::properties::#property)
+            } else {
+                property.to_token_stream()
+            };
             tokens.extend(quote! {
                 let #var_name = {
                     #(let #when_var_names = #when_var_inits;)*
