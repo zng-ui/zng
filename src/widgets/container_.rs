@@ -11,6 +11,6 @@ widget! {
         /// Content alignment.
         content_align -> align: Alignment::CENTER;
         /// Content overflow clipping.
-        clip_to_bounds -> clip_to_bounds;
+        clip_to_bounds;
     }
 }
