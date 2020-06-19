@@ -570,13 +570,8 @@ impl Windows {
 
     fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
         self.close_requests.insert(window_id, set);
-        use std::collections::hash_map::Entry::*;
-        match self.close_listeners.entry(window_id) {
-            Vacant(ve) => {
-                ve.insert(vec![notifier]);
-            }
-            Occupied(mut oe) => oe.get_mut().push(notifier),
-        }
+        let listeners = self.close_listeners.entry(window_id).or_insert(vec![]);
+        listeners.push(notifier)
     }
 
     /// Reference a running window.
