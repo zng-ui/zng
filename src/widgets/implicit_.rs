@@ -1,6 +1,5 @@
-use crate::core::widget_mixin;
-use crate::prelude::WidgetId;
-use crate::properties::id;
+use crate::core::{types::WidgetId, widget_mixin};
+use crate::properties::capture_only::widget_id;
 
 widget_mixin! {
     /// Mix-in inherited implicitly by all [widgets](../../../zero_ui/macro.widget.html).
@@ -9,6 +8,6 @@ widget_mixin! {
     default {
         /// Unique identifier of the widget.
         /// Set to [`WidgetId::new_unique()`](WidgetId::new_unique()) by default.
-        id: WidgetId::new_unique();
+        id -> widget_id: WidgetId::new_unique();
     }
 }

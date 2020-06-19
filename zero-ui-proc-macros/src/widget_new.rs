@@ -175,8 +175,7 @@ mod analysis {
 
         let mut widget_defaults = HashSet::new();
         let mut child_props_assigns = vec![];
-        let mut props_assigns = vec![];//TODO handle unset properties and overwrites.
-        
+        let mut props_assigns = vec![]; //TODO handle unset properties and overwrites.
 
         for property in input.default_child.iter().filter(|p| p.kind != BuiltPropertyKind::Local) {
             child_props_assigns.push(PropertyAssign {

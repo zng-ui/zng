@@ -203,7 +203,7 @@ pub fn default_widget_new_child<C: UiNode>(child: C) -> C {
 /// A new widget context is introduced by this function. `child` is wrapped in a node that calls
 /// [`WidgetContext::widget_context`](WidgetContext::widget_context) and [`FrameBuilder::push_widget`] to define the widget.
 #[inline]
-pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::id::Args) -> impl Widget {
+pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::capture_only::widget_id::Args) -> impl Widget {
     WidgetNode {
         id: id_args.unwrap(),
         state: LazyStateMap::default(),

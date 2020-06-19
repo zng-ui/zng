@@ -900,7 +900,6 @@ mod output {
             })
         }
     }
-    
 
     pub struct PropertyGenParam {
         pub ident: Ident,
