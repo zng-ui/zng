@@ -2,8 +2,8 @@
 
 use crate::{
     core::{
-        context::Vars,
-        property, state_key,
+        context::{state_key, Vars},
+        property,
         var::{BoxLocalVar, IntoVar},
         UiNode, Widget,
     },

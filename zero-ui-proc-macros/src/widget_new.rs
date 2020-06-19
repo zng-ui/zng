@@ -174,6 +174,21 @@ mod analysis {
         }
 
         let mut widget_defaults = HashSet::new();
+        let mut child_props_assigns = vec![];
+        let mut props_assigns = vec![];
+
+        for property in input.default_child.iter() {
+            child_props_assigns.push(PropertyAssign {
+                is_from_widget: true,
+                ident: property.ident.clone(),
+            })
+        }
+        for property in input.default.iter() {
+            props_assigns.push(PropertyAssign {
+                is_from_widget: true,
+                ident: property.ident.clone(),
+            })
+        }
 
         // process widget properties.
         for property in input.default.into_iter().chain(input.default_child) {
@@ -254,14 +269,9 @@ mod analysis {
                     index: when_index,
                     can_move: false,
                 };
-                match when_index_usage.entry(when_index) {
-                    hash_map::Entry::Occupied(e) => {
-                        *e.get_mut() += 1;
-                    }
-                    hash_map::Entry::Vacant(e) => {
-                        e.insert(1);
-                    }
-                }
+                let count = when_index_usage.entry(when_index).or_insert(0);
+                *count += 1;
+
                 if let Some(entry) = property_indexes.get_mut(&property) {
                     entry.whens.push(when_var);
                 } else {
@@ -306,7 +316,7 @@ mod analysis {
 
         for pi in &mut property_indexes {
             for w in &mut pi.whens {
-                let count = &mut when_index_usage[&w.index];
+                let count = when_index_usage.get_mut(&w.index).unwrap();
                 if *count == 1 {
                     debug_assert!(!w.can_move);
                     w.can_move = true;
@@ -330,22 +340,22 @@ mod analysis {
             },
             content_binding: ContentBinding { content: content_block },
             child_props_assigns: PropertyAssigns {
-                widget_name: (),
-                properties: (),
+                widget_name: input.name.clone(),
+                properties: child_props_assigns,
             },
             new_child_call: NewCall {
-                widget_name: (),
-                is_new_child: (),
-                args: (),
+                widget_name: input.name.clone(),
+                is_new_child: true,
+                properties: input.new_child.into_iter().collect(),
             },
             props_assigns: PropertyAssigns {
-                widget_name: (),
-                properties: (),
+                widget_name: input.name.clone(),
+                properties: props_assigns,
             },
             new_call: NewCall {
-                widget_name: (),
-                is_new_child: (),
-                args: (),
+                widget_name: input.name,
+                is_new_child: false,
+                properties: input.new.into_iter().collect(),
             },
             errors,
         }
@@ -652,7 +662,7 @@ mod output {
     }
     impl ToTokens for PropertyAssigns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let ns = {
+            let mod_ = {
                 let name = &self.widget_name;
                 quote!(#name::properties)
             };
@@ -660,10 +670,10 @@ mod output {
             for priority in &Priority::all() {
                 for property in &self.properties {
                     let ident = &property.ident;
-                    let args_ident = &property.args_ident;
+                    let args_ident = ident!("{}_args", ident);
 
-                    let set_args = if property.is_known {
-                        quote!( #ns::#ident::set_args)
+                    let set_args = if property.is_from_widget {
+                        quote!(#mod_::#ident::set_args)
                     } else {
                         quote!(#ident::set_args)
                     };
@@ -676,9 +686,8 @@ mod output {
         }
     }
     pub struct PropertyAssign {
-        pub is_known: bool,
+        pub is_from_widget: bool,
         pub ident: Ident,
-        pub args_ident: Ident,
     }
     impl Priority {
         pub fn all() -> [Self; 5] {
@@ -696,14 +705,14 @@ mod output {
     pub struct NewCall {
         pub widget_name: Ident,
         pub is_new_child: bool,
-        // arg var names
-        pub args: Vec<Ident>,
+        // properties captured by the new function
+        pub properties: Vec<Ident>,
     }
     impl ToTokens for NewCall {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let name = &self.widget_name;
             let new_token = if self.is_new_child { quote!(new_child) } else { quote!(new) };
-            let args = &self.args;
+            let args = self.properties.iter().map(|p| ident!("{}_args", p));
 
             let call = quote!(#name::#new_token(node, #(#args),*));
 

@@ -94,12 +94,12 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
 ///
 /// /// Get the value from outside the widget.
 /// fn get_foo_outer(widget: &impl Widget) -> u32 {
-///     widget.state().get(FooKey).copied().unwrap_or_default()    
+///     widget.state().get(FooKey).copied().unwrap_or_default()
 /// }
 ///
 /// /// Get the value from inside the widget.
 /// fn get_foo_inner(ctx: &WidgetContext) -> u32 {
-///     ctx.widget_state.get(FooKey).copied().unwrap_or_default()    
+///     ctx.widget_state.get(FooKey).copied().unwrap_or_default()
 /// }
 /// ```
 pub fn set_widget_state<K: StateKey>(child: impl UiNode, key: K, value: K::Type) -> impl UiNode {

@@ -1,6 +1,7 @@
 use crate::core::{
-    property, state_key,
-    var::{BoxLocalVar, IntoVar},
+    context::state_key,
+    property,
+    var::{BoxLocalVar, IntoVar, Var},
     UiNode,
 };
 use crate::properties::set_widget_state;

@@ -20,11 +20,11 @@ mod text;
 mod title_;
 
 pub use align_::*;
+pub use attached::*;
 pub use background_::*;
 pub use border_::*;
 pub use button::*;
 pub use clip_to_bounds_::*;
-pub use context_var::*;
 pub use cursor_::*;
 pub use focus::*;
 pub use hit_testable_::*;
