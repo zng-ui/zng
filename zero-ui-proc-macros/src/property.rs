@@ -864,14 +864,10 @@ mod output {
             let args = self.args.iter().skip(1);
             let arg_idents = args.clone().map(|a| &a.ident);
 
-            let generics = if self.generics.is_empty() {
-                None
-            } else {
-                let generics = self.generics.iter().filter(|g| g.used_by_args);
-                let idents = generics.clone().map(|g| &g.ident);
-                let bounds = generics.map(|g| &g.bounds);
-                Some(quote!(<#(#idents: #bounds),*>))
-            };
+            let generics = self.generics.iter().filter(|g| g.used_by_args);
+            let idents = generics.clone().map(|g| &g.ident);
+            let bounds = generics.map(|g| &g.bounds);
+            let generics = quote!(<#(#idents: #bounds),*>);
 
             tokens.extend(quote! {
                 /// Collects [`set`](set) arguments into a [named args](Args) view.
@@ -885,8 +881,26 @@ mod output {
                     }
                 }
             });
+
+            let generics = self.generics.iter().filter(|g| !g.used_by_args);
+            let idents = generics.clone().map(|g| &g.ident);
+            let bounds = generics.map(|g| &g.bounds);
+            let generics = quote!(<#(#idents: #bounds),*>);
+
+            let child = &self.args[0];
+            let args: Vec<_> = self.args.iter().skip(1).map(|a| &a.ident).collect();
+            let child_name = &child.ident;
+
+            tokens.extend(quote! {
+                #[inline]
+                pub fn set_args #generics (#child, args: impl ArgsUnwrap) -> #output {
+                    let (#(#args),*) = args.unwrap();
+                    set(#child_name, #(#args),*)
+                }
+            })
         }
     }
+    
 
     pub struct PropertyGenParam {
         pub ident: Ident,
