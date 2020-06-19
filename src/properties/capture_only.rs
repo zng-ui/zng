@@ -34,3 +34,38 @@ pub fn stack_spacing<C: UiNode>(child: C, spacing: impl IntoVar<f32>) -> C {
     let _spacing = spacing;
     child
 }
+
+
+#[allow(unused)]
+macro_rules! capture_only_priority {
+    () => {
+        // * generates a doc(hidden) set and set_args.
+        // * add an assert with a compile error if not captured.
+        // * don't require the child argument?
+
+        // different item syntax:
+        /// Docs
+        #[property(capture_only)]
+        pub foo(spacing: impl IntoVar<f32>); 
+        // no.        
+        {} // rust-analyzer syntax color clear
+
+        // same syntax, user decides what kind of error happens if foo::set() is called:
+        #[property(capture_only)]
+        pub fn foo<C: UiNode>(child: C, spacing: impl IntoVar<f32>) -> C {
+            let _spacing = spacing;
+            panic!("`foo` cannot be used directly");
+            child
+        }
+
+        // almost syntax?        
+        #[property(capture_only)]
+        pub foo(spacing: impl IntoVar<f32>) -> !;
+
+        // different item
+        #[property(capture_only)]
+        pub struct foo<S: IntoVar<f32>> {
+            spacing: S,// no impl here..
+        }
+    };
+}
