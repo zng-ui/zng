@@ -120,9 +120,9 @@ mod analysis {
     use super::input::InputPropertyValue;
     use super::input::UserInputItem;
     use super::{input::WidgetNewInput, output::*};
-    use crate::{property::input::Prefix, util::Errors};
+    use crate::{property::input::Prefix, util::Errors, widget_stage3::input::BuiltPropertyKind};
     use proc_macro2::{Ident, Span};
-    use std::collections::{hash_map, HashMap, HashSet};
+    use std::collections::{HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
@@ -175,9 +175,10 @@ mod analysis {
 
         let mut widget_defaults = HashSet::new();
         let mut child_props_assigns = vec![];
-        let mut props_assigns = vec![];
+        let mut props_assigns = vec![];//TODO handle unset properties and overwrites.
+        
 
-        for property in input.default_child.iter() {
+        for property in input.default_child.iter().filter(|p| p.kind != BuiltPropertyKind::Local) {
             child_props_assigns.push(PropertyAssign {
                 is_from_widget: true,
                 ident: property.ident.clone(),
