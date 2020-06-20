@@ -310,10 +310,10 @@ pub mod input {
         }
         input.advance_to(&ahead);
 
-        if let Ok(args) = syn::parse2(buffer.clone()) {
-            Ok(PropertyDefaultValue::Args(args))
-        } else if let Ok(fields) = syn::parse2(buffer.clone()) {
+        if let Ok(fields) = syn::parse2(buffer.clone()) {
             Ok(PropertyDefaultValue::Fields(fields))
+        } else if let Ok(args) = syn::parse2(buffer.clone()) {
+            Ok(PropertyDefaultValue::Args(args))
         } else if let Ok(unset) = syn::parse2(buffer.clone()) {
             Ok(PropertyDefaultValue::Unset(unset))
         } else if let (true, Ok(required)) = (allow_required, syn::parse2(buffer.clone())) {
@@ -328,6 +328,7 @@ pub mod input {
         }
     }
 
+    #[derive(Debug)]
     pub struct PropertyFields {
         pub brace_token: token::Brace,
         pub fields: Punctuated<FieldValue, Token![,]>,
@@ -343,6 +344,7 @@ pub mod input {
         }
     }
 
+    #[derive(Debug)]
     pub struct PropertyArgs(pub Punctuated<Expr, Token![,]>);
 
     impl Parse for PropertyArgs {
@@ -501,6 +503,7 @@ mod analysis {
         Expr, ExprPath, Member, Visibility,
     };
 
+    //TODO revise how captured properties are presented to user
     pub fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
         debug_assert!(

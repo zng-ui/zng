@@ -35,7 +35,6 @@ pub fn stack_spacing<C: UiNode>(child: C, spacing: impl IntoVar<f32>) -> C {
     child
 }
 
-
 #[allow(unused)]
 macro_rules! capture_only_priority {
     () => {
@@ -46,8 +45,8 @@ macro_rules! capture_only_priority {
         // different item syntax:
         /// Docs
         #[property(capture_only)]
-        pub foo(spacing: impl IntoVar<f32>); 
-        // no.        
+        pub foo(spacing: impl IntoVar<f32>);
+        // no.
         {} // rust-analyzer syntax color clear
 
         // same syntax, user decides what kind of error happens if foo::set() is called:
@@ -58,7 +57,7 @@ macro_rules! capture_only_priority {
             child
         }
 
-        // almost syntax?        
+        // almost syntax?
         #[property(capture_only)]
         pub foo(spacing: impl IntoVar<f32>) -> !;
 

@@ -120,7 +120,7 @@ mod analysis {
     use super::input::InputPropertyValue;
     use super::input::UserInputItem;
     use super::{input::WidgetNewInput, output::*};
-    use crate::{property::input::Prefix, util::Errors, widget_stage3::input::BuiltPropertyKind};
+    use crate::{property::input::Prefix, util::Errors};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
@@ -150,51 +150,86 @@ mod analysis {
             parse_quote!({ () })
         };
 
+        // properties that are used in the new_child or new functions.
+        let mut captured_properties = HashSet::new();
+        for property in input.new.iter().chain(input.new_child.iter()) {
+            captured_properties.insert(property.clone());
+        }
+
+        struct UserPropsIndex {
+            binding: usize,
+            assign: Option<usize>,
+        }
+
         let mut user_properties = HashMap::new();
         let mut args_bindings = vec![];
         let mut unset_properties = HashMap::new();
+        let mut mixed_props_assigns = vec![];
+
+        #[derive(Clone, Copy)]
+        enum AssignTarget {
+            Child,
+            Widget,
+        }
 
         // process user properties.
         for property in properties {
+            let is_captured = captured_properties.contains(&property.ident);
+
             let value = match property.value {
                 InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
                 InputPropertyValue::Args(a) => PropertyValue::Args(a),
                 InputPropertyValue::Unset(u) => {
-                    unset_properties.insert(property.ident.clone(), u);
+                    if is_captured {
+                        errors.push(format!("cannot unset captured property `{}`", property.ident), u.span())
+                    } else {
+                        unset_properties.insert(property.ident.clone(), u);
+                    }
                     continue;
                 }
             };
 
-            user_properties.insert(property.ident.clone(), args_bindings.len());
             args_bindings.push(ArgsBinding {
                 widget: None,
-                property: property.ident,
+                property: property.ident.clone(),
                 value,
             });
+
+            if !is_captured {
+                mixed_props_assigns.push((
+                    AssignTarget::Widget,
+                    PropertyAssign {
+                        is_from_widget: false,
+                        ident: property.ident.clone(),
+                    },
+                ));
+            }
+
+            user_properties.insert(
+                property.ident,
+                UserPropsIndex {
+                    binding: args_bindings.len() - 1,
+                    assign: if is_captured { None } else { Some(mixed_props_assigns.len() - 1) },
+                },
+            );
         }
 
         let mut widget_defaults = HashSet::new();
-        let mut child_props_assigns = vec![];
-        let mut props_assigns = vec![]; //TODO handle unset properties and overwrites.
-
-        for property in input.default_child.iter().filter(|p| p.kind != BuiltPropertyKind::Local) {
-            child_props_assigns.push(PropertyAssign {
-                is_from_widget: true,
-                ident: property.ident.clone(),
-            })
-        }
-        for property in input.default.iter() {
-            props_assigns.push(PropertyAssign {
-                is_from_widget: true,
-                ident: property.ident.clone(),
-            })
-        }
 
         // process widget properties.
-        for property in input.default.into_iter().chain(input.default_child) {
-            if let Some(&i) = user_properties.get(&property.ident) {
+        for (target, property) in input
+            .default
+            .into_iter()
+            .map(|p| (AssignTarget::Widget, p))
+            .chain(input.default_child.into_iter().map(|p| (AssignTarget::Child, p)))
+        {
+            if let Some(&UserPropsIndex { binding: bi, assign: ai }) = user_properties.get(&property.ident) {
                 // property already has user value, just change it to be found inside widget.
-                args_bindings[i].widget = Some(input.name.clone());
+                args_bindings[bi].widget = Some(input.name.clone());
+                if let Some(i) = ai {
+                    mixed_props_assigns[i].1.is_from_widget = true;
+                    mixed_props_assigns[i].0 = target;
+                }
                 continue;
             }
 
@@ -209,13 +244,33 @@ mod analysis {
                 }
                 Local => {}
                 Default => {
-                    widget_defaults.insert(property.ident.clone());
-                    args_bindings.push(ArgsBinding {
-                        widget: Some(input.name.clone()),
-                        property: property.ident,
-                        value: PropertyValue::Inherited,
-                    });
+                    if unset_properties.get(&property.ident).is_none() {
+                        widget_defaults.insert(property.ident.clone());
+                        args_bindings.push(ArgsBinding {
+                            widget: Some(input.name.clone()),
+                            property: property.ident.clone(),
+                            value: PropertyValue::Inherited,
+                        });
+                        if !captured_properties.contains(&property.ident) {
+                            mixed_props_assigns.push((
+                                target,
+                                PropertyAssign {
+                                    is_from_widget: true,
+                                    ident: property.ident,
+                                },
+                            ));
+                        }
+                    }
                 }
+            }
+        }
+
+        let mut child_props_assigns = vec![];
+        let mut props_assigns = vec![];
+        for (target, p) in mixed_props_assigns {
+            match target {
+                AssignTarget::Child => child_props_assigns.push(p),
+                AssignTarget::Widget => props_assigns.push(p),
             }
         }
 
@@ -240,7 +295,7 @@ mod analysis {
                         widget: input.name.clone(),
                         property: arg,
                     })
-                } else if let Some(u) = unset_properties.get(&arg) {
+                } else if let Some(_u) = unset_properties.get(&arg) {
                     // TODO warning when API stabilizes.
                     continue 'when_for;
                 } else {
@@ -472,6 +527,7 @@ mod output {
         }
     }
 
+    #[derive(Debug)]
     pub enum PropertyValue {
         Args(PropertyArgs),
         Fields(PropertyFields),
