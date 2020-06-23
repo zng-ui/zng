@@ -13,10 +13,9 @@ fn main() {
         window! {
             size: size;
             title: title;
-            => v_stack((
-                example(),
-                example()
-            ).into())
+            => {
+                v_stack((example(), example()).into())
+            }
         }
     })
 }
