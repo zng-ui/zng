@@ -487,11 +487,11 @@ pub mod input {
     }
 }
 
-mod analysis {
+pub mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
     use super::output::*;
     use crate::util::{Attributes, Errors};
-    use input::PropertyValue;
+    use input::{PropertyAssign, PropertyValue, WgtItemWhen};
     use proc_macro2::Ident;
     use std::collections::{HashMap, HashSet};
     use std::fmt;
@@ -504,7 +504,7 @@ mod analysis {
     };
 
     //TODO revise how captured properties are presented to user
-    pub fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
+    pub(super) fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
         debug_assert!(
             input
@@ -567,16 +567,7 @@ mod analysis {
         for extra_new in new.iter().skip(1).chain(new_child.iter().skip(1)) {
             errors.push(format!("function `{}` already declared", extra_new.target), extra_new.target.span())
         }
-        for when in &mut whens {
-            let mut properties = HashSet::new();
-            when.block.properties.retain(|property| {
-                let inserted = properties.insert(property.ident.clone());
-                if !inserted {
-                    errors.push(format!("property `{}` already set", property.ident), property.ident.span());
-                }
-                inserted
-            })
-        }
+        validate_whens(&mut whens, &mut errors);
 
         // map that defines each property origin.
         // widgets override properties with the same name when inheriting,
@@ -820,60 +811,33 @@ mod analysis {
         }
 
         // process newly declared whens
-        for mut when in whens {
-            // only supports properties that have a default value.
-            when.block.properties.retain(|property| {
-                let used = inited_properties.contains(&property.ident);
-                if !used {
-                    errors.push(
-                        format!("property `{}` is not used in this widget", property.ident),
-                        property.ident.span(),
-                    );
-                }
-                let mut retain = used;
-
-                if let PropertyValue::Unset(unset) = &property.value {
-                    retain = false;
-                    errors.push("cannot unset property in when blocks", unset.span());
-                }
-
-                retain
-            });
-
+        validate_whens_with_default(&mut whens, &mut errors, inited_properties);
+        for when in whens {
             // find properties referenced in the condition expression and patches the
             // expression so it can be used inside the transformed condition var.
             let when_condition_span = when.condition.span();
-            let mut visitor = WhenConditionVisitor::default();
-            visitor.visit_expr_mut(&mut when.condition);
+            let when_analysis = WhenConditionAnalysis::new(when.condition);
 
             // when expressions must have at least one 'self.property'.
-            if visitor.properties.is_empty() {
+            if when_analysis.properties.is_empty() {
                 errors.push("when condition does not reference any property", when_condition_span);
                 continue;
             }
 
             mod_properties
                 .props
-                .extend(visitor.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
+                .extend(when_analysis.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
 
             mod_whens.push(WhenCondition {
                 index: when_index,
-                properties: visitor.properties.iter().map(|p| &p.property).cloned().collect(),
-                expr: if visitor.found_mult_exprs {
-                    if visitor.properties.len() == 1 {
-                        WhenConditionExpr::Map(visitor.properties[0].clone(), when.condition)
-                    } else {
-                        WhenConditionExpr::Merge(visitor.properties.clone(), when.condition)
-                    }
-                } else {
-                    WhenConditionExpr::Ref(visitor.properties[0].clone())
-                },
+                properties: when_analysis.properties.iter().map(|p| &p.property).cloned().collect(),
+                expr: when_analysis.expr,
             });
 
             let attributes = Attributes::new(when.attrs);
             macro_whens.push(input::InheritedWhen {
                 docs: attributes.docs,
-                args: visitor.properties.into_iter().map(|p| p.property).collect(),
+                args: when_analysis.properties.into_iter().map(|p| p.property).collect(),
                 sets: when.block.properties.iter().map(|p| p.ident.clone()).collect(),
             });
 
@@ -961,25 +925,84 @@ mod analysis {
         }
     }
 
+    /// Validates when assigns, removes duplicates and invalid values.
+    pub fn validate_whens(whens: &mut [WgtItemWhen], errors: &mut Errors) {
+        for when in whens {
+            validate_property_assigns_impl(&mut when.block.properties, errors, true);
+        }
+    }
+    /// Validate when assigns in the context of what properties have a default state value.
+    pub fn validate_whens_with_default(whens: &mut [WgtItemWhen], errors: &mut Errors, defaults: HashSet<Ident>) {
+        for mut when in whens {
+            // only supports properties that have a default value.
+            when.block.properties.retain(|property| {
+                let used = defaults.contains(&property.ident);
+                if !used {
+                    errors.push(
+                        format!("property `{}` is not used in this widget", property.ident),
+                        property.ident.span(),
+                    );
+                }
+                used
+            });
+        }
+    }
+    /// Validates property assigns, removes duplicates.
+    pub fn validate_property_assigns(properties: &mut Vec<PropertyAssign>, errors: &mut Errors) {
+        validate_property_assigns_impl(properties, errors, false)
+    }
+    fn validate_property_assigns_impl(properties: &mut Vec<PropertyAssign>, errors: &mut Errors, is_in_when: bool) {
+        let mut property_names = HashSet::new();
+        properties.retain(|property| {
+            let inserted = property_names.insert(property.ident.clone());
+            if !inserted {
+                errors.push(format!("property `{}` already set", property.ident), property.ident.span());
+            }
+            let mut retain = inserted;
+            if is_in_when {
+                if let PropertyValue::Unset(unset) = &property.value {
+                    retain = false;
+                    errors.push("cannot unset property in when blocks", unset.span());
+                }
+            }
+            retain
+        })
+    }
+
     impl fmt::Display for NewTarget {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{}", quote!(#self))
         }
     }
 
-    #[derive(Debug)]
-    pub struct WhenPropertyAccess {
-        pub property: Ident,
-        pub member: Member,
-        pub new_name: Ident,
+    pub struct WhenConditionAnalysis {
+        pub properties: Vec<WhenPropertyRef>,
+        pub expr: WhenConditionExpr,
+    }
+    impl WhenConditionAnalysis {
+        pub fn new(mut condition: Box<Expr>) -> Self {
+            let mut visitor = WhenConditionVisitor::default();
+            visitor.visit_expr_mut(&mut condition);
+            WhenConditionAnalysis {
+                expr: if visitor.found_mult_exprs {
+                    if visitor.properties.len() == 1 {
+                        WhenConditionExpr::Map(visitor.properties[0].clone(), condition)
+                    } else {
+                        WhenConditionExpr::Merge(visitor.properties.clone(), condition)
+                    }
+                } else {
+                    WhenConditionExpr::Ref(visitor.properties[0].clone())
+                },
+                properties: visitor.properties,
+            }
+        }
     }
 
     #[derive(Default)]
-    pub struct WhenConditionVisitor {
-        pub properties: Vec<WhenPropertyRef>,
-        pub found_mult_exprs: bool,
+    struct WhenConditionVisitor {
+        properties: Vec<WhenPropertyRef>,
+        found_mult_exprs: bool,
     }
-
     impl VisitMut for WhenConditionVisitor {
         //visit expressions like:
         // self.is_hovered

@@ -9,7 +9,7 @@ fn main() {
     App::default().run_window(|_| {
         window! {
             title: "Screenshot Example";
-            => { 
+            => {
                 button! {
                     on_click: |a|take_screenshot(a.ctx());
                     align: Alignment::CENTER;

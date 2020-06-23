@@ -120,7 +120,7 @@ mod analysis {
     use super::input::InputPropertyValue;
     use super::input::UserInputItem;
     use super::{input::WidgetNewInput, output::*};
-    use crate::{property::input::Prefix, util::Errors};
+    use crate::{property::input::Prefix, util::Errors, widget_stage3::analysis::*};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
@@ -149,6 +149,8 @@ mod analysis {
             errors.push("missing widget content (=> {})", Span::call_site());
             parse_quote!({ () })
         };
+        validate_property_assigns(&mut properties, &mut errors);
+        validate_whens(&mut whens, &mut errors);
 
         // properties that are used in the new_child or new functions.
         let mut captured_properties = HashSet::new();
@@ -160,7 +162,6 @@ mod analysis {
             binding: usize,
             assign: Option<usize>,
         }
-
         let mut user_properties = HashMap::new();
         let mut args_bindings = vec![];
         let mut unset_properties = HashMap::new();
@@ -265,9 +266,11 @@ mod analysis {
             }
         }
 
+        let mut inited_properties = HashSet::with_capacity(mixed_props_assigns.len());
         let mut child_props_assigns = vec![];
         let mut props_assigns = vec![];
         for (target, p) in mixed_props_assigns {
+            assert!(inited_properties.insert(p.ident.clone()));
             match target {
                 AssignTarget::Child => child_props_assigns.push(p),
                 AssignTarget::Widget => props_assigns.push(p),
@@ -362,7 +365,8 @@ mod analysis {
         }
 
         // process user whens.
-        for when in whens {
+        validate_whens_with_default(&mut whens, &mut errors, inited_properties);
+        for mut when in whens {
             //TODO
             when_index += 1;
         }
