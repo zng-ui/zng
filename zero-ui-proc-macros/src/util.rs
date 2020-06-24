@@ -141,6 +141,11 @@ impl Errors {
         })
     }
 
+    pub fn push_syn(&mut self, error: syn::Error) {
+        let span = error.span();
+        self.push(error, span)
+    }
+
     /*
     pub fn extend(&mut self, errors: Errors) {
         self.tokens.extend(errors.tokens)

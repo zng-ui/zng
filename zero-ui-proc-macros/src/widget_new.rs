@@ -366,8 +366,67 @@ mod analysis {
 
         // process user whens.
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
-        for mut when in whens {
-            //TODO
+        for when in whens {
+            let when_analysis = match WhenConditionAnalysis::new(when.condition) {
+                Ok(r) => r,
+                Err(e) => {
+                    errors.push_syn(e);
+                    continue;
+                }
+            };
+
+            when_bindings.push(WhenBinding {
+                index: when_index,
+                condition: WhenCondition::Local {
+                    widget: input.name.clone(),
+                    properties: when_analysis.properties.iter().map(|p| p.property.clone()).collect(),
+                    expr: when_analysis.expr,
+                },
+            });
+
+            for property in when.block.properties {
+                let when_var = WhenConditionVar {
+                    index: when_index,
+                    can_move: false,
+                };
+                let count = when_index_usage.entry(when_index).or_insert(0);
+                *count += 1;
+
+                if let Some(entry) = property_indexes.get_mut(&property.ident) {
+                    entry.whens.push(when_var);
+                } else {
+                    property_indexes.insert(
+                        property.ident.clone(),
+                        WhenPropertyIndex {
+                            property: property.ident.clone(),
+                            whens: vec![when_var],
+                        },
+                    );
+                }
+
+                let when_value = WhenPropertyValue {
+                    index: when_index,
+                    value: match property.value {
+                        InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
+                        InputPropertyValue::Args(a) => PropertyValue::Args(a),
+                        InputPropertyValue::Unset(_) => unreachable!("error case removed early"),
+                    },
+                };
+
+                if let Some(entry) = when_switch_bindings.get_mut(&property.ident) {
+                    entry.whens.push(when_value);
+                } else {
+                    when_switch_bindings.insert(
+                        property.ident.clone(),
+                        WhenSwitchArgs {
+                            widget: Some(input.name.clone()),
+                            property: property.ident,
+                            whens: vec![when_value],
+                        },
+                    );
+                }
+            }
+
             when_index += 1;
         }
 
@@ -587,6 +646,7 @@ mod output {
         },
         Local {
             widget: Ident,
+            /// properties used by the condition.
             properties: Vec<Ident>,
             expr: WhenConditionExpr,
         },

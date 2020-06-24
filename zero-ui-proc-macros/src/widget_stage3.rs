@@ -496,6 +496,7 @@ pub mod analysis {
     use std::collections::{HashMap, HashSet};
     use std::fmt;
     use syn::{
+        parse::{Error, Result},
         parse_quote,
         punctuated::Punctuated,
         spanned::Spanned,
@@ -813,16 +814,13 @@ pub mod analysis {
         // process newly declared whens
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
         for when in whens {
-            // find properties referenced in the condition expression and patches the
-            // expression so it can be used inside the transformed condition var.
-            let when_condition_span = when.condition.span();
-            let when_analysis = WhenConditionAnalysis::new(when.condition);
-
-            // when expressions must have at least one 'self.property'.
-            if when_analysis.properties.is_empty() {
-                errors.push("when condition does not reference any property", when_condition_span);
-                continue;
-            }
+            let when_analysis = match WhenConditionAnalysis::new(when.condition) {
+                Ok(r) => r,
+                Err(e) => {
+                    errors.push_syn(e);
+                    continue;
+                }
+            };
 
             mod_properties
                 .props
@@ -933,7 +931,7 @@ pub mod analysis {
     }
     /// Validate when assigns in the context of what properties have a default state value.
     pub fn validate_whens_with_default(whens: &mut [WgtItemWhen], errors: &mut Errors, defaults: HashSet<Ident>) {
-        for mut when in whens {
+        for when in whens {
             // only supports properties that have a default value.
             when.block.properties.retain(|property| {
                 let used = defaults.contains(&property.ident);
@@ -975,32 +973,43 @@ pub mod analysis {
         }
     }
 
+    /// Find properties referenced in the condition expression and patches the
+    /// expression so it can be used inside the transformed condition var.
     pub struct WhenConditionAnalysis {
-        pub properties: Vec<WhenPropertyRef>,
+        /// All property refs
+        pub properties: HashSet<WhenPropertyRef>,
         pub expr: WhenConditionExpr,
     }
     impl WhenConditionAnalysis {
-        pub fn new(mut condition: Box<Expr>) -> Self {
+        pub fn new(mut condition: Box<Expr>) -> Result<Self> {
+            let when_condition_span = condition.span();
+
             let mut visitor = WhenConditionVisitor::default();
             visitor.visit_expr_mut(&mut condition);
-            WhenConditionAnalysis {
-                expr: if visitor.found_mult_exprs {
-                    if visitor.properties.len() == 1 {
-                        WhenConditionExpr::Map(visitor.properties[0].clone(), condition)
+
+            // when expressions must have at least one 'self.property'.
+            if visitor.properties.is_empty() {
+                Err(Error::new(when_condition_span, "when condition does not reference any property"))
+            } else {
+                Ok(WhenConditionAnalysis {
+                    expr: if visitor.found_mult_exprs {
+                        if visitor.properties.len() == 1 {
+                            WhenConditionExpr::Map(visitor.properties.iter().next().unwrap().clone(), condition)
+                        } else {
+                            WhenConditionExpr::Merge(visitor.properties.clone(), condition)
+                        }
                     } else {
-                        WhenConditionExpr::Merge(visitor.properties.clone(), condition)
-                    }
-                } else {
-                    WhenConditionExpr::Ref(visitor.properties[0].clone())
-                },
-                properties: visitor.properties,
+                        WhenConditionExpr::Ref(visitor.properties.iter().next().unwrap().clone())
+                    },
+                    properties: visitor.properties,
+                })
             }
         }
     }
 
     #[derive(Default)]
     struct WhenConditionVisitor {
-        properties: Vec<WhenPropertyRef>,
+        properties: HashSet<WhenPropertyRef>,
         found_mult_exprs: bool,
     }
     impl VisitMut for WhenConditionVisitor {
@@ -1016,18 +1025,18 @@ pub mod analysis {
                 }
                 false
             }
-            let mut continue_visiting = true;
+
+            let mut found = None;
 
             if let Expr::Field(expr_field) = expr {
                 match &mut *expr_field.base {
                     // self.is_hovered
                     Expr::Path(expr_path) => {
                         if let (true, Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
-                            self.properties.push(WhenPropertyRef {
+                            found = Some(WhenPropertyRef {
                                 property,
                                 arg: WhenPropertyRefArg::Index(0),
-                            });
-                            continue_visiting = false;
+                            })
                         }
                     }
                     // self.is_hovered.0
@@ -1035,11 +1044,10 @@ pub mod analysis {
                     Expr::Field(i_expr_field) => {
                         if let Expr::Path(expr_path) = &mut *i_expr_field.base {
                             if let (true, Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
-                                self.properties.push(WhenPropertyRef {
+                                found = Some(WhenPropertyRef {
                                     property,
                                     arg: expr_field.member.clone().into(),
-                                });
-                                continue_visiting = false;
+                                })
                             }
                         }
                     }
@@ -1047,12 +1055,13 @@ pub mod analysis {
                 }
             }
 
-            if continue_visiting {
+            if let Some(p) = found {
+                let replacement = p.name();
+                *expr = parse_quote!((*#replacement));
+                self.properties.insert(p);
+            } else {
                 self.found_mult_exprs = true;
                 visit_mut::visit_expr_mut(self, expr);
-            } else {
-                let replacement = self.properties.last().unwrap().name();
-                *expr = parse_quote!((*#replacement));
             }
         }
     }
@@ -1072,7 +1081,7 @@ pub mod output {
     use crate::util::{uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
-    use std::fmt;
+    use std::{collections::HashSet, fmt};
     use syn::spanned::Spanned;
     use syn::{Attribute, Expr, Path, Token, Visibility};
 
@@ -1682,7 +1691,7 @@ pub mod output {
     pub enum WhenConditionExpr {
         Ref(WhenPropertyRef),
         Map(WhenPropertyRef, Box<Expr>),
-        Merge(Vec<WhenPropertyRef>, Box<Expr>),
+        Merge(HashSet<WhenPropertyRef>, Box<Expr>),
         Inherited(InheritedWhen),
     }
 
@@ -1708,6 +1717,7 @@ pub mod output {
                 WhenConditionExpr::Merge(let_names, expr) => {
                     let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
                     let crate_ = zero_ui_crate_ident();
+                    let let_names = let_names.iter();
                     tokens.extend(quote! {
                         #(#let_names)*
                         #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
@@ -1735,7 +1745,7 @@ pub mod output {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, PartialEq, Eq, Hash)]
     pub struct WhenPropertyRef {
         pub property: Ident,
         pub arg: WhenPropertyRefArg,
@@ -1761,7 +1771,7 @@ pub mod output {
         }
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, PartialEq, Eq, Hash)]
     pub enum WhenPropertyRefArg {
         Index(u32),
         Named(Ident),
