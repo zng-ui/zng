@@ -29,6 +29,11 @@ fn example() -> impl UiNode {
             ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
         }};
         align: Alignment::CENTER;
+        font_size: 20;
+
+        when self.is_hovered {
+            font_size: 30;
+        }
 
         => {
             text(t)

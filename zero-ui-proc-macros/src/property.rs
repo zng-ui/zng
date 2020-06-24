@@ -1079,8 +1079,17 @@ mod output {
             // switch_args!
             let switch_args_ident = ident!("switch_args_{}", pid);
             let crate_ = zero_ui_crate_ident();
-            let arg_idents = &self.arg_idents;
-            let arg_n = (0..arg_idents.len()).map(Index::from);
+            let arg_idents = &self.arg_idents;           
+            let arg_n: Vec<_> = if arg_idents.len() == 1 {
+                 // we don't have a tuple for single arguments.
+                vec![TokenStream::new()]
+            } else {
+                // tuple fields [.0, .1, ..]
+                (0..arg_idents.len()).map(|i|{
+                    let i = Index::from(i);
+                    quote!(.#i)
+                }).collect()
+            };
             let last_arg_i = arg_idents.len() - 1;
             let idx_clone = (0..arg_idents.len()).map(|i| if last_arg_i == i { None } else { Some(quote!(.clone())) });
             tokens.extend(quote! {
@@ -1092,7 +1101,7 @@ mod output {
 
                         $(let $arg = ArgsUnwrap::unwrap($arg);)*;
 
-                        #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg.#arg_n),*);)*
+                        #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg#arg_n),*);)*
 
                         args(#(#arg_idents),*)
                     }};

@@ -319,6 +319,10 @@ mod analysis {
 
             for binding in is_bindings {
                 state_bindings_done.insert(binding.property.clone());
+                props_assigns.push(PropertyAssign {
+                    is_from_widget: true,
+                    ident: binding.property.clone(),
+                });
                 state_bindings.push(binding);
             }
 
@@ -366,7 +370,7 @@ mod analysis {
 
         // process user whens.
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
-        for when in whens {
+        'when_for: for when in whens {
             let when_analysis = match WhenConditionAnalysis::new(when.condition) {
                 Ok(r) => r,
                 Err(e) => {
@@ -374,6 +378,25 @@ mod analysis {
                     continue;
                 }
             };
+
+            let mut is_bindings = vec![];
+
+            for arg in when_analysis.properties.iter().map(|p|&p.property) {
+                if user_properties.contains_key(&arg) || state_bindings_done.contains(&arg) || widget_defaults.contains(&arg) {
+                    // user or widget already set arg or another when already uses the same property.
+                    continue;
+                } else if Prefix::new(&arg) == Prefix::State {
+                    is_bindings.push(StateBinding {
+                        widget: input.name.clone(),
+                        property: arg.clone(),
+                    })
+                } else if let Some(_u) = unset_properties.get(&arg) {
+                    // TODO warning when API stabilizes.
+                    continue 'when_for;
+                } else {
+                    unreachable!("when condition property has no initial value")
+                }
+            }
 
             when_bindings.push(WhenBinding {
                 index: when_index,
@@ -383,6 +406,15 @@ mod analysis {
                     expr: when_analysis.expr,
                 },
             });
+
+            for binding in is_bindings {
+                state_bindings_done.insert(binding.property.clone());
+                props_assigns.push(PropertyAssign {
+                    is_from_widget: false,//TODO lookup if widget declares is_* properties?
+                    ident: binding.property.clone(),
+                });
+                state_bindings.push(binding);
+            }
 
             for property in when.block.properties {
                 let when_var = WhenConditionVar {
@@ -506,6 +538,7 @@ mod output {
             self.errors.to_tokens(tokens);
             let mut inner = TokenStream::new();
             self.args_bindings.to_tokens(&mut inner);
+            self.when_bindings.to_tokens(&mut inner);
             self.content_binding.to_tokens(&mut inner);
             self.child_props_assigns.to_tokens(&mut inner);
             self.new_child_call.to_tokens(&mut inner);
@@ -681,6 +714,7 @@ mod output {
     impl ToTokens for WhenPropertyIndex {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_index", self.property);
+
             let crate_ = zero_ui_crate_ident();
             if self.whens.len() == 1 {
                 let wn = ident!("local_w{}", self.whens[0].index);
