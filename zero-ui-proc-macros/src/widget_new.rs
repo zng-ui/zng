@@ -216,6 +216,7 @@ mod analysis {
         }
 
         let mut widget_defaults = HashSet::new();
+        let mut widget_properties = HashSet::new();
 
         // process widget properties.
         for (target, property) in input
@@ -224,6 +225,8 @@ mod analysis {
             .map(|p| (AssignTarget::Widget, p))
             .chain(input.default_child.into_iter().map(|p| (AssignTarget::Child, p)))
         {
+            widget_properties.insert(property.ident.clone());
+
             if let Some(&UserPropsIndex { binding: bi, assign: ai }) = user_properties.get(&property.ident) {
                 // property already has user value, just change it to be found inside widget.
                 args_bindings[bi].widget = Some(input.name.clone());
@@ -381,7 +384,7 @@ mod analysis {
 
             let mut is_bindings = vec![];
 
-            for arg in when_analysis.properties.iter().map(|p|&p.property) {
+            for arg in when_analysis.properties.iter().map(|p| &p.property) {
                 if user_properties.contains_key(&arg) || state_bindings_done.contains(&arg) || widget_defaults.contains(&arg) {
                     // user or widget already set arg or another when already uses the same property.
                     continue;
@@ -403,6 +406,7 @@ mod analysis {
                 condition: WhenCondition::Local {
                     widget: input.name.clone(),
                     properties: when_analysis.properties.iter().map(|p| p.property.clone()).collect(),
+                    widget_properties: widget_properties.clone(),
                     expr: when_analysis.expr,
                 },
             });
@@ -410,7 +414,7 @@ mod analysis {
             for binding in is_bindings {
                 state_bindings_done.insert(binding.property.clone());
                 props_assigns.push(PropertyAssign {
-                    is_from_widget: false,//TODO lookup if widget declares is_* properties?
+                    is_from_widget: widget_properties.contains(&binding.property),
                     ident: binding.property.clone(),
                 });
                 state_bindings.push(binding);
@@ -451,7 +455,11 @@ mod analysis {
                     when_switch_bindings.insert(
                         property.ident.clone(),
                         WhenSwitchArgs {
-                            widget: Some(input.name.clone()),
+                            widget: if widget_properties.contains(&property.ident) {
+                                Some(input.name.clone())
+                            } else {
+                                None
+                            },
                             property: property.ident,
                             whens: vec![when_value],
                         },
@@ -517,10 +525,11 @@ mod output {
         property::input::Priority,
         util::{zero_ui_crate_ident, Errors},
         widget_stage3::input::{PropertyArgs, PropertyFields},
-        widget_stage3::output::WhenConditionExpr,
+        widget_stage3::output::{WhenConditionExpr, WhenPropertyRef},
     };
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
+    use std::collections::HashSet;
     use syn::Block;
 
     pub struct WidgetNewOutput {
@@ -681,6 +690,7 @@ mod output {
             widget: Ident,
             /// properties used by the condition.
             properties: Vec<Ident>,
+            widget_properties: HashSet<Ident>,
             expr: WhenConditionExpr,
         },
     }
@@ -695,14 +705,70 @@ mod output {
                 WhenCondition::Local {
                     widget,
                     properties: p,
+                    widget_properties,
                     expr,
                 } => {
                     let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
                     tokens.extend(quote! {
                         #(#widget::properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
-                        #expr
+                    });
+                    expr.to_local_tokens(widget, widget_properties, tokens)
+                }
+            }
+        }
+    }
+
+    impl WhenConditionExpr {
+        fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>, tokens: &mut TokenStream) {
+            match self {
+                WhenConditionExpr::Ref(let_name) => {
+                    let name = let_name.name();
+                    let let_name = let_name.to_local_tokens(widget, widget_properties);
+                    tokens.extend(quote! {
+                        #[allow(clippy::let_and_return)]
+                        #let_name
+                        #name
                     })
                 }
+                WhenConditionExpr::Map(let_name, expr) => {
+                    let name = let_name.name();
+                    let let_name = let_name.to_local_tokens(widget, widget_properties);
+                    let crate_ = zero_ui_crate_ident();
+                    tokens.extend(quote! {
+                        #let_name
+                        #crate_::core::var::Var::into_map(#name, |#name|{#expr})
+                    })
+                }
+                WhenConditionExpr::Merge(let_names, expr) => {
+                    let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
+                    let crate_ = zero_ui_crate_ident();
+                    let let_names = let_names.iter().map(|l| l.to_local_tokens(widget, widget_properties));
+                    tokens.extend(quote! {
+                        #(#let_names)*
+                        #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
+                            #expr
+                        })
+                    })
+                }
+                WhenConditionExpr::Inherited(inh) => inh.to_tokens(tokens),
+            }
+        }
+    }
+
+    impl WhenPropertyRef {
+        fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>) -> TokenStream {
+            let crate_ = zero_ui_crate_ident();
+            let widget = if widget_properties.contains(&self.property) {
+                Some(quote! {#widget::properties::})
+            } else {
+                None
+            };
+            let property = &self.property;
+            let property_args = ident!("{}_args", property);
+            let arg = &self.arg;
+            let name = self.name();
+            quote! {
+                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#widget#property::#arg(&#property_args)));
             }
         }
     }
@@ -767,8 +833,19 @@ mod output {
             let when_var_names: Vec<_> = self.whens.iter().map(|w| ident!("{}{}", property, w.index)).collect();
 
             let when_var_inits = self.whens.iter().map(|w| match &w.value {
-                PropertyValue::Args(a) => a.to_token_stream(),
-                PropertyValue::Fields(f) => f.to_token_stream(),
+                PropertyValue::Args(a) => {
+                    let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
+                    quote! { #widget#property::args(#a) }
+                }
+                PropertyValue::Fields(fields) => {
+                    let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
+                    quote! {
+                        #widget#property::NamedArgs {
+                            _phantom: std::marker::PhantomData,
+                            #fields
+                        }
+                    }
+                }
                 PropertyValue::Inherited => {
                     debug_assert!(
                         widget.is_some(),
