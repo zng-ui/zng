@@ -373,7 +373,7 @@ mod analysis {
 
         // process user whens.
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
-        'when_for: for when in whens {
+        'when_for2: for when in whens {
             let when_analysis = match WhenConditionAnalysis::new(when.condition) {
                 Ok(r) => r,
                 Err(e) => {
@@ -395,7 +395,7 @@ mod analysis {
                     })
                 } else if let Some(_u) = unset_properties.get(&arg) {
                     // TODO warning when API stabilizes.
-                    continue 'when_for;
+                    continue 'when_for2;
                 } else {
                     unreachable!("when condition property has no initial value")
                 }
