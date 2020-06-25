@@ -1590,9 +1590,10 @@ pub mod output {
                 FinalPropertyDefaultValue::Fields(f) => {
                     let fields = &f.fields;
                     quote! {
-                        properties::#property::NamedArgs {
-                            _phantom: std::marker::PhantomData,
-                            #fields
+                        properties::#property::named_args! {
+                            properties::#property: {
+                                #fields
+                            }
                         }
                     }
                 }

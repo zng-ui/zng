@@ -595,9 +595,10 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::NamedArgs {
-                            _phantom: std::marker::PhantomData,
-                            #fields
+                        let #var_name = #property_path::named_args! {
+                            #property_path: {
+                                #fields
+                            }
                         };
                     }
                 }
@@ -840,9 +841,10 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
                     quote! {
-                        #widget#property::NamedArgs {
-                            _phantom: std::marker::PhantomData,
-                            #fields
+                        #widget#property::named_args! {
+                            #widget#property: {
+                                #fields
+                            }
                         }
                     }
                 }

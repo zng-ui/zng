@@ -1112,6 +1112,25 @@ mod output {
                 #[doc(hidden)]
                 pub use #switch_args_ident as switch_args;
             });
+
+            // named_args!
+            let named_args_ident = ident!("named_args_{}", pid);
+            tokens.extend(quote! {
+                #[doc(hidden)]
+                #[macro_export]
+                macro_rules! #named_args_ident {
+                    ($property_path:path: { $($tt:tt)* }) => {{
+                        use $property_path::{NamedArgs};
+                        NamedArgs {
+                            _phantom: std::marker::PhantomData,
+                            $($tt)*
+                        }
+                    }};
+                }
+
+                #[doc(hidden)]
+                pub use #named_args_ident as named_args;
+            });
         }
     }
 
