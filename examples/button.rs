@@ -80,6 +80,7 @@ macro_rules! TODO {
             fn child(content!) -> impl UiNode {
                 child// content is an UiNode and is a required "property" in the widget.
             }
+
             // OR
             fn child(text) -> impl UiNode {
                 text(text) // generate child node, text is a captured property?
@@ -91,6 +92,20 @@ macro_rules! TODO {
                 ?
             }
 
+            // OR
+            default_child {
+                content -> ui_node_property: required!;
+                padding -> margin;//?
+            }
+
+            fn new_child(content) -> impl UiNode {
+                content.unwrap()
+            }
+
+            // default:
+            fn new_child() -> impl UiNode {
+                NilUiNode// UiNode that does nothing.
+            }
         }
     };
 }
