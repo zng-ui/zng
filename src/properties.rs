@@ -113,11 +113,13 @@ mod build_tests {
         A: VarValue,
         B: IntoVar<A>,
     {
+        let _ = (a, b);
         child
     }
 
     #[property(context)]
     fn generated_generic_name_collision<TC: UiNode>(child: TC, c: impl IntoVar<char>) -> TC {
+        let _ = c;
         child
     }
 }

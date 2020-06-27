@@ -592,6 +592,7 @@ impl<E: AppExtension> HeadlessApp<E> {
 
     pub fn on_app_event(&mut self, event: &AppEvent) {
         profile_scope!("headless_app::on_app_event");
+        todo!("use {:?}", event);
     }
 
     ///

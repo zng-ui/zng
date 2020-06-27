@@ -200,7 +200,7 @@ impl FrameBuilder {
     #[inline]
     pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
         self.display_list
-            .push_border(&self.common_item_properties(rect.clone()), rect, widths, details);
+            .push_border(&self.common_item_properties(rect), rect, widths, details);
     }
 
     /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
@@ -214,8 +214,8 @@ impl FrameBuilder {
         glyph_options: Option<GlyphOptions>,
     ) {
         self.display_list.push_text(
-            &self.common_item_properties(rect.clone()),
-            rect.clone(),
+            &self.common_item_properties(rect),
+            rect,
             glyphs,
             font_instance_key,
             color,
@@ -253,7 +253,7 @@ impl FrameBuilder {
         let tile_spacing = LayoutSize::zero();
 
         self.display_list
-            .push_gradient(&self.common_item_properties(rect.clone()), rect, gradient, tile_size, tile_spacing);
+            .push_gradient(&self.common_item_properties(rect), rect, gradient, tile_size, tile_spacing);
     }
 
     /// Finalizes the build.

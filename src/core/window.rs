@@ -570,7 +570,7 @@ impl Windows {
 
     fn insert_close(&mut self, window_id: WindowId, set: CloseTogetherGroup, notifier: EventEmitter<CloseWindowResult>) {
         self.close_requests.insert(window_id, set);
-        let listeners = self.close_listeners.entry(window_id).or_insert(vec![]);
+        let listeners = self.close_listeners.entry(window_id).or_insert_with(Vec::new);
         listeners.push(notifier)
     }
 
