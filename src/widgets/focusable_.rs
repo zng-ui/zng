@@ -10,7 +10,7 @@ context_var! {
 
 widget_mixin! {
     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
-    /// high-light border.
+    /// highlight border.
     pub focusable_mixin;
 
     default {

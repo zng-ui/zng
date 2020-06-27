@@ -685,6 +685,9 @@ mod output {
     }
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+            for attr in &self.user_docs {
+                attr.to_tokens(tokens);
+            }
             doc_extend!(tokens, "\n# Property\n");
             doc_extend!(
                 tokens,
@@ -702,7 +705,7 @@ mod output {
             doc_extend!(tokens, "```\n");
             doc_extend!(tokens, "</div>");
             doc_extend!(tokens, "<script>{}</script>", include_str!("property_args_ext.js"));
-            doc_extend!(tokens, "<style>a[href='fn.__.html']{{ display: none; }}</style>");
+            doc_extend!(tokens, "<style>a[href='fn.__.html']{ display: none; }</style>");
             doc_extend!(
                 tokens,
                 "<iframe id='args_example_load' style='display:none;' src='fn.__.html'></iframe>"
@@ -857,6 +860,8 @@ mod output {
 
             tokens.extend(quote! {
                 #(#attrs)*
+                /// Set the property.
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub fn set #generics (#(#args),*) -> #output #block
             });
 
@@ -870,9 +875,8 @@ mod output {
             let generics = quote!(<#(#idents: #bounds),*>);
 
             tokens.extend(quote! {
-                /// Collects [`set`](set) arguments into a [named args](Args) view.
-                // hide docs helper function:
-                /// <style>a[href='fn.__.html']{{ display: none; }}</style>
+                /// Initializes a new [`Args`](Args).
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 #[inline]
                 pub fn args #generics (#(#args),*) -> impl Args {
                     NamedArgs {
@@ -892,6 +896,8 @@ mod output {
             let child_name = &child.ident;
 
             tokens.extend(quote! {
+                /// Set the property with bundled [`Args`](Args).
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 #[inline]
                 pub fn set_args #generics (#child, args: impl ArgsUnwrap) -> #output {
                     let (#(#args),*) = args.unwrap();
@@ -955,6 +961,7 @@ mod output {
                 }
 
                 /// Positional view of the property arguments.
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub trait ArgsNumbered {
                     #(type #generic_idents: #generic_bounds_trait_style;)*
 
@@ -962,20 +969,23 @@ mod output {
                 }
 
                 /// Named view of the property arguments.
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub trait ArgsNamed {
                     #(type #generic_idents: #generic_bounds_trait_style;)*
 
                     #(fn #args_idents(&self) -> &#args_tys;)*
                 }
 
-                /// Allows destructuring property arguments by moving then to a tuple.
+                /// Bundled args unwrap.
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub trait ArgsUnwrap {
                     #(type #generic_idents: #generic_bounds_trait_style;)*
 
                     fn unwrap(self) -> (#(#args_tys),*);
                 }
 
-                /// Full property arguments implementation.
+                /// Bundled property arguments.
+                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub trait Args: ArgsNamed + ArgsNumbered + ArgsUnwrap { }
 
                 impl#named_args_generics ArgsNumbered for NamedArgs#named_args_idents {
