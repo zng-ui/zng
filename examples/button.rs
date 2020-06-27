@@ -108,4 +108,76 @@ macro_rules! TODO {
             }
         }
     };
+
+    (what_to_support) => {
+        text! {
+            text: "Hello!";
+            color: rgb(0, 0, 0);
+        }
+
+        text_box! {
+            text: var("Hello!");
+
+        }
+
+        grid! {
+            columns: vec![
+                (),
+                (),
+            ];
+            rows: vec![
+                (),
+                (),
+            ];
+            items: ui_vec![
+                text! { column: 0; row: 1; column_span: 2; text: "" }
+            ]
+        }
+
+        browser! {
+            url: "";
+
+        }
+
+        spreadsheet! {
+            data: var
+        }
+
+        list! {
+            items: [
+                list_item! {
+
+                }
+            ]
+
+            items_source: var;
+            item_template: |item| {
+                list_item! {
+                    todo!()
+                }
+            }
+
+            border: todo!();
+
+            // in widget!
+            fn new_child(items) -> impl UiNode {
+                todo!()
+            }
+
+            fn new_child(items_source, item_template) -> impl UiNode {
+                todo!()
+            }
+        }
+
+        data_list! {
+            items_source: var;
+            item_template: |item| {
+                list_item! {
+                    todo!()
+                }
+            }
+
+            border: todo!();
+        }
+    }
 }
