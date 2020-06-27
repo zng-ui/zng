@@ -1111,7 +1111,7 @@ mod output {
                     ($property_path:path, $idx:ident, $($arg:ident),*) => {{
                         use $property_path::{args, ArgsUnwrap};
 
-                        $(let $arg = ArgsUnwrap::unwrap($arg);)*;
+                        $(let $arg = ArgsUnwrap::unwrap($arg);)*
 
                         #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg#arg_n),*);)*
 
