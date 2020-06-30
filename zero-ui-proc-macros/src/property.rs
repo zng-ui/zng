@@ -22,6 +22,7 @@ pub mod input {
         syn::custom_keyword!(outer);
         syn::custom_keyword!(size);
         syn::custom_keyword!(inner);
+        syn::custom_keyword!(capture_only);
         syn::custom_keyword!(allowed_in_when);
     }
 
@@ -75,11 +76,18 @@ pub mod input {
         Outer(keyword::outer),
         Size(keyword::size),
         Inner(keyword::inner),
+        CaptureOnly(keyword::capture_only),
     }
     impl Priority {
         pub fn is_event(self) -> bool {
             match self {
                 Priority::Event(_) => true,
+                _ => false,
+            }
+        }
+        pub fn is_capture_only(self) -> bool {
+            match self {
+                Priority::CaptureOnly(_) => true,
                 _ => false,
             }
         }
@@ -98,6 +106,8 @@ pub mod input {
                 input.parse().map(Priority::Size)
             } else if lookahead.peek(keyword::inner) {
                 input.parse().map(Priority::Inner)
+            } else if lookahead.peek(keyword::capture_only) {
+                input.parse().map(Priority::CaptureOnly)
             } else {
                 Err(lookahead.error())
             }
@@ -112,9 +122,9 @@ pub mod input {
         pub generics: Option<PropertyGenerics>,
         pub paren_token: token::Paren,
         pub args: Punctuated<PropertyArg, Token![,]>,
-        pub output: (Token![->], Box<Type>),
+        pub output: Option<(Token![->], Box<Type>)>,
         pub where_clause: Option<PropertyWhereClause>,
-        pub block: Box<Block>,
+        pub block: PropertyBody,
     }
     impl Parse for PropertyFn {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -133,7 +143,13 @@ pub mod input {
                 },
                 paren_token: parenthesized!(args_stream in input),
                 args: Punctuated::parse_terminated(&args_stream)?,
-                output: (input.parse()?, input.parse()?),
+                output: {
+                    if input.peek(Token![->]) {
+                        Some((input.parse()?, input.parse()?))
+                    } else {
+                        None
+                    }
+                },
                 where_clause: {
                     if input.peek(Token![where]) {
                         Some(input.parse()?)
@@ -252,10 +268,28 @@ pub mod input {
             })
         }
     }
+
+    pub enum PropertyBody {
+        Block(Box<Block>),
+        None(Token![;]),
+    }
+    impl Parse for PropertyBody {
+        fn parse(input: ParseStream) -> Result<Self> {
+            let lookahead = input.lookahead1();
+
+            if lookahead.peek(token::Brace) {
+                Ok(PropertyBody::Block(input.parse()?))
+            } else if lookahead.peek(Token![;]) {
+                Ok(PropertyBody::None(input.parse()?))
+            } else {
+                Err(lookahead.error())
+            }
+        }
+    }
 }
 
 mod analysis {
-    use super::input::{MacroArgs, Prefix, PropertyFn};
+    use super::input::{MacroArgs, Prefix, PropertyBody, PropertyFn};
     use super::output::*;
     use crate::util::{zero_ui_crate_ident, Attributes, Errors};
     use heck::CamelCase;
@@ -267,6 +301,7 @@ mod analysis {
     use syn::{
         parse_quote,
         punctuated::Punctuated,
+        spanned::Spanned,
         visit::{self, Visit},
         visit_mut::{self, VisitMut},
         Token, Type, TypeParamBound,
@@ -471,6 +506,35 @@ mod analysis {
             _ => false,
         };
 
+        let fn_output;
+        let fn_block;
+
+        if priority.is_capture_only() {
+            if let Some((_, t)) = fn_.output {
+                errors.push("capture_only property cannot have output", t.span());
+            }
+            if let PropertyBody::Block(b) = fn_.block {
+                errors.push("capture_only property cannot have a body", b.span());
+            }
+            let msg = format! {"cannot set capture_only {}", fn_.ident};
+            fn_output = parse_quote! {!};
+            fn_block = parse_quote! {{panic!(#msg)}};
+        } else {
+            fn_output = if let Some((_, t)) = fn_.output {
+                t
+            } else {
+                errors.push("missing output type", fn_.ident.span());
+                parse_quote! {()}
+            };
+            fn_block = match fn_.block {
+                PropertyBody::Block(b) => b,
+                PropertyBody::None(s) => {
+                    errors.push("missing property body", s.span);
+                    parse_quote! {{}}
+                }
+            };
+        };
+
         PropertyMod {
             errors,
             docs: PropertyDocs {
@@ -488,8 +552,8 @@ mod analysis {
                 set_attrs,
                 generics: fn_generics,
                 args,
-                output: fn_.output.1,
-                block: fn_.block,
+                output: fn_output,
+                block: fn_block,
             },
             tys: PropertyTypes {
                 generics: ty_generics,
@@ -720,6 +784,7 @@ mod output {
                 Priority::Outer(kw) => kw.to_tokens(tokens),
                 Priority::Size(kw) => kw.to_tokens(tokens),
                 Priority::Inner(kw) => kw.to_tokens(tokens),
+                Priority::CaptureOnly(kw) => kw.to_tokens(tokens),
             }
         }
     }
