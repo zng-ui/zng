@@ -22,7 +22,7 @@ fn main() {
 
 fn example() -> impl UiNode {
     let t = var("Click Me!");
-
+    
     button! {
         on_click: enclose!{ (t) move |a| {
             let ctx = a.ctx();

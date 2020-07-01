@@ -1,6 +1,6 @@
 use proc_macro_hack::proc_macro_hack;
 
-pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin, widget_stage2, widget_stage3, delete};
 
 #[proc_macro_hack(support_nested)]
 pub use zero_ui_proc_macros::widget_new;

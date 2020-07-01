@@ -749,3 +749,8 @@ pub fn widget_stage3(input: TokenStream) -> TokenStream {
 pub fn widget_new(input: TokenStream) -> TokenStream {
     widget_new::expand(input)
 }
+
+#[proc_macro_attribute]
+pub fn delete(args: TokenStream, input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}

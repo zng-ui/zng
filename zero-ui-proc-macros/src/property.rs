@@ -313,29 +313,55 @@ mod analysis {
         let prefix = Prefix::new(&fn_.ident);
 
         // validate prefix
-        match prefix {
-            Prefix::State => {
-                if fn_.args.len() != 2 {
-                    errors.push(
-                        "is_* properties functions must have 2 parameters, `UiNode` and `IsStateVar`",
-                        fn_.paren_token.span,
-                    );
+        if args.priority.is_capture_only() {
+            match prefix {
+                Prefix::State => {
+                    if fn_.args.len() != 1 {
+                        errors.push(
+                            "is_* capture_only properties must have 1 parameter, `IsStateVar`",
+                            fn_.paren_token.span,
+                        );
+                    }
+                }
+                Prefix::Event => {
+                    if fn_.args.len() != 1 {
+                        errors.push("on_* capture_only properties must have 1 parameter, `FnMut`", fn_.paren_token.span);
+                    }
+                }
+                Prefix::None => {
+                    if fn_.args.is_empty() {
+                        errors.push("capture_only properties must have at least 1 parameter", fn_.paren_token.span);
+                    }
                 }
             }
-            Prefix::Event => {
-                if fn_.args.len() != 2 {
-                    errors.push("on_* properties must have 2 parameters, `UiNode` and `FnMut`", fn_.paren_token.span);
+        } else {
+            match prefix {
+                Prefix::State => {
+                    if fn_.args.len() != 2 {
+                        errors.push(
+                            "is_* properties functions must have 2 parameters, `UiNode` and `IsStateVar`",
+                            fn_.paren_token.span,
+                        );
+                    }
                 }
-                if !args.priority.is_event() {
-                    errors.push("only `event` priority properties can have the prefix `on_`", fn_.ident.span())
+                Prefix::Event => {
+                    if fn_.args.len() != 2 {
+                        errors.push("on_* properties must have 2 parameters, `UiNode` and `FnMut`", fn_.paren_token.span);
+                    }
+                    if !args.priority.is_event() {
+                        errors.push(
+                            "only `event` or `capture_only` priority properties can have the prefix `on_`",
+                            fn_.ident.span(),
+                        )
+                    }
                 }
-            }
-            Prefix::None => {
-                if fn_.args.len() < 2 {
-                    errors.push(
-                        "properties must have at least 2 parameters, `UiNode` and one or more values",
-                        fn_.paren_token.span,
-                    );
+                Prefix::None => {
+                    if fn_.args.len() < 2 {
+                        errors.push(
+                            "properties must have at least 2 parameters, `UiNode` and one or more values",
+                            fn_.paren_token.span,
+                        );
+                    }
                 }
             }
         }
@@ -356,7 +382,11 @@ mod analysis {
             args.push(parse_quote!(_missing_child: impl #crate_::core::UiNode));
         }
         if args.len() == 1 {
-            args.push(parse_quote!(_missing_value: ()));
+            if priority.is_capture_only() {
+                args.insert(0, parse_quote!(__: impl #crate_::core::UiNode));
+            } else {
+                args.push(parse_quote!(_missing_value: ()));
+            }
         }
 
         // convert generics to a single format [(TIdent, [TypeParamBound])]
@@ -441,7 +471,7 @@ mod analysis {
 
         let property_args: Vec<_> = args.iter().skip(1).cloned().collect();
 
-        let property_arg_idents = property_args.iter().map(|a| a.ident.clone()).collect();
+        let property_arg_idents: Vec<_> = property_args.iter().map(|a| a.ident.clone()).collect();
 
         // property arg generic types are transformed to be used in trait Args associated types.
         let property_arg_tys: Vec<_> = property_args.iter().map(|a| (*a.ty).clone()).collect();
@@ -509,16 +539,21 @@ mod analysis {
         let fn_output;
         let fn_block;
 
-        if priority.is_capture_only() {
+        let is_capture_only = priority.is_capture_only();
+
+        if is_capture_only {
             if let Some((_, t)) = fn_.output {
                 errors.push("capture_only property cannot have output", t.span());
             }
             if let PropertyBody::Block(b) = fn_.block {
                 errors.push("capture_only property cannot have a body", b.span());
             }
-            let msg = format! {"cannot set capture_only {}", fn_.ident};
+            let msg = format!("cannot set capture_only property `{}`", fn_.ident);
             fn_output = parse_quote! {!};
-            fn_block = parse_quote! {{panic!(#msg)}};
+            fn_block = parse_quote! {{
+                #(let _ = #property_arg_idents;)*
+                panic!(#msg);
+            }};
         } else {
             fn_output = if let Some((_, t)) = fn_.output {
                 t
@@ -554,6 +589,7 @@ mod analysis {
                 args,
                 output: fn_output,
                 block: fn_block,
+                is_capture_only,
             },
             tys: PropertyTypes {
                 generics: ty_generics,
@@ -904,11 +940,11 @@ mod output {
         pub args: Vec<PropertyArg>,
         pub output: Box<Type>,
         pub block: Box<Block>,
+        pub is_capture_only: bool,
     }
     impl ToTokens for PropertyFns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             // `set` function.
-            let attrs = &self.set_attrs;
 
             let generics = if self.generics.is_empty() {
                 None
@@ -923,10 +959,18 @@ mod output {
 
             let args = &self.args;
 
+            for attr in &self.set_attrs {
+                attr.to_tokens(tokens);
+            }
+            if self.is_capture_only {
+                tokens.extend(quote! { #[doc(hidden)] })
+            } else {
+                tokens.extend(quote! {
+                    /// Set the property.
+                    /// <style>a[href='fn.__.html']{ display: none; }</style>
+                });
+            }
             tokens.extend(quote! {
-                #(#attrs)*
-                /// Set the property.
-                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 pub fn set #generics (#(#args),*) -> #output #block
             });
 
@@ -960,9 +1004,15 @@ mod output {
             let args: Vec<_> = self.args.iter().skip(1).map(|a| &a.ident).collect();
             let child_name = &child.ident;
 
+            if self.is_capture_only {
+                tokens.extend(quote! { #[doc(hidden)] })
+            } else {
+                tokens.extend(quote! {
+                    /// Set the property with bundled [`Args`](Args).
+                    /// <style>a[href='fn.__.html']{ display: none; }</style>
+                });
+            }
             tokens.extend(quote! {
-                /// Set the property with bundled [`Args`](Args).
-                /// <style>a[href='fn.__.html']{ display: none; }</style>
                 #[inline]
                 pub fn set_args #generics (#child, args: impl ArgsUnwrap) -> #output {
                     let (#(#args),*) = args.unwrap();
@@ -1101,13 +1151,24 @@ mod output {
             // set_args!
             let set_args_ident = ident!("set_args_{}", pid);
             let priority = &self.priority;
+
+            let set_args_rule = if self.priority.is_capture_only() {
+                None
+            } else {
+                Some(quote! {
+                    (#priority, $property_path:path, $child:ident, $args:ident) => {
+                        let $child = {
+                            use $property_path::{set_args};
+                            set_args($child, $args)
+                        };
+                    };
+                })
+            };
             tokens.extend(quote! {
                 #[doc(hidden)]
                 #[macro_export]
                 macro_rules! #set_args_ident {
-                    (#priority, $set_args_path:path, $child:ident, $args:ident) => {
-                        let $child = $set_args_path($child, $args);
-                    };
+                    #set_args_rule
                     ($($ignore:tt)*) => {}
                 }
 
@@ -1116,11 +1177,15 @@ mod output {
             });
 
             // assert!
-            let allowed_in_when_rule = if self.allowed_in_when {
-                None
-            } else {
-                Some(quote! { compile_error!($msg); })
-            };
+            fn assert_compile_error(case: bool) -> Option<TokenStream> {
+                if case {
+                    None
+                } else {
+                    Some(quote! { compile_error!($msg); })
+                }
+            }
+            let allowed_in_when_rule = assert_compile_error(self.allowed_in_when);
+            let capture_only_rule = assert_compile_error(!self.priority.is_capture_only());
 
             let assert_ident = ident!("assert_{}", pid);
             tokens.extend(quote! {
@@ -1129,6 +1194,9 @@ mod output {
                 macro_rules! #assert_ident {
                     (allowed_in_when, $msg:tt) => {
                         #allowed_in_when_rule
+                    };
+                    (!capture_only, $msg:tt) => {
+                        #capture_only_rule
                     };
                 }
 

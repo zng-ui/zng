@@ -900,19 +900,32 @@ mod output {
                 quote!(#name::properties)
             };
 
-            for priority in &Priority::all() {
-                for property in &self.properties {
-                    let ident = &property.ident;
+            // property details (*_args, *, ::*)
+            let properties: Vec<_> = self
+                .properties
+                .iter()
+                .map(|p| {
+                    let ident = &p.ident;
                     let args_ident = ident!("{}_args", ident);
 
-                    let set_args = if property.is_from_widget {
-                        quote!(#mod_::#ident::set_args)
-                    } else {
-                        quote!(#ident::set_args)
-                    };
+                    let property = if p.is_from_widget { quote!(#mod_::#ident) } else { quote!(#ident) };
+                    (args_ident, ident, property)
+                })
+                .collect();
 
+            // assert property is not capture_only
+            for (_, ident, property) in &properties {
+                let msg = format!("cannot set capture_only property `{}`", ident);
+                tokens.extend(quote! {
+                    #property::assert!(!capture_only, #msg);
+                });
+            }
+
+            // set the property in their priority.
+            for priority in &Priority::all_settable() {
+                for (args_ident, _, property) in &properties {
                     tokens.extend(quote! {
-                        #set_args!(#priority, #set_args, node, #args_ident);
+                        #property::set_args!(#priority, #property, node, #args_ident);
                     });
                 }
             }
@@ -923,7 +936,7 @@ mod output {
         pub ident: Ident,
     }
     impl Priority {
-        pub fn all() -> [Self; 5] {
+        pub fn all_settable() -> [Self; 5] {
             use crate::property::input::keyword::*;
             [
                 Priority::Context(context::default()),
