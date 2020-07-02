@@ -304,6 +304,8 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// * `size`: The property defines the size boundary of the widget.
 /// * `inner`: The property does something visual inside the widget, like fill color.
 /// It is applied inside all other properties of the widget.
+/// * `capture_only`: The property is not set directly, but is captured by the widget. 
+/// They must have the following return type and body format: `-> ! {}`
 ///
 /// # Usage
 ///
@@ -382,7 +384,6 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
-    //property_old::expand_property(args, input)
     property::expand(args, input)
 }
 

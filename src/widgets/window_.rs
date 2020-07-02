@@ -26,7 +26,7 @@ widget! {
         root_id -> id: WidgetId::new_unique();
     }
 
-    /// Manually initializes a new [`window`](super).
+    /// Manually initializes a new [`window`](self).
     #[inline]
     fn new(child, root_id, title, size, background_color) -> Window {
         Window::new(root_id.unwrap(), title.unwrap(), size.unwrap(), background_color.unwrap(), child)

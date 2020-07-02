@@ -122,9 +122,9 @@ pub mod input {
         pub generics: Option<PropertyGenerics>,
         pub paren_token: token::Paren,
         pub args: Punctuated<PropertyArg, Token![,]>,
-        pub output: Option<(Token![->], Box<Type>)>,
+        pub output: (Token![->], Box<Type>),
         pub where_clause: Option<PropertyWhereClause>,
-        pub block: PropertyBody,
+        pub block: Box<Block>,
     }
     impl Parse for PropertyFn {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -143,13 +143,7 @@ pub mod input {
                 },
                 paren_token: parenthesized!(args_stream in input),
                 args: Punctuated::parse_terminated(&args_stream)?,
-                output: {
-                    if input.peek(Token![->]) {
-                        Some((input.parse()?, input.parse()?))
-                    } else {
-                        None
-                    }
-                },
+                output: (input.parse()?, input.parse()?),
                 where_clause: {
                     if input.peek(Token![where]) {
                         Some(input.parse()?)
@@ -268,28 +262,10 @@ pub mod input {
             })
         }
     }
-
-    pub enum PropertyBody {
-        Block(Box<Block>),
-        None(Token![;]),
-    }
-    impl Parse for PropertyBody {
-        fn parse(input: ParseStream) -> Result<Self> {
-            let lookahead = input.lookahead1();
-
-            if lookahead.peek(token::Brace) {
-                Ok(PropertyBody::Block(input.parse()?))
-            } else if lookahead.peek(Token![;]) {
-                Ok(PropertyBody::None(input.parse()?))
-            } else {
-                Err(lookahead.error())
-            }
-        }
-    }
 }
 
 mod analysis {
-    use super::input::{MacroArgs, Prefix, PropertyBody, PropertyFn};
+    use super::input::{MacroArgs, Prefix, PropertyFn};
     use super::output::*;
     use crate::util::{zero_ui_crate_ident, Attributes, Errors};
     use heck::CamelCase;
@@ -536,38 +512,25 @@ mod analysis {
             _ => false,
         };
 
-        let fn_output;
         let fn_block;
-
         let is_capture_only = priority.is_capture_only();
-
         if is_capture_only {
-            if let Some((_, t)) = fn_.output {
-                errors.push("capture_only property cannot have output", t.span());
+            match &*fn_.output.1 {
+                Type::Never(_) => {}
+                t => {
+                    errors.push("capture_only property never returns (-> !)", t.span());
+                }
             }
-            if let PropertyBody::Block(b) = fn_.block {
-                errors.push("capture_only property cannot have a body", b.span());
+            if !fn_.block.stmts.is_empty() {
+                errors.push("capture_only property must have an empty body", fn_.block.span());
             }
             let msg = format!("cannot set capture_only property `{}`", fn_.ident);
-            fn_output = parse_quote! {!};
             fn_block = parse_quote! {{
                 #(let _ = #property_arg_idents;)*
                 panic!(#msg);
             }};
         } else {
-            fn_output = if let Some((_, t)) = fn_.output {
-                t
-            } else {
-                errors.push("missing output type", fn_.ident.span());
-                parse_quote! {()}
-            };
-            fn_block = match fn_.block {
-                PropertyBody::Block(b) => b,
-                PropertyBody::None(s) => {
-                    errors.push("missing property body", s.span);
-                    parse_quote! {{}}
-                }
-            };
+            fn_block = fn_.block;
         };
 
         PropertyMod {
@@ -587,7 +550,7 @@ mod analysis {
                 set_attrs,
                 generics: fn_generics,
                 args,
-                output: fn_output,
+                output: fn_.output.1,
                 block: fn_block,
                 is_capture_only,
             },
@@ -688,7 +651,7 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
-    use syn::{punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
+    use syn::{spanned::Spanned, punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
 
     pub struct PropertyMod {
         pub errors: Errors,
@@ -791,7 +754,7 @@ mod output {
             doc_extend!(tokens, "\n# Property\n");
             doc_extend!(
                 tokens,
-                "This module is a widget `{}` property. It {} be used in widget `when` condition expressions.",
+                "This module is a widget [`{}`](zero_ui::core::property#argument) property. It {} be used in widget `when` condition expressions.",
                 self.priority,
                 if self.allowed_in_when { "can also" } else { "cannot" }
             );
@@ -1018,7 +981,24 @@ mod output {
                     let (#(#args),*) = args.unwrap();
                     set(#child_name, #(#args),*)
                 }
-            })
+            });
+            if !self.is_capture_only{
+                tokens.extend(quote!{
+                    #[doc(hidden)]
+                    fn assert_input #generics (#child){
+                        fn impl_UiNode(_: impl zero_ui::core::UiNode) {}
+                        impl_UiNode(#child_name)
+                    }
+                });
+                let output_name = quote_spanned!{output.span()=> output};
+                tokens.extend(quote!{
+                    #[doc(hidden)]
+                    fn assert_output #generics (#output_name: #output){
+                        fn impl_UiNode(_: impl zero_ui::core::UiNode) {}
+                        impl_UiNode(#output_name)
+                    }
+                })
+            }
         }
     }
 

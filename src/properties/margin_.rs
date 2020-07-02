@@ -39,7 +39,7 @@ impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size = final_size - self.size_increment;
+        final_size -= self.size_increment;
         self.child_rect.size = final_size;
         self.child.arrange(final_size);
     }
