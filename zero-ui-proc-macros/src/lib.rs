@@ -22,15 +22,28 @@ pub(crate) mod widget_stage3;
 ///
 /// The macro attribute takes arguments that indicate how the missing methods will be generated.
 ///
-/// * `delegate: {&}, delegate_mut: {&mut}`.
+/// ## Single Node Delegate
 ///
-/// * `delegate_iter: {Iterator<&>}, delegate_iter_mut: {Iterator<&mut>}`.
+/// Set this two arguments to delegate to a single node:
+///
+/// * `delegate: &impl UiNode` - Expression that borrows the node, you can use `self`.
+/// * `delegate_mut: &mut impl UiNode` - Exclusive borrow the node.
+///
+/// ## Multiple Nodes Delegate
+///
+/// Set this two arguments to delegate to a node sequence:
+///
+/// * `delegate_iter: impl Iterator<& impl UiNode>` - Expression that creates a borrowing iterator, you can use `self`.
+/// * `delegate_iter_mut: impl Iterator<&mut impl UiNode>` - Exclusive borrowing iterator.
+///
+/// ## Shorthand
 ///
 /// You can also use shorthand for common delegation:
 ///
 /// * `child` is the same as `delegate: &self.child, delegate_mut: &mut self.child`.
-///
 /// * `children` is the same as `delegate_iter: self.children.iter(), delegate_iter_mut: self.children.iter_mut()`.
+///
+/// ## None
 ///
 /// And for nodes without descendants you can use:
 /// * `none`
@@ -99,8 +112,7 @@ pub(crate) mod widget_stage3;
 ///     }
 /// }
 /// ```
-///
-/// ### Expands to
+/// Expands to:
 ///
 /// ```
 /// impl<C: LocalVar<ColorF>> NoneDelegateSample<C> {
@@ -110,7 +122,6 @@ pub(crate) mod widget_stage3;
 /// }
 ///
 /// impl<C: LocalVar<ColorF>> zero_ui::core::UiNode for NoneDelegateSample<C> {
-///
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
 ///
@@ -140,7 +151,6 @@ pub(crate) mod widget_stage3;
 ///
 ///     #[inline]
 ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
-///
 /// }
 /// ```
 ///
@@ -160,11 +170,10 @@ pub(crate) mod widget_stage3;
 /// impl<C: UiNode> UiNode for ChildDelegateSample<C> { }
 /// ```
 ///
-/// ### Expands to
+/// Expands to:
 ///
 /// ```
 /// impl<C: UiNode> UiNode ChildDelegateSample<C> {
-///
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
 ///         let child = { &mut self.child };
@@ -206,7 +215,6 @@ pub(crate) mod widget_stage3;
 ///         let child = { &mut self.child };
 ///         child.deinit(ctx)
 ///     }
-///
 /// }
 /// ```
 ///
@@ -226,11 +234,10 @@ pub(crate) mod widget_stage3;
 /// impl<C: UiNode> UiNode for ChildrenDelegateSample<C> { }
 /// ```
 ///
-/// ### Expands to
+/// Expands to:
 ///
 /// ```
 /// impl<C: UiNode> UiNode ChildrenDelegateSample<C> {
-///
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
 ///         for child in { self.child.iter_mut() } {
@@ -281,7 +288,6 @@ pub(crate) mod widget_stage3;
 ///             child.deinit(ctx)
 ///         }
 ///     }
-///
 /// }
 /// ```
 #[proc_macro_attribute]
