@@ -651,7 +651,7 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
-    use syn::{spanned::Spanned, punctuated::Punctuated, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
+    use syn::{punctuated::Punctuated, spanned::Spanned, Attribute, Block, Index, Token, Type, TypeParamBound, Visibility};
 
     pub struct PropertyMod {
         pub errors: Errors,
@@ -982,19 +982,24 @@ mod output {
                     set(#child_name, #(#args),*)
                 }
             });
-            if !self.is_capture_only{
-                tokens.extend(quote!{
-                    #[doc(hidden)]
-                    fn assert_input #generics (#child){
-                        fn impl_UiNode(_: impl zero_ui::core::UiNode) {}
-                        impl_UiNode(#child_name)
+            if !self.is_capture_only {
+                let crate_ = zero_ui_crate_ident();
+                let input_name = ident_spanned!(child.ty.span()=> "input");
+                let message_ty = ident!("{}_must_support_any_UiNode", child_name);
+
+                tokens.extend(quote! {
+                    struct AssertInput<A>(A);
+                    impl<#message_ty: #crate_::core::UiNode> AssertInput<#message_ty> {
+                        fn assert_input(#input_name: #message_ty) {
+                            fn t #generics (#child) { let _ = #child_name; }
+                            t(#input_name)
+                        }
                     }
                 });
-                let output_name = quote_spanned!{output.span()=> output};
-                tokens.extend(quote!{
-                    #[doc(hidden)]
-                    fn assert_output #generics (#output_name: #output){
-                        fn impl_UiNode(_: impl zero_ui::core::UiNode) {}
+                let output_name = quote_spanned! {output.span()=> output};
+                tokens.extend(quote! {
+                    fn assert_output #generics (#output_name: #output) {
+                        fn impl_UiNode(_: impl #crate_::core::UiNode) {}
                         impl_UiNode(#output_name)
                     }
                 })

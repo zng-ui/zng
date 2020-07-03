@@ -302,22 +302,22 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// The macro attribute takes arguments that configure how the property can be used in widgets.
 ///
 /// **Required**
-/// 
+///
 /// The first argument is required and indicates when the property is set in relation to the other properties in a widget.
-/// The valid values are: [`context`](#context), [`event`](#event), [`outer`](#outer), [`size`](#size), [`inner`](#inner) or 
+/// The valid values are: [`context`](#context), [`event`](#event), [`outer`](#outer), [`size`](#size), [`inner`](#inner) or
 /// [`capture_only`](#capture_only).
 ///
 /// **Optional**
 ///
-/// Optional arguments can be set after the required, they use the `name: value` syntax. Currently there is only one 
+/// Optional arguments can be set after the required, they use the `name: value` syntax. Currently there is only one
 /// [`allowed_in_when`](#when-conditions).
 ///
 /// # Function
 ///
-/// The macro attribute must be set in a stand-alone function that sets the property by modifying the UI node tree. 
+/// The macro attribute must be set in a stand-alone function that sets the property by modifying the UI node tree.
 ///
 /// ## Arguments and Output
-/// 
+///
 /// The function argument and return type requirements are the same for normal properties (not `capture_only`).
 ///
 /// ### Normal Properties
@@ -328,7 +328,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```
 /// use zero_ui::core::{property, UiNode, impl_ui_node, var::Var, context::WidgetContext};
-/// 
+///
 /// struct MyNode<C, V> { child: C, value: V }
 /// #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
@@ -384,7 +384,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// The property is applied after all other so that they can setup information associated with the widget that the other properties
 /// can use. Context variables and widget state use this priority.
 ///
-/// You can easily implement this properties using [`with_context_var`](zero_ui::properties::with_context_var) 
+/// You can easily implement this properties using [`with_context_var`](zero_ui::properties::with_context_var)
 /// and [`set_widget_state`](set_widget_state).
 ///
 /// ## `event`
@@ -401,7 +401,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ## `size`
 ///
 /// Properties that set the widget visual size. Most widgets are sized automatically by their content, if the size is configured by a user value
-/// the property has this priority. 
+/// the property has this priority.
 ///
 /// ## `inner`
 ///
