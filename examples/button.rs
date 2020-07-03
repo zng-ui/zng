@@ -80,6 +80,11 @@ macro_rules! TODO {
             fn new_child() -> impl UiNode {
                 NilUiNode// UiNode that does nothing.
             }
+
+            // inherit:
+            fn new_child(content) -> impl UiNode {
+                container::new_child(content)
+            }
         }
     };
 

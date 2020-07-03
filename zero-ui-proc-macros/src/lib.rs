@@ -720,7 +720,7 @@ pub fn widget(input: TokenStream) -> TokenStream {
 ///
 /// # Syntax
 ///
-/// The syntax is the same as in [`widget!`](../zero_ui/macro.widget.html), except
+/// The syntax is the same as in [`widget!`](macro.widget.html), except
 /// you cannot write the `new` and `new_child` functions.
 ///
 /// ```
@@ -729,7 +729,6 @@ pub fn widget(input: TokenStream) -> TokenStream {
 ///     pub focusable_mixin;
 ///
 ///     default {
-///
 ///         /// Documentation for this property in this widget mix-in.
 ///         focusable: true;
 ///
