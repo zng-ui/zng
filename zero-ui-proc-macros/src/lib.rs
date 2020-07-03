@@ -295,99 +295,127 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)
 }
 
-/// Declares a new widget property.
+/// Expands a function to a widget property module.
 ///
-/// # Argument
+/// # Arguments
 ///
-/// The macro attribute takes one argument that indicates what is the priority of applying the property in a widget.
+/// The macro attribute takes arguments that configure how the property can be used in widgets.
 ///
-/// The priorities by outermost first:
+/// **Required**
+/// 
+/// The first argument is required and indicates when the property is set in relation to the other properties in a widget.
+/// The valid values are: [`context`](#context), [`event`](#event), [`outer`](#outer), [`size`](#size), [`inner`](#inner) or 
+/// [`capture_only`](#capture_only).
 ///
-/// * `context`: The property setups some widget context metadata. It is applied around all other properties of the widget.
-/// * `event`: The property is an event handler. It is applied inside the widget context but around all other properties.
-/// * `outer`: The property does something visual around the widget, like a margin or border.
-/// It is applied around the core visual properties of the widget.
-/// * `size`: The property defines the size boundary of the widget.
-/// * `inner`: The property does something visual inside the widget, like fill color.
-/// It is applied inside all other properties of the widget.
-/// * `capture_only`: The property is not set directly, but is captured by the widget. 
-/// They must have the following return type and body format: `-> ! {}`
+/// **Optional**
 ///
-/// # Usage
+/// Optional arguments can be set after the required, they use the `name: value` syntax. Currently there is only one 
+/// [`allowed_in_when`](#when-conditions).
 ///
-/// Annotate a standalone function to transform it into a property module.
+/// # Function
 ///
-/// The function must take at least two arguments and return the property [node](zero_ui::core::UiNode). The first
-/// argument must be the property child node, the other arguments the property values.
+/// The macro attribute must be set in a stand-alone function that sets the property by modifying the UI node tree. 
 ///
-/// It is recommended that the property values have the type [`IntoVar<T>`](zero_ui::core::var::IntoVar) and the
-/// property node supports [`Var<T>`](zero_ui::core::var::Var) updates.
+/// ## Arguments and Output
+/// 
+/// The function argument and return type requirements are the same for normal properties (not `capture_only`).
 ///
-/// # Expands to
+/// ### Normal Properties
 ///
-/// The macro replaces the function with a module with the same name, documentation and visibility. The module contains
-/// two public function `set` that is the original function and `args` that packs the property values into a single unit.
-///
-/// It also contains various traits for representing the arguments packed in a single unit:
-///
-/// * `ArgsNamed`: Contains a method named after each argument, the methods return references.
-/// * `ArgsNumbered`: Contains one method for each argument named after their position (`arg0 .. argN`). The methods return references.
-/// * `ArgsUnwrap`: Unwraps the arguments into a tuple with each argument in their original position.
-/// * `Args`: Implements all other arg traits, can be constructed by calling `property::args(..)`.
-///
-/// ## Internals
-///
-/// The generated module also includes some public but doc-hidden items, they are used during widget initialization to
-/// support named property arguments and implement the property priorities sorting.
-///
-/// # Naming Convention
-///
-/// Most properties are named after what they add to the widget. A widget has a `margin` or is `enabled`. Some properties
-/// have a special prefix, `on_` for events and `is_` for widget state probing.
-///
-/// ## Event Listeners
-///
-/// Properties that setup an event listener are named `on_<event_name>` and take a direct closure (not a var). It is
-/// recommended that you use [`on_event`](zero_ui::properties::on_event) to implement event properties. If not possible
-/// try to use [`OnEventArgs`](zero_ui::properties::OnEventArgs) at least.
+/// Normal properties must take at least two arguments, the first argument is the child [`UiNode`](zero_ui::core::UiNode), the other argument(s)
+/// are the property values. The function must return a type that implements `UiNode`. The first argument must support any type that implements
+/// `UiNode`. All of these requirements are validated at compile time.
 ///
 /// ```
-/// #[property(event)]
-/// pub fn on_key_input(
-///     child: impl UiNode,
-///     handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static
-/// ) -> impl UiNode {
-///     on_event(child, KeyInput, handler)
+/// use zero_ui::core::{property, UiNode, impl_ui_node, var::Var, context::WidgetContext};
+/// 
+/// struct MyNode<C, V> { child: C, value: V }
+/// #[impl_ui_node(child)]
+/// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
+///     fn init(&self, ctx: &mut WidgetContext) {
+///         self.child.init(ctx);
+///         println!("{}", self.value.get(ctx.vars));
+///     }
+/// }
+///
+/// /// Property docs.
+/// #[property(context)]
+/// pub fn my_property(child: impl UiNode, value: impl Var<&'static str>) -> impl UiNode {
+///     MyNode { child, value }
 /// }
 /// ```
+///
+/// ### `capture_only`
+///
+/// Capture-only properties do not modify the UI node tree, they exist only as a named bundle of arguments that widgets capture to use internally.
+/// At least one argument is required. The return type must be never (`!`) and the property body must be empty.
+///
+/// ```
+/// use zero_ui::core::{property, var::Var};
+///
+/// /// Property docs.
+/// #[property(capture_only)]
+/// pub fn my_property(value: impl Var<&'static str>) -> ! { }
+/// ```
+/// ## Limitations
+///
+/// There are some limitations to what kind of function can be used:
+///
+/// * Only standalone safe functions are supported, type methods, `extern` functions and `unsafe` are not supported.
+/// * Only sized 'static types are supported.
+/// * All stable generics are supported, generic bounds, impl trait and where clauses, const generics are not supported.
+/// * Const functions are not supported. TODO?
+/// * Async functions are not supported.
+/// * Only the simple argument pattern `name: T` are supported. Destructuring arguments or discard (_) are not supported.
+///
+/// ## Name
+///
+/// The property name follows some conventions that are enforced at compile time.
+///
+/// * `on_` prefix: Can only be used for `event` or `capture_only` properties and must take only a single event handler value.
+/// * `is_` prefix: Can only take a single [`IsStateVar`](zero_ui::core::var::IsStateVar) value.
+///
+/// # Priority
+///
+/// Except for `capture_only` the other configurations indicate the priority that the property must be applied to form a widget.
+///
+/// ## `context`
+///
+/// The property is applied after all other so that they can setup information associated with the widget that the other properties
+/// can use. Context variables and widget state use this priority.
+///
+/// You can easily implement this properties using [`with_context_var`](zero_ui::properties::with_context_var) 
+/// and [`set_widget_state`](set_widget_state).
+///
+/// ## `event`
+///
+/// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
+/// widget context properties but also have access to the widget visual they contain.
+///
+/// It is strongly encouraged that the event handler be an [`FnMut`](FnMut) with [`OnEventArgs`](zero_ui::properties::OnEventArgs) input.
+///
+/// ## `outer`
+///
+/// Properties that shape the visual outside of the widget, the [`margin`](zero_ui::properties::margin) property is an example.
+///
+/// ## `size`
+///
+/// Properties that set the widget visual size. Most widgets are sized automatically by their content, if the size is configured by a user value
+/// the property has this priority. 
+///
+/// ## `inner`
+///
+/// Properties that are set first, so they end-up inside of all other widget properties. Most of the properties that render use this priority.
+///
+/// # When Conditions
+///
+/// Most properties can be used in widget when condition expressions, by default all properties that don't have the `on_` prefix are allowed.
+/// This can be overridden by setting the optional argument `allowed_in_when`.
 ///
 /// ## State Probing
 ///
-/// Properties that provide a `bool` value when the widget is in a state are named `is_<state_name>` and take a `bool` var.
-///
-/// ```
-/// #[property(context)]
-/// pub fn is_pressed(child: impl UiNode, state: impl Var<bool>) -> impl UiNode {
-///     IsPressed {
-///         ..
-///     }
-/// }
-/// ```
-/// Normal boolean properties are not named with the `is_` prefix. For example `enabled` and `clip_to_bounds` are boolean
-/// but they react to the user value not the other way around.
-///
-/// ## Context Variables
-///
-/// Every public [`ContextVar`](zero_ui::core::var::ContextVar) must have a property that sets the var, they use the same
-/// name of the variable in snake_case. You can use [`with_context_var`](zero_ui::properties::with_context_var) to implement
-/// then.
-///
-/// ```
-/// #[property(context)]
-/// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
-///     with_context_var(child, FontSize, size)
-/// }
-/// ```
+/// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
+/// to a new probing variable when used in an widget when condition expression.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
