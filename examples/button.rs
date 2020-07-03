@@ -58,7 +58,6 @@ macro_rules! TODO {
             align: Alignment::CENTER;
             font_size: 28;
 
-            // when only at the end?
             when self.is_hovered {
                 font_size: 30;
             }
@@ -67,37 +66,12 @@ macro_rules! TODO {
 
     (widget) => {
         widget! {
-            // using properties?
-            content -> child!;
-            // OR
-            content: child!;//like required! but is the child
-            // OR
-            content -> child!: required!;//optional child, if not required we use a placeholder?.
-            // where to place it? default and default_child does not fit?
-
-            // using fns?
-            // OR
-            fn child(content!) -> impl UiNode {
-                child// content is an UiNode and is a required "property" in the widget.
-            }
-
-            // OR
-            fn child(text) -> impl UiNode {
-                text(text) // generate child node, text is a captured property?
-            }
-            // `new_child` still exists?
-
-            // how to support multiple children?
-            fn children(?) -> ? {
-                ?
-            }
-
-            // OR
             default_child {
-                content -> ui_node_property: required!;
-                padding -> margin;//?
+                content -> widget_child: required!;
+                padding -> margin;
             }
 
+            // capturing:
             fn new_child(content) -> impl UiNode {
                 content.unwrap()
             }
