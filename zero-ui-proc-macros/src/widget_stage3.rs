@@ -1303,8 +1303,7 @@ pub mod output {
                 #(#attrs)*
                 #docs
                 #vis mod #widget_name {
-                    #[doc(hidden)]
-                    pub use super::*;
+                    use super::*;
                     #use_implicit_mixin
 
                     // new functions.
