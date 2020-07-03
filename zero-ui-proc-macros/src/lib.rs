@@ -364,7 +364,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// * Only standalone safe functions are supported, type methods, `extern` functions and `unsafe` are not supported.
 /// * Only sized 'static types are supported.
 /// * All stable generics are supported, generic bounds, impl trait and where clauses, const generics are not supported.
-/// * Const functions are not supported. TODO?
+/// * Const functions are not supported. You need generics to support any type of UI node but generic const functions are unstable.
 /// * Async functions are not supported.
 /// * Only the simple argument pattern `name: T` are supported. Destructuring arguments or discard (_) are not supported.
 ///
