@@ -862,15 +862,20 @@ pub mod analysis {
         debug_assert_eq!(when_index, macro_whens.len());
         debug_assert_eq!(when_index, mod_whens.len());
 
-        fn to_built_new(n: &input::WgtItemNew) -> BuiltNew {
-            BuiltNew {
+        let macro_new = new
+            .first()
+            .map(|n| BuiltNew {
                 properties: n.inputs.iter().skip(1).cloned().collect(),
-            }
-        }
-        let macro_new = new.first().map(to_built_new).unwrap_or_else(|| BuiltNew {
-            properties: vec![ident!("id")],
-        });
-        let macro_new_child = new_child.first().map(to_built_new).unwrap_or_default();
+            })
+            .unwrap_or_else(|| BuiltNew {
+                properties: vec![ident!("id")],
+            });
+        let macro_new_child = new_child
+            .first()
+            .map(|n| BuiltNew {
+                properties: n.inputs.iter().cloned().collect(),
+            })
+            .unwrap_or_default();
 
         let Attributes {
             docs,
@@ -1288,8 +1293,8 @@ pub mod output {
                     quote!(
                         #[doc=#fn_doc]
                         #[inline]
-                        pub fn new_child<C: #crate_::core::UiNode>(child: C) -> C {
-                            #crate_::core::default_widget_new_child(child)
+                        pub fn new_child() -> impl #crate_::core::UiNode {
+                            #crate_::core::default_widget_new_child()
                         }
                     )
                 }
@@ -1475,17 +1480,30 @@ pub mod output {
             self.target.to_tokens(tokens);
 
             // (#child, #(#args),*)
-            let child = self.inputs.first().unwrap();
-            let mut crate_ = zero_ui_crate_ident();
-            crate_.set_span(child.span());
-            let child = quote_spanned! {child.span()=> #child: impl #crate_::core::UiNode};
-            let args = self
-                .inputs
-                .iter()
-                .skip(1)
-                .map(|a| quote_spanned! {a.span()=> #a: impl properties::#a::Args});
+            // or
+            // ( #(#args),*)
+            match &self.target {
+                NewTarget::New(_) => {
+                    let child = self.inputs.first().unwrap();
+                    let mut crate_ = zero_ui_crate_ident();
+                    crate_.set_span(child.span());
+                    let child = quote_spanned! {child.span()=> #child: impl #crate_::core::UiNode};
+                    let args = self
+                        .inputs
+                        .iter()
+                        .skip(1)
+                        .map(|a| quote_spanned! {a.span()=> #a: impl properties::#a::Args});
 
-            tokens.extend(quote_spanned! {self.paren_token.span=> (#child, #(#args),*) });
+                    tokens.extend(quote_spanned! {self.paren_token.span=> (#child, #(#args),*) });
+                }
+                NewTarget::NewChild(_) => {
+                    let args = self
+                        .inputs
+                        .iter()
+                        .map(|a| quote_spanned! {a.span()=> #a: impl properties::#a::Args });
+                    tokens.extend(quote_spanned! {self.paren_token.span=> (#(#args),*) });
+                }
+            }
 
             // ->
             self.r_arrow_token.to_tokens(tokens);
@@ -1562,19 +1580,24 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let defaults = &self.defaults;
             let when_defaults = &self.when_defaults;
-            let out = quote! {
-                #[doc(hidden)]
-                pub mod defaults {
-                    use super::*;
-                    #(#defaults)*
-                }
-                #[doc(hidden)]
-                pub mod when_defaults {
-                    use super::*;
-                    #(#when_defaults)*
-                }
-            };
-            tokens.extend(out);
+            if !defaults.is_empty() {
+                tokens.extend(quote! {
+                    #[doc(hidden)]
+                    pub mod defaults {
+                        use super::*;
+                        #(#defaults)*
+                    }
+                });
+            }
+            if !when_defaults.is_empty() {
+                tokens.extend(quote! {
+                    #[doc(hidden)]
+                    pub mod when_defaults {
+                        use super::*;
+                        #(#when_defaults)*
+                    }
+                });
+            }
         }
     }
 

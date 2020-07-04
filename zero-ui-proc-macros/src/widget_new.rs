@@ -18,8 +18,7 @@ mod input {
     use syn::{
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
-        spanned::Spanned,
-        Block, Error, Token,
+        Error, Token,
     };
 
     mod keyword {
@@ -77,7 +76,6 @@ mod input {
     pub enum UserInputItem {
         Property(PropertyAssign),
         When(WgtItemWhen),
-        Content(UserContent),
     }
     impl Parse for UserInputItem {
         fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -85,33 +83,9 @@ mod input {
                 Ok(UserInputItem::Property(input.parse()?))
             } else if input.peek(keyword::when) {
                 Ok(UserInputItem::When(input.parse()?))
-            } else if input.peek(Token![=>]) {
-                Ok(UserInputItem::Content(input.parse()?))
             } else {
-                Err(Error::new(
-                    input.span(),
-                    "expected property assign, when block or widget content (=>)",
-                ))
+                Err(Error::new(input.span(), "expected property assign or when block"))
             }
-        }
-    }
-
-    pub struct UserContent {
-        pub fat_arrow_token: Token![=>],
-        pub block: Block,
-    }
-    impl Parse for UserContent {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            Ok(UserContent {
-                fat_arrow_token: input.parse()?,
-                block: input.parse()?,
-            })
-        }
-    }
-    impl Spanned for UserContent {
-        fn span(&self) -> proc_macro2::Span {
-            let span = self.fat_arrow_token.span();
-            span.join(self.block.span()).unwrap_or(span)
         }
     }
 }
@@ -123,32 +97,20 @@ mod analysis {
     use crate::{property::input::Prefix, util::Errors, widget_stage3::analysis::*};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
-    use syn::{parse_quote, spanned::Spanned};
+    use syn::spanned::Spanned;
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
         let mut properties = vec![];
         let mut whens = vec![];
-        let mut contents = vec![];
         for item in input.user_input.items {
             match item {
                 UserInputItem::Property(p) => properties.push(p),
                 UserInputItem::When(w) => whens.push(w),
-                UserInputItem::Content(c) => contents.push(c),
             }
         }
 
         let mut errors = Errors::default();
 
-        // validate `=> {}`
-        for extra_contents in contents.iter().skip(1) {
-            errors.push("widget content already set", extra_contents.fat_arrow_token.span())
-        }
-        let content_block = if let Some(content) = contents.into_iter().next() {
-            content.block
-        } else {
-            errors.push("missing widget content (=> {})", Span::call_site());
-            parse_quote!({ () })
-        };
         validate_property_assigns(&mut properties, &mut errors);
         validate_whens(&mut whens, &mut errors);
 
@@ -496,15 +458,13 @@ mod analysis {
                 indexes: property_indexes,
                 switch_args: when_switch_bindings,
             },
-            content_binding: ContentBinding { content: content_block },
+            new_child_call: NewChildCall {
+                widget_name: input.name.clone(),
+                properties: input.new_child.into_iter().collect(),
+            },
             child_props_assigns: PropertyAssigns {
                 widget_name: input.name.clone(),
                 properties: child_props_assigns,
-            },
-            new_child_call: NewCall {
-                widget_name: input.name.clone(),
-                is_new_child: true,
-                properties: input.new_child.into_iter().collect(),
             },
             props_assigns: PropertyAssigns {
                 widget_name: input.name.clone(),
@@ -512,7 +472,6 @@ mod analysis {
             },
             new_call: NewCall {
                 widget_name: input.name,
-                is_new_child: false,
                 properties: input.new.into_iter().collect(),
             },
             errors,
@@ -530,14 +489,12 @@ mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::collections::HashSet;
-    use syn::Block;
 
     pub struct WidgetNewOutput {
         pub args_bindings: ArgsBindings,
         pub when_bindings: WhenBindings,
-        pub content_binding: ContentBinding,
+        pub new_child_call: NewChildCall,
         pub child_props_assigns: PropertyAssigns,
-        pub new_child_call: NewCall,
         pub props_assigns: PropertyAssigns,
         pub new_call: NewCall,
         pub errors: Errors,
@@ -548,9 +505,8 @@ mod output {
             let mut inner = TokenStream::new();
             self.args_bindings.to_tokens(&mut inner);
             self.when_bindings.to_tokens(&mut inner);
-            self.content_binding.to_tokens(&mut inner);
-            self.child_props_assigns.to_tokens(&mut inner);
             self.new_child_call.to_tokens(&mut inner);
+            self.child_props_assigns.to_tokens(&mut inner);
             self.props_assigns.to_tokens(&mut inner);
             self.new_call.to_tokens(&mut inner);
 
@@ -877,15 +833,16 @@ mod output {
         pub value: PropertyValue,
     }
 
-    pub struct ContentBinding {
-        pub content: Block,
+    pub struct NewChildCall {
+        pub widget_name: Ident,
+        // properties captured by the new function
+        pub properties: Vec<Ident>,
     }
-    impl ToTokens for ContentBinding {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            let content = &self.content;
-            tokens.extend(quote! {
-                let node = #content;
-            });
+    impl ToTokens for NewChildCall {
+        fn to_tokens(&self, tokens: &mut TokenStream) {
+            let name = &self.widget_name;
+            let args = self.properties.iter().map(|p| ident!("{}_args", p));
+            tokens.extend(quote!( let node = #name::new_child(#(#args),*); ));
         }
     }
 
@@ -950,23 +907,14 @@ mod output {
 
     pub struct NewCall {
         pub widget_name: Ident,
-        pub is_new_child: bool,
         // properties captured by the new function
         pub properties: Vec<Ident>,
     }
     impl ToTokens for NewCall {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let name = &self.widget_name;
-            let new_token = if self.is_new_child { quote!(new_child) } else { quote!(new) };
             let args = self.properties.iter().map(|p| ident!("{}_args", p));
-
-            let call = quote!(#name::#new_token(node, #(#args),*));
-
-            if self.is_new_child {
-                tokens.extend(quote!(let node = #call;));
-            } else {
-                tokens.extend(call);
-            }
+            tokens.extend(quote!(#name::new(node, #(#args),*)));
         }
     }
 }

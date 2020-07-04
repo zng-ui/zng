@@ -1,6 +1,9 @@
 //! Properties that are only used by widgets directly by capturing them in the `new` or `new_child` function.
 
-use crate::{prelude::UiNode, core::{property, types::WidgetId, var::IntoVar}};
+use crate::{
+    core::{property, types::WidgetId, var::IntoVar},
+    prelude::UiNode,
+};
 
 /// Widget id.
 ///
