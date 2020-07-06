@@ -1,6 +1,9 @@
-use crate::core::types::{rgb, ColorF, LayoutSideOffsets};
 use crate::core::var::context_var;
 use crate::core::widget;
+use crate::core::{
+    types::{rgb, ColorF, LayoutSideOffsets},
+    UiNode,
+};
 use crate::properties::{background_color, is_hovered, is_pressed, on_click};
 use crate::widgets::{container, focusable_mixin};
 
@@ -37,5 +40,9 @@ widget! {
     /// When the mouse or touch pressed on this button and has not yet released.
     when self.is_pressed  {
         background_color: ButtonBackgroundPressed;
+    }
+
+    fn new_child(content) -> impl UiNode {
+        container::new_child(content)
     }
 }

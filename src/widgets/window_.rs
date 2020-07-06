@@ -2,6 +2,7 @@ use crate::core::widget;
 use crate::core::{
     types::{rgb, WidgetId},
     window::Window,
+    UiNode,
 };
 use crate::properties::{background_color, size, title};
 use crate::widgets::container;
@@ -30,5 +31,9 @@ widget! {
     #[inline]
     fn new(child, root_id, title, size, background_color) -> Window {
         Window::new(root_id.unwrap(), title.unwrap(), size.unwrap(), background_color.unwrap(), child)
+    }
+
+    fn new_child(content) -> impl UiNode {
+        container::new_child(content)
     }
 }

@@ -193,7 +193,7 @@ impl Widget for Box<dyn Widget> {
 /// A UI node that does not contain any other node, does not take any space and renders nothing.
 pub struct NilUiNode;
 #[impl_ui_node(none)]
-impl UiNode for NilUiNode { 
+impl UiNode for NilUiNode {
     fn measure(&mut self, _: LayoutSize) -> LayoutSize {
         LayoutSize::zero()
     }
@@ -201,10 +201,10 @@ impl UiNode for NilUiNode {
 
 /// This is called by the default widgets `new_child` function.
 ///
-/// Nothing is done in this function, `child` is returned directly.
+/// Returns a [`NilUiNode`](NilUiNode).
 #[inline]
-pub fn default_widget_new_child<C: UiNode>(child: C) -> C {
-    child
+pub fn default_widget_new_child() -> impl UiNode {
+    NilUiNode
 }
 
 /// This is called by the default widgets `new` function.
