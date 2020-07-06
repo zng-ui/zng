@@ -422,292 +422,163 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// Declares a new widget macro and module.
+/// 
+/// Widgets are a bundle of [property blocks](#property-blocks), [when blocks](#when-blocks) and [initialization functions](#initialization-functions).
+/// 
+/// # Header
+/// 
+/// The widget header declares the widget name, [documentation](#attributes), [visibility](#visibility) and what other widgets and mix-ins 
+/// are [inherited](#inheritance) into the new one.
+/// 
+/// ```
+/// widget! {
+///     /// Widget documentation.
+///     pub button: container + focusable_mixin;
+/// }
+/// ```
+/// 
+/// ## Attributes
 ///
-/// Widgets are a preset of properties with optional custom initialization.
-///
-/// Things that can defined in widgets:
-///
-/// * _**Default Properties:**_ If the user of your widget does not set the property the default
-/// value is used.
-///
-/// * _**New Properties:**_ New properties that internally map to another property. New property names
-/// do not override their internal property, allowing the user to set both.
-///
-/// * _**Required Properties:**_ Setting a property with `required!` forces the user to set
-/// the property during use.
-///
-/// * _**Conditional Properties:**_ You can use `when` blocks to conditionally set properties.
-///
-/// * _**Retargeted Properties:**_ Usually properties apply according to their priority, widgets can
-/// define that some properties are applied early.
-///
-/// * _**Custom Initialization:**_ Each widget can have two functions `new_child` and `new`. This functions receive and return
-/// `UiNodes` and can also capture property values and use then in customized ways.
-///
-/// # Syntax
-///
-/// Widgets start with a declaration of the visibility and main documentation.
+/// All attributes are transferred to the generated module. Conditional compilation (`#[cfg]`) attributes are also applied to the generated macro.
+/// Extra documentation about the widget properties is auto-generated and added to the module as well.
 ///
 /// ```
 /// widget! {
 ///     /// Widget documentation.
-///     pub button;
+///     #[foo(bar)]
+///     widget_name;
 /// }
 /// ```
 ///
-/// The example code declares a public widget named `button`.
+/// ## Visibility
 ///
+/// The visibility is transferred to the widget module and macro and supports all visibility configurations. 
+/// 
+/// ```
+/// widget! {
+///     pub(crate) widget_name;
+/// }
+/// ```
+/// 
 /// ## Inheritance
 ///
-/// Widgets can include properties from other widgets and widget mix-ins.
+/// Widgets can optionally 'inherit' from other widgets and widget mix-ins.
 ///
 /// ```
 /// widget! {
-///     pub button: container + focusable_mixin;
+///     pub foo: container;
+/// }
+///
+/// widget! {
+///     pub bar: foo + widgets::focusable_mixin;
 /// }
 /// ```
 ///
-/// The example core declares a widget that inherits the properties from the
-/// `container` widget and `focusable_mixin` mix-in.
+/// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget. 
+/// All widgets automatically inherit from [`implicit_mixin`](zero_ui::widgets::implicit_mixin) (after all other inherits).
+/// 
+/// ### Conflict Resolution
+/// 
+/// Properties and functions of the same name are overwritten by the left-most import or by the new widget declaration.
+/// 
+/// When blocks with conditions that are no longer valid are removed. 
 ///
-/// Properties are inherited left-to-right so `container` first then `focusable_mixin` on-top. Properties
-/// with the same name get overridden.
+/// # Property Blocks
 ///
-/// All widgets also inherit from [`implicit_mixin`](zero_ui::widgets::implicit_mixin) before all other inherits.
-///
-/// ## Properties
-///
-/// Properties can be set within three different blocks, `default {}`, `default_child {}` and `when $expr {}`.
-///
-/// Properties in the `default_child` blocks are applied directly to the widget child before all others, those in the
-/// `default` blocks are applied to the `new_child` function result and those in the `when` blocks change the other
-/// properties when the condition is true.
-///
-/// ## Setting Properties
-///
-/// Properties can be set just like in a widget macro:
+/// Property blocks contains a list of [property declarations](#property-declarations) grouped by the [target](#target) of the properties.
 ///
 /// ```
-/// widget! {
-///     pub button;
+/// widget! { 
+///     pub foo;
 ///
 ///     default {
-///         /// Documentation for this property in the widget.
-///         background_color: rgb(0, 200, 0);
-///         border: {
-///             widths: 1.0,
-///             details: rgb(0, 100, 0)
-///         };
+///         margin: 2.0;
+///     }
+///     default_child {
+///         padding -> margin: 5.0;
 ///     }
 /// }
 /// ```
-/// The example code presets `background_color` and `border` for the widget. If users of `button!` don't set
-/// this two properties, the preset values are used for every button.
 ///
-/// Setting the same property name again overrides the previous value.
+/// # Target
 ///
-/// ## Special Property Values
+/// The property targets are selected by the keyword used to open a property block, `default` properties are applied
+/// to the widget normally, `default_child` properties are applied first so that they affect the widget child node before
+/// all other properties.
 ///
-/// Properties can also be set to `unset!` or `required!`.
+/// ## Property Declarations
 ///
-/// ### `unset!`
+/// Properties are declared by their [name](#name-resolution) follow by optional [remapping](#remapping), default or 
+/// special value and terminated by semi-colon (`;`). They can also have documentation attributes.
 ///
-/// Unset can be used to remove an inherited property preset.
+/// ### Name Resolution
+///
+/// If a property with the same name is inherited that is the property, if not then is is assumed that a 
+/// [`property`](zero_ui::core::property) module is with the same name is imported.
+///
+/// You can only use single names, module paths are not allowed. You can only declare a property with the same name once, 
+///
+/// ### Remapping
+///
+/// New properties can map to other properties, meaning the other property is applied when the new property is used. This is also
+/// the only way to apply the same property twice.
 ///
 /// ```
 /// widget! {
-///     pub button: container;
-///
-///     default_child {
-///         content_align: unset!;
+///     default { 
+///         new_property -> other_property;
 ///     }
 /// }
 /// ```
-/// The example code inherits `content_align` from `container`, it is preset to `Alignment::CENTER`. You could set it
-/// to a different alignment but the property would still be used for every `button!` user, setting it to `unset!` makes
-/// the property have no default value.
 ///
-/// The `button!` users can still set it, but if they don't no property `UiNode` is inserted.
+/// ### Default Value
+///
+/// Properties can have a default value. If they do the property is applied automatically during widget 
+/// instantiation using the default value if the user does not set the property.
+///
+/// ```
+/// widget! {
+///     default { 
+///         new_property: "value";
+///         foo -> bar: "value";
+///     }
+/// }
+/// ```
+///
+/// Properties without a default value are only applied if the user sets then.
 ///
 /// ### `required!`
 ///
-/// Required properties don't have a preset value but widget users must set then.
+/// Properties declared with the `required!` special value must be set by the user during widget initialization.
 ///
 /// ```
 /// widget! {
-///     pub button;
-///
-///     default {
+///     default { 
 ///         on_click: required!;
 ///     }
 /// }
-/// ```
-/// The example code requires `button!` users to set `on_click`, if they don't set it they get the
-/// compile error ``"missing required property `on_click`"``.
 ///
-/// ##  New Properties
+/// [Captured](#initialization-functions) properties are also required.
 ///
-/// New property names can be defined in the context of the widget, they use the implementation of another property
-/// but have a special name in the widget.
+/// ### `unset!`
 ///
-/// ```
-/// widget! {
-///     pub container;
+/// TODO call this `undefine!`?
 ///
-///     default_child {
-///         padding -> margin;
-///         content_align -> align: Alignment::CENTER;
-///     }
-/// }
-/// ```
-/// The example code defines two new properties, `padding` and `content_align`. The two properties
-/// can be set by users of the `container!` widget.
+/// # When Blocks
 ///
-/// The `padding` property has no default value, but if the users of `container!` set it a `margin` is applied
-/// (to the container child in this case).
+/// TODO
 ///
-/// The `content_align` property has a default value, so `align` is applied automatically but can be
-///  overridden by `container!` users.
+/// # Initialization Functions
 ///
-/// New properties are not aliases, users of `container!` can set both `padding` and `margin` and both are applied.
+/// TODO
 ///
-/// ## Conditional Properties
+/// ## `new_child`
 ///
-/// Properties can be conditionally set using `when` blocks.
+/// TODO
 ///
-/// ```
-/// widget! {
-///     pub button;
+/// ## `new`
 ///
-///     default {
-///         background_color: rgb(50, 50, 50);
-///     }
-///
-///     when self.is_mouse_over {
-///         background_color: rgb(70, 70, 70);
-///     }
-/// }
-/// ```
-/// The example code changes the `background_color` property value every time `is_mouse_over` is `true`. Properties
-/// can be set normally inside the `when` blocks and the condition expression can reference properties using
-/// `self.property_name`.
-///
-/// The condition expression is like the `if` expression, supporting any expression that results in a `bool` value. If
-/// you reference a property inside the expression the condition refreshes when the property changes.
-///
-/// All of the following are valid:
-///
-/// ```
-/// when true { }
-///
-/// when self.is_state { }
-///
-/// when self.is_state && self.is_another_state { }
-///
-/// when self.property == "Value" { }
-///
-/// when some_fn(self.property) { }
-/// ```
-/// The only requirement is that the property has a value that implements [`Default`](Default) if you did not set it
-/// in a `default` or `default_child` block.
-///
-/// ## Custom Initialization
-///
-/// All widgets have two functions, `new_child` and `new`, they have a default implementation but can be overridden by the widget.
-///
-/// ```
-/// widget! {
-///     pub my_widget;
-///
-///     default {
-///         on_event: required!;
-///     }
-///
-///     #[inline]
-///     fn new_child(child) -> impl UiNode {
-///         special::set(child, true)
-///     }
-///
-///     /// Custom docs for `my_widget::new`.
-///     #[inline]
-///     fn new(child, id, on_event) -> MyWidget {
-///         MyWidget {
-///             child,
-///             id: id.unwrap().0,
-///             handler: on_event.unwrap().0
-///         }
-///     }
-/// }
-/// ```
-/// The example code provides a custom definition for both functions. The functions need to have at least one
-/// parameter and return a value, `new_child` return type must implement [`UiNode`](zero_ui::core::UiNode).
-///
-/// Both functions take at least one argument that is the child `UiNode`, followed by property captures. You don't write the argument types, the
-/// first argument is `impl UiNode` the others are `impl <property>::Args`.
-///
-/// The initialization functions can capture a property by mentioning then in their args, in the example code `new` captures `id` and `on_event`. When
-/// a property is captured they behave like a normal property from the widget user perspective, but the property is not actually set, the property arguments
-/// are passed to the capturing function.
-///
-/// The first argument of `new_child` is the widget child wrapped in the widget child properties, for `new` it is the result of `new_child`
-/// wrapped in all the widget properties. The return type of `new` does not need to implement `UiNode`.
-///
-/// ### Default
-///
-/// By default `new_child` calls [`default_widget_new_child`](zero_ui::core::default_widget_new_child) and `new` calls
-/// [`default_widget_new`](zero_ui::core::default_widget_new).
-///
-/// ### Inheritance
-///
-/// Widgets do not inherit initialization, if you want to use the initialization of another widget you must call the `other::new` or `other::new_child`
-/// functions manually inside the custom initialization for your widget.
-///
-/// ```
-/// widget! {
-///     pub my_window: window;
-///
-///     default {
-///         my_property: 10;
-///     }
-///
-///     fn new(child, root_id, title, size, background_color) -> Window {
-///         println!("Initializing {:?}", root_id);
-///         window::new(child, root_id, title, size, background_color)
-///     }
-/// }
-/// ```
-///
-/// # Widget Expands To
-///
-/// The macro expands to a module declaration with the same name and visibility, and a doc-hidden
-/// `macro_rules!` macro of the same name. If the widget is `pub` the new macro is `#[macro_export]`.
-///
-/// In the generated module you can find the two functions `new` and `new_child`, they are used automatically
-/// when the widget is instantiated but you can also call then manually. Manual calls can be used to include
-/// inherited widgets custom initialization.
-///
-/// All documentation is incorporated into specially formatted HTML that uses the
-/// rust-doc stylesheets to present the widget as a first class item. See
-/// [`window`](zero_ui::widgets::window) for an example.
-///
-/// ## Internals
-///
-/// In the generated module some public but doc-hidden items are generated, this items
-/// are used during widget instantiation.
-///
-/// ## Why a macro/mod pair
-///
-/// When [Macros 2.0](https://github.com/rust-lang/rust/issues/39412) is stable this will change, but
-/// for now the macro and module pair simulate macro namespaces, you import all macros from the widgets
-/// crate at the start:
-/// ```
-/// #[macro_use]
-/// extern crate widget_crate;
-/// ```
-/// but the widget macros use the short path to the module so you still need to write:
-/// ```
-/// use widget_crate::widgets::button;
-/// ```
+/// TODO
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)
@@ -766,19 +637,19 @@ pub fn widget_mixin(input: TokenStream) -> TokenStream {
     widget_stage1::expand(true, input)
 }
 
-/// Recursive inherited tokens inclusion. Called by the expansion of widget_state1 and widget_stage2.
+/// Recursive include inherited tokens. Called by the expansion of widget_state1 and widget_stage2.
 #[proc_macro]
 pub fn widget_stage2(input: TokenStream) -> TokenStream {
     widget_stage2::expand(input)
 }
 
-/// Final widget or mixin expansion. Called by the final expansion of widget_stage2.
+/// Final widget or mix-in expansion. Called by the final expansion of widget_stage2.
 #[proc_macro]
 pub fn widget_stage3(input: TokenStream) -> TokenStream {
     widget_stage3::expand(input)
 }
 
-/// Instantiate widgets. Is called by widget macros generated by [`widget!`](widget).
+/// Instantiate widgets. Called by widget macros generated by [`widget!`](widget).
 #[proc_macro_hack]
 pub fn widget_new(input: TokenStream) -> TokenStream {
     widget_new::expand(input)
