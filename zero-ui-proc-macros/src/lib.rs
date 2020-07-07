@@ -563,7 +563,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ### `unset!`
 ///
-/// TODO call this `undefine!`?
+/// Removes an inherited property by redeclaring then with the `unset!` special value.
 ///
 /// # When Blocks
 ///
@@ -596,31 +596,83 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// If the property arguments are [vars](zero_ui::core::var::Var) the when condition is reevaluated after any variable changes.
 ///
 /// The referenced properties must have a default value, be [`required`](#required) or be a [state property](#zero_ui::core::property#state-probing).
-/// If the user unsets a referenced property the whole when block is not instantiated. 
+/// If the user [unsets](#unset) a referenced property the whole when block is not instantiated. 
 ///
 /// ## Assigns
 ///
-/// Inside the when block you can assign properties using `property_name: "value";`.  TODO
+/// Inside the when block you can assign properties using `property_name: "value";`.  
+/// The assigned property must have a default value or be [`required`](#required).
+/// If the user [unsets](#unset) the property it is removed from the when block.
 ///
 /// # Initialization Functions
 ///
-/// TODO
+/// Every widget has two initialization functions, [`new_child`](#new_child) and [`new`](#new). They are like other rust standalone 
+/// functions except the input arguments have no explicit type.
 ///
 /// ## `new_child`
 ///
-/// TODO
+/// Initializes the inner most node of the widget.
 ///
+/// ```
+/// widget! {
+///     pub container;
+///     
+///     default_child {
+///         content -> widget_child: required!;
+///     }
+///     
+///     fn new_child(content) -> impl UiNode {
+///         content.unwrap()
+///     }
+/// }
+/// ```
+///
+/// The function must return a type that implements [`UiNode`](zero_ui::core::UiNode). It has no required arguments but 
+/// can [capture](#property-capturing) property arguments.
+/// 
+/// If omitted the left-most inherited widget `new_child` is used, if the widget only inherits from mix-ins 
+/// [`default_widget_new_child`](zero_ui::core::default_widget_new_child) is used.
+/// 
 /// ## `new`
 ///
-/// TODO
+/// Initializes the outer wrapper of the widget.
+///
+/// ```
+/// widget! {
+///     pub window;
+///     
+///     default {
+///         title: "New Window";
+///         background_color: rgb(1.0, 1.0, 1.0);
+///     }
+///     
+///     fn new(child, id, title, background_color) -> Window {
+///         Window::new(child, id.unwrap(), title.unwrap(), background_color.unwrap())
+///     }
+/// }
+/// ```
+/// 
+/// The function can return any type, but if the type does not implement [`Widget`](zero_ui::core::Widget) 
+/// it cannot be the content of most other container widgets.
+///
+/// The first argument is required, it can have any name but the type is `impl UiNode`, 
+/// it contains the UI node tree formed by the widget properties and `new_child`. 
+/// After the first argument it can [capture](#property-capturing) property arguments.
+/// 
+/// If omitted the left-most inherited widget `new` is used, if the widget only inherits from mix-ins 
+/// [`default_widget_new`](zero_ui::core::default_widget_new) is used.
 ///
 /// ## Property Capturing
 ///
-/// TODO
+/// The initialization functions can capture properties by listing then in the function input. The argument type is an `impl property_name::Args`.
+///
+/// Captured properties are not applied during widget instantiation, the arguments are moved to the function that captured then.
+/// Because they are required for calling the initialization functions they are automatically marked 'required'.
 ///
 /// # Internals
 ///
 /// TODO details of internal code generated.
+/// TODO generate when documentation.
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)

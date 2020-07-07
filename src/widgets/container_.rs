@@ -16,6 +16,8 @@ widget! {
         clip_to_bounds;
     }
 
+    /// `content.0` is the new child.
+    #[inline]
     fn new_child(content) -> impl UiNode {
         content.unwrap()
     }
