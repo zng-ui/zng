@@ -557,6 +557,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///         on_click: required!;
 ///     }
 /// }
+/// ```
 ///
 /// [Captured](#initialization-functions) properties are also required.
 ///
@@ -566,7 +567,40 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # When Blocks
 ///
-/// TODO
+/// When blocks assign properties when a condition is true, the condition references properties and is always updated 
+/// if the referenced values are [vars](zero_ui::core::var::Var).
+///
+/// ```
+/// widget! {
+///     when self.is_pressed {
+///         background_color: rgb(0.3, 0.3, 0.3);
+///     }
+/// }
+/// ```
+///
+/// ## Condition
+///
+/// The `when` condition is an expression similar to the `if` condition. In it you can reference properties by using the `self.` prefix, at least one
+/// property reference is required.
+///
+/// If the first property argument is referenced by `self.property`, to reference other arguments you can use `self.property.1` or `self.property.arg_name`.
+///
+/// ```
+/// widget! {
+///     when self.foo.argument == "value" && self.is_state { 
+///         bar: "foo is value";
+///     }
+/// }
+/// ```
+///
+/// If the property arguments are [vars](zero_ui::core::var::Var) the when condition is reevaluated after any variable changes.
+///
+/// The referenced properties must have a default value, be [`required`](#required) or be a [state property](#zero_ui::core::property#state-probing).
+/// If the user unsets a referenced property the whole when block is not instantiated. 
+///
+/// ## Assigns
+///
+/// Inside the when block you can assign properties using `property_name: "value";`.  TODO
 ///
 /// # Initialization Functions
 ///
@@ -579,6 +613,14 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ## `new`
 ///
 /// TODO
+///
+/// ## Property Capturing
+///
+/// TODO
+///
+/// # Internals
+///
+/// TODO details of internal code generated.
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)
