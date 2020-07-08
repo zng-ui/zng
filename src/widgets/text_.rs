@@ -196,6 +196,8 @@ widget! {
 
     default_child {
         /// The [`Text`](crate::core::types::Text) value.
+        ///
+        /// Set to an empty string (`""`).
         text -> text_value: "";
     }
 
