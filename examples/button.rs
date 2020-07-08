@@ -28,6 +28,6 @@ fn example() -> impl UiNode {
         }};
         align: Alignment::CENTER;
 
-        content: text(t);
+        content: text_run(t);
     }
 }

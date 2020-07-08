@@ -157,11 +157,15 @@ impl fmt::Debug for TextTransformFn {
 /// let hello_txt = container! {
 ///     font_family: "Arial";
 ///     font_size: 18;
-///     => text("Hello!")
+///     content: text_run("Hello!");
 /// };
 /// # }
 /// ```
-pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
+///
+/// # `text!`
+///
+/// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
+pub fn text_run(text: impl IntoVar<Text>) -> impl UiNode {
     TextRun {
         text: text.into_var(),
 
@@ -172,10 +176,41 @@ pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
     }
 }
 
-//widget! {
-//    pub text;
-//
-//    fn new_child(text_property) -> impl UiNode {
-//        text(text_property.unwrap())
-//    }
-//}
+use crate::properties::{capture_only::text_value, font_family, font_size, text_color};
+
+widget! {
+    /// A configured [`text_run`](text_run).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use zero_ui::widgets::text;
+    ///
+    /// let hello_txt = text! {
+    ///     font_family: "Arial";
+    ///     font_size: 18;
+    ///     text: "Hello!";
+    /// }
+    /// ```
+    pub text;
+
+    default_child {
+        /// The [`Text`](crate::core::types::Text) value.
+        text -> text_value: "";
+    }
+
+    default {
+        /// The text font. If not set inherits the `font_family` from the parent widget.
+        font_family;
+        /// The text size. If not set inherits the `font_size` from the parent widget.
+        font_size;
+        /// The text color. If not set inherits the `text_color` from the parent widget.
+        color -> text_color;
+    }
+
+    /// Creates a [`text_run`](text_run).
+    #[inline]
+    fn new_child(text) -> impl UiNode {
+        text_run(text.unwrap())
+    }
+}
