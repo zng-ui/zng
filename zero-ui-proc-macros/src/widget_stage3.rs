@@ -82,11 +82,14 @@ pub mod input {
     }
 
     pub struct InheritItem {
-        pub inherit_path: Path,
         pub ident: Ident,
+        pub inherit_path: Path,
+        pub mixin_signal: MixinSignal,
         pub default: Punctuated<InheritedProperty, Token![,]>,
         pub default_child: Punctuated<InheritedProperty, Token![,]>,
         pub whens: Punctuated<InheritedWhen, Token![,]>,
+        pub new: Punctuated<Ident, Token![,]>,
+        pub new_child: Punctuated<Ident, Token![,]>,
     }
 
     impl Parse for InheritItem {
@@ -105,9 +108,12 @@ pub mod input {
             Ok(InheritItem {
                 ident: input.parse().unwrap_or_else(|e| non_user_error!(e)),
                 inherit_path: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+                mixin_signal: input.parse().unwrap_or_else(|e| non_user_error!(e)),
                 default: parse_block::<Token![default], InheritedProperty>(&input),
                 default_child: parse_block::<keyword::default_child, InheritedProperty>(&input),
                 whens: parse_block::<keyword::whens, InheritedWhen>(&input),
+                new: parse_block::<keyword::new, Ident>(&input),
+                new_child: parse_block::<keyword::new_child, Ident>(&input),
             })
         }
     }
@@ -386,6 +392,7 @@ pub mod input {
         }
     }
 
+    #[derive(Clone)]
     pub struct WgtItemNew {
         pub attrs: Vec<Attribute>,
         pub fn_token: Token![fn],
@@ -413,6 +420,7 @@ pub mod input {
         }
     }
 
+    #[derive(Clone)]
     pub enum NewTarget {
         New(keyword::new),
         NewChild(keyword::new_child),
@@ -536,8 +544,8 @@ pub mod analysis {
             DefaultChild,
         }
         let mut properties = vec![];
-        let mut new = vec![];
-        let mut new_child = vec![];
+        let mut new_fns = vec![];
+        let mut new_child_fns = vec![];
         let mut whens = vec![];
         for item in input.items {
             match item {
@@ -548,8 +556,8 @@ pub mod analysis {
                     }
                 },
                 WgtItem::New(n) => match &n.target {
-                    NewTarget::New(_) => new.push(n),
-                    NewTarget::NewChild(_) => new_child.push(n),
+                    NewTarget::New(_) => new_fns.push(n),
+                    NewTarget::NewChild(_) => new_child_fns.push(n),
                 },
                 WgtItem::When(w) => whens.push(w),
             }
@@ -565,7 +573,7 @@ pub mod analysis {
             }
             inserted
         });
-        for extra_new in new.iter().skip(1).chain(new_child.iter().skip(1)) {
+        for extra_new in new_fns.iter().skip(1).chain(new_child_fns.iter().skip(1)) {
             errors.push(format!("function `{}` already declared", extra_new.target), extra_new.target.span())
         }
         validate_whens(&mut whens, &mut errors);
@@ -635,6 +643,8 @@ pub mod analysis {
         let mut docs_required = vec![];
         let mut docs_provided = vec![];
         let mut docs_other = vec![];
+
+        let mut inherited_fns = None;
 
         // process inherited properties and when blocks.
         for inherit in input.inherits {
@@ -722,6 +732,10 @@ pub mod analysis {
                 macro_whens.push(when);
 
                 when_index += 1;
+            }
+
+            if !inherit.mixin_signal.value.value {
+                inherited_fns = Some((inherit_path, inherit.new, inherit.new_child));
             }
         }
         // process newly declared properties
@@ -862,20 +876,40 @@ pub mod analysis {
         debug_assert_eq!(when_index, macro_whens.len());
         debug_assert_eq!(when_index, mod_whens.len());
 
-        let macro_new = new
-            .first()
-            .map(|n| BuiltNew {
-                properties: n.inputs.iter().skip(1).cloned().collect(),
-            })
-            .unwrap_or_else(|| BuiltNew {
+        let macro_new;
+        let macro_new_child;
+        let new;
+        let new_child;
+        if let Some(fn_) = new_fns.drain(..).next() {
+            macro_new = BuiltNew {
+                properties: fn_.inputs.iter().skip(1).cloned().collect(),
+            };
+            new = NewFn::New(fn_);
+        } else if let Some((inherited, fn_, _)) = &inherited_fns {
+            macro_new = BuiltNew {
+                properties: fn_.iter().cloned().collect(),
+            };
+            new = NewFn::Inherited(inherited.clone());
+        } else {
+            macro_new = BuiltNew {
                 properties: vec![ident!("id")],
-            });
-        let macro_new_child = new_child
-            .first()
-            .map(|n| BuiltNew {
-                properties: n.inputs.iter().cloned().collect(),
-            })
-            .unwrap_or_default();
+            };
+            new = NewFn::None;
+        }
+        if let Some(fn_) = new_child_fns.drain(..).next() {
+            macro_new_child = BuiltNew {
+                properties: fn_.inputs.iter().cloned().collect(),
+            };
+            new_child = NewFn::New(fn_);
+        } else if let Some((inherited, _, fn_)) = inherited_fns {
+            macro_new_child = BuiltNew {
+                properties: fn_.into_iter().collect(),
+            };
+            new_child = NewFn::Inherited(inherited);
+        } else {
+            macro_new_child = BuiltNew::default();
+            new_child = NewFn::None;
+        }
 
         let Attributes {
             docs,
@@ -887,9 +921,6 @@ pub mod analysis {
         if let Some(cfg) = &cfg {
             attrs.push(cfg.clone());
         }
-
-        let new = new.drain(..).next();
-        let new_child = new_child.drain(..).next();
 
         let is_mixin = input.mixin_signal.value.value;
 
@@ -1121,10 +1152,14 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let crate_ = zero_ui_crate_ident();
             let name = &self.widget_name;
+            let is_mixin = self.is_mixin;
 
             let default = &self.default;
             let default_child = &self.default_child;
             let whens = &self.whens;
+            let new = &self.new;
+            let new_child = &self.new_child;
+
             let inherit_arm = quote! {
                 (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
                     #crate_::widget_stage2! {
@@ -1136,9 +1171,12 @@ pub mod output {
                         => inherited_tokens {
                             #name
                             $named_as
+                            mixin: #is_mixin
                             default { #(#default),* }
                             default_child { #(#default_child),* }
                             whens { #(#whens),* }
+                            new { #new }
+                            new_child { #new_child }
                         }
 
                         $($rest)*
@@ -1152,8 +1190,7 @@ pub mod output {
                 let default = self.default.iter().map(|p| p.tokens(false));
                 let default_child = self.default_child.iter().map(|p| p.tokens(false));
                 let whens = self.whens.iter().map(|p| p.tokens(false));
-                let new = &self.new;
-                let new_child = &self.new_child;
+
                 Some(quote! {
                     ($($input:tt)*) => {
                         #crate_::widget_new! {
@@ -1254,8 +1291,8 @@ pub mod output {
         pub vis: Visibility,
         pub widget_name: Ident,
         pub is_mixin: bool,
-        pub new: Option<WgtItemNew>,
-        pub new_child: Option<WgtItemNew>,
+        pub new: NewFn,
+        pub new_child: NewFn,
         pub properties: WidgetProperties,
         pub defaults: WidgetDefaults,
         pub whens: WidgetWhens,
@@ -1271,34 +1308,8 @@ pub mod output {
 
             let some_mixin = if self.is_mixin { None } else { Some(()) };
             let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::implicit_mixin; ));
-            let new = some_mixin.map(|_| {
-                if let Some(new) = &self.new {
-                    new.to_token_stream()
-                } else {
-                    let fn_doc = format!("Manually initializes a new [`{0}`](self).", widget_name);
-                    quote!(
-                        #[doc=#fn_doc]
-                        #[inline]
-                        pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::Widget {
-                            #crate_::core::default_widget_new(child, id)
-                        }
-                    )
-                }
-            });
-            let new_child = some_mixin.map(|_| {
-                if let Some(new_child) = &self.new_child {
-                    new_child.to_token_stream()
-                } else {
-                    let fn_doc = format!("Manually initializes a new [`{}`](self) content.", widget_name);
-                    quote!(
-                        #[doc=#fn_doc]
-                        #[inline]
-                        pub fn new_child() -> impl #crate_::core::UiNode {
-                            #crate_::core::default_widget_new_child()
-                        }
-                    )
-                }
-            });
+            let new = some_mixin.map(|_| self.new.new_tokens(widget_name));
+            let new_child = some_mixin.map(|_| self.new_child.new_child_tokens(widget_name));
 
             let properties = &self.properties;
             let defaults = &self.defaults;
@@ -1427,7 +1438,7 @@ pub mod output {
                 }
                 PropertySource::Widget(p) => {
                     is_inherited = true;
-                    source_widget = format!("{}", quote!(#p)).replace(" :: ", "::");
+                    source_widget = p.to_token_stream().to_string().replace(" :: ", "::");
                     doc_extend!(
                         tokens,
                         "\n[<span class='mod' data-inherited>{}</span>]({})\n",
@@ -1461,6 +1472,64 @@ pub mod output {
     pub enum PropertySource {
         Property(Ident),
         Widget(Path),
+    }
+
+    #[derive(Clone)]
+    pub enum NewFn {
+        None,
+        Inherited(Path),
+        New(WgtItemNew),
+    }
+    impl NewFn {
+        fn new_tokens(&self, widget_name: &Ident) -> TokenStream {
+            match self {
+                NewFn::None => {
+                    let crate_ = zero_ui_crate_ident();
+                    let fn_doc = format!(
+                        "Initializes a new [`{}`](self).\n\nThis calls the [`default_widget_new`]({}::core::default_widget_new) function.",
+                        widget_name, crate_
+                    );
+                    quote!(
+                        #[doc=#fn_doc]
+                        #[inline]
+                        pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::Widget {
+                            #crate_::core::default_widget_new(child, id)
+                        }
+                    )
+                }
+                NewFn::Inherited(super_widget) => {
+                    quote! {
+                        pub use #super_widget::new;
+                    }
+                }
+                NewFn::New(new) => new.to_token_stream(),
+            }
+        }
+
+        fn new_child_tokens(&self, widget_name: &Ident) -> TokenStream {
+            match self {
+                NewFn::None => {
+                    let crate_ = zero_ui_crate_ident();
+                    let fn_doc = format!(
+                        "Initializes a new [`{}`](self) content.\n\n[`default_widget_new_child`]({}::core::default_widget_new_child) function.",
+                        widget_name, crate_
+                    );
+                    quote!(
+                        #[doc=#fn_doc]
+                        #[inline]
+                        pub fn new_child() -> impl #crate_::core::UiNode {
+                            #crate_::core::default_widget_new_child()
+                        }
+                    )
+                }
+                NewFn::Inherited(super_widget) => {
+                    quote! {
+                        pub use #super_widget::new_child;
+                    }
+                }
+                NewFn::New(new_child) => new_child.to_token_stream(),
+            }
+        }
     }
 
     impl ToTokens for WgtItemNew {

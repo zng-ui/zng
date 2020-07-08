@@ -8,6 +8,7 @@ use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar, ObjVar, Var};
 use crate::core::UiNode;
 use std::{borrow::Cow, fmt, rc::Rc};
+use zero_ui_macros::widget;
 
 struct TextRun<T: Var<Text>> {
     text: T,
@@ -92,38 +93,6 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
     }
 }
 
-/// Simple text run.
-///
-/// # Configure
-///
-/// Text spans can be configured by setting [`font_family`](crate::properties::font_family),
-/// [`font_size`](crate::properties::font_size) or [`text_color`](crate::properties::text_color)
-/// in parent widgets.
-///
-/// # Example
-/// ```
-/// # fn main() -> () {
-/// use zero_ui::widgets::{container, text};
-/// use zero_ui::properties::{font_family, font_size};
-///
-/// let hello_txt = container! {
-///     font_family: "Arial";
-///     font_size: 18;
-///     => text("Hello!")
-/// };
-/// # }
-/// ```
-pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
-    TextRun {
-        text: text.into_var(),
-
-        glyphs: vec![],
-        size: LayoutSize::default(),
-        font: None,
-        color: ColorF::BLACK,
-    }
-}
-
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
     pub struct FontFamily: Text = const Cow::Borrowed("Sans-Serif");
@@ -170,3 +139,43 @@ impl fmt::Debug for TextTransformFn {
         }
     }
 }
+
+/// Simple text run.
+///
+/// # Configure
+///
+/// Text spans can be configured by setting [`font_family`](crate::properties::font_family),
+/// [`font_size`](crate::properties::font_size) or [`text_color`](crate::properties::text_color)
+/// in parent widgets.
+///
+/// # Example
+/// ```
+/// # fn main() -> () {
+/// use zero_ui::widgets::{container, text};
+/// use zero_ui::properties::{font_family, font_size};
+///
+/// let hello_txt = container! {
+///     font_family: "Arial";
+///     font_size: 18;
+///     => text("Hello!")
+/// };
+/// # }
+/// ```
+pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
+    TextRun {
+        text: text.into_var(),
+
+        glyphs: vec![],
+        size: LayoutSize::default(),
+        font: None,
+        color: ColorF::BLACK,
+    }
+}
+
+//widget! {
+//    pub text;
+//
+//    fn new_child(text_property) -> impl UiNode {
+//        text(text_property.unwrap())
+//    }
+//}

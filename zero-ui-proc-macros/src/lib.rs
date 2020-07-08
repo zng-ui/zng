@@ -422,21 +422,21 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// Declares a new widget macro and module.
-/// 
+///
 /// Widgets are a bundle of [property blocks](#property-blocks), [when blocks](#when-blocks) and [initialization functions](#initialization-functions).
-/// 
+///
 /// # Header
-/// 
-/// The widget header declares the widget name, [documentation](#attributes), [visibility](#visibility) and what other widgets and mix-ins 
+///
+/// The widget header declares the widget name, [documentation](#attributes), [visibility](#visibility) and what other widgets and mix-ins
 /// are [inherited](#inheritance) into the new one.
-/// 
+///
 /// ```
 /// widget! {
 ///     /// Widget documentation.
 ///     pub button: container + focusable_mixin;
 /// }
 /// ```
-/// 
+///
 /// ## Attributes
 ///
 /// All attributes are transferred to the generated module. Conditional compilation (`#[cfg]`) attributes are also applied to the generated macro.
@@ -452,14 +452,14 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ## Visibility
 ///
-/// The visibility is transferred to the widget module and macro and supports all visibility configurations. 
-/// 
+/// The visibility is transferred to the widget module and macro and supports all visibility configurations.
+///
 /// ```
 /// widget! {
 ///     pub(crate) widget_name;
 /// }
 /// ```
-/// 
+///
 /// ## Inheritance
 ///
 /// Widgets can optionally 'inherit' from other widgets and widget mix-ins.
@@ -474,21 +474,21 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget. 
+/// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget.
 /// All widgets automatically inherit from [`implicit_mixin`](zero_ui::widgets::implicit_mixin) (after all other inherits).
-/// 
+///
 /// ### Conflict Resolution
-/// 
+///
 /// Properties and functions of the same name are overwritten by the left-most import or by the new widget declaration.
-/// 
-/// When blocks with conditions that are no longer valid are removed. 
+///
+/// When blocks with conditions that are no longer valid are removed.
 ///
 /// # Property Blocks
 ///
 /// Property blocks contains a list of [property declarations](#property-declarations) grouped by the [target](#target) of the properties.
 ///
 /// ```
-/// widget! { 
+/// widget! {
 ///     pub foo;
 ///
 ///     default {
@@ -508,15 +508,15 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ## Property Declarations
 ///
-/// Properties are declared by their [name](#name-resolution) follow by optional [remapping](#remapping), default or 
+/// Properties are declared by their [name](#name-resolution) follow by optional [remapping](#remapping), default or
 /// special value and terminated by semi-colon (`;`). They can also have documentation attributes.
 ///
 /// ### Name Resolution
 ///
-/// If a property with the same name is inherited that is the property, if not then is is assumed that a 
+/// If a property with the same name is inherited that is the property, if not then is is assumed that a
 /// [`property`](zero_ui::core::property) module is with the same name is imported.
 ///
-/// You can only use single names, module paths are not allowed. You can only declare a property with the same name once, 
+/// You can only use single names, module paths are not allowed. You can only declare a property with the same name once,
 ///
 /// ### Remapping
 ///
@@ -525,7 +525,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```
 /// widget! {
-///     default { 
+///     default {
 ///         new_property -> other_property;
 ///     }
 /// }
@@ -533,12 +533,12 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ### Default Value
 ///
-/// Properties can have a default value. If they do the property is applied automatically during widget 
+/// Properties can have a default value. If they do the property is applied automatically during widget
 /// instantiation using the default value if the user does not set the property.
 ///
 /// ```
 /// widget! {
-///     default { 
+///     default {
 ///         new_property: "value";
 ///         foo -> bar: "value";
 ///     }
@@ -553,7 +553,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```
 /// widget! {
-///     default { 
+///     default {
 ///         on_click: required!;
 ///     }
 /// }
@@ -567,7 +567,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # When Blocks
 ///
-/// When blocks assign properties when a condition is true, the condition references properties and is always updated 
+/// When blocks assign properties when a condition is true, the condition references properties and is always updated
 /// if the referenced values are [vars](zero_ui::core::var::Var).
 ///
 /// ```
@@ -587,7 +587,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```
 /// widget! {
-///     when self.foo.argument == "value" && self.is_state { 
+///     when self.foo.argument == "value" && self.is_state {
 ///         bar: "foo is value";
 ///     }
 /// }
@@ -596,7 +596,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// If the property arguments are [vars](zero_ui::core::var::Var) the when condition is reevaluated after any variable changes.
 ///
 /// The referenced properties must have a default value, be [`required`](#required) or be a [state property](#zero_ui::core::property#state-probing).
-/// If the user [unsets](#unset) a referenced property the whole when block is not instantiated. 
+/// If the user [unsets](#unset) a referenced property the whole when block is not instantiated.
 ///
 /// ## Assigns
 ///
@@ -606,7 +606,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Initialization Functions
 ///
-/// Every widget has two initialization functions, [`new_child`](#new_child) and [`new`](#new). They are like other rust standalone 
+/// Every widget has two initialization functions, [`new_child`](#new_child) and [`new`](#new). They are like other rust standalone
 /// functions except the input arguments have no explicit type.
 ///
 /// ## `new_child`
@@ -627,12 +627,12 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// The function must return a type that implements [`UiNode`](zero_ui::core::UiNode). It has no required arguments but 
+/// The function must return a type that implements [`UiNode`](zero_ui::core::UiNode). It has no required arguments but
 /// can [capture](#property-capturing) property arguments.
-/// 
-/// If omitted the left-most inherited widget `new_child` is used, if the widget only inherits from mix-ins 
+///
+/// If omitted the left-most inherited widget `new_child` is used, if the widget only inherits from mix-ins
 /// [`default_widget_new_child`](zero_ui::core::default_widget_new_child) is used.
-/// 
+///
 /// ## `new`
 ///
 /// Initializes the outer wrapper of the widget.
@@ -651,15 +651,15 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
-/// 
-/// The function can return any type, but if the type does not implement [`Widget`](zero_ui::core::Widget) 
+///
+/// The function can return any type, but if the type does not implement [`Widget`](zero_ui::core::Widget)
 /// it cannot be the content of most other container widgets.
 ///
-/// The first argument is required, it can have any name but the type is `impl UiNode`, 
-/// it contains the UI node tree formed by the widget properties and `new_child`. 
+/// The first argument is required, it can have any name but the type is `impl UiNode`,
+/// it contains the UI node tree formed by the widget properties and `new_child`.
 /// After the first argument it can [capture](#property-capturing) property arguments.
-/// 
-/// If omitted the left-most inherited widget `new` is used, if the widget only inherits from mix-ins 
+///
+/// If omitted the left-most inherited widget `new` is used, if the widget only inherits from mix-ins
 /// [`default_widget_new`](zero_ui::core::default_widget_new) is used.
 ///
 /// ## Property Capturing
@@ -676,7 +676,6 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)
-    //widget::expand_widget(CallKind::Widget, input)
 }
 
 /// Declares a new widget mix-in module.
