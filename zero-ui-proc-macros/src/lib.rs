@@ -672,7 +672,6 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// # Internals
 ///
 /// TODO details of internal code generated.
-/// TODO generate when documentation.
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)

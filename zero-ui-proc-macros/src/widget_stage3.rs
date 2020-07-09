@@ -1372,6 +1372,7 @@ pub mod output {
     }
 
     impl ToTokens for WidgetDocs {
+        // TODO generate when documentation.
         fn to_tokens(&self, tokens: &mut TokenStream) {
             for doc in &self.docs {
                 doc.to_tokens(tokens)
@@ -1463,7 +1464,7 @@ pub mod output {
                     source_widget = p.to_token_stream().to_string().replace(" :: ", "::");
                     doc_extend!(
                         tokens,
-                        "\n[<span class='mod' data-inherited>{}</span>]({})\n",
+                        "\n[<span class='mod' data-inherited>{0}</span>]({1}#wgproperty.{0})\n",
                         self.ident,
                         source_widget
                     );
