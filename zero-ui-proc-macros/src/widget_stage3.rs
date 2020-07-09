@@ -512,7 +512,6 @@ pub mod analysis {
         Expr, ExprPath, Member, Visibility,
     };
 
-    //TODO revise how captured properties are presented to user
     pub(super) fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
         // check if included all inherits in the recursive call.
         debug_assert!(
@@ -690,6 +689,7 @@ pub mod analysis {
                             target_child: target == PropertyTarget::DefaultChild,
                             ident: property.ident.clone(),
                             property_source: PropertySource::Widget(inherit_path.clone()),
+                            is_required_provided: false,
                         });
 
                         // InheritedProperty is BuiltProperty already.
@@ -773,6 +773,7 @@ pub mod analysis {
                 target_child: target == PropertyTarget::DefaultChild,
                 ident: property.ident.clone(),
                 property_source: PropertySource::Property(property.maps_to.as_ref().map(|m| &m.ident).unwrap_or(&property.ident).clone()),
+                is_required_provided: false,
             });
 
             if let Some(default) = default_value {
@@ -909,6 +910,26 @@ pub mod analysis {
         } else {
             macro_new_child = BuiltNew::default();
             new_child = NewFn::None;
+        }
+        
+        let mut captured_properties = HashSet::new();
+        for captured in macro_new_child.properties.iter().chain(macro_new.properties.iter()) {
+            if !captured_properties.insert(captured) {
+                errors.push(format! {"property `{}` already captured", captured}, captured.span())
+            }
+        }        
+        //docs_other.drain_filter()
+        let mut i = 0;
+        while i != docs_other.len() {
+            if captured_properties.contains(&docs_other[i].ident) {
+                let doc = docs_other.remove(i);
+                docs_required.push(doc)
+            } else {
+                i += 1;
+            }
+        }
+        for doc in &mut docs_provided {
+            doc.is_required_provided = captured_properties.contains(&doc.ident);
         }
 
         let Attributes {
@@ -1419,6 +1440,7 @@ pub mod output {
         pub target_child: bool,
         pub ident: Ident,
         pub property_source: PropertySource,
+        pub is_required_provided: bool,
     }
 
     impl ToTokens for PropertyDocs {
@@ -1450,7 +1472,7 @@ pub mod output {
 
             doc_extend!(tokens, "<ul style='display:none;'></ul></span></code></h3>");
 
-            if is_inherited || !self.docs.is_empty() {
+            if !self.docs.is_empty() || is_inherited || self.is_required_provided {
                 doc_extend!(tokens, "<div class='docblock'>\n");
                 for doc in &self.docs {
                     doc.to_tokens(tokens)
@@ -1463,6 +1485,9 @@ pub mod output {
                         &source_widget[name_start..],
                         source_widget
                     );
+                }
+                if self.is_required_provided {
+                    doc_extend!(tokens, "\n*This property is required, cannot be `unset!`.*")
                 }
                 doc_extend!(tokens, "\n</div>");
             }
