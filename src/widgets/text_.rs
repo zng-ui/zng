@@ -165,7 +165,7 @@ impl fmt::Debug for TextTransformFn {
 /// # `text!`
 ///
 /// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
-pub fn text_run(text: impl IntoVar<Text>) -> impl UiNode {
+pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
     TextRun {
         text: text.into_var(),
 
@@ -179,7 +179,7 @@ pub fn text_run(text: impl IntoVar<Text>) -> impl UiNode {
 use crate::properties::{capture_only::text_value, font_family, font_size, text_color};
 
 widget! {
-    /// A configured [`text_run`](text_run).
+    /// A configured [`text`](../fn.text.html).
     ///
     /// # Example
     ///
@@ -192,6 +192,9 @@ widget! {
     ///     text: "Hello!";
     /// }
     /// ```
+    /// # `text()`
+    ///
+    /// If you don't need to configure the text, you can just use the function [`text`](../fn.text.html).
     pub text;
 
     default_child {
@@ -210,9 +213,9 @@ widget! {
         color -> text_color;
     }
 
-    /// Creates a [`text_run`](text_run).
+    /// Creates a [`text`](../fn.text.html).
     #[inline]
     fn new_child(text) -> impl UiNode {
-        text_run(text.unwrap())
+        super::text(text.unwrap())
     }
 }
