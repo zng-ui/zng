@@ -7,7 +7,7 @@ use crate::core::{
     UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
 };
 use crate::core::{impl_ui_node, widget};
-use crate::properties::capture_only::{stack_spacing, widget_children};
+use crate::properties::{capture_only::{stack_spacing, widget_children}, margin};
 use std::marker::PhantomData;
 
 trait StackDimension: 'static {
@@ -135,11 +135,13 @@ widget! {
     /// Horizontal stack layout.
     pub h_stack;
 
-    default {
+    default_child {
         /// Space in-between items.
         spacing -> stack_spacing: 0.0;
         /// Widget items.
         items -> widget_children: ui_vec![];
+        /// Items margin.
+        padding -> margin;
     }
 
     /// New stack layout.
@@ -153,11 +155,13 @@ widget! {
     /// Vertical stack layout.
     pub v_stack;
 
-    default {
+    default_child {
         /// Space in-between items.
         spacing -> stack_spacing: 0.0;
         /// Widget items.
         items -> widget_children: ui_vec![];
+        /// Items margin.
+        padding -> margin;
     }
 
     /// New stack layout.
@@ -188,10 +192,14 @@ struct ZStack {
 impl UiNode for ZStack {}
 
 widget! {
+    /// Layering stack layout.
     pub z_stack;
 
-    default {
+    default_child {
+        /// Widget items.
         items -> widget_children: ui_vec![];
+        /// Items margin.
+        padding -> margin;
     }
 
     fn new_child(items) -> impl UiNode {

@@ -50,7 +50,6 @@ macro_rules! error_println {
 pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
 
 pub mod core;
-pub mod layouts;
 pub mod properties;
 pub mod widgets;
 
@@ -67,7 +66,7 @@ pub mod prelude {
         window::{AppRunWindow, Window, Windows},
         UiNode, Widget,
     };
-    pub use crate::layouts::*;
+    pub use crate::widgets::layouts::*;
     pub use crate::properties::*;
     pub use crate::widgets::*;
 }
