@@ -23,7 +23,7 @@ fn main() {
 
 fn example() -> impl Widget {
     let t = var("Click Me!");
-    let background_color = rgb(0, 0, 0);    
+    let background_color = rgb(0, 0, 0);
 
     button! {
         on_click: enclose!{ (t) move |a| {

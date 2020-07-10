@@ -475,7 +475,7 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget.
-/// All widgets automatically inherit from [`implicit_mixin`](zero_ui::widgets::implicit_mixin) (after all other inherits).
+/// All widgets automatically inherit from [`implicit_mixin`](zero_ui::widgets::mixins::implicit_mixin) (after all other inherits).
 ///
 /// ### Conflict Resolution
 ///

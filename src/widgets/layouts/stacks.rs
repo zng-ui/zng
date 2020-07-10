@@ -7,7 +7,10 @@ use crate::core::{
     UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
 };
 use crate::core::{impl_ui_node, widget};
-use crate::properties::{capture_only::{stack_spacing, widget_children}, margin};
+use crate::properties::{
+    capture_only::{stack_spacing, widget_children},
+    margin,
+};
 use std::marker::PhantomData;
 
 trait StackDimension: 'static {

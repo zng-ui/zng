@@ -2,7 +2,7 @@ use crate::core::types::{rgb, ColorF, LayoutSideOffsets};
 use crate::core::var::context_var;
 use crate::core::widget;
 use crate::properties::{background_color, is_hovered, is_pressed, on_click};
-use crate::widgets::{container, focusable_mixin};
+use crate::widgets::{container, mixins::focusable_mixin};
 
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.

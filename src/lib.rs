@@ -66,7 +66,7 @@ pub mod prelude {
         window::{AppRunWindow, Window, Windows},
         UiNode, Widget,
     };
-    pub use crate::widgets::layouts::*;
     pub use crate::properties::*;
+    pub use crate::widgets::layouts::*;
     pub use crate::widgets::*;
 }

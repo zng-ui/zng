@@ -1328,7 +1328,7 @@ pub mod output {
             let crate_ = zero_ui_crate_ident();
 
             let some_mixin = if self.is_mixin { None } else { Some(()) };
-            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::implicit_mixin; ));
+            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::mixins::implicit_mixin; ));
             let new = some_mixin.map(|_| self.new.new_tokens(widget_name));
             let new_child = some_mixin.map(|_| self.new_child.new_child_tokens(widget_name));
 

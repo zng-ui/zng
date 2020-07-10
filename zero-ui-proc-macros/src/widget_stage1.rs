@@ -13,7 +13,7 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
         if wgt.header.inherit_start.is_none() {
             wgt.header.inherit_start = Some(parse_quote!(:));
         }
-        wgt.header.inherits.push(parse_quote!(#crate_::widgets::implicit_mixin));
+        wgt.header.inherits.push(parse_quote!(#crate_::widgets::mixins::implicit_mixin));
     } else if wgt.header.inherits.is_empty() {
         return super::widget_stage3::expand(quote! { mixin: true #wgt }.into());
     }
