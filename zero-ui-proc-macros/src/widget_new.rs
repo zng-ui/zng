@@ -674,6 +674,9 @@ mod output {
             let widget = &self.widget;
             let property = &self.property;
             let crate_ = zero_ui_crate_ident();
+            // TODO fix bug:
+            // when self.is_state is not used in button, it is searched in button.
+            // make self.widget optional.
             tokens.extend(quote! {let #var_name = #widget::properties::#property::args(#crate_::core::var::state_var());})
         }
     }

@@ -23,9 +23,7 @@ fn main() {
 
 fn example() -> impl Widget {
     let t = var("Click Me!");
-    let background_color = rgb(0, 0, 0);
-    // TODO fix bug:
-    // when self.is_state is not used in button, it is searched in button.
+    let background_color = rgb(0, 0, 0);    
 
     button! {
         on_click: enclose!{ (t) move |a| {

@@ -34,8 +34,8 @@ widget! {
         background_color: ButtonBackgroundHovered;
     }
 
-    /// When the mouse or touch pressed on this button and has not yet released.
-    when self.is_pressed  {
-        background_color: ButtonBackgroundPressed;
-    }
+    ///// When the mouse or touch pressed on this button and has not yet released.
+    //when self.is_pressed  {
+    //    background_color: ButtonBackgroundPressed;
+    //}
 }
