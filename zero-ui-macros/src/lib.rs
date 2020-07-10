@@ -594,19 +594,19 @@ macro_rules! switch_var {
         zero_ui::core::var::SwitchVar3::new($index, $v0, $v1, $v2)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
-        zero_ui::core::var::SwitchVar4::new($index, $v0, $v1, $v2)
+        zero_ui::core::var::SwitchVar4::new($index, $v0, $v1, $v2, $v3)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
-        zero_ui::core::var::SwitchVar5::new($index, $v0, $v1, $v2, $v4)
+        zero_ui::core::var::SwitchVar5::new($index, $v0, $v1, $v2, $v3, $v4)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
-        zero_ui::core::var::SwitchVar6::new($index, $v0, $v1, $v2, $v4, $v5)
+        zero_ui::core::var::SwitchVar6::new($index, $v0, $v1, $v2, $v3, $v4, $v5)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
-        zero_ui::core::var::SwitchVar7::new($index, $v0, $v1, $v2, $v4, $v5, $v6)
+        zero_ui::core::var::SwitchVar7::new($index, $v0, $v1, $v2, $v3, $v4, $v5, $v6)
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
-        zero_ui::core::var::SwitchVar8::new($index, $v0, $v1, $v2, $v4, $v5, $v6, $v7)
+        zero_ui::core::var::SwitchVar8::new($index, $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7)
     };
     ($index: expr, $($v:expr),+) => {
         zero_ui::core::var::SwitchVarDyn::new($index, vec![$($v.boxed()),+])

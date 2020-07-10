@@ -24,9 +24,8 @@ fn main() {
 fn example() -> impl Widget {
     let t = var("Click Me!");
     let background_color = rgb(0, 0, 0);
-    // TODO fix bugs:
+    // TODO fix bug:
     // when self.is_state is not used in button, it is searched in button.
-    // switch_var with more than 4 vars does not expand to a correct new(..) call.
 
     button! {
         on_click: enclose!{ (t) move |a| {
