@@ -13,12 +13,15 @@ fn main() {
         window! {
             size: size;
             title: title;
-            content: v_stack((example(), example()).into());
+            content: v_stack! {
+                spacing: 5.0;
+                items: ui_vec![example(), example()];
+            };
         }
     })
 }
 
-fn example() -> impl UiNode {
+fn example() -> impl Widget {
     let t = var("Click Me!");
 
     button! {

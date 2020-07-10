@@ -15,7 +15,7 @@ pub mod types;
 pub mod var;
 pub mod window;
 
-pub use zero_ui_macros::{impl_ui_node, property, widget, widget_mixin};
+pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
 
 use context::{LazyStateMap, WidgetContext};
 use render::FrameBuilder;
@@ -226,3 +226,9 @@ pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties:
 pub fn is_layout_any_size(f: f32) -> bool {
     f.is_infinite() && f.is_sign_positive()
 }
+
+/// Value that indicates that any size is available during layout.
+pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
+
+/// A mixed vector of [`UiNode`](UiNode) types.
+pub type UiVec = Vec<Box<dyn UiNode>>;

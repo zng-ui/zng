@@ -1,7 +1,7 @@
 //! Properties that are only used by widgets directly by capturing them in the `new` or `new_child` function.
 
 use crate::{
-    core::{property, types::WidgetId, var::IntoVar},
+    core::{property, types::WidgetId, var::IntoVar, UiVec},
     prelude::{Text, UiNode},
 };
 
@@ -24,6 +24,14 @@ pub fn widget_id(id: WidgetId) -> ! {}
 /// Widgets that contain a single other widget can capture this property in their implementation.
 #[property(capture_only)]
 pub fn widget_child(child: impl UiNode) -> ! {}
+
+/// Widget children nodes.
+///
+/// # Layout
+///
+/// Layout widgets can capture this property in their implementation.
+#[property(capture_only)]
+pub fn widget_children(children: UiVec) -> ! {}
 
 /// Stack in-between spacing.
 #[property(capture_only)]

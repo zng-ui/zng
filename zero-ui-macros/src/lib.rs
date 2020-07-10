@@ -615,3 +615,24 @@ macro_rules! switch_var {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
     };
 }
+
+/// Creates a [`UiVec`](zero_ui::core::UiVec) containing the arguments.
+///
+/// # Example
+///
+/// ```
+/// let widgets = ui_vec![
+///     text("Hello"),
+///     text("World!")
+/// ];
+/// ```
+/// `ui_vec!` automatically boxes each widget.
+#[macro_export]
+macro_rules! ui_vec {
+    () => { zero_ui::core::UiVec::new() };
+    ($($node:expr),+ $(,)?) => {
+        vec![
+            $(zero_ui::core::UiNode::boxed($node)),*
+        ]
+    };
+}

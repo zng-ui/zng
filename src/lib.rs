@@ -62,9 +62,10 @@ pub mod prelude {
             formatx, rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
             ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
+        ui_vec,
         var::{var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
-        UiNode,
+        UiNode, Widget,
     };
     pub use crate::layouts::*;
     pub use crate::properties::*;

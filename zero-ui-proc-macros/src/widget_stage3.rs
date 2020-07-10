@@ -911,13 +911,13 @@ pub mod analysis {
             macro_new_child = BuiltNew::default();
             new_child = NewFn::None;
         }
-        
+
         let mut captured_properties = HashSet::new();
         for captured in macro_new_child.properties.iter().chain(macro_new.properties.iter()) {
             if !captured_properties.insert(captured) {
                 errors.push(format! {"property `{}` already captured", captured}, captured.span())
             }
-        }        
+        }
         //docs_other.drain_filter()
         let mut i = 0;
         while i != docs_other.len() {

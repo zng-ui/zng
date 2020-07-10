@@ -6,7 +6,7 @@ use crate::core::render::FrameBuilder;
 use crate::core::types::Text;
 use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar, ObjVar, Var};
-use crate::core::UiNode;
+use crate::core::{UiNode, Widget};
 use std::{borrow::Cow, fmt, rc::Rc};
 use zero_ui_macros::widget;
 
@@ -140,42 +140,6 @@ impl fmt::Debug for TextTransformFn {
     }
 }
 
-/// Simple text run.
-///
-/// # Configure
-///
-/// Text spans can be configured by setting [`font_family`](crate::properties::font_family),
-/// [`font_size`](crate::properties::font_size) or [`text_color`](crate::properties::text_color)
-/// in parent widgets.
-///
-/// # Example
-/// ```
-/// # fn main() -> () {
-/// use zero_ui::widgets::{container, text};
-/// use zero_ui::properties::{font_family, font_size};
-///
-/// let hello_txt = container! {
-///     font_family: "Arial";
-///     font_size: 18;
-///     content: text_run("Hello!");
-/// };
-/// # }
-/// ```
-///
-/// # `text!`
-///
-/// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
-pub fn text(text: impl IntoVar<Text>) -> impl UiNode {
-    TextRun {
-        text: text.into_var(),
-
-        glyphs: vec![],
-        size: LayoutSize::default(),
-        font: None,
-        color: ColorF::BLACK,
-    }
-}
-
 use crate::properties::{capture_only::text_value, font_family, font_size, text_color};
 
 widget! {
@@ -216,6 +180,44 @@ widget! {
     /// Creates a [`text`](../fn.text.html).
     #[inline]
     fn new_child(text) -> impl UiNode {
-        super::text(text.unwrap())
+        TextRun {
+            text: text.unwrap().into_var(),
+
+            glyphs: vec![],
+            size: LayoutSize::default(),
+            font: None,
+            color: ColorF::BLACK,
+        }
+    }
+}
+
+/// Simple text run.
+///
+/// # Configure
+///
+/// Text spans can be configured by setting [`font_family`](crate::properties::font_family),
+/// [`font_size`](crate::properties::font_size) or [`text_color`](crate::properties::text_color)
+/// in parent widgets.
+///
+/// # Example
+/// ```
+/// # fn main() -> () {
+/// use zero_ui::widgets::{container, text};
+/// use zero_ui::properties::{font_family, font_size};
+///
+/// let hello_txt = container! {
+///     font_family: "Arial";
+///     font_size: 18;
+///     content: text("Hello!");
+/// };
+/// # }
+/// ```
+///
+/// # `text!`
+///
+/// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
+pub fn text(text: impl IntoVar<Text>) -> impl Widget {
+    text! {
+        text: text;
     }
 }
