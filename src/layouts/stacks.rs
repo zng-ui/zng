@@ -170,13 +170,13 @@ widget! {
 /// Horizontal stack layout short
 pub fn h_stack(items: UiVec) -> impl Widget {
     h_stack! {
-        items: items;
+        items;
     }
 }
 
 pub fn v_stack(items: UiVec) -> impl Widget {
     v_stack! {
-        items: items;
+        items;
     }
 }
 
@@ -202,7 +202,5 @@ widget! {
 }
 
 pub fn z_stack(items: UiVec) -> impl Widget {
-    z_stack! {
-        items: items;
-    }
+    z_stack! { items; }
 }

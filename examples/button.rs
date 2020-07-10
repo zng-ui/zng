@@ -23,6 +23,10 @@ fn main() {
 
 fn example() -> impl Widget {
     let t = var("Click Me!");
+    let background_color = rgb(0, 0, 0);
+    // TODO fix bugs:
+    // when self.is_state is not used in button, it is searched in button.
+    // switch_var with more than 4 vars does not expand to a correct new(..) call.
 
     button! {
         on_click: enclose!{ (t) move |a| {
@@ -32,5 +36,9 @@ fn example() -> impl Widget {
         align: Alignment::CENTER;
 
         content: text(t);
+
+        when self.is_pressed {
+            background_color;
+        }
     }
 }

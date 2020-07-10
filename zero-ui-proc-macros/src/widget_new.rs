@@ -12,13 +12,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 mod input {
     pub use crate::{
         util::{non_user_braced, non_user_parenthesized},
-        widget_stage3::input::{InheritedProperty, InheritedWhen, PropertyAssign, PropertyValue as InputPropertyValue, WgtItemWhen},
+        widget_stage3::input::{InheritedProperty, InheritedWhen, PropertyAssign, PropertyBlock, PropertyValue as InputPropertyValue},
     };
     use proc_macro2::Ident;
     use syn::{
         parse::{Parse, ParseStream},
         punctuated::Punctuated,
-        Error, Token,
+        Error, Expr, Token,
     };
 
     mod keyword {
@@ -75,12 +75,15 @@ mod input {
 
     pub enum UserInputItem {
         Property(PropertyAssign),
+        ShortProperty(ShortPropertyAssign),
         When(WgtItemWhen),
     }
     impl Parse for UserInputItem {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             if input.peek2(Token![:]) {
                 Ok(UserInputItem::Property(input.parse()?))
+            } else if input.peek2(Token![;]) {
+                Ok(UserInputItem::ShortProperty(input.parse()?))
             } else if input.peek(keyword::when) {
                 Ok(UserInputItem::When(input.parse()?))
             } else {
@@ -88,16 +91,64 @@ mod input {
             }
         }
     }
+
+    pub struct WgtItemWhen {
+        pub when_token: keyword::when,
+        pub condition: Box<Expr>,
+        pub block: WhenBlock,
+    }
+    impl Parse for WgtItemWhen {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            Ok(WgtItemWhen {
+                when_token: input.parse()?,
+                condition: Box::new(Expr::parse_without_eager_brace(input)?),
+                block: input.parse()?,
+            })
+        }
+    }
+    pub type WhenBlock = PropertyBlock<WhenPropertyAssign>;
+
+    pub enum WhenPropertyAssign {
+        Assign(PropertyAssign),
+        Short(ShortPropertyAssign),
+    }
+
+    impl Parse for WhenPropertyAssign {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            if input.peek2(Token![:]) {
+                Ok(WhenPropertyAssign::Assign(input.parse()?))
+            } else if input.peek2(Token![;]) {
+                Ok(WhenPropertyAssign::Short(input.parse()?))
+            } else {
+                Err(Error::new(input.span(), "expected property assign"))
+            }
+        }
+    }
+
+    pub struct ShortPropertyAssign {
+        pub ident: Ident,
+        pub semi_token: Token![;],
+    }
+    impl Parse for ShortPropertyAssign {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            Ok(ShortPropertyAssign {
+                ident: input.parse()?,
+                semi_token: input.parse()?,
+            })
+        }
+    }
 }
 
 mod analysis {
-    use super::input::InputPropertyValue;
-    use super::input::UserInputItem;
-    use super::{input::WidgetNewInput, output::*};
+    use super::{
+        input::{self, InputPropertyValue, PropertyBlock, UserInputItem, WidgetNewInput},
+        output::*,
+    };
+    use crate::widget_stage3::input::WgtItemWhen;
     use crate::{property::input::Prefix, util::Errors, widget_stage3::analysis::*};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
-    use syn::spanned::Spanned;
+    use syn::{parse_quote, spanned::Spanned};
 
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
         let mut properties = vec![];
@@ -105,7 +156,8 @@ mod analysis {
         for item in input.user_input.items {
             match item {
                 UserInputItem::Property(p) => properties.push(p),
-                UserInputItem::When(w) => whens.push(w),
+                UserInputItem::ShortProperty(p) => properties.push(p.into()),
+                UserInputItem::When(w) => whens.push(w.into()),
             }
         }
 
@@ -475,6 +527,43 @@ mod analysis {
                 properties: input.new.into_iter().collect(),
             },
             errors,
+        }
+    }
+
+    impl From<input::ShortPropertyAssign> for input::PropertyAssign {
+        fn from(p: input::ShortPropertyAssign) -> Self {
+            input::PropertyAssign {
+                colon_token: parse_quote![:],
+                value: {
+                    let ident = &p.ident;
+                    parse_quote!(#ident)
+                },
+                ident: p.ident,
+                semi_token: p.semi_token,
+            }
+        }
+    }
+
+    impl From<input::WgtItemWhen> for WgtItemWhen {
+        fn from(w: input::WgtItemWhen) -> Self {
+            WgtItemWhen {
+                attrs: vec![],
+                when_token: w.when_token,
+                condition: w.condition,
+                block: PropertyBlock {
+                    brace_token: w.block.brace_token,
+                    properties: w.block.properties.into_iter().map(From::from).collect(),
+                },
+            }
+        }
+    }
+
+    impl From<input::WhenPropertyAssign> for input::PropertyAssign {
+        fn from(p: input::WhenPropertyAssign) -> Self {
+            match p {
+                input::WhenPropertyAssign::Assign(a) => a,
+                input::WhenPropertyAssign::Short(p) => p.into(),
+            }
         }
     }
 }
