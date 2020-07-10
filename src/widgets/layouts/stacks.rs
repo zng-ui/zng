@@ -136,6 +136,22 @@ impl StackDimension for HorizontalD {
 
 widget! {
     /// Horizontal stack layout.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let text = v_stack! {
+    ///     spacing: 5.0;
+    ///     items: ui_vec![
+    ///         text("1. Hello"),
+    ///         text("2. World"),
+    ///     ];
+    /// };
+    /// ```
+    ///
+    /// ## `h_stack()`
+    ///
+    /// If you only want to set the `items` property you can use the [`h_stack`](function@h_stack) shortcut function.
     pub h_stack;
 
     default_child {
@@ -156,6 +172,21 @@ widget! {
 
 widget! {
     /// Vertical stack layout.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let text = h_stack! {
+    ///     spacing: 5.0;
+    ///     items: ui_vec![
+    ///         text("Hello"),
+    ///         text("World"),
+    ///     ];
+    /// };
+    /// ```
+    /// ## `v_stack()`
+    ///
+    /// If you only want to set the `items` property you can use the [`v_stack`](function@v_stack) shortcut function.
     pub v_stack;
 
     default_child {
@@ -174,13 +205,42 @@ widget! {
     }
 }
 
-/// Horizontal stack layout short
+/// Basic horizontal stack layout.
+///
+/// # Example
+///
+/// ```
+/// let text = h_stack(ui_vec![
+///     text("Hello "),
+///     text("World"),
+/// ]);
+/// ```
+///
+/// # `h_stack!`
+///
+/// This function is just a shortcut for [`h_stack!`](module@v_stack). Use the full widget
+/// to better configure the horizontal stack widget.
 pub fn h_stack(items: UiVec) -> impl Widget {
     h_stack! {
         items;
     }
 }
 
+/// Basic vertical stack layout.
+///
+/// # Example
+///
+/// ```
+/// let text = v_stack(ui_vec![
+///     text("1. Hello"),
+///     text("2. World"),
+/// ]);
+/// ```
+///
+/// # `v_stack!`
+///
+/// This function is just a shortcut for [`v_stack!`](module@v_stack). Use the full widget
+/// to better configure the vertical stack widget.
 pub fn v_stack(items: UiVec) -> impl Widget {
     v_stack! {
         items;
@@ -196,6 +256,22 @@ impl UiNode for ZStack {}
 
 widget! {
     /// Layering stack layout.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let text = z_stack! {
+    ///     padding: 5.0;
+    ///     items: ui_vec![
+    ///         text("under"),
+    ///         text("over"),
+    ///     ];
+    /// }
+    /// ```
+    ///
+    /// ## `z_stack()`
+    ///
+    /// If you only want to set the `items` property you can use the [`z_stack`](function@z_stack) shortcut function.
     pub z_stack;
 
     default_child {
@@ -212,6 +288,21 @@ widget! {
     }
 }
 
+/// Basic layering stack layout.
+///
+/// # Example
+///
+/// ```
+/// let text = z_stack(ui_vec![
+///     text("under"),
+///     text("over"),
+/// ]);
+/// ```
+///
+/// # `z_stack!`
+///
+/// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
+/// to better configure the layering stack widget.
 pub fn z_stack(items: UiVec) -> impl Widget {
     z_stack! { items; }
 }
