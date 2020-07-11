@@ -312,7 +312,7 @@ mod analysis {
                     continue;
                 } else if Prefix::new(&arg) == Prefix::State {
                     is_bindings.push(StateBinding {
-                        widget: input.name.clone(),
+                        widget: Some(input.name.clone()),
                         property: arg,
                     })
                 } else if let Some(_u) = unset_properties.get(&arg) {
@@ -404,7 +404,7 @@ mod analysis {
                     continue;
                 } else if Prefix::new(&arg) == Prefix::State {
                     is_bindings.push(StateBinding {
-                        widget: input.name.clone(),
+                        widget: None,
                         property: arg.clone(),
                     })
                 } else if let Some(_u) = unset_properties.get(&arg) {
@@ -665,19 +665,17 @@ mod output {
     }
 
     pub struct StateBinding {
-        pub widget: Ident,
+        pub widget: Option<Ident>,
         pub property: Ident,
     }
     impl ToTokens for StateBinding {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_args", self.property);
-            let widget = &self.widget;
             let property = &self.property;
             let crate_ = zero_ui_crate_ident();
-            // TODO fix bug:
-            // when self.is_state is not used in button, it is searched in button.
-            // make self.widget optional.
-            tokens.extend(quote! {let #var_name = #widget::properties::#property::args(#crate_::core::var::state_var());})
+            let mod_ = self.widget.as_ref().map(|widget| quote!(#widget::properties::));
+
+            tokens.extend(quote! {let #var_name = #mod_#property::args(#crate_::core::var::state_var());})
         }
     }
 
@@ -753,14 +751,23 @@ mod output {
                 }
                 WhenCondition::Local {
                     widget,
-                    properties: p,
+                    properties,
                     widget_properties,
                     expr,
                 } => {
-                    let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
-                    tokens.extend(quote! {
-                        #(#widget::properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
-                    });
+                    for property in properties {
+                        let not_allowed_msg = format!("property `{}` is not allowed in when condition", property);
+
+                        let mod_ = if widget_properties.contains(property) {
+                            Some(quote! {#widget::properties::})
+                        } else {
+                            None
+                        };
+
+                        tokens.extend(quote! {
+                            #mod_#property::assert!(allowed_in_when, #not_allowed_msg);
+                        });
+                    }
                     expr.to_local_tokens(widget, widget_properties, tokens)
                 }
             }
@@ -807,7 +814,7 @@ mod output {
     impl WhenPropertyRef {
         fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>) -> TokenStream {
             let crate_ = zero_ui_crate_ident();
-            let widget = if widget_properties.contains(&self.property) {
+            let mod_ = if widget_properties.contains(&self.property) {
                 Some(quote! {#widget::properties::})
             } else {
                 None
@@ -817,7 +824,7 @@ mod output {
             let arg = &self.arg;
             let name = self.name();
             quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#widget#property::#arg(&#property_args)));
+                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
             }
         }
     }
