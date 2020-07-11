@@ -1162,6 +1162,7 @@ mod output {
             });
 
             // assert!
+            let assert_ident = ident!("assert_{}", pid);
             fn assert_compile_error(case: bool) -> Option<TokenStream> {
                 if case {
                     None
@@ -1171,8 +1172,6 @@ mod output {
             }
             let allowed_in_when_rule = assert_compile_error(self.allowed_in_when);
             let capture_only_rule = assert_compile_error(!self.priority.is_capture_only());
-
-            let assert_ident = ident!("assert_{}", pid);
             tokens.extend(quote! {
                 #[doc(hidden)]
                 #[macro_export]
@@ -1189,9 +1188,9 @@ mod output {
                 pub use #assert_ident as assert;
             });
 
-            // if_export
-            let if_export_rule = if self.can_export { quote!( $($tt)* ) } else { quote!() };
+            // if_export!
             let if_export_ident = ident!("if_export_{}", pid);
+            let if_export_rule = if self.can_export { quote!( $($tt)* ) } else { quote!() };
             tokens.extend(quote! {
                 #[doc(hidden)]
                 #[macro_export]
