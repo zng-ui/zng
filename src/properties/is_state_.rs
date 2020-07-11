@@ -1,5 +1,6 @@
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::focus::{FocusChanged, FocusChangedArgs};
 use crate::core::mouse::*;
 use crate::core::var::{ObjVar, StateVar, VarIsReadOnly};
 use crate::core::UiNode;
@@ -97,14 +98,34 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
 struct IsFocused<C: UiNode> {
     child: C,
     state: StateVar,
+    focus_changed: EventListener<FocusChangedArgs>,
 }
 
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocused<C> {
-    //TODO, implement this
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(u) = self.focus_changed.updates(ctx.events).last() {
+            let was_focused = *self.state.get(ctx.vars);
+            let is_focused = u.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default();
+
+            if was_focused != is_focused {
+                self.state.push_set(is_focused, ctx.vars, ctx.updates).warn_err("is_focused");
+            }
+        }
+        self.child.update(ctx);
+    }
 }
 
 #[property(context)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsFocused { child, state }
+    IsFocused {
+        child,
+        state,
+        focus_changed: EventListener::never(false),
+    }
 }
