@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", function() {
     var ul = document.querySelector("div.block.items ul");
     prepend_item("other-properties", "Other properties", ul);
+    prepend_item("state-properties", "State properties", ul);
     prepend_item("provided-properties", "Provided properties", ul);
     prepend_item("required-properties", "Required properties", ul);
 });

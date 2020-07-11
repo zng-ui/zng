@@ -642,6 +642,7 @@ pub mod analysis {
         let mut docs_required = vec![];
         let mut docs_provided = vec![];
         let mut docs_other = vec![];
+        let mut docs_state = vec![];//TODO
 
         let mut inherited_fns = None;
 
@@ -965,6 +966,7 @@ pub mod analysis {
                     required: docs_required,
                     provided: docs_provided,
                     other: docs_other,
+                    state: docs_state,
                 },
                 attrs,
                 vis: input.header.vis,
@@ -1369,6 +1371,8 @@ pub mod output {
         pub provided: Vec<PropertyDocs>,
         ///properties that are defined in the widget, but have no default value and are not required
         pub other: Vec<PropertyDocs>,
+        ///state properties that are defined in the widget
+        pub state: Vec<PropertyDocs>,
     }
 
     impl ToTokens for WidgetDocs {
@@ -1407,6 +1411,13 @@ pub mod output {
             if !self.provided.is_empty() {
                 open_section(tokens, "provided-properties", "Provided properties");
                 for doc in &self.provided {
+                    doc.to_tokens(tokens);
+                }
+                close_section(tokens);
+            }
+            if !self.state.is_empty() {
+                open_section(tokens, "state-properties", "State properties");
+                for doc in &self.state {
                     doc.to_tokens(tokens);
                 }
                 close_section(tokens);
