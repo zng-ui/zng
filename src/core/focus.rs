@@ -119,13 +119,14 @@ impl AppExtension for FocusManager {
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        for args in self.mouse_down.updates(ctx.events) {
-            //if todo!() {
-            //    ctx.services.require::<Focus>().focus_widget(ctx.widget_id);
-            //}
+        if let Some(args) = self.mouse_down.updates(ctx.events).last() {
+            let widget_id = args.target.widget_id();
+            if Some(widget_id) != self.focused {
+                ctx.services.req::<Focus>().focus_widget(widget_id);
+            }
         }
         if let Some(request) = ctx.services.req::<Focus>().request.take() {
-            todo!()
+            //TODO
         }
     }
 }
@@ -153,6 +154,7 @@ impl Focus {
         self.focused.as_ref()
     }
 
+    
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
