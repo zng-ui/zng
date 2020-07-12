@@ -3,6 +3,7 @@
 use crate::core::app::AppExtension;
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
@@ -99,6 +100,7 @@ pub struct FocusManager {
     focused: Option<WidgetId>,
     focus_changed: EventEmitter<FocusChangedArgs>,
     mouse_down: EventListener<MouseInputArgs>,
+    key_down: EventListener<KeyInputArgs>,
 }
 
 impl Default for FocusManager {
@@ -107,6 +109,7 @@ impl Default for FocusManager {
             focused: None,
             focus_changed: EventEmitter::new(false),
             mouse_down: EventListener::never(false),
+            key_down: EventListener::never(false),
         }
     }
 }
@@ -114,18 +117,50 @@ impl Default for FocusManager {
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         self.mouse_down = ctx.events.listen::<MouseDown>();
+        self.key_down = ctx.events.listen::<KeyDown>();
+
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
+
         ctx.events.register::<FocusChanged>(self.focus_changed.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if let Some(args) = self.mouse_down.updates(ctx.events).last() {
-            let widget_id = args.target.widget_id();
-            if Some(widget_id) != self.focused {
-                ctx.services.req::<Focus>().focus_widget(widget_id);
+        let mut request = None;
+
+        if let Some(req) = ctx.services.req::<Focus>().request.take() {
+            // coded
+            request = Some(req);
+        } else {
+            if let Some(args) = self.mouse_down.updates(ctx.events).last() {
+                let widget_id = args.target.widget_id();
+                if Some(widget_id) != self.focused {
+                    // click
+                    request = Some(FocusRequest::Direct(widget_id));
+                }
+            }
+
+            if request.is_none() {
+                if let Some(args) = self.key_down.updates(ctx.events).last() {
+                    // keyboard
+                    match &args.key {
+                        Some(VirtualKeyCode::Tab) => {
+                            request = Some(if args.modifiers.shift() {
+                                FocusRequest::Prev
+                            } else {
+                                FocusRequest::Next
+                            })
+                        }
+                        Some(VirtualKeyCode::Up) => request = Some(FocusRequest::Up),
+                        Some(VirtualKeyCode::Down) => request = Some(FocusRequest::Down),
+                        Some(VirtualKeyCode::Left) => request = Some(FocusRequest::Left),
+                        Some(VirtualKeyCode::Right) => request = Some(FocusRequest::Right),
+                        _ => {}
+                    }
+                }
             }
         }
-        if let Some(request) = ctx.services.req::<Focus>().request.take() {
+
+        if let Some(request) = request {
             //TODO
         }
     }
@@ -154,7 +189,6 @@ impl Focus {
         self.focused.as_ref()
     }
 
-    
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
