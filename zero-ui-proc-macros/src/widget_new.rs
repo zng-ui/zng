@@ -306,14 +306,14 @@ mod analysis {
         'when_for: for when in input.whens {
             let mut is_bindings = vec![];
 
-            for arg in when.args {
-                if user_properties.contains_key(&arg) || state_bindings_done.contains(&arg) || widget_defaults.contains(&arg) {
+            for arg in when.args.iter() {
+                if user_properties.contains_key(arg) || state_bindings_done.contains(arg) || widget_defaults.contains(arg) {
                     // user or widget already set arg or another when already uses the same property.
                     continue;
                 } else if Prefix::new(&arg) == Prefix::State {
                     is_bindings.push(StateBinding {
                         widget: Some(input.name.clone()),
-                        property: arg,
+                        property: arg.clone(),
                     })
                 } else if let Some(_u) = unset_properties.get(&arg) {
                     // TODO warning when API stabilizes.
@@ -330,7 +330,7 @@ mod analysis {
                 condition: WhenCondition::Inherited {
                     widget: input.name.clone(),
                     index: when_index,
-                    properties: is_bindings.iter().map(|b| b.property.clone()).collect(),
+                    properties: when.args.into_iter().collect(),
                 },
             });
 
