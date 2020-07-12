@@ -87,8 +87,8 @@ pub enum DirectionalNav {
     Cycle,
 }
 
+/// Focus changed event.
 pub struct FocusChanged;
-
 impl Event for FocusChanged {
     type Args = FocusChangedArgs;
 }
@@ -114,7 +114,8 @@ impl Default for FocusManager {
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         self.mouse_down = ctx.events.listen::<MouseDown>();
-        ctx.services.register(Focus::new(ctx.updates.notifier().clone()))
+        ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
+        ctx.events.register::<FocusChanged>(self.focus_changed.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {

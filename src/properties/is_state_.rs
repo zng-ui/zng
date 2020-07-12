@@ -93,7 +93,7 @@ struct IsFocused<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocused<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        //self.focus_changed = ctx.events.listen::<FocusChanged>();//TODO
+        self.focus_changed = ctx.events.listen::<FocusChanged>();
         self.child.init(ctx);
     }
 
@@ -132,7 +132,7 @@ struct IsFocusWithin<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocusWithin<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        //self.focus_changed = ctx.events.listen::<FocusChanged>();//TODO
+        self.focus_changed = ctx.events.listen::<FocusChanged>();
         self.child.init(ctx);
     }
 
