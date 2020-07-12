@@ -1,5 +1,13 @@
 document.addEventListener("DOMContentLoaded", function() {
     var ul = document.querySelector("div.block.items ul");
+    if (ul === null) {
+        var sidebar_elems = document.querySelector("div.sidebar-elems");
+        var block_items = document.createElement("div");
+        block_items.className = "block items";
+        ul = document.createElement("ul");
+        block_items.append(ul);
+        sidebar_elems.prepend(block_items);
+    }
     prepend_item("other-properties", "Other properties", ul);
     prepend_item("state-properties", "State properties", ul);
     prepend_item("provided-properties", "Provided properties", ul);
