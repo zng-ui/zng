@@ -498,7 +498,10 @@ pub mod input {
 pub mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
     use super::output::*;
-    use crate::util::{Attributes, Errors};
+    use crate::{
+        property::input::Prefix as PropertyPrefix,
+        util::{Attributes, Errors},
+    };
     use input::{PropertyAssign, PropertyValue, WgtItemWhen};
     use proc_macro2::Ident;
     use std::collections::{HashMap, HashSet};
@@ -641,8 +644,8 @@ pub mod analysis {
         // all property docs
         let mut docs_required = vec![];
         let mut docs_provided = vec![];
+        let mut docs_state = vec![];
         let mut docs_other = vec![];
-        let mut docs_state = vec![];//TODO
 
         let mut inherited_fns = None;
 
@@ -681,9 +684,15 @@ pub mod analysis {
                         }
 
                         let docs = match property.kind {
-                            BuiltPropertyKind::Required => &mut docs_required,
-                            BuiltPropertyKind::Local => &mut docs_other,
                             BuiltPropertyKind::Default => &mut docs_provided,
+                            BuiltPropertyKind::Required => &mut docs_required,
+                            BuiltPropertyKind::Local => {
+                                if PropertyPrefix::is_state(&property.ident) {
+                                    &mut docs_state
+                                } else {
+                                    &mut docs_other
+                                }
+                            }
                         };
                         docs.push(PropertyDocs {
                             docs: property.docs.clone(),
@@ -723,12 +732,7 @@ pub mod analysis {
                         .collect(),
                 });
 
-                mod_properties
-                    .props
-                    .extend(when.args.iter().cloned().map(|ident| WidgetPropertyUse::Inherited {
-                        widget: inherit_path.clone(),
-                        ident,
-                    }));
+                // mod_properties.props not needed, compiled widgets include when condition properties as local.
 
                 macro_whens.push(when);
 
@@ -765,6 +769,8 @@ pub mod analysis {
                 &mut docs_required
             } else if has_value {
                 &mut docs_provided
+            } else if PropertyPrefix::is_state(&property.ident) {
+                &mut docs_state
             } else {
                 &mut docs_other
             };
@@ -838,9 +844,36 @@ pub mod analysis {
                 }
             };
 
-            mod_properties
-                .props
-                .extend(when_analysis.properties.iter().map(|p| WidgetPropertyUse::Mod(p.property.clone())));
+            for p in when_analysis.properties.iter() {
+                if !inheritance_map.contains_key(&p.property) {
+                    inheritance_map.insert(p.property.clone(), PropertyOrigin::New);
+
+                    mod_properties.props.push(WidgetPropertyUse::Mod(p.property.clone()));
+
+                    let docs = if PropertyPrefix::is_state(&p.property.clone()) {
+                        &mut docs_state
+                    } else {
+                        &mut docs_other
+                    };
+
+                    let property_docs = vec![]; // TODO import property doc first line.
+
+                    docs.push(PropertyDocs {
+                        docs: property_docs.clone(),
+                        target_child: false,
+                        ident: p.property.clone(),
+                        property_source: PropertySource::Property(p.property.clone()),
+                        is_required_provided: false,
+                    });
+
+                    macro_default.push(BuiltProperty {
+                        docs: property_docs,
+                        kind: BuiltPropertyKind::Local,
+                        ident: p.property.clone(),
+                    });
+                } else {
+                }
+            }
 
             mod_whens.push(WhenCondition {
                 index: when_index,

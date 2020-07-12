@@ -2,7 +2,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::focus::{FocusChanged, FocusChangedArgs};
 use crate::core::mouse::*;
-use crate::core::var::{ObjVar, StateVar, VarIsReadOnly};
+use crate::core::var::{ObjVar, StateVar};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
@@ -126,7 +126,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 struct IsFocusWithin<C: UiNode> {
     child: C,
     state: StateVar,
-    focus_changed: EventListener<FocusChangedArgs>
+    focus_changed: EventListener<FocusChangedArgs>,
 }
 
 #[impl_ui_node(child)]

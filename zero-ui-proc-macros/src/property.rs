@@ -44,6 +44,11 @@ pub mod input {
                 Prefix::None
             }
         }
+
+        pub fn is_state(fn_ident: &Ident) -> bool {
+            let ident_str = fn_ident.to_string();
+            ident_str.starts_with("is_")
+        }
     }
 
     pub struct MacroArgs {
