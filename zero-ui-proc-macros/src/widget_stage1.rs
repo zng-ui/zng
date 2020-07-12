@@ -18,6 +18,7 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
         return super::widget_stage3::expand(quote! { mixin: true #wgt }.into());
     }
 
+    // TODO validate and recover repeated inherits.
     let mut inherits = wgt.header.inherits.clone();
     let first_inherit = inherits.pop().unwrap().into_value();
 
