@@ -5,6 +5,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
+use crate::core::window::Windows;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
 
@@ -97,7 +98,6 @@ impl Event for FocusChanged {
 /// Application extension that manages keyboard focus. Provides the [`FocusChanged`](FocusChanged) event
 /// and [`Focus`](Focus) service.
 pub struct FocusManager {
-    focused: Option<WidgetId>,
     focus_changed: EventEmitter<FocusChangedArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     key_down: EventListener<KeyInputArgs>,
@@ -106,7 +106,6 @@ pub struct FocusManager {
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
-            focused: None,
             focus_changed: EventEmitter::new(false),
             mouse_down: EventListener::never(false),
             key_down: EventListener::never(false),
@@ -125,43 +124,39 @@ impl AppExtension for FocusManager {
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        if update.update_hp {
+            return;
+        }
+
         let mut request = None;
 
         if let Some(req) = ctx.services.req::<Focus>().request.take() {
-            // coded
+            // custom
             request = Some(req);
-        } else {
-            if let Some(args) = self.mouse_down.updates(ctx.events).last() {
-                let widget_id = args.target.widget_id();
-                if Some(widget_id) != self.focused {
-                    // click
-                    request = Some(FocusRequest::Direct(widget_id));
+        } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
+            // click
+            request = Some(FocusRequest::Direct(args.target.widget_id()));
+        } else if let Some(args) = self.key_down.updates(ctx.events).last() {
+            // keyboard
+            match &args.key {
+                Some(VirtualKeyCode::Tab) => {
+                    request = Some(if args.modifiers.shift() {
+                        FocusRequest::Prev
+                    } else {
+                        FocusRequest::Next
+                    })
                 }
-            }
-
-            if request.is_none() {
-                if let Some(args) = self.key_down.updates(ctx.events).last() {
-                    // keyboard
-                    match &args.key {
-                        Some(VirtualKeyCode::Tab) => {
-                            request = Some(if args.modifiers.shift() {
-                                FocusRequest::Prev
-                            } else {
-                                FocusRequest::Next
-                            })
-                        }
-                        Some(VirtualKeyCode::Up) => request = Some(FocusRequest::Up),
-                        Some(VirtualKeyCode::Down) => request = Some(FocusRequest::Down),
-                        Some(VirtualKeyCode::Left) => request = Some(FocusRequest::Left),
-                        Some(VirtualKeyCode::Right) => request = Some(FocusRequest::Right),
-                        _ => {}
-                    }
-                }
+                Some(VirtualKeyCode::Up) => request = Some(FocusRequest::Up),
+                Some(VirtualKeyCode::Down) => request = Some(FocusRequest::Down),
+                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::Left),
+                Some(VirtualKeyCode::Right) => request = Some(FocusRequest::Right),
+                _ => {}
             }
         }
 
         if let Some(request) = request {
-            //TODO
+            let windows = ctx.services.req::<Windows>();
+            //ctx.services.req::<Focus>().do_focus(request, windows);
         }
     }
 }
@@ -228,6 +223,18 @@ impl Focus {
     #[inline]
     pub fn focus_down(&mut self) {
         self.focus(FocusRequest::Down);
+    }
+
+    fn do_focus(&mut self, request: FocusRequest, windows: &mut Windows) -> Option<FocusChangedArgs> {
+        match (&self.focused, request) {
+            (prev, FocusRequest::Direct(widget_id)) => {
+                None//TODO
+            }
+            (Some(prev), move_focus) => {
+                None//TODO
+            }
+            _ => None
+        }
     }
 }
 
