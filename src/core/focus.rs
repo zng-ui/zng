@@ -5,9 +5,9 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
-use crate::core::window::Windows;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
+use crate::core::window::Windows;
 
 event_args! {
     /// [`FocusChanged`](FocusChanged) event args.
@@ -155,8 +155,8 @@ impl AppExtension for FocusManager {
         }
 
         if let Some(request) = request {
-            let windows = ctx.services.req::<Windows>();
-            //ctx.services.req::<Focus>().do_focus(request, windows);
+            let (windows, focus) = ctx.services.req_multi::<(Windows, Focus)>();
+            focus.do_focus(request, windows);
         }
     }
 }
@@ -228,12 +228,12 @@ impl Focus {
     fn do_focus(&mut self, request: FocusRequest, windows: &mut Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request) {
             (prev, FocusRequest::Direct(widget_id)) => {
-                None//TODO
+                None //TODO
             }
             (Some(prev), move_focus) => {
-                None//TODO
+                None //TODO
             }
-            _ => None
+            _ => None,
         }
     }
 }
