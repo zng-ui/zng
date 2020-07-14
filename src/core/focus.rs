@@ -156,7 +156,7 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (windows, focus) = ctx.services.req_multi::<(Windows, Focus)>();
-            focus.do_focus(request, windows);
+            focus.fulfill_request(request, windows);
         }
     }
 }
@@ -225,29 +225,100 @@ impl Focus {
         self.focus(FocusRequest::Down);
     }
 
-    fn do_focus(&mut self, request: FocusRequest, windows: &mut Windows) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request) {
             (_, FocusRequest::Direct(widget_id)) => {
                 for w in windows.windows() {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(widget_id) {
                         if w.is_focusable() {
-                            let new_focus = Some(w.info.path());
-                            if self.focused != new_focus {
-                                let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone());
-                                self.focused = new_focus;
-                                return Some(args);
-                            }
+                            return self.move_focus(Some(w.info.path()));
                         }
                         break;
                     }
                 }
                 None
             }
-            (Some(prev), move_focus) => {
-                None //TODO
+            (Some(prev), move_) => {
+                if let Ok(w) = windows.window(prev.window_id()) {
+                    let frame = FrameFocusInfo::new(w.frame_info());
+                    if let Some(w) = frame.find(prev.widget_id()) {
+                        if let Some(new_focus) = match move_ {
+                            FocusRequest::Next => w.next_focusable(),
+                            FocusRequest::Prev => w.prev_focusable(),
+                            FocusRequest::Left => None, //TODO
+                            FocusRequest::Right => None,
+                            FocusRequest::Up => None,
+                            FocusRequest::Down => None,
+                            FocusRequest::Direct(_) => unreachable!(),
+                        } {
+                            self.move_focus(Some(new_focus.info.path()))
+                        } else {
+                            // widget may have moved inside the same window.
+                            self.continue_focus(windows)
+                        }
+                    } else {
+                        // widget not found.
+                        self.continue_focus(windows)
+                    }
+                } else {
+                    // window not found
+                    self.continue_focus(windows)
+                }
             }
             _ => None,
+        }
+    }
+
+    /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
+    fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+        if let Some(current) = &self.focused {
+            if let Ok(window) = windows.window(current.window_id()) {
+                // TODO check window active
+
+                let frame = FrameFocusInfo::new(window.frame_info());
+                if let Some(widget) = frame.find(current.widget_id()) {
+                    if widget.is_focusable() {
+                        // change focus if widget path changed.
+                        self.move_focus(Some(widget.info.path()))
+                    } else {
+                        // widget no longer focusable
+                        if let Some(parent) = widget.parent() {
+                            // move to focusable parent
+                            self.move_focus(Some(parent.info.path()))
+                        } else {
+                            // no focusable parent, is this an error?
+                            self.move_focus(None)
+                        }
+                    }
+                } else {
+                    // widget not found
+                    
+
+                    None //TODO
+                }
+            } else {
+                // window not found
+                self.focus_active_window(windows)
+            }
+        } else {
+            // no previous focus
+            self.focus_active_window(windows)
+        }
+    }
+
+    fn focus_active_window(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+        // TODO
+        None
+    }
+
+    fn move_focus(&mut self, new_focus: Option<WidgetPath>) -> Option<FocusChangedArgs> {
+        if self.focused != new_focus {
+            let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone());
+            self.focused = new_focus;
+            Some(args)
+        } else {
+            None
         }
     }
 }
