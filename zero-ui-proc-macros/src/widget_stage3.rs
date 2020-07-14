@@ -1508,7 +1508,7 @@ pub mod output {
                     source_widget = p.to_token_stream().to_string().replace(" :: ", "::");
                     doc_extend!(
                         tokens,
-                        "\n[<span class='mod' data-inherited>{0}</span>]({1}#wgproperty.{0})\n",
+                        "\n[<span class='mod' data-inherited>{0}</span>](module@{1}#wgproperty.{0})\n",
                         self.ident,
                         source_widget
                     );
@@ -1526,7 +1526,7 @@ pub mod output {
                     let name_start = source_widget.rfind(':').map(|i| i + 1).unwrap_or_default();
                     doc_extend!(
                         tokens,
-                        "\n*Inherited from [`{}`]({}).*",
+                        "\n*Inherited from [`{}`](module@{}).*",
                         &source_widget[name_start..],
                         source_widget
                     );
