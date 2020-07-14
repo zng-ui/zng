@@ -32,6 +32,13 @@ impl<C: UiNode> UiNode for IsHovered<C> {
             ctx.updates.push_set(&self.state, true, ctx.vars).expect("is_hovered");
         }
     }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_hovered");
+        }
+        self.child.deinit(ctx);
+    }
 }
 
 #[property(context)]
@@ -72,6 +79,13 @@ impl<C: UiNode> UiNode for IsPressed<C> {
             ctx.updates.push_set(&self.state, true, ctx.vars).expect("is_pressed");
         }
     }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_pressed");
+        }
+        self.child.deinit(ctx);
+    }
 }
 
 #[property(context)]
@@ -107,6 +121,13 @@ impl<C: UiNode> UiNode for IsFocused<C> {
             }
         }
         self.child.update(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focused");
+        }
+        self.child.deinit(ctx);
     }
 }
 
@@ -146,6 +167,13 @@ impl<C: UiNode> UiNode for IsFocusWithin<C> {
             }
         }
         self.child.update(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within");
+        }
+        self.child.deinit(ctx);
     }
 }
 
