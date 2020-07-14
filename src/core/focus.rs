@@ -227,8 +227,22 @@ impl Focus {
 
     fn do_focus(&mut self, request: FocusRequest, windows: &mut Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request) {
-            (prev, FocusRequest::Direct(widget_id)) => {
-                None //TODO
+            (_, FocusRequest::Direct(widget_id)) => {
+                for w in windows.windows() {
+                    let frame = FrameFocusInfo::new(w.frame_info());
+                    if let Some(w) = frame.find(widget_id) {
+                        if w.is_focusable() {
+                            let new_focus = Some(w.info.path());
+                            if self.focused != new_focus {
+                                let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone());
+                                self.focused = new_focus;
+                                return Some(args);
+                            }
+                        }
+                        break;
+                    }
+                }
+                None
             }
             (Some(prev), move_focus) => {
                 None //TODO

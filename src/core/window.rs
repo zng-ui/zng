@@ -574,10 +574,16 @@ impl Windows {
         listeners.push(notifier)
     }
 
-    /// Reference a running window.
+    /// Reference an open window.
     #[inline]
     pub fn window(&self, window_id: WindowId) -> Result<&OpenWindow, WindowNotFound> {
         self.windows.get(&window_id).ok_or(WindowNotFound(window_id))
+    }
+
+    /// Iterate over all open windows.
+    #[inline]
+    pub fn windows(&self) -> impl Iterator<Item = &OpenWindow> {
+        self.windows.values()
     }
 
     fn take_requests(&mut self) -> (Vec<OpenWindowRequest>, FnvHashMap<WindowId, CloseTogetherGroup>) {
