@@ -598,11 +598,11 @@ impl ServiceMap {
         Ok(M::downcast_mut(instances))
     }
 
-    pub fn get_mult<'m, M: protected::TypeBundle<'m>>(&'m mut self) -> Option<M::Borrowed> {
+    pub fn get_multi<'m, M: protected::TypeBundle<'m>>(&'m mut self) -> Option<M::Borrowed> {
         self.borrow_multi::<M>().ok()
     }
 
-    pub fn ret_mult<'m, M: protected::TypeBundle<'m>>(&'m mut self) -> M::Borrowed {
+    pub fn ret_multi<'m, M: protected::TypeBundle<'m>>(&'m mut self) -> M::Borrowed {
         self.borrow_multi::<M>().unwrap_or_else(|s| panic!("service `{}` is required", s))
     }
 }
@@ -661,7 +661,7 @@ impl AppServices {
     /// # Panics
     /// If the same service type is requested more then once.
     pub fn get_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
-        self.m.get_mult::<M>()
+        self.m.get_multi::<M>()
     }
 
     /// Requires multiple service references.
@@ -676,7 +676,7 @@ impl AppServices {
     ///
     /// If the same service type is required more then once.
     pub fn req_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> M::Borrowed {
-        self.m.ret_mult::<M>()
+        self.m.ret_multi::<M>()
     }
 }
 
@@ -737,7 +737,7 @@ impl WindowServices {
     ///
     /// If the same service type is requested more then once.
     pub fn get_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
-        self.m.get_mult::<M>()
+        self.m.get_multi::<M>()
     }
 
     /// Requires multiple service references.
@@ -753,7 +753,7 @@ impl WindowServices {
     ///
     /// If the same service type is required more then once.
     pub fn req_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> M::Borrowed {
-        self.m.ret_mult::<M>()
+        self.m.ret_multi::<M>()
     }
 }
 
