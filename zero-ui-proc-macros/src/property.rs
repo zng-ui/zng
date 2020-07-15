@@ -765,7 +765,7 @@ mod output {
             );
 
             doc_extend!(tokens, "\n## Arguments\n");
-            doc_extend!(tokens, "<div id='args_example'>\n");
+            doc_extend!(tokens, "</div><div id='args_example' class='content'>\n");
             doc_extend!(tokens, "<pre class='rust'>");
             for arg in &self.args {
                 doc_extend!(tokens, "{}", arg);
@@ -773,7 +773,7 @@ mod output {
             doc_extend!(tokens, "</pre>\n");
             doc_extend!(tokens, "</div>");
             doc_extend!(tokens, "<script>{}</script>", include_str!("property_args_ext.js"));
-            doc_extend!(tokens, "<style>a[href='fn.doc_helper.html']{ display: none; }</style>");
+            doc_extend!(tokens, "<style>a[href='fn.doc_helper.html']{ display: none; } #args_example { margin: 0 0 0 24px; padding: 0; }</style>");
             doc_extend!(
                 tokens,
                 "<iframe id='args_example_load' style='display:none;' src='fn.doc_helper.html'></iframe>"
