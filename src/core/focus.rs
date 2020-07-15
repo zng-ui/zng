@@ -102,6 +102,7 @@ pub struct FocusManager {
     windows_activation: EventListener<WindowActivatedArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     key_down: EventListener<KeyInputArgs>,
+    focused: Option<WidgetPath>,
 }
 impl Default for FocusManager {
     fn default() -> Self {
@@ -110,6 +111,7 @@ impl Default for FocusManager {
             windows_activation: EventListener::never(false),
             mouse_down: EventListener::never(false),
             key_down: EventListener::never(false),
+            focused: None,
         }
     }
 }
@@ -157,22 +159,27 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            focus.fulfill_request(request, windows);
+            self.notify(focus.fulfill_request(request, windows), ctx);
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            focus.continue_focus(windows);
+            self.notify(focus.continue_focus(windows), ctx);
         }
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-        if focus.focused().map(|f| f.window_id() == window_id).unwrap_or_default() {
+        if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             // new window frame, check if focus is still valid
-            if let Some(change) = focus.continue_focus(windows) {
-                // the focused widget changed, notify
-                ctx.updates.push_notify(self.focus_changed.clone(), change);
-            }
+            self.notify( focus.continue_focus(windows), ctx);
+        }
+    }
+}
+impl FocusManager {
+    fn notify(&mut self, args: Option<FocusChangedArgs>, ctx: &mut AppContext) {
+        if let Some(args) = args {
+            self.focused = args.new_focus.clone();
+            ctx.updates.push_notify(self.focus_changed.clone(), args);
         }
     }
 }
@@ -241,6 +248,7 @@ impl Focus {
         self.focus(FocusRequest::Down);
     }
 
+    #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request) {
             (_, FocusRequest::Direct(widget_id)) => {
@@ -287,6 +295,7 @@ impl Focus {
     }
 
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
+    #[must_use]
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(current) = &self.focused {
             if let Ok(window) = windows.window(current.window_id()) {
@@ -322,6 +331,7 @@ impl Focus {
         }
     }
 
+    #[must_use]
     fn focus_active_window(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(active) = windows.windows().find(|w| w.is_active()) {
             let frame = FrameFocusInfo::new(active.frame_info());
@@ -339,6 +349,7 @@ impl Focus {
         }
     }
 
+    #[must_use]
     fn move_focus(&mut self, new_focus: Option<WidgetPath>) -> Option<FocusChangedArgs> {
         if self.focused != new_focus {
             let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone());
