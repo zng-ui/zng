@@ -1552,7 +1552,11 @@ pub mod output {
                 doc.to_tokens(tokens)
             }
             if self.docs.is_empty() {
-                doc_extend!(tokens, "<span class='load-property-help' data-property='{}'>Loading content..</span>", self.ident);
+                doc_extend!(
+                    tokens,
+                    "<span class='load-property-help' data-property='{}'>Loading content..</span>",
+                    self.ident
+                );
             }
             if is_inherited {
                 let name_start = source_widget.rfind(':').map(|i| i + 1).unwrap_or_default();
