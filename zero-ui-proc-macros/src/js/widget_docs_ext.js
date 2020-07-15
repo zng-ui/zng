@@ -43,6 +43,6 @@ window.addEventListener("message", function(e) {
     var requests = document.querySelectorAll("span.load-property-help");
     requests.forEach(req => {
         var property = req.getAttribute("data-property");
-        req.replaceWith(property_help[property]);
+        req.parentElement.replaceWith(property_help[property]);
     });
 });

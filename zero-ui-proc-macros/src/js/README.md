@@ -8,7 +8,7 @@ The files are inserted by the proc-macros using `format!("<script>{}</script>", 
 
 ## No Empty Lines
 
-The files cannot have empty lines, `rustdoc/markdown` HTML detection does not work over empty lines.
+The files cannot have empty lines, `rustdoc/markdown` HTML tag detection does not work over empty lines.
 
 ## No Fetching
 
