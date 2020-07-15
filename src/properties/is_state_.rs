@@ -41,6 +41,7 @@ impl<C: UiNode> UiNode for IsHovered<C> {
     }
 }
 
+/// If the mouse pointer is over the widget.
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHovered {
@@ -88,6 +89,7 @@ impl<C: UiNode> UiNode for IsPressed<C> {
     }
 }
 
+/// If the mouse pointer is pressed in the widget.
 #[property(context)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsPressed {

@@ -12,13 +12,13 @@ document.addEventListener("DOMContentLoaded", function() {
     prepend_item("state-properties", "State properties", ul);
     prepend_item("provided-properties", "Provided properties", ul);
     prepend_item("required-properties", "Required properties", ul);
-    var prop_help_requests = document.querySelectorAll("span.load-property-help");
-    if (prop_help_requests.length > 0) {
-        fetch("doc_helper/index.html").then(r => r.text()).then(t => {
-            var help = document.createElement("document");
-            help.outerHTML = t;
-            fulfill_prop_help_requests(prop_help_requests, help.querySelector("table"));
-        });
+    var any_help_request = document.querySelector("span.load-property-help");
+    if (any_help_request !== null) {
+        var frame = document.createElement("iframe");
+        frame.id = "doc_helper_frame";
+        frame.src = "doc_helper/index.html";
+        frame.style = "display:none";
+        document.body.append(frame);
     }
 });
 function prepend_item(id, text, ul) {
@@ -28,16 +28,21 @@ function prepend_item(id, text, ul) {
         ul.prepend(li);
     }
 }
-function fulfill_prop_help_requests(requests, help){
+window.addEventListener("message", function(e) {
+    document.getElementById("doc_helper_frame").remove();
+    var requests = document.querySelectorAll("span.load-property-help");
+    var parse = document.createElement("div");
+    parse.innerHTML = e.data;
+    var help = parse.childNodes[0];
     var property_help = {};
-    help.rows.forEach(row => {
+    for (row of help.rows) {
         var property = row.querySelector("a.mod").innerHTML;
         var help  = row.querySelector("p");
         property_help[property] = help;
-    });
+    }
     var requests = document.querySelectorAll("span.load-property-help");
     requests.forEach(req => {
         var property = req.getAttribute("data-property");
-        req.innerHTML = property_help[property];
+        req.replaceWith(property_help[property]);
     });
-}
+});

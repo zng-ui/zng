@@ -1425,8 +1425,12 @@ pub mod output {
                     .filter(|p| p.docs.is_empty())
                     .map(|p| &p.ident);
 
+                let callback = format!("<script>{}</script>", include_str!("widget_doc_helper_ext.js"));
+
                 Some(quote! {
                     /// <style>#modules, a[href="doc_helper/index.html"] { display: none; }</style>
+                    ///
+                    #[doc=#callback]
                     pub mod doc_helper {
                         #(pub use super::properties::#properties;)*
                     }
