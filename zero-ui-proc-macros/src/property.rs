@@ -746,7 +746,7 @@ mod output {
             t.extend(quote! {
                 // this function is hidden using CSS inserted by `PropertyFns`
                 #[allow(unused)]
-                pub fn __#generics(#(#args),*) { }
+                pub fn doc_helper#generics(#(#args),*) { }
             });
             t
         }
@@ -766,17 +766,17 @@ mod output {
 
             doc_extend!(tokens, "\n## Arguments\n");
             doc_extend!(tokens, "<div id='args_example'>\n");
-            doc_extend!(tokens, "```text");
+            doc_extend!(tokens, "<pre class='rust'>");
             for arg in &self.args {
                 doc_extend!(tokens, "{}", arg);
             }
-            doc_extend!(tokens, "```\n");
+            doc_extend!(tokens, "</pre>\n");
             doc_extend!(tokens, "</div>");
             doc_extend!(tokens, "<script>{}</script>", include_str!("property_args_ext.js"));
-            doc_extend!(tokens, "<style>a[href='fn.__.html']{ display: none; }</style>");
+            doc_extend!(tokens, "<style>a[href='fn.doc_helper.html']{ display: none; }</style>");
             doc_extend!(
                 tokens,
-                "<iframe id='args_example_load' style='display:none;' src='fn.__.html'></iframe>"
+                "<iframe id='args_example_load' style='display:none;' src='fn.doc_helper.html'></iframe>"
             );
         }
     }

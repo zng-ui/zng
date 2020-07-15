@@ -1,8 +1,3 @@
-document.addEventListener("DOMContentLoaded", function() {
-    var args = document.querySelector("#args_example pre");
-    args.classList.add("rust");
-    args.innerHTML = args.getElementsByTagName("code")[0].innerText;
-});
 window.addEventListener("message", function(e) {
     document.getElementById("args_example_load").remove();
     var full = document.createElement("div");
