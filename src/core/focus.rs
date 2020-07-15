@@ -7,7 +7,7 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
-use crate::core::window::Windows;
+use crate::core::window::{Windows, WindowIsActivatedChanged, WindowActivatedArgs};
 
 event_args! {
     /// [`FocusChanged`](FocusChanged) event args.
@@ -99,22 +99,23 @@ impl Event for FocusChanged {
 /// and [`Focus`](Focus) service.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
+    windows_activation: EventListener<WindowActivatedArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     key_down: EventListener<KeyInputArgs>,
 }
-
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
             focus_changed: EventEmitter::new(false),
+            windows_activation: EventListener::never(false),
             mouse_down: EventListener::never(false),
             key_down: EventListener::never(false),
         }
     }
 }
-
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
+        self.windows_activation = ctx.events.listen::<WindowIsActivatedChanged>();
         self.mouse_down = ctx.events.listen::<MouseDown>();
         self.key_down = ctx.events.listen::<KeyDown>();
 
@@ -155,8 +156,23 @@ impl AppExtension for FocusManager {
         }
 
         if let Some(request) = request {
-            let (windows, focus) = ctx.services.req_multi::<(Windows, Focus)>();
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             focus.fulfill_request(request, windows);
+        } else if self.windows_activation.has_updates(ctx.events) {
+            // foreground window maybe changed
+            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+            focus.continue_focus(windows);
+        }
+    }
+
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+        if focus.focused().map(|f| f.window_id() == window_id).unwrap_or_default() {
+            // new window frame, check if focus is still valid
+            if let Some(change) = focus.continue_focus(windows) {
+                // the focused widget changed, notify
+                ctx.updates.push_notify(self.focus_changed.clone(), change);
+            }
         }
     }
 }
@@ -293,7 +309,6 @@ impl Focus {
                     }
                 } else {
                     // widget not found
-                    
 
                     None //TODO
                 }
@@ -308,8 +323,20 @@ impl Focus {
     }
 
     fn focus_active_window(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
-        // TODO
-        None
+        if let Some(active) = windows.windows().find(|w| w.is_active()) {
+            let frame = FrameFocusInfo::new(active.frame_info());
+            let root = frame.root();
+            if root.is_focusable() {
+                // found active window and it is focusable.
+                self.move_focus(Some(root.info.path()))
+            } else {
+                // has active window but it is not focusable
+                self.move_focus(None)
+            }
+        } else {
+            // no active window
+            self.move_focus(None)
+        }
     }
 
     fn move_focus(&mut self, new_focus: Option<WidgetPath>) -> Option<FocusChangedArgs> {
