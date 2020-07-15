@@ -81,6 +81,22 @@ event_args! {
         }
     }
 
+    /// [`WindowIsActivatedChanged`](WindowIsActivatedChanged), [`WindowActivated`](WindowActivated), [`WindowDeactivated`](WindowDeactivated) event args.
+    pub struct WindowActivatedArgs {
+        /// Id of window that was opened or closed.
+        pub window_id: WindowId,
+
+        /// If the window was activated in this event.
+        pub activated: bool,
+
+        ..
+
+        /// If the widget is in the same window.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            ctx.window_id == self.window_id
+        }
+    }
+
     /// [`WindowResize`](WindowResize) event args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
@@ -142,6 +158,24 @@ impl Event for WindowOpen {
     type Args = WindowEventArgs;
 }
 
+/// Window activated/deactivated event.
+pub struct WindowIsActivatedChanged;
+impl Event for WindowIsActivatedChanged {
+    type Args = WindowActivatedArgs;
+}
+
+/// Window activated event.
+pub struct WindowActivated;
+impl Event for WindowActivated {
+    type Args = WindowActivatedArgs;
+}
+
+/// Window deactivated event.
+pub struct WindowDeactivated;
+impl Event for WindowDeactivated {
+    type Args = WindowActivatedArgs;
+}
+
 /// Window resized event.
 pub struct WindowResize;
 impl Event for WindowResize {
@@ -186,6 +220,9 @@ impl Event for WindowClose {
 /// Events this extension provides.
 ///
 /// * [WindowOpen]
+/// * [WindowIsActivatedChanged]
+/// * [WindowActivated]
+/// * [WindowDeactivated]
 /// * [WindowResize]
 /// * [WindowMove]
 /// * [WindowScaleChanged]
@@ -201,6 +238,9 @@ pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
     window_open: EventEmitter<WindowEventArgs>,
+    window_is_activated_changed: EventEmitter<WindowActivatedArgs>,
+    window_activated: EventEmitter<WindowActivatedArgs>,
+    window_deactivated: EventEmitter<WindowActivatedArgs>,
     window_resize: EventEmitter<WindowResizeArgs>,
     window_move: EventEmitter<WindowMoveArgs>,
     window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
@@ -225,6 +265,9 @@ impl Default for WindowManager {
             event_loop_proxy: None,
             ui_threads,
             window_open: EventEmitter::new(false),
+            window_is_activated_changed: EventEmitter::new(false),
+            window_activated: EventEmitter::new(false),
+            window_deactivated: EventEmitter::new(false),
             window_resize: EventEmitter::new(true),
             window_move: EventEmitter::new(true),
             window_scale_changed: EventEmitter::new(false),
@@ -239,6 +282,9 @@ impl AppExtension for WindowManager {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
+        r.events.register::<WindowIsActivatedChanged>(self.window_is_activated_changed.listener());
+        r.events.register::<WindowActivated>(self.window_activated.listener());
+        r.events.register::<WindowDeactivated>(self.window_deactivated.listener());
         r.events.register::<WindowResize>(self.window_resize.listener());
         r.events.register::<WindowMove>(self.window_move.listener());
         r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
@@ -248,6 +294,19 @@ impl AppExtension for WindowManager {
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
         match event {
+            WindowEvent::Focused(focused) => {
+                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    window.is_active = *focused;
+                    
+                    let args = WindowActivatedArgs::now(window_id, window.is_active);
+                    ctx.updates.push_notify(self.window_is_activated_changed.clone(), args.clone());
+                    if window.is_active {
+                        ctx.updates.push_notify(self.window_activated.clone(), args);
+                    } else {
+                        ctx.updates.push_notify(self.window_deactivated.clone(), args);
+                    }
+                }
+            }
             WindowEvent::Resized(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_size = window.size();
@@ -663,6 +722,8 @@ pub struct OpenWindow {
     doc_view: units::DeviceIntRect,
     // if [doc_view] changed and no render was called yet.
     doc_view_changed: bool,
+
+    is_active: bool,
 }
 
 impl OpenWindow {
@@ -730,11 +791,17 @@ impl OpenWindow {
 
             doc_view: units::DeviceIntRect::from_size(start_size),
             doc_view_changed: false,
+            is_active: true, // just opened it?
         }
     }
 
     pub fn id(&self) -> WindowId {
         self.gl_ctx.borrow().window().id()
+    }
+
+    /// If the window is the foreground window.
+    pub fn is_active(&self) -> bool {
+        self.is_active
     }
 
     /// Size of the window content.
