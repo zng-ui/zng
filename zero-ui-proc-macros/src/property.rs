@@ -726,7 +726,7 @@ mod output {
         /// Generate dummy function for argument type links.
         fn inner_tokens(&self) -> TokenStream {
             let mut t = TokenStream::new();
-            doc_extend!(t, "<span></span>\n\n<script>{}</script>", include_str!("property_z_ext.js"));
+            doc_extend!(t, "<span></span>\n\n<script>{}</script>", include_str!("property_doc_helper_ext.js"));
             let args = &self.args;
 
             let generics = if self.generics.is_empty() {

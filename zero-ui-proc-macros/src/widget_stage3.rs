@@ -1371,6 +1371,8 @@ pub mod output {
             let defaults = &self.defaults;
             let whens = &self.whens;
 
+            let doc_helper_mod = docs.helper_mod_tokens();
+
             tokens.extend(quote! {
                 #(#attrs)*
                 #docs
@@ -1390,6 +1392,8 @@ pub mod output {
 
                     // when condition var init fns mod.
                     #whens
+
+                    #doc_helper_mod
                 }
             })
         }
@@ -1407,7 +1411,29 @@ pub mod output {
         ///state properties that are defined in the widget
         pub state: Vec<PropertyDocs>,
     }
+    impl WidgetDocs {
+        fn helper_mod_tokens(&self) -> Option<TokenStream> {
+            if self.state.is_empty() {
+                None
+            } else {
+                let properties = self
+                    .required
+                    .iter()
+                    .chain(&self.provided)
+                    .chain(&self.other)
+                    .chain(&self.state)
+                    .filter(|p| p.docs.is_empty())
+                    .map(|p| &p.ident);
 
+                Some(quote! {
+                    /// <style>#modules, a[href="doc_helper/index.html"] { display: none; }</style>
+                    pub mod doc_helper {
+                        #(pub use super::properties::#properties;)*
+                    }
+                })
+            }
+        }
+    }
     impl ToTokens for WidgetDocs {
         // TODO generate when documentation.
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -1517,25 +1543,26 @@ pub mod output {
 
             doc_extend!(tokens, "<ul style='display:none;'></ul></span></code></h3>");
 
-            if !self.docs.is_empty() || is_inherited || self.is_required_provided {
-                doc_extend!(tokens, "<div class='docblock'>\n");
-                for doc in &self.docs {
-                    doc.to_tokens(tokens)
-                }
-                if is_inherited {
-                    let name_start = source_widget.rfind(':').map(|i| i + 1).unwrap_or_default();
-                    doc_extend!(
-                        tokens,
-                        "\n*Inherited from [`{}`](module@{}).*",
-                        &source_widget[name_start..],
-                        source_widget
-                    );
-                }
-                if self.is_required_provided {
-                    doc_extend!(tokens, "\n*This property is required, cannot be `unset!`.*")
-                }
-                doc_extend!(tokens, "\n</div>");
+            doc_extend!(tokens, "<div class='docblock'>\n");
+            for doc in &self.docs {
+                doc.to_tokens(tokens)
             }
+            if self.docs.is_empty() {
+                doc_extend!(tokens, "<span class='load-property-help' data-property='{}'>Loading content..</span>", self.ident);
+            }
+            if is_inherited {
+                let name_start = source_widget.rfind(':').map(|i| i + 1).unwrap_or_default();
+                doc_extend!(
+                    tokens,
+                    "\n*Inherited from [`{}`](module@{}).*",
+                    &source_widget[name_start..],
+                    source_widget
+                );
+            }
+            if self.is_required_provided {
+                doc_extend!(tokens, "\n*This property is required, cannot be `unset!`.*")
+            }
+            doc_extend!(tokens, "\n</div>");
         }
     }
 
