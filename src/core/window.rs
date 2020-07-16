@@ -81,8 +81,8 @@ event_args! {
         }
     }
 
-    /// [`WindowIsActivatedChanged`](WindowIsActivatedChanged), [`WindowActivated`](WindowActivated), [`WindowDeactivated`](WindowDeactivated) event args.
-    pub struct WindowActivatedArgs {
+    /// [`WindowIsActiveChanged`](WindowIsActiveChanged), [`WindowActivated`](WindowActivated), [`WindowDeactivated`](WindowDeactivated) event args.
+    pub struct WindowIsActiveArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
 
@@ -159,21 +159,21 @@ impl Event for WindowOpen {
 }
 
 /// Window activated/deactivated event.
-pub struct WindowIsActivatedChanged;
-impl Event for WindowIsActivatedChanged {
-    type Args = WindowActivatedArgs;
+pub struct WindowIsActiveChanged;
+impl Event for WindowIsActiveChanged {
+    type Args = WindowIsActiveArgs;
 }
 
 /// Window activated event.
 pub struct WindowActivated;
 impl Event for WindowActivated {
-    type Args = WindowActivatedArgs;
+    type Args = WindowIsActiveArgs;
 }
 
 /// Window deactivated event.
 pub struct WindowDeactivated;
 impl Event for WindowDeactivated {
-    type Args = WindowActivatedArgs;
+    type Args = WindowIsActiveArgs;
 }
 
 /// Window resized event.
@@ -217,10 +217,10 @@ impl Event for WindowClose {
 ///
 /// # Events
 ///
-/// Events this extension provides.
+/// Events this extension provides:
 ///
 /// * [WindowOpen]
-/// * [WindowIsActivatedChanged]
+/// * [WindowIsActiveChanged]
 /// * [WindowActivated]
 /// * [WindowDeactivated]
 /// * [WindowResize]
@@ -231,16 +231,16 @@ impl Event for WindowClose {
 ///
 /// # Services
 ///
-/// Services this extension provides.
+/// Services this extension provides:
 ///
 /// * [Windows]
 pub struct WindowManager {
     event_loop_proxy: Option<EventLoopProxy>,
     ui_threads: Arc<ThreadPool>,
     window_open: EventEmitter<WindowEventArgs>,
-    window_is_activated_changed: EventEmitter<WindowActivatedArgs>,
-    window_activated: EventEmitter<WindowActivatedArgs>,
-    window_deactivated: EventEmitter<WindowActivatedArgs>,
+    window_is_active_changed: EventEmitter<WindowIsActiveArgs>,
+    window_activated: EventEmitter<WindowIsActiveArgs>,
+    window_deactivated: EventEmitter<WindowIsActiveArgs>,
     window_resize: EventEmitter<WindowResizeArgs>,
     window_move: EventEmitter<WindowMoveArgs>,
     window_scale_changed: EventEmitter<WindowScaleChangedArgs>,
@@ -265,7 +265,7 @@ impl Default for WindowManager {
             event_loop_proxy: None,
             ui_threads,
             window_open: EventEmitter::new(false),
-            window_is_activated_changed: EventEmitter::new(false),
+            window_is_active_changed: EventEmitter::new(false),
             window_activated: EventEmitter::new(false),
             window_deactivated: EventEmitter::new(false),
             window_resize: EventEmitter::new(true),
@@ -282,7 +282,7 @@ impl AppExtension for WindowManager {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
         r.events.register::<WindowOpen>(self.window_open.listener());
-        r.events.register::<WindowIsActivatedChanged>(self.window_is_activated_changed.listener());
+        r.events.register::<WindowIsActiveChanged>(self.window_is_active_changed.listener());
         r.events.register::<WindowActivated>(self.window_activated.listener());
         r.events.register::<WindowDeactivated>(self.window_deactivated.listener());
         r.events.register::<WindowResize>(self.window_resize.listener());
@@ -297,9 +297,9 @@ impl AppExtension for WindowManager {
             WindowEvent::Focused(focused) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     window.is_active = *focused;
-                    
-                    let args = WindowActivatedArgs::now(window_id, window.is_active);
-                    ctx.updates.push_notify(self.window_is_activated_changed.clone(), args.clone());
+
+                    let args = WindowIsActiveArgs::now(window_id, window.is_active);
+                    ctx.updates.push_notify(self.window_is_active_changed.clone(), args.clone());
                     if window.is_active {
                         ctx.updates.push_notify(self.window_activated.clone(), args);
                     } else {

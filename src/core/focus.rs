@@ -7,7 +7,7 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
-use crate::core::window::{Windows, WindowIsActivatedChanged, WindowActivatedArgs};
+use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChanged, Windows};
 
 event_args! {
     /// [`FocusChanged`](FocusChanged) event args.
@@ -36,6 +36,17 @@ event_args! {
             }
 
             false
+        }
+    }
+}
+
+impl FocusChangedArgs {
+    /// If the focus is still in the same widget but the widget path changed.
+    #[inline]
+    pub fn is_widget_move(&self) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.widget_id() == new.widget_id(),
+            _ => false,
         }
     }
 }
@@ -99,7 +110,7 @@ impl Event for FocusChanged {
 /// and [`Focus`](Focus) service.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
-    windows_activation: EventListener<WindowActivatedArgs>,
+    windows_activation: EventListener<WindowIsActiveArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     key_down: EventListener<KeyInputArgs>,
     focused: Option<WidgetPath>,
@@ -117,7 +128,7 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        self.windows_activation = ctx.events.listen::<WindowIsActivatedChanged>();
+        self.windows_activation = ctx.events.listen::<WindowIsActiveChanged>();
         self.mouse_down = ctx.events.listen::<MouseDown>();
         self.key_down = ctx.events.listen::<KeyDown>();
 
@@ -171,7 +182,7 @@ impl AppExtension for FocusManager {
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             // new window frame, check if focus is still valid
-            self.notify( focus.continue_focus(windows), ctx);
+            self.notify(focus.continue_focus(windows), ctx);
         }
     }
 }
@@ -256,6 +267,7 @@ impl Focus {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(widget_id) {
                         if w.is_focusable() {
+                            //TODO activate window if not.
                             return self.move_focus(Some(w.info.path()));
                         }
                         break;
@@ -297,14 +309,50 @@ impl Focus {
     /// Checks if `focused()` is still valid, if not moves focus to nearest valid.
     #[must_use]
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
-        if let Some(current) = &self.focused {
-            if let Ok(window) = windows.window(current.window_id()) {
-                // TODO check window active
+        if let Some(focused) = &self.focused {
+            if let Ok(window) = windows.window(focused.window_id()) {
+                if window.is_active() {
+                    if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                        if widget.is_focusable() {
+                            // :-) probably in the same place, maybe moved inside same window.
+                            self.move_focus(Some(widget.info.path()))
+                        } else {
+                            // widget no longer focusable
+                            if let Some(parent) = widget.parent() {
+                                // move to focusable parent
+                                self.move_focus(Some(parent.info.path()))
+                            } else {
+                                // no focusable parent, is this an error?
+                                self.move_focus(None)
+                            }
+                        }
+                    } else {
+                        // widget not found
+                        self.continue_focus_moved_widget(windows)
+                    }
+                } else {
+                    // window not active anymore
+                    self.continue_focus_moved_widget(windows)
+                }
+            } else {
+                // window not found
+                self.continue_focus_moved_widget(windows)
+            }
+        } else {
+            // no previous focus
+            self.focus_active_window(windows)
+        }
+    }
 
-                let frame = FrameFocusInfo::new(window.frame_info());
-                if let Some(widget) = frame.find(current.widget_id()) {
-                    if widget.is_focusable() {
-                        // change focus if widget path changed.
+    #[must_use]
+    fn continue_focus_moved_widget(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+        let focused = self.focused.as_ref().unwrap();
+        for window in windows.windows() {
+            if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
+                // found the widget in another window
+                if window.is_active() {
+                    return if widget.is_focusable() {
+                        // same widget, moved to another window
                         self.move_focus(Some(widget.info.path()))
                     } else {
                         // widget no longer focusable
@@ -315,20 +363,13 @@ impl Focus {
                             // no focusable parent, is this an error?
                             self.move_focus(None)
                         }
-                    }
-                } else {
-                    // widget not found
-
-                    None //TODO
+                    };
                 }
-            } else {
-                // window not found
-                self.focus_active_window(windows)
+                break;
             }
-        } else {
-            // no previous focus
-            self.focus_active_window(windows)
         }
+        // did not find the widget in a focusable context, was removed or is inside an inactive window.
+        self.focus_active_window(windows)
     }
 
     #[must_use]
