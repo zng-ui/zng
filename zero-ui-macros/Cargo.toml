@@ -7,7 +7,3 @@ edition = "2018"
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
-
-# proc-macro-hack
-proc-macro-hack = "0.5.15"
-proc-macro-nested = "0.1.4"

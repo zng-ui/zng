@@ -1,9 +1,4 @@
-use proc_macro_hack::proc_macro_hack;
-
-pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin, widget_stage2, widget_stage3};
-
-#[proc_macro_hack(support_nested)]
-pub use zero_ui_proc_macros::widget_new;
+pub use zero_ui_proc_macros::*;
 
 /// Declares new [`StateKey`](zero_ui::core::context::StateKey) types.
 #[macro_export]
