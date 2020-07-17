@@ -204,18 +204,23 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let mut visible = false;
+        let mut widths_visible = None;
+        let mut details_visible = None;
         if let Some(&widths) = self.widths.update_local(ctx.vars) {
-            visible |= widths.visible();
+            widths_visible = Some(widths.visible());
             self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
             ctx.updates.push_layout();
         }
         if let Some(&details) = self.details.update(ctx.vars) {
-            visible |= details.visible();
+            details_visible = Some(details.visible());
             self.render_details = details.into();
             ctx.updates.push_render();
         }
-        self.visible = visible;
+
+        if widths_visible.is_some() || details_visible.is_some() {
+            self.visible = widths_visible.unwrap_or_else(|| self.widths.get_local().visible())
+                && details_visible.unwrap_or_else(|| self.details.get(ctx.vars).visible());
+        }
     }
 
     fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {

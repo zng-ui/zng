@@ -149,6 +149,7 @@ impl AppExtension for FocusManager {
             request = Some(req);
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
             // click
+            // TODO: Check click path for focusable (clicking a button doesn't focus it if the click was on the text)
             request = Some(FocusRequest::Direct(args.target.widget_id()));
         } else if let Some(args) = self.key_down.updates(ctx.events).last() {
             // keyboard

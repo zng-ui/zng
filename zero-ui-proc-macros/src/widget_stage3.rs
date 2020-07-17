@@ -1428,7 +1428,7 @@ pub mod output {
                 let callback = format!("<script>{}</script>", include_str!("js/widget_doc_helper_ext.js"));
 
                 Some(quote! {
-                    /// <style>#modules, a[href="doc_helper/index.html"] { display: none; }</style>
+                    /// <style>#modules, a[href="doc_helper/index.html"], a[href="#modules"] { display: none; }</style>
                     ///
                     #[doc=#callback]
                     pub mod doc_helper {

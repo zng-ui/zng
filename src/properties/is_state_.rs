@@ -117,7 +117,6 @@ impl<C: UiNode> UiNode for IsFocused<C> {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
             let was_focused = *self.state.get(ctx.vars);
             let is_focused = u.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default();
-
             if was_focused != is_focused {
                 self.state.push_set(is_focused, ctx.vars, ctx.updates).expect("is_focused");
             }
