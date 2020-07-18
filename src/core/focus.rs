@@ -150,7 +150,7 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
             // click
             // TODO: Check click path for focusable (clicking a button doesn't focus it if the click was on the text)
-            request = Some(FocusRequest::Direct(args.target.widget_id()));
+            request = Some(FocusRequest::DirectOrParent(args.target.widget_id()));
         } else if let Some(args) = self.key_down.updates(ctx.events).last() {
             // keyboard
             match &args.key {
@@ -225,9 +225,16 @@ impl Focus {
         self.update_notifier.push_update();
     }
 
+    /// Focus the widget if it is focusable.
     #[inline]
     pub fn focus_widget(&mut self, widget_id: WidgetId) {
         self.focus(FocusRequest::Direct(widget_id))
+    }
+
+    /// Focus the widget if it is focusable, else focus the first focusable parent.
+    #[inline]
+    pub fn focus_widget_or_parent(&mut self, widget_id: WidgetId) {
+        self.focus(FocusRequest::DirectOrParent(widget_id))
     }
 
     #[inline]
@@ -263,19 +270,8 @@ impl Focus {
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request) {
-            (_, FocusRequest::Direct(widget_id)) => {
-                for w in windows.windows() {
-                    let frame = FrameFocusInfo::new(w.frame_info());
-                    if let Some(w) = frame.find(widget_id) {
-                        if w.is_focusable() {
-                            //TODO activate window if not.
-                            return self.move_focus(Some(w.info.path()));
-                        }
-                        break;
-                    }
-                }
-                None
-            }
+            (_, FocusRequest::Direct(widget_id)) => self.focus_direct(widget_id, false, windows),
+            (_, FocusRequest::DirectOrParent(widget_id)) => self.focus_direct(widget_id, true, windows),
             (Some(prev), move_) => {
                 if let Ok(w) = windows.window(prev.window_id()) {
                     let frame = FrameFocusInfo::new(w.frame_info());
@@ -287,7 +283,7 @@ impl Focus {
                             FocusRequest::Right => None,
                             FocusRequest::Up => None,
                             FocusRequest::Down => None,
-                            FocusRequest::Direct(_) => unreachable!(),
+                            FocusRequest::Direct(_) | FocusRequest::DirectOrParent(_) => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()))
                         } else {
@@ -374,6 +370,27 @@ impl Focus {
     }
 
     #[must_use]
+    fn focus_direct(&mut self, widget_id: WidgetId, fallback_to_parents: bool, windows: &Windows) -> Option<FocusChangedArgs> {
+        for w in windows.windows() {
+            let frame = w.frame_info();
+            if let Some(w) = frame.find(widget_id).map(|w| w.as_focus_info()) {
+                if w.is_focusable() {
+                    return self.move_focus(Some(w.info.path()));
+                } else if fallback_to_parents {
+                    if let Some(w) = w.parent() {
+                        return self.move_focus(Some(w.info.path()));
+                    } else {
+                        // no focusable parent, just activate window?
+                        //TODO
+                    }
+                }
+                break;
+            }
+        }
+        None
+    }
+
+    #[must_use]
     fn focus_active_window(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(active) = windows.windows().find(|w| w.is_active()) {
             let frame = FrameFocusInfo::new(active.frame_info());
@@ -410,6 +427,8 @@ impl AppService for Focus {}
 pub enum FocusRequest {
     /// Move focus to widget.
     Direct(WidgetId),
+    /// Move focus to the widget if it is focusable or to a focusable parent.
+    DirectOrParent(WidgetId),
 
     /// Move focus to next from current in screen, or to first in screen.
     Next,
