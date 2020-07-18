@@ -564,13 +564,13 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
-    /// Iterator over focusable parent -> grant-parent -> .. -> root.
+    /// Iterator over focusable parent -> grandparent -> .. -> root.
     #[inline]
     pub fn ancestors(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().focusable()
     }
 
-    /// Iterator over focus scopes parent -> grant-parent -> .. -> root.
+    /// Iterator over focus scopes parent -> grandparent -> .. -> root.
     #[inline]
     pub fn scopes(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info.ancestors().filter_map(|i| {

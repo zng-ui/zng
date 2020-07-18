@@ -344,7 +344,7 @@ pub use zero_ui_macros::state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct StateMap {
     map: FnvHashMap<TypeId, Box<dyn Any>>,
 }
@@ -400,7 +400,7 @@ impl StateMap {
 }
 
 /// A [`StateMap`](StateMap) that only takes one `usize` of memory if not used.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct LazyStateMap {
     m: Option<Box<StateMap>>,
 }

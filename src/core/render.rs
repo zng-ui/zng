@@ -26,7 +26,7 @@ impl FrameBuilder {
     #[inline]
     pub fn new(frame_id: FrameId, window_id: WindowId, pipeline_id: PipelineId, root_id: WidgetId, root_size: LayoutSize) -> Self {
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
-        FrameBuilder {
+        let mut new = FrameBuilder {
             display_list: DisplayListBuilder::new(pipeline_id, root_size),
             info_id: info.root_id(),
             info,
@@ -37,7 +37,9 @@ impl FrameBuilder {
             clip_id: ClipId::root(pipeline_id),
             spatial_id: SpatialId::root_reference_frame(pipeline_id),
             offset: LayoutPoint::zero(),
-        }
+        };
+        new.push_widget_hit_area(root_id, root_size);
+        new
     }
 
     /// Direct access to the display list builder.
@@ -105,12 +107,11 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls [`render`](UiNode::render) for `node` inside a new widget context.
-    pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
-        // The hit-test bounding-box used to take the coordinates of the widget hit
-        // if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
-        //
-        // This is done so we have consistent hit coordinates with precise hit area.
+    /// The hit-test bounding-box used to take the coordinates of the widget hit
+    /// if the widget id is hit in another ItemTag that is not WIDGET_HIT_AREA.
+    ///
+    /// This is done so we have consistent hit coordinates with precise hit area.
+    fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
         self.display_list.push_hit_test(&CommonItemProperties {
             hit_info: Some((id.get(), WIDGET_HIT_AREA)),
             clip_rect: LayoutRect::from_size(area),
@@ -118,6 +119,14 @@ impl FrameBuilder {
             spatial_id: self.spatial_id,
             flags: PrimitiveFlags::empty(),
         });
+    }
+
+    /// Calls [`render`](UiNode::render) for `node` inside a new widget context.
+    pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
+        // NOTE: root widget is not processed by this method, if you add widget behavior here
+        // similar behavior must be added in the `new` and `finalize` methods.
+
+        self.push_widget_hit_area(id, area);
 
         let parent_id = mem::replace(&mut self.widget_id, id);
 
@@ -262,7 +271,8 @@ impl FrameBuilder {
     ///
     /// `(PipelineId, LayoutSize, BuiltDisplayList)` : The display list finalize data.
     /// `FrameInfo`: The built frame info.
-    pub fn finalize(self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+    pub fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+        self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
     }
 }
@@ -484,7 +494,7 @@ impl FrameInfoBuilder {
 }
 
 /// Id of a building widget info.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct WidgetInfoId(ego_tree::NodeId);
 
 /// Information about a rendered frame.
@@ -759,7 +769,7 @@ impl<'a> WidgetInfo<'a> {
         self.node().descendants().map(move |n| WidgetInfo::new(self.frame, n.id()))
     }
 
-    /// Iterator over parent -> grant-parent -> .. -> root.
+    /// Iterator over parent -> grandparent -> .. -> root.
     #[inline]
     pub fn ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
         self.node().ancestors().map(move |n| WidgetInfo::new(self.frame, n.id()))

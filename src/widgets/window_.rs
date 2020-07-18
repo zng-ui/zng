@@ -2,8 +2,9 @@ use crate::core::widget;
 use crate::core::{
     types::{rgb, WidgetId},
     window::Window,
+    focus::TabNav,
 };
-use crate::properties::{background_color, size, title};
+use crate::properties::{background_color, size, title, focus_scope, tab_nav};
 use crate::widgets::container;
 
 widget! {
@@ -24,6 +25,12 @@ widget! {
         id: unset!;
         /// Unique identifier of the window root widget.
         root_id -> id: WidgetId::new_unique();
+
+        /// Windows are focus scopes by default.
+        focus_scope: true;
+
+        /// Windows cycle TAB navigation by default.
+        tab_nav: TabNav::Cycle;
     }
 
     /// Manually initializes a new [`window`](self).
