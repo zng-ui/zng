@@ -294,8 +294,7 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
 /// container! {
 ///     background_color: rgb(255, 0, 0);
 ///     size: (200.0, 300.0);
-///     
-///     => text("200x300 red")
+///     content: text("200x300 red");
 /// }
 /// # ;
 /// ```

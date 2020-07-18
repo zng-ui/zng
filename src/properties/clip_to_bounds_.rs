@@ -55,14 +55,12 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
 ///     background_color: rgb(255, 0, 0);
 ///     size: (200.0, 300.0);
 ///     clip_to_bounds: true;
-///     
-///     => container! {
+///     content: container! {
 ///         background_color: rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
 ///         size: (1000.0, 1000.0);
-///
-///         => text("1000x1000 green clipped to 200x300")
-///     }
+///         content: text("1000x1000 green clipped to 200x300");
+///     };
 /// }
 /// # ;
 /// ```

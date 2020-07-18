@@ -63,7 +63,7 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 /// use zero_ui::{
 ///     core::{types::{rgb, rgba, ToText}, var::Var, UiNode},
 ///     properties::{text_color, font_size},
-///     widgets::{container, text, view, View},
+///     widgets::{text, view, View},
 /// };
 ///
 /// fn countdown(n: impl Var<usize>) -> impl UiNode {
@@ -78,18 +78,18 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///     view(n,
 ///
 ///     // initial_ui:
-///     container! {
-///         text_color: rgba(0, 0, 0, 0.5);
-///         => text("starting..")
+///     text! {
+///         color: rgba(0, 0, 0, 0.5);
+///         text: "starting..";
 ///     }.boxed(),
 ///
 ///     // presenter:
 ///     move |n, ctx| match state {
 ///         State::Starting => {
 ///             state = State::Counting;
-///             View::Update(container! {
+///             View::Update(text! {
 ///                 font_size: 28;
-///                 => text(n.map(|n| n.to_text()))
+///                 text: n.map(|n| n.to_text());
 ///             }.boxed())
 ///         }
 ///         State::Counting => {
@@ -105,10 +105,10 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///                 // so we need to update the UI.
 ///
 ///                 View::Update(
-///                     container! {
-///                         text_color: rgb(0, 128, 0);
+///                     text! {
+///                         color: rgb(0, 128, 0);
 ///                         font_size: 18;
-///                         => text("Congratulations!!")
+///                         text: "Congratulations!!";
 ///                     }
 ///                     .boxed(),
 ///                 )

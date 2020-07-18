@@ -33,11 +33,10 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 ///
 /// # Example
 /// ```
-/// use zero_ui::prelude::*;
-///
+/// # use zero_ui::prelude::*;
 /// container! {
 ///     cursor: CursorIcon::Hand;
-///     => text("Mouse over this text shows the hand cursor")
+///     content: text("Mouse over this text shows the hand cursor");
 /// }
 /// # ;
 /// ```

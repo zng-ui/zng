@@ -78,7 +78,7 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
 /// # Example
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui::core::{property, state_key, UiNode, Widget};
+/// use zero_ui::core::{property, context::{state_key, WidgetContext}, UiNode, Widget};
 /// use zero_ui::properties::set_widget_state;
 ///
 /// state_key! {

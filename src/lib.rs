@@ -12,9 +12,9 @@
 //!         let size = var((800., 600.));
 //!         let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
 //!         window! {
-//!             size: size;
-//!             title: title;
-//!             => example()
+//!             size;
+//!             title;
+//!             content: example();
 //!         }
 //!     })
 //! }
@@ -28,9 +28,7 @@
 //!         size: (300.0, 200.0);
 //!         align: Alignment::CENTER;
 //!         font_size: 28;
-//!         => {
-//!             text("Click Me!")
-//!         }
+//!         content: text("Click Me!");
 //!     }
 //! }
 //! ```

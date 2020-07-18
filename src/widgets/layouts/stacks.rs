@@ -140,6 +140,7 @@ widget! {
     /// # Example
     ///
     /// ```
+    /// # use zero_ui::prelude::*;
     /// let text = v_stack! {
     ///     spacing: 5.0;
     ///     items: ui_vec![
@@ -176,6 +177,7 @@ widget! {
     /// # Example
     ///
     /// ```
+    /// # use zero_ui::prelude::*;
     /// let text = h_stack! {
     ///     spacing: 5.0;
     ///     items: ui_vec![
@@ -210,6 +212,7 @@ widget! {
 /// # Example
 ///
 /// ```
+/// # use zero_ui::prelude::*;
 /// let text = h_stack(ui_vec![
 ///     text("Hello "),
 ///     text("World"),
@@ -231,6 +234,7 @@ pub fn h_stack(items: UiVec) -> impl Widget {
 /// # Example
 ///
 /// ```
+/// # use zero_ui::prelude::*;
 /// let text = v_stack(ui_vec![
 ///     text("1. Hello"),
 ///     text("2. World"),
@@ -260,13 +264,14 @@ widget! {
     /// # Example
     ///
     /// ```
+    /// # use zero_ui::prelude::*;
     /// let text = z_stack! {
     ///     padding: 5.0;
     ///     items: ui_vec![
     ///         text("under"),
     ///         text("over"),
     ///     ];
-    /// }
+    /// };
     /// ```
     ///
     /// ## `z_stack()`
@@ -293,6 +298,7 @@ widget! {
 /// # Example
 ///
 /// ```
+/// # use zero_ui::prelude::*;
 /// let text = z_stack(ui_vec![
 ///     text("under"),
 ///     text("over"),

@@ -39,7 +39,8 @@ pub trait AppRunWindow {
     ///
     /// App::default().run_window(|_| {
     ///     window! {
-    ///         => text("Window 1")
+    ///         title: "Window 1";
+    ///         content: text("Window 1");
     ///     }
     /// })   
     /// ```
@@ -51,7 +52,8 @@ pub trait AppRunWindow {
     /// App::default().run(|ctx| {
     ///     ctx.services.req::<Windows>().open(|_| {
     ///         window! {
-    ///             => text("Window 1")
+    ///             title: "Window 1";
+    ///             content: text("Window 1");
     ///         }
     ///     });
     /// })   

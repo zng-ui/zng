@@ -154,7 +154,7 @@ widget! {
     ///     font_family: "Arial";
     ///     font_size: 18;
     ///     text: "Hello!";
-    /// }
+    /// };
     /// ```
     /// # `text()`
     ///
