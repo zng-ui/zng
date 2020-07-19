@@ -1,10 +1,10 @@
 use crate::core::widget;
 use crate::core::{
+    focus::TabNav,
     types::{rgb, WidgetId},
     window::Window,
-    focus::TabNav,
 };
-use crate::properties::{background_color, size, title, focus_scope, tab_nav};
+use crate::properties::{background_color, focus_scope, size, tab_nav, title};
 use crate::widgets::container;
 
 widget! {

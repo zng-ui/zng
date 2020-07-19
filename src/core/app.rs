@@ -515,7 +515,7 @@ impl<E: AppExtension> AppExtended<E> {
         #[cfg(feature = "app_profiler")]
         let profile_scope = ProfileScope::new("app::run_headless");
 
-        let event_loop = EventLoop::new(false);
+        let event_loop = EventLoop::new(true);
 
         let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
@@ -601,7 +601,7 @@ impl<E: AppExtension> HeadlessApp<E> {
     }
 
     /// Runs a custom action in the headless app context.
-    pub fn with_context(&mut self, action: impl FnOnce(&mut AppContext)) {
+    pub fn with_context<R>(&mut self, action: impl FnOnce(&mut AppContext) -> R) -> R {
         profile_scope!("headless_app::with_context");
         action(&mut self.owned_ctx.borrow(self.event_loop.window_target()))
     }
