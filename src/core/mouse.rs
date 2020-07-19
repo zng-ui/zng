@@ -505,3 +505,28 @@ fn multi_click_time_ms() -> u32 {
     // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
     Duration::from_millis(500)
 }
+
+/// Generate mouse/pointer events in a headless app.
+pub trait MouseController {
+    fn move_pt(&mut self, window_id: WindowId, point: LayoutPoint);
+}
+impl<E: AppExtension> MouseController for HeadlessApp<E> {
+    fn move_pt(&mut self, window_id: WindowId, point: LayoutPoint) {
+        let dpi = self
+            .with_context(|ctx| {
+                ctx.services
+                    .get::<Windows>()
+                    .and_then(|ws| ws.window(window_id).ok().map(|w| w.dpi_scale()))
+            })
+            .unwrap_or(1.0);
+
+        self.on_window_event(
+            window_id,
+            &WindowEvent::CursorMoved {
+                device_id: unsafe { DeviceId::dummy() },
+                position: glutin::dpi::PhysicalPosition::new(point.x as f64 * dpi as f64, point.y as f64 * dpi as f64),
+                modifiers: ModifiersState::default(),
+            },
+        );
+    }
+}

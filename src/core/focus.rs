@@ -702,13 +702,13 @@ impl FocusInfo {
 
 #[cfg(test)]
 mod tests {
+    use super::Focus;
     use crate::prelude::*;
     use glutin::{
         dpi::PhysicalPosition,
         event::{DeviceId, WindowEvent},
     };
     use std::{cell::Cell, rc::Rc};
-    use super::Focus;
 
     #[test]
     fn focus_on_click() {
@@ -773,9 +773,7 @@ mod tests {
         );
         app.update();
 
-        let focused_id = app.with_context(|ctx|{
-            ctx.services.req::<Focus>().focused().expect("no focused item").widget_id()
-        });
+        let focused_id = app.with_context(|ctx| ctx.services.req::<Focus>().focused().expect("no focused item").widget_id());
 
         assert_eq!(button_id, focused_id);
     }
