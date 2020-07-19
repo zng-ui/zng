@@ -771,6 +771,7 @@ mod tests {
                 modifiers,
             },
         );
+        app.update();
 
         let focused_id = app.with_context(|ctx|{
             ctx.services.req::<Focus>().focused().expect("no focused item").widget_id()
