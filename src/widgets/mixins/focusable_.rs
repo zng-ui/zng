@@ -5,7 +5,7 @@ use crate::properties::{border, focusable, is_focused, BorderDetails};
 
 context_var! {
     pub struct FocusedBorderWidths: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
-    pub struct FocusedBorderDetails: BorderDetails = once BorderDetails::new_solid_color(rgba(0, 0, 255, 0.7));
+    pub struct FocusedBorderDetails: BorderDetails = once BorderDetails::new_solid_color(rgba(0, 255, 255, 0.7));
 }
 
 widget_mixin! {

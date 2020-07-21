@@ -277,8 +277,8 @@ impl Focus {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(prev.widget_id()) {
                         if let Some(new_focus) = match move_ {
-                            FocusRequest::Next => w.next_focusable(),
-                            FocusRequest::Prev => w.prev_focusable(),
+                            FocusRequest::Next => Some(w.tab()),
+                            FocusRequest::Prev => Some(w.shift_tab()),
                             FocusRequest::Left => None, //TODO
                             FocusRequest::Right => None,
                             FocusRequest::Up => None,
@@ -592,14 +592,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Reference the focus scope parent that contains the widget.
     #[inline]
     pub fn scope(self) -> Option<WidgetFocusInfo<'a>> {
-        let scope = self.scopes().next();
-        if scope.is_some() {
-            scope
-        } else if self.is_scope() {
-            Some(self)
-        } else {
-            None
-        }
+        self.scopes().next()
     }
 
     /// Iterator over the focusable widgets contained by this widget.
@@ -654,13 +647,35 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing TAB from this widget.
     #[inline]
     pub fn tab(self) -> WidgetFocusInfo<'a> {
-        todo!()
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.tab_nav() {
+                TabNav::None => self,
+                TabNav::Continue => self.next_focusable().unwrap_or_else(|| scope.tab()),
+                TabNav::Contained => self.next_focusable().unwrap_or(self),
+                TabNav::Cycle => self.next_focusable().unwrap_or_else(|| scope.descendants().next().unwrap()),
+                TabNav::Once => scope.tab(),
+            }
+        } else {
+            self
+        }
     }
 
-    /// Widget to focus when pressing CTRL+TAB from this widget.
+    /// Widget to focus when pressing SHIFT+TAB from this widget.
     #[inline]
-    pub fn ctrl_tab(self) -> WidgetFocusInfo<'a> {
-        todo!()
+    pub fn shift_tab(self) -> WidgetFocusInfo<'a> {
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.tab_nav() {
+                TabNav::None => self,
+                TabNav::Continue => self.prev_focusable().unwrap_or_else(|| scope.shift_tab()),
+                TabNav::Contained => self.prev_focusable().unwrap_or(self),
+                TabNav::Cycle => self.prev_focusable().unwrap_or_else(|| scope.descendants().last().unwrap()),
+                TabNav::Once => scope.shift_tab(),
+            }
+        } else {
+            self
+        }
     }
 }
 
@@ -696,6 +711,15 @@ impl FocusInfo {
         match self {
             FocusInfo::FocusScope(..) => true,
             _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn tab_nav(self) -> TabNav {
+        match self {
+            FocusInfo::NotFocusable => TabNav::None,
+            FocusInfo::Focusable(_) => TabNav::Continue,
+            FocusInfo::FocusScope(_, tab_nav, _) => tab_nav,
         }
     }
 }

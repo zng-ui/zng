@@ -766,7 +766,8 @@ impl<'a> WidgetInfo<'a> {
     /// Iterator over all widgets contained by this widget.
     #[inline]
     pub fn descendants(self) -> impl Iterator<Item = WidgetInfo<'a>> {
-        self.node().descendants().map(move |n| WidgetInfo::new(self.frame, n.id()))
+        //skip(1) due to ego_tree's descendants() including the node in the descendants
+        self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.frame, n.id()))
     }
 
     /// Iterator over parent -> grandparent -> .. -> root.
