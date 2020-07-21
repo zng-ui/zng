@@ -1,3 +1,5 @@
+//! App event API.
+
 use crate::core::context::{Events, WidgetContext};
 use std::cell::{Cell, UnsafeCell};
 use std::fmt::Debug;

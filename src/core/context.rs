@@ -1,3 +1,5 @@
+//! Context information for app extensions, windows and widgets.
+
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::types::{WidgetId, WindowId};

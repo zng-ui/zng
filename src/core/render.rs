@@ -1,3 +1,5 @@
+//! Frame render and metadata API.
+
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::UiNode;

@@ -1,3 +1,5 @@
+//! App startup and app extension API.
+
 use crate::core::event::EventEmitter;
 use crate::core::event::EventListener;
 use crate::core::profiler::*;

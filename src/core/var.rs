@@ -1,3 +1,5 @@
+//! Variables.
+
 mod boxed;
 mod cloning;
 mod context;

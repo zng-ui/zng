@@ -1,3 +1,5 @@
+//! App windows manager.
+
 use super::event::{cancelable_event_args, event_args, CancelableEvent, CancelableEventArgs, Event, EventEmitter, EventListener};
 use super::profiler::profile_scope;
 use super::{
