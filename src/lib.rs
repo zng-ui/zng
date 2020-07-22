@@ -1,5 +1,4 @@
 #![warn(unused_extern_crates)]
-#![recursion_limit = "256"]
 
 //! Zero-Ui is a pure Rust UI framework.
 //!

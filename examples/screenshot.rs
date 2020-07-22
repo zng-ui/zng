@@ -1,5 +1,3 @@
-#![recursion_limit = "256"]
-
 use zero_ui::core::{context::WidgetContext, window::Windows};
 use zero_ui::prelude::*;
 

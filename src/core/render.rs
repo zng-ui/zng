@@ -647,6 +647,17 @@ pub struct WidgetInfo<'a> {
     frame: &'a FrameInfo,
     node_id: ego_tree::NodeId,
 }
+impl<'a> PartialEq for WidgetInfo<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.node_id == other.node_id
+    }
+}
+impl<'a> Eq for WidgetInfo<'a> {}
+impl<'a> std::hash::Hash for WidgetInfo<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.node_id, state)
+    }
+}
 
 impl<'a> WidgetInfo<'a> {
     #[inline]

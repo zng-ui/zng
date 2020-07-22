@@ -60,15 +60,15 @@ state_key! {
 }
 
 /// Widget order index during TAB navigation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TabIndex(u32);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct TabIndex(pub u32);
 
 impl TabIndex {
     /// Widget is skipped during TAB navigation.
-    pub const SKIP: TabIndex = TabIndex(0);
+    pub const SKIP: TabIndex = TabIndex(u32::max_value());
 
     /// Widget is focused during TAB navigation using its order of declaration.
-    pub const AUTO: TabIndex = TabIndex(u32::max_value());
+    pub const AUTO: TabIndex = TabIndex(u32::max_value() - 1);
 
     /// If is [`SKIP`](TabIndex::SKIP).
     #[inline]
@@ -277,8 +277,8 @@ impl Focus {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(prev.widget_id()) {
                         if let Some(new_focus) = match move_ {
-                            FocusRequest::Next => Some(w.tab()),
-                            FocusRequest::Prev => Some(w.shift_tab()),
+                            FocusRequest::Next => w.next_tab(),
+                            FocusRequest::Prev => w.prev_tab(),
                             FocusRequest::Left => None, //TODO
                             FocusRequest::Right => None,
                             FocusRequest::Up => None,
@@ -445,11 +445,11 @@ pub enum FocusRequest {
     Down,
 }
 
+/// [`FrameInfo`] reference wrapper that adds focus information for each widget.
 pub struct FrameFocusInfo<'a> {
     /// Full frame info.
     pub info: &'a FrameInfo,
 }
-
 impl<'a> FrameFocusInfo<'a> {
     #[inline]
     pub fn new(frame_info: &'a FrameInfo) -> Self {
@@ -465,7 +465,7 @@ impl<'a> FrameFocusInfo<'a> {
         WidgetFocusInfo::new(self.info.root())
     }
 
-    /// Reference to the widget in the frame, if it is present and has focus info.
+    /// Reference to the widget in the frame, if it is present and is focusable.
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
         self.info.find(widget_id).and_then(|i| i.as_focusable())
@@ -491,7 +491,6 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     fn as_focus_info(self) -> WidgetFocusInfo<'a> {
         WidgetFocusInfo::new(self)
     }
-
     fn as_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         let r = self.as_focus_info();
         if r.is_focusable() {
@@ -502,8 +501,8 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     }
 }
 
-/// [`WidgetInfo`](WidgetInfo) wrapper that uses focus metadata for computing navigation.
-#[derive(Clone, Copy)]
+/// [`WidgetInfo`](WidgetInfo) wrapper that adds focus information for each widget.
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
     pub info: WidgetInfo<'a>,
@@ -532,6 +531,7 @@ impl<'a> WidgetFocusInfo<'a> {
         self.focus_info().is_scope()
     }
 
+    /// Widget focus metadata.
     #[inline]
     pub fn focus_info(self) -> FocusInfo {
         let m = self.info.meta();
@@ -601,6 +601,14 @@ impl<'a> WidgetFocusInfo<'a> {
         self.info.descendants().focusable()
     }
 
+    /// Descendants sorted by TAB index.
+    #[inline]
+    pub fn descendants_sorted(self) -> Vec<WidgetFocusInfo<'a>> {
+        let mut vec: Vec<_> = self.descendants().collect();
+        vec.sort_by_key(|f|f.focus_info().tab_index());
+        vec
+    }
+
     /// Iterator over all focusable widgets in the same scope after this widget.
     #[inline]
     pub fn next_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
@@ -616,6 +624,50 @@ impl<'a> WidgetFocusInfo<'a> {
     #[inline]
     pub fn next_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         self.next_focusables().next()
+    }
+
+    /// Next focusable in the same scope after this widget respecting the TAB index.
+    #[inline]
+    pub fn next_focusable_sorted(self) -> Option<WidgetFocusInfo<'a>> {
+        let self_index = self.focus_info().tab_index();
+        let siblings = self.scope().map(|s|s.descendants_sorted()).unwrap_or_default();
+
+        if self_index == TabIndex::SKIP {
+            // TAB from skip, goes to first in scope.
+            return siblings.into_iter().find(|w|w.focus_info().tab_index() != TabIndex::SKIP);
+        }
+
+        let mut found_self = false;
+
+        for f in siblings {
+            let f_index = f.focus_info().tab_index();
+
+            if f_index < self_index {
+                continue;
+            }
+
+            if f_index == self_index {
+                if !found_self {
+                    if f == self {
+                        found_self = true;                       
+                    }
+                    continue;
+                } else {
+                    return Some(f);
+                }
+            }
+
+            // f_index > self_index
+
+            if f_index == TabIndex::SKIP {
+                // only skip items left.
+                break;
+            }
+
+            return Some(f)
+        }
+
+        None
     }
 
     /// Iterator over all focusable widgets in the same scope before this widget in reverse.
@@ -645,37 +697,61 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Widget to focus when pressing TAB from this widget.
+    ///
+    /// Returns `None` if the focus does not move to another widget.
     #[inline]
-    pub fn tab(self) -> WidgetFocusInfo<'a> {
+    pub fn next_tab(self) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
-                TabNav::None => self,
-                TabNav::Continue => self.next_focusable().unwrap_or_else(|| scope.tab()),
-                TabNav::Contained => self.next_focusable().unwrap_or(self),
-                TabNav::Cycle => self.next_focusable().unwrap_or_else(|| scope.descendants().next().unwrap()),
-                TabNav::Once => scope.tab(),
+                TabNav::None => None,
+                TabNav::Continue => self.next_focusable_sorted().or_else(|| scope.next_tab()),
+                TabNav::Contained => self.next_focusable_sorted(),
+                TabNav::Cycle => self.next_focusable_sorted().or_else(|| {
+                    let scope_first = scope.descendants().next().unwrap();
+                    if scope_first == self {
+                        None
+                    } else {
+                        Some(scope_first)
+                    }
+                }),
+                TabNav::Once => scope.next_tab(),
             }
         } else {
-            self
+            None
         }
     }
 
     /// Widget to focus when pressing SHIFT+TAB from this widget.
+    ///
+    /// Returns `None` if the focus does not move to another widget.
     #[inline]
-    pub fn shift_tab(self) -> WidgetFocusInfo<'a> {
+    pub fn prev_tab(self) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
-                TabNav::None => self,
-                TabNav::Continue => self.prev_focusable().unwrap_or_else(|| scope.shift_tab()),
-                TabNav::Contained => self.prev_focusable().unwrap_or(self),
-                TabNav::Cycle => self.prev_focusable().unwrap_or_else(|| scope.descendants().last().unwrap()),
-                TabNav::Once => scope.shift_tab(),
+                TabNav::None => None,
+                TabNav::Continue => self.prev_focusable().or_else(|| scope.prev_tab()),
+                TabNav::Contained => self.prev_focusable(),
+                TabNav::Cycle => self.prev_focusable().or_else(|| {
+                    let scope_last = scope.descendants().last().unwrap();
+                    if scope_last == self {
+                        None
+                    } else {
+                        Some(scope_last)
+                    }
+                }),
+                TabNav::Once => scope.prev_tab(),
             }
         } else {
-            self
+            None
         }
+    }
+
+    /// Widget to focus when pressing the arrow left key from this widget.
+    #[inline]
+    pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
+        None
     }
 }
 
@@ -690,6 +766,7 @@ impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
     }
 }
 
+/// Focus metadata associated with a widget in a frame.
 #[derive(Debug, Clone, Copy)]
 pub enum FocusInfo {
     NotFocusable,
@@ -698,6 +775,7 @@ pub enum FocusInfo {
 }
 
 impl FocusInfo {
+    /// If is focusable or a focus scope.
     #[inline]
     pub fn is_focusable(self) -> bool {
         match self {
@@ -706,6 +784,7 @@ impl FocusInfo {
         }
     }
 
+    /// If is a focus scope.
     #[inline]
     pub fn is_scope(self) -> bool {
         match self {
@@ -714,12 +793,50 @@ impl FocusInfo {
         }
     }
 
+    /// Tab navigation mode.
+    ///
+    /// | Variant                   | Returns                                 |
+    /// |---------------------------|-----------------------------------------|
+    /// | Focus scope               | Associated value, default is `Continue` |
+    /// | Focusable                 | `TabNav::Continue`                      |
+    /// | Not-Focusable             | `TabNav::None`                          |
     #[inline]
     pub fn tab_nav(self) -> TabNav {
         match self {
-            FocusInfo::NotFocusable => TabNav::None,
-            FocusInfo::Focusable(_) => TabNav::Continue,
             FocusInfo::FocusScope(_, tab_nav, _) => tab_nav,
+            FocusInfo::Focusable(_) => TabNav::Continue,
+            FocusInfo::NotFocusable => TabNav::None,
+        }
+    }
+
+    /// Directional navigation mode.
+    ///
+    /// | Variant                   | Returns                             |
+    /// |---------------------------|-------------------------------------|
+    /// | Focus scope               | Associated value, default is `None` |
+    /// | Focusable                 | `DirectionalNav::Continue`          |
+    /// | Not-Focusable             | `DirectionalNav::None`              |
+    #[inline]
+    pub fn directional_nav(self) -> DirectionalNav {
+        match self {
+            FocusInfo::FocusScope(_, _, dir_nav) => dir_nav,
+            FocusInfo::Focusable(_) => DirectionalNav::Continue,
+            FocusInfo::NotFocusable => DirectionalNav::None,
+        }
+    }
+
+    /// Tab navigation index.
+    ///
+    /// | Variant           | Returns                                       |
+    /// |-------------------|-----------------------------------------------|
+    /// | Focusable & Scope | Associated value, default is `TabIndex::AUTO` |
+    /// | Not-Focusable     | `TabIndex::SKIP`                              |
+    #[inline]
+    pub fn tab_index(self) -> TabIndex {
+        match self {
+            FocusInfo::Focusable(i) => i,
+            FocusInfo::FocusScope(i, _, _) => i,
+            FocusInfo::NotFocusable => TabIndex::SKIP,
         }
     }
 }

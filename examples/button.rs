@@ -1,7 +1,4 @@
-#![recursion_limit = "256"]
-
 use enclose::enclose;
-
 use zero_ui::prelude::*;
 
 fn main() {
