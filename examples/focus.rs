@@ -12,7 +12,7 @@ fn main() {
             content: v_stack! {
                 spacing: 5.0;
                 items: ui_vec![
-                    example("Button 5", TabIndex(5)), 
+                    example("Button 5", TabIndex(5)),
                     example("Button 4", TabIndex(3)),
                     example("Button 3", TabIndex(2)),
                     example("Button 1", TabIndex(0)),

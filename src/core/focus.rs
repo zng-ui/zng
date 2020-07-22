@@ -605,7 +605,7 @@ impl<'a> WidgetFocusInfo<'a> {
     #[inline]
     pub fn descendants_sorted(self) -> Vec<WidgetFocusInfo<'a>> {
         let mut vec: Vec<_> = self.descendants().collect();
-        vec.sort_by_key(|f|f.focus_info().tab_index());
+        vec.sort_by_key(|f| f.focus_info().tab_index());
         vec
     }
 
@@ -627,44 +627,67 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     /// Next focusable in the same scope after this widget respecting the TAB index.
-    #[inline]
+    ///
+    /// If `self` is `TabIndex::SKIP` returns the next focusable in the same scope after this widget.
     pub fn next_focusable_sorted(self) -> Option<WidgetFocusInfo<'a>> {
         let self_index = self.focus_info().tab_index();
-        let siblings = self.scope().map(|s|s.descendants_sorted()).unwrap_or_default();
+        let mut siblings = self.scope().map(|s| s.descendants_sorted()).unwrap_or_default();
 
         if self_index == TabIndex::SKIP {
-            // TAB from skip, goes to first in scope.
-            return siblings.into_iter().find(|w|w.focus_info().tab_index() != TabIndex::SKIP);
+            // TAB from skip, goes to next in widget tree.
+            return self.next_focusable();
         }
 
-        let mut found_self = false;
-
-        for f in siblings {
-            let f_index = f.focus_info().tab_index();
-
-            if f_index < self_index {
-                continue;
-            }
-
-            if f_index == self_index {
-                if !found_self {
-                    if f == self {
-                        found_self = true;                       
-                    }
-                    continue;
+        // binary search the same tab index gets any of the items with the same tab index.
+        let i_same = siblings.binary_search_by_key(&self_index, |f| f.focus_info().tab_index()).unwrap();
+        // so we do a linear search before and after to find `self`.
+        let mut i = i_same;
+        // before
+        loop {
+            if siblings[i] == self {
+                return if i == siblings.len() - 1 {
+                    // we are the last item.
+                    None
                 } else {
-                    return Some(f);
-                }
-            }
-
-            // f_index > self_index
-
-            if f_index == TabIndex::SKIP {
-                // only skip items left.
+                    let r = siblings.swap_remove(i + 1);
+                    if r.focus_info().tab_index() == TabIndex::SKIP {
+                        // `i_same` was `self` and we are the last non-skip item.
+                        None
+                    } else {
+                        Some(r)
+                    }
+                };
+            } else if i == 0 || siblings[i].focus_info().tab_index() != self_index {
+                // did not find `self` before `i_same`
                 break;
+            } else {
+                i -= 1;
             }
-
-            return Some(f)
+        }
+        // after
+        i = i_same + 1;
+        while i < siblings.len() {
+            if siblings[i] == self {
+                return if i == siblings.len() - 1 {
+                    // we are the last item.
+                    None
+                } else {
+                    let r = siblings.swap_remove(i + 1);
+                    if r.focus_info().tab_index() == TabIndex::SKIP {
+                        // we are the last non-skip item.
+                        None
+                    } else {
+                        Some(r)
+                    }
+                };
+            } else {
+                debug_assert_eq!(
+                    siblings[i].focus_info().tab_index(),
+                    self_index,
+                    "`self must be in sorted `siblings` and we did not find before `i_same``"
+                );
+                i += 1;
+            }
         }
 
         None
@@ -687,13 +710,58 @@ impl<'a> WidgetFocusInfo<'a> {
         prev.into_iter()
     }
 
-    /// Previous focusable in the same scope after this widget.
+    /// Previous focusable in the same scope before this widget.
     #[inline]
     pub fn prev_focusable(self) -> Option<WidgetFocusInfo<'a>> {
         let self_id = self.info.widget_id();
 
         self.scope()
             .and_then(move |s| s.descendants().take_while(move |f| f.info.widget_id() != self_id).last())
+    }
+
+    /// Previous focusable in the same scope before this widget respecting the TAB index.
+    ///
+    /// If `self` is `TabIndex::SKIP` returns the previous focusable in the same scope before this widget.
+    pub fn prev_focusable_sorted(self) -> Option<WidgetFocusInfo<'a>> {
+        let self_index = self.focus_info().tab_index();
+        let mut siblings = self.scope().map(|s| s.descendants_sorted()).unwrap_or_default();
+
+        if self_index == TabIndex::SKIP {
+            // TAB from skip, goes prev in widget tree.
+            return self.prev_focusable();
+        }
+
+        // binary search the same tab index gets any of the items with the same tab index.
+        let i_same = siblings.binary_search_by_key(&self_index, |f| f.focus_info().tab_index()).unwrap();
+        // so we do a linear search before and after to find `self`.
+        let mut i = i_same;
+        // before
+        loop {
+            if siblings[i] == self {
+                return if i == 0 { None } else { Some(siblings.swap_remove(i - 1)) };
+            } else if i == 0 || siblings[i].focus_info().tab_index() != self_index {
+                // did not find `self` before `i_same`
+                break;
+            } else {
+                i -= 1;
+            }
+        }
+        // after
+        i = i_same + 1;
+        while i < siblings.len() {
+            if siblings[i] == self {
+                return Some(siblings.swap_remove(i - 1));
+            } else {
+                debug_assert_eq!(
+                    siblings[i].focus_info().tab_index(),
+                    self_index,
+                    "`self must be in sorted `siblings` and we did not find before `i_same``"
+                );
+                i += 1;
+            }
+        }
+
+        None
     }
 
     /// Widget to focus when pressing TAB from this widget.
@@ -731,9 +799,9 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
                 TabNav::None => None,
-                TabNav::Continue => self.prev_focusable().or_else(|| scope.prev_tab()),
-                TabNav::Contained => self.prev_focusable(),
-                TabNav::Cycle => self.prev_focusable().or_else(|| {
+                TabNav::Continue => self.prev_focusable_sorted().or_else(|| scope.prev_tab()),
+                TabNav::Contained => self.prev_focusable_sorted(),
+                TabNav::Cycle => self.prev_focusable_sorted().or_else(|| {
                     let scope_last = scope.descendants().last().unwrap();
                     if scope_last == self {
                         None
