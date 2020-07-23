@@ -1,4 +1,4 @@
-//! Properties that are only used by widgets directly by capturing them in the `new` or `new_child` function.
+//! Properties that are only used by widgets directly.
 
 use crate::{
     core::{property, types::WidgetId, var::IntoVar, UiVec},

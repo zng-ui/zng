@@ -135,7 +135,11 @@ impl<C: UiNode> UiNode for IsFocused<C> {
 /// If the widget has keyboard focus.
 ///
 /// This is only `true` if the widget itself is focused.
-/// You can use [`is_focus_within`] to check if the focused widget is within this one.
+/// You can use [`is_focus_within`](is_focus_within) to check if the focused widget is within this one.
+///
+/// # Highlighting
+///
+/// TODO
 #[property(context)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocused {
@@ -184,6 +188,102 @@ impl<C: UiNode> UiNode for IsFocusWithin<C> {
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusWithin {
+        child,
+        state,
+        focus_changed: EventListener::never(false),
+    }
+}
+
+struct IsFocusedHighlighted<C: UiNode> {
+    child: C,
+    state: StateVar,
+    focus_changed: EventListener<FocusChangedArgs>,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsFocusedHighlighted<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(u) = self.focus_changed.updates(ctx.events).last() {
+            let was_focused_hgl = *self.state.get(ctx.vars);
+            let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default();
+            if was_focused_hgl != is_focused_hgl {
+                self.state.push_set(is_focused_hgl, ctx.vars, ctx.updates).expect("is_focused_hgl");
+            }
+        }
+        self.child.update(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focused_hgl");
+        }
+        self.child.deinit(ctx);
+    }
+}
+
+/// If the widget has keyboard focus and focus highlighting is enabled.
+///
+/// This is only `true` if the widget itself is focused and focus highlighting is enabled.
+/// You can use [`is_focus_within_hgl`](is_focus_within_hgl) to check if the focused widget is within this one.
+///
+/// Also see [`is_focused`](is_focused) to check if the widget is focused regardless of highlighting.
+#[property(context)]
+pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsFocusedHighlighted {
+        child,
+        state,
+        focus_changed: EventListener::never(false),
+    }
+}
+
+struct IsFocusWithinHighlighted<C: UiNode> {
+    child: C,
+    state: StateVar,
+    focus_changed: EventListener<FocusChangedArgs>,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsFocusWithinHighlighted<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(u) = self.focus_changed.updates(ctx.events).last() {
+            let was_focused_hgl = *self.state.get(ctx.vars);
+            let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.contains(ctx.widget_id)).unwrap_or_default();
+
+            if was_focused_hgl != is_focused_hgl {
+                self.state
+                    .push_set(is_focused_hgl, ctx.vars, ctx.updates)
+                    .expect("is_focus_within_hgl");
+            }
+        }
+        self.child.update(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within_hgl");
+        }
+        self.child.deinit(ctx);
+    }
+}
+
+/// If the widget or one of its descendants has keyboard focus and focus highlighting is enabled.
+///
+/// To check if only the widget has keyboard focus use [`is_focused_hgl`](is_focused_hgl).
+///
+/// Also see [`is_focus_within`](is_focus_within) to check if the widget has focus within regardless of highlighting.
+#[property(context)]
+pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsFocusWithinHighlighted {
         child,
         state,
         focus_changed: EventListener::never(false),
