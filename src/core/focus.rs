@@ -162,24 +162,21 @@ impl AppExtension for FocusManager {
             request = Some(req);
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
             // click
-            request = Some(FocusRequest::DirectOrParent {
-                widget_id: args.target.widget_id(),
-                highlight: false,
-            });
+            request = Some(FocusRequest::direct_or_parent(args.target.widget_id(), false));
         } else if let Some(args) = self.key_down.updates(ctx.events).last() {
             // keyboard
             match &args.key {
                 Some(VirtualKeyCode::Tab) => {
                     request = Some(if args.modifiers.shift() {
-                        FocusRequest::Prev
+                        FocusRequest::prev(true)
                     } else {
-                        FocusRequest::Next
+                        FocusRequest::next(true)
                     })
                 }
-                Some(VirtualKeyCode::Up) => request = Some(FocusRequest::Up),
-                Some(VirtualKeyCode::Down) => request = Some(FocusRequest::Down),
-                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::Left),
-                Some(VirtualKeyCode::Right) => request = Some(FocusRequest::Right),
+                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::left(true)),
+                Some(VirtualKeyCode::Up) => request = Some(FocusRequest::up(true)),
+                Some(VirtualKeyCode::Right) => request = Some(FocusRequest::right(true)),
+                Some(VirtualKeyCode::Down) => request = Some(FocusRequest::down(true)),
                 _ => {}
             }
         }
@@ -251,75 +248,75 @@ impl Focus {
     /// Focus the widget if it is focusable.
     #[inline]
     pub fn focus_widget(&mut self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::Direct { widget_id, highlight })
+        self.focus(FocusRequest::direct(widget_id, highlight))
     }
 
     /// Focus the widget if it is focusable, else focus the first focusable parent.
     #[inline]
     pub fn focus_widget_or_parent(&mut self, widget_id: WidgetId, highlight: bool) {
-        self.focus(FocusRequest::DirectOrParent { widget_id, highlight })
+        self.focus(FocusRequest::direct_or_parent(widget_id, highlight))
     }
 
     #[inline]
     pub fn focus_next(&mut self) {
-        self.focus(FocusRequest::Next);
+        self.focus(FocusRequest::next(self.is_highlighting));
     }
 
     #[inline]
     pub fn focus_prev(&mut self) {
-        self.focus(FocusRequest::Prev);
+        self.focus(FocusRequest::prev(self.is_highlighting));
     }
 
     #[inline]
     pub fn focus_left(&mut self) {
-        self.focus(FocusRequest::Left);
-    }
-
-    #[inline]
-    pub fn focus_right(&mut self) {
-        self.focus(FocusRequest::Right);
+        self.focus(FocusRequest::left(self.is_highlighting));
     }
 
     #[inline]
     pub fn focus_up(&mut self) {
-        self.focus(FocusRequest::Up);
+        self.focus(FocusRequest::up(self.is_highlighting));
+    }
+
+    #[inline]
+    pub fn focus_right(&mut self) {
+        self.focus(FocusRequest::right(self.is_highlighting));
     }
 
     #[inline]
     pub fn focus_down(&mut self) {
-        self.focus(FocusRequest::Down);
+        self.focus(FocusRequest::down(self.is_highlighting));
     }
 
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
-        match (&self.focused, request) {
-            (_, FocusRequest::Direct { widget_id, highlight }) => self.focus_direct(widget_id, highlight, false, windows),
-            (_, FocusRequest::DirectOrParent { widget_id, highlight }) => self.focus_direct(widget_id, highlight, true, windows),
+        match (&self.focused, request.target) {
+            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, windows),
+            (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, true, windows),
             (Some(prev), move_) => {
                 if let Ok(w) = windows.window(prev.window_id()) {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(prev.widget_id()) {
                         if let Some(new_focus) = match move_ {
-                            FocusRequest::Next => w.next_tab(),
-                            FocusRequest::Prev => w.prev_tab(),
-                            FocusRequest::Left => None, //TODO
-                            FocusRequest::Right => None,
-                            FocusRequest::Up => None,
-                            FocusRequest::Down => None,
-                            FocusRequest::Direct { .. } | FocusRequest::DirectOrParent { .. } => unreachable!(),
+                            FocusTarget::Next => w.next_tab(),
+                            FocusTarget::Prev => w.prev_tab(),
+                            FocusTarget::Left => None, //TODO
+                            FocusTarget::Up => None,
+                            FocusTarget::Right => None,
+                            FocusTarget::Down => None,
+                            FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
-                            self.move_focus(Some(new_focus.info.path()))
+                            self.move_focus(Some(new_focus.info.path()), request.highlight)
                         } else {
                             // widget may have moved inside the same window.
-                            self.continue_focus(windows)
+                            self.continue_focus_highlight(windows, request.highlight)
                         }
                     } else {
                         // widget not found.
-                        self.continue_focus(windows)
+                        self.continue_focus_highlight(windows, request.highlight)
                     }
                 } else {
                     // window not found
-                    self.continue_focus(windows)
+                    self.continue_focus_highlight(windows, request.highlight)
                 }
             }
             _ => None,
@@ -335,15 +332,15 @@ impl Focus {
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
-                            self.move_focus(Some(widget.info.path()))
+                            self.move_focus(Some(widget.info.path()), self.is_highlighting)
                         } else {
                             // widget no longer focusable
                             if let Some(parent) = widget.parent() {
                                 // move to focusable parent
-                                self.move_focus(Some(parent.info.path()))
+                                self.move_focus(Some(parent.info.path()), self.is_highlighting)
                             } else {
                                 // no focusable parent, is this an error?
-                                self.move_focus(None)
+                                self.move_focus(None, false)
                             }
                         }
                     } else {
@@ -360,7 +357,7 @@ impl Focus {
             }
         } else {
             // no previous focus
-            self.focus_active_window(windows)
+            self.focus_active_window(windows, false)
         }
     }
 
@@ -373,15 +370,15 @@ impl Focus {
                 if window.is_active() {
                     return if widget.is_focusable() {
                         // same widget, moved to another window
-                        self.move_focus(Some(widget.info.path()))
+                        self.move_focus(Some(widget.info.path()), self.is_highlighting)
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to focusable parent
-                            self.move_focus(Some(parent.info.path()))
+                            self.move_focus(Some(parent.info.path()), self.is_highlighting)
                         } else {
                             // no focusable parent, is this an error?
-                            self.move_focus(None)
+                            self.move_focus(None, false)
                         }
                     };
                 }
@@ -389,7 +386,21 @@ impl Focus {
             }
         }
         // did not find the widget in a focusable context, was removed or is inside an inactive window.
-        self.focus_active_window(windows)
+        self.focus_active_window(windows, self.is_highlighting)
+    }
+
+    #[must_use]
+    fn continue_focus_highlight(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
+        if let Some(mut args) = self.continue_focus(windows) {
+            args.highlight = highlight;
+            self.is_highlighting = highlight;
+            Some(args)
+        } else if self.is_highlighting != highlight{
+            self.is_highlighting = highlight;
+            Some(FocusChangedArgs::now(self.focused.clone(), self.focused.clone(), highlight))
+        } else { 
+            None
+        }
     }
 
     #[must_use]
@@ -400,16 +411,14 @@ impl Focus {
         fallback_to_parents: bool,
         windows: &Windows,
     ) -> Option<FocusChangedArgs> {
-        let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
-
         for w in windows.windows() {
             let frame = w.frame_info();
             if let Some(w) = frame.find(widget_id).map(|w| w.as_focus_info()) {
                 if w.is_focusable() {
-                    return self.move_focus(Some(w.info.path()));
+                    return self.move_focus(Some(w.info.path()), highlight);
                 } else if fallback_to_parents {
                     if let Some(w) = w.parent() {
-                        return self.move_focus(Some(w.info.path()));
+                        return self.move_focus(Some(w.info.path()), highlight);
                     } else {
                         // no focusable parent, just activate window?
                         //TODO
@@ -419,7 +428,13 @@ impl Focus {
             }
         }
 
-        if prev_highlight != highlight {
+        self.change_highlight(highlight)
+    }
+
+    #[must_use]
+    fn change_highlight(&mut self, highlight: bool) -> Option<FocusChangedArgs> {
+        if self.is_highlighting != highlight {
+            self.is_highlighting = highlight;
             Some(FocusChangedArgs::now(self.focused.clone(), self.focused.clone(), highlight))
         } else {
             None
@@ -427,29 +442,33 @@ impl Focus {
     }
 
     #[must_use]
-    fn focus_active_window(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+    fn focus_active_window(&mut self, windows: &Windows, highlight: bool) -> Option<FocusChangedArgs> {
         if let Some(active) = windows.windows().find(|w| w.is_active()) {
             let frame = FrameFocusInfo::new(active.frame_info());
             let root = frame.root();
             if root.is_focusable() {
                 // found active window and it is focusable.
-                self.move_focus(Some(root.info.path()))
+                self.move_focus(Some(root.info.path()), highlight)
             } else {
                 // has active window but it is not focusable
-                self.move_focus(None)
+                self.move_focus(None, false)
             }
         } else {
             // no active window
-            self.move_focus(None)
+            self.move_focus(None, false)
         }
     }
 
     #[must_use]
-    fn move_focus(&mut self, new_focus: Option<WidgetPath>) -> Option<FocusChangedArgs> {
+    fn move_focus(&mut self, new_focus: Option<WidgetPath>, highlight: bool) -> Option<FocusChangedArgs> {
+        let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
+
         if self.focused != new_focus {
             let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone(), self.is_highlighting);
             self.focused = new_focus;
             Some(args)
+        } else if prev_highlight != highlight {
+            Some(FocusChangedArgs::now(new_focus.clone(), new_focus, highlight))
         } else {
             None
         }
@@ -458,21 +477,67 @@ impl Focus {
 
 impl AppService for Focus {}
 
-/// Focus change request.
 #[derive(Clone, Copy, Debug)]
-pub enum FocusRequest {
+/// Focus change request.
+pub struct FocusRequest {
+    pub target: FocusTarget,
+    /// If the widget should visually indicate that it is focused.
+    pub highlight: bool,
+}
+
+impl FocusRequest {
+    #[inline]
+    pub fn new(target: FocusTarget, highlight: bool) -> Self {
+        Self { target, highlight }
+    }
+
+    #[inline]
+    pub fn direct(widget_id: WidgetId, highlight: bool) -> Self {
+        Self::new(FocusTarget::Direct(widget_id), highlight)
+    }
+
+    #[inline]
+    pub fn direct_or_parent(widget_id: WidgetId, highlight: bool) -> Self {
+        Self::new(FocusTarget::DirectOrParent(widget_id), highlight)
+    }
+
+    #[inline]
+    pub fn next(highlight: bool) -> Self {
+        Self::new(FocusTarget::Next, highlight)
+    }
+
+    #[inline]
+    pub fn prev(highlight: bool) -> Self {
+        Self::new(FocusTarget::Prev, highlight)
+    }
+
+    #[inline]
+    pub fn left(highlight: bool) -> Self {
+        Self::new(FocusTarget::Left, highlight)
+    }
+
+    #[inline]
+    pub fn up(highlight: bool) -> Self {
+        Self::new(FocusTarget::Up, highlight)
+    }
+
+    #[inline]
+    pub fn right(highlight: bool) -> Self {
+        Self::new(FocusTarget::Right, highlight)
+    }
+
+    #[inline]
+    pub fn down(highlight: bool) -> Self {
+        Self::new(FocusTarget::Down, highlight)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FocusTarget {
     /// Move focus to widget.
-    Direct {
-        widget_id: WidgetId,
-        /// If the widget should visually indicate that it is focused.
-        highlight: bool,
-    },
+    Direct(WidgetId),
     /// Move focus to the widget if it is focusable or to a focusable parent.
-    DirectOrParent {
-        widget_id: WidgetId,
-        /// If the widget should visually indicate that it is focused.
-        highlight: bool,
-    },
+    DirectOrParent(WidgetId),
 
     /// Move focus to next from current in screen, or to first in screen.
     Next,
@@ -481,10 +546,10 @@ pub enum FocusRequest {
 
     /// Move focus to the left of current.
     Left,
-    /// Move focus to the right of current.
-    Right,
     /// Move focus above current.
     Up,
+    /// Move focus to the right of current.
+    Right,
     /// Move focus bellow current.
     Down,
 }
