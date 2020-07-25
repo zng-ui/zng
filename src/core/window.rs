@@ -6,7 +6,7 @@ use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     context::{
         AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Vars, WidgetContext,
-        WindowServices, WindowState,
+        WindowServices, WindowState, Updates,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
     types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, Text, WidgetId, WindowEvent, WindowId},
@@ -470,9 +470,11 @@ impl WindowManager {
 
             // do window vars update.
             if update.update {
+                let mut update = UpdateDisplayRequest::None;
                 for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-                    window.update_window_vars(ctx.vars);
+                    update |= window.update_window_vars(ctx.vars);
                 }
+                ctx.updates.display_update |= update;
             }
         }
     }
@@ -687,7 +689,7 @@ pub struct Window {
     id: WidgetId,
     title: BoxLocalVar<Text>,
     size: BoxVar<LayoutSize>,
-    background_color: BoxVar<ColorF>,
+    background_color: BoxLocalVar<ColorF>,
     child: Box<dyn UiNode>,
 }
 
@@ -704,7 +706,7 @@ impl Window {
             id: root_id,
             title: Box::new(title.into_local()),
             size: size.into_var().boxed(),
-            background_color: background_color.into_var().boxed(),
+            background_color: Box::new(background_color.into_local()),
             child: child.boxed(),
         }
     }
@@ -913,16 +915,24 @@ impl OpenWindow {
         self.wn_ctx.borrow_mut().update |= UpdateDisplayRequest::Layout;
     }
 
-    fn update_window_vars(&mut self, vars: &Vars) {
+    fn update_window_vars(&mut self, vars: &Vars) -> UpdateDisplayRequest {
         profile_scope!("window::update_window_vars");
+
+        let mut update = UpdateDisplayRequest::None;
 
         let gl_ctx = self.gl_ctx.borrow();
         let window = gl_ctx.window();
-        let r = &mut self.wn_ctx.borrow_mut().root;
+        let mut wn_ctx = self.wn_ctx.borrow_mut();
 
-        if let Some(title) = r.title.update_local(vars) {
+        if let Some(title) = wn_ctx.root.title.update_local(vars) {
             window.set_title(title);
         }
+        if wn_ctx.root.background_color.update_local(vars).is_some() {
+            update |= UpdateDisplayRequest::Render;
+            wn_ctx.update |= UpdateDisplayRequest::Render;
+        }
+
+        update
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
@@ -968,6 +978,7 @@ impl OpenWindow {
 
             let size = self.size();
             let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size);
+            let clear_color = *ctx.root.background_color.get_local();
 
             ctx.root.child.render(&mut frame);
 
@@ -976,7 +987,7 @@ impl OpenWindow {
             self.frame_info = frame_info;
 
             let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, None, size, display_list_data, true);
+            txn.set_display_list(frame_id, Some(clear_color), size, display_list_data, true);
             txn.set_root_pipeline(self.pipeline_id);
 
             if self.doc_view_changed {

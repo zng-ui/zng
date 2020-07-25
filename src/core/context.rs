@@ -818,7 +818,7 @@ impl OwnedUpdates {
 pub struct Updates {
     notifier: UpdateNotifier,
     update: UpdateRequest,
-    display_update: UpdateDisplayRequest,
+    pub(in crate::core) display_update: UpdateDisplayRequest,
     win_display_update: UpdateDisplayRequest,
     updates: Vec<UpdateOnce>,
     cleanup: Vec<CleanupOnce>,
