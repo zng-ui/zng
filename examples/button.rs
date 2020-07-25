@@ -5,11 +5,8 @@ fn main() {
     better_panic::install();
 
     App::default().run_window(|_| {
-        let size = var((800., 600.));
-        let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
         window! {
-            size: size;
-            title: title;
+            title: "Button Example";
             content: v_stack! {
                 spacing: 5.0;
                 items: ui_vec![example(), example()];
@@ -26,7 +23,6 @@ fn example() -> impl Widget {
             let ctx = a.ctx();
             ctx.updates.push_set(&t, "Clicked!".into(), ctx.vars).unwrap();
         }};
-        align: Alignment::CENTER;
 
         content: text(t);
     }

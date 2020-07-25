@@ -314,15 +314,24 @@ impl AppExtension for WindowManager {
             WindowEvent::Resized(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_size = window.size();
+
                     ctx.updates.push_layout();
                     window.expect_layout_update();
                     window.resize_next_render();
+
                     // raise window_resize
                     ctx.updates
                         .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
 
                     // set the window size variable if it is not read-only.
-                    let _ = ctx.updates.push_set(&window.wn_ctx.borrow().root.size, new_size, ctx.vars);
+                    let wn_ctx = window.wn_ctx.borrow();
+                    if !wn_ctx.root.size.read_only(ctx.vars) {
+                        let current_size = *wn_ctx.root.size.get(ctx.vars);
+                        // the var can already be set if the user modified it to resize the window.
+                        if current_size != new_size {
+                            let _ = ctx.updates.push_set(&wn_ctx.root.size, new_size, ctx.vars);
+                        }
+                    }
                 }
             }
             WindowEvent::Moved(new_position) => {
@@ -923,6 +932,16 @@ impl OpenWindow {
         if let Some(title) = wn_ctx.root.title.update_local(vars) {
             window.set_title(title);
         }
+
+        if let Some(&new_size) = wn_ctx.root.size.update(vars) {
+            let s = window.scale_factor() as f32;
+            let new_size = glutin::dpi::PhysicalSize::new((new_size.width * s) as u32, (new_size.height * s) as u32);
+            if new_size != window.inner_size() {
+                // the size variable was changed to set the window size.
+                window.set_inner_size(new_size);
+            }
+        }
+
         if wn_ctx.root.background_color.update_local(vars).is_some() {
             wn_ctx.update |= UpdateDisplayRequest::Render;
             updates.push_render();
