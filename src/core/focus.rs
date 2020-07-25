@@ -265,7 +265,7 @@ impl Focus {
     #[inline]
     pub fn focus_prev(&mut self) {
         self.focus(FocusRequest::prev(self.is_highlighting));
-    }  
+    }
 
     #[inline]
     pub fn focus_up(&mut self) {
@@ -395,10 +395,10 @@ impl Focus {
             args.highlight = highlight;
             self.is_highlighting = highlight;
             Some(args)
-        } else if self.is_highlighting != highlight{
+        } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
             Some(FocusChangedArgs::now(self.focused.clone(), self.focused.clone(), highlight))
-        } else { 
+        } else {
             None
         }
     }
@@ -525,7 +525,7 @@ impl FocusRequest {
     pub fn down(highlight: bool) -> Self {
         Self::new(FocusTarget::Down, highlight)
     }
-    
+
     #[inline]
     pub fn left(highlight: bool) -> Self {
         Self::new(FocusTarget::Left, highlight)
@@ -939,7 +939,7 @@ impl<'a> WidgetFocusInfo<'a> {
         } else {
             None
         }
-    }    
+    }
 
     /// Widget to focus when pressing the arrow up key from this widget.
     #[inline]

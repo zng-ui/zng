@@ -5,8 +5,8 @@ use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     context::{
-        AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Vars, WidgetContext,
-        WindowServices, WindowState, Updates,
+        AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Updates, Vars,
+        WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
     types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, Text, WidgetId, WindowEvent, WindowId},
@@ -470,11 +470,9 @@ impl WindowManager {
 
             // do window vars update.
             if update.update {
-                let mut update = UpdateDisplayRequest::None;
                 for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
-                    update |= window.update_window_vars(ctx.vars);
+                    window.update_window_vars(ctx.vars, ctx.updates);
                 }
-                ctx.updates.display_update |= update;
             }
         }
     }
@@ -915,10 +913,8 @@ impl OpenWindow {
         self.wn_ctx.borrow_mut().update |= UpdateDisplayRequest::Layout;
     }
 
-    fn update_window_vars(&mut self, vars: &Vars) -> UpdateDisplayRequest {
+    fn update_window_vars(&mut self, vars: &Vars, updates: &mut Updates) {
         profile_scope!("window::update_window_vars");
-
-        let mut update = UpdateDisplayRequest::None;
 
         let gl_ctx = self.gl_ctx.borrow();
         let window = gl_ctx.window();
@@ -928,11 +924,9 @@ impl OpenWindow {
             window.set_title(title);
         }
         if wn_ctx.root.background_color.update_local(vars).is_some() {
-            update |= UpdateDisplayRequest::Render;
             wn_ctx.update |= UpdateDisplayRequest::Render;
+            updates.push_render();
         }
-
-        update
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
