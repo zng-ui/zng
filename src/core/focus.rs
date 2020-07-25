@@ -299,10 +299,10 @@ impl Focus {
                         if let Some(new_focus) = match move_ {
                             FocusTarget::Next => w.next_tab(),
                             FocusTarget::Prev => w.prev_tab(),
-                            FocusTarget::Left => None, //TODO
-                            FocusTarget::Up => None,
-                            FocusTarget::Right => None,
-                            FocusTarget::Down => None,
+                            FocusTarget::Left => w.next_left(),
+                            FocusTarget::Up => w.next_up(),
+                            FocusTarget::Right => w.next_right(),
+                            FocusTarget::Down => w.next_down(),
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
@@ -944,6 +944,24 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing the arrow left key from this widget.
     #[inline]
     pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
+        None //TODO
+    }
+
+    /// Widget to focus when pressing the arrow up key from this widget.
+    #[inline]
+    pub fn next_up(self) -> Option<WidgetFocusInfo<'a>> {
+        None
+    }
+
+    /// Widget to focus when pressing the arrow right key from this widget.
+    #[inline]
+    pub fn next_right(self) -> Option<WidgetFocusInfo<'a>> {
+        None
+    }
+
+    /// Widget to focus when pressing the arrow down key from this widget.
+    #[inline]
+    pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
         None
     }
 }
