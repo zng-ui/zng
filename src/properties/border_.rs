@@ -81,15 +81,29 @@ pub struct BorderSide {
     pub style: BorderStyle,
 }
 impl BorderSide {
+    #[inline]
     pub fn visible(&self) -> bool {
         self.color.a > 0.0
     }
+
+    #[inline]
     pub fn new(color: ColorF, style: BorderStyle) -> Self {
         BorderSide { color, style }
     }
 
-    pub fn new_solid_color(color: ColorF) -> Self {
+    #[inline]
+    pub fn solid(color: ColorF) -> Self {
         Self::new(color, BorderStyle::Solid)
+    }
+
+    #[inline]
+    pub fn dotted(color: ColorF) -> Self {
+        Self::new(color, BorderStyle::Dotted)
+    }
+
+    #[inline]
+    pub fn dashed(color: ColorF) -> Self {
+        Self::new(color, BorderStyle::Dashed)
     }
 }
 
@@ -102,14 +116,27 @@ pub struct BorderDetails {
     pub radius: BorderRadius,
 }
 impl BorderDetails {
+    #[inline]
     pub fn visible(&self) -> bool {
         self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
     }
 
-    pub fn new_solid_color(color: ColorF) -> Self {
-        Self::new_all_same(BorderSide::new_solid_color(color))
+    #[inline]
+    pub fn solid(color: ColorF) -> Self {
+        Self::new_all_same(BorderSide::solid(color))
     }
 
+    #[inline]
+    pub fn dotted(color: ColorF) -> Self {
+        Self::new_all_same(BorderSide::dotted(color))
+    }
+
+    #[inline]
+    pub fn dashed(color: ColorF) -> Self {
+        Self::new_all_same(BorderSide::dashed(color))
+    }
+
+    #[inline]
     pub fn new_all_same(side: BorderSide) -> Self {
         BorderDetails {
             left: side,
@@ -122,7 +149,7 @@ impl BorderDetails {
 }
 impl From<ColorF> for BorderDetails {
     fn from(color: ColorF) -> Self {
-        BorderDetails::new_solid_color(color)
+        BorderDetails::solid(color)
     }
 }
 

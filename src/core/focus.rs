@@ -173,10 +173,10 @@ impl AppExtension for FocusManager {
                         FocusRequest::next(true)
                     })
                 }
-                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::left(true)),
                 Some(VirtualKeyCode::Up) => request = Some(FocusRequest::up(true)),
                 Some(VirtualKeyCode::Right) => request = Some(FocusRequest::right(true)),
                 Some(VirtualKeyCode::Down) => request = Some(FocusRequest::down(true)),
+                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::left(true)),
                 _ => {}
             }
         }
@@ -265,12 +265,7 @@ impl Focus {
     #[inline]
     pub fn focus_prev(&mut self) {
         self.focus(FocusRequest::prev(self.is_highlighting));
-    }
-
-    #[inline]
-    pub fn focus_left(&mut self) {
-        self.focus(FocusRequest::left(self.is_highlighting));
-    }
+    }  
 
     #[inline]
     pub fn focus_up(&mut self) {
@@ -287,6 +282,11 @@ impl Focus {
         self.focus(FocusRequest::down(self.is_highlighting));
     }
 
+    #[inline]
+    pub fn focus_left(&mut self) {
+        self.focus(FocusRequest::left(self.is_highlighting));
+    }
+
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
@@ -299,10 +299,10 @@ impl Focus {
                         if let Some(new_focus) = match move_ {
                             FocusTarget::Next => w.next_tab(),
                             FocusTarget::Prev => w.prev_tab(),
-                            FocusTarget::Left => w.next_left(),
                             FocusTarget::Up => w.next_up(),
                             FocusTarget::Right => w.next_right(),
                             FocusTarget::Down => w.next_down(),
+                            FocusTarget::Left => w.next_left(),
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
@@ -512,11 +512,6 @@ impl FocusRequest {
     }
 
     #[inline]
-    pub fn left(highlight: bool) -> Self {
-        Self::new(FocusTarget::Left, highlight)
-    }
-
-    #[inline]
     pub fn up(highlight: bool) -> Self {
         Self::new(FocusTarget::Up, highlight)
     }
@@ -529,6 +524,11 @@ impl FocusRequest {
     #[inline]
     pub fn down(highlight: bool) -> Self {
         Self::new(FocusTarget::Down, highlight)
+    }
+    
+    #[inline]
+    pub fn left(highlight: bool) -> Self {
+        Self::new(FocusTarget::Left, highlight)
     }
 }
 
@@ -544,14 +544,14 @@ pub enum FocusTarget {
     /// Move focus to previous from current in screen, or to last in screen.
     Prev,
 
-    /// Move focus to the left of current.
-    Left,
     /// Move focus above current.
     Up,
     /// Move focus to the right of current.
     Right,
     /// Move focus bellow current.
     Down,
+    /// Move focus to the left of current.
+    Left,
 }
 
 /// [`FrameInfo`] reference wrapper that adds focus information for each widget.
@@ -939,13 +939,7 @@ impl<'a> WidgetFocusInfo<'a> {
         } else {
             None
         }
-    }
-
-    /// Widget to focus when pressing the arrow left key from this widget.
-    #[inline]
-    pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
-        None //TODO
-    }
+    }    
 
     /// Widget to focus when pressing the arrow up key from this widget.
     #[inline]
@@ -963,6 +957,12 @@ impl<'a> WidgetFocusInfo<'a> {
     #[inline]
     pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
         None
+    }
+
+    /// Widget to focus when pressing the arrow left key from this widget.
+    #[inline]
+    pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
+        None //TODO
     }
 }
 

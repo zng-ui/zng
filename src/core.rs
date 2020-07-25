@@ -199,6 +199,11 @@ impl UiNode for NilUiNode {
     }
 }
 
+/// A UI node that does not contain any other node, fills the available space, but renders nothing.
+pub struct FillUiNode;
+#[impl_ui_node(none)]
+impl UiNode for FillUiNode {}
+
 /// This is called by the default widgets `new_child` function.
 ///
 /// Returns a [`NilUiNode`](NilUiNode).

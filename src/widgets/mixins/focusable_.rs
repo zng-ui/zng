@@ -1,11 +1,12 @@
 use crate::core::types::{rgba, LayoutSideOffsets};
 use crate::core::var::context_var;
 use crate::core::widget_mixin;
-use crate::properties::{border, focusable, is_focused_hgl, BorderDetails};
+use crate::properties::{foreground_highlight, focusable, is_focused_hgl, BorderDetails};
 
 context_var! {
     pub struct FocusedBorderWidths: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
-    pub struct FocusedBorderDetails: BorderDetails = once BorderDetails::new_solid_color(rgba(0, 255, 255, 0.7));
+    pub struct FocusedBorderOffsets: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(2.0);
+    pub struct FocusedBorderDetails: BorderDetails = once BorderDetails::dashed(rgba(0, 255, 255, 0.7));
 }
 
 widget_mixin! {
@@ -18,16 +19,18 @@ widget_mixin! {
         /// Enables keyboard focusing in this widget.
         focusable: true;
 
-        /// A Border that is visible when the widget is focused.
-        focused_border -> border: {
+        /// A border overlay that is visible when the widget is focused.
+        focus_highlight -> foreground_highlight: {
             widths: LayoutSideOffsets::new_all_same(0.0),
+            offsets: LayoutSideOffsets::new_all_same(0.0),
             details: FocusedBorderDetails
         };
     }
 
     when self.is_focused_hgl {
-        focused_border: {
+        focus_highlight: {
             widths: FocusedBorderWidths,
+            offsets: FocusedBorderOffsets,
             details: FocusedBorderDetails
         };
     }
