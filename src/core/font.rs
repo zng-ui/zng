@@ -2,6 +2,8 @@ use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
 use crate::core::types::FontInstanceKey;
 
+//TODO use https://docs.rs/font-kit/0.9.1/font_kit/ ?
+
 use fnv::FnvHashMap;
 use font_loader::system_fonts;
 use std::sync::Arc;
@@ -43,7 +45,7 @@ impl Fonts {
 
     fn load_font(&mut self, family: &str, size: u32) -> FontInstance {
         let mut txn = Transaction::new();
-        let property = system_fonts::FontPropertyBuilder::new().family(&family).build();
+        let property = system_fonts::FontPropertyBuilder::new().family(&family).bold().build();
         let (font, _) = system_fonts::get(&property).unwrap();
 
         let font_key = self.api.generate_font_key();
