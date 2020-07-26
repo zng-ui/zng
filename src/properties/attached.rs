@@ -39,13 +39,13 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 /// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property};
 ///
 /// context_var! {
-///     pub struct FontSize: u32 = const 14;
+///     pub struct FontSizeVar: u32 = const 14;
 /// }
 ///
-/// /// Sets the [`FontSize`](FontSize) context var.
+/// /// Sets the [`FontSizeVar`](FontSizeVar) context var.
 /// #[property(context)]
 /// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
-///     with_context_var(child, FontSize, size)
+///     with_context_var(child, FontSizeVar, size)
 /// }
 /// ```
 pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
