@@ -993,6 +993,7 @@ impl OpenWindow {
             let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size);
             let clear_color = *ctx.root.background_color.get_local();
 
+            frame.push_color(LayoutRect::from_size(size), clear_color);
             ctx.root.child.render(&mut frame);
 
             let (display_list_data, frame_info) = frame.finalize();
@@ -1112,6 +1113,7 @@ impl OwnedWindowContext {
         profile_scope!("window::init");
 
         self.root.title.init_local(ctx.vars);
+        self.root.background_color.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.push_layout();
