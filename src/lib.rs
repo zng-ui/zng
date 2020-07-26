@@ -61,7 +61,7 @@ pub mod prelude {
         ui_vec,
         var::{var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
-        UiNode, Widget,
+        UiNode, UiVec, Widget,
     };
     pub use crate::properties::*;
     pub use crate::widgets::layouts::*;

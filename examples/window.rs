@@ -14,27 +14,36 @@ fn main() {
             content: h_stack! {
                 spacing: 40.0;
                 items: ui_vec![
-                    v_stack! {
-                        spacing: 5.0;
-                        items: ui_vec![
-                            set_size(1000.0, 900.0, &size),
-                            set_size(500.0, 1000.0, &size),
-                            set_size(800.0, 600.0, &size),
-                        ];
-                    },
-                    v_stack! {
-                        spacing: 5.0;
-                        items: ui_vec![
-                            set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
-                            set_background(rgb(0.5, 0.0, 0.0), "red", &background_color),
-                            set_background(rgb(0.0, 0.5, 0.0), "green", &background_color),
-                            set_background(rgb(0.0, 0.0, 0.5), "blue", &background_color),
-                        ];
-                    },
+                    property_stack("size", ui_vec![
+                        set_size(1000.0, 900.0, &size),
+                        set_size(500.0, 1000.0, &size),
+                        set_size(800.0, 600.0, &size),
+                    ]),
+                    property_stack("background_color", ui_vec![
+                        set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
+                        set_background(rgb(0.5, 0.0, 0.0), "red", &background_color),
+                        set_background(rgb(0.0, 0.5, 0.0), "green", &background_color),
+                        set_background(rgb(0.0, 0.0, 0.5), "blue", &background_color),
+                    ])
                 ];
             };
         }
     })
+}
+
+fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
+    items.insert(
+        0,
+        text! {
+            text: header;
+            margin: (0.0, 4.0);
+        }
+        .boxed(),
+    );
+    v_stack! {
+        spacing: 5.0;
+        items;
+    }
 }
 
 fn set_size(width: f32, height: f32, window_size: &SharedVar<LayoutSize>) -> impl Widget {

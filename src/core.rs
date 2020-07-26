@@ -133,7 +133,7 @@ pub trait Widget: UiNode {
     fn size(&self) -> LayoutSize;
 
     /// Box this widget node, unless it is already `Box<dyn Widget>`.
-    fn boxed(self) -> Box<dyn Widget>
+    fn boxed_widget(self) -> Box<dyn Widget>
     where
         Self: Sized + 'static,
     {
@@ -185,7 +185,7 @@ impl Widget for Box<dyn Widget> {
         self.as_ref().size()
     }
     #[inline]
-    fn boxed(self) -> Box<dyn Widget> {
+    fn boxed_widget(self) -> Box<dyn Widget> {
         self
     }
 }
