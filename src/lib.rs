@@ -55,8 +55,8 @@ pub mod prelude {
     pub use crate::core::{
         app::App,
         types::{
-            formatx, rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize,
-            ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
+            formatx, rgb, rgba, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight,
+            LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
         var::{var, SharedVar, Var},

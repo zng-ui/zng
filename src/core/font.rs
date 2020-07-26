@@ -1,12 +1,9 @@
 use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
-use crate::core::types::FontInstanceKey;
-
-//TODO use https://docs.rs/font-kit/0.9.1/font_kit/ ?
+use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontSize, FontStyle};
 
 use fnv::FnvHashMap;
-use font_loader::system_fonts;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
 use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
 
@@ -18,53 +15,70 @@ impl AppExtension for FontManager {
     fn init(&mut self, r: &mut AppInitContext) {
         r.window_services.register(|ctx| Fonts {
             api: Arc::clone(ctx.render_api),
-            fonts: FnvHashMap::default(),
+            fonts: HashMap::default(),
         })
     }
 }
 
-/// Fonts service.
+/// Fonts cache service.
 pub struct Fonts {
     api: Arc<RenderApi>,
-    fonts: FnvHashMap<String, FontInstances>,
+    fonts: HashMap<FontQueryKey, FontInstances>,
 }
+type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
 
 impl Fonts {
     /// Gets a cached font instance or loads a new instance.
-    pub fn get(&mut self, font_family: &str, font_size: u32) -> FontInstance {
-        if let Some(font) = self.fonts.get_mut(font_family) {
-            if let Some(font_instance) = font.instances.get(&font_size) {
-                font_instance.clone()
+    pub fn get(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSize) -> Option<FontInstance> {
+        let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(*properties));
+        if let Some(font) = self.fonts.get_mut(&query_key) {
+            if let Some(instance) = font.instances.get(&font_size) {
+                Some(instance.clone())
             } else {
-                Self::load_font_size(self.api.clone(), font, font_size)
+                Some(Self::load_font_size(self.api.clone(), font, font_size))
             }
+        } else if let Some(instance) = self.load_font(query_key, font_names, properties, font_size) {
+            Some(instance)
         } else {
-            self.load_font(font_family, font_size)
+            None
         }
     }
 
-    fn load_font(&mut self, family: &str, size: u32) -> FontInstance {
-        let mut txn = Transaction::new();
-        let property = system_fonts::FontPropertyBuilder::new().family(&family).bold().build();
-        let (font, _) = system_fonts::get(&property).unwrap();
+    fn load_font(
+        &mut self,
+        query_key: FontQueryKey,
+        font_names: &[FontName],
+        properties: &FontProperties,
+        size: FontSize,
+    ) -> Option<FontInstance> {
+        let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
+        match font_kit::source::SystemSource::new().select_best_match(&family_names, properties) {
+            Ok(handle) => {
+                let mut txn = Transaction::new();
+                let font_key = self.api.generate_font_key();
 
-        let font_key = self.api.generate_font_key();
+                match handle {
+                    font_kit::handle::Handle::Path { path, font_index } => {
+                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index })
+                    }
+                    font_kit::handle::Handle::Memory { bytes, font_index } => txn.add_raw_font(font_key, (&*bytes).clone(), font_index),
+                }
 
-        txn.add_raw_font(font_key, font, 0);
-
-        let mut font_instances = FontInstances {
-            font_key,
-            instances: FnvHashMap::default(),
-        };
-        self.api.update_resources(txn.resource_updates);
-        let instance = Self::load_font_size(self.api.clone(), &mut font_instances, size);
-
-        self.fonts.insert(family.to_owned(), font_instances);
-
-        instance
+                let mut font_instances = FontInstances {
+                    font_key,
+                    instances: FnvHashMap::default(),
+                };
+                self.api.update_resources(txn.resource_updates);
+                let instance = Self::load_font_size(self.api.clone(), &mut font_instances, size);
+                self.fonts.insert(query_key, font_instances);
+                Some(instance)
+            }
+            Err(font_kit::error::SelectionError::NotFound) => None,
+            Err(font_kit::error::SelectionError::CannotAccessSource) => panic!("cannot access system font source"),
+        }
     }
 
-    fn load_font_size(api: Arc<RenderApi>, font_instances: &mut FontInstances, size: u32) -> FontInstance {
+    fn load_font_size(api: Arc<RenderApi>, font_instances: &mut FontInstances, size: FontSize) -> FontInstance {
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
 
@@ -87,10 +101,26 @@ impl Fonts {
 
 impl WindowService for Fonts {}
 
+#[derive(Eq, PartialEq, Hash, Clone, Copy)]
+struct FontPropertiesKey(u8, u32, u32);
+impl FontPropertiesKey {
+    pub fn new(properties: FontProperties) -> Self {
+        Self(
+            match properties.style {
+                FontStyle::Normal => 0,
+                FontStyle::Italic => 1,
+                FontStyle::Oblique => 2,
+            },
+            (properties.weight.0 * 100.0) as u32,
+            (properties.stretch.0 * 100.0) as u32,
+        )
+    }
+}
+
 /// All instances of a font family.
 struct FontInstances {
     pub font_key: FontKey,
-    pub instances: FnvHashMap<u32, FontInstance>,
+    pub instances: FnvHashMap<FontSize, FontInstance>,
 }
 
 #[derive(Clone)]

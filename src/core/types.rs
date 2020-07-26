@@ -4,6 +4,8 @@ pub use webrender::api::units::{LayoutPoint, LayoutRect, LayoutSideOffsets, Layo
 
 pub use webrender::api::{BorderRadius, ColorF, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop};
 
+pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+
 pub use glutin::event::{
     DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode, WindowEvent,
 };
@@ -59,7 +61,7 @@ impl WidgetId {
 }
 
 use crate::core::var::{IntoVar, OwnedVar};
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 
 /// for uniform
 impl IntoVar<LayoutSideOffsets> for f32 {
@@ -360,3 +362,96 @@ mod bezier {
         }
     }
 }
+
+use font_kit::family_name::FamilyName;
+
+/// A possible value for the `font_family` property.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FontName(Text);
+
+impl FontName {
+    #[inline]
+    pub fn new(name: impl Into<Text>) -> Self {
+        FontName(name.into())
+    }
+
+    /// New "serif" font.
+    ///
+    /// Serif fonts represent the formal text style for a script.
+    #[inline]
+    pub fn serif() -> Self {
+        Self::new("serif")
+    }
+
+    /// New "sans-serif" font.
+    ///
+    /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
+    /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
+    #[inline]
+    pub fn sans_serif() -> Self {
+        Self::new("sans-serif")
+    }
+
+    /// New "monospace" font.
+    ///
+    /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
+    #[inline]
+    pub fn monospace() -> Self {
+        Self::new("monospace")
+    }
+
+    /// New "cursive" font.
+    ///
+    /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
+    /// like handwritten pen or brush writing than printed letter-work.
+    #[inline]
+    pub fn cursive() -> Self {
+        Self::new("cursive")
+    }
+
+    /// New "fantasy" font.
+    ///
+    /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
+    #[inline]
+    pub fn fantasy() -> Self {
+        Self::new("fantasy")
+    }
+
+    /// Reference the font name.
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+impl From<FamilyName> for FontName {
+    #[inline]
+    fn from(family_name: FamilyName) -> Self {
+        match family_name {
+            FamilyName::Title(title) => FontName::new(title),
+            FamilyName::Serif => FontName::serif(),
+            FamilyName::SansSerif => FontName::sans_serif(),
+            FamilyName::Monospace => FontName::monospace(),
+            FamilyName::Cursive => FontName::cursive(),
+            FamilyName::Fantasy => FontName::fantasy(),
+        }
+    }
+}
+impl From<FontName> for FamilyName {
+    fn from(font_name: FontName) -> Self {
+        match font_name.name() {
+            "serif" => FamilyName::Serif,
+            "sans-serif" => FamilyName::SansSerif,
+            "monospace" => FamilyName::Monospace,
+            "cursive" => FamilyName::Cursive,
+            "fantasy" => FamilyName::Fantasy,
+            _ => FamilyName::Title(font_name.0.into()),
+        }
+    }
+}
+impl fmt::Display for FontName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+pub type FontSize = u32;

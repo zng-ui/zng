@@ -24,17 +24,26 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         profile_scope!("text::init");
 
-        self.color = *TextColor::var().get(ctx.vars);
-        let font_size = *FontSize::var().get(ctx.vars);
+        self.color = *TextColorVar::var().get(ctx.vars);
+        let font_size = *FontSizeVar::var().get(ctx.vars);
+        let font_properties = FontProperties {
+            style: *FontStyleVar::var().get(ctx.vars),
+            weight: *FontWeightVar::var().get(ctx.vars),
+            stretch: *FontStretchVar::var().get(ctx.vars),
+        };
 
-        let font_family = FontFamily::var();
+        let font_family = FontFamilyVar::var();
         let font_family = font_family.get(ctx.vars);
-        let font = ctx.window_services.req::<Fonts>().get(font_family, font_size);
+        let font = ctx
+            .window_services
+            .req::<Fonts>()
+            .get(font_family, &font_properties, font_size)
+            .expect("TODO");
 
         let font_size = font_size as f32;
 
         let text = self.text.get(ctx.vars);
-        let text = TextTransform::var().get(ctx.vars).transform(text);
+        let text = TextTransformVar::var().get(ctx.vars).transform(text);
 
         let (indices, dimensions) = font.glyph_layout(&text);
         let mut glyphs = Vec::with_capacity(indices.len());
@@ -62,15 +71,15 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
         profile_scope!("text::update");
 
         if self.text.is_new(ctx.vars)
-            || FontFamily::var().is_new(ctx.vars)
-            || FontSize::var().is_new(ctx.vars)
-            || TextTransform::var().is_new(ctx.vars)
+            || FontFamilyVar::var().is_new(ctx.vars)
+            || FontSizeVar::var().is_new(ctx.vars)
+            || TextTransformVar::var().is_new(ctx.vars)
         {
             self.init(ctx);
             ctx.updates.push_layout();
         }
 
-        if let Some(&color) = TextColor::var().update(ctx.vars) {
+        if let Some(&color) = TextColorVar::var().update(ctx.vars) {
             self.color = color;
             ctx.updates.push_render();
         }
@@ -95,15 +104,31 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
-    pub struct FontFamily: Text = const Cow::Borrowed("Sans-Serif");
+    pub struct FontFamilyVar: Box<[FontName]> = once Box::new([
+        FontName::sans_serif(),
+        FontName::serif(),
+        FontName::monospace(),
+        FontName::cursive(),
+        FontName::fantasy()
+    ]);
+
+    /// Font weight of [`text`](crate::widgets::text) spans.
+    pub struct FontWeightVar: FontWeight = const FontWeight::NORMAL;
+
+    /// Font style of [`text`](crate::widgets::text) spans.
+    pub struct FontStyleVar: FontStyle = const FontStyle::Normal;
+
+    /// Font stretch of [`text`](crate::widgets::text) spans.
+    pub struct FontStretchVar: FontStretch = const FontStretch::NORMAL;
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSize: u32 = const 14;
+    pub struct FontSizeVar: FontSize = const 14;
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColor: ColorF = const ColorF::WHITE;
+    pub struct TextColorVar: ColorF = const ColorF::WHITE;
 
-    pub struct TextTransform: TextTransformFn = return &TextTransformFn::None;
+    /// Text transformation function applied to [`text`](crate::widgets::text) spans.
+    pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
 }
 
 #[derive(Clone)]
@@ -140,7 +165,7 @@ impl fmt::Debug for TextTransformFn {
     }
 }
 
-use crate::properties::{capture_only::text_value, font_family, font_size, text_color};
+use crate::properties::{capture_only::text_value, font_family, font_size, font_stretch, font_style, font_weight, text_color};
 
 widget! {
     /// A configured [`text`](../fn.text.html).
@@ -171,7 +196,13 @@ widget! {
     default {
         /// The text font. If not set inherits the `font_family` from the parent widget.
         font_family;
-        /// The text size. If not set inherits the `font_size` from the parent widget.
+        /// The font style. If not set inherits the `font_style` from the parent widget.
+        font_style;
+        /// The font weight. If not set inherits the `font_weight` from the parent widget.
+        font_weight;
+        /// The font stretch. If not set inherits the `font_stretch` from the parent widget.
+        font_stretch;
+        /// The font size. If not set inherits the `font_size` from the parent widget.
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
         color -> text_color;

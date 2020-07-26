@@ -36,6 +36,7 @@ fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
         0,
         text! {
             text: header;
+            font_weight: FontWeight::BOLD;
             margin: (0.0, 4.0);
         }
         .boxed(),
