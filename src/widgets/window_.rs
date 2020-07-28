@@ -4,7 +4,7 @@ use crate::core::{
     types::{rgb, WidgetId},
     window::Window,
 };
-use crate::properties::{background_color, focus_scope, size, tab_nav, title};
+use crate::properties::{background_color, focus_scope, position, size, tab_nav, title};
 use crate::widgets::container;
 
 widget! {
@@ -14,6 +14,11 @@ widget! {
     default {
         /// Window title.
         title: "";
+
+        /// Window position (left, top).
+        ///
+        /// Set to [`f32::NAN`](f32::NAN) to not give an initial position.
+        position: (f32::NAN, f32::NAN);
         /// Window size. If set to a variable it is kept in sync.
         ///
         /// Does not include the OS window border.
@@ -35,7 +40,7 @@ widget! {
 
     /// Manually initializes a new [`window`](self).
     #[inline]
-    fn new(child, root_id, title, size, background_color) -> Window {
-        Window::new(root_id.unwrap(), title.unwrap(), size.unwrap(), background_color.unwrap(), child)
+    fn new(child, root_id, title, position, size, background_color) -> Window {
+        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), background_color.unwrap(), child)
     }
 }

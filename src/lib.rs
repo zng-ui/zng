@@ -59,7 +59,7 @@ pub mod prelude {
             LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
-        var::{var, SharedVar, Var},
+        var::{merge_var, switch_var, var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,
     };

@@ -329,15 +329,28 @@ impl AppExtension for WindowManager {
                         let current_size = *wn_ctx.root.size.get(ctx.vars);
                         // the var can already be set if the user modified it to resize the window.
                         if current_size != new_size {
-                            let _ = ctx.updates.push_set(&wn_ctx.root.size, new_size, ctx.vars);
+                            ctx.updates.push_set(&wn_ctx.root.size, new_size, ctx.vars).unwrap();
                         }
                     }
                 }
             }
-            WindowEvent::Moved(new_position) => {
-                let new_position = LayoutPoint::new(new_position.x as f32, new_position.y as f32);
-                ctx.updates
-                    .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
+            WindowEvent::Moved(_) => {
+                if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
+                    let new_position = window.position();
+
+                    // set the window position variable if it is not read-only.
+                    let wn_ctx = window.wn_ctx.borrow();
+                    if !wn_ctx.root.position.read_only(ctx.vars) {
+                        let current_pos = *wn_ctx.root.position.get(ctx.vars);
+                        // the var can already be set if the user modified it to resize the window.
+                        if current_pos != new_position {
+                            ctx.updates.push_set(&wn_ctx.root.position, new_position, ctx.vars).unwrap();
+                        }
+                    }
+
+                    ctx.updates
+                        .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
+                }
             }
             WindowEvent::CloseRequested => {
                 let wins = ctx.services.req::<Windows>();
@@ -695,6 +708,7 @@ pub struct Window {
     meta: LazyStateMap,
     id: WidgetId,
     title: BoxLocalVar<Text>,
+    position: BoxVar<LayoutPoint>,
     size: BoxVar<LayoutSize>,
     background_color: BoxLocalVar<ColorF>,
     child: Box<dyn UiNode>,
@@ -704,6 +718,7 @@ impl Window {
     pub fn new(
         root_id: WidgetId,
         title: impl IntoVar<Text>,
+        position: impl IntoVar<LayoutPoint>,
         size: impl IntoVar<LayoutSize>,
         background_color: impl IntoVar<ColorF>,
         child: impl UiNode,
@@ -712,6 +727,7 @@ impl Window {
             meta: LazyStateMap::default(),
             id: root_id,
             title: Box::new(title.into_local()),
+            position: position.into_var().boxed(),
             size: size.into_var().boxed(),
             background_color: Box::new(background_color.into_local()),
             child: child.boxed(),
@@ -760,6 +776,28 @@ impl OpenWindow {
 
         let dpi_factor = gl_ctx.window().scale_factor() as f32;
 
+        // set the user initial position.
+        let pos = gl_ctx.window().outer_position().expect("only desktop windows are supported");
+        let position = *root.position.get(ctx.vars);
+        let user_pos = glutin::dpi::PhysicalPosition::new(
+            if position.x.is_finite() {
+                (position.x * dpi_factor) as i32
+            } else {
+                pos.x
+            },
+            if position.y.is_finite() {
+                (position.y * dpi_factor) as i32
+            } else {
+                pos.y
+            },
+        );
+        let mut set_position_var = false;
+        if user_pos != pos {
+            gl_ctx.window().set_outer_position(user_pos);
+        } else {
+            set_position_var = !root.position.read_only(ctx.vars);
+        }
+
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
             clear_color: Some(clear_color),
@@ -785,7 +823,7 @@ impl OpenWindow {
 
         let frame_info = FrameInfo::blank(window_id, root.id);
 
-        OpenWindow {
+        let w = OpenWindow {
             gl_ctx: RefCell::new(gl_ctx),
             wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
                 api,
@@ -805,7 +843,16 @@ impl OpenWindow {
             doc_view: units::DeviceIntRect::from_size(start_size),
             doc_view_changed: false,
             is_active: true, // just opened it?
+        };
+
+        if set_position_var {
+            // use did not set position, but variable is read-write,
+            // so we update with the OS provided initial position.
+            let pos = w.position();
+            ctx.updates.push_set(&w.wn_ctx.borrow().root.position, pos, ctx.vars).unwrap();
         }
+
+        w
     }
 
     pub fn id(&self) -> WindowId {
@@ -815,6 +862,15 @@ impl OpenWindow {
     /// If the window is the foreground window.
     pub fn is_active(&self) -> bool {
         self.is_active
+    }
+
+    /// Position of the window.
+    pub fn position(&self) -> LayoutPoint {
+        let gl_ctx = self.gl_ctx.borrow();
+        let wn = gl_ctx.window();
+        let s = wn.scale_factor() as f32;
+        let pos = wn.outer_position().expect("only desktop windows are supported");
+        LayoutPoint::new(pos.x as f32 / s, pos.y as f32 / s)
     }
 
     /// Size of the window content.
@@ -931,6 +987,21 @@ impl OpenWindow {
 
         if let Some(title) = wn_ctx.root.title.update_local(vars) {
             window.set_title(title);
+        }
+
+        if let Some(&new_pos) = wn_ctx.root.position.update(vars) {
+            let pos = window.outer_position().expect("only desktop windows are supported");
+            let s = window.scale_factor() as f32;
+
+            let new_pos = glutin::dpi::PhysicalPosition::new(
+                if new_pos.x.is_finite() { (new_pos.x * s) as i32 } else { pos.x },
+                if new_pos.y.is_finite() { (new_pos.y * s) as i32 } else { pos.y },
+            );
+
+            if new_pos != pos {
+                // the position variable was changed to set the position size.
+                window.set_outer_position(new_pos);
+            }
         }
 
         if let Some(&new_size) = wn_ctx.root.size.update(vars) {

@@ -4,16 +4,33 @@ fn main() {
     better_panic::install();
 
     App::default().run_window(|_| {
+        let position = var((f32::NAN, f32::NAN));
         let size = var((800., 600.));
-        let title = size.map(|s: &LayoutSize| formatx!("Window Example - {}x{}", s.width.ceil(), s.height.ceil()));
+
+        let title = merge_var!(position.clone(), size.clone(), |p: &LayoutPoint, s: &LayoutSize| {
+            formatx!(
+                "Window Example - position: {}x{}, size: {}x{}",
+                p.x.ceil(),
+                p.y.ceil(),
+                s.width.ceil(),
+                s.height.ceil()
+            )
+        });
         let background_color = var(rgb(0.1, 0.1, 0.1));
+
         window! {
+            position: position.clone();
             size: size.clone();
             background_color: background_color.clone();
             title;
             content: h_stack! {
                 spacing: 40.0;
                 items: ui_vec![
+                    property_stack("position", ui_vec![
+                        set_position(0.0, 0.0, &position),
+                        set_position(490.0, 290.0, &position),
+                        set_position(500.0, 300.0, &position),
+                    ]),
                     property_stack("size", ui_vec![
                         set_size(1000.0, 900.0, &size),
                         set_size(500.0, 1000.0, &size),
@@ -45,6 +62,10 @@ fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
         spacing: 5.0;
         items;
     }
+}
+
+fn set_position(x: f32, y: f32, window_position: &SharedVar<LayoutPoint>) -> impl Widget {
+    set_var_btn(window_position, LayoutPoint::new(x, y), formatx!("move to {}x{}", x, y))
 }
 
 fn set_size(width: f32, height: f32, window_size: &SharedVar<LayoutSize>) -> impl Widget {

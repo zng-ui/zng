@@ -419,7 +419,7 @@ impl MouseEvents {
 
         if moved {
             // if moved to another window or within the same window.
-            
+
             self.notify_mouse_move(window_id, Some(device_id), pos, ctx)
         }
     }
@@ -438,7 +438,7 @@ impl MouseEvents {
         }
     }
 
-    fn notify_mouse_move(&mut self, window_id: WindowId, device_id: Option<DeviceId>, pos: LayoutPoint, ctx: &mut AppContext){
+    fn notify_mouse_move(&mut self, window_id: WindowId, device_id: Option<DeviceId>, pos: LayoutPoint, ctx: &mut AppContext) {
         self.pos = pos;
 
         let windows = ctx.services.req::<Windows>();
@@ -499,7 +499,7 @@ impl AppExtension for MouseEvents {
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::ModifiersChanged(m) => self.modifiers = m,
             WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
-            WindowEvent::Resized(_) => self.on_resized_synthetic_move(window_id, ctx),//TODO fix hover when window resizes and moves the button
+            WindowEvent::Resized(_) => self.on_resized_synthetic_move(window_id, ctx), //TODO fix hover when window resizes and moves the button
             _ => {}
         }
     }
