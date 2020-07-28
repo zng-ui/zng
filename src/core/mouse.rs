@@ -19,7 +19,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: Option<DeviceId>,
 
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -127,7 +127,7 @@ event_args! {
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        pub device_id: Option<DeviceId>,
 
         /// Position of the mouse in the coordinates of [`target`](MouseClickArgs::target).
         pub position: LayoutPoint,
@@ -419,39 +419,8 @@ impl MouseEvents {
 
         if moved {
             // if moved to another window or within the same window.
-
-            self.pos = pos;
-
-            let windows = ctx.services.req::<Windows>();
-            let window = windows.window(window_id).unwrap();
-
-            let hits = window.hit_test(pos);
-            let frame_info = window.frame_info();
-
-            let (target, position) = if let Some(t) = hits.target() {
-                (frame_info.find(t.widget_id).unwrap().path(), t.point)
-            } else {
-                (frame_info.root().path(), pos)
-            };
-
-            let hits_set: HashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
-            let entered_set: HashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
-            let left_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
-
-            self.hovered_targets = hits_set;
-
-            if !left_set.is_empty() {
-                let args = MouseHoverArgs::now(window_id, device_id, position, left_set);
-                ctx.updates.push_notify(self.mouse_leave.clone(), args);
-            }
-
-            if !entered_set.is_empty() {
-                let args = MouseHoverArgs::now(window_id, device_id, position, entered_set);
-                ctx.updates.push_notify(self.mouse_enter.clone(), args);
-            }
-
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
-            ctx.updates.push_notify(self.mouse_move.clone(), args);
+            
+            self.notify_mouse_move(window_id, Some(device_id), pos, ctx)
         }
     }
 
@@ -461,6 +430,47 @@ impl MouseEvents {
             let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
             ctx.updates.push_notify(self.mouse_leave.clone(), args);
         }
+    }
+
+    fn on_resized_synthetic_move(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        if self.pos_window == Some(window_id) {
+            self.notify_mouse_move(window_id, None, self.pos, ctx)
+        }
+    }
+
+    fn notify_mouse_move(&mut self, window_id: WindowId, device_id: Option<DeviceId>, pos: LayoutPoint, ctx: &mut AppContext){
+        self.pos = pos;
+
+        let windows = ctx.services.req::<Windows>();
+        let window = windows.window(window_id).unwrap();
+
+        let hits = window.hit_test(pos);
+        let frame_info = window.frame_info();
+
+        let (target, position) = if let Some(t) = hits.target() {
+            (frame_info.find(t.widget_id).unwrap().path(), t.point)
+        } else {
+            (frame_info.root().path(), pos)
+        };
+
+        let hits_set: HashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
+        let entered_set: HashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
+        let left_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
+
+        self.hovered_targets = hits_set;
+
+        if !left_set.is_empty() {
+            let args = MouseHoverArgs::now(window_id, device_id, position, left_set);
+            ctx.updates.push_notify(self.mouse_leave.clone(), args);
+        }
+
+        if !entered_set.is_empty() {
+            let args = MouseHoverArgs::now(window_id, device_id, position, entered_set);
+            ctx.updates.push_notify(self.mouse_enter.clone(), args);
+        }
+
+        let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
+        ctx.updates.push_notify(self.mouse_move.clone(), args);
     }
 }
 
@@ -489,6 +499,7 @@ impl AppExtension for MouseEvents {
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::ModifiersChanged(m) => self.modifiers = m,
             WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
+            WindowEvent::Resized(_) => self.on_resized_synthetic_move(window_id, ctx),//TODO fix hover when window resizes and moves the button
             _ => {}
         }
     }

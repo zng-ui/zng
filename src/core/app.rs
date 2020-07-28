@@ -44,7 +44,7 @@ pub trait AppExtension: 'static {
         let _ = ctx;
     }
 
-    /// Called when the OS sends an event to a device.
+    /// Called when the OS sends a global device event.
     #[inline]
     fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
         let _ = (device_id, event, ctx);
