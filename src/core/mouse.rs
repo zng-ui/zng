@@ -410,7 +410,7 @@ impl MouseEvents {
             self.pos_window = Some(window_id);
 
             let windows = ctx.services.req::<Windows>();
-            self.pos_dpi = windows.window(window_id).unwrap().dpi_scale();
+            self.pos_dpi = windows.window(window_id).unwrap().scale_factor();
         }
 
         let pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
@@ -527,7 +527,7 @@ impl<E: AppExtension> MouseController for HeadlessApp<E> {
             .with_context(|ctx| {
                 ctx.services
                     .get::<Windows>()
-                    .and_then(|ws| ws.window(window_id).ok().map(|w| w.dpi_scale()))
+                    .and_then(|ws| ws.window(window_id).ok().map(|w| w.scale_factor()))
             })
             .unwrap_or(1.0);
 

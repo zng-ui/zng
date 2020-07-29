@@ -882,8 +882,8 @@ impl OpenWindow {
         LayoutSize::new(p_size.width as f32 / s, p_size.height as f32 / s)
     }
 
-    /// Scale factor used by this window, all `Layout*` values are already scaled by this value.
-    pub fn dpi_scale(&self) -> f32 {
+    /// Scale factor used by this window, all `Layout*` values are scaled by this value by the renderer.
+    pub fn scale_factor(&self) -> f32 {
         self.gl_ctx.borrow().window().scale_factor() as f32
     }
 
@@ -1081,7 +1081,7 @@ impl OpenWindow {
 
             if self.doc_view_changed {
                 self.doc_view_changed = false;
-                txn.set_document_view(self.doc_view, self.dpi_scale());
+                txn.set_document_view(self.doc_view, self.scale_factor());
             }
 
             txn.generate_frame();
