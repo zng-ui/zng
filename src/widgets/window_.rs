@@ -9,6 +9,23 @@ use crate::widgets::container;
 
 widget! {
     /// A window container.
+    ///
+    /// The instance type is [`Window`](Window), witch can be given to the [`Windows`](crate::core::window::Windows) service
+    /// to open a system window that is kept in sync with the window properties set in the widget.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use zero_ui::prelude::*;
+    ///
+    /// App::default().run_window(|_| {
+    ///     window! {
+    ///         title: "Window 1";
+    ///         content: text("Window 1");
+    ///     }
+    /// })
+    /// ```
+    /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
     pub window: container;
 
     default {

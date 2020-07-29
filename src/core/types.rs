@@ -455,3 +455,27 @@ impl fmt::Display for FontName {
 }
 
 pub type FontSize = u32;
+
+impl IntoVar<Box<[FontName]>> for &'static str {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName::new(self)]))
+    }
+}
+
+impl IntoVar<Box<[FontName]>> for String {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName::new(self)]))
+    }
+}
+
+impl IntoVar<Box<[FontName]>> for Text {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName(self)]))
+    }
+}

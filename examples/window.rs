@@ -9,7 +9,7 @@ fn main() {
 
         let title = merge_var!(position.clone(), size.clone(), |p: &LayoutPoint, s: &LayoutSize| {
             formatx!(
-                "Window Example - position: {}x{}, size: {}x{}",
+                "Window Example - position: {}×{}, size: {}×{}",
                 p.x.ceil(),
                 p.y.ceil(),
                 s.width.ceil(),

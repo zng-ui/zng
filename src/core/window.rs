@@ -985,10 +985,12 @@ impl OpenWindow {
         let window = gl_ctx.window();
         let mut wn_ctx = self.wn_ctx.borrow_mut();
 
+        // title
         if let Some(title) = wn_ctx.root.title.update_local(vars) {
             window.set_title(title);
         }
 
+        // position
         if let Some(&new_pos) = wn_ctx.root.position.update(vars) {
             let pos = window.outer_position().expect("only desktop windows are supported");
             let s = window.scale_factor() as f32;
@@ -1004,6 +1006,7 @@ impl OpenWindow {
             }
         }
 
+        // size
         if let Some(&new_size) = wn_ctx.root.size.update(vars) {
             let s = window.scale_factor() as f32;
             let new_size = glutin::dpi::PhysicalSize::new((new_size.width * s) as u32, (new_size.height * s) as u32);
@@ -1013,6 +1016,7 @@ impl OpenWindow {
             }
         }
 
+        // background_color
         if wn_ctx.root.background_color.update_local(vars).is_some() {
             wn_ctx.update |= UpdateDisplayRequest::Render;
             updates.push_render();
