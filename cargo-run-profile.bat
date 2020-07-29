@@ -1,1 +1,0 @@
-cargo run --example button --release --features app_profiler

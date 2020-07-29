@@ -1,0 +1,1 @@
+cargo run --release --features app_profiler --example %*
