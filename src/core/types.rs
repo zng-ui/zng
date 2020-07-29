@@ -477,3 +477,24 @@ impl IntoVar<Box<[FontName]>> for Text {
         OwnedVar(Box::new([FontName(self)]))
     }
 }
+impl IntoVar<Box<[FontName]>> for Vec<FontName> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_boxed_slice())
+    }
+}
+impl IntoVar<Box<[FontName]>> for Vec<&'static str> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
+    }
+}
+impl IntoVar<Box<[FontName]>> for Vec<String> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
+    }
+}
