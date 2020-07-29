@@ -463,7 +463,6 @@ impl IntoVar<Box<[FontName]>> for &'static str {
         OwnedVar(Box::new([FontName::new(self)]))
     }
 }
-
 impl IntoVar<Box<[FontName]>> for String {
     type Var = OwnedVar<Box<[FontName]>>;
 
@@ -471,7 +470,6 @@ impl IntoVar<Box<[FontName]>> for String {
         OwnedVar(Box::new([FontName::new(self)]))
     }
 }
-
 impl IntoVar<Box<[FontName]>> for Text {
     type Var = OwnedVar<Box<[FontName]>>;
 
