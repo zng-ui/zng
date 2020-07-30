@@ -56,12 +56,6 @@ pub trait AppExtension: 'static {
         let _ = (window_id, event, ctx);
     }
 
-    /// Called when a new frame is ready to be presented.
-    #[inline]
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        let _ = (window_id, ctx);
-    }
-
     /// Called every update after the Ui update.
     #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -72,6 +66,12 @@ pub trait AppExtension: 'static {
     #[inline]
     fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
         let _ = (update, ctx);
+    }
+
+    /// Called when a new frame is ready to be presented.
+    #[inline]
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let _ = (window_id, ctx);
     }
 
     /// Called when the OS sends a request for re-drawing the last frame.
