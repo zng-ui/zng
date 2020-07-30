@@ -6,9 +6,9 @@ use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::Windows;
-use std::collections::HashSet;
 use std::num::NonZeroU8;
 use std::time::*;
+use fnv::FnvHashSet;
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
@@ -133,7 +133,7 @@ event_args! {
         pub position: LayoutPoint,
 
         /// Widgets affected by this event.
-        pub targets: HashSet<WidgetId>,
+        pub targets: FnvHashSet<WidgetId>,
 
         ..
 
@@ -251,7 +251,7 @@ pub struct MouseEvents {
     click_target: Option<WidgetPath>,
     click_count: u8,
 
-    hovered_targets: HashSet<WidgetId>,
+    hovered_targets: FnvHashSet<WidgetId>,
 
     mouse_move: EventEmitter<MouseMoveArgs>,
 
@@ -281,7 +281,7 @@ impl Default for MouseEvents {
             click_target: None,
             click_count: 0,
 
-            hovered_targets: HashSet::new(),
+            hovered_targets: FnvHashSet::default(),
 
             mouse_move: EventEmitter::new(true),
 
@@ -474,9 +474,9 @@ impl MouseEvents {
     }
 
     fn update_hovered(&mut self, window_id: WindowId, hits: &FrameHitInfo, ctx: &mut AppContext) {
-        let hits_set: HashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
-        let entered_set: HashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
-        let left_set: HashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
+        let hits_set: FnvHashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
+        let entered_set: FnvHashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
+        let left_set: FnvHashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
 
         self.hovered_targets = hits_set;
 
