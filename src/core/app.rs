@@ -568,14 +568,14 @@ impl<E: AppExtension> HeadlessApp<E> {
 
     /// If headless rendering is enabled.
     pub fn render_enabled(&self) -> bool {
-        self.state().get(HeadlessRenderEnabled).copied().unwrap_or_default()
+        self.state().get(HeadlessRenderEnabledKey).copied().unwrap_or_default()
     }
 
     /// Enable or disable headless rendering.
     ///
-    /// This sets the [`HeadlessRenderEnabled`](HeadlessRenderEnabled) state.
+    /// This sets the [`HeadlessRenderEnabledKey`](HeadlessRenderEnabledKey) state.
     pub fn enable_render(&mut self, enabled: bool) {
-        self.state_mut().set(HeadlessRenderEnabled, enabled);
+        self.state_mut().set(HeadlessRenderEnabledKey, enabled);
     }
 
     /// Notifies extensions of a device event.
@@ -649,5 +649,5 @@ impl<E: AppExtension> HeadlessApp<E> {
 
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
-    pub struct HeadlessRenderEnabled: bool;
+    pub struct HeadlessRenderEnabledKey: bool;
 }

@@ -1,6 +1,18 @@
 pub use zero_ui_proc_macros::*;
 
 /// Declares new [`StateKey`](zero_ui::core::context::StateKey) types.
+///
+/// # Example
+///
+/// ```
+/// state_key! {
+///     /// Key docs.
+///     pub struct FooKey: u32;
+/// }
+/// ```
+/// # Naming Convention
+///
+/// It is recommended that the type name ends with the `Key` suffix.
 #[macro_export]
 macro_rules! state_key {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
@@ -510,14 +522,14 @@ macro_rules! __context_var_inner {
 /// after the `=` and before the default value expression.
 ///
 /// ## `const`
-/// 
+///
 /// The default expression is evaluated to a `static` item that is referenced when the variable default is requested.
-/// 
+///
 /// Required a constant expression.
 ///
 /// ## `return`
 ///
-/// The default expression is returned when the variable default is requested. 
+/// The default expression is returned when the variable default is requested.
 ///
 /// Requires an expression of type `&'static T` where `T` is the variable value type.
 ///

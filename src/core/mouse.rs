@@ -6,9 +6,9 @@ use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::Windows;
+use fnv::FnvHashSet;
 use std::num::NonZeroU8;
 use std::time::*;
-use fnv::FnvHashSet;
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
@@ -447,11 +447,11 @@ impl MouseEvents {
                 (frame_info.find(t.widget_id).unwrap().path(), t.point)
             } else {
                 (frame_info.root().path(), pos)
-            };            
+            };
 
             // mouse_enter/mouse_leave.
-            self.update_hovered(window_id, &hits, ctx);    
-            
+            self.update_hovered(window_id, &hits, ctx);
+
             // mouse_move
             let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
             ctx.updates.push_notify(self.mouse_move.clone(), args);

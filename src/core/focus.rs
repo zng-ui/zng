@@ -65,11 +65,11 @@ impl FocusChangedArgs {
 }
 
 state_key! {
-    pub(crate) struct IsFocusable: bool;
-    pub(crate) struct FocusTabIndex: TabIndex;
-    pub(crate) struct IsFocusScope: bool;
-    pub(crate) struct FocusTabNav: TabNav;
-    pub(crate) struct FocusDirectionalNav: DirectionalNav;
+    pub(crate) struct IsFocusableKey: bool;
+    pub(crate) struct TabIndexKey: TabIndex;
+    pub(crate) struct IsFocusScopeKey: bool;
+    pub(crate) struct TabNavKey: TabNav;
+    pub(crate) struct DirectionalNavKey: DirectionalNav;
 }
 
 /// Widget order index during TAB navigation.
@@ -645,11 +645,11 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn focus_info(self) -> FocusInfo {
         let m = self.info.meta();
         match (
-            m.get(IsFocusable).copied(),
-            m.get(IsFocusScope).copied(),
-            m.get(FocusTabIndex).copied(),
-            m.get(FocusTabNav).copied(),
-            m.get(FocusDirectionalNav).copied(),
+            m.get(IsFocusableKey).copied(),
+            m.get(IsFocusScopeKey).copied(),
+            m.get(TabIndexKey).copied(),
+            m.get(TabNavKey).copied(),
+            m.get(DirectionalNavKey).copied(),
         ) {
             // Set as not focusable.
             (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
