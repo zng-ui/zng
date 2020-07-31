@@ -491,16 +491,45 @@ macro_rules! __context_var_inner {
 /// # fn init_val() -> NotConst { NotConst(10) }
 /// #
 /// context_var! {
-///     /// A public documented property with default value initialization that is `const`.
-///     /// Will use a static variable.
-///     pub struct Property1: u8 = const 10;
+///     /// A public documented context var.
+///     pub struct FooVar: u8 = const 10;
 ///
-///     // A private property with default value that is not `const`. Will evaluate
-///     // and cache the default on the first usage.
-///     struct Property2: NotConst = once init_val();
+///     // A private context var.
+///     struct BarVar: NotConst = once init_val();
 /// }
 /// # }
 /// ```
+///
+/// # Default Value
+///
+/// All context variable have a default fallback value that is used when the variable is not setted in the context.
+///
+/// The default value is a `&'static T` where `T` is the variable value type that must auto-implement [`VarValue`](crate::core::var::VarValue).
+///
+/// There are three different ways of specifying how the default value is stored. The way is selected by a keyword
+/// after the `=` and before the default value expression.
+///
+/// ## `const`
+/// 
+/// The default expression is evaluated to a `static` item that is referenced when the variable default is requested.
+/// 
+/// Required a constant expression.
+///
+/// ## `return`
+///
+/// The default expression is returned when the variable default is requested. 
+///
+/// Requires an expression of type `&'static T` where `T` is the variable value type.
+///
+/// ## `once`
+///
+/// The default expression is evaluated once during the first request and the value is cached for the lifetime of the process.
+///
+/// Requires an expression of type `T` where `T` is the variable value type.
+///
+/// # Naming Convention
+///
+/// It is recommended that the type name ends with the `Var` suffix.
 #[macro_export]
 macro_rules! context_var {
     ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $mode:ident $default:expr;)+) => {$(
