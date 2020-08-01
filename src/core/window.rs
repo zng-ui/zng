@@ -743,6 +743,7 @@ pub struct OpenWindow {
     renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
+    clear_color: ColorF,
 
     first_draw: bool,
     frame_info: FrameInfo,
@@ -836,6 +837,7 @@ impl OpenWindow {
             renderer: RendererState::Running(renderer),
             document_id,
             pipeline_id: PipelineId(1, 0),
+            clear_color,
 
             first_draw: true,
             frame_info,
@@ -1068,7 +1070,9 @@ impl OpenWindow {
             let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size);
             let clear_color = *ctx.root.background_color.get_local();
 
-            frame.push_color(LayoutRect::from_size(size), clear_color);
+            if clear_color != self.clear_color {
+                frame.push_color(LayoutRect::from_size(size), clear_color);
+            }
             ctx.root.child.render(&mut frame);
 
             let (display_list_data, frame_info) = frame.finalize();
