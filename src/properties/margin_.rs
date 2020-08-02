@@ -2,12 +2,12 @@ use crate::core::{
     context::WidgetContext,
     render::FrameBuilder,
     types::*,
-    var::{IntoVar, Var},
+    var::{IntoVar, LocalVar},
     UiNode,
 };
 use crate::core::{impl_ui_node, property};
 
-struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
+struct Margin<T: UiNode, M: LocalVar<LayoutSideOffsets>> {
     child: T,
     margin: M,
     size_increment: LayoutSize,
@@ -15,33 +15,30 @@ struct Margin<T: UiNode, M: Var<LayoutSideOffsets>> {
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
+impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for Margin<T, M> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let margin = self.margin.get(ctx.vars);
-        self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
-        self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
-
+        self.margin.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(margin) = self.margin.update(ctx.vars) {
-            self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
-            self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
+        if self.margin.update_local(ctx.vars).is_some() {
             ctx.updates.push_layout();
         }
-
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child.measure(available_size - self.size_increment) + self.size_increment
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        let margin = self.margin.get_local().align_pixels(pixels);
+        self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
+        self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
+        self.child.measure(available_size - self.size_increment, pixels) + self.size_increment
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
         final_size -= self.size_increment;
         self.child_rect.size = final_size;
-        self.child.arrange(final_size);
+        self.child.arrange(final_size, pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -54,7 +51,7 @@ impl<T: UiNode, M: Var<LayoutSideOffsets>> UiNode for Margin<T, M> {
 pub fn margin(child: impl UiNode, margin: impl IntoVar<LayoutSideOffsets>) -> impl UiNode {
     Margin {
         child,
-        margin: margin.into_var(),
+        margin: margin.into_local(),
         size_increment: LayoutSize::zero(),
         child_rect: LayoutRect::zero(),
     }

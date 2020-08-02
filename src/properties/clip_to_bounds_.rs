@@ -28,9 +28,9 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
         self.child.update(ctx);
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
         self.bounds = final_size;
-        self.child.arrange(final_size)
+        self.child.arrange(final_size, pixels)
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

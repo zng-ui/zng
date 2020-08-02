@@ -72,23 +72,23 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child_rect.size = self.child.measure(available_size);
-
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        self.child_rect.size = self.child.measure(available_size, pixels);
         self.child_rect.size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
         self.final_size = final_size;
         self.child_rect.size = final_size.min(self.child_rect.size);
-        self.child.arrange(self.child_rect.size);
+        self.child.arrange(self.child_rect.size, pixels);
 
         let alignment = self.alignment.get_local();
 
         self.child_rect.origin = LayoutPoint::new(
             (final_size.width - self.child_rect.size.width) * alignment.0,
             (final_size.height - self.child_rect.size.height) * alignment.1,
-        );
+        )
+        .align_pixels(pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

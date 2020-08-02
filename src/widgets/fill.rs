@@ -41,7 +41,7 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> U
         }
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
+    fn arrange(&mut self, final_size: LayoutSize, _: PixelGrid) {
         self.render_start.x /= self.final_size.width;
         self.render_start.y /= self.final_size.height;
         self.render_end.x /= self.final_size.width;
@@ -98,7 +98,7 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
             ctx.updates.push_render();
         }
     }
-    fn arrange(&mut self, final_size: LayoutSize) {
+    fn arrange(&mut self, final_size: LayoutSize, _: PixelGrid) {
         self.final_size = final_size;
     }
 

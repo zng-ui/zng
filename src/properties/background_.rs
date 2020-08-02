@@ -33,15 +33,15 @@ impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
         self.child.update_hp(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let available_size = self.child.measure(available_size);
-        self.background.measure(available_size);
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        let available_size = self.child.measure(available_size, pixels);
+        self.background.measure(available_size, pixels);
         available_size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.background.arrange(final_size);
-        self.child.arrange(final_size);
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        self.background.arrange(final_size, pixels);
+        self.child.arrange(final_size, pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -103,15 +103,15 @@ impl<T: UiNode, B: UiNode> UiNode for Foreground<T, B> {
         self.foreground.update_hp(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let available_size = self.child.measure(available_size);
-        self.foreground.measure(available_size);
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        let available_size = self.child.measure(available_size, pixels);
+        self.foreground.measure(available_size, pixels);
         available_size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.foreground.arrange(final_size);
-        self.child.arrange(final_size);
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        self.foreground.arrange(final_size, pixels);
+        self.child.arrange(final_size, pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

@@ -5,7 +5,7 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
-use crate::core::types::LayoutSize;
+use crate::core::types::{LayoutSize, PixelGrid};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
@@ -275,21 +275,27 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'stat
     OnRender { child, handler }
 }
 
-struct OnArrange<C: UiNode, F: FnMut(LayoutSize)> {
+#[derive(Debug)]
+pub struct OnArrangeArgs {
+    pub final_size: LayoutSize,
+    pub pixel_grid: PixelGrid,
+}
+
+struct OnArrange<C: UiNode, F: FnMut(OnArrangeArgs)> {
     child: C,
     handler: F,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, F: FnMut(LayoutSize) + 'static> UiNode for OnArrange<C, F> {
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(final_size);
-        (self.handler)(final_size);
+impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrange<C, F> {
+    fn arrange(&mut self, final_size: LayoutSize, pixel_grid: PixelGrid) {
+        self.child.arrange(final_size, pixel_grid);
+        (self.handler)(OnArrangeArgs { final_size, pixel_grid });
     }
 }
 
 #[property(event)]
-pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize) + 'static) -> impl UiNode {
+pub fn on_arrange(child: impl UiNode, handler: impl FnMut(OnArrangeArgs) + 'static) -> impl UiNode {
     OnArrange { child, handler }
 }
 
@@ -297,6 +303,7 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(LayoutSize) + 'static)
 pub struct OnMeasureArgs {
     pub available_size: LayoutSize,
     pub desired_size: LayoutSize,
+    pub pixel_grid: PixelGrid,
 }
 
 struct OnMeasure<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
@@ -306,13 +313,14 @@ struct OnMeasure<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
 
 #[impl_ui_node(child)]
 impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMeasure<C, F> {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, available_size: LayoutSize, pixel_grid: PixelGrid) -> LayoutSize {
         let mut args = OnMeasureArgs {
             available_size,
             desired_size: LayoutSize::zero(),
+            pixel_grid,
         };
 
-        args.desired_size = self.child.measure(available_size);
+        args.desired_size = self.child.measure(available_size, pixel_grid);
 
         (self.handler)(args)
     }

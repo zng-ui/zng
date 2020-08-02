@@ -19,6 +19,12 @@ struct TextRun<T: Var<Text>> {
     color: ColorF,
 }
 
+impl<T: Var<Text>> TextRun<T> {
+    fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
+        LayoutSize::new(pixels.snap_ceil(self.size.width), pixels.snap_ceil(self.size.height))
+    }
+}
+
 #[impl_ui_node(none)]
 impl<T: Var<Text>> UiNode for TextRun<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -85,15 +91,15 @@ impl<T: Var<Text>> UiNode for TextRun<T> {
         }
     }
 
-    fn measure(&mut self, _: LayoutSize) -> LayoutSize {
-        self.size
+    fn measure(&mut self, _: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        self.aligned_size(pixels)
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("text::render");
-
+        let size = self.aligned_size(frame.pixel_grid());
         frame.push_text(
-            LayoutRect::from_size(self.size),
+            LayoutRect::from_size(size),
             &self.glyphs,
             self.font.as_ref().unwrap().instance_key(),
             self.color,

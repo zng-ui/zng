@@ -8,6 +8,7 @@ use crate::core::{
 struct Position<T: UiNode, P: LocalVar<LayoutPoint>> {
     child: T,
     position: P,
+    final_position: LayoutPoint,
 }
 
 #[impl_ui_node(child)]
@@ -24,8 +25,13 @@ impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for Position<T, P> {
         self.child.update(ctx);
     }
 
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        self.child.arrange(final_size, pixels);
+        self.final_position = self.position.get_local().align_pixels(pixels)
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_reference_frame(*self.position.get_local(), |frame| self.child.render(frame));
+        frame.push_reference_frame(self.final_position, |frame| self.child.render(frame));
     }
 }
 
@@ -35,5 +41,6 @@ pub fn position(child: impl UiNode, position: impl IntoVar<LayoutPoint>) -> impl
     Position {
         child,
         position: position.into_local(),
+        final_position: LayoutPoint::zero(),
     }
 }

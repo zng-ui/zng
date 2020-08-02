@@ -206,11 +206,15 @@ impl From<BorderDetails> for w_api::BorderDetails {
 
 struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> {
     child: T,
+
     widths: L,
     details: B,
-    render_details: w_api::BorderDetails,
     child_rect: LayoutRect,
+
+    final_widths: LayoutSideOffsets,
     final_size: LayoutSize,
+    final_details: w_api::BorderDetails,
+
     visible: bool,
 }
 
@@ -225,7 +229,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
         self.visible = widths.visible() && details.visible();
 
-        self.render_details = details.into();
+        self.final_details = details.into();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -240,7 +244,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         }
         if let Some(&details) = self.details.update(ctx.vars) {
             details_visible = Some(details.visible());
-            self.render_details = details.into();
+            self.final_details = details.into();
             ctx.updates.push_render();
         }
 
@@ -250,23 +254,21 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         }
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child.measure(available_size - self.size_increment()) + self.size_increment()
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        self.final_widths = self.widths.get_local().align_pixels(pixels);
+        let size_inc = self.size_increment();
+        self.child.measure(available_size - size_inc, pixels) + size_inc
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
         self.child_rect.size = final_size - self.size_increment();
         self.final_size = final_size;
-        self.child.arrange(self.child_rect.size);
+        self.child.arrange(self.child_rect.size, pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
         if self.visible {
-            frame.push_border(
-                LayoutRect::from_size(self.final_size),
-                *self.widths.get_local(),
-                self.render_details,
-            );
+            frame.push_border(LayoutRect::from_size(self.final_size), self.final_widths, self.final_details);
         }
         frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
     }
@@ -274,7 +276,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
 
 impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T, L, B> {
     fn size_increment(&self) -> LayoutSize {
-        let rw = self.widths.get_local();
+        let rw = self.final_widths;
         LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
     }
 }
@@ -284,11 +286,15 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T,
 pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     Border {
         child,
+
         widths: widths.into_local(),
         details: details.into_var(),
-        render_details: border_details_none(),
+
         child_rect: LayoutRect::zero(),
+        final_details: border_details_none(),
         final_size: LayoutSize::zero(),
+        final_widths: LayoutSideOffsets::zero(),
+
         visible: false,
     }
 }

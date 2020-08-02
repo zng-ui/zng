@@ -9,7 +9,7 @@ use super::{
         WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
-    types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, Text, WidgetId, WindowEvent, WindowId},
+    types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Text, WidgetId, WindowEvent, WindowId},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
     UiNode,
 };
@@ -857,16 +857,19 @@ impl OpenWindow {
         w
     }
 
+    #[inline]
     pub fn id(&self) -> WindowId {
         self.gl_ctx.borrow().window().id()
     }
 
     /// If the window is the foreground window.
+    #[inline]
     pub fn is_active(&self) -> bool {
         self.is_active
     }
 
     /// Position of the window.
+    #[inline]
     pub fn position(&self) -> LayoutPoint {
         let gl_ctx = self.gl_ctx.borrow();
         let wn = gl_ctx.window();
@@ -876,6 +879,7 @@ impl OpenWindow {
     }
 
     /// Size of the window content.
+    #[inline]
     pub fn size(&self) -> LayoutSize {
         let gl_ctx = self.gl_ctx.borrow();
         let wn = gl_ctx.window();
@@ -885,11 +889,19 @@ impl OpenWindow {
     }
 
     /// Scale factor used by this window, all `Layout*` values are scaled by this value by the renderer.
+    #[inline]
     pub fn scale_factor(&self) -> f32 {
         self.gl_ctx.borrow().window().scale_factor() as f32
     }
 
+    /// Pixel grid of this window, all `Layout*` values are aligned with this grid during layout.
+    #[inline]
+    pub fn pixel_grid(&self) -> PixelGrid {
+        PixelGrid::new(self.scale_factor())
+    }
+
     /// Hit-test the latest frame.
+    #[inline]
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
         let r = self.wn_ctx.borrow().api.hit_test(
             self.document_id,
@@ -1036,9 +1048,10 @@ impl OpenWindow {
             ctx.update = UpdateDisplayRequest::Render;
 
             let available_size = self.size();
+            let pixels = self.pixel_grid();
 
-            ctx.root.child.measure(available_size);
-            ctx.root.child.arrange(available_size);
+            ctx.root.child.measure(available_size, pixels);
+            ctx.root.child.arrange(available_size, pixels);
         }
     }
 

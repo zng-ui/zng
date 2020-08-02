@@ -1,4 +1,8 @@
-use crate::core::{impl_ui_node, types::LayoutSize, Widget};
+use crate::core::{
+    impl_ui_node,
+    types::{LayoutSize, PixelGrid},
+    Widget,
+};
 use crate::properties::grid::GridChildState;
 
 struct Grid {
@@ -9,10 +13,10 @@ struct Grid {
 
 #[impl_ui_node(children)]
 impl UiNode for Grid {
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let mut size = LayoutSize::zero();
         for child in &mut self.children {
-            child.measure(available_size);
+            child.measure(available_size, pixels);
             let _column = child.column();
             // TODO
         }

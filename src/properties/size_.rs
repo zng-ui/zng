@@ -27,14 +27,14 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), available_size);
-        self.child.measure(min_size.max(available_size))
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        let min_size = replace_layout_any_size(*self.min_size.get_local(), available_size).align_pixels(pixels);
+        self.child.measure(min_size.max(available_size), pixels)
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), final_size);
-        self.child.arrange(min_size.max(final_size));
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        let min_size = replace_layout_any_size(*self.min_size.get_local(), final_size).align_pixels(pixels);
+        self.child.arrange(min_size.max(final_size), pixels);
     }
 }
 
@@ -66,20 +66,20 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for MinWidth<T, W> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let min_width = *self.min_width.get_local();
         if !is_layout_any_size(min_width) {
-            available_size.width = min_width.max(available_size.width);
+            available_size.width = pixels.snap_round(min_width.max(available_size.width));
         }
-        self.child.measure(available_size)
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
         let min_width = *self.min_width.get_local();
         if !is_layout_any_size(min_width) {
-            final_size.width = min_width.max(final_size.width);
+            final_size.width = pixels.snap_round(min_width.max(final_size.width));
         }
-        self.child.arrange(final_size);
+        self.child.arrange(final_size, pixels);
     }
 }
 
@@ -111,20 +111,20 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for MinHeight<T, H> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let min_height = *self.min_height.get_local();
         if !is_layout_any_size(min_height) {
-            available_size.height = min_height.max(available_size.height);
+            available_size.height = pixels.snap_round(min_height.max(available_size.height));
         }
-        self.child.measure(available_size)
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
         let min_height = *self.min_height.get_local();
         if !is_layout_any_size(min_height) {
-            final_size.height = min_height.max(final_size.height);
+            final_size.height = pixels.snap_round(min_height.max(final_size.height));
         }
-        self.child.arrange(final_size);
+        self.child.arrange(final_size, pixels);
     }
 }
 
@@ -156,12 +156,14 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        self.child.measure(self.max_size.get_local().min(available_size))
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        self.child
+            .measure(self.max_size.get_local().align_pixels(pixels).min(available_size), pixels)
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        self.child.arrange(self.max_size.get_local().min(final_size));
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        self.child
+            .arrange(self.max_size.get_local().align_pixels(pixels).min(final_size), pixels);
     }
 }
 
@@ -193,14 +195,14 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for MaxWidth<T, W> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        available_size.width = self.max_width.get_local().min(available_size.width);
-        self.child.measure(available_size)
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        available_size.width = pixels.snap_round(self.max_width.get_local().min(available_size.width));
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size.width = self.max_width.get_local().min(final_size.width);
-        self.child.arrange(final_size);
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
+        final_size.width = pixels.snap_round(self.max_width.get_local().min(final_size.width));
+        self.child.arrange(final_size, pixels);
     }
 }
 
@@ -232,14 +234,14 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for MaxHeight<T, H> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
-        available_size.height = self.max_height.get_local().min(available_size.height);
-        self.child.measure(available_size)
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        available_size.height = pixels.snap_round(self.max_height.get_local().min(available_size.height));
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
-        final_size.height = self.max_height.get_local().min(final_size.height);
-        self.child.arrange(final_size);
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
+        final_size.height = pixels.snap_round(self.max_height.get_local().min(final_size.height));
+        self.child.arrange(final_size, pixels);
     }
 }
 
@@ -271,14 +273,14 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize) -> LayoutSize {
-        let size = replace_layout_any_size(*self.size.get_local(), available_size);
-        self.child.measure(size)
+    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+        let size = replace_layout_any_size(*self.size.get_local(), available_size).align_pixels(pixels);
+        self.child.measure(size, pixels)
     }
 
-    fn arrange(&mut self, final_size: LayoutSize) {
-        let size = replace_layout_any_size(*self.size.get_local(), final_size);
-        self.child.arrange(size);
+    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        let size = replace_layout_any_size(*self.size.get_local(), final_size).align_pixels(pixels);
+        self.child.arrange(size, pixels);
     }
 }
 
@@ -326,20 +328,20 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for ExactWidth<T, W> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let width = *self.width.get_local();
         if !is_layout_any_size(width) {
-            available_size.width = width;
+            available_size.width = pixels.snap_round(width);
         }
-        self.child.measure(available_size)
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
         let width = *self.width.get_local();
         if !is_layout_any_size(width) {
-            final_size.width = width;
+            final_size.width = pixels.snap_round(width);
         }
-        self.child.arrange(final_size)
+        self.child.arrange(final_size, pixels)
     }
 }
 
@@ -371,20 +373,20 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for ExactHeight<T, H> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, mut available_size: LayoutSize) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let height = *self.height.get_local();
         if !is_layout_any_size(height) {
-            available_size.height = height;
+            available_size.height = pixels.snap_round(height);
         }
-        self.child.measure(available_size)
+        self.child.measure(available_size, pixels)
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize) {
+    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
         let height = *self.height.get_local();
         if !is_layout_any_size(height) {
-            final_size.height = height;
+            final_size.height = pixels.snap_round(height);
         }
-        self.child.arrange(final_size)
+        self.child.arrange(final_size, pixels)
     }
 }
 
