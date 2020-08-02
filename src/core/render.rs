@@ -66,7 +66,7 @@ impl FrameBuilder {
     ///
     /// All layout values must [align](AlignPixels) with this grid.
     #[inline]
-    pub fn pixel_grid_(&self) -> PixelGrid {
+    pub fn pixel_grid(&self) -> PixelGrid {
         PixelGrid::new(self.scale_factor)
     }
 
