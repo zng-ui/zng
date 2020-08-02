@@ -500,7 +500,7 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
 }
 
 /// A device pixel scale factor used for [pixel aligning](AlignPixels).
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct PixelGrid {
     pub scale_factor: f32,
 }
