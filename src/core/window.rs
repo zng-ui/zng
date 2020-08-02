@@ -1067,7 +1067,7 @@ impl OpenWindow {
             });
 
             let size = self.size();
-            let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size);
+            let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size, self.scale_factor());
             let clear_color = *ctx.root.background_color.get_local();
 
             if clear_color != self.clear_color {

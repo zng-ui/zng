@@ -498,3 +498,67 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
         OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
     }
 }
+
+/// A device pixel scale factor used for [pixel aligning](AlignPixels).
+#[derive(Copy, Clone, PartialEq)]
+pub struct PixelGrid {
+    pub scale_factor: f32,
+}
+impl PixelGrid {
+    #[inline]
+    pub fn new(scale_factor: f32) -> Self {
+        PixelGrid { scale_factor }
+    }
+
+    #[inline]
+    pub fn snap_round(self, n: f32) -> f32 {
+        (n * self.scale_factor).round() / self.scale_factor
+    }
+
+    #[inline]
+    pub fn snap_ceil(self, n: f32) -> f32 {
+        (n * self.scale_factor).ceil() / self.scale_factor
+    }
+
+    #[inline]
+    pub fn snap_floor(self, n: f32) -> f32 {
+        (n * self.scale_factor).floor() / self.scale_factor
+    }
+}
+impl Default for PixelGrid {
+    /// `1.0` scale factor.
+    #[inline]
+    fn default() -> Self {
+        PixelGrid::new(1.0)
+    }
+}
+
+/// Changes a layout type to that it aligns with device pixels given a scale factor.
+pub trait AlignPixels {
+    fn align_pixels(self, grid: PixelGrid) -> Self;
+}
+
+impl AlignPixels for LayoutPoint {
+    fn align_pixels(self, grid: PixelGrid) -> Self {
+        (self * grid.scale_factor).round() / grid.scale_factor
+    }
+}
+
+impl AlignPixels for LayoutSize {
+    fn align_pixels(self, grid: PixelGrid) -> Self {
+        (self * grid.scale_factor).round() / grid.scale_factor
+    }
+}
+
+impl AlignPixels for LayoutRect {
+    fn align_pixels(self, grid: PixelGrid) -> Self {
+        (self * grid.scale_factor).round() / grid.scale_factor
+    }
+}
+
+impl AlignPixels for LayoutSideOffsets {
+    fn align_pixels(self, grid: PixelGrid) -> Self {
+        let f = |n| grid.snap_ceil(n);
+        LayoutSideOffsets::new(f(self.top), f(self.right), f(self.bottom), f(self.left))
+    }
+}

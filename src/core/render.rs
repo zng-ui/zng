@@ -8,6 +8,7 @@ use std::mem;
 use webrender::api::*;
 
 pub struct FrameBuilder {
+    scale_factor: f32,
     display_list: DisplayListBuilder,
 
     info: FrameInfoBuilder,
@@ -26,9 +27,18 @@ pub struct FrameBuilder {
 
 impl FrameBuilder {
     #[inline]
-    pub fn new(frame_id: FrameId, window_id: WindowId, pipeline_id: PipelineId, root_id: WidgetId, root_size: LayoutSize) -> Self {
+    pub fn new(
+        frame_id: FrameId,
+        window_id: WindowId,
+        pipeline_id: PipelineId,
+        root_id: WidgetId,
+        root_size: LayoutSize,
+        scale_factor: f32,
+    ) -> Self {
+        let root_size = root_size.align_pixels(PixelGrid::new(scale_factor));
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let mut new = FrameBuilder {
+            scale_factor,
             display_list: DisplayListBuilder::new(pipeline_id, root_size),
             info_id: info.root_id(),
             info,
@@ -42,6 +52,22 @@ impl FrameBuilder {
         };
         new.push_widget_hit_area(root_id, root_size);
         new
+    }
+
+    /// Pixel scale factor used by the renderer.
+    ///
+    /// All layout values are scaled by this factor in the renderer.
+    #[inline]
+    pub fn scale_factor(&self) -> f32 {
+        self.scale_factor
+    }
+
+    /// Device pixel grid.
+    ///
+    /// All layout values must [align](AlignPixels) with this grid.
+    #[inline]
+    pub fn pixel_grid_(&self) -> PixelGrid {
+        PixelGrid::new(self.scale_factor)
     }
 
     /// Direct access to the display list builder.
@@ -97,7 +123,7 @@ impl FrameBuilder {
 
     /// Common item properties given a `clip_rect` and the current context.
     ///
-    /// This is a common case helper,
+    /// This is a common case helper, the `clip_rect` is not snapped to pixels.
     #[inline]
     pub fn common_item_properties(&self, clip_rect: LayoutRect) -> CommonItemProperties {
         CommonItemProperties {
@@ -127,7 +153,6 @@ impl FrameBuilder {
     pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
-
         self.push_widget_hit_area(id, area);
 
         let parent_id = mem::replace(&mut self.widget_id, id);
@@ -188,6 +213,10 @@ impl FrameBuilder {
     /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
     pub fn push_reference_frame(&mut self, origin: LayoutPoint, f: impl FnOnce(&mut FrameBuilder)) {
+        if origin == LayoutPoint::zero() {
+            return f(self);
+        }
+
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             origin,
