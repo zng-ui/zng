@@ -516,13 +516,13 @@ impl PixelGrid {
     ///
     /// scaled `n` | op
     /// -----------|------------------------
-    /// < 0.001    | floor (`0`)
+    /// < 0.01    | floor (`0`)
     /// < 1.0      | ceil (`1` pixel)
     /// >= 1.0     | round to nearest pixel
     #[inline]
-    pub fn snap(self, n: f32) -> f32 {
-        let px = n * self.scale_factor;
-        if px < 0.001 {
+    pub fn snap(self, layout_value: f32) -> f32 {
+        let px = layout_value * self.scale_factor;
+        if px < 0.01 {
             0.0
         } else if px < 1.0 {
             1.0 / self.scale_factor
