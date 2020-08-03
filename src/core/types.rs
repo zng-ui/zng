@@ -530,7 +530,7 @@ impl PixelGrid {
             px.round() / self.scale_factor
         }
     }
-    
+
     #[inline]
     pub fn snap_round(self, n: f32) -> f32 {
         (n * self.scale_factor).round() / self.scale_factor

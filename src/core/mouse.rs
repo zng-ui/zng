@@ -151,7 +151,7 @@ impl MouseHoverArgs {
         self.device_id.is_some()
     }
 
-    /// Event caused by the widget moving from/into under the mouse position.
+    /// Event caused by the widget moving under/out of the mouse position.
     #[inline]
     pub fn is_widget_move(&self) -> bool {
         self.device_id.is_none()
@@ -238,7 +238,7 @@ impl Event for MouseLeave {
 pub struct MouseEvents {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
-    /// last cursor move window.
+    /// last cursor move over `pos_window`.
     pos_window: Option<WindowId>,
     /// dpi scale of `pos_window`.
     pos_dpi: f32,
@@ -459,10 +459,13 @@ impl MouseEvents {
     }
 
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
-        if !self.hovered_targets.is_empty() {
-            let left_set = std::mem::take(&mut self.hovered_targets);
-            let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
-            ctx.updates.push_notify(self.mouse_leave.clone(), args);
+        if Some(window_id) == self.pos_window {
+            self.pos_window = None;
+            if !self.hovered_targets.is_empty() {
+                let left_set = std::mem::take(&mut self.hovered_targets);
+                let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
+                ctx.updates.push_notify(self.mouse_leave.clone(), args);
+            }
         }
     }
 
