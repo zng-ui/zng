@@ -60,13 +60,8 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(alignment) = self.alignment.update_local(ctx.vars) {
-            self.child_rect.origin = LayoutPoint::new(
-                (self.final_size.width - self.child_rect.size.width) * alignment.0,
-                (self.final_size.height - self.child_rect.size.height) * alignment.1,
-            );
-
-            ctx.updates.push_render();
+        if self.alignment.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
 
         self.child.update(ctx);

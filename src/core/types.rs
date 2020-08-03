@@ -524,6 +524,12 @@ impl PixelGrid {
     pub fn snap_floor(self, n: f32) -> f32 {
         (n * self.scale_factor).floor() / self.scale_factor
     }
+
+    #[inline]
+    pub fn is_aligned(self, n: f32) -> bool {
+        let scaled = n * self.scale_factor;
+        (scaled - scaled.round()).abs() < 0.0001
+    }
 }
 impl Default for PixelGrid {
     /// `1.0` scale factor.
@@ -536,29 +542,50 @@ impl Default for PixelGrid {
 /// Changes a layout type to that it aligns with device pixels given a scale factor.
 pub trait AlignPixels {
     fn align_pixels(self, grid: PixelGrid) -> Self;
+    fn is_pixel_aligned(self, grid: PixelGrid) -> bool;
 }
 
 impl AlignPixels for LayoutPoint {
+    #[inline]
     fn align_pixels(self, grid: PixelGrid) -> Self {
         (self * grid.scale_factor).round() / grid.scale_factor
+    }
+    #[inline]
+    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.x) && grid.is_aligned(self.y)
     }
 }
 
 impl AlignPixels for LayoutSize {
+    #[inline]
     fn align_pixels(self, grid: PixelGrid) -> Self {
         (self * grid.scale_factor).round() / grid.scale_factor
+    }
+    #[inline]
+    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.width) && grid.is_aligned(self.height)
     }
 }
 
 impl AlignPixels for LayoutRect {
+    #[inline]
     fn align_pixels(self, grid: PixelGrid) -> Self {
         (self * grid.scale_factor).round() / grid.scale_factor
+    }
+    #[inline]
+    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+        self.origin.is_pixel_aligned(grid) && self.size.is_pixel_aligned(grid)
     }
 }
 
 impl AlignPixels for LayoutSideOffsets {
+    #[inline]
     fn align_pixels(self, grid: PixelGrid) -> Self {
         let f = |n| grid.snap_ceil(n);
         LayoutSideOffsets::new(f(self.top), f(self.right), f(self.bottom), f(self.left))
+    }
+    #[inline]
+    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
     }
 }

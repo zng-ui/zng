@@ -20,7 +20,7 @@ impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for Position<T, P> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.position.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.push_layout();
         }
         self.child.update(ctx);
     }

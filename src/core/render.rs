@@ -7,6 +7,23 @@ use ego_tree::Tree;
 use std::mem;
 use webrender::api::*;
 
+macro_rules! debug_assert_aligned {
+    ($value:expr, $grid: expr) => {
+        if cfg!(debug_assertions) {
+            let grid = $grid;
+            let value = $value;
+            if !value.is_pixel_aligned(grid) {
+                panic!(
+                    "{}: `{:?}` is not aligned, expected `{:?}`",
+                    stringify!($value),
+                    value,
+                    value.align_pixels(grid)
+                );
+            }
+        }
+    };
+}
+
 pub struct FrameBuilder {
     scale_factor: f32,
     display_list: DisplayListBuilder,
@@ -35,7 +52,7 @@ impl FrameBuilder {
         root_size: LayoutSize,
         scale_factor: f32,
     ) -> Self {
-        let root_size = root_size.align_pixels(PixelGrid::new(scale_factor));
+        debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let mut new = FrameBuilder {
             scale_factor,
@@ -153,6 +170,9 @@ impl FrameBuilder {
     pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
+
+        debug_assert_aligned!(area, self.pixel_grid());
+
         self.push_widget_hit_area(id, area);
 
         let parent_id = mem::replace(&mut self.widget_id, id);
@@ -177,6 +197,8 @@ impl FrameBuilder {
     /// if [`hit_testable`](FrameBuilder::hit_testable) is `true`.
     #[inline]
     pub fn push_hit_test(&mut self, rect: LayoutRect) {
+        debug_assert_aligned!(rect, self.pixel_grid());
+
         if self.hit_testable {
             self.display_list.push_hit_test(&self.common_item_properties(rect));
         }
@@ -193,6 +215,8 @@ impl FrameBuilder {
     /// Calls `f` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
     #[inline]
     pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
+        debug_assert_aligned!(bounds, self.pixel_grid());
+
         let parent_clip_id = self.clip_id;
 
         self.clip_id = self.display_list.define_clip(
@@ -217,6 +241,8 @@ impl FrameBuilder {
             return f(self);
         }
 
+        debug_assert_aligned!(origin, self.pixel_grid());
+
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             origin,
@@ -239,6 +265,9 @@ impl FrameBuilder {
     /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        debug_assert_aligned!(rect, self.pixel_grid());
+        debug_assert_aligned!(widths, self.pixel_grid());
+
         self.display_list
             .push_border(&self.common_item_properties(rect), rect, widths, details);
     }
@@ -253,6 +282,8 @@ impl FrameBuilder {
         color: ColorF,
         glyph_options: Option<GlyphOptions>,
     ) {
+        debug_assert_aligned!(rect, self.pixel_grid());
+
         self.display_list.push_text(
             &self.common_item_properties(rect),
             rect,
@@ -276,12 +307,16 @@ impl FrameBuilder {
     /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_color(&mut self, rect: LayoutRect, color: ColorF) {
+        debug_assert_aligned!(rect, self.pixel_grid());
+
         self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
     /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
+        debug_assert_aligned!(rect, self.pixel_grid());
+
         self.display_list.push_stops(stops);
 
         let gradient = Gradient {

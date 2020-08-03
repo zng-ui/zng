@@ -225,10 +225,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
 
         let widths = *self.widths.init_local(ctx.vars);
         let details = *self.details.get(ctx.vars);
-
-        self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
         self.visible = widths.visible() && details.visible();
-
         self.final_details = details.into();
     }
 
@@ -261,6 +258,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     }
 
     fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+        self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
         self.child_rect.size = final_size - self.size_increment();
         self.final_size = final_size;
         self.child.arrange(self.child_rect.size, pixels);
