@@ -27,7 +27,7 @@ impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for Position<T, P> {
 
     fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
         self.child.arrange(final_size, pixels);
-        self.final_position = self.position.get_local().align_pixels(pixels)
+        self.final_position = self.position.get_local().snap_to(pixels)
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

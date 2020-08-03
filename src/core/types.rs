@@ -499,7 +499,9 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
     }
 }
 
-/// A device pixel scale factor used for [pixel aligning](AlignPixels).
+/// A device pixel scale factor used for pixel alignment.
+///
+/// Types that can be aligned with this grid implement [`PixelGridExt`].
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct PixelGrid {
     pub scale_factor: f32,
@@ -510,6 +512,25 @@ impl PixelGrid {
         PixelGrid { scale_factor }
     }
 
+    /// Aligns the layout value `n` using this algorithm:
+    ///
+    /// scaled `n` | op
+    /// -----------|------------------------
+    /// < 0.001    | floor (`0`)
+    /// < 1.0      | ceil (`1` pixel)
+    /// >= 1.0     | round to nearest pixel
+    #[inline]
+    pub fn snap(self, n: f32) -> f32 {
+        let px = n * self.scale_factor;
+        if px < 0.001 {
+            0.0
+        } else if px < 1.0 {
+            1.0 / self.scale_factor
+        } else {
+            px.round() / self.scale_factor
+        }
+    }
+    
     #[inline]
     pub fn snap_round(self, n: f32) -> f32 {
         (n * self.scale_factor).round() / self.scale_factor
@@ -539,53 +560,57 @@ impl Default for PixelGrid {
     }
 }
 
-/// Changes a layout type to that it aligns with device pixels given a scale factor.
-pub trait AlignPixels {
-    fn align_pixels(self, grid: PixelGrid) -> Self;
-    fn is_pixel_aligned(self, grid: PixelGrid) -> bool;
+/// Methods for types that can be aligned to a [`PixelGrid`](PixelGrid).
+pub trait PixelGridExt {
+    fn snap_to(self, grid: PixelGrid) -> Self;
+    fn is_aligned_to(self, grid: PixelGrid) -> bool;
 }
 
-impl AlignPixels for LayoutPoint {
+impl PixelGridExt for LayoutPoint {
     #[inline]
-    fn align_pixels(self, grid: PixelGrid) -> Self {
-        (self * grid.scale_factor).round() / grid.scale_factor
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutPoint::new(grid.snap(self.x), grid.snap(self.y))
     }
     #[inline]
-    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
         grid.is_aligned(self.x) && grid.is_aligned(self.y)
     }
 }
 
-impl AlignPixels for LayoutSize {
+impl PixelGridExt for LayoutSize {
     #[inline]
-    fn align_pixels(self, grid: PixelGrid) -> Self {
-        (self * grid.scale_factor).round() / grid.scale_factor
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutSize::new(grid.snap(self.width), grid.snap(self.height))
     }
     #[inline]
-    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
         grid.is_aligned(self.width) && grid.is_aligned(self.height)
     }
 }
 
-impl AlignPixels for LayoutRect {
+impl PixelGridExt for LayoutRect {
     #[inline]
-    fn align_pixels(self, grid: PixelGrid) -> Self {
-        (self * grid.scale_factor).round() / grid.scale_factor
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutRect::new(self.origin.snap_to(grid), self.size.snap_to(grid))
     }
     #[inline]
-    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
-        self.origin.is_pixel_aligned(grid) && self.size.is_pixel_aligned(grid)
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
     }
 }
 
-impl AlignPixels for LayoutSideOffsets {
+impl PixelGridExt for LayoutSideOffsets {
     #[inline]
-    fn align_pixels(self, grid: PixelGrid) -> Self {
-        let f = |n| grid.snap_ceil(n);
-        LayoutSideOffsets::new(f(self.top), f(self.right), f(self.bottom), f(self.left))
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutSideOffsets::new(
+            grid.snap(self.top),
+            grid.snap(self.right),
+            grid.snap(self.bottom),
+            grid.snap(self.left),
+        )
     }
     #[inline]
-    fn is_pixel_aligned(self, grid: PixelGrid) -> bool {
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
         grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
     }
 }

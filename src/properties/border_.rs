@@ -252,7 +252,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     }
 
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        self.final_widths = self.widths.get_local().align_pixels(pixels);
+        self.final_widths = self.widths.get_local().snap_to(pixels);
         let size_inc = self.size_increment();
         self.child.measure(available_size - size_inc, pixels) + size_inc
     }

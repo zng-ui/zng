@@ -29,7 +29,7 @@ impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for Margin<T, M> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let margin = self.margin.get_local().align_pixels(pixels);
+        let margin = self.margin.get_local().snap_to(pixels);
         self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
         self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
         self.child.measure(available_size - self.size_increment, pixels) + self.size_increment

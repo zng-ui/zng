@@ -12,12 +12,12 @@ macro_rules! debug_assert_aligned {
         if cfg!(debug_assertions) {
             let grid = $grid;
             let value = $value;
-            if !value.is_pixel_aligned(grid) {
+            if !value.is_aligned_to(grid) {
                 panic!(
                     "{}: `{:?}` is not aligned, expected `{:?}`",
                     stringify!($value),
                     value,
-                    value.align_pixels(grid)
+                    value.snap_to(grid)
                 );
             }
         }
@@ -81,7 +81,7 @@ impl FrameBuilder {
 
     /// Device pixel grid.
     ///
-    /// All layout values must [align](AlignPixels) with this grid.
+    /// All layout values must align with this grid.
     #[inline]
     pub fn pixel_grid(&self) -> PixelGrid {
         PixelGrid::new(self.scale_factor)

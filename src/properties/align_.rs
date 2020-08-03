@@ -83,7 +83,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
             (final_size.width - self.child_rect.size.width) * alignment.0,
             (final_size.height - self.child_rect.size.height) * alignment.1,
         )
-        .align_pixels(pixels);
+        .snap_to(pixels);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

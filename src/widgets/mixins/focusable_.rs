@@ -4,9 +4,9 @@ use crate::core::widget_mixin;
 use crate::properties::{focusable, foreground_highlight, is_focused_hgl, BorderDetails};
 
 context_var! {
-    pub struct FocusHighlightWidthsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
-    pub struct FocusHighlightOffsetsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(2.0);
-    pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(0, 255, 255, 0.7));
+    pub struct FocusHighlightWidthsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(0.5);
+    pub struct FocusHighlightOffsetsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
+    pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(0, 255, 255, 1.0));
 }
 
 widget_mixin! {

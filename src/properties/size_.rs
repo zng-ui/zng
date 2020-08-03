@@ -28,12 +28,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSize<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), available_size).align_pixels(pixels);
+        let min_size = replace_layout_any_size(*self.min_size.get_local(), available_size).snap_to(pixels);
         self.child.measure(min_size.max(available_size), pixels)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), final_size).align_pixels(pixels);
+        let min_size = replace_layout_any_size(*self.min_size.get_local(), final_size).snap_to(pixels);
         self.child.arrange(min_size.max(final_size), pixels);
     }
 }
@@ -158,12 +158,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSize<T, S> {
 
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         self.child
-            .measure(self.max_size.get_local().align_pixels(pixels).min(available_size), pixels)
+            .measure(self.max_size.get_local().snap_to(pixels).min(available_size), pixels)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
         self.child
-            .arrange(self.max_size.get_local().align_pixels(pixels).min(final_size), pixels);
+            .arrange(self.max_size.get_local().snap_to(pixels).min(final_size), pixels);
     }
 }
 
@@ -274,12 +274,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for ExactSize<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let size = replace_layout_any_size(*self.size.get_local(), available_size).align_pixels(pixels);
+        let size = replace_layout_any_size(*self.size.get_local(), available_size).snap_to(pixels);
         self.child.measure(size, pixels)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
-        let size = replace_layout_any_size(*self.size.get_local(), final_size).align_pixels(pixels);
+        let size = replace_layout_any_size(*self.size.get_local(), final_size).snap_to(pixels);
         self.child.arrange(size, pixels);
     }
 }
