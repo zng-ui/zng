@@ -64,7 +64,7 @@ impl<S: LocalVar<f32>, D: StackDimension> Stack<S, D> {
 
         let mut total_size = LayoutSize::zero();
         let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
-        let spacing = pixels.snap_ceil(*self.spacing.get_local());
+        let spacing = pixels.snap(*self.spacing.get_local());
         let mut first = true;
 
         for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {

@@ -502,7 +502,7 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
 /// A device pixel scale factor used for pixel alignment.
 ///
 /// Types that can be aligned with this grid implement [`PixelGridExt`].
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct PixelGrid {
     pub scale_factor: f32,
 }
@@ -516,7 +516,7 @@ impl PixelGrid {
     ///
     /// scaled `n` | op
     /// -----------|------------------------
-    /// < 0.01    | floor (`0`)
+    /// < 0.01     | floor (`0`)
     /// < 1.0      | ceil (`1` pixel)
     /// >= 1.0     | round to nearest pixel
     #[inline]
@@ -531,24 +531,10 @@ impl PixelGrid {
         }
     }
 
+    /// Checks if the layout value is aligned with this grid.
     #[inline]
-    pub fn snap_round(self, n: f32) -> f32 {
-        (n * self.scale_factor).round() / self.scale_factor
-    }
-
-    #[inline]
-    pub fn snap_ceil(self, n: f32) -> f32 {
-        (n * self.scale_factor).ceil() / self.scale_factor
-    }
-
-    #[inline]
-    pub fn snap_floor(self, n: f32) -> f32 {
-        (n * self.scale_factor).floor() / self.scale_factor
-    }
-
-    #[inline]
-    pub fn is_aligned(self, n: f32) -> bool {
-        let scaled = n * self.scale_factor;
+    pub fn is_aligned(self, layout_value: f32) -> bool {
+        let scaled = layout_value * self.scale_factor;
         (scaled - scaled.round()).abs() < 0.0001
     }
 }
@@ -559,10 +545,17 @@ impl Default for PixelGrid {
         PixelGrid::new(1.0)
     }
 }
+impl PartialEq for PixelGrid {
+    fn eq(&self, other: &Self) -> bool {
+        (self.scale_factor - other.scale_factor).abs() < 0.01
+    }
+}
 
 /// Methods for types that can be aligned to a [`PixelGrid`](PixelGrid).
 pub trait PixelGridExt {
+    /// Gets a copy of self that is aligned with the pixel grid.
     fn snap_to(self, grid: PixelGrid) -> Self;
+    /// Checks if self is aligned with the pixel grid.
     fn is_aligned_to(self, grid: PixelGrid) -> bool;
 }
 
