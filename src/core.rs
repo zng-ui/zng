@@ -162,11 +162,7 @@ impl<T: UiNode> Widget for WidgetNode<T> {
 }
 
 #[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
-impl UiNode for Box<dyn Widget> {
-    //fn boxed(self) -> Box<dyn UiNode> {
-    //   TODO?
-    //}
-}
+impl UiNode for Box<dyn Widget> { }
 
 impl Widget for Box<dyn Widget> {
     #[inline]
