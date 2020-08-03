@@ -21,7 +21,7 @@ struct TextRun<T: Var<Text>> {
 
 impl<T: Var<Text>> TextRun<T> {
     fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
-        LayoutSize::new(pixels.snap_ceil(self.size.width), pixels.snap_ceil(self.size.height))
+        self.size.snap_to(pixels)
     }
 }
 
