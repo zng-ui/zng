@@ -152,10 +152,10 @@ pub struct FocusManager {
 impl Default for FocusManager {
     fn default() -> Self {
         Self {
-            focus_changed: EventEmitter::new(false),
-            windows_activation: EventListener::never(false),
-            mouse_down: EventListener::never(false),
-            key_down: EventListener::never(false),
+            focus_changed: FocusChangedEvent::emitter(),
+            windows_activation: WindowIsActiveChangedEvent::never(),
+            mouse_down: MouseDownEvent::never(),
+            key_down: KeyDownEvent::never(),
             focused: None,
         }
     }

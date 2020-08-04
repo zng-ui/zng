@@ -282,13 +282,13 @@ pub struct GestureEvents {
 impl Default for GestureEvents {
     fn default() -> Self {
         GestureEvents {
-            key_down: EventListener::never(false),
-            mouse_click: EventListener::never(false),
+            key_down: KeyDownEvent::never(),
+            mouse_click: MouseClickEvent::never(),
 
-            click: EventEmitter::new(false),
-            single_click: EventEmitter::new(false),
-            double_click: EventEmitter::new(false),
-            triple_click: EventEmitter::new(false),
+            click: ClickEvent::emitter(),
+            single_click: SingleClickEvent::emitter(),
+            double_click: DoubleClickEvent::emitter(),
+            triple_click: TripleClickEvent::emitter(),
         }
     }
 }

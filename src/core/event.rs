@@ -28,6 +28,16 @@ pub trait Event: 'static {
     type Args: EventArgs;
     /// If the event is updated in the high-pressure lane.
     const IS_HIGH_PRESSURE: bool = false;
+
+    /// New event emitter.
+    fn emitter() -> EventEmitter<Self::Args> {
+        EventEmitter::new(Self::IS_HIGH_PRESSURE)
+    }
+
+    /// New event listener that never updates.
+    fn never() -> EventListener<Self::Args> {
+        EventListener::never(Self::IS_HIGH_PRESSURE)
+    }
 }
 
 /// Identifies an event type for an action that
@@ -111,6 +121,10 @@ impl<T: 'static> EventListener<T> {
         EventListener { chan }
     }
 
+    fn never(is_high_pressure: bool) -> Self {
+        EventEmitter::new(is_high_pressure).into_listener()
+    }
+
     /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
@@ -124,11 +138,6 @@ impl<T: 'static> EventListener<T> {
     /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
-    }
-
-    /// Listener that never updates.
-    pub fn never(is_high_pressure: bool) -> Self {
-        EventEmitter::new(is_high_pressure).into_listener()
     }
 }
 
@@ -148,11 +157,7 @@ impl<T: 'static> Clone for EventEmitter<T> {
     }
 }
 impl<T: 'static> EventEmitter<T> {
-    /// New event emitter.
-    ///
-    /// # Arguments
-    /// * `is_high_pressure`: If this event is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
-    pub fn new(is_high_pressure: bool) -> Self {
+    fn new(is_high_pressure: bool) -> Self {
         EventEmitter {
             chan: EventChannel {
                 r: Rc::new(EventChannelInner {
@@ -162,6 +167,13 @@ impl<T: 'static> EventEmitter<T> {
                 }),
             },
         }
+    }
+
+    /// New emitter for a service request response.
+    ///
+    /// The emitter is expected to update at maximum only once so it is not high-pressure.
+    pub fn response() -> Self {
+        Self::new(false)
     }
 
     /// Number of listener to this event emitter.

@@ -229,7 +229,7 @@ impl AppProcess {
     /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`](ShutDownCancelled)
     /// if the shutdown operation is cancelled.
     pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
-        let emitter = EventEmitter::new(false);
+        let emitter = EventEmitter::response();
         self.shutdown_requests.push(emitter.clone());
         self.update_notifier.push_update();
         emitter.into_listener()

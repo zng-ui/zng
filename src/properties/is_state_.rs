@@ -47,8 +47,8 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHovered {
         child,
         state,
-        mouse_enter: EventListener::never(false),
-        mouse_leave: EventListener::never(false),
+        mouse_enter: MouseEnterEvent::never(),
+        mouse_leave: MouseLeaveEvent::never(),
     }
 }
 
@@ -95,8 +95,8 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsPressed {
         child,
         state,
-        mouse_down: EventListener::never(false),
-        mouse_up: EventListener::never(false),
+        mouse_down: MouseDownEvent::never(),
+        mouse_up: MouseUpEvent::never(),
     }
 }
 
@@ -145,7 +145,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocused {
         child,
         state,
-        focus_changed: EventListener::never(false),
+        focus_changed: FocusChangedEvent::never(),
     }
 }
 
@@ -190,7 +190,7 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusWithin {
         child,
         state,
-        focus_changed: EventListener::never(false),
+        focus_changed: FocusChangedEvent::never(),
     }
 }
 
@@ -237,7 +237,7 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusedHighlighted {
         child,
         state,
-        focus_changed: EventListener::never(false),
+        focus_changed: FocusChangedEvent::never(),
     }
 }
 
@@ -286,6 +286,6 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusWithinHighlighted {
         child,
         state,
-        focus_changed: EventListener::never(false),
+        focus_changed: FocusChangedEvent::never(),
     }
 }

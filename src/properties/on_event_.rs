@@ -79,7 +79,7 @@ pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut
     OnEvent {
         child,
         _event: event,
-        listener: EventListener::never(false),
+        listener: E::never(),
         handler,
     }
 }

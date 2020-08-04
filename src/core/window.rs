@@ -268,15 +268,15 @@ impl Default for WindowManager {
         WindowManager {
             event_loop_proxy: None,
             ui_threads,
-            window_open: EventEmitter::new(false),
-            window_is_active_changed: EventEmitter::new(false),
-            window_activated: EventEmitter::new(false),
-            window_deactivated: EventEmitter::new(false),
-            window_resize: EventEmitter::new(true),
-            window_move: EventEmitter::new(true),
-            window_scale_changed: EventEmitter::new(false),
-            window_closing: EventEmitter::new(false),
-            window_close: EventEmitter::new(false),
+            window_open: WindowOpenEvent::emitter(),
+            window_is_active_changed: WindowIsActiveChangedEvent::emitter(),
+            window_activated: WindowActivatedEvent::emitter(),
+            window_deactivated: WindowDeactivatedEvent::emitter(),
+            window_resize: WindowResizeEvent::emitter(),
+            window_move: WindowMoveEvent::emitter(),
+            window_scale_changed: WindowScaleChangedEvent::emitter(),
+            window_closing: WindowCloseRequestedEvent::emitter(),
+            window_close: WindowCloseEvent::emitter(),
         }
     }
 }
@@ -596,7 +596,7 @@ impl Windows {
     pub fn open(&mut self, new_window: impl FnOnce(&AppContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
         let request = OpenWindowRequest {
             new: Box::new(new_window),
-            notifier: EventEmitter::new(false),
+            notifier: EventEmitter::response(),
         };
         let notice = request.notifier.listener();
         self.open_requests.push(request);
@@ -606,13 +606,13 @@ impl Windows {
         notice
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of the 
+    /// Starts closing a window, the operation can be canceled by listeners of the
     /// [close requested event](WindowCloseRequestedEvent).
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
         if self.windows.contains_key(&window_id) {
-            let notifier = EventEmitter::new(false);
+            let notifier = EventEmitter::response();
             let notice = notifier.listener();
             self.insert_close(window_id, None, notifier);
             self.update_notifier.push_update();
@@ -644,7 +644,7 @@ impl Windows {
         let set_id = NonZeroU16::new(self.next_group).unwrap();
         self.next_group += 1;
 
-        let notifier = EventEmitter::new(false);
+        let notifier = EventEmitter::response();
 
         for id in buffer {
             self.insert_close(id, Some(set_id), notifier.clone());

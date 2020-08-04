@@ -85,9 +85,9 @@ impl Default for KeyboardEvents {
         KeyboardEvents {
             last_key_down: None,
             modifiers: ModifiersState::default(),
-            key_input: EventEmitter::new(false),
-            key_down: EventEmitter::new(false),
-            key_up: EventEmitter::new(false),
+            key_input: KeyInputEvent::emitter(),
+            key_down: KeyDownEvent::emitter(),
+            key_up: KeyUpEvent::emitter(),
         }
     }
 }

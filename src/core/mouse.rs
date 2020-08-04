@@ -283,19 +283,19 @@ impl Default for MouseEvents {
 
             hovered_targets: FnvHashSet::default(),
 
-            mouse_move: EventEmitter::new(true),
+            mouse_move: MouseMoveEvent::emitter(),
 
-            mouse_input: EventEmitter::new(false),
-            mouse_down: EventEmitter::new(false),
-            mouse_up: EventEmitter::new(false),
+            mouse_input: MouseInputEvent::emitter(),
+            mouse_down: MouseDownEvent::emitter(),
+            mouse_up: MouseUpEvent::emitter(),
 
-            mouse_click: EventEmitter::new(false),
-            mouse_single_click: EventEmitter::new(false),
-            mouse_double_click: EventEmitter::new(false),
-            mouse_triple_click: EventEmitter::new(false),
+            mouse_click: MouseClickEvent::emitter(),
+            mouse_single_click: MouseSingleClickEvent::emitter(),
+            mouse_double_click: MouseDoubleClickEvent::emitter(),
+            mouse_triple_click: MouseTripleClickEvent::emitter(),
 
-            mouse_enter: EventEmitter::new(false),
-            mouse_leave: EventEmitter::new(false),
+            mouse_enter: MouseEnterEvent::emitter(),
+            mouse_leave: MouseLeaveEvent::emitter(),
         }
     }
 }
