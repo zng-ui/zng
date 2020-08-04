@@ -46,20 +46,20 @@ event_args! {
 }
 
 /// Key pressed or released event.
-pub struct KeyInput;
-impl Event for KeyInput {
+pub struct KeyInputEvent;
+impl Event for KeyInputEvent {
     type Args = KeyInputArgs;
 }
 
 /// Key pressed or repeat event.
-pub struct KeyDown;
-impl Event for KeyDown {
+pub struct KeyDownEvent;
+impl Event for KeyDownEvent {
     type Args = KeyInputArgs;
 }
 
 /// Key released event.
-pub struct KeyUp;
-impl Event for KeyUp {
+pub struct KeyUpEvent;
+impl Event for KeyUpEvent {
     type Args = KeyInputArgs;
 }
 
@@ -69,9 +69,9 @@ impl Event for KeyUp {
 ///
 /// Events this extension provides.
 ///
-/// * [KeyInput]
-/// * [KeyDown]
-/// * [KeyUp]
+/// * [KeyInputEvent]
+/// * [KeyDownEvent]
+/// * [KeyUpEvent]
 pub struct KeyboardEvents {
     last_key_down: Option<ScanCode>,
     modifiers: ModifiersState,
@@ -94,9 +94,9 @@ impl Default for KeyboardEvents {
 
 impl AppExtension for KeyboardEvents {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.events.register::<KeyInput>(self.key_input.listener());
-        r.events.register::<KeyDown>(self.key_down.listener());
-        r.events.register::<KeyUp>(self.key_up.listener());
+        r.events.register::<KeyInputEvent>(self.key_input.listener());
+        r.events.register::<KeyDownEvent>(self.key_down.listener());
+        r.events.register::<KeyUpEvent>(self.key_up.listener());
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {

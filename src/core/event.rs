@@ -24,9 +24,9 @@ pub trait CancelableEventArgs: EventArgs {
 
 /// Identifies an event type.
 pub trait Event: 'static {
-    /// Event arguments.
+    /// Event arguments type.
     type Args: EventArgs;
-
+    /// If the event is updated in the high-pressure lane.
     const IS_HIGH_PRESSURE: bool = false;
 }
 

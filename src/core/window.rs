@@ -157,63 +157,63 @@ cancelable_event_args! {
 }
 
 /// New window event.
-pub struct WindowOpen;
-impl Event for WindowOpen {
+pub struct WindowOpenEvent;
+impl Event for WindowOpenEvent {
     type Args = WindowEventArgs;
 }
 
 /// Window activated/deactivated event.
-pub struct WindowIsActiveChanged;
-impl Event for WindowIsActiveChanged {
+pub struct WindowIsActiveChangedEvent;
+impl Event for WindowIsActiveChangedEvent {
     type Args = WindowIsActiveArgs;
 }
 
 /// Window activated event.
-pub struct WindowActivated;
-impl Event for WindowActivated {
+pub struct WindowActivatedEvent;
+impl Event for WindowActivatedEvent {
     type Args = WindowIsActiveArgs;
 }
 
 /// Window deactivated event.
-pub struct WindowDeactivated;
-impl Event for WindowDeactivated {
+pub struct WindowDeactivatedEvent;
+impl Event for WindowDeactivatedEvent {
     type Args = WindowIsActiveArgs;
 }
 
 /// Window resized event.
-pub struct WindowResize;
-impl Event for WindowResize {
+pub struct WindowResizeEvent;
+impl Event for WindowResizeEvent {
     type Args = WindowResizeArgs;
 
     const IS_HIGH_PRESSURE: bool = true;
 }
 
 /// Window moved event.
-pub struct WindowMove;
-impl Event for WindowMove {
+pub struct WindowMoveEvent;
+impl Event for WindowMoveEvent {
     type Args = WindowMoveArgs;
 
     const IS_HIGH_PRESSURE: bool = true;
 }
 
 /// Window scale factor changed.
-pub struct WindowScaleChanged;
-impl Event for WindowScaleChanged {
+pub struct WindowScaleChangedEvent;
+impl Event for WindowScaleChangedEvent {
     type Args = WindowScaleChangedArgs;
 }
 
 /// Closing window event.
-pub struct WindowCloseRequested;
-impl Event for WindowCloseRequested {
+pub struct WindowCloseRequestedEvent;
+impl Event for WindowCloseRequestedEvent {
     type Args = WindowCloseRequestedArgs;
 }
-impl CancelableEvent for WindowCloseRequested {
+impl CancelableEvent for WindowCloseRequestedEvent {
     type Args = WindowCloseRequestedArgs;
 }
 
 /// Close window event.
-pub struct WindowClose;
-impl Event for WindowClose {
+pub struct WindowCloseEvent;
+impl Event for WindowCloseEvent {
     type Args = WindowEventArgs;
 }
 
@@ -223,15 +223,15 @@ impl Event for WindowClose {
 ///
 /// Events this extension provides:
 ///
-/// * [WindowOpen]
-/// * [WindowIsActiveChanged]
-/// * [WindowActivated]
-/// * [WindowDeactivated]
-/// * [WindowResize]
-/// * [WindowMove]
-/// * [WindowScaleChanged]
-/// * [WindowCloseRequested]
-/// * [WindowClose]
+/// * [WindowOpenEvent]
+/// * [WindowIsActiveChangedEvent]
+/// * [WindowActivatedEvent]
+/// * [WindowDeactivatedEvent]
+/// * [WindowResizeEvent]
+/// * [WindowMoveEvent]
+/// * [WindowScaleChangedEvent]
+/// * [WindowCloseRequestedEvent]
+/// * [WindowCloseEvent]
 ///
 /// # Services
 ///
@@ -285,15 +285,16 @@ impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
         r.services.register(Windows::new(r.updates.notifier().clone()));
-        r.events.register::<WindowOpen>(self.window_open.listener());
-        r.events.register::<WindowIsActiveChanged>(self.window_is_active_changed.listener());
-        r.events.register::<WindowActivated>(self.window_activated.listener());
-        r.events.register::<WindowDeactivated>(self.window_deactivated.listener());
-        r.events.register::<WindowResize>(self.window_resize.listener());
-        r.events.register::<WindowMove>(self.window_move.listener());
-        r.events.register::<WindowScaleChanged>(self.window_scale_changed.listener());
-        r.events.register::<WindowCloseRequested>(self.window_closing.listener());
-        r.events.register::<WindowClose>(self.window_close.listener());
+        r.events.register::<WindowOpenEvent>(self.window_open.listener());
+        r.events
+            .register::<WindowIsActiveChangedEvent>(self.window_is_active_changed.listener());
+        r.events.register::<WindowActivatedEvent>(self.window_activated.listener());
+        r.events.register::<WindowDeactivatedEvent>(self.window_deactivated.listener());
+        r.events.register::<WindowResizeEvent>(self.window_resize.listener());
+        r.events.register::<WindowMoveEvent>(self.window_move.listener());
+        r.events.register::<WindowScaleChangedEvent>(self.window_scale_changed.listener());
+        r.events.register::<WindowCloseRequestedEvent>(self.window_closing.listener());
+        r.events.register::<WindowCloseEvent>(self.window_close.listener());
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -605,7 +606,8 @@ impl Windows {
         notice
     }
 
-    /// Starts closing a window, the operation can be canceled by listeners of the [`WindowCloseRequested`](WindowCloseRequested) event.
+    /// Starts closing a window, the operation can be canceled by listeners of the 
+    /// [close requested event](WindowCloseRequestedEvent).
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close(&mut self, window_id: WindowId) -> Result<EventListener<CloseWindowResult>, WindowNotFound> {
@@ -621,7 +623,7 @@ impl Windows {
     }
 
     /// Requests closing multiple windows together, the operation can be canceled by listeners of the
-    /// [`WindowCloseRequested`](WindowCloseRequested) event. If canceled none of the windows are closed.
+    /// [close requested event](WindowCloseRequestedEvent). If canceled none of the windows are closed.
     ///
     /// Returns a listener that will update once with the result of the operation.
     pub fn close_together(
@@ -681,26 +683,24 @@ struct OpenWindowRequest {
     notifier: EventEmitter<WindowEventArgs>,
 }
 
-/// Response message of [`Windows::close`](Windows::close) and [`Windows::close_together`](Windows::close_together).
-#[derive(Debug)]
+/// Response message of [`close`](Windows::close) and [`close_together`](Windows::close_together).
+#[derive(Debug, Eq, PartialEq)]
 pub enum CloseWindowResult {
-    /// Notifying [`WindowClose`](WindowClose).
+    /// Operation completed, all requested windows closed.
     Close,
 
-    /// [`WindowCloseRequested`](WindowCloseRequested) canceled.
+    /// Operation canceled, no window closed.
     Cancel,
 }
 
 /// Window not found error.
 #[derive(Debug)]
 pub struct WindowNotFound(pub WindowId);
-
 impl std::fmt::Display for WindowNotFound {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "window `{:?}` is not opened in `Windows` service", self.0)
     }
 }
-
 impl std::error::Error for WindowNotFound {}
 
 /// Window configuration.

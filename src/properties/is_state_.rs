@@ -1,6 +1,6 @@
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::focus::{FocusChanged, FocusChangedArgs};
+use crate::core::focus::{FocusChangedArgs, FocusChangedEvent};
 use crate::core::mouse::*;
 use crate::core::var::{ObjVar, StateVar};
 use crate::core::UiNode;
@@ -17,8 +17,8 @@ struct IsHovered<C: UiNode> {
 impl<C: UiNode> UiNode for IsHovered<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        self.mouse_enter = ctx.events.listen::<MouseEnter>();
-        self.mouse_leave = ctx.events.listen::<MouseLeave>();
+        self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
+        self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -63,8 +63,8 @@ struct IsPressed<C: UiNode> {
 impl<C: UiNode> UiNode for IsPressed<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        self.mouse_down = ctx.events.listen::<MouseDown>();
-        self.mouse_up = ctx.events.listen::<MouseUp>();
+        self.mouse_down = ctx.events.listen::<MouseDownEvent>();
+        self.mouse_up = ctx.events.listen::<MouseUpEvent>();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -109,7 +109,7 @@ struct IsFocused<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocused<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
 
@@ -158,7 +158,7 @@ struct IsFocusWithin<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocusWithin<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
 
@@ -203,7 +203,7 @@ struct IsFocusedHighlighted<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocusedHighlighted<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
 
@@ -250,7 +250,7 @@ struct IsFocusWithinHighlighted<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsFocusWithinHighlighted<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.focus_changed = ctx.events.listen::<FocusChanged>();
+        self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
 

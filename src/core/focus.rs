@@ -7,10 +7,10 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
-use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChanged, Windows};
+use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 
 event_args! {
-    /// [`FocusChanged`](FocusChanged) event args.
+    /// [`FocusChangedEvent`](FocusChangedEvent) arguments.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
         pub prev_focus: Option<WidgetPath>,
@@ -113,14 +113,35 @@ pub enum DirectionalNav {
     Cycle,
 }
 
-/// Focus changed event.
-pub struct FocusChanged;
-impl Event for FocusChanged {
+/// Keyboard focused widget changed event.
+///
+/// # Provider
+///
+/// This event is provided by the [`FocusManager`](FocusManager) extension.
+pub struct FocusChangedEvent;
+impl Event for FocusChangedEvent {
     type Args = FocusChangedArgs;
 }
 
-/// Application extension that manages keyboard focus. Provides the [`FocusChanged`](FocusChanged) event
-/// and [`Focus`](Focus) service.
+/// Application extension that manages keyboard focus.
+///
+/// # Events
+///
+/// Events this extension provides.
+///
+/// * [FocusChangedEvent]
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [Focus]
+///
+/// # Requirements
+///
+/// This extension requires the [`MouseDownEvent`](MouseDownEvent),
+/// [`KeyDownEvent`](KeyDownEvent) and [`WindowIsActiveChangedEvent`](WindowIsActiveChangedEvent)
+///  events to function.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
     windows_activation: EventListener<WindowIsActiveArgs>,
@@ -141,13 +162,13 @@ impl Default for FocusManager {
 }
 impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        self.windows_activation = ctx.events.listen::<WindowIsActiveChanged>();
-        self.mouse_down = ctx.events.listen::<MouseDown>();
-        self.key_down = ctx.events.listen::<KeyDown>();
+        self.windows_activation = ctx.events.listen::<WindowIsActiveChangedEvent>();
+        self.mouse_down = ctx.events.listen::<MouseDownEvent>();
+        self.key_down = ctx.events.listen::<KeyDownEvent>();
 
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
 
-        ctx.events.register::<FocusChanged>(self.focus_changed.listener());
+        ctx.events.register::<FocusChangedEvent>(self.focus_changed.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -209,6 +230,10 @@ impl FocusManager {
 }
 
 /// Keyboard focus service.
+///
+/// # Provider
+///
+/// This service is provided by the [`FocusManager`] extension.
 pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,
@@ -239,6 +264,7 @@ impl Focus {
         self.is_highlighting
     }
 
+    /// Request a focus update.
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);

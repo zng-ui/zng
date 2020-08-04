@@ -159,63 +159,63 @@ impl MouseHoverArgs {
 }
 
 /// Mouse move event.
-pub struct MouseMove;
-impl Event for MouseMove {
+pub struct MouseMoveEvent;
+impl Event for MouseMoveEvent {
     type Args = MouseMoveArgs;
     const IS_HIGH_PRESSURE: bool = true;
 }
 
 /// Mouse down or up event.
-pub struct MouseInput;
-impl Event for MouseInput {
+pub struct MouseInputEvent;
+impl Event for MouseInputEvent {
     type Args = MouseInputArgs;
 }
 
 /// Mouse down event.
-pub struct MouseDown;
-impl Event for MouseDown {
+pub struct MouseDownEvent;
+impl Event for MouseDownEvent {
     type Args = MouseInputArgs;
 }
 
 /// Mouse up event.
-pub struct MouseUp;
-impl Event for MouseUp {
+pub struct MouseUpEvent;
+impl Event for MouseUpEvent {
     type Args = MouseInputArgs;
 }
 
 /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
-pub struct MouseClick;
-impl Event for MouseClick {
+pub struct MouseClickEvent;
+impl Event for MouseClickEvent {
     type Args = MouseClickArgs;
 }
 
 /// Mouse single-click event (`[click_count](MouseClickArgs::click_count) == 1`).
-pub struct MouseSingleClick;
-impl Event for MouseSingleClick {
+pub struct MouseSingleClickEvent;
+impl Event for MouseSingleClickEvent {
     type Args = MouseClickArgs;
 }
 
 /// Mouse double-click event (`[click_count](MouseClickArgs::click_count) == 2`).
-pub struct MouseDoubleClick;
-impl Event for MouseDoubleClick {
+pub struct MouseDoubleClickEvent;
+impl Event for MouseDoubleClickEvent {
     type Args = MouseClickArgs;
 }
 
 /// Mouse triple-click event (`[click_count](MouseClickArgs::click_count) == 3`).
-pub struct MouseTripleClick;
-impl Event for MouseTripleClick {
+pub struct MouseTripleClickEvent;
+impl Event for MouseTripleClickEvent {
     type Args = MouseClickArgs;
 }
 
 /// Mouse enters a widget area event.
-pub struct MouseEnter;
-impl Event for MouseEnter {
+pub struct MouseEnterEvent;
+impl Event for MouseEnterEvent {
     type Args = MouseHoverArgs;
 }
 
 /// Mouse leaves a widget area event.
-pub struct MouseLeave;
-impl Event for MouseLeave {
+pub struct MouseLeaveEvent;
+impl Event for MouseLeaveEvent {
     type Args = MouseHoverArgs;
 }
 
@@ -225,16 +225,16 @@ impl Event for MouseLeave {
 ///
 /// Events this extension provides.
 ///
-/// * [MouseMove]
-/// * [MouseInput]
-/// * [MouseDown]
-/// * [MouseUp]
-/// * [MouseClick]
-/// * [MouseSingleClick]
-/// * [MouseDoubleClick]
-/// * [MouseTripleClick]
-/// * [MouseEnter]
-/// * [MouseLeave]
+/// * [MouseMoveEvent]
+/// * [MouseInputEvent]
+/// * [MouseDownEvent]
+/// * [MouseUpEvent]
+/// * [MouseClickEvent]
+/// * [MouseSingleClickEvent]
+/// * [MouseDoubleClickEvent]
+/// * [MouseTripleClickEvent]
+/// * [MouseEnterEvent]
+/// * [MouseLeaveEvent]
 pub struct MouseEvents {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
@@ -497,19 +497,19 @@ impl MouseEvents {
 
 impl AppExtension for MouseEvents {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.events.register::<MouseMove>(self.mouse_move.listener());
+        r.events.register::<MouseMoveEvent>(self.mouse_move.listener());
 
-        r.events.register::<MouseInput>(self.mouse_input.listener());
-        r.events.register::<MouseDown>(self.mouse_down.listener());
-        r.events.register::<MouseUp>(self.mouse_up.listener());
+        r.events.register::<MouseInputEvent>(self.mouse_input.listener());
+        r.events.register::<MouseDownEvent>(self.mouse_down.listener());
+        r.events.register::<MouseUpEvent>(self.mouse_up.listener());
 
-        r.events.register::<MouseClick>(self.mouse_click.listener());
-        r.events.register::<MouseClick>(self.mouse_click.listener());
-        r.events.register::<MouseDoubleClick>(self.mouse_double_click.listener());
-        r.events.register::<MouseTripleClick>(self.mouse_triple_click.listener());
+        r.events.register::<MouseClickEvent>(self.mouse_click.listener());
+        r.events.register::<MouseClickEvent>(self.mouse_click.listener());
+        r.events.register::<MouseDoubleClickEvent>(self.mouse_double_click.listener());
+        r.events.register::<MouseTripleClickEvent>(self.mouse_triple_click.listener());
 
-        r.events.register::<MouseEnter>(self.mouse_enter.listener());
-        r.events.register::<MouseLeave>(self.mouse_leave.listener());
+        r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
+        r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
