@@ -158,65 +158,38 @@ impl MouseHoverArgs {
     }
 }
 
-/// Mouse move event.
-pub struct MouseMoveEvent;
-impl Event for MouseMoveEvent {
-    type Args = MouseMoveArgs;
-    const IS_HIGH_PRESSURE: bool = true;
+event_hp! {
+    /// Mouse move event.
+    pub MouseMoveEvent: MouseMoveArgs;
 }
 
-/// Mouse down or up event.
-pub struct MouseInputEvent;
-impl Event for MouseInputEvent {
-    type Args = MouseInputArgs;
-}
+event! {
+    /// Mouse down or up event.
+    pub MouseInputEvent: MouseInputArgs;
 
-/// Mouse down event.
-pub struct MouseDownEvent;
-impl Event for MouseDownEvent {
-    type Args = MouseInputArgs;
-}
+    /// Mouse down event.
+    pub MouseDownEvent: MouseInputArgs;
 
-/// Mouse up event.
-pub struct MouseUpEvent;
-impl Event for MouseUpEvent {
-    type Args = MouseInputArgs;
-}
+    /// Mouse up event.
+    pub MouseUpEvent: MouseInputArgs;
 
-/// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
-pub struct MouseClickEvent;
-impl Event for MouseClickEvent {
-    type Args = MouseClickArgs;
-}
+    /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
+    pub MouseClickEvent: MouseClickArgs;
 
-/// Mouse single-click event (`[click_count](MouseClickArgs::click_count) == 1`).
-pub struct MouseSingleClickEvent;
-impl Event for MouseSingleClickEvent {
-    type Args = MouseClickArgs;
-}
+    /// Mouse single-click event (`[click_count](MouseClickArgs::click_count) == 1`).
+    pub MouseSingleClickEvent: MouseClickArgs;
 
-/// Mouse double-click event (`[click_count](MouseClickArgs::click_count) == 2`).
-pub struct MouseDoubleClickEvent;
-impl Event for MouseDoubleClickEvent {
-    type Args = MouseClickArgs;
-}
+    /// Mouse double-click event (`[click_count](MouseClickArgs::click_count) == 2`).
+    pub MouseDoubleClickEvent: MouseClickArgs;
 
-/// Mouse triple-click event (`[click_count](MouseClickArgs::click_count) == 3`).
-pub struct MouseTripleClickEvent;
-impl Event for MouseTripleClickEvent {
-    type Args = MouseClickArgs;
-}
+    /// Mouse triple-click event (`[click_count](MouseClickArgs::click_count) == 3`).
+    pub MouseTripleClickEvent: MouseClickArgs;
 
-/// Mouse enters a widget area event.
-pub struct MouseEnterEvent;
-impl Event for MouseEnterEvent {
-    type Args = MouseHoverArgs;
-}
+    /// Mouse enters a widget area event.
+    pub MouseEnterEvent: MouseHoverArgs;
 
-/// Mouse leaves a widget area event.
-pub struct MouseLeaveEvent;
-impl Event for MouseLeaveEvent {
-    type Args = MouseHoverArgs;
+    /// Mouse leaves a widget area event.
+    pub MouseLeaveEvent: MouseHoverArgs;
 }
 
 /// Application extension that provides mouse events.

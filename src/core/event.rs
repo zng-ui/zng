@@ -40,11 +40,17 @@ pub trait Event: 'static {
     }
 }
 
-/// Identifies an event type for an action that
-/// can be canceled.
+/// Identifies an event type for an action that can be canceled.
+///
+/// # Auto-Implemented
+///
+/// This trait is auto-implemented for all events with cancellable arguments.
 pub trait CancelableEvent: Event + 'static {
-    /// Event arguments.
+    /// Cancellable event arguments type.
     type Args: CancelableEventArgs;
+}
+impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
+    type Args = A;
 }
 
 struct EventChannelInner<T> {
@@ -216,4 +222,4 @@ impl<T: 'static> EventEmitter<T> {
     }
 }
 
-pub use zero_ui_macros::{cancelable_event_args, event_args};
+pub use zero_ui_macros::{cancelable_event_args, event, event_args, event_hp};

@@ -1,6 +1,6 @@
 //! App windows manager.
 
-use super::event::{cancelable_event_args, event_args, CancelableEvent, CancelableEventArgs, Event, EventEmitter, EventListener};
+use super::event::*;
 use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
@@ -156,65 +156,35 @@ cancelable_event_args! {
     }
 }
 
-/// New window event.
-pub struct WindowOpenEvent;
-impl Event for WindowOpenEvent {
-    type Args = WindowEventArgs;
+event_hp! {
+    /// Window resized event.
+    pub WindowResizeEvent: WindowResizeArgs;
+
+    /// Window moved event.
+    pub WindowMoveEvent: WindowMoveArgs;
 }
 
-/// Window activated/deactivated event.
-pub struct WindowIsActiveChangedEvent;
-impl Event for WindowIsActiveChangedEvent {
-    type Args = WindowIsActiveArgs;
-}
+event! {
+    /// New window event.
+    pub WindowOpenEvent: WindowEventArgs;
 
-/// Window activated event.
-pub struct WindowActivatedEvent;
-impl Event for WindowActivatedEvent {
-    type Args = WindowIsActiveArgs;
-}
+    /// Window activated/deactivated event.
+    pub WindowIsActiveChangedEvent: WindowIsActiveArgs;
 
-/// Window deactivated event.
-pub struct WindowDeactivatedEvent;
-impl Event for WindowDeactivatedEvent {
-    type Args = WindowIsActiveArgs;
-}
+    /// Window activated event.
+    pub WindowActivatedEvent: WindowIsActiveArgs;
 
-/// Window resized event.
-pub struct WindowResizeEvent;
-impl Event for WindowResizeEvent {
-    type Args = WindowResizeArgs;
+    /// Window deactivated event.
+    pub WindowDeactivatedEvent: WindowIsActiveArgs;
 
-    const IS_HIGH_PRESSURE: bool = true;
-}
+    /// Window scale factor changed.
+    pub WindowScaleChangedEvent: WindowScaleChangedArgs;
 
-/// Window moved event.
-pub struct WindowMoveEvent;
-impl Event for WindowMoveEvent {
-    type Args = WindowMoveArgs;
+    /// Closing window event.
+    pub WindowCloseRequestedEvent: WindowCloseRequestedArgs;
 
-    const IS_HIGH_PRESSURE: bool = true;
-}
-
-/// Window scale factor changed.
-pub struct WindowScaleChangedEvent;
-impl Event for WindowScaleChangedEvent {
-    type Args = WindowScaleChangedArgs;
-}
-
-/// Closing window event.
-pub struct WindowCloseRequestedEvent;
-impl Event for WindowCloseRequestedEvent {
-    type Args = WindowCloseRequestedArgs;
-}
-impl CancelableEvent for WindowCloseRequestedEvent {
-    type Args = WindowCloseRequestedArgs;
-}
-
-/// Close window event.
-pub struct WindowCloseEvent;
-impl Event for WindowCloseEvent {
-    type Args = WindowEventArgs;
+    /// Close window event.
+    pub WindowCloseEvent: WindowEventArgs;
 }
 
 /// Application extension that manages windows.

@@ -45,22 +45,15 @@ event_args! {
     }
 }
 
-/// Key pressed or released event.
-pub struct KeyInputEvent;
-impl Event for KeyInputEvent {
-    type Args = KeyInputArgs;
-}
+event! {
+    /// Key pressed or released event.
+    pub KeyInputEvent: KeyInputArgs;
 
-/// Key pressed or repeat event.
-pub struct KeyDownEvent;
-impl Event for KeyDownEvent {
-    type Args = KeyInputArgs;
-}
+    /// Key pressed or repeat event.
+    pub KeyDownEvent: KeyInputArgs;
 
-/// Key released event.
-pub struct KeyUpEvent;
-impl Event for KeyUpEvent {
-    type Args = KeyInputArgs;
+    /// Key released event.
+    pub KeyUpEvent: KeyInputArgs;
 }
 
 /// Application extension that provides keyboard events.

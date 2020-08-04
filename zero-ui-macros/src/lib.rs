@@ -672,3 +672,86 @@ macro_rules! ui_vec {
         ]
     };
 }
+
+/// Declares new low-pressure [`Event`](zero_ui::core::Event) types.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::event::event;
+/// # use zero_ui::core::gesture::ClickArgs;
+/// event! {
+///     /// Event docs.
+///     pub ClickEvent: ClickArgs;
+///
+///     /// Other event docs.
+///     pub DoubleClickEvent: ClickArgs;
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event;
+/// # use zero_ui::core::gesture::ClickArgs;
+/// /// Event docs
+/// pub struct ClickEvent;
+/// impl zero_ui::core::event::Event for ClickEvent {
+///     type Args = ClickArgs;
+/// }
+///
+/// /// Other event docs
+/// pub struct DoubleClickEvent;
+/// impl zero_ui::core::event::Event for DoubleClickEvent {
+///     type Args = ClickArgs;
+/// }
+/// ```
+#[macro_export]
+macro_rules! event {
+    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
+        $(#[$outer])*
+        $vis struct $Event;
+        impl zero_ui::core::event::Event for $Event {
+            type Args = $Args;
+        }
+    )+};
+}
+
+/// Declares new high-pressure [`Event`](zero_ui::core::Event) types.
+///
+/// Same syntax as [`event!`](macro.event.html) but the event is marked [high-pressure](zero_ui::core::Event::IS_HIGH_PRESSURE).
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::event::event_hp;
+/// # use zero_ui::core::mouse::MouseMoveArgs;
+/// event! {
+///     /// Event docs.
+///     pub MouseMoveEvent: MouseMoveArgs;
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event_hp;
+/// # use zero_ui::core::gesture::MouseMoveArgs;
+/// /// Event docs
+/// pub struct MouseMoveEvent;
+/// impl zero_ui::core::event::Event for MouseMoveEvent {
+///     type Args = MouseMoveArgs;
+///     const IS_HIGH_PRESSURE: bool = true;
+/// }
+/// ```
+#[macro_export]
+macro_rules! event_hp {
+    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
+        $(#[$outer])*
+        $vis struct $Event;
+        impl zero_ui::core::event::Event for $Event {
+            type Args = $Args;
+            const IS_HIGH_PRESSURE: bool = true;
+        }
+    )+};
+}

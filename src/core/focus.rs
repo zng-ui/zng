@@ -113,14 +113,13 @@ pub enum DirectionalNav {
     Cycle,
 }
 
-/// Keyboard focused widget changed event.
-///
-/// # Provider
-///
-/// This event is provided by the [`FocusManager`](FocusManager) extension.
-pub struct FocusChangedEvent;
-impl Event for FocusChangedEvent {
-    type Args = FocusChangedArgs;
+event! {
+    /// Keyboard focused widget changed event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`FocusManager`](FocusManager) extension.
+    pub FocusChangedEvent: FocusChangedArgs;
 }
 
 /// Application extension that manages keyboard focus.

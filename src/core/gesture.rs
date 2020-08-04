@@ -237,28 +237,18 @@ impl From<KeyChord> for KeyBinding {
     }
 }
 
-/// Aggregate click event. Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
-pub struct ClickEvent;
-impl Event for ClickEvent {
-    type Args = ClickArgs;
-}
+event! {
+    /// Aggregate click event. Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
+    pub ClickEvent: ClickArgs;
 
-/// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `1`.
-pub struct SingleClickEvent;
-impl Event for SingleClickEvent {
-    type Args = ClickArgs;
-}
+    /// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `1`.
+    pub SingleClickEvent: ClickArgs;
 
-/// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `2`.
-pub struct DoubleClickEvent;
-impl Event for DoubleClickEvent {
-    type Args = ClickArgs;
-}
+    /// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `2`.
+    pub DoubleClickEvent: ClickArgs;
 
-/// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `3`.
-pub struct TripleClickEvent;
-impl Event for TripleClickEvent {
-    type Args = ClickArgs;
+    /// [`ClickEvent`](ClickEvent) when the [`click_count`](ClickArgs::click_count) is `3`.
+    pub TripleClickEvent: ClickArgs;
 }
 
 /// Application extension that provides aggregate events.
