@@ -9,7 +9,7 @@ use crate::core::{
     focus::FocusManager,
     font::FontManager,
     gesture::GestureEvents,
-    keyboard::KeyboardEvents,
+    keyboard::KeyboardManager,
     mouse::MouseEvents,
     types::*,
     window::WindowManager,
@@ -186,7 +186,7 @@ impl App {
     /// Extensions included.
     ///
     /// * [MouseEvents]
-    /// * [KeyboardEvents]
+    /// * [KeyboardManager]
     /// * [GestureEvents]
     /// * [WindowManager]
     /// * [FontManager]
@@ -195,7 +195,7 @@ impl App {
     pub fn default() -> AppExtended<impl AppExtension> {
         App::empty()
             .extend(MouseEvents::default())
-            .extend(KeyboardEvents::default())
+            .extend(KeyboardManager::default())
             .extend(GestureEvents::default())
             .extend(WindowManager::default())
             .extend(FontManager::default())

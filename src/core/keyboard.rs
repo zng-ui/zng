@@ -1,4 +1,8 @@
-//! Keyboard events.
+//! Keyboard manager.
+//!
+//! The [`KeyboardManager`] struct is an [app extension](crate::core::app::AppExtension). It
+//! is included in the [default app](crate::core::app::App::default) and provides the [`Keyboard`] service
+//! and keyboard input events.
 
 use crate::core::app::*;
 use crate::core::context::*;
@@ -7,19 +11,20 @@ use crate::core::focus::Focus;
 use crate::core::render::WidgetPath;
 use crate::core::types::*;
 use crate::core::window::Windows;
-use std::time::Instant;
 
 event_args! {
-    /// [`KeyInput`], [`KeyDown`], [`KeyUp`] event args.
+    /// Keyboard event args.
     pub struct KeyInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
 
         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        ///
+        /// Is `None` if the event was generated programmatically.
+        pub device_id: Option<DeviceId>,
 
         /// Raw code of key.
-        pub scancode: ScanCode,
+        pub scan_code: ScanCode,
 
         /// If the key was pressed or released.
         pub state: ElementState,
@@ -41,7 +46,26 @@ event_args! {
         /// If the widget is focused or contains the focused widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
-         }
+        }
+    }
+
+    /// Keyboard modifiers changed event args.
+    pub struct ModifiersChangedArgs {
+        /// Previous modifiers state.
+        pub prev_modifiers: ModifiersState,
+
+        /// Current modifiers state.
+        pub modifiers: ModifiersState,
+
+        /// The focused element at the time of the update.
+        pub target: WidgetPath,
+
+        ..
+
+        /// If the widget is focused or contains the focused widget.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            self.target.contains(ctx.widget_id)
+        }
     }
 }
 
@@ -54,6 +78,9 @@ event! {
 
     /// Key released event.
     pub KeyUpEvent: KeyInputArgs;
+
+    /// Modifiers state changed event.
+    pub ModifiersChangedEvent: ModifiersChangedArgs;
 }
 
 /// Application extension that provides keyboard events.
@@ -65,31 +92,29 @@ event! {
 /// * [KeyInputEvent]
 /// * [KeyDownEvent]
 /// * [KeyUpEvent]
-pub struct KeyboardEvents {
-    last_key_down: Option<ScanCode>,
-    modifiers: ModifiersState,
-    key_input: EventEmitter<KeyInputArgs>,
-    key_down: EventEmitter<KeyInputArgs>,
-    key_up: EventEmitter<KeyInputArgs>,
-}
-
-impl Default for KeyboardEvents {
-    fn default() -> Self {
-        KeyboardEvents {
-            last_key_down: None,
-            modifiers: ModifiersState::default(),
-            key_input: KeyInputEvent::emitter(),
-            key_down: KeyDownEvent::emitter(),
-            key_up: KeyUpEvent::emitter(),
+/// * [ModifiersChangedEvent]
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [Keyboard]
+#[derive(Default)]
+pub struct KeyboardManager;
+impl KeyboardManager {
+    fn target(window_id: WindowId, services: &mut AppServices) -> WidgetPath {
+        let focused = services.get::<Focus>().and_then(|f| f.focused().cloned());
+        if let Some(focused) = focused {
+            focused
+        } else {
+            services.req::<Windows>().window(window_id).unwrap().frame_info().root().path()
         }
     }
 }
-
-impl AppExtension for KeyboardEvents {
+impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.events.register::<KeyInputEvent>(self.key_input.listener());
-        r.events.register::<KeyDownEvent>(self.key_down.listener());
-        r.events.register::<KeyUpEvent>(self.key_up.listener());
+        let k = Keyboard::new(r.events);
+        r.services.register(k);
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -105,49 +130,121 @@ impl AppExtension for KeyboardEvents {
                     },
                 ..
             } => {
-                let mut repeat = false;
-                if state == ElementState::Pressed {
-                    repeat = self.last_key_down == Some(scancode);
-                    if !repeat {
-                        self.last_key_down = Some(scancode);
-                    }
-                } else {
-                    self.last_key_down = None;
-                }
-
-                let focused = ctx.services.get::<Focus>().and_then(|f| f.focused().cloned());
-                let target = if let Some(focused) = focused {
-                    focused
-                } else {
-                    ctx.services.req::<Windows>().window(window_id).unwrap().frame_info().root().path()
-                };
-
-                let args = KeyInputArgs {
-                    timestamp: Instant::now(),
-                    window_id,
-                    device_id,
-                    scancode,
-                    key,
-                    modifiers: self.modifiers,
-                    state,
-                    repeat,
-                    target,
-                };
-
-                ctx.updates.push_notify(self.key_input.clone(), args.clone());
-
-                match state {
-                    ElementState::Pressed => {
-                        ctx.updates.push_notify(self.key_down.clone(), args);
-                    }
-                    ElementState::Released => {
-                        ctx.updates.push_notify(self.key_up.clone(), args);
-                    }
-                }
+                let target = Self::target(window_id, ctx.services);
+                ctx.services
+                    .req::<Keyboard>()
+                    .device_input(device_id, scancode, key, state, target, ctx.updates);
             }
-            // Cache modifiers
-            WindowEvent::ModifiersChanged(m) => self.modifiers = m,
+
+            WindowEvent::ModifiersChanged(m) => {
+                let target = Self::target(window_id, ctx.services);
+                ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.updates);
+            }
+
             _ => {}
         }
+    }
+}
+
+/// Keyboard service.
+///
+/// # Provider
+///
+/// This service is provided by the [`KeyboardManager`] extension.
+pub struct Keyboard {
+    modifiers: ModifiersState,
+    last_key_down: Option<(Option<DeviceId>, ScanCode)>,
+
+    key_input: EventEmitter<KeyInputArgs>,
+    key_down: EventEmitter<KeyInputArgs>,
+    key_up: EventEmitter<KeyInputArgs>,
+
+    modifiers_changed: EventEmitter<ModifiersChangedArgs>,
+}
+impl AppService for Keyboard {}
+impl Keyboard {
+    pub fn new(events: &mut Events) -> Self {
+        let self_ = Keyboard {
+            modifiers: ModifiersState::empty(),
+            last_key_down: None,
+
+            key_input: KeyInputEvent::emitter(),
+            key_down: KeyDownEvent::emitter(),
+            key_up: KeyUpEvent::emitter(),
+
+            modifiers_changed: ModifiersChangedEvent::emitter(),
+        };
+
+        events.register::<KeyInputEvent>(self_.key_input.listener());
+        events.register::<KeyDownEvent>(self_.key_down.listener());
+        events.register::<KeyUpEvent>(self_.key_up.listener());
+        events.register::<ModifiersChangedEvent>(self_.modifiers_changed.listener());
+
+        self_
+    }
+
+    /// Process a software keyboard input.
+    #[inline]
+    pub fn input(&mut self, key: VirtualKeyCode, state: ElementState, target: WidgetPath, updates: &mut Updates) {
+        self.do_input(None, key as ScanCode, Some(key), state, target, updates);
+    }
+
+    /// Process a external keyboard input.
+    #[inline]
+    pub fn device_input(
+        &mut self,
+        device_id: DeviceId,
+        scan_code: ScanCode,
+        key: Option<VirtualKeyCode>,
+        state: ElementState,
+        target: WidgetPath,
+        updates: &mut Updates,
+    ) {
+        self.do_input(Some(device_id), scan_code, key, state, target, updates);
+    }
+
+    /// Set the keyboard modifiers state.
+    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, updates: &mut Updates) {
+        if self.modifiers != modifiers {
+            let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
+            let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
+            updates.push_notify(self.modifiers_changed.clone(), args);
+        }
+    }
+
+    /// Current modifiers pressed.
+    #[inline]
+    pub fn modifiers(&self) -> ModifiersState {
+        self.modifiers
+    }
+
+    pub fn do_input(
+        &mut self,
+        device_id: Option<DeviceId>,
+        scan_code: ScanCode,
+        key: Option<VirtualKeyCode>,
+        state: ElementState,
+        target: WidgetPath,
+        updates: &mut Updates,
+    ) {
+        let mut repeat = false;
+        if state == ElementState::Pressed {
+            repeat = self.last_key_down == Some((device_id, scan_code));
+            if !repeat {
+                self.last_key_down = Some((device_id, scan_code));
+            }
+        } else {
+            self.last_key_down = None;
+        }
+
+        let args = KeyInputArgs::now(target.window_id(), device_id, scan_code, state, key, self.modifiers, repeat, target);
+
+        updates.push_notify(self.key_input.clone(), args.clone());
+
+        let specific_event = match args.state {
+            ElementState::Pressed => self.key_down.clone(),
+            ElementState::Released => self.key_up.clone(),
+        };
+        updates.push_notify(specific_event, args);
     }
 }

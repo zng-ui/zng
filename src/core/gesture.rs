@@ -41,8 +41,10 @@ event_args! {
         /// Id of window that received the event.
         pub window_id: WindowId,
 
-         /// Id of device that generated the event.
-        pub device_id: DeviceId,
+        /// Id of device that generated the event.
+        ///
+        /// Is `None` if the event was generated programmatically.
+        pub device_id: Option<DeviceId>,
 
         /// Specific info from the source of this event.
         pub source: ClickArgsSource,
