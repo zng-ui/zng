@@ -155,21 +155,12 @@ impl ClickArgs {
     }
 }
 
+/// A keyboard combination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyGesture {
     pub key: GestureKey,
     pub modifiers: ModifiersState,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct KeyChord {
-    /// The first key gesture.
-    pub starter: KeyGesture,
-
-    /// The second key gesture.
-    pub complement: KeyGesture,
-}
-
 impl Display for KeyGesture {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.modifiers.logo() {
@@ -189,18 +180,27 @@ impl Display for KeyGesture {
     }
 }
 
+/// A sequence of two keyboard combinations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct KeyChord {
+    /// The first key gesture.
+    pub starter: KeyGesture,
+
+    /// The second key gesture.
+    pub complement: KeyGesture,
+}
 impl Display for KeyChord {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {}", self.starter, self.complement)
     }
 }
 
+/// Keyboard gesture or chord associated with a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KeyBinding {
     Gesture(KeyGesture),
     Chord(KeyChord),
 }
-
 impl Display for KeyBinding {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -257,7 +257,7 @@ event! {
 ///
 /// Events this extension provides.
 ///
-/// * [ClickEvent
+/// * [ClickEvent]
 /// * [SingleClickEvent]
 /// * [DoubleClickEvent]
 /// * [TripleClickEvent]
@@ -326,14 +326,22 @@ impl AppExtension for GestureManager {
     }
 }
 
+macro_rules! gesture_key_name {
+    ($key:ident = $name:expr) => {
+        $name
+    };
+    ($key:ident) => {
+        stringify!($key)
+    }; 
+}
+
 macro_rules! gesture_keys {
-    ($($key:ident),+) => {
+    ($($key:ident $(= $name:expr)?),+) => {
         /// The set of keys that can be used in a [`KeyGesture`].
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         pub enum GestureKey {
             $($key),+
         }
-
         impl TryFrom<VirtualKeyCode> for GestureKey {
             type Error = VirtualKeyCode;
 
@@ -344,28 +352,27 @@ macro_rules! gesture_keys {
                 }
             }
         }
-
         impl Display for GestureKey {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
-                    $(GestureKey::$key => write!(f, stringify!($key))),+
+                    $(GestureKey::$key => write!(f, gesture_key_name!($key $(=$name)?)),)+
                 }
             }
         }
-    };
+    };    
 }
 
 gesture_keys! {
-    Key1,
-    Key2,
-    Key3,
-    Key4,
-    Key5,
-    Key6,
-    Key7,
-    Key8,
-    Key9,
-    Key0,
+    Key1 = "1",
+    Key2 = "2",
+    Key3 = "3",
+    Key4 = "4",
+    Key5 = "5",
+    Key6 = "6",
+    Key7 = "7",
+    Key8 = "8",
+    Key9 = "9",
+    Key0 = "0",
     A,
     B,
     C,
@@ -392,7 +399,7 @@ gesture_keys! {
     X,
     Y,
     Z,
-    Escape,
+    Escape = "Esc",
     F1,
     F2,
     F3,
@@ -417,8 +424,8 @@ gesture_keys! {
     Home,
     Delete,
     End,
-    PageDown,
-    PageUp,
+    PageDown = "Page Down",
+    PageUp = "Page Up",
     Left,
     Up,
     Right,
@@ -426,23 +433,24 @@ gesture_keys! {
     Back,
     Return,
     Space,
-    Add,
-    Apostrophe,
-    Backslash,
-    Comma,
-    Decimal,
-    Divide,
-    Equals,
-    Minus,
-    Multiply,
-    Numpad1,
-    Numpad2,
-    Numpad3,
-    Numpad4,
-    Numpad5,
-    Numpad6,
-    Numpad7,
-    Numpad8,
-    Numpad9,
-    NumpadComma
+    Add = "+",
+    Apostrophe = "'",
+    Backslash = "\\",
+    Comma = ",",
+    Decimal = ".",
+    Divide = "/",
+    Equals = "=",
+    Minus = "-",
+    Multiply = "*",
+    Numpad1 = "Numpad 1",
+    Numpad2 = "Numpad 2",
+    Numpad3 = "Numpad 3",
+    Numpad4 = "Numpad 4",
+    Numpad5 = "Numpad 5",
+    Numpad6 = "Numpad 6",
+    Numpad7 = "Numpad 7",
+    Numpad8 = "Numpad 8",
+    Numpad9 = "Numpad 9",
+    Numpad0 = "Numpad 0",
+    NumpadComma = "Numpad ,"
 }
