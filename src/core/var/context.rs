@@ -7,7 +7,7 @@ use std::{
     rc::Rc,
 };
 
-/// [`ContextVar`](ContextVar) var. Use [`context_var!`](macro.context_var.html) to generate context variables.
+/// [`ContextVar`] var. Use [`context_var!`](macro.context_var.html) to generate context variables.
 pub struct ContextVarImpl<V: ContextVar>(PhantomData<V>);
 
 impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for ContextVarImpl<V> {

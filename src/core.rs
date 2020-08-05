@@ -123,7 +123,7 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
     }
 }
 
-/// Represents an widget [`UiNode`](UiNode).
+/// Represents an widget [`UiNode`].
 pub trait Widget: UiNode {
     fn id(&self) -> WidgetId;
 
@@ -203,7 +203,7 @@ impl UiNode for FillUiNode {}
 
 /// This is called by the default widgets `new_child` function.
 ///
-/// Returns a [`NilUiNode`](NilUiNode).
+/// Returns a [`NilUiNode`].
 #[inline]
 pub fn default_widget_new_child() -> impl UiNode {
     NilUiNode
@@ -232,5 +232,5 @@ pub fn is_layout_any_size(f: f32) -> bool {
 /// Value that indicates that any size is available during layout.
 pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
-/// A mixed vector of [`UiNode`](UiNode) types.
+/// A mixed vector of [`UiNode`] types.
 pub type UiVec = Vec<Box<dyn UiNode>>;

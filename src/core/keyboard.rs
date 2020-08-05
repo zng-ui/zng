@@ -10,7 +10,7 @@ use crate::core::window::Windows;
 use std::time::Instant;
 
 event_args! {
-    /// [`KeyInput`](KeyInput), [`KeyDown`](KeyDown), [`KeyUp`](KeyUp) event args.
+    /// [`KeyInput`], [`KeyDown`], [`KeyUp`] event args.
     pub struct KeyInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,

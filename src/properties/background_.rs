@@ -58,7 +58,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Single color background property.
 ///
-/// This property applies a [`fill_color`](fill_color) as [`background`](background).
+/// This property applies a [`fill_color`] as [`background`].
 #[property(inner)]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
     background::set(child, fill_color(color))
@@ -66,7 +66,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`fill_gradient`](fill_gradient) as [`background`](background).
+/// This property applies a [`fill_gradient`] as [`background`].
 #[property(inner)]
 pub fn background_gradient(
     child: impl UiNode,

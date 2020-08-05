@@ -384,14 +384,14 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// can use. Context variables and widget state use this priority.
 ///
 /// You can easily implement this properties using [`with_context_var`](zero_ui::properties::with_context_var)
-/// and [`set_widget_state`](set_widget_state).
+/// and [`set_widget_state`].
 ///
 /// ## `event`
 ///
 /// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
 /// widget context properties but also have access to the widget visual they contain.
 ///
-/// It is strongly encouraged that the event handler be an [`FnMut`](FnMut) with [`OnEventArgs`](zero_ui::properties::OnEventArgs) input.
+/// It is strongly encouraged that the event handler be an [`FnMut`] with [`OnEventArgs`](zero_ui::properties::OnEventArgs) input.
 ///
 /// ## `outer`
 ///

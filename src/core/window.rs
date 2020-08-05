@@ -30,7 +30,7 @@ use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId,
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
 type CloseTogetherGroup = Option<NonZeroU16>;
 
-/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`](AppExtended)
+/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`]
 pub trait AppRunWindow {
     /// Runs the application event loop and requests a new window.
     ///
@@ -72,7 +72,7 @@ impl<E: AppExtension> AppRunWindow for AppExtended<E> {
 }
 
 event_args! {
-    /// [`WindowOpen`](WindowOpen), [`WindowClose`](WindowClose) event args.
+    /// [`WindowOpen`], [`WindowClose`] event args.
     pub struct WindowEventArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -85,7 +85,7 @@ event_args! {
         }
     }
 
-    /// [`WindowIsActiveChanged`](WindowIsActiveChanged), [`WindowActivated`](WindowActivated), [`WindowDeactivated`](WindowDeactivated) event args.
+    /// [`WindowIsActiveChanged`], [`WindowActivated`], [`WindowDeactivated`] event args.
     pub struct WindowIsActiveArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -101,7 +101,7 @@ event_args! {
         }
     }
 
-    /// [`WindowResize`](WindowResize) event args.
+    /// [`WindowResize`] event args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
@@ -114,7 +114,7 @@ event_args! {
         }
     }
 
-    /// [`WindowMove`](WindowMove) event args.
+    /// [`WindowMove`] event args.
     pub struct WindowMoveArgs {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
@@ -127,7 +127,7 @@ event_args! {
         }
     }
 
-    /// [`WindowScaleChanged`](WindowScaleChanged) event args.
+    /// [`WindowScaleChanged`] event args.
     pub struct WindowScaleChangedArgs {
         pub window_id: WindowId,
         pub new_scale_factor: f32,
@@ -142,7 +142,7 @@ event_args! {
     }
 }
 cancelable_event_args! {
-    /// [`WindowCloseRequested`](WindowCloseRequested) event args.
+    /// [`WindowCloseRequested`] event args.
     pub struct WindowCloseRequestedArgs {
         pub window_id: WindowId,
         group: CloseTogetherGroup,

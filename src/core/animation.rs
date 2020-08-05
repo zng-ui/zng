@@ -56,8 +56,8 @@ impl EasingTime {
     }
 }
 
-/// A [`VarValue`](VarValue) that is the final value of a transition animation and
-/// can be multiplied by a [`EasingStep`](EasingStep) to get an intermediary value of the
+/// A [`VarValue`] that is the final value of a transition animation and
+/// can be multiplied by a [`EasingStep`] to get an intermediary value of the
 /// same type.
 pub trait EasingVarValue: VarValue + Mul<EasingStep, Output = Self> {}
 
@@ -111,7 +111,7 @@ mul_easing_step_for_int!(usize, isize, u64, i64, u128, i128);
 
 /// Common easing functions.
 ///
-/// See also: [`EasingFn`](EasingFn).
+/// See also: [`EasingFn`].
 pub mod easing {
     use super::{EasingStep, EasingTime};
     use crate::core::types::Bezier;
@@ -214,7 +214,7 @@ pub fn ease_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime
     ease_fn(time.reverse()).flip()
 }
 
-/// Applies `ease_in` for the first half then [`ease_out`](ease_out) scaled to fit a single duration (1.0).
+/// Applies `ease_in` for the first half then [`ease_out`] scaled to fit a single duration (1.0).
 pub fn ease_in_out(ease_fn: impl FnOnce(EasingTime) -> EasingStep, time: EasingTime) -> EasingStep {
     let time = EasingTime(time.get() * 2.0);
     let step = if time.get() < 1.0 {
@@ -231,13 +231,13 @@ pub fn ease_in_fn<E: Fn(EasingTime) -> EasingStep>(ease_fn: E) -> E {
     ease_fn
 }
 
-/// Returns a function that applies `ease_fn` wrapped in [`ease_out`](ease_out).
+/// Returns a function that applies `ease_fn` wrapped in [`ease_out`].
 #[inline]
 pub fn ease_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
     move |t| ease_out(|t| ease_fn(t), t)
 }
 
-/// Returns a function that applies `ease_fn` wrapped in [`ease_in_out`](ease_in_out).
+/// Returns a function that applies `ease_fn` wrapped in [`ease_in_out`].
 #[inline]
 pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> impl Fn(EasingTime) -> EasingStep + 's {
     move |t| ease_in_out(|t| ease_fn(t), t)
@@ -288,7 +288,7 @@ impl EasingFn {
     }
 }
 
-/// A value that can be animated using [`Transition`](Transition).
+/// A value that can be animated using [`Transition`].
 ///
 /// # Trait Alias
 ///

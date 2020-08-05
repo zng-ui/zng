@@ -68,7 +68,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 /// use zero_ui::properties::{on_event, OnEventArgs};
 /// use zero_ui::core::{UiNode, keyboard::{KeyDownEvent, KeyInputArgs}, property};
 ///
-/// /// Sets an event listener for the [`KeyDown`](KeyDown) event.
+/// /// Sets an event listener for the [`KeyDown`] event.
 /// #[property(event)]
 /// pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
 ///     on_event(child, KeyDownEvent, handler)
@@ -141,7 +141,7 @@ pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<Key
     on_event(child, KeyInputEvent, handler)
 }
 
-/// Sets an event listener for the [`KeyDown`](KeyDown) event.
+/// Sets an event listener for the [`KeyDown`] event.
 #[property(event)]
 pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
     on_event(child, KeyDownEvent, handler)

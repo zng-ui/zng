@@ -129,7 +129,7 @@ pub fn rgba<C: Into<ColorFComponent>, A: Into<ColorFComponent>>(r: C, g: C, b: C
     ColorF::new(r.into().0, g.into().0, b.into().0, a.into().0)
 }
 
-/// [`rgb`](rgb) and [`rgba`](rgba) argument conversion helper.
+/// [`rgb`] and [`rgba`] argument conversion helper.
 pub struct ColorFComponent(pub f32);
 impl From<f32> for ColorFComponent {
     fn from(f: f32) -> Self {
@@ -170,9 +170,9 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
 /// Text string type, can be either a `&'static str` or a `String`.
 pub type Text = Cow<'static, str>;
 
-/// A trait for converting a value to a [`Text`](Text).
+/// A trait for converting a value to a [`Text`].
 ///
-/// This trait is automatically implemented for any type which implements the [`ToString`](ToString) trait.
+/// This trait is automatically implemented for any type which implements the [`ToString`] trait.
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
 pub trait ToText {
@@ -551,7 +551,7 @@ impl PartialEq for PixelGrid {
     }
 }
 
-/// Methods for types that can be aligned to a [`PixelGrid`](PixelGrid).
+/// Methods for types that can be aligned to a [`PixelGrid`].
 pub trait PixelGridExt {
     /// Gets a copy of self that is aligned with the pixel grid.
     fn snap_to(self, grid: PixelGrid) -> Self;

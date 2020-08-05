@@ -12,7 +12,7 @@ use crate::core::{impl_ui_node, property};
 /// The numbers indicate how much to the right and bottom the content is moved within
 /// a larger available space.
 ///
-/// This is the value of the [`align`](align) property.
+/// This is the value of the [`align`] property.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Alignment(pub f32, pub f32);
 
@@ -93,7 +93,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
 
 /// Aligns the widget within the available space.
 ///
-/// The property argument is an [`Alignment`](Alignment) value.
+/// The property argument is an [`Alignment`] value.
 #[property(outer)]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
     Align {

@@ -5,7 +5,7 @@ use crate::core::{
     UiNode,
 };
 
-/// [`view`](view) update.
+/// [`view`] update.
 pub enum View<U: UiNode> {
     /// Changes the view child.
     Update(U),

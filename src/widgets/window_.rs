@@ -10,7 +10,7 @@ use crate::widgets::container;
 widget! {
     /// A window container.
     ///
-    /// The instance type is [`Window`](Window), witch can be given to the [`Windows`](crate::core::window::Windows) service
+    /// The instance type is [`Window`], witch can be given to the [`Windows`](crate::core::window::Windows) service
     /// to open a system window that is kept in sync with the window properties set in the widget.
     ///
     /// # Example

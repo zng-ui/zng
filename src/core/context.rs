@@ -333,7 +333,7 @@ impl Vars {
     }
 }
 
-/// A key to a value in a [`StateMap`](StateMap).
+/// A key to a value in a [`StateMap`].
 ///
 /// The type that implements this trait is the key. You
 /// can use the [`state_key!`](macro.state_key.html) macro.
@@ -359,7 +359,7 @@ impl StateMap {
             .map(|any| *any.downcast::<S::Type>().unwrap())
     }
 
-    /// Sets a value that is its own [`StateKey`](StateKey).
+    /// Sets a value that is its own [`StateKey`].
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.map
             .insert(TypeId::of::<S>(), Box::new(value))
@@ -401,7 +401,7 @@ impl StateMap {
     }
 }
 
-/// A [`StateMap`](StateMap) that only takes one `usize` of memory if not used.
+/// A [`StateMap`] that only takes one `usize` of memory if not used.
 #[derive(Debug, Default)]
 pub struct LazyStateMap {
     m: Option<Box<StateMap>>,
@@ -424,7 +424,7 @@ impl LazyStateMap {
         self.borrow_mut().set(key, value)
     }
 
-    /// Sets a value that is its own [`StateKey`](StateKey).
+    /// Sets a value that is its own [`StateKey`].
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.borrow_mut().set_single(value)
     }
@@ -628,7 +628,7 @@ impl AppServicesInit {
         self.m.m.insert(service)
     }
 
-    /// Moves the registered services into a new [`AppServices`](AppServices).
+    /// Moves the registered services into a new [`AppServices`].
     pub fn services(&mut self) -> &mut AppServices {
         &mut self.m
     }
@@ -759,7 +759,7 @@ impl WindowServices {
     }
 }
 
-/// Executor access to [`Updates`](Updates).
+/// Executor access to [`Updates`].
 pub struct OwnedUpdates {
     pub updates: Updates,
 }
@@ -814,7 +814,7 @@ impl OwnedUpdates {
 
 /// Schedule of actions to apply after an update.
 ///
-/// An instance of this struct can be build by [`OwnedUpdates`](OwnedUpdates).
+/// An instance of this struct can be build by [`OwnedUpdates`].
 pub struct Updates {
     notifier: UpdateNotifier,
     update: UpdateRequest,
@@ -896,9 +896,9 @@ impl Updates {
     }
 }
 
-/// Owner of [`AppContext`](AppContext) objects.
+/// Owner of [`AppContext`] objects.
 ///
-/// Because [`Vars`](Vars) and [`Events`](Events) can only have one instance
+/// Because [`Vars`] and [`Events`] can only have one instance
 /// and this `struct` owns both you can only have one instance
 /// of this at a time.
 pub struct OwnedAppContext {

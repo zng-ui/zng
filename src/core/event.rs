@@ -6,7 +6,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
 
-/// [`Event`](Event) arguments.
+/// [`Event`] arguments.
 pub trait EventArgs: Debug + Clone + 'static {
     /// Gets the instant this event happen.
     fn timestamp(&self) -> Instant;
@@ -14,7 +14,7 @@ pub trait EventArgs: Debug + Clone + 'static {
     fn concerns_widget(&self, _: &mut WidgetContext) -> bool;
 }
 
-/// [`Event`](Event) arguments that can be canceled.
+/// [`Event`] arguments that can be canceled.
 pub trait CancelableEventArgs: EventArgs {
     /// If the originating action must be canceled.
     fn cancel_requested(&self) -> bool;

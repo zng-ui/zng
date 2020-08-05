@@ -25,7 +25,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 
 /// If this widget is a focus scope.
 ///
-/// Focus scopes are also [`focusable`](focusable) by default.
+/// Focus scopes are also [`focusable`] by default.
 #[property(context)]
 pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScope {

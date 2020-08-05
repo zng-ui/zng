@@ -2,7 +2,7 @@ use super::{protected, IntoVar, LocalVar, MapVar, MapVarBiDi, MapVarBiDiInner, M
 use crate::core::context::Vars;
 use std::rc::Rc;
 
-/// [`Var`](Var) implementer that owns the value.
+/// [`Var`] implementer that owns the value.
 #[derive(Clone)]
 pub struct OwnedVar<T: VarValue>(pub T);
 
@@ -98,7 +98,7 @@ impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
     }
 }
 
-/// Wraps the value in an [`OwnedVar`](OwnedVar) value.
+/// Wraps the value in an [`OwnedVar`] value.
 impl<T: VarValue> IntoVar<T> for T {
     type Var = OwnedVar<T>;
 

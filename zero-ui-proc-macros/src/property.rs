@@ -959,7 +959,7 @@ mod output {
             let generics = quote!(<#(#idents: #bounds),*>);
 
             tokens.extend(quote! {
-                /// Initializes a new [`Args`](Args).
+                /// Initializes a new [`Args`].
                 /// <style>a[href='fn.__.html']{ display: none; }</style>
                 #[inline]
                 pub fn args #generics (#(#args),*) -> impl Args {
@@ -983,7 +983,7 @@ mod output {
                 tokens.extend(quote! { #[doc(hidden)] })
             } else {
                 tokens.extend(quote! {
-                    /// Set the property with bundled [`Args`](Args).
+                    /// Set the property with bundled [`Args`].
                     /// <style>a[href='fn.__.html']{ display: none; }</style>
                 });
             }

@@ -24,7 +24,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-/// An [`App`](App) extension.
+/// An [`App`] extension.
 pub trait AppExtension: 'static {
     /// Type id of this extension.
     #[inline]
@@ -226,7 +226,7 @@ impl AppProcess {
 
     /// Register a request for process shutdown in the next update.
     ///
-    /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`](ShutDownCancelled)
+    /// Returns an event listener that is updated once with the unit value [`ShutDownCancelled`]
     /// if the shutdown operation is cancelled.
     pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
         let emitter = EventEmitter::response();
@@ -323,7 +323,7 @@ impl EventLoop {
         }
     }
 
-    /// Borrows a [`EventLoopWindowTarget`](EventLoopWindowTarget).
+    /// Borrows a [`EventLoopWindowTarget`].
     #[inline]
     pub fn window_target(&self) -> EventLoopWindowTarget<'_> {
         match &self.0 {
@@ -332,7 +332,7 @@ impl EventLoop {
         }
     }
 
-    /// Creates an [`EventLoopProxy`](EventLoopProxy) that can be used to dispatch user events to the main event loop.
+    /// Creates an [`EventLoopProxy`] that can be used to dispatch user events to the main event loop.
     pub fn create_proxy(&self) -> EventLoopProxy {
         match &self.0 {
             EventLoopInner::Glutin(el) => EventLoopProxy(EventLoopProxyInner::Glutin(el.create_proxy())),
@@ -341,7 +341,7 @@ impl EventLoop {
     }
 }
 
-/// Target that associates windows with an [`EventLoop`](EventLoop).
+/// Target that associates windows with an [`EventLoop`].
 #[derive(Debug, Clone, Copy)]
 pub struct EventLoopWindowTarget<'a>(Option<&'a GEventLoopWindowTarget<AppEvent>>);
 
@@ -363,7 +363,7 @@ enum EventLoopProxyInner {
     Headless(Arc<Mutex<Vec<AppEvent>>>),
 }
 
-/// Used to send custom events to [`EventLoop`](EventLoop).
+/// Used to send custom events to [`EventLoop`].
 #[derive(Debug, Clone)]
 pub struct EventLoopProxy(EventLoopProxyInner);
 
@@ -508,7 +508,7 @@ impl<E: AppExtension> AppExtended<E> {
         })
     }
 
-    /// Initializes extensions in headless mode and returns an [`HeadlessApp`](HeadlessApp).
+    /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
     #[inline]
     pub fn run_headless(self) -> HeadlessApp<E> {
         #[cfg(feature = "app_profiler")]
@@ -573,7 +573,7 @@ impl<E: AppExtension> HeadlessApp<E> {
 
     /// Enable or disable headless rendering.
     ///
-    /// This sets the [`HeadlessRenderEnabledKey`](HeadlessRenderEnabledKey) state.
+    /// This sets the [`HeadlessRenderEnabledKey`] state.
     pub fn enable_render(&mut self, enabled: bool) {
         self.state_mut().set(HeadlessRenderEnabledKey, enabled);
     }

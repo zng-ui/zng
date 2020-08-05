@@ -1,8 +1,8 @@
 //! Keyboard focus manager.
 //!
-//! The [`FocusManager`](FocusManager) struct is an [app extension](crate::core::app::AppExtension). It
-//! is included in the [default app](crate::core::app::App::default) and provides the [`Focus`](Focus) service
-//! and the [`FocusChangedEvent`](FocusChangedEvent) event.
+//! The [`FocusManager`] struct is an [app extension](crate::core::app::AppExtension). It
+//! is included in the [default app](crate::core::app::App::default) and provides the [`Focus`] service
+//! and the [`FocusChangedEvent`] event.
 //!
 //! # Keyboard Focus
 //!
@@ -10,7 +10,7 @@
 //!
 //! # Navigation
 //!
-//! The keyboard focus can be moved from one widget to the next using the keyboard or the [`Focus`](Focus) service methods.
+//! The keyboard focus can be moved from one widget to the next using the keyboard or the [`Focus`] service methods.
 //! There are two styles of movement: [tabbing](#tab-navigation) that follows the logical order and [directional](#directional-navigation)
 //! that follows the visual order.
 //!
@@ -45,7 +45,7 @@ use crate::core::types::*;
 use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 
 event_args! {
-    /// [`FocusChangedEvent`](FocusChangedEvent) arguments.
+    /// [`FocusChangedEvent`] arguments.
     pub struct FocusChangedArgs {
         /// Previously focused widget.
         pub prev_focus: Option<WidgetPath>,
@@ -202,7 +202,7 @@ event! {
     ///
     /// # Provider
     ///
-    /// This event is provided by the [`FocusManager`](FocusManager) extension.
+    /// This event is provided by the [`FocusManager`] extension.
     pub FocusChangedEvent: FocusChangedArgs;
 }
 
@@ -222,8 +222,8 @@ event! {
 ///
 /// # Requirements
 ///
-/// This extension requires the [`MouseDownEvent`](MouseDownEvent),
-/// [`KeyDownEvent`](KeyDownEvent) and [`WindowIsActiveChangedEvent`](WindowIsActiveChangedEvent)
+/// This extension requires the [`MouseDownEvent`],
+/// [`KeyDownEvent`] and [`WindowIsActiveChangedEvent`]
 ///  events to function.
 ///
 /// # About Focus
@@ -703,12 +703,12 @@ impl<'a> FrameFocusInfo<'a> {
     }
 }
 
-/// [`WidgetInfo`](WidgetInfo) extensions that build a [`WidgetFocusInfo`](WidgetFocusInfo).
+/// [`WidgetInfo`] extensions that build a [`WidgetFocusInfo`].
 pub trait WidgetInfoFocusExt<'a> {
-    /// Wraps the [`WidgetInfo`](WidgetInfo) in a [`WidgetFocusInfo`](WidgetFocusInfo) even if it is not focusable.
+    /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
     fn as_focus_info(self) -> WidgetFocusInfo<'a>;
 
-    /// Returns a wrapped [`WidgetFocusInfo`](WidgetFocusInfo) if the [`WidgetInfo`](WidgetInfo) is focusable.
+    /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
 }
 
@@ -726,7 +726,7 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     }
 }
 
-/// [`WidgetInfo`](WidgetInfo) wrapper that adds focus information for each widget.
+/// [`WidgetInfo`] wrapper that adds focus information for each widget.
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
@@ -1090,7 +1090,7 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 }
 
-/// Filter-maps an iterator of [`WidgetInfo`](WidgetInfo) to [`WidgetFocusInfo`](WidgetFocusInfo).
+/// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].
 pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
 }

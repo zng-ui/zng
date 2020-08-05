@@ -42,7 +42,7 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 ///     pub struct FontSizeVar: u32 = const 14;
 /// }
 ///
-/// /// Sets the [`FontSizeVar`](FontSizeVar) context var.
+/// /// Sets the [`FontSizeVar`] context var.
 /// #[property(context)]
 /// pub fn font_size(child: impl UiNode, size: impl IntoVar<u32>) -> impl UiNode {
 ///     with_context_var(child, FontSizeVar, size)

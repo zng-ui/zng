@@ -16,7 +16,7 @@ struct SharedVarInner<T> {
     version: Cell<u32>,
 }
 
-/// A reference-counting [`Var`](Var).
+/// A reference-counting [`Var`].
 pub struct SharedVar<T: VarValue> {
     r: Rc<SharedVarInner<T>>,
 }
@@ -584,7 +584,7 @@ pub fn var<T: VarValue>(initial_value: impl Into<T>) -> SharedVar<T> {
     SharedVar::new(initial_value.into())
 }
 
-/// Initializes a new [`StateVar`](StateVar).
+/// Initializes a new [`StateVar`].
 pub fn state_var() -> StateVar {
     var(false)
 }

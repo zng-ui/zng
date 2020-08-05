@@ -135,7 +135,7 @@ impl<C: UiNode> UiNode for IsFocused<C> {
 /// If the widget has keyboard focus.
 ///
 /// This is only `true` if the widget itself is focused.
-/// You can use [`is_focus_within`](is_focus_within) to check if the focused widget is within this one.
+/// You can use [`is_focus_within`] to check if the focused widget is within this one.
 ///
 /// # Highlighting
 ///
@@ -184,7 +184,7 @@ impl<C: UiNode> UiNode for IsFocusWithin<C> {
 
 /// If the widget or one of its descendants has keyboard focus.
 ///
-/// To check if only the widget has keyboard focus use [`is_focused`](is_focused).
+/// To check if only the widget has keyboard focus use [`is_focused`].
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusWithin {
@@ -229,9 +229,9 @@ impl<C: UiNode> UiNode for IsFocusedHighlighted<C> {
 /// If the widget has keyboard focus and focus highlighting is enabled.
 ///
 /// This is only `true` if the widget itself is focused and focus highlighting is enabled.
-/// You can use [`is_focus_within_hgl`](is_focus_within_hgl) to check if the focused widget is within this one.
+/// You can use [`is_focus_within_hgl`] to check if the focused widget is within this one.
 ///
-/// Also see [`is_focused`](is_focused) to check if the widget is focused regardless of highlighting.
+/// Also see [`is_focused`] to check if the widget is focused regardless of highlighting.
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusedHighlighted {
@@ -278,9 +278,9 @@ impl<C: UiNode> UiNode for IsFocusWithinHighlighted<C> {
 
 /// If the widget or one of its descendants has keyboard focus and focus highlighting is enabled.
 ///
-/// To check if only the widget has keyboard focus use [`is_focused_hgl`](is_focused_hgl).
+/// To check if only the widget has keyboard focus use [`is_focused_hgl`].
 ///
-/// Also see [`is_focus_within`](is_focus_within) to check if the widget has focus within regardless of highlighting.
+/// Also see [`is_focus_within`] to check if the widget has focus within regardless of highlighting.
 #[property(context)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsFocusWithinHighlighted {
