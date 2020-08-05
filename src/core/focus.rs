@@ -7,7 +7,7 @@
 //! # Keyboard Focus
 //!
 //! In a given program only a single widget can receive keyboard input at a time, this widget has the *keyboard focus*.
-//! 
+//!
 //! # Navigation
 //!
 //! The keyboard focus can be moved from one widget to the next using the keyboard or the [`Focus`](Focus) service methods.
@@ -19,7 +19,7 @@
 //!
 //! ## Tab Navigation
 //!
-//! Tab navigation follows a logical order, the position of the widget in the [widget tree](FrameFocusInfo), 
+//! Tab navigation follows a logical order, the position of the widget in the [widget tree](FrameFocusInfo),
 //! optionally overridden with a [custom index](TabIndex).
 //!
 //! Focus is moved forward by pressing `TAB` or calling [`focus_next`](Focus::focus_next) and backward by pressing `SHIFT+TAB` or
@@ -107,16 +107,25 @@ state_key! {
     pub(crate) struct DirectionalNavKey: DirectionalNav;
 }
 
-/// Widget TAB navigation position within a focus scope.
+/// Widget tab navigation position within a focus scope.
+///
+/// The index is zero based, zero first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct TabIndex(pub u32);
 
 impl TabIndex {
-    /// Widget is skipped during TAB navigation.
-    pub const SKIP: TabIndex = TabIndex(u32::max_value());
+    /// Widget is skipped during tab navigation.
+    ///
+    /// The integer value is `u32::MAX`.
+    pub const SKIP: TabIndex = TabIndex(u32::MAX);
 
-    /// Widget is focused during TAB navigation using its order of declaration.
-    pub const AUTO: TabIndex = TabIndex(u32::max_value() - 1);
+    /// Default focusable widget index.
+    ///
+    /// Tab navigation uses the widget position in the widget tree when multiple widgets have the same index
+    /// so if no widget index is explicitly set they get auto-sorted by their position.
+    ///
+    /// The integer value is `u32::MAX / 2`.
+    pub const AUTO: TabIndex = TabIndex(u32::MAX / 2);
 
     /// If is [`SKIP`](TabIndex::SKIP).
     #[inline]
@@ -129,11 +138,37 @@ impl TabIndex {
     pub fn is_auto(self) -> bool {
         self == Self::AUTO
     }
+
+    /// Create a new tab index that is guaranteed to not be [`SKIP`](Self::SKIP).
+    ///
+    /// Returns `SKIP - 1` if `index` is `SKIP`.
+    #[inline]
+    pub fn not_skip(index: u32) -> Self {
+        TabIndex(if index == Self::SKIP.0 { Self::SKIP.0 - 1 } else { index })
+    }
+
+    /// Create a new tab index that is guaranteed to be before [`AUTO`](Self::AUTO).
+    ///
+    /// Returns `AUTO - 1` if `index` is equal to or greater then `AUTO`.
+    #[inline]
+    pub fn before_auto(index: u32) -> Self {
+        TabIndex(if index >= Self::AUTO.0 { Self::AUTO.0 - 1 } else { index })
+    }
+
+    /// Create a new tab index that is guaranteed to be after [`AUTO`](Self::AUTO) and not [`SKIP`](Self::SKIP).
+    ///
+    /// The `index` argument is zero based here.
+    ///
+    /// Returns `not_skip(AUTO + 1 + index)`.
+    #[inline]
+    pub fn after_auto(index: u32) -> Self {
+        Self::not_skip((Self::AUTO.0 + 1).saturating_add(index))
+    }
 }
 
 /// Tab navigation configuration of a focus scope.
 ///
-/// See the [module level](zero_ui::core::focus#tab-navigation) for an overview of tab navigation. 
+/// See the [module level](zero_ui::core::focus#tab-navigation) for an overview of tab navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TabNav {
     /// Tab does not move the focus inside the scope.
@@ -150,14 +185,14 @@ pub enum TabNav {
 
 /// Directional navigation configuration of a focus scope.
 ///
-/// See the [module level](zero_ui::core::focus#directional-navigation) for an overview of directional navigation. 
+/// See the [module level](zero_ui::core::focus#directional-navigation) for an overview of directional navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DirectionalNav {
     /// Arrows does not move the focus inside the scope.
     None,
     /// Arrows move the focus through the scope continuing out of the edges.
     Continue,
-    /// 
+    ///
     Contained,
     Cycle,
 }
@@ -193,7 +228,7 @@ event! {
 ///
 /// # About Focus
 ///
-/// See the [module level](zero_ui::core::focus) documentation for an overview of the keyboard 
+/// See the [module level](zero_ui::core::focus) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
@@ -714,7 +749,7 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// ## Note
     ///
-    /// This is probably `true`, the only way to get a [`WidgetFocusInfo`] for a non-focusable widget is by 
+    /// This is probably `true`, the only way to get a [`WidgetFocusInfo`] for a non-focusable widget is by
     /// calling [`as_focus_info`](WidgetInfoFocusExt::as_focus_info) or explicitly constructing one.
     ///
     /// Focus scopes are also focusable.
