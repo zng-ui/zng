@@ -8,9 +8,9 @@ use crate::core::{
     event::{cancelable_event_args, CancelableEventArgs},
     focus::FocusManager,
     font::FontManager,
-    gesture::GestureEvents,
+    gesture::GestureManager,
     keyboard::KeyboardManager,
-    mouse::MouseEvents,
+    mouse::MouseManager,
     types::*,
     window::WindowManager,
 };
@@ -185,18 +185,18 @@ impl App {
     ///
     /// Extensions included.
     ///
-    /// * [MouseEvents]
+    /// * [MouseManager]
     /// * [KeyboardManager]
-    /// * [GestureEvents]
+    /// * [GestureManager]
     /// * [WindowManager]
     /// * [FontManager]
     /// * [FocusManager]
     #[inline]
     pub fn default() -> AppExtended<impl AppExtension> {
         App::empty()
-            .extend(MouseEvents::default())
+            .extend(MouseManager::default())
             .extend(KeyboardManager::default())
-            .extend(GestureEvents::default())
+            .extend(GestureManager::default())
             .extend(WindowManager::default())
             .extend(FontManager::default())
             .extend(FocusManager::default())

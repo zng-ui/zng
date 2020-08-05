@@ -208,7 +208,7 @@ event! {
 /// * [MouseTripleClickEvent]
 /// * [MouseEnterEvent]
 /// * [MouseLeaveEvent]
-pub struct MouseEvents {
+pub struct MouseManager {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
     /// last cursor move over `pos_window`.
@@ -241,9 +241,9 @@ pub struct MouseEvents {
     mouse_leave: EventEmitter<MouseHoverArgs>,
 }
 
-impl Default for MouseEvents {
+impl Default for MouseManager {
     fn default() -> Self {
-        MouseEvents {
+        MouseManager {
             pos: LayoutPoint::default(),
             pos_window: None,
             pos_dpi: 1.0,
@@ -273,7 +273,7 @@ impl Default for MouseEvents {
     }
 }
 
-impl MouseEvents {
+impl MouseManager {
     fn on_mouse_input(&mut self, window_id: WindowId, device_id: DeviceId, state: ElementState, button: MouseButton, ctx: &mut AppContext) {
         let position = if self.pos_window == Some(window_id) {
             self.pos
@@ -468,7 +468,7 @@ impl MouseEvents {
     }
 }
 
-impl AppExtension for MouseEvents {
+impl AppExtension for MouseManager {
     fn init(&mut self, r: &mut AppInitContext) {
         r.events.register::<MouseMoveEvent>(self.mouse_move.listener());
 
@@ -512,29 +512,4 @@ fn multi_click_time_ms() -> u32 {
     // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
     // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
     Duration::from_millis(500)
-}
-
-/// Generate mouse/pointer events in a headless app.
-pub trait MouseController {
-    fn move_pt(&mut self, window_id: WindowId, point: LayoutPoint);
-}
-impl<E: AppExtension> MouseController for HeadlessApp<E> {
-    fn move_pt(&mut self, window_id: WindowId, point: LayoutPoint) {
-        let dpi = self
-            .with_context(|ctx| {
-                ctx.services
-                    .get::<Windows>()
-                    .and_then(|ws| ws.window(window_id).ok().map(|w| w.scale_factor()))
-            })
-            .unwrap_or(1.0);
-
-        self.on_window_event(
-            window_id,
-            &WindowEvent::CursorMoved {
-                device_id: unsafe { DeviceId::dummy() },
-                position: glutin::dpi::PhysicalPosition::new(point.x as f64 * dpi as f64, point.y as f64 * dpi as f64),
-                modifiers: ModifiersState::default(),
-            },
-        );
-    }
 }

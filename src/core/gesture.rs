@@ -261,7 +261,7 @@ event! {
 /// * [SingleClickEvent]
 /// * [DoubleClickEvent]
 /// * [TripleClickEvent]
-pub struct GestureEvents {
+pub struct GestureManager {
     key_down: EventListener<KeyInputArgs>,
     mouse_click: EventListener<MouseClickArgs>,
 
@@ -271,9 +271,9 @@ pub struct GestureEvents {
     triple_click: EventEmitter<ClickArgs>,
 }
 
-impl Default for GestureEvents {
+impl Default for GestureManager {
     fn default() -> Self {
-        GestureEvents {
+        GestureManager {
             key_down: KeyDownEvent::never(),
             mouse_click: MouseClickEvent::never(),
 
@@ -285,7 +285,7 @@ impl Default for GestureEvents {
     }
 }
 
-impl AppExtension for GestureEvents {
+impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.key_down = r.events.listen::<KeyDownEvent>();
         self.mouse_click = r.events.listen::<MouseClickEvent>();
