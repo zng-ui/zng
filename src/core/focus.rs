@@ -1,4 +1,39 @@
-//! Focus manager, events and services.
+//! Keyboard focus manager.
+//!
+//! The [`FocusManager`](FocusManager) struct is an [app extension](crate::core::app::AppExtension). It
+//! is included in the [default app](crate::core::app::App::default) and provides the [`Focus`](Focus) service
+//! and the [`FocusChangedEvent`](FocusChangedEvent) event.
+//!
+//! # Keyboard Focus
+//!
+//! In a given program only a single widget can receive keyboard input at a time, this widget has the *keyboard focus*.
+//! 
+//! # Navigation
+//!
+//! The keyboard focus can be moved from one widget to the next using the keyboard or the [`Focus`](Focus) service methods.
+//! There are two styles of movement: [tabbing](#tab-navigation) that follows the logical order and [directional](#directional-navigation)
+//! that follows the visual order.
+//!
+//! Keyboard navigation behaves different depending on what region of the screen the current focused widget is in, these regions
+//! are called [focus scopes](#-focus-scopes). Every window is a focus scope that can be subdivided further.
+//!
+//! ## Tab Navigation
+//!
+//! Tab navigation follows a logical order, the position of the widget in the [widget tree](FrameFocusInfo), 
+//! optionally overridden with a [custom index](TabIndex).
+//!
+//! Focus is moved forward by pressing `TAB` or calling [`focus_next`](Focus::focus_next) and backward by pressing `SHIFT+TAB` or
+//! calling [`focus_prev`](Focus::focus_prev).
+//!
+//! ## Directional Navigation
+//!
+//! Directional navigation follows the visual position of the widget on the screen.
+//!
+//! Focus is moved by pressing the **arrow keys** or calling the focus direction methods in the [`Focus`](Focus::focus_up) service.
+//!
+//! ## Focus Scopes
+//!
+//! TODO
 
 use crate::core::app::AppExtension;
 use crate::core::context::*;
@@ -72,7 +107,7 @@ state_key! {
     pub(crate) struct DirectionalNavKey: DirectionalNav;
 }
 
-/// Widget order index during TAB navigation.
+/// Widget TAB navigation position within a focus scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct TabIndex(pub u32);
 
@@ -96,19 +131,33 @@ impl TabIndex {
     }
 }
 
+/// Tab navigation configuration of a focus scope.
+///
+/// See the [module level](zero_ui::core::focus#tab-navigation) for an overview of tab navigation. 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TabNav {
+    /// Tab does not move the focus inside the scope.
     None,
+    /// Tab moves the focus through the scope continuing out after the last item.
     Continue,
+    /// Tab is contained in the scope, does not move after the last item.
     Contained,
+    /// Tab is contained in the scope, after the last item moves to the first item in the scope.
     Cycle,
+    /// Tab moves into the scope once but then moves out of the scope.
     Once,
 }
 
+/// Directional navigation configuration of a focus scope.
+///
+/// See the [module level](zero_ui::core::focus#directional-navigation) for an overview of directional navigation. 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DirectionalNav {
+    /// Arrows does not move the focus inside the scope.
     None,
+    /// Arrows move the focus through the scope continuing out of the edges.
     Continue,
+    /// 
     Contained,
     Cycle,
 }
@@ -141,6 +190,11 @@ event! {
 /// This extension requires the [`MouseDownEvent`](MouseDownEvent),
 /// [`KeyDownEvent`](KeyDownEvent) and [`WindowIsActiveChangedEvent`](WindowIsActiveChangedEvent)
 ///  events to function.
+///
+/// # About Focus
+///
+/// See the [module level](zero_ui::core::focus) documentation for an overview of the keyboard 
+/// focus concepts implemented by this app extension.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
     windows_activation: EventListener<WindowIsActiveArgs>,
@@ -505,6 +559,7 @@ impl AppService for Focus {}
 #[derive(Clone, Copy, Debug)]
 /// Focus change request.
 pub struct FocusRequest {
+    /// Where to move the focus.
     pub target: FocusTarget,
     /// If the widget should visually indicate that it is focused.
     pub highlight: bool,
@@ -557,6 +612,7 @@ impl FocusRequest {
     }
 }
 
+/// Focus request target.
 #[derive(Clone, Copy, Debug)]
 pub enum FocusTarget {
     /// Move focus to widget.
@@ -579,7 +635,7 @@ pub enum FocusTarget {
     Left,
 }
 
-/// [`FrameInfo`] reference wrapper that adds focus information for each widget.
+/// A [`FrameInfo`] wrapper for querying focus info out of the widget tree.
 pub struct FrameFocusInfo<'a> {
     /// Full frame info.
     pub info: &'a FrameInfo,
@@ -593,7 +649,7 @@ impl<'a> FrameFocusInfo<'a> {
     /// Reference to the root widget in the frame.
     ///
     /// The root is usually a focusable focus scope but it may not be. This
-    /// is the only method that returns a [`WidgetFocusInfo`](WidgetFocusInfo) that may not be focusable.
+    /// is the only method that returns a [`WidgetFocusInfo`] that may not be focusable.
     #[inline]
     pub fn root(&self) -> WidgetFocusInfo {
         WidgetFocusInfo::new(self.info.root())
@@ -654,6 +710,14 @@ impl<'a> WidgetFocusInfo<'a> {
         self.ancestors().last().unwrap_or(self)
     }
 
+    /// If the widget is focusable.
+    ///
+    /// ## Note
+    ///
+    /// This is probably `true`, the only way to get a [`WidgetFocusInfo`] for a non-focusable widget is by 
+    /// calling [`as_focus_info`](WidgetInfoFocusExt::as_focus_info) or explicitly constructing one.
+    ///
+    /// Focus scopes are also focusable.
     #[inline]
     pub fn is_focusable(self) -> bool {
         self.focus_info().is_focusable()
