@@ -416,25 +416,22 @@ pub struct StateMapEntry<'a, S: StateKey> {
     entry: std::collections::hash_map::Entry<'a, TypeId, Box<dyn Any>>,
 }
 impl<'a, S: StateKey> StateMapEntry<'a, S> {
-    /// Ensures a value is in the entry by inserting the default if empty, and 
+    /// Ensures a value is in the entry by inserting the default if empty, and
     /// returns a mutable reference to the value in the entry.
     pub fn or_insert(self, default: S::Type) -> &'a mut S::Type {
         self.entry.or_insert_with(|| Box::new(default)).downcast_mut::<S::Type>().unwrap()
     }
 
-    /// Ensures a value is in the entry by inserting the result of the 
+    /// Ensures a value is in the entry by inserting the result of the
     /// default function if empty, and returns a mutable reference to the value in the entry.
     pub fn or_insert_with<F: FnOnce() -> S::Type>(self, default: F) -> &'a mut S::Type {
-        self.entry.or_insert_with(||Box::new(default())).downcast_mut::<S::Type>().unwrap()
+        self.entry.or_insert_with(|| Box::new(default())).downcast_mut::<S::Type>().unwrap()
     }
 
     /// Provides in-place mutable access to an occupied entry before any potential inserts into the map.
     pub fn and_modify<F: FnOnce(&mut S::Type)>(self, f: F) -> Self {
-        let entry = self.entry.and_modify(|a|f(a.downcast_mut::<S::Type>().unwrap()));
-        StateMapEntry {
-            _key: PhantomData,
-            entry
-        }
+        let entry = self.entry.and_modify(|a| f(a.downcast_mut::<S::Type>().unwrap()));
+        StateMapEntry { _key: PhantomData, entry }
     }
 }
 impl<'a, S: StateKey> StateMapEntry<'a, S>
@@ -486,7 +483,7 @@ impl LazyStateMap {
     pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
         self.m.as_mut().and_then(|m| m.get_mut(key))
     }
-    
+
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
     ///
     /// This causes lazy map initialization to an empty map even if you don't insert a value using the entry.

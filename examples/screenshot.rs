@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use zero_ui::core::{context::WidgetContext, window::Windows};
 use zero_ui::prelude::*;
 

@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use enclose::enclose;
 use zero_ui::prelude::*;
 
@@ -21,7 +22,9 @@ fn example() -> impl Widget {
         on_click: enclose!{ (t) move |a| {
             let ctx = a.ctx();
             count += 1;
-            ctx.updates.push_set(&t, formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""}), ctx.vars).unwrap();
+            let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
+            println!("{}", new_txt);
+            ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
         }};
 
         content: text(t);
