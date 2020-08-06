@@ -2,8 +2,6 @@ use enclose::enclose;
 use zero_ui::prelude::*;
 
 fn main() {
-    better_panic::install();
-
     App::default().run_window(|_| {
         window! {
             title: "Button Example";

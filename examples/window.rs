@@ -1,8 +1,6 @@
 use zero_ui::prelude::*;
 
 fn main() {
-    better_panic::install();
-
     App::default().run_window(|_| {
         let position = var((f32::NAN, f32::NAN));
         let size = var((800., 600.));

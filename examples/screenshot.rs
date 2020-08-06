@@ -2,8 +2,6 @@ use zero_ui::core::{context::WidgetContext, window::Windows};
 use zero_ui::prelude::*;
 
 fn main() {
-    better_panic::install();
-
     App::default().run_window(|_| {
         window! {
             title: "Screenshot Example";

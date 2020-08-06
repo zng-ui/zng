@@ -1,8 +1,6 @@
 use zero_ui::{core::focus::TabIndex, prelude::*};
 
 fn main() {
-    better_panic::install();
-
     App::default().run_window(|_| {
         window! {
             title: "Focus Example";
