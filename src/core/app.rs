@@ -106,72 +106,12 @@ cancelable_event_args! {
     }
 }
 
-impl AppExtension for () {}
-
-impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
-    #[inline]
-    fn init(&mut self, ctx: &mut AppInitContext) {
-        self.0.init(ctx);
-        self.1.init(ctx);
-    }
-
-    #[inline]
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
-        self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id) || self.id() == app_extension_id
-    }
-
-    #[inline]
-    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
-        self.0.on_device_event(device_id, event, ctx);
-        self.1.on_device_event(device_id, event, ctx);
-    }
-
-    #[inline]
-    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
-        self.0.on_window_event(window_id, event, ctx);
-        self.1.on_window_event(window_id, event, ctx);
-    }
-
-    #[inline]
-    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        self.0.on_new_frame_ready(window_id, ctx);
-        self.1.on_new_frame_ready(window_id, ctx);
-    }
-
-    #[inline]
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        self.0.update(update, ctx);
-        self.1.update(update, ctx);
-    }
-
-    #[inline]
-    fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
-        self.0.update_display(update, ctx);
-        self.1.update_display(update, ctx);
-    }
-
-    #[inline]
-    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
-        self.0.on_redraw_requested(window_id, ctx);
-        self.1.on_redraw_requested(window_id, ctx);
-    }
-
-    #[inline]
-    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
-        self.0.on_shutdown_requested(args, ctx);
-        self.1.on_shutdown_requested(args, ctx);
-    }
-
-    #[inline]
-    fn deinit(&mut self, ctx: &mut AppContext) {
-        self.0.deinit(ctx);
-        self.1.deinit(ctx);
-    }
-}
-
 /// Defines and runs an application.
 pub struct App;
 
+/// In release mode we use generics tricks to compile all app extensions with
+/// static dispatch optimized to a direct call to the extension handle.
+#[cfg(not(debug_assertions))]
 impl App {
     /// Application without any extension.
     #[inline]
@@ -193,6 +133,38 @@ impl App {
     /// * [FocusManager]
     #[inline]
     pub fn default() -> AppExtended<impl AppExtension> {
+        App::empty()
+            .extend(MouseManager::default())
+            .extend(KeyboardManager::default())
+            .extend(GestureManager::default())
+            .extend(WindowManager::default())
+            .extend(FontManager::default())
+            .extend(FocusManager::default())
+    }
+}
+
+/// In debug mode we use dynamic dispatch to reduce the number of types
+/// in the stack-trace and compile more quickly.
+#[cfg(debug_assertions)]
+impl App {
+    /// Application without any extension.
+    pub fn empty() -> AppExtended<Vec<Box<dyn AppExtension>>> {
+        AppExtended { extensions: vec![] }
+    }
+
+    /// Application with default extensions.
+    ///
+    /// # Extensions
+    ///
+    /// Extensions included.
+    ///
+    /// * [MouseManager]
+    /// * [KeyboardManager]
+    /// * [GestureManager]
+    /// * [WindowManager]
+    /// * [FontManager]
+    /// * [FocusManager]
+    pub fn default() -> AppExtended<Vec<Box<dyn AppExtension>>> {
         App::empty()
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
@@ -386,13 +358,28 @@ impl EventLoopProxy {
     }
 }
 
-impl<E: AppExtension> AppExtended<E> {
-    /// Gets if the application is already extended with the extension type.
+#[cfg(debug_assertions)]
+impl AppExtended<Vec<Box<dyn AppExtension>>> {
+    /// Includes an application extension.
+    ///
+    /// # Panics
+    /// * `"app already extended with `{}`"` when the app is already [`extended_with`](AppExtended::extended_with) the
+    /// extension type.
     #[inline]
-    pub fn extended_with<F: AppExtension>(&self) -> bool {
-        self.extensions.is_or_contain(TypeId::of::<F>())
-    }
+    pub fn extend<F: AppExtension>(self, extension: F) -> AppExtended<Vec<Box<dyn AppExtension>>> {
+        if self.extended_with::<F>() {
+            panic!("app already extended with `{}`", type_name::<F>())
+        }
 
+        let mut extensions = self.extensions;
+        extensions.push(Box::new(extension));
+
+        AppExtended { extensions }
+    }
+}
+
+#[cfg(not(debug_assertions))]
+impl<E: AppExtension> AppExtended<E> {
     /// Includes an application extension.
     ///
     /// # Panics
@@ -406,6 +393,14 @@ impl<E: AppExtension> AppExtended<E> {
         AppExtended {
             extensions: (self.extensions, extension),
         }
+    }
+}
+
+impl<E: AppExtension> AppExtended<E> {
+    /// Gets if the application is already extended with the extension type.
+    #[inline]
+    pub fn extended_with<F: AppExtension>(&self) -> bool {
+        self.extensions.is_or_contain(TypeId::of::<F>())
     }
 
     /// Runs the application event loop calling `start` once at the beginning.
@@ -650,4 +645,140 @@ impl<E: AppExtension> HeadlessApp<E> {
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
     pub struct HeadlessRenderEnabledKey: bool;
+}
+
+#[cfg(not(debug_assertions))]
+impl AppExtension for () {
+    #[inline]
+    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+        false
+    }
+}
+
+#[cfg(not(debug_assertions))]
+impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
+    #[inline]
+    fn init(&mut self, ctx: &mut AppInitContext) {
+        self.0.init(ctx);
+        self.1.init(ctx);
+    }
+
+    #[inline]
+    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+        self.0.is_or_contain(app_extension_id) || self.1.is_or_contain(app_extension_id)
+    }
+
+    #[inline]
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
+        self.0.on_device_event(device_id, event, ctx);
+        self.1.on_device_event(device_id, event, ctx);
+    }
+
+    #[inline]
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        self.0.on_window_event(window_id, event, ctx);
+        self.1.on_window_event(window_id, event, ctx);
+    }
+
+    #[inline]
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.0.on_new_frame_ready(window_id, ctx);
+        self.1.on_new_frame_ready(window_id, ctx);
+    }
+
+    #[inline]
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        self.0.update(update, ctx);
+        self.1.update(update, ctx);
+    }
+
+    #[inline]
+    fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
+        self.0.update_display(update, ctx);
+        self.1.update_display(update, ctx);
+    }
+
+    #[inline]
+    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.0.on_redraw_requested(window_id, ctx);
+        self.1.on_redraw_requested(window_id, ctx);
+    }
+
+    #[inline]
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        self.0.on_shutdown_requested(args, ctx);
+        self.1.on_shutdown_requested(args, ctx);
+    }
+
+    #[inline]
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        self.0.deinit(ctx);
+        self.1.deinit(ctx);
+    }
+}
+
+#[cfg(debug_assertions)]
+impl AppExtension for Vec<Box<dyn AppExtension>> {
+    fn init(&mut self, ctx: &mut AppInitContext) {
+        for ext in self {
+            ext.init(ctx);
+        }
+    }
+
+    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+        for ext in self {
+            if ext.is_or_contain(app_extension_id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn on_device_event(&mut self, device_id: DeviceId, event: &DeviceEvent, ctx: &mut AppContext) {
+        for ext in self {
+            ext.on_device_event(device_id, event, ctx);
+        }
+    }
+
+    fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
+        for ext in self {
+            ext.on_window_event(window_id, event, ctx);
+        }
+    }
+
+    fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        for ext in self {
+            ext.on_new_frame_ready(window_id, ctx);
+        }
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        for ext in self {
+            ext.update(update, ctx);
+        }
+    }
+
+    fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
+        for ext in self {
+            ext.update_display(update, ctx);
+        }
+    }
+
+    fn on_redraw_requested(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        for ext in self {
+            ext.on_redraw_requested(window_id, ctx);
+        }
+    }
+
+    fn on_shutdown_requested(&mut self, args: &ShutdownRequestedArgs, ctx: &mut AppContext) {
+        for ext in self {
+            ext.on_shutdown_requested(args, ctx);
+        }
+    }
+
+    fn deinit(&mut self, ctx: &mut AppContext) {
+        for ext in self {
+            ext.deinit(ctx);
+        }
+    }
 }

@@ -332,7 +332,7 @@ macro_rules! gesture_key_name {
     };
     ($key:ident) => {
         stringify!($key)
-    }; 
+    };
 }
 
 macro_rules! gesture_keys {
@@ -359,7 +359,7 @@ macro_rules! gesture_keys {
                 }
             }
         }
-    };    
+    };
 }
 
 gesture_keys! {
