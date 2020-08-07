@@ -979,10 +979,19 @@ mod output {
 
             // set the property in their priority.
             for priority in &Priority::all_settable() {
-                for (args_ident, _, property) in &properties {
-                    tokens.extend(quote! {
-                        #property::set_args!(#priority, #property, node, #args_ident);
-                    });
+                for (args_ident, property_ident, property) in &properties {
+                    if cfg!(debug_assertions) {
+                        let property_name = property_ident.to_string();
+                        tokens.extend(quote! {
+                            #property::set_args!(#priority, #property, node, #args_ident);
+                            #[cfg(debug_assertions)]
+                            #property::property_info!(#priority, node, #property_name, #args_ident);
+                        });
+                    } else {
+                        tokens.extend(quote! {
+                            #property::set_args!(#priority, #property, node, #args_ident);
+                        });
+                    }
                 }
             }
         }

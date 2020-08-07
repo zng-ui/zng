@@ -1153,10 +1153,10 @@ mod output {
                 None
             } else {
                 Some(quote! {
-                    (#priority, $property_path:path, $child:ident, $args:ident) => {
-                        let $child = {
+                    (#priority, $property_path:path, $node:ident, $args:ident) => {
+                        let $node = {
                             use $property_path::{set_args};
-                            set_args($child, $args)
+                            set_args($node, $args)
                         };
                     };
                 })
@@ -1172,6 +1172,45 @@ mod output {
                 #[doc(hidden)]
                 pub use #set_args_ident as set_args;
             });
+
+            // property_info!
+            if cfg!(debug_assertions) {
+                let crate_ = zero_ui_crate_ident();
+                let property_info_ident = ident!("property_info_{}", pid);
+                let arg_names = self.arg_idents.iter().map(|a| a.to_string());
+                let arg_idents = &self.arg_idents;
+                let priority_variant = match priority {
+                    Priority::Context(_) => quote!(Context),
+                    Priority::Event(_) => quote!(Event),
+                    Priority::Outer(_) => quote!(Outer),
+                    Priority::Size(_) => quote!(Size),
+                    Priority::Inner(_) => quote!(Inner),
+                    Priority::CaptureOnly(_) => quote!(CaptureOnly),
+                };
+                tokens.extend(quote! {
+                    #[doc(hidden)]
+                    #[macro_export]
+                    macro_rules! #property_info_ident {
+                        (#priority, $node:ident, $property_name:tt, $args:ident) => {
+                            #[cfg(debug_assertions)]
+                            let $node = #crate_::core::debug::PropertyInfoNode::new_v1(
+                                Box::new($node),
+                                #crate_::core::debug::PropertyPriority::#priority_variant,
+                                stringify!($property_name),
+                                line!(), column!(),
+                                &[#(#arg_names),*],
+                                Box::new([
+                                    #(Box::new(#crate_::core::var::var(format!("TODO {}", stringify!(#arg_idents))))),*
+                                ])
+                            );
+                        };
+                        ($($ignore:tt)*) => {}
+                    }
+
+                    #[doc(hidden)]
+                    pub use #property_info_ident as property_info;
+                });
+            }
 
             // assert!
             let assert_ident = ident!("assert_{}", pid);

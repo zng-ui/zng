@@ -4,7 +4,7 @@
 use super::{
     context::{state_key, WidgetContext},
     impl_ui_node,
-    render::{FrameBuilder, FrameInfo, WidgetInfo},
+    render::FrameBuilder,
     types::*,
     var::BoxVar,
     UiNode,
@@ -18,8 +18,8 @@ use std::{
 /// Debug information about a property of a widget.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
+    pub priority: PropertyPriority,
     pub property_name: &'static str,
-    pub init_expr: &'static str,
     pub line: u32,
     pub column: u32,
     pub args: Box<[PropertyArgInfo]>,
@@ -40,6 +40,16 @@ pub struct PropertyArgInfo {
     pub arg_name: &'static str,
     pub debug_value: String,
     pub value_version: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum PropertyPriority {
+    Context,
+    Event,
+    Outer,
+    Size,
+    Inner,
+    CaptureOnly,
 }
 
 /// Time duration of a [`UiNode`] method in a property branch.
@@ -110,7 +120,6 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 }
 
-
 // Node inserted around each widget property in debug mode.
 //
 // It collects information about the UiNode methods, tracks property variable values
@@ -122,10 +131,11 @@ pub struct PropertyInfoNode {
     info: PropertyInfoRef,
 }
 impl PropertyInfoNode {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_v1(
         node: Box<dyn UiNode>,
+        priority: PropertyPriority,
         property_name: &'static str,
-        init_expr: &'static str,
         line: u32,
         column: u32,
         arg_names: &[&'static str],
@@ -136,8 +146,8 @@ impl PropertyInfoNode {
             child: node,
             arg_debug_vars,
             info: Rc::new(RefCell::new(PropertyInfo {
+                priority,
                 property_name,
-                init_expr,
                 line,
                 column,
                 args: arg_names
@@ -220,7 +230,6 @@ impl UiNode for PropertyInfoNode {
         info.count.render += 1;
     }
 }
-
 
 // Generate this type for each property struct name P_property_name ?
 // Advantage: shows property name in stack-trace.
