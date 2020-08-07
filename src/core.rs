@@ -3,6 +3,7 @@
 pub mod animation;
 pub mod app;
 pub mod context;
+pub mod debug;
 pub mod event;
 pub mod focus;
 pub mod font;

@@ -14,50 +14,15 @@ pub use glutin::window::{CursorIcon, WindowId};
 /// Id of a rendered or rendering window frame. Not unique across windows.
 pub type FrameId = webrender::api::Epoch;
 
-/// Unique id of a widget.
-///
-/// # Details
-/// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
-/// so IDs are unique for the process duration, but order is not guaranteed.
-///
-/// Panics if you somehow reach `u64::max_value()` calls to `new`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct WidgetId(std::num::NonZeroU64);
-
-impl WidgetId {
-    /// Generates a new unique ID.
+unique_id! {
+    /// Unique id of a widget.
     ///
-    /// # Panics
-    /// Panics if called more then `u64::max_value()` times.
-    pub fn new_unique() -> Self {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static NEXT: AtomicU64 = AtomicU64::new(1);
-
-        let id = NEXT.fetch_add(1, Ordering::Relaxed);
-
-        if let Some(id) = std::num::NonZeroU64::new(id) {
-            WidgetId(id)
-        } else {
-            NEXT.store(0, Ordering::SeqCst);
-            panic!("`{}` reached `u64::max_value()` IDs.", stringify!($Type))
-        }
-    }
-
-    /// Retrieve the underlying `u64` value.
-    #[allow(dead_code)]
-    #[inline]
-    pub fn get(self) -> u64 {
-        self.0.get()
-    }
-
-    /// Creates an id from a raw value.
+    /// # Details
+    /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
+    /// so IDs are unique for the process duration, but order is not guaranteed.
     ///
-    /// # Safety
-    ///
-    /// This is only safe if called with a value provided by [`WidgetId::get`](WidgetId::get).
-    pub unsafe fn from_raw(raw: u64) -> WidgetId {
-        WidgetId(std::num::NonZeroU64::new_unchecked(raw))
-    }
+    /// Panics if you somehow reach `u64::max_value()` calls to `new`.
+    pub WidgetId;
 }
 
 use crate::core::var::{IntoVar, OwnedVar};

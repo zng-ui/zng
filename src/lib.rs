@@ -43,6 +43,53 @@ macro_rules! error_println {
     }}
 }
 
+/// Declare a new unique id type.
+macro_rules! unique_id {
+    ($(#[$docs:meta])* $vis:vis $Type:ident;) => {
+
+        $(#[$docs])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+        $vis struct $Type(std::num::NonZeroU64);
+
+        impl $Type {
+            /// Generates a new unique ID.
+            ///
+            /// # Panics
+            /// Panics if called more then `u64::max_value()` times.
+            pub fn new_unique() -> Self {
+                use std::sync::atomic::{AtomicU64, Ordering};
+                static NEXT: AtomicU64 = AtomicU64::new(1);
+
+                let id = NEXT.fetch_add(1, Ordering::Relaxed);
+
+                if let Some(id) = std::num::NonZeroU64::new(id) {
+                    $Type(id)
+                } else {
+                    NEXT.store(0, Ordering::SeqCst);
+                    panic!("`{}` reached `u64::max_value()` IDs.", stringify!($Type))
+                }
+            }
+
+            /// Retrieve the underlying `u64` value.
+            #[allow(dead_code)]
+            #[inline]
+            pub fn get(self) -> u64 {
+                self.0.get()
+            }
+
+            /// Creates an id from a raw value.
+            ///
+            /// # Safety
+            ///
+            /// This is only safe if called with a value provided by [`get`](Self::get).
+            #[allow(dead_code)]
+            pub unsafe fn from_raw(raw: u64) -> $Type {
+                $Type(std::num::NonZeroU64::new_unchecked(raw))
+            }
+        }
+    };
+}
+
 #[doc(hidden)]
 pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
 
