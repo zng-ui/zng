@@ -6,7 +6,7 @@ use super::{
     impl_ui_node,
     render::FrameBuilder,
     types::*,
-    var::BoxVar,
+    var::{BoxVar, ObjVar, Var, VarValue},
     UiNode,
 };
 use std::{
@@ -20,6 +20,8 @@ use std::{
 pub struct PropertyInfo {
     pub priority: PropertyPriority,
     pub property_name: &'static str,
+    /// Rust file.
+    pub file: &'static str,
     pub line: u32,
     pub column: u32,
     pub args: Box<[PropertyArgInfo]>,
@@ -136,6 +138,7 @@ impl PropertyInfoNode {
         node: Box<dyn UiNode>,
         priority: PropertyPriority,
         property_name: &'static str,
+        file: &'static str,
         line: u32,
         column: u32,
         arg_names: &[&'static str],
@@ -148,6 +151,7 @@ impl PropertyInfoNode {
             info: Rc::new(RefCell::new(PropertyInfo {
                 priority,
                 property_name,
+                file,
                 line,
                 column,
                 args: arg_names
@@ -229,6 +233,14 @@ impl UiNode for PropertyInfoNode {
         info.duration.render = d;
         info.count.render += 1;
     }
+}
+
+pub fn debug_var<T: VarValue>(var: &impl Var<T>) -> BoxVar<String> {
+    var.map(|t| format!("{:?}", t)).boxed()
+}
+
+pub fn no_debug_var() -> BoxVar<String> {
+    crate::core::var::OwnedVar("<no_debug_value>".to_owned()).boxed()
 }
 
 // Generate this type for each property struct name P_property_name ?

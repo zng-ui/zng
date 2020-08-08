@@ -1148,7 +1148,6 @@ mod output {
             // set_args!
             let set_args_ident = ident!("set_args_{}", pid);
             let priority = &self.priority;
-
             let set_args_rule = if self.priority.is_capture_only() {
                 None
             } else {
@@ -1173,9 +1172,10 @@ mod output {
                 pub use #set_args_ident as set_args;
             });
 
-            // property_info!
+            // debug_args! and property_info!
             if cfg!(debug_assertions) {
                 let crate_ = zero_ui_crate_ident();
+                let debug_args_ident = ident!("debug_args_{}", pid);
                 let property_info_ident = ident!("property_info_{}", pid);
                 let arg_names = self.arg_idents.iter().map(|a| a.to_string());
                 let arg_idents = &self.arg_idents;
@@ -1187,25 +1187,63 @@ mod output {
                     Priority::Inner(_) => quote!(Inner),
                     Priority::CaptureOnly(_) => quote!(CaptureOnly),
                 };
+                if self.allowed_in_when {
+                    tokens.extend(quote! {
+                        #[doc(hidden)]
+                        #[macro_export]
+                        macro_rules! #debug_args_ident {
+                            (#priority, $property_path:path, $args:ident, $debug_args:ident) => {
+                                #[cfg(debug_assertions)]
+                                let $debug_args = {
+                                    use $property_path::{ArgsNamed};
+                                    #(
+                                        let #arg_idents = 
+                                        #crate_::core::var::IntoVar::into_var(
+                                            std::clone::Clone::clone(ArgsNamed::#arg_idents(&$args))
+                                        );
+                                    )*
+                                    Box::new([#(#crate_::core::debug::debug_var(&#arg_idents)),*])
+                                };
+                            };
+                            ($($ignore:tt)*) => {}
+                        }
+                    });
+                    
+                } else {
+                    let msgs = arg_idents.iter().map(|_| quote!(#crate_::core::debug::no_debug_var()));
+                    tokens.extend(quote! {
+                        #[doc(hidden)]
+                        #[macro_export]
+                        macro_rules! #debug_args_ident {
+                            (#priority, $property_path:path, $args:ident, $debug_args:ident) => {
+                                #[cfg(debug_assertions)]
+                                let $debug_args = Box::new([#(#msgs),*]);
+                            };
+                            ($($ignore:tt)*) => {}
+                        }
+                    });
+                };
                 tokens.extend(quote! {
                     #[doc(hidden)]
                     #[macro_export]
                     macro_rules! #property_info_ident {
-                        (#priority, $node:ident, $property_name:tt, $args:ident) => {
+                        (#priority, $node:ident, $property_name:tt, $debug_args:ident) => {
                             #[cfg(debug_assertions)]
                             let $node = #crate_::core::debug::PropertyInfoNode::new_v1(
                                 Box::new($node),
                                 #crate_::core::debug::PropertyPriority::#priority_variant,
                                 stringify!($property_name),
+                                file!(),
                                 line!(), column!(),
                                 &[#(#arg_names),*],
-                                Box::new([
-                                    #(Box::new(#crate_::core::var::var(format!("TODO {}", stringify!(#arg_idents))))),*
-                                ])
+                                $debug_args
                             );
                         };
                         ($($ignore:tt)*) => {}
                     }
+
+                    #[doc(hidden)]
+                    pub use #debug_args_ident as debug_args;
 
                     #[doc(hidden)]
                     pub use #property_info_ident as property_info;

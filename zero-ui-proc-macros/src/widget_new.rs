@@ -981,11 +981,11 @@ mod output {
             for priority in &Priority::all_settable() {
                 for (args_ident, property_ident, property) in &properties {
                     if cfg!(debug_assertions) {
-                        let property_name = property_ident.to_string();
                         tokens.extend(quote! {
+                            #property::debug_args!(#priority, #property, #args_ident, debug_args);
                             #property::set_args!(#priority, #property, node, #args_ident);
                             #[cfg(debug_assertions)]
-                            #property::property_info!(#priority, node, #property_name, #args_ident);
+                            #property::property_info!(#priority, node, #property_ident, debug_args);
                         });
                     } else {
                         tokens.extend(quote! {
