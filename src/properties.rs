@@ -90,8 +90,8 @@ mod build_tests {
         child
     }
 
-    #[property(context)]
-    fn no_bounds<A: Clone>(child: impl UiNode, a: A) -> impl UiNode {
+    #[property(context, allowed_in_when: false)]
+    fn no_bounds<A>(child: impl UiNode, a: A) -> impl UiNode {
         let _a = no_bounds::args(a);
         child
     }

@@ -15,16 +15,25 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[derive(Debug, Clone)]
+pub struct SourceLocation {
+    pub file: &'static str,
+    pub line: u32,
+    pub column: u32,
+}
+
 /// Debug information about a property of a widget.
 #[derive(Debug, Clone)]
 pub struct PropertyInfo {
     pub priority: PropertyPriority,
+    pub original_name: &'static str,
+    pub original_location: SourceLocation,
+
     pub property_name: &'static str,
-    /// Rust file.
-    pub file: &'static str,
-    pub line: u32,
-    pub column: u32,
+    pub instance_location: SourceLocation,
+
     pub args: Box<[PropertyArgInfo]>,
+
     pub duration: UiNodeDurations,
     pub count: UiNodeCounts,
 }
@@ -136,11 +145,18 @@ impl PropertyInfoNode {
     #[allow(clippy::too_many_arguments)]
     pub fn new_v1(
         node: Box<dyn UiNode>,
+
         priority: PropertyPriority,
+        original_name: &'static str,
+        original_file: &'static str,
+        original_line: u32,
+        original_column: u32,
+
         property_name: &'static str,
         file: &'static str,
         line: u32,
         column: u32,
+
         arg_names: &[&'static str],
         arg_debug_vars: Box<[BoxVar<String>]>,
     ) -> Self {
@@ -150,10 +166,14 @@ impl PropertyInfoNode {
             arg_debug_vars,
             info: Rc::new(RefCell::new(PropertyInfo {
                 priority,
+                original_name,
+                original_location: SourceLocation {
+                    file: original_file,
+                    line: original_line,
+                    column: original_column,
+                },
                 property_name,
-                file,
-                line,
-                column,
+                instance_location: SourceLocation { file, line, column },
                 args: arg_names
                     .iter()
                     .map(|n| PropertyArgInfo {
@@ -235,13 +255,17 @@ impl UiNode for PropertyInfoNode {
     }
 }
 
-pub fn debug_var<T: VarValue>(var: &impl Var<T>) -> BoxVar<String> {
-    var.map(|t| format!("{:?}", t)).boxed()
+pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
+    var.into_map(|t| format!("{:?}", t)).boxed()
 }
 
 pub fn no_debug_var() -> BoxVar<String> {
-    crate::core::var::OwnedVar("<no_debug_value>".to_owned()).boxed()
+    crate::core::var::OwnedVar(NO_DEBUG_VAR.to_owned()).boxed()
 }
+
+pub static NO_DEBUG_VAR: &str = "<!allowed_in_when>";
+
+pub type DebugArgs = Box<[BoxVar<String>]>;
 
 // Generate this type for each property struct name P_property_name ?
 // Advantage: shows property name in stack-trace.

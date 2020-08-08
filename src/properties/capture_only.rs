@@ -22,7 +22,7 @@ pub fn widget_id(id: WidgetId) -> ! {}
 /// # Container
 ///
 /// Widgets that contain a single other widget can capture this property in their implementation.
-#[property(capture_only)]
+#[property(capture_only, allowed_in_when: false)]
 pub fn widget_child(child: impl UiNode) -> ! {}
 
 /// Widget children nodes.
@@ -30,7 +30,7 @@ pub fn widget_child(child: impl UiNode) -> ! {}
 /// # Layout
 ///
 /// Layout widgets can capture this property in their implementation.
-#[property(capture_only)]
+#[property(capture_only, allowed_in_when: false)]
 pub fn widget_children(children: UiVec) -> ! {}
 
 /// Stack in-between spacing.

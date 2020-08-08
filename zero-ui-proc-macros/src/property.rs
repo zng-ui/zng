@@ -558,6 +558,9 @@ mod analysis {
                 output: fn_.output.1,
                 block: fn_block,
                 is_capture_only,
+                priority,
+                allowed_in_when,
+                property_ident: fn_.ident.clone(),
             },
             tys: PropertyTypes {
                 generics: ty_generics,
@@ -916,6 +919,9 @@ mod output {
         pub output: Box<Type>,
         pub block: Box<Block>,
         pub is_capture_only: bool,
+        pub priority: Priority,
+        pub allowed_in_when: bool,
+        pub property_ident: Ident,
     }
     impl ToTokens for PropertyFns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -1015,6 +1021,73 @@ mod output {
                         impl_UiNode(#output_name)
                     }
                 })
+            }
+
+            if cfg!(debug_assertions) {
+                let crate_ = zero_ui_crate_ident();
+
+                let priority = match self.priority {
+                    Priority::Context(_) => quote!(Context),
+                    Priority::Event(_) => quote!(Event),
+                    Priority::Outer(_) => quote!(Outer),
+                    Priority::Size(_) => quote!(Size),
+                    Priority::Inner(_) => quote!(Inner),
+                    Priority::CaptureOnly(_) => quote!(CaptureOnly),
+                };
+
+                let debug_args = if self.allowed_in_when {
+                    quote! {
+                        use #crate_::core::var::IntoVar;
+                        use #crate_::core::debug::debug_var;
+                        use std::clone::Clone;
+                        Box::new([#(debug_var(IntoVar::into_var(Clone::clone(ArgsNamed::#args(args))))),*])
+                    }
+                } else {
+                    let no_debug_vars = args.iter().map(|_| quote!(no_debug_var()));
+                    quote! {
+                        use #crate_::core::debug::no_debug_var;
+                        let _ = args;
+                        Box::new([
+                            #(#no_debug_vars),*
+                        ])
+                    }
+                };
+                let arg_names = args.iter().map(|a| a.to_string());
+                let property_name = self.property_ident.to_string();
+                tokens.extend(quote! {
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn debug_args(args: &impl Args) -> #crate_::core::debug::DebugArgs {
+                        #debug_args
+                    }
+
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn debug_info(
+                        node: Box<dyn #crate_::core::UiNode>,
+                        debug_args: #crate_::core::debug::DebugArgs,
+                        property_name: &'static str,
+                        file: &'static str,
+                        line: u32,
+                        column: u32,
+                    )
+                    -> #crate_::core::debug::PropertyInfoNode {
+                        #crate_::core::debug::PropertyInfoNode::new_v1(
+                            node,
+                            #crate_::core::debug::PropertyPriority::#priority,
+                            #property_name,
+                            file!(),
+                            line!(),
+                            column!(),
+                            property_name,
+                            file,
+                            line,
+                            column,
+                            &[#(#arg_names),*],
+                            debug_args
+                        )
+                    }
+                });
             }
         }
     }
@@ -1150,9 +1223,20 @@ mod output {
             let priority = &self.priority;
             let set_args_rule = if self.priority.is_capture_only() {
                 None
+            } else if cfg!(debug_assertions) {
+                Some(quote! {
+                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
+                        let $node = {
+                            use $property_path::{set_args, debug_args, debug_info};
+                            let dbg_args = debug_args(&$args);
+                            let $node = set_args($node, $args);
+                            debug_info(Box::new($node), dbg_args, stringify!($property_name), file!(), line!(), column!())
+                        };
+                    };
+                })
             } else {
                 Some(quote! {
-                    (#priority, $property_path:path, $node:ident, $args:ident) => {
+                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
                         let $node = {
                             use $property_path::{set_args};
                             set_args($node, $args)
@@ -1171,84 +1255,6 @@ mod output {
                 #[doc(hidden)]
                 pub use #set_args_ident as set_args;
             });
-
-            // debug_args! and property_info!
-            if cfg!(debug_assertions) {
-                let crate_ = zero_ui_crate_ident();
-                let debug_args_ident = ident!("debug_args_{}", pid);
-                let property_info_ident = ident!("property_info_{}", pid);
-                let arg_names = self.arg_idents.iter().map(|a| a.to_string());
-                let arg_idents = &self.arg_idents;
-                let priority_variant = match priority {
-                    Priority::Context(_) => quote!(Context),
-                    Priority::Event(_) => quote!(Event),
-                    Priority::Outer(_) => quote!(Outer),
-                    Priority::Size(_) => quote!(Size),
-                    Priority::Inner(_) => quote!(Inner),
-                    Priority::CaptureOnly(_) => quote!(CaptureOnly),
-                };
-                if self.allowed_in_when {
-                    tokens.extend(quote! {
-                        #[doc(hidden)]
-                        #[macro_export]
-                        macro_rules! #debug_args_ident {
-                            (#priority, $property_path:path, $args:ident, $debug_args:ident) => {
-                                #[cfg(debug_assertions)]
-                                let $debug_args = {
-                                    use $property_path::{ArgsNamed};
-                                    #(
-                                        let #arg_idents = 
-                                        #crate_::core::var::IntoVar::into_var(
-                                            std::clone::Clone::clone(ArgsNamed::#arg_idents(&$args))
-                                        );
-                                    )*
-                                    Box::new([#(#crate_::core::debug::debug_var(&#arg_idents)),*])
-                                };
-                            };
-                            ($($ignore:tt)*) => {}
-                        }
-                    });
-                    
-                } else {
-                    let msgs = arg_idents.iter().map(|_| quote!(#crate_::core::debug::no_debug_var()));
-                    tokens.extend(quote! {
-                        #[doc(hidden)]
-                        #[macro_export]
-                        macro_rules! #debug_args_ident {
-                            (#priority, $property_path:path, $args:ident, $debug_args:ident) => {
-                                #[cfg(debug_assertions)]
-                                let $debug_args = Box::new([#(#msgs),*]);
-                            };
-                            ($($ignore:tt)*) => {}
-                        }
-                    });
-                };
-                tokens.extend(quote! {
-                    #[doc(hidden)]
-                    #[macro_export]
-                    macro_rules! #property_info_ident {
-                        (#priority, $node:ident, $property_name:tt, $debug_args:ident) => {
-                            #[cfg(debug_assertions)]
-                            let $node = #crate_::core::debug::PropertyInfoNode::new_v1(
-                                Box::new($node),
-                                #crate_::core::debug::PropertyPriority::#priority_variant,
-                                stringify!($property_name),
-                                file!(),
-                                line!(), column!(),
-                                &[#(#arg_names),*],
-                                $debug_args
-                            );
-                        };
-                        ($($ignore:tt)*) => {}
-                    }
-
-                    #[doc(hidden)]
-                    pub use #debug_args_ident as debug_args;
-
-                    #[doc(hidden)]
-                    pub use #property_info_ident as property_info;
-                });
-            }
 
             // assert!
             let assert_ident = ident!("assert_{}", pid);

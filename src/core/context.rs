@@ -226,7 +226,8 @@ impl Vars {
 
     /// Unique id of the context var stage.
     pub fn context_id(&self) -> ContextVarStageId {
-        todo!()
+        // TODO
+        (None, 0)
     }
 
     /// Runs a function with the context var.
@@ -1249,10 +1250,6 @@ pub struct WidgetContext<'a> {
 }
 
 impl<'a> WidgetContext<'a> {
-    pub fn widget_is_focused(&self) -> bool {
-        todo!()
-    }
-
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         f(&mut WidgetContext {
