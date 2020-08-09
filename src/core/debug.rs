@@ -48,6 +48,14 @@ pub struct PropertyInstanceInfo {
     /// Property arguments, sorted by their index in the property.
     pub args: Box<[PropertyArgInfo]>,
 
+    /// If [`args`] values can be inspected.
+    ///
+    /// Only properties that are `allowed_in_when` are guaranteed to have
+    /// variable arguments with values that can print debug. For other properties
+    /// the [`value`](PropertyArgInfo::value) is always an empty string and
+    /// [`value_version`](PropertyArgInfo::value_version) is always zero.
+    pub can_debug_args: bool,
+
     /// If the user assigned this property.
     pub user_assigned: bool,
 
@@ -72,9 +80,6 @@ pub struct PropertyArgInfo {
     /// Name of the argument.
     pub name: &'static str,
     /// Debug pretty-printed value.
-    ///
-    /// This equals [`NO_DEBUG_VAR`] when the
-    /// value cannot be inspected.
     pub value: String,
     /// Value version from the source variable.
     pub value_version: u32,
@@ -209,7 +214,8 @@ impl PropertyInfoNode {
 
         user_assigned: bool,
     ) -> Self {
-        assert_eq!(arg_names.len(), arg_debug_vars.len());
+        assert!(!arg_names.is_empty() && (arg_debug_vars.is_empty() || arg_names.len() == arg_debug_vars.len()));
+        let can_debug_args = !arg_debug_vars.is_empty();
         PropertyInfoNode {
             child: node,
             arg_debug_vars,
@@ -228,7 +234,7 @@ impl PropertyInfoNode {
                     })
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
-
+                can_debug_args,
                 user_assigned,
                 duration: UiNodeDurations::default(),
                 count: UiNodeCounts::default(),
@@ -306,14 +312,6 @@ impl UiNode for PropertyInfoNode {
 pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
     var.into_map(|t| format!("{:#?}", t)).boxed()
 }
-
-#[doc(hidden)]
-pub fn no_debug_var() -> BoxVar<String> {
-    crate::core::var::OwnedVar(NO_DEBUG_VAR.to_owned()).boxed()
-}
-
-/// Value when the [property value](PropertyArgInfo::value) cannot be inspected.
-pub static NO_DEBUG_VAR: &str = "<!allowed_in_when>";
 
 #[doc(hidden)]
 pub type DebugArgs = Box<[BoxVar<String>]>;

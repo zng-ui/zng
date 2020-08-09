@@ -1043,13 +1043,9 @@ mod output {
                         Box::new([#(debug_var(IntoVar::into_var(Clone::clone(ArgsNamed::#args(args))))),*])
                     }
                 } else {
-                    let no_debug_vars = args.iter().map(|_| quote!(no_debug_var()));
                     quote! {
-                        use #crate_::core::debug::no_debug_var;
                         let _ = args;
-                        Box::new([
-                            #(#no_debug_vars),*
-                        ])
+                        Box::new([])
                     }
                 };
                 let arg_names = args.iter().map(|a| a.to_string());
