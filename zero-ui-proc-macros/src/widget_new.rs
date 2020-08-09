@@ -215,6 +215,7 @@ mod analysis {
                     AssignTarget::Widget,
                     PropertyAssign {
                         is_from_widget: false,
+                        user_assigned: true,
                         ident: property.ident.clone(),
                     },
                 ));
@@ -274,6 +275,7 @@ mod analysis {
                                 target,
                                 PropertyAssign {
                                     is_from_widget: true,
+                                    user_assigned: false,
                                     ident: property.ident,
                                 },
                             ));
@@ -338,6 +340,7 @@ mod analysis {
                 state_bindings_done.insert(binding.property.clone());
                 props_assigns.push(PropertyAssign {
                     is_from_widget: true,
+                    user_assigned: false,
                     ident: binding.property.clone(),
                 });
                 state_bindings.push(binding);
@@ -429,6 +432,7 @@ mod analysis {
                 state_bindings_done.insert(binding.property.clone());
                 props_assigns.push(PropertyAssign {
                     is_from_widget: widget_properties.contains(&binding.property),
+                    user_assigned: true,
                     ident: binding.property.clone(),
                 });
                 state_bindings.push(binding);
@@ -965,12 +969,12 @@ mod output {
                     let args_ident = ident!("{}_args", ident);
 
                     let property = if p.is_from_widget { quote!(#mod_::#ident) } else { quote!(#ident) };
-                    (args_ident, ident, property)
+                    (args_ident, ident, property, p.user_assigned)
                 })
                 .collect();
 
             // assert property is not capture_only
-            for (_, ident, property) in &properties {
+            for (_, ident, property, _) in &properties {
                 let msg = format!("cannot set capture_only property `{}`", ident);
                 tokens.extend(quote! {
                     #property::assert!(!capture_only, #msg);
@@ -979,9 +983,9 @@ mod output {
 
             // set the property in their priority.
             for priority in &Priority::all_settable() {
-                for (args_ident, property_name, property) in &properties {
-                    tokens.extend(quote! {
-                        #property::set_args!(#priority, #property, #property_name, node, #args_ident);
+                for (args_ident, property_name, property, user_assigned) in &properties {
+                    tokens.extend(quote_spanned! {args_ident.span()=>
+                        #property::set_args!(#priority, #property, #property_name, node, #args_ident, #user_assigned);
                     });
                 }
             }
@@ -989,6 +993,7 @@ mod output {
     }
     pub struct PropertyAssign {
         pub is_from_widget: bool,
+        pub user_assigned: bool,
         pub ident: Ident,
     }
     impl Priority {

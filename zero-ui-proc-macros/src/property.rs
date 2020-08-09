@@ -1067,24 +1067,20 @@ mod output {
                         node: Box<dyn #crate_::core::UiNode>,
                         debug_args: #crate_::core::debug::DebugArgs,
                         property_name: &'static str,
-                        file: &'static str,
-                        line: u32,
-                        column: u32,
+                        instance_location: #crate_::core::debug::SourceLocation,
+                        user_assigned: bool
                     )
                     -> #crate_::core::debug::PropertyInfoNode {
                         #crate_::core::debug::PropertyInfoNode::new_v1(
                             node,
                             #crate_::core::debug::PropertyPriority::#priority,
                             #property_name,
-                            file!(),
-                            line!(),
-                            column!(),
+                            #crate_::core::debug::source_location!(),
                             property_name,
-                            file,
-                            line,
-                            column,
+                            instance_location,
                             &[#(#arg_names),*],
-                            debug_args
+                            debug_args,
+                            user_assigned
                         )
                     }
                 });
@@ -1224,13 +1220,20 @@ mod output {
             let set_args_rule = if self.priority.is_capture_only() {
                 None
             } else if cfg!(debug_assertions) {
+                let crate_ = zero_ui_crate_ident();
                 Some(quote! {
-                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
+                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
                         let $node = {
                             use $property_path::{set_args, debug_args, debug_info};
                             let dbg_args = debug_args(&$args);
                             let $node = set_args($node, $args);
-                            debug_info(Box::new($node), dbg_args, stringify!($property_name), file!(), line!(), column!())
+                            debug_info(
+                                Box::new($node),
+                                dbg_args,
+                                stringify!($property_name),
+                                #crate_::core::debug::source_location!(),
+                                $user_assigned
+                            )
                         };
                     };
                 })

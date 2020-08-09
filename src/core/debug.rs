@@ -15,44 +15,74 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// A location in source-code.
 #[derive(Debug, Clone)]
 pub struct SourceLocation {
+    /// [`file!`]
     pub file: &'static str,
+    /// [`line!`]
     pub line: u32,
+    /// [`column!`]
     pub column: u32,
 }
 
-/// Debug information about a property of a widget.
-#[derive(Debug, Clone)]
-pub struct PropertyInfo {
-    pub priority: PropertyPriority,
-    pub original_name: &'static str,
-    pub original_location: SourceLocation,
+pub use zero_ui_macros::source_location;
 
+/// Debug information about a property of a widget instance.
+#[derive(Debug, Clone)]
+pub struct PropertyInstanceInfo {
+    /// Property priority in a widget.
+    ///
+    /// See [the property doc](crate::core::property#priority) for more details.
+    pub priority: PropertyPriority,
+    /// Original name of the property.
+    pub original_name: &'static str,
+    /// Source-code location of the property declaration.
+    pub decl_location: SourceLocation,
+
+    /// Name of the property in the widget.
     pub property_name: &'static str,
+    /// Source-code location of the widget instantiation or property assign.
     pub instance_location: SourceLocation,
 
+    /// Property arguments, sorted by their index in the property.
     pub args: Box<[PropertyArgInfo]>,
 
+    /// If the user assigned this property.
+    pub user_assigned: bool,
+
+    /// Time elapsed in the last call of each property `UiNode` methods.
     pub duration: UiNodeDurations,
+    /// Count of calls of each property `UiNode` methods.
     pub count: UiNodeCounts,
 }
-impl PropertyInfo {
+impl PropertyInstanceInfo {
+    /// If `init` and `deinit` count are the same.
     pub fn is_deinited(&self) -> bool {
         self.count.init == self.count.deinit
     }
 }
 
-/// A reference to a [`PropertyInfo`].
-pub type PropertyInfoRef = Rc<RefCell<PropertyInfo>>;
+/// A reference to a [`PropertyInstanceInfo`].
+pub type PropertyInstance = Rc<RefCell<PropertyInstanceInfo>>;
 
+/// Debug information about a property argument.
 #[derive(Debug, Clone)]
 pub struct PropertyArgInfo {
-    pub arg_name: &'static str,
-    pub debug_value: String,
+    /// Name of the argument.
+    pub name: &'static str,
+    /// Debug pretty-printed value.
+    ///
+    /// This equals [`NO_DEBUG_VAR`] when the
+    /// value cannot be inspected.
+    pub value: String,
+    /// Value version from the source variable.
     pub value_version: u32,
 }
 
+/// Property priority in a widget.
+///
+/// See [the property doc](crate::core::property#priority) for more details.
 #[derive(Debug, Clone, Copy)]
 pub enum PropertyPriority {
     Context,
@@ -91,18 +121,32 @@ pub struct UiNodeCounts {
     pub render: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct WidgetInstanceInfo {
+    /// Unique ID of the widget instantiation.
+    pub instance_id: WidgetInstanceId,
+
+    /// Widget type name.
+    pub widget_name: &'static str,
+
+    /// Source-code location of the widget declaration.
+    pub decl_location: SourceLocation,
+
+    /// Source-code location of the widget instantiation.
+    pub instance_location: SourceLocation,
+}
+
 state_key! {
-    struct PropertiesInfoKey: Vec<PropertyInfoRef>;
+    struct PropertiesInfoKey: Vec<PropertyInstance>;
     struct WidgetInstanceInfoKey: WidgetInstanceInfo;
 }
 
 unique_id! {
-    WidgetInstanceId;
-}
-#[derive(Clone)]
-struct WidgetInstanceInfo {
-    instance_id: WidgetInstanceId,
-    widget_name: &'static str,
+    /// Unique ID of a widget instance.
+    ///
+    /// This is different from the `WidgetId` in that it cannot manipulated by the user
+    /// and identifies the widget *instantiation* event during debug mode.
+    pub WidgetInstanceId;
 }
 
 // Node inserted just before calling the widget new function in debug mode.
@@ -113,12 +157,19 @@ pub struct WidgetInstanceInfoNode {
     info: WidgetInstanceInfo,
 }
 impl WidgetInstanceInfoNode {
-    pub fn new(node: Box<dyn UiNode>, widget_name: &'static str) -> Self {
+    pub fn new_v1(
+        node: Box<dyn UiNode>,
+        widget_name: &'static str,
+        decl_location: SourceLocation,
+        instance_location: SourceLocation,
+    ) -> Self {
         WidgetInstanceInfoNode {
             child: node,
             info: WidgetInstanceInfo {
                 instance_id: WidgetInstanceId::new_unique(),
                 widget_name,
+                decl_location,
+                instance_location,
             },
         }
     }
@@ -139,7 +190,7 @@ impl UiNode for WidgetInstanceInfoNode {
 pub struct PropertyInfoNode {
     child: Box<dyn UiNode>,
     arg_debug_vars: Box<[BoxVar<String>]>,
-    info: PropertyInfoRef,
+    info: PropertyInstance,
 }
 impl PropertyInfoNode {
     #[allow(clippy::too_many_arguments)]
@@ -148,41 +199,37 @@ impl PropertyInfoNode {
 
         priority: PropertyPriority,
         original_name: &'static str,
-        original_file: &'static str,
-        original_line: u32,
-        original_column: u32,
+        decl_location: SourceLocation,
 
         property_name: &'static str,
-        file: &'static str,
-        line: u32,
-        column: u32,
+        instance_location: SourceLocation,
 
         arg_names: &[&'static str],
         arg_debug_vars: Box<[BoxVar<String>]>,
+
+        user_assigned: bool,
     ) -> Self {
         assert_eq!(arg_names.len(), arg_debug_vars.len());
         PropertyInfoNode {
             child: node,
             arg_debug_vars,
-            info: Rc::new(RefCell::new(PropertyInfo {
+            info: Rc::new(RefCell::new(PropertyInstanceInfo {
                 priority,
                 original_name,
-                original_location: SourceLocation {
-                    file: original_file,
-                    line: original_line,
-                    column: original_column,
-                },
+                decl_location,
                 property_name,
-                instance_location: SourceLocation { file, line, column },
+                instance_location,
                 args: arg_names
                     .iter()
                     .map(|n| PropertyArgInfo {
-                        arg_name: n,
-                        debug_value: String::new(),
+                        name: n,
+                        value: String::new(),
                         value_version: 0,
                     })
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
+
+                user_assigned,
                 duration: UiNodeDurations::default(),
                 count: UiNodeCounts::default(),
             })),
@@ -204,7 +251,7 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.init, ctx, mut info);
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
-            arg.debug_value = var.get(ctx.vars).clone();
+            arg.value = var.get(ctx.vars).clone();
             arg.value_version = var.version(ctx.vars);
         }
     }
@@ -217,7 +264,7 @@ impl UiNode for PropertyInfoNode {
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
             if let Some(new) = var.update(ctx.vars) {
-                arg.debug_value = new.clone();
+                arg.value = new.clone();
                 arg.value_version = var.version(ctx.vars);
             }
         }
@@ -255,16 +302,20 @@ impl UiNode for PropertyInfoNode {
     }
 }
 
+#[doc(hidden)]
 pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
-    var.into_map(|t| format!("{:?}", t)).boxed()
+    var.into_map(|t| format!("{:#?}", t)).boxed()
 }
 
+#[doc(hidden)]
 pub fn no_debug_var() -> BoxVar<String> {
     crate::core::var::OwnedVar(NO_DEBUG_VAR.to_owned()).boxed()
 }
 
+/// Value when the [property value](PropertyArgInfo::value) cannot be inspected.
 pub static NO_DEBUG_VAR: &str = "<!allowed_in_when>";
 
+#[doc(hidden)]
 pub type DebugArgs = Box<[BoxVar<String>]>;
 
 // Generate this type for each property struct name P_property_name ?

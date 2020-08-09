@@ -755,3 +755,16 @@ macro_rules! event_hp {
         }
     )+};
 }
+
+#[doc(hidden)]
+#[cfg(debug_assertions)]
+#[macro_export]
+macro_rules! source_location {
+    () => {
+        zero_ui::core::debug::SourceLocation {
+            file: file!(),
+            line: line!(),
+            column: column!(),
+        }
+    };
+}
