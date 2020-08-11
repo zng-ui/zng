@@ -255,6 +255,6 @@ widget! {
 /// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
 pub fn text(text: impl IntoVar<Text>) -> impl Widget {
     text! {
-        text: text;
+        text;
     }
 }
