@@ -11,6 +11,7 @@ use super::{
 };
 use std::{
     cell::RefCell,
+    collections::HashSet,
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -73,6 +74,9 @@ impl PropertyInstanceInfo {
 
 /// A reference to a [`PropertyInstanceInfo`].
 pub type PropertyInstance = Rc<RefCell<PropertyInstanceInfo>>;
+
+/// A reference to a [`WidgetInstanceInfo`].
+pub type WidgetInstance = Rc<RefCell<WidgetInstanceInfo>>;
 
 /// Debug information about a property argument.
 #[derive(Debug, Clone)]
@@ -139,11 +143,62 @@ pub struct WidgetInstanceInfo {
 
     /// Source-code location of the widget instantiation.
     pub instance_location: SourceLocation,
+
+    /// Properties this widget captured.
+    pub captured: Box<[CapturedPropertyInfo]>,
+
+    /// When blocks setup by this widget instance.
+    pub whens: Box<[WhenInfo]>,
+}
+
+/// Debug information about a *property* captured by a widget instance.
+#[derive(Debug, Clone)]
+pub struct CapturedPropertyInfo {
+    /// Name of the property in the widget.
+    pub property_name: &'static str,
+    /// Source-code location of the widget instantiation or property assign.
+    pub instance_location: SourceLocation,
+
+    /// Property arguments, sorted by their index in the property.
+    pub args: Box<[PropertyArgInfo]>,
+
+    /// If [`args`] values can be inspected.
+    ///
+    /// Only properties that are `allowed_in_when` are guaranteed to have
+    /// variable arguments with values that can print debug. For other properties
+    /// the [`value`](PropertyArgInfo::value) is always an empty string and
+    /// [`value_version`](PropertyArgInfo::value_version) is always zero.
+    pub can_debug_args: bool,
+
+    /// If the user assigned this property.
+    pub user_assigned: bool,
+}
+
+/// When block setup by a widget instance.
+#[derive(Debug, Clone)]
+pub struct WhenInfo {
+    /// When condition expression.
+    pub condition_expr: &'static str,
+    /// Current when condition result.
+    pub condition: bool,
+    /// Condition value version.
+    pub condition_version: u32,
+    /// Properties affected by this when block.
+    pub properties: HashSet<&'static str>,
+
+    /// Source-code location of the when block declaration.
+    pub decl_location: SourceLocation,
+
+    /// Source-code location of the widget instantiation or property assign.
+    pub instance_location: SourceLocation,
+
+    /// If the user declared the when block in the widget instance.
+    pub user_declared: bool,
 }
 
 state_key! {
     struct PropertiesInfoKey: Vec<PropertyInstance>;
-    struct WidgetInstanceInfoKey: WidgetInstanceInfo;
+    struct WidgetInstanceInfoKey: WidgetInstance;
 }
 
 unique_id! {
@@ -159,7 +214,28 @@ unique_id! {
 #[doc(hidden)]
 pub struct WidgetInstanceInfoNode {
     child: Box<dyn UiNode>,
-    info: WidgetInstanceInfo,
+    info: WidgetInstance,
+    // debug vars per property.
+    debug_vars: Box<[Box<[BoxVar<String>]>]>,
+    // when condition result variables.
+    when_vars: Box<[BoxVar<bool>]>,
+}
+#[doc(hidden)]
+pub struct CapturedPropertyV1 {
+    pub property_name: &'static str,
+    pub instance_location: SourceLocation,
+    pub arg_names: &'static [&'static str],
+    pub arg_debug_vars: Box<[BoxVar<String>]>,
+    pub user_assigned: bool,
+}
+#[doc(hidden)]
+pub struct WhenInfoV1 {
+    pub condition_expr: &'static str,
+    pub condition_var: Option<BoxVar<bool>>,
+    pub properties: Vec<&'static str>,
+    pub decl_location: SourceLocation,
+    pub instance_location: SourceLocation,
+    pub user_declared: bool,
 }
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
@@ -167,22 +243,111 @@ impl WidgetInstanceInfoNode {
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
+        mut captured: Vec<CapturedPropertyV1>,
+        mut whens: Vec<WhenInfoV1>,
     ) -> Self {
+        let debug_vars = captured
+            .iter_mut()
+            .map(|c| std::mem::take(&mut c.arg_debug_vars))
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let captured = captured
+            .into_iter()
+            .map(|c| CapturedPropertyInfo {
+                property_name: c.property_name,
+                instance_location: c.instance_location,
+                args: c
+                    .arg_names
+                    .iter()
+                    .map(|n| PropertyArgInfo {
+                        name: n,
+                        value: String::new(),
+                        value_version: 0,
+                    })
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+                can_debug_args: c.arg_names.len() == c.arg_debug_vars.len(),
+                user_assigned: c.user_assigned,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let when_vars = whens
+            .iter_mut()
+            .map(|w| w.condition_var.take().unwrap())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        let whens = whens
+            .into_iter()
+            .map(|w| WhenInfo {
+                condition_expr: w.condition_expr,
+                condition: false,
+                condition_version: 0,
+                properties: w.properties.into_iter().collect(),
+                decl_location: w.decl_location,
+                instance_location: w.instance_location,
+                user_declared: w.user_declared,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
         WidgetInstanceInfoNode {
             child: node,
-            info: WidgetInstanceInfo {
+            info: Rc::new(RefCell::new(WidgetInstanceInfo {
                 instance_id: WidgetInstanceId::new_unique(),
                 widget_name,
                 decl_location,
                 instance_location,
-            },
+                captured,
+                whens,
+            })),
+            debug_vars,
+            when_vars,
         }
     }
 }
 #[impl_ui_node(child)]
 impl UiNode for WidgetInstanceInfoNode {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+
+        let mut info = self.info.borrow_mut();
+        for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
+            for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
+                arg.value = var.get(ctx.vars).clone();
+                arg.value_version = var.version(ctx.vars);
+            }
+        }
+        for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
+            when.condition = *var.get(ctx.vars);
+            when.condition_version = var.version(ctx.vars);
+        }
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        let mut info = self.info.borrow_mut();
+        for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
+            for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
+                if let Some(update) = var.update(ctx.vars) {
+                    arg.value = update.clone();
+                    arg.value_version = var.version(ctx.vars);
+                }
+            }
+        }
+        for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
+            if let Some(update) = var.update(ctx.vars) {
+                when.condition = *update;
+                when.condition_version = var.version(ctx.vars);
+            }
+        }
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(WidgetInstanceInfoKey, self.info.clone());
+        frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.render(frame);
     }
 }
@@ -256,7 +421,7 @@ impl UiNode for PropertyInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         ctx_mtd!(self.init, ctx, mut info);
 
-        for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
+        for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
             arg.value = var.get(ctx.vars).clone();
             arg.value_version = var.version(ctx.vars);
         }
