@@ -1018,6 +1018,24 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let name = &self.widget_name;
             let args = self.properties.iter().map(|p| ident!("{}_args", p));
+            let name_str = name.to_string();
+
+            if cfg!(debug_assertions) {
+                let crate_ = zero_ui_crate_ident();
+                tokens.extend(quote! {
+                    let node = {
+                        #crate_::core::debug::WidgetInstanceInfoNode::new_v1(
+                            #crate_::core::UiNode::boxed(node),
+                            #name_str,
+                            #crate_::core::debug::source_location!(),
+                            #crate_::core::debug::source_location!(),
+                            vec![],
+                            vec![]
+                        )
+                    };
+                });
+            }
+
             tokens.extend(quote!(#name::new(node, #(#args),*)));
         }
     }

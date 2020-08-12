@@ -253,7 +253,8 @@ widget! {
 /// # `text!`
 ///
 /// There is a specific widget for creating configured text runs: [`text!`](text/index.html).
-pub fn text(text: impl IntoVar<Text>) -> impl Widget {
+pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
+    // TODO remove 'static when rust issue #42940 is fixed.
     text! {
         text;
     }
