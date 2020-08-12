@@ -718,6 +718,7 @@ pub mod analysis {
                         when_name: when_fn_name(when_index),
                         properties: when.args.iter().cloned().collect(),
                     }),
+                    #[cfg(debug_assertions)]
                     expr_str: None,
                 });
 
@@ -886,6 +887,7 @@ pub mod analysis {
                 index: when_index,
                 properties: when_analysis.properties.iter().map(|p| &p.property).cloned().collect(),
                 expr: when_analysis.expr,
+                #[cfg(debug_assertions)]
                 expr_str,
             });
 
@@ -1618,7 +1620,8 @@ pub mod output {
                 NewFn::New(new) => new.to_token_stream(),
             };
 
-            if cfg!(debug_assertions) {
+            #[cfg(debug_assertions)]
+            {
                 let crate_ = zero_ui_crate_ident();
 
                 r.extend(quote! {
@@ -1907,7 +1910,8 @@ pub mod output {
                 }
             });
 
-            if cfg!(debug_assertions) {
+            #[cfg(debug_assertions)]
+            {
                 let fn_expr_ident = ident!("{}_expr", fn_ident);
                 let fn_decl_ident = ident!("{}_decl_location", fn_ident);
                 let fn_properties_ident = ident!("{}_properties", fn_ident);
@@ -1919,7 +1923,7 @@ pub mod output {
                 if let Some(expr_str) = &self.expr_str {
                     expr = quote!(#expr_str);
                     loc = quote!(#crate_::core::debug::source_location!());
-                    let props_str = self.properties.iter().map(|p|p.to_string());
+                    let props_str = self.properties.iter().map(|p| p.to_string());
                     props = quote! { vec![#(#props_str),*] };
                 } else {
                     expr = self.expr.debug_expr_tokens();

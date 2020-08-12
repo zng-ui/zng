@@ -225,7 +225,7 @@ pub struct CapturedPropertyV1 {
     pub property_name: &'static str,
     pub instance_location: SourceLocation,
     pub arg_names: &'static [&'static str],
-    pub arg_debug_vars: Box<[BoxVar<String>]>,
+    pub arg_debug_vars: DebugArgs,
     pub user_assigned: bool,
 }
 #[doc(hidden)]

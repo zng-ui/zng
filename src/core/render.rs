@@ -9,7 +9,8 @@ use webrender::api::*;
 
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             let grid = $grid;
             let value = $value;
             if !value.is_aligned_to(grid) {

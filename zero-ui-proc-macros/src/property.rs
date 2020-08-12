@@ -1023,7 +1023,8 @@ mod output {
                 })
             }
 
-            if cfg!(debug_assertions) {
+            #[cfg(debug_assertions)]
+            {
                 let crate_ = zero_ui_crate_ident();
 
                 let priority = match self.priority {
@@ -1059,6 +1060,12 @@ mod output {
 
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
+                    pub fn arg_names() -> &'static [&'static str] {
+                        &[#(#arg_names),*]
+                    }
+
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
                     pub fn debug_info(
                         node: Box<dyn #crate_::core::UiNode>,
                         debug_args: #crate_::core::debug::DebugArgs,
@@ -1074,7 +1081,7 @@ mod output {
                             #crate_::core::debug::source_location!(),
                             property_name,
                             instance_location,
-                            &[#(#arg_names),*],
+                            arg_names(),
                             debug_args,
                             user_assigned
                         )
@@ -1215,34 +1222,40 @@ mod output {
             let priority = &self.priority;
             let set_args_rule = if self.priority.is_capture_only() {
                 None
-            } else if cfg!(debug_assertions) {
-                let crate_ = zero_ui_crate_ident();
-                Some(quote! {
-                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
-                        let $node = {
-                            use $property_path::{set_args, debug_args, debug_info};
-                            let dbg_args = debug_args(&$args);
-                            let $node = set_args($node, $args);
-                            debug_info(
-                                Box::new($node),
-                                dbg_args,
-                                stringify!($property_name),
-                                #crate_::core::debug::source_location!(),
-                                $user_assigned
-                            )
-                        };
-                    };
-                })
             } else {
-                Some(quote! {
-                    (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
-                        let $node = {
-                            use $property_path::{set_args};
-                            set_args($node, $args)
+                #[cfg(debug_assertions)]
+                {
+                    let crate_ = zero_ui_crate_ident();
+                    Some(quote! {
+                        (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
+                            let $node = {
+                                use $property_path::{set_args, debug_args, debug_info};
+                                let dbg_args = debug_args(&$args);
+                                let $node = set_args($node, $args);
+                                debug_info(
+                                    Box::new($node),
+                                    dbg_args,
+                                    stringify!($property_name),
+                                    #crate_::core::debug::source_location!(),
+                                    $user_assigned
+                                )
+                            };
                         };
-                    };
-                })
+                    })
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    Some(quote! {
+                        (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
+                            let $node = {
+                                use $property_path::{set_args};
+                                set_args($node, $args)
+                            };
+                        };
+                    })
+                }
             };
+
             tokens.extend(quote! {
                 #[doc(hidden)]
                 #[macro_export]
