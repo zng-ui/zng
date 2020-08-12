@@ -1027,7 +1027,7 @@ mod output {
                         #crate_::core::debug::WidgetInstanceInfoNode::new_v1(
                             #crate_::core::UiNode::boxed(node),
                             #name_str,
-                            #crate_::core::debug::source_location!(),
+                            #name::decl_location(),
                             #crate_::core::debug::source_location!(),
                             vec![],
                             vec![]

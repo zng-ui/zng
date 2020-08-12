@@ -718,6 +718,7 @@ pub mod analysis {
                         when_name: when_fn_name(when_index),
                         properties: when.args.iter().cloned().collect(),
                     }),
+                    expr_str: None,
                 });
 
                 mod_defaults.when_defaults.push(WhenDefaults {
@@ -836,6 +837,12 @@ pub mod analysis {
         // process newly declared whens
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
         for when in whens {
+            #[cfg(debug_assertions)]
+            let expr_str = {
+                let c = &when.condition;
+                Some(quote!(#c).to_string())
+            };
+
             let when_analysis = match WhenConditionAnalysis::new(when.condition) {
                 Ok(r) => r,
                 Err(e) => {
@@ -879,6 +886,7 @@ pub mod analysis {
                 index: when_index,
                 properties: when_analysis.properties.iter().map(|p| &p.property).cloned().collect(),
                 expr: when_analysis.expr,
+                expr_str,
             });
 
             let attributes = Attributes::new(when.attrs);
@@ -1587,7 +1595,7 @@ pub mod output {
     }
     impl NewFn {
         fn new_tokens(&self, widget_name: &Ident) -> TokenStream {
-            match self {
+            let mut r = match self {
                 NewFn::None => {
                     let crate_ = zero_ui_crate_ident();
                     let fn_doc = format!(
@@ -1608,7 +1616,21 @@ pub mod output {
                     }
                 }
                 NewFn::New(new) => new.to_token_stream(),
+            };
+
+            if cfg!(debug_assertions) {
+                let crate_ = zero_ui_crate_ident();
+
+                r.extend(quote! {
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn decl_location() -> #crate_::core::debug::SourceLocation {
+                        #crate_::core::debug::source_location!()
+                    }
+                })
             }
+
+            r
         }
 
         fn new_child_tokens(&self, widget_name: &Ident) -> TokenStream {
@@ -1860,6 +1882,8 @@ pub mod output {
         pub index: usize,
         pub properties: Vec<Ident>,
         pub expr: WhenConditionExpr,
+        #[cfg(debug_assertions)]
+        pub expr_str: Option<String>,
     }
 
     pub fn when_fn_name(index: usize) -> Ident {
@@ -1873,15 +1897,56 @@ pub mod output {
             let p = &self.properties;
             let expr = &self.expr;
             let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
-            let out = quote! {
+
+            tokens.extend(quote! {
                 #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
 
                 #[inline]
                 pub fn #fn_ident(#(#p: &impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
                     #expr
                 }
-            };
-            tokens.extend(out);
+            });
+
+            if cfg!(debug_assertions) {
+                let fn_expr_ident = ident!("{}_expr", fn_ident);
+                let fn_decl_ident = ident!("{}_decl_location", fn_ident);
+                let fn_properties_ident = ident!("{}_properties", fn_ident);
+
+                let expr;
+                let loc;
+                let props;
+
+                if let Some(expr_str) = &self.expr_str {
+                    expr = quote!(#expr_str);
+                    loc = quote!(#crate_::core::debug::source_location!());
+                    let props_str = self.properties.iter().map(|p|p.to_string());
+                    props = quote! { vec![#(#props_str),*] };
+                } else {
+                    expr = self.expr.debug_expr_tokens();
+                    loc = self.expr.debug_decl_location_tokens();
+                    props = self.expr.debug_properties_tokens();
+                }
+
+                tokens.extend(quote! {
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn #fn_expr_ident() -> &'static str {
+                        #expr
+                    }
+
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn #fn_decl_ident() -> #crate_::core::debug::SourceLocation {
+                        #loc
+                    }
+
+                    #[doc(hidden)]
+                    #[cfg(debug_assertions)]
+                    pub fn #fn_properties_ident() -> Vec<&'static str> {
+                        #props
+                    }
+                });
+            }
         }
     }
 
@@ -1891,7 +1956,31 @@ pub mod output {
         Merge(HashSet<WhenPropertyRef>, Box<Expr>),
         Inherited(InheritedWhen),
     }
+    impl WhenConditionExpr {
+        #[cfg(debug_assertions)]
+        pub fn debug_expr_tokens(&self) -> TokenStream {
+            self.inherited_only(|iw| iw.debug_expr_tokens())
+        }
 
+        #[cfg(debug_assertions)]
+        pub fn debug_decl_location_tokens(&self) -> TokenStream {
+            self.inherited_only(|iw| iw.debug_decl_location_tokens())
+        }
+
+        #[cfg(debug_assertions)]
+        pub fn debug_properties_tokens(&self) -> TokenStream {
+            self.inherited_only(|iw| iw.debug_properties_tokens())
+        }
+
+        #[cfg(debug_assertions)]
+        fn inherited_only(&self, f: impl FnOnce(&InheritedWhen) -> TokenStream) -> TokenStream {
+            if let WhenConditionExpr::Inherited(iw) = self {
+                f(iw)
+            } else {
+                panic!("expected WhenConditionExpr::Inherited")
+            }
+        }
+    }
     impl ToTokens for WhenConditionExpr {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
@@ -1932,7 +2021,34 @@ pub mod output {
         pub when_name: Ident,
         pub properties: Vec<Ident>,
     }
+    impl InheritedWhen {
+        #[cfg(debug_assertions)]
+        pub fn debug_expr_tokens(&self) -> TokenStream {
+            let widget = &self.widget;
+            let fn_ = ident!("{}_expr", self.when_name);
+            quote! {
+                #widget::whens::#fn_()
+            }
+        }
 
+        #[cfg(debug_assertions)]
+        pub fn debug_decl_location_tokens(&self) -> TokenStream {
+            let widget = &self.widget;
+            let fn_ = ident!("{}_decl_location", self.when_name);
+            quote! {
+                #widget::whens::#fn_()
+            }
+        }
+
+        #[cfg(debug_assertions)]
+        pub fn debug_properties_tokens(&self) -> TokenStream {
+            let widget = &self.widget;
+            let fn_ = ident!("{}_properties", self.when_name);
+            quote! {
+                #widget::whens::#fn_()
+            }
+        }
+    }
     impl ToTokens for InheritedWhen {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let widget = &self.widget;
