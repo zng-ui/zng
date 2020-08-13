@@ -1597,7 +1597,7 @@ pub mod output {
     }
     impl NewFn {
         fn new_tokens(&self, widget_name: &Ident) -> TokenStream {
-            let mut r = match self {
+            let r = match self {
                 NewFn::None => {
                     let crate_ = zero_ui_crate_ident();
                     let fn_doc = format!(
@@ -1622,6 +1622,7 @@ pub mod output {
 
             #[cfg(debug_assertions)]
             {
+                let mut r = r;
                 let crate_ = zero_ui_crate_ident();
 
                 r.extend(quote! {
@@ -1630,9 +1631,11 @@ pub mod output {
                     pub fn decl_location() -> #crate_::core::debug::SourceLocation {
                         #crate_::core::debug::source_location!()
                     }
-                })
-            }
+                });
 
+                r
+            }
+            #[cfg(not(debug_assertions))]
             r
         }
 

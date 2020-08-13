@@ -1024,11 +1024,11 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let name = &self.widget_name;
             let args = self.properties.iter().map(|p| ident!("{}_args", p));
-            let name_str = name.to_string();
 
             #[cfg(debug_assertions)]
             {
                 let crate_ = zero_ui_crate_ident();
+                let name_str = name.to_string();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
                 let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));

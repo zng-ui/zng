@@ -650,7 +650,7 @@ state_key! {
 #[cfg(not(debug_assertions))]
 impl AppExtension for () {
     #[inline]
-    fn is_or_contain(&self, app_extension_id: TypeId) -> bool {
+    fn is_or_contain(&self, _: TypeId) -> bool {
         false
     }
 }

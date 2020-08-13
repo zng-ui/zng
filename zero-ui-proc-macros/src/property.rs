@@ -1246,7 +1246,7 @@ mod output {
                 #[cfg(not(debug_assertions))]
                 {
                     Some(quote! {
-                        (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident) => {
+                        (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
                             let $node = {
                                 use $property_path::{set_args};
                                 set_args($node, $args)
