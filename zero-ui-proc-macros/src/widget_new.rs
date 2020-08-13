@@ -415,6 +415,12 @@ mod analysis {
         // process user whens.
         validate_whens_with_default(&mut whens, &mut errors, inited_properties);
         'when_for2: for when in whens {
+            #[cfg(debug_assertions)]
+            let expr_str = {
+                let c = &when.condition;
+                quote!(#c).to_string()
+            };
+
             let when_analysis = match WhenConditionAnalysis::new(when.condition) {
                 Ok(r) => r,
                 Err(e) => {
@@ -449,6 +455,10 @@ mod analysis {
                     properties: when_analysis.properties.iter().map(|p| p.property.clone()).collect(),
                     widget_properties: widget_properties.clone(),
                     expr: when_analysis.expr,
+                    #[cfg(debug_assertions)]
+                    expr_str,
+                    #[cfg(debug_assertions)]
+                    property_sets: when.block.properties.iter().map(|p| p.ident.clone()).collect(),
                 },
             });
 
@@ -547,6 +557,8 @@ mod analysis {
                 conditions: when_bindings,
                 indexes: property_indexes,
                 switch_args: when_switch_bindings,
+                #[cfg(debug_assertions)]
+                debug_enabled,
             },
             new_child_call: NewChildCall {
                 widget_name: input.name.clone(),
@@ -748,11 +760,22 @@ mod output {
         pub conditions: Vec<WhenBinding>,
         pub indexes: Vec<WhenPropertyIndex>,
         pub switch_args: Vec<WhenSwitchArgs>,
+        #[cfg(debug_assertions)]
+        pub debug_enabled: bool,
     }
 
     impl ToTokens for WhenBindings {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             self.conditions.iter().for_each(|c| c.to_tokens(tokens));
+
+            #[cfg(debug_assertions)]
+            if self.debug_enabled {
+                let infos = self.conditions.iter().map(|c| c.debug_info_tokens());
+                tokens.extend(quote! {
+                    let debug_whens = vec![#(#infos),*];
+                });
+            }
+
             self.indexes.iter().for_each(|c| c.to_tokens(tokens));
             self.switch_args.iter().for_each(|c| c.to_tokens(tokens));
         }
@@ -762,9 +785,49 @@ mod output {
         pub index: u32,
         pub condition: WhenCondition,
     }
+    impl WhenBinding {
+        fn var_name(&self) -> Ident {
+            ident!("local_w{}", self.index)
+        }
+
+        #[cfg(debug_assertions)]
+        fn debug_info_tokens(&self) -> TokenStream {
+            let crate_ = zero_ui_crate_ident();
+            let var_name = self.var_name();
+            let var_clone = quote! { #crate_::core::var::ObjVar::boxed(std::clone::Clone::clone(&#var_name)) };
+
+            match &self.condition {
+                WhenCondition::Inherited { widget, index, .. } => {
+                    let fn_name = ident!("w{}_info", index);
+
+                    quote! {
+                        #widget::whens::#fn_name(
+                            #var_clone,
+                            #crate_::core::debug::source_location!()
+                        )
+                    }
+                }
+                WhenCondition::Local {
+                    property_sets, expr_str, ..
+                } => {
+                    let props_str = property_sets.iter().map(|p| p.to_string());
+                    quote! {
+                        #crate_::core::debug::WhenInfoV1 {
+                            condition_expr: #expr_str,
+                            condition_var: Some(#var_clone),
+                            properties: vec![#(#props_str),*],
+                            decl_location: #crate_::core::debug::source_location!(),
+                            instance_location: #crate_::core::debug::source_location!(),
+                            user_declared: true,
+                        }
+                    }
+                }
+            }
+        }
+    }
     impl ToTokens for WhenBinding {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = ident!("local_w{}", self.index);
+            let var_name = self.var_name();
             let condition = &self.condition;
             tokens.extend(quote! {
                 let #var_name = {
@@ -774,6 +837,7 @@ mod output {
         }
     }
 
+    #[cfg_attr(debug_assertions, allow(clippy::large_enum_variant))]
     pub enum WhenCondition {
         Inherited {
             widget: Ident,
@@ -787,6 +851,10 @@ mod output {
             properties: Vec<Ident>,
             widget_properties: HashSet<Ident>,
             expr: WhenConditionExpr,
+            #[cfg(debug_assertions)]
+            expr_str: String,
+            #[cfg(debug_assertions)]
+            property_sets: Vec<Ident>,
         },
     }
     impl ToTokens for WhenCondition {
@@ -802,6 +870,7 @@ mod output {
                     properties,
                     widget_properties,
                     expr,
+                    ..
                 } => {
                     for property in properties {
                         let not_allowed_msg = format!("property `{}` is not allowed in when condition", property);
@@ -1113,7 +1182,7 @@ mod output {
                                     user_assigned: #p_assig
                                 }
                             ),*],
-                            vec![]
+                            debug_whens
                         )
                     };
                 });
