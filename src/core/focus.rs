@@ -671,6 +671,7 @@ pub enum FocusTarget {
 }
 
 /// A [`FrameInfo`] wrapper for querying focus info out of the widget tree.
+#[derive(Copy, Clone)]
 pub struct FrameFocusInfo<'a> {
     /// Full frame info.
     pub info: &'a FrameInfo,
@@ -711,7 +712,6 @@ pub trait WidgetInfoFocusExt<'a> {
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
     fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
 }
-
 impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
     fn as_focus_info(self) -> WidgetFocusInfo<'a> {
         WidgetFocusInfo::new(self)
@@ -732,7 +732,6 @@ pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
     pub info: WidgetInfo<'a>,
 }
-
 impl<'a> WidgetFocusInfo<'a> {
     #[inline]
     pub fn new(widget_info: WidgetInfo<'a>) -> Self {
@@ -1094,7 +1093,6 @@ impl<'a> WidgetFocusInfo<'a> {
 pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
     fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
 }
-
 impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
     fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>> {
         self.filter_map(|i| i.as_focusable())

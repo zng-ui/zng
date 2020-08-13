@@ -4,7 +4,7 @@
 use super::{
     context::{state_key, WidgetContext},
     impl_ui_node,
-    render::FrameBuilder,
+    render::{FrameBuilder, FrameInfo, WidgetInfo},
     types::*,
     var::{BoxVar, ObjVar, Var, VarValue},
     UiNode,
@@ -149,6 +149,11 @@ pub struct WidgetInstanceInfo {
 
     /// When blocks setup by this widget instance.
     pub whens: Box<[WhenInfo]>,
+
+    /// Name of the parent widget property that introduces this widget.
+    ///
+    /// Empty string (`""`) when the widget has no parent with debug enabled.
+    pub parent_property: &'static str,
 }
 
 /// Debug information about a *property* captured by a widget instance.
@@ -302,6 +307,7 @@ impl WidgetInstanceInfoNode {
                 instance_location,
                 captured,
                 whens,
+                parent_property: ""
             })),
             debug_vars,
             when_vars,
@@ -347,6 +353,7 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
+        // TODO parent_property
         frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.render(frame);
     }
@@ -481,19 +488,55 @@ pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
 #[doc(hidden)]
 pub type DebugArgs = Box<[BoxVar<String>]>;
 
-// Generate this type for each property struct name P_property_name ?
-// Advantage: shows property name in stack-trace.
-// Disadvantage: more things to compile in debug mode.
-#[allow(unused)]
-macro_rules! property_name_in_stack_tace {
-    () => {
-        mod button {
-            #[doc(hidden)]
-            pub struct P_margin {
-                child: PropertyInfoNode,
-            }
-            #[impl_ui_node(child)]
-            impl UiNode for P_margin {}
-        }
-    };
+/// A [`FrameInfo`] wrapper for querying debug info out of the widget tree.
+#[derive(Copy, Clone)]
+pub struct FrameDebugInfo<'a> {
+    /// Full frame info.
+    pub info: &'a FrameInfo,
+}
+impl<'a> FrameDebugInfo<'a> {
+    #[inline]
+    pub fn new(frame_info: &'a FrameInfo) -> Self {
+        FrameDebugInfo { info: frame_info }
+    }
+
+    /// Reference to the root widget in the frame.
+    #[inline]
+    pub fn root(&self) -> WidgetDebugInfo {
+        WidgetDebugInfo::new(self.info.root())
+    }
+}
+
+/// [`WidgetInfo`] wrapper that adds debug information for each widget.
+#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+pub struct WidgetDebugInfo<'a> {
+    /// Full widget info.
+    pub info: WidgetInfo<'a>,
+}
+
+impl<'a> WidgetDebugInfo<'a> {
+    #[inline]
+    pub fn new(widget_info: WidgetInfo<'a>) -> Self {
+        WidgetDebugInfo { info: widget_info }
+    }
+
+    /// If the widget was instantiated with `@debug_enabled`.
+    #[inline]
+    pub fn debug_enabled(&self) -> bool {
+        self.info.meta().contains(WidgetInstanceInfoKey)
+    }
+
+    /// Gets the widget instance info if the widget is [`debug_enabled`](Self::debug_enabled).
+    #[inline]
+    pub fn instance(&self) -> Option<&WidgetInstance> {
+        self.info.meta().get(WidgetInstanceInfoKey)
+    }
+
+    /// Gets the widget properties info.
+    ///
+    /// Returns empty if not [`debug_enabled`](Self::debug_enabled).
+    #[inline]
+    pub fn properties(&self) -> &[PropertyInstance] {
+        self.info.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
+    }
 }
