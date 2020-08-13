@@ -1241,16 +1241,28 @@ mod output {
                                 )
                             };
                         };
+                        (#priority, $property_path:path, $node:ident, $args:ident) => {
+                            let $node = {
+                                use $property_path::{set_args};
+                                set_args($node, $args)
+                            };
+                        };
+                        (#priority $($tt:tt)*) => {
+                            compile_error!("incorrect set_args! call");
+                        };
                     })
                 }
                 #[cfg(not(debug_assertions))]
                 {
                     Some(quote! {
-                        (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
+                        (#priority, $property_path:path, $node:ident, $args:ident) => {
                             let $node = {
                                 use $property_path::{set_args};
                                 set_args($node, $args)
                             };
+                        };
+                        (#priority $($tt:tt)*) => {
+                            compile_error!("incorrect set_args! call");
                         };
                     })
                 }

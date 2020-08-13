@@ -77,6 +77,7 @@ mod input {
         Property(PropertyAssign),
         ShortProperty(ShortPropertyAssign),
         When(WgtItemWhen),
+        MetaProperty(MetaProperty),
     }
     impl Parse for UserInputItem {
         fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -86,9 +87,30 @@ mod input {
                 Ok(UserInputItem::ShortProperty(input.parse()?))
             } else if input.peek(keyword::when) {
                 Ok(UserInputItem::When(input.parse()?))
+            } else if input.peek(Token![@]) {
+                Ok(UserInputItem::MetaProperty(input.parse()?))
             } else {
                 Err(Error::new(input.span(), "expected property assign or when block"))
             }
+        }
+    }
+
+    pub struct MetaProperty {
+        pub at_token: Token![@],
+        pub ident: Ident,
+        pub colon_token: Token![:],
+        pub value: Box<Expr>,
+        pub semi_token: Token![;],
+    }
+    impl Parse for MetaProperty {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            Ok(MetaProperty {
+                at_token: input.parse()?,
+                ident: input.parse()?,
+                colon_token: input.parse()?,
+                value: input.parse()?,
+                semi_token: input.parse()?,
+            })
         }
     }
 
@@ -153,11 +175,13 @@ mod analysis {
     pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
         let mut properties = vec![];
         let mut whens = vec![];
+        let mut meta_properties = vec![];
         for item in input.user_input.items {
             match item {
                 UserInputItem::Property(p) => properties.push(p),
                 UserInputItem::ShortProperty(p) => properties.push(p.into()),
                 UserInputItem::When(w) => whens.push(w.into()),
+                UserInputItem::MetaProperty(m) => meta_properties.push(m),
             }
         }
 
@@ -504,6 +528,16 @@ mod analysis {
 
         let when_switch_bindings = when_switch_bindings.into_iter().map(|(_, i)| i).collect();
 
+        #[cfg(debug_assertions)]
+        let debug_enabled = {
+            let p_name = ident!("debug_enabled");
+            if let Some(mp) = meta_properties.iter().find(|mp| mp.ident == p_name) {
+                mp.value == parse_quote!(true)
+            } else {
+                true // default
+            }
+        };
+
         WidgetNewOutput {
             args_bindings: ArgsBindings {
                 args: args_bindings,
@@ -521,16 +555,22 @@ mod analysis {
             child_props_assigns: PropertyAssigns {
                 widget_name: input.name.clone(),
                 properties: child_props_assigns,
+                #[cfg(debug_assertions)]
+                debug_enabled,
             },
             props_assigns: PropertyAssigns {
                 widget_name: input.name.clone(),
                 properties: props_assigns,
+                #[cfg(debug_assertions)]
+                debug_enabled,
             },
             new_call: NewCall {
                 widget_name: input.name,
 
                 #[cfg(debug_assertions)]
                 properties_user_assigned: input.new.iter().map(|p| user_properties.contains_key(p)).collect(),
+                #[cfg(debug_assertions)]
+                debug_enabled,
 
                 properties: input.new.into_iter().collect(),
             },
@@ -956,6 +996,8 @@ mod output {
     pub struct PropertyAssigns {
         pub widget_name: Ident,
         pub properties: Vec<PropertyAssign>,
+        #[cfg(debug_assertions)]
+        pub debug_enabled: bool,
     }
     impl ToTokens for PropertyAssigns {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -987,9 +1029,23 @@ mod output {
 
             // set the property in their priority.
             for priority in &Priority::all_settable() {
+                #[cfg(debug_assertions)]
                 for (args_ident, property_name, property, user_assigned) in &properties {
+                    if self.debug_enabled {
+                        tokens.extend(quote_spanned! {args_ident.span()=>
+                            #property::set_args!(#priority, #property, #property_name, node, #args_ident, #user_assigned);
+                        });
+                    } else {
+                        tokens.extend(quote_spanned! {args_ident.span()=>
+                            #property::set_args!(#priority, #property, node, #args_ident);
+                        });
+                    }
+                }
+
+                #[cfg(not(debug_assertions))]
+                for (args_ident, _, property, _) in &properties {
                     tokens.extend(quote_spanned! {args_ident.span()=>
-                        #property::set_args!(#priority, #property, #property_name, node, #args_ident, #user_assigned);
+                        #property::set_args!(#priority, #property, node, #args_ident);
                     });
                 }
             }
@@ -1017,8 +1073,12 @@ mod output {
         pub widget_name: Ident,
         // properties captured by the new function
         pub properties: Vec<Ident>,
+
         #[cfg(debug_assertions)]
         pub properties_user_assigned: Vec<bool>,
+
+        #[cfg(debug_assertions)]
+        pub debug_enabled: bool,
     }
     impl ToTokens for NewCall {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -1026,7 +1086,7 @@ mod output {
             let args = self.properties.iter().map(|p| ident!("{}_args", p));
 
             #[cfg(debug_assertions)]
-            {
+            if self.debug_enabled {
                 let crate_ = zero_ui_crate_ident();
                 let name_str = name.to_string();
                 let p = &self.properties;
