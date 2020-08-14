@@ -1,7 +1,7 @@
 //! Properties that are only used by widgets directly.
 
 use crate::{
-    core::{property, types::WidgetId, var::IntoVar, UiVec},
+    core::{gesture::KeyShortcut, property, types::WidgetId, var::IntoVar, UiVec},
     prelude::{Text, UiNode},
 };
 
@@ -40,3 +40,7 @@ pub fn stack_spacing(spacing: impl IntoVar<f32>) -> ! {}
 /// A [`text!`](crate::widgets::text) value.
 #[property(capture_only)]
 pub fn text_value(text: impl IntoVar<Text>) -> ! {}
+
+/// A [`KeyShortcut`] variable.
+#[property(capture_only)]
+pub fn key_shortcut(text: impl IntoVar<KeyShortcut>) -> ! {}

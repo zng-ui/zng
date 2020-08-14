@@ -1,5 +1,6 @@
 //! Aggregate events.
 
+use super::var::{IntoVar, OwnedVar};
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
@@ -161,6 +162,20 @@ pub struct KeyGesture {
     pub key: GestureKey,
     pub modifiers: ModifiersState,
 }
+impl KeyGesture {
+    #[inline]
+    pub fn new(modifiers: ModifiersState, key: GestureKey) -> Self {
+        KeyGesture { modifiers, key }
+    }
+
+    #[inline]
+    pub fn new_key(key: GestureKey) -> Self {
+        KeyGesture {
+            modifiers: ModifiersState::empty(),
+            key,
+        }
+    }
+}
 impl Display for KeyGesture {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.modifiers.logo() {
@@ -197,15 +212,15 @@ impl Display for KeyChord {
 
 /// Keyboard gesture or chord associated with a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum KeyBinding {
+pub enum KeyShortcut {
     Gesture(KeyGesture),
     Chord(KeyChord),
 }
-impl Display for KeyBinding {
+impl Display for KeyShortcut {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            KeyBinding::Gesture(g) => write!(f, "{}", g),
-            KeyBinding::Chord(c) => write!(f, "{}", c),
+            KeyShortcut::Gesture(g) => write!(f, "{}", g),
+            KeyShortcut::Chord(c) => write!(f, "{}", c),
         }
     }
 }
@@ -225,19 +240,32 @@ impl KeyInputArgs {
     }
 }
 
-impl From<KeyGesture> for KeyBinding {
+impl From<KeyGesture> for KeyShortcut {
     #[inline]
     fn from(g: KeyGesture) -> Self {
-        KeyBinding::Gesture(g)
+        KeyShortcut::Gesture(g)
+    }
+}
+impl From<KeyChord> for KeyShortcut {
+    #[inline]
+    fn from(c: KeyChord) -> Self {
+        KeyShortcut::Chord(c)
+    }
+}
+impl IntoVar<KeyShortcut> for KeyGesture {
+    type Var = OwnedVar<KeyShortcut>;
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl IntoVar<KeyShortcut> for KeyChord {
+    type Var = OwnedVar<KeyShortcut>;
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
     }
 }
 
-impl From<KeyChord> for KeyBinding {
-    #[inline]
-    fn from(c: KeyChord) -> Self {
-        KeyBinding::Chord(c)
-    }
-}
+pub use zero_ui_macros::shortcut;
 
 event! {
     /// Aggregate click event. Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
@@ -326,6 +354,21 @@ impl AppExtension for GestureManager {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GestureKeyNotFound(pub String);
+impl GestureKeyNotFound {
+    #[inline]
+    pub fn key_name(&self) -> &str {
+        &self.0
+    }
+}
+impl fmt::Display for GestureKeyNotFound {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "`{}` is not a gesture key", self.0)
+    }
+}
+impl std::error::Error for GestureKeyNotFound {}
+
 macro_rules! gesture_key_name {
     ($key:ident = $name:expr) => {
         $name
@@ -355,7 +398,17 @@ macro_rules! gesture_keys {
         impl Display for GestureKey {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
-                    $(GestureKey::$key => write!(f, gesture_key_name!($key $(=$name)?)),)+
+                    $(GestureKey::$key => gesture_key_name!($key $(=$name)?).fmt(f),)+
+                }
+            }
+        }
+        impl std::str::FromStr for GestureKey {
+            type Err = GestureKeyNotFound;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $(stringify!($key) $(| $name)? => Ok(Self::$key),)+
+                    _ => Err(GestureKeyNotFound(s.to_owned()))
                 }
             }
         }

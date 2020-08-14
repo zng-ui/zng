@@ -6,7 +6,7 @@ use super::{
     impl_ui_node,
     render::{FrameBuilder, WidgetInfo},
     types::*,
-    var::{BoxVar, ObjVar, Var, VarValue, context_var},
+    var::{context_var, BoxVar, ObjVar, Var, VarValue},
     UiNode,
 };
 use std::{
@@ -49,7 +49,7 @@ pub struct PropertyInstanceInfo {
     /// Property arguments, sorted by their index in the property.
     pub args: Box<[PropertyArgInfo]>,
 
-    /// If [`args`] values can be inspected.
+    /// If [`args`](Self::args) values can be inspected.
     ///
     /// Only properties that are `allowed_in_when` are guaranteed to have
     /// variable arguments with values that can print debug. For other properties
@@ -167,7 +167,7 @@ pub struct CapturedPropertyInfo {
     /// Property arguments, sorted by their index in the property.
     pub args: Box<[PropertyArgInfo]>,
 
-    /// If [`args`] values can be inspected.
+    /// If [`args`](Self::args) values can be inspected.
     ///
     /// Only properties that are `allowed_in_when` are guaranteed to have
     /// variable arguments with values that can print debug. For other properties

@@ -768,3 +768,89 @@ macro_rules! source_location {
         }
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __shortcut {
+    (-> + $Key:ident) => {
+        zero_ui::core::gesture::KeyGesture {
+            key: zero_ui::core::gesture::GestureKey::$Key,
+            modifiers: zero_ui::core::types::ModifiersState::empty(),
+        }
+    };
+
+    (-> $($MODIFIER:ident)|+ + $Key:ident) => {
+        zero_ui::core::gesture::KeyGesture {
+            key: zero_ui::core::gesture::GestureKey::$Key,
+            modifiers: $(zero_ui::core::types::ModifiersState::$MODIFIER)|+,
+        }
+    };
+
+    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:ident) => {
+        zero_ui::core::gesture::KeyChord {
+            starter: $crate::__shortcut!(-> $($STARTER_MODIFIER)|* + $StarterKey),
+            complement: $crate::__shortcut!(-> $($COMPLEMENT_MODIFIER)|* + $ComplementKey)
+        }
+    };
+}
+
+/// Creates a [`KeyShortcut`](zero_ui::core::gesture::KeyShortcut).
+///
+/// # Examples
+///
+/// ```
+/// use zero_ui::core::gesture::{KeyShortcut, shortcut};
+///
+/// fn single_key() -> KeyShortcut {
+///     shortcut!(Return)
+/// }
+///
+/// fn modified_key() -> KeyShortcut {
+///     shortcut!(CTRL+C)
+/// }
+///
+/// fn multi_modified_key() -> KeyShortcut {
+///     shortcut!(CTRL|SHIFT+C)
+/// }
+///
+/// fn chord() -> KeyShortcut {
+///     shortcut!(CTRL+E, A)
+/// }
+/// ```
+#[macro_export]
+macro_rules! shortcut {
+    ($Key:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Gesture($crate::__shortcut!(-> + $Key))
+    };
+    ($($MODIFIER:ident)|+ + $Key:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
+    };
+
+    ($StarterKey:ident, $ComplementKey:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Chord($crate::__shortcut!(=>
+            + $StarterKey,
+            + $ComplementKey
+        ))
+    };
+
+    ($StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Chord($crate::__shortcut!(=>
+            + $StarterKey,
+            $(COMPLEMENT_MODIFIER)|* + $ComplementKey
+        ))
+    };
+
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $ComplementKey:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Chord($crate::__shortcut!(=>
+            $($STARTER_MODIFIER)|* + $StarterKey,
+            + $ComplementKey
+        ))
+    };
+
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+        zero_ui::core::gesture::KeyShortcut::Chord($crate::__shortcut!(=>
+            $($STARTER_MODIFIER)|* + $StarterKey,
+            $($COMPLEMENT_MODIFIER)|* + $ComplementKey
+        ))
+    };
+}
