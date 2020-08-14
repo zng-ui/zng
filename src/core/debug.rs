@@ -561,7 +561,14 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
         let instance = info.borrow();
 
         // widget! {
-        println!("{:d$}{}{} {}", "", instance.widget_name.yellow(), "!".yellow(), "{".bold(), d = w_depth);
+        println!(
+            "{:d$}{}{} {}",
+            "",
+            instance.widget_name.yellow(),
+            "!".yellow(),
+            "{".bold(),
+            d = w_depth
+        );
 
         // property: value;
         // OR
@@ -576,24 +583,29 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
         macro_rules! print_prop {
             ($prop:ident) => {
                 if $prop.user_assigned {
-                    print!("{:d$}{}{} ", "", $prop.property_name.blue().bold(), ":".blue().bold(), d = p_depth);
+                    print!(
+                        "{:d$}{}{} ",
+                        "",
+                        $prop.property_name.blue().bold(),
+                        ":".blue().bold(),
+                        d = p_depth
+                    );
                 } else {
                     print!("{:d$}{}: ", "", $prop.property_name, d = p_depth);
                 }
 
                 if $prop.can_debug_args {
                     if $prop.args.len() == 1 {
-                        print!("{}", $prop.args[0].value);                 
+                        print!("{}", $prop.args[0].value);
                     } else {
                         println!("{{");
                         let a_depth = (depth + 2) * DEPTH_MUL;
                         for arg in $prop.args.iter() {
-                                 if arg.value.len() > 50 {
+                            if arg.value.len() > 50 {
                                 println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
                             } else {
                                 println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
                             };
-
                         }
                         print!("{:d$}}}", "", d = p_depth);
                     }
@@ -612,7 +624,7 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
             print_prop!(prop);
         }
         for property in widget.properties() {
-            let prop = property.borrow();            
+            let prop = property.borrow();
             print_prop!(prop);
         }
 
@@ -626,7 +638,14 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
             println!();
         }
 
-        println!("{:d$}{} {} {}", "", "}".bold(), "//".green(), instance.widget_name.green().dimmed(), d = w_depth);
+        println!(
+            "{:d$}{} {} {}",
+            "",
+            "}".bold(),
+            "//".truecolor(117, 113, 94),
+            instance.widget_name.truecolor(117, 113, 94),
+            d = w_depth
+        );
     } else {
         println!("{:d$}{} {}", "", "<widget>!".yellow().dimmed(), "{".bold().dimmed(), d = w_depth);
 
