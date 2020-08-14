@@ -553,6 +553,7 @@ pub fn print_widget(widget: WidgetInfo) {
 }
 
 fn print_widget_(widget: WidgetInfo, depth: usize) {
+    use colored::*;
     const DEPTH_MUL: usize = 3;
     let w_depth = depth * DEPTH_MUL;
 
@@ -560,7 +561,7 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
         let instance = info.borrow();
 
         // widget! {
-        println!("{:d$}{}! {{", "", instance.widget_name, d = w_depth);
+        println!("{:d$}{}{} {}", "", instance.widget_name.yellow(), "!".yellow(), "{".bold(), d = w_depth);
 
         // property: value;
         // OR
@@ -572,66 +573,62 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
         // property: ?;
         let p_depth = (depth + 1) * DEPTH_MUL;
 
-        for prop in instance.captured.iter() {
-            print!("{:d$}{}: ", "", prop.property_name, d = p_depth);
-            if prop.can_debug_args {
-                if prop.args.len() == 1 {
-                    print!("{}", prop.args[0].value);
+        macro_rules! print_prop {
+            ($prop:ident) => {
+                if $prop.user_assigned {
+                    print!("{:d$}{}{} ", "", $prop.property_name.blue().bold(), ":".blue().bold(), d = p_depth);
                 } else {
-                    println!("{{");
-                    let a_depth = (depth + 2) * DEPTH_MUL;
-                    for arg in prop.args.iter() {
-                             if arg.value.len() > 50 {
-                            println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
-                        } else {
-                            println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
-                        };
-                        
-                    }
-                    print!("{:d$}}}", "", d = p_depth);
+                    print!("{:d$}{}: ", "", $prop.property_name, d = p_depth);
                 }
-            } else {
-                print!("?");
-            }
-            println!(";");
+
+                if $prop.can_debug_args {
+                    if $prop.args.len() == 1 {
+                        print!("{}", $prop.args[0].value);                 
+                    } else {
+                        println!("{{");
+                        let a_depth = (depth + 2) * DEPTH_MUL;
+                        for arg in $prop.args.iter() {
+                                 if arg.value.len() > 50 {
+                                println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
+                            } else {
+                                println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
+                            };
+
+                        }
+                        print!("{:d$}}}", "", d = p_depth);
+                    }
+                } else {
+                    print!("?");
+                }
+                if $prop.user_assigned {
+                    println!("{}", ";".blue().bold());
+                } else {
+                    println!(";");
+                }
+            };
+        }
+
+        for prop in instance.captured.iter() {
+            print_prop!(prop);
         }
         for property in widget.properties() {
             let prop = property.borrow();            
-            print!("{:d$}{}: ", "", prop.property_name, d = p_depth);
-            if prop.can_debug_args {
-                if prop.args.len() == 1 {
-                    print!("{}", prop.args[0].value);
-                } else {
-                    println!("{{");
-                    let a_depth = (depth + 2) * DEPTH_MUL;
-                    for arg in prop.args.iter() {
-                             if arg.value.len() > 50 {
-                            println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
-                        } else {
-                            println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
-                        };
-                        
-                    }
-                    print!("{:d$}}}", "", d = p_depth);
-                }
-            } else {
-                print!("?");
-            }
-            println!(";");
+            print_prop!(prop);
         }
 
-        if !instance.captured.is_empty() || !widget.properties().is_empty() {
+        if (!instance.captured.is_empty() || !widget.properties().is_empty()) && widget.has_children() {
             println!();
         }
 
         let child_depth = depth + 1;
         for child in widget.children() {
             print_widget_(child, child_depth);
+            println!();
         }
 
-        println!("{:d$}}}", "", d = w_depth);
+        println!("{:d$}{} {} {}", "", "}".bold(), "//".green(), instance.widget_name.green().dimmed(), d = w_depth);
     } else {
-        println!("{:d$}<widget>! {{", "", d = w_depth);
+        println!("{:d$}{} {}", "", "<widget>!".yellow().dimmed(), "{".bold().dimmed(), d = w_depth);
 
         if widget.contains_debug() {
             let child_depth = depth + 1;
@@ -639,9 +636,10 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
                 print_widget_(child, child_depth);
             }
         } else {
-            println!("{:d$}<{} omitted>", "", widget.descendants().count(), d = (depth + 1) * DEPTH_MUL)
+            let msg = format!("<{} omitted>", widget.descendants().count());
+            println!("{:d$}{}", "", msg.dimmed(), d = (depth + 1) * DEPTH_MUL)
         }
 
-        println!("{:d$}}}", "", d = w_depth);
+        println!("{:d$}{}", "", "}".bold().dimmed(), d = w_depth);
     }
 }
