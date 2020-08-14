@@ -231,7 +231,7 @@ impl Vars {
     }
 
     /// Runs a function with the context var.
-    pub fn with_context<V: ContextVar>(&self, _: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
+    pub fn with_context<V: ContextVar>(&self, _context_var: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
         self.with_context_impl(TypeId::of::<V>(), ContextVarEntry::Value(AnyRef::pack(value), is_new, version), f)
     }
 

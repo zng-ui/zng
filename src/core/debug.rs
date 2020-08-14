@@ -6,7 +6,7 @@ use super::{
     impl_ui_node,
     render::{FrameBuilder, WidgetInfo},
     types::*,
-    var::{BoxVar, ObjVar, Var, VarValue},
+    var::{BoxVar, ObjVar, Var, VarValue, context_var},
     UiNode,
 };
 use std::{
@@ -214,6 +214,10 @@ unique_id! {
     pub WidgetInstanceId;
 }
 
+context_var! {
+    struct ParentPropertyName: &'static str = const "";
+}
+
 // Node inserted just before calling the widget new function in debug mode.
 // It registers the `WidgetInstanceInfo` metadata.
 #[doc(hidden)]
@@ -320,6 +324,7 @@ impl UiNode for WidgetInstanceInfoNode {
         self.child.init(ctx);
 
         let mut info = self.info.borrow_mut();
+
         for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
                 arg.value = var.get(ctx.vars).clone();
@@ -330,12 +335,14 @@ impl UiNode for WidgetInstanceInfoNode {
             when.condition = *var.get(ctx.vars);
             when.condition_version = var.version(ctx.vars);
         }
+        info.parent_property = ParentPropertyName::var().get(ctx.vars);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
         let mut info = self.info.borrow_mut();
+
         for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
                 if let Some(update) = var.update(ctx.vars) {
@@ -353,7 +360,6 @@ impl UiNode for WidgetInstanceInfoNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        // TODO parent_property
         frame.meta().set(WidgetInstanceInfoKey, Rc::clone(&self.info));
         self.child.render(frame);
     }
@@ -426,7 +432,17 @@ macro_rules! ctx_mtd {
 }
 impl UiNode for PropertyInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        ctx_mtd!(self.init, ctx, mut info);
+        let mut info = self.info.borrow_mut();
+        let child = &mut self.child;
+        let property_name = info.property_name;
+
+        ctx.vars.with_context(ParentPropertyName, &property_name, false, 0, || {
+            let t = Instant::now();
+            child.init(ctx);
+            let d = t.elapsed();
+            info.duration.init = d;
+            info.count.init += 1;
+        });
 
         for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
             arg.value = var.get(ctx.vars).clone();
