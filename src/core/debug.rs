@@ -4,7 +4,7 @@
 use super::{
     context::{state_key, WidgetContext},
     impl_ui_node,
-    render::{FrameBuilder, WidgetInfo},
+    render::{FrameBuilder, FrameInfo, WidgetInfo},
     types::*,
     var::{context_var, BoxVar, ObjVar, Var, VarValue},
     UiNode,
@@ -498,7 +498,7 @@ impl UiNode for PropertyInfoNode {
 
 #[doc(hidden)]
 pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
-    var.into_map(|t| format!("{:#?}", t)).boxed()
+    var.into_map(|t| format!("{:?}", t)).boxed()
 }
 
 #[doc(hidden)]
@@ -539,5 +539,109 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
     #[inline]
     fn properties(self) -> &'a [PropertyInstance] {
         self.meta().get(PropertiesInfoKey).map(|v| &v[..]).unwrap_or(&[])
+    }
+}
+
+#[inline]
+pub fn print_frame(frame: &FrameInfo) {
+    print_widget(frame.root())
+}
+
+#[inline]
+pub fn print_widget(widget: WidgetInfo) {
+    print_widget_(widget, 0)
+}
+
+fn print_widget_(widget: WidgetInfo, depth: usize) {
+    const DEPTH_MUL: usize = 3;
+    let w_depth = depth * DEPTH_MUL;
+
+    if let Some(info) = widget.instance() {
+        let instance = info.borrow();
+
+        // widget! {
+        println!("{:d$}{}! {{", "", instance.widget_name, d = w_depth);
+
+        // property: value;
+        // OR
+        // property: {
+        //    foo: value,
+        //    bar: value,
+        // };
+        // OR
+        // property: ?;
+        let p_depth = (depth + 1) * DEPTH_MUL;
+
+        for prop in instance.captured.iter() {
+            print!("{:d$}{}: ", "", prop.property_name, d = p_depth);
+            if prop.can_debug_args {
+                if prop.args.len() == 1 {
+                    print!("{}", prop.args[0].value);
+                } else {
+                    println!("{{");
+                    let a_depth = (depth + 2) * DEPTH_MUL;
+                    for arg in prop.args.iter() {
+                             if arg.value.len() > 50 {
+                            println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
+                        } else {
+                            println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
+                        };
+                        
+                    }
+                    print!("{:d$}}}", "", d = p_depth);
+                }
+            } else {
+                print!("?");
+            }
+            println!(";");
+        }
+        for property in widget.properties() {
+            let prop = property.borrow();            
+            print!("{:d$}{}: ", "", prop.property_name, d = p_depth);
+            if prop.can_debug_args {
+                if prop.args.len() == 1 {
+                    print!("{}", prop.args[0].value);
+                } else {
+                    println!("{{");
+                    let a_depth = (depth + 2) * DEPTH_MUL;
+                    for arg in prop.args.iter() {
+                             if arg.value.len() > 50 {
+                            println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
+                        } else {
+                            println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
+                        };
+                        
+                    }
+                    print!("{:d$}}}", "", d = p_depth);
+                }
+            } else {
+                print!("?");
+            }
+            println!(";");
+        }
+
+        if !instance.captured.is_empty() || !widget.properties().is_empty() {
+            println!();
+        }
+
+        let child_depth = depth + 1;
+        for child in widget.children() {
+            print_widget_(child, child_depth);
+        }
+
+        println!("{:d$}}}", "", d = w_depth);
+    } else {
+        println!("{:d$}<widget>! {{", "", d = w_depth);
+
+        if widget.contains_debug() {
+            let child_depth = depth + 1;
+            for child in widget.children() {
+                print_widget_(child, child_depth);
+            }
+        } else {
+            println!("{:d$}<{} omitted>", "", widget.descendants().count(), d = (depth + 1) * DEPTH_MUL)
+        }
+
+        println!("{:d$}}}", "", d = w_depth);
     }
 }

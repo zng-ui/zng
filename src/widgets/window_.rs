@@ -1,11 +1,14 @@
 use crate::core::widget;
 use crate::core::{
+    debug::print_frame,
     focus::TabNav,
+    keyboard::KeyInputArgs,
     types::{rgb, WidgetId},
     window::Window,
 };
-use crate::properties::{background_color, focus_scope, position, size, tab_nav, title};
+use crate::properties::{background_color, focus_scope, on_key_down, position, size, tab_nav, title, OnEventArgs};
 use crate::widgets::container;
+use zero_ui_macros::shortcut;
 
 widget! {
     /// A window container.
@@ -53,11 +56,29 @@ widget! {
 
         /// Windows cycle TAB navigation by default.
         tab_nav: TabNav::Cycle;
+
+        /// Test inspector.
+        on_key_down: on_keydown_print_frame;
     }
 
     /// Manually initializes a new [`window`](self).
     #[inline]
     fn new(child, root_id, title, position, size, background_color) -> Window {
         Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), background_color.unwrap(), child)
+    }
+}
+
+fn on_keydown_print_frame(args: &mut OnEventArgs<KeyInputArgs>) {
+    if args.args().shortcut() == Some(shortcut!(CTRL | SHIFT + I)) {
+        let ctx = args.ctx();
+
+        let frame = ctx
+            .services
+            .req::<crate::core::window::Windows>()
+            .window(ctx.window_id)
+            .unwrap()
+            .frame_info();
+
+        print_frame(frame);
     }
 }

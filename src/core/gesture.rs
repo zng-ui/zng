@@ -238,6 +238,12 @@ impl KeyInputArgs {
             modifiers: self.modifiers,
         })
     }
+
+    /// Gets [`gesture`](Self::gesture) as a shortcut.
+    #[inline]
+    pub fn shortcut(&self) -> Option<KeyShortcut> {
+        self.gesture().map(KeyShortcut::Gesture)
+    }
 }
 
 impl From<KeyGesture> for KeyShortcut {
