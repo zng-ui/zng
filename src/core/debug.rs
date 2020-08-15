@@ -92,7 +92,7 @@ pub struct PropertyArgInfo {
 /// Property priority in a widget.
 ///
 /// See [the property doc](crate::core::property#priority) for more details.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyPriority {
     Context,
     Event,
@@ -100,6 +100,19 @@ pub enum PropertyPriority {
     Size,
     Inner,
     CaptureOnly,
+}
+
+impl PropertyPriority {
+    fn token_str(self) -> &'static str {
+        match self {
+            PropertyPriority::Context => "context",
+            PropertyPriority::Event => "event",
+            PropertyPriority::Outer => "outer",
+            PropertyPriority::Size => "size",
+            PropertyPriority::Inner => "inner",
+            PropertyPriority::CaptureOnly => "capture_only",
+        }
+    }
 }
 
 /// Time duration of a [`UiNode`] method in a property branch.
@@ -161,6 +174,10 @@ pub struct WidgetInstanceInfo {
 pub struct CapturedPropertyInfo {
     /// Name of the property in the widget.
     pub property_name: &'static str,
+
+    /// Which widget function captured this property.
+    pub captured_by: CapturedFn,
+
     /// Source-code location of the widget instantiation or property assign.
     pub instance_location: SourceLocation,
 
@@ -177,6 +194,13 @@ pub struct CapturedPropertyInfo {
 
     /// If the user assigned this property.
     pub user_assigned: bool,
+}
+
+/// Which widget function captured a property.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum CapturedFn {
+    NewChild,
+    New,
 }
 
 /// When block setup by a widget instance.
@@ -236,6 +260,7 @@ pub struct CapturedPropertyV1 {
     pub arg_names: &'static [&'static str],
     pub arg_debug_vars: DebugArgs,
     pub user_assigned: bool,
+    pub new_child: bool,
 }
 #[doc(hidden)]
 pub struct WhenInfoV1 {
@@ -263,8 +288,10 @@ impl WidgetInstanceInfoNode {
 
         let captured = captured
             .into_iter()
-            .map(|c| CapturedPropertyInfo {
+            .zip(debug_vars.iter())
+            .map(|(c, dbg_vars)| CapturedPropertyInfo {
                 property_name: c.property_name,
+                captured_by: if c.new_child { CapturedFn::NewChild } else { CapturedFn::New },
                 instance_location: c.instance_location,
                 args: c
                     .arg_names
@@ -276,7 +303,7 @@ impl WidgetInstanceInfoNode {
                     })
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
-                can_debug_args: c.arg_names.len() == c.arg_debug_vars.len(),
+                can_debug_args: !dbg_vars.is_empty(),
                 user_assigned: c.user_assigned,
             })
             .collect::<Vec<_>>()
@@ -335,6 +362,7 @@ impl UiNode for WidgetInstanceInfoNode {
             when.condition = *var.get(ctx.vars);
             when.condition_version = var.version(ctx.vars);
         }
+
         info.parent_property = ParentPropertyName::var().get(ctx.vars);
     }
 
@@ -560,6 +588,18 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
     if let Some(info) = widget.instance() {
         let instance = info.borrow();
 
+        if instance.parent_property != "" {
+            println!();
+            println!(
+                "{:d$}{}{}{}",
+                "",
+                "// in ".truecolor(117, 113, 94),
+                instance.parent_property.truecolor(117, 113, 94),
+                ":".truecolor(117, 113, 94),
+                d = w_depth
+            );
+        }
+
         // widget! {
         println!(
             "{:d$}{}{} {}",
@@ -610,7 +650,7 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
                         print!("{:d$}}}", "", d = p_depth);
                     }
                 } else {
-                    print!("?");
+                    print!("_");
                 }
                 if $prop.user_assigned {
                     println!("{}", ";".blue().bold());
@@ -620,33 +660,52 @@ fn print_widget_(widget: WidgetInfo, depth: usize) {
             };
         }
 
+        let mut capture_fn: Option<CapturedFn> = None;
         for prop in instance.captured.iter() {
-            print_prop!(prop);
-        }
-        for property in widget.properties() {
-            let prop = property.borrow();
+            if capture_fn.is_none() {
+                println!("{:d$}{}", "", "// new_child".truecolor(117, 113, 94), d = p_depth);
+                capture_fn = Some(CapturedFn::NewChild);
+            } else if capture_fn != Some(prop.captured_by) {
+                println!("{:d$}{}", "", "// new".truecolor(117, 113, 94), d = p_depth);
+                capture_fn = Some(CapturedFn::New);
+            }
             print_prop!(prop);
         }
 
-        if (!instance.captured.is_empty() || !widget.properties().is_empty()) && widget.has_children() {
-            println!();
+        let mut priority: Option<PropertyPriority> = None;
+        for property in widget.properties() {
+            let prop = property.borrow();
+
+            if priority != Some(prop.priority) {
+                println!(
+                    "{:d$}{} {}",
+                    "",
+                    "//".truecolor(117, 113, 94),
+                    prop.priority.token_str().truecolor(117, 113, 94),
+                    d = p_depth
+                );
+                priority = Some(prop.priority);
+            }
+
+            print_prop!(prop);
         }
 
         let child_depth = depth + 1;
         for child in widget.children() {
             print_widget_(child, child_depth);
-            println!();
         }
 
         println!(
-            "{:d$}{} {} {}",
+            "{:d$}{} {} {}{}",
             "",
             "}".bold(),
             "//".truecolor(117, 113, 94),
             instance.widget_name.truecolor(117, 113, 94),
+            "!".truecolor(117, 113, 94),
             d = w_depth
         );
     } else {
+        // no debug info
         println!("{:d$}{} {}", "", "<widget>!".yellow().dimmed(), "{".bold().dimmed(), d = w_depth);
 
         if widget.contains_debug() {

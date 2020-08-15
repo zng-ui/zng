@@ -562,6 +562,12 @@ mod analysis {
             },
             new_child_call: NewChildCall {
                 widget_name: input.name.clone(),
+
+                #[cfg(debug_assertions)]
+                properties_user_assigned: input.new_child.iter().map(|p| user_properties.contains_key(p)).collect(),
+                #[cfg(debug_assertions)]
+                debug_enabled,
+
                 properties: input.new_child.into_iter().collect(),
             },
             child_props_assigns: PropertyAssigns {
@@ -1053,11 +1059,44 @@ mod output {
         pub widget_name: Ident,
         // properties captured by the new function
         pub properties: Vec<Ident>,
+
+        #[cfg(debug_assertions)]
+        pub properties_user_assigned: Vec<bool>,
+
+        #[cfg(debug_assertions)]
+        pub debug_enabled: bool,
     }
     impl ToTokens for NewChildCall {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let name = &self.widget_name;
             let args = self.properties.iter().map(|p| ident!("{}_args", p));
+
+            #[cfg(debug_assertions)]
+            if self.debug_enabled {
+                let p = &self.properties;
+                let p_names = p.iter().map(|p| p.to_string());
+                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
+                let p_assig = &self.properties_user_assigned;
+                let args = args.clone();
+                let crate_ = zero_ui_crate_ident();
+
+                tokens.extend(quote! {
+                    let mut debug_captured = {
+                        use #crate_::core::debug::*;
+                        vec![#(
+                            CapturedPropertyV1 {
+                                property_name: #p_names,
+                                instance_location: #p_locs,
+                                arg_names:#name::properties::#p::arg_names(),
+                                arg_debug_vars: #name::properties::#p::debug_args(&#args),
+                                user_assigned: #p_assig,
+                                new_child: true,
+                            }
+                        ),*]
+                    };
+                });
+            }
+
             tokens.extend(quote!( let node = #name::new_child(#(#args),*); ));
         }
     }
@@ -1168,20 +1207,23 @@ mod output {
                     let node = {
                         use #crate_::core::debug::*;
 
+                        #(
+                            debug_captured.push(CapturedPropertyV1 {
+                                property_name: #p_names,
+                                instance_location: #p_locs,
+                                arg_names:#name::properties::#p::arg_names(),
+                                arg_debug_vars: #name::properties::#p::debug_args(&#args),
+                                user_assigned: #p_assig,
+                                new_child: false,
+                            });
+                        )*
+
                         WidgetInstanceInfoNode::new_v1(
                             #crate_::core::UiNode::boxed(node),
                             #name_str,
                             #name::decl_location(),
                             source_location!(),
-                            vec![#(
-                                CapturedPropertyV1 {
-                                    property_name: #p_names,
-                                    instance_location: #p_locs,
-                                    arg_names:#name::properties::#p::arg_names(),
-                                    arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                    user_assigned: #p_assig
-                                }
-                            ),*],
+                            debug_captured,
                             debug_whens
                         )
                     };
