@@ -608,7 +608,10 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
 
 #[inline]
 pub fn print_frame<W: std::io::Write>(frame: &FrameInfo, out: &mut W) {
-    print_widget(frame.root(), out)
+    let mut fmt = print_fmt::Fmt::new(out);
+    fmt.write_legend();
+    fmt.writeln();
+    print_tree(frame.root(), "", &mut fmt);
 }
 
 #[inline]
@@ -695,7 +698,7 @@ mod print_fmt {
             let _ = write!(&mut self.output, "{}", s);
         }
 
-        fn writeln(&mut self) {
+        pub fn writeln(&mut self) {
             let _ = writeln!(&mut self.output);
         }
 
@@ -792,6 +795,17 @@ mod print_fmt {
             self.write_tabs();
             self.write("} ".bold());
             self.write_comment_after(format_args!("{}!", name));
+        }
+
+        pub fn write_legend(&mut self) {
+            self.write("▉".yellow());
+            self.write("  - widget");
+            self.writeln();
+            self.write("▉".blue());  
+            self.write("  - property set by user");
+            self.writeln();      
+            self.write("▉  - property set by widget");
+            self.writeln();              
         }
     }
 }
