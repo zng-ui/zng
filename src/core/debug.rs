@@ -157,8 +157,10 @@ pub struct WidgetInstanceInfo {
     /// Source-code location of the widget instantiation.
     pub instance_location: SourceLocation,
 
-    /// Properties this widget captured.
-    pub captured: Box<[CapturedPropertyInfo]>,
+    /// Properties this widget captured in the new_child function.
+    pub captured_new_child: Box<[CapturedPropertyInfo]>,
+    /// Properties this widget captured in the new function.
+    pub captured_new: Box<[CapturedPropertyInfo]>,
 
     /// When blocks setup by this widget instance.
     pub whens: Box<[WhenInfo]>,
@@ -174,9 +176,6 @@ pub struct WidgetInstanceInfo {
 pub struct CapturedPropertyInfo {
     /// Name of the property in the widget.
     pub property_name: &'static str,
-
-    /// Which widget function captured this property.
-    pub captured_by: CapturedFn,
 
     /// Source-code location of the widget instantiation or property assign.
     pub instance_location: SourceLocation,
@@ -194,13 +193,6 @@ pub struct CapturedPropertyInfo {
 
     /// If the user assigned this property.
     pub user_assigned: bool,
-}
-
-/// Which widget function captured a property.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum CapturedFn {
-    NewChild,
-    New,
 }
 
 /// When block setup by a widget instance.
@@ -260,7 +252,6 @@ pub struct CapturedPropertyV1 {
     pub arg_names: &'static [&'static str],
     pub arg_debug_vars: DebugArgs,
     pub user_assigned: bool,
-    pub new_child: bool,
 }
 #[doc(hidden)]
 pub struct WhenInfoV1 {
@@ -277,21 +268,29 @@ impl WidgetInstanceInfoNode {
         widget_name: &'static str,
         decl_location: SourceLocation,
         instance_location: SourceLocation,
-        mut captured: Vec<CapturedPropertyV1>,
+        mut captured_new_child: Vec<CapturedPropertyV1>,
+        mut captured_new: Vec<CapturedPropertyV1>,
         mut whens: Vec<WhenInfoV1>,
     ) -> Self {
-        let debug_vars = captured
+        let debug_vars = captured_new_child
             .iter_mut()
+            .chain(captured_new.iter_mut())
             .map(|c| std::mem::take(&mut c.arg_debug_vars))
             .collect::<Vec<_>>()
             .into_boxed_slice();
 
-        let captured = captured
+        let mut new_child = vec![];
+        let mut new = vec![];
+
+        for (is_nc, c) in captured_new_child
             .into_iter()
-            .zip(debug_vars.iter())
-            .map(|(c, dbg_vars)| CapturedPropertyInfo {
+            .map(|c| (true, c))
+            .chain(captured_new.into_iter().map(|c| (false, c)))
+        {
+            let fn_ = if is_nc { &mut new_child } else { &mut new };
+
+            fn_.push(CapturedPropertyInfo {
                 property_name: c.property_name,
-                captured_by: if c.new_child { CapturedFn::NewChild } else { CapturedFn::New },
                 instance_location: c.instance_location,
                 args: c
                     .arg_names
@@ -301,13 +300,11 @@ impl WidgetInstanceInfoNode {
                         value: String::new(),
                         value_version: 0,
                     })
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice(),
-                can_debug_args: !dbg_vars.is_empty(),
+                    .collect(),
+                can_debug_args: false, //TODO
                 user_assigned: c.user_assigned,
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            });
+        }
 
         let when_vars = whens
             .iter_mut()
@@ -336,7 +333,8 @@ impl WidgetInstanceInfoNode {
                 widget_name,
                 decl_location,
                 instance_location,
-                captured,
+                captured_new_child: new_child.into_boxed_slice(),
+                captured_new: new.into_boxed_slice(),
                 whens,
                 parent_property: "",
             })),
@@ -350,9 +348,15 @@ impl UiNode for WidgetInstanceInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
 
-        let mut info = self.info.borrow_mut();
+        let mut info_borrow = self.info.borrow_mut();
+        let info = &mut *info_borrow;
 
-        for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
+        for (property, vars) in info
+            .captured_new_child
+            .iter_mut()
+            .chain(info.captured_new.iter_mut())
+            .zip(self.debug_vars.iter())
+        {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
                 arg.value = var.get(ctx.vars).clone();
                 arg.value_version = var.version(ctx.vars);
@@ -369,9 +373,15 @@ impl UiNode for WidgetInstanceInfoNode {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let mut info = self.info.borrow_mut();
+        let mut info_borrow = self.info.borrow_mut();
+        let info = &mut *info_borrow;
 
-        for (property, vars) in info.captured.iter_mut().zip(self.debug_vars.iter()) {
+        for (property, vars) in info
+            .captured_new_child
+            .iter_mut()
+            .chain(info.captured_new.iter_mut())
+            .zip(self.debug_vars.iter())
+        {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
                 if let Some(update) = var.update(ctx.vars) {
                     arg.value = update.clone();
@@ -604,7 +614,7 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, fmt: &mut print_fmt::Fmt<W>
             };
         }
 
-        for p in wgt.captured.iter().filter(|c| c.captured_by == CapturedFn::NewChild) {
+        for p in wgt.captured_new_child.iter() {
             let group = "new_child";
             write_property!(p, group);
         }
@@ -613,7 +623,7 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, fmt: &mut print_fmt::Fmt<W>
             let group = p.priority.token_str();
             write_property!(p, group);
         }
-        for p in wgt.captured.iter().filter(|c| c.captured_by == CapturedFn::New) {
+        for p in wgt.captured_new.iter() {
             let group = "new";
             write_property!(p, group);
         }

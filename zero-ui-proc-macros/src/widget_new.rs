@@ -1081,7 +1081,7 @@ mod output {
                 let crate_ = zero_ui_crate_ident();
 
                 tokens.extend(quote! {
-                    let mut debug_captured = {
+                    let mut debug_captured_new_child = {
                         use #crate_::core::debug::*;
                         vec![#(
                             CapturedPropertyV1 {
@@ -1090,7 +1090,6 @@ mod output {
                                 arg_names:#name::properties::#p::arg_names(),
                                 arg_debug_vars: #name::properties::#p::debug_args(&#args),
                                 user_assigned: #p_assig,
-                                new_child: true,
                             }
                         ),*]
                     };
@@ -1207,23 +1206,21 @@ mod output {
                     let node = {
                         use #crate_::core::debug::*;
 
-                        #(
-                            debug_captured.push(CapturedPropertyV1 {
-                                property_name: #p_names,
-                                instance_location: #p_locs,
-                                arg_names:#name::properties::#p::arg_names(),
-                                arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                user_assigned: #p_assig,
-                                new_child: false,
-                            });
-                        )*
-
                         WidgetInstanceInfoNode::new_v1(
                             #crate_::core::UiNode::boxed(node),
                             #name_str,
                             #name::decl_location(),
                             source_location!(),
-                            debug_captured,
+                            debug_captured_new_child,
+                            vec![#(
+                                CapturedPropertyV1 {
+                                    property_name: #p_names,
+                                    instance_location: #p_locs,
+                                    arg_names:#name::properties::#p::arg_names(),
+                                    arg_debug_vars: #name::properties::#p::debug_args(&#args),
+                                    user_assigned: #p_assig,
+                                }
+                            ),*],
                             debug_whens
                         )
                     };
