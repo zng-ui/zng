@@ -571,153 +571,191 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
 }
 
 #[inline]
-pub fn print_frame(frame: &FrameInfo) {
-    print_widget(frame.root())
+pub fn print_frame<W: std::io::Write>(frame: &FrameInfo, out: &mut W) {
+    print_widget(frame.root(), out)
 }
 
 #[inline]
-pub fn print_widget(widget: WidgetInfo) {
-    print_widget_(widget, 0)
+pub fn print_widget<W: std::io::Write>(widget: WidgetInfo, out: &mut W) {
+    print_tree(widget, &mut print_fmt::Fmt::new(out));
 }
 
-fn print_widget_(widget: WidgetInfo, depth: usize) {
-    use colored::*;
-    const DEPTH_MUL: usize = 3;
-    let w_depth = depth * DEPTH_MUL;
-
+fn print_tree<W: std::io::Write>(widget: WidgetInfo, fmt: &mut print_fmt::Fmt<W>) {
     if let Some(info) = widget.instance() {
-        let instance = info.borrow();
+        let wgt = info.borrow();
 
-        if instance.parent_property != "" {
-            println!();
-            println!(
-                "{:d$}{}{}{}",
-                "",
-                "// in ".truecolor(117, 113, 94),
-                instance.parent_property.truecolor(117, 113, 94),
-                ":".truecolor(117, 113, 94),
-                d = w_depth
-            );
-        }
+        fmt.open_widget(wgt.widget_name, wgt.parent_property);
 
-        // widget! {
-        println!(
-            "{:d$}{}{} {}",
-            "",
-            instance.widget_name.yellow(),
-            "!".yellow(),
-            "{".bold(),
-            d = w_depth
-        );
-
-        // property: value;
-        // OR
-        // property: {
-        //    foo: value,
-        //    bar: value,
-        // };
-        // OR
-        // property: ?;
-        let p_depth = (depth + 1) * DEPTH_MUL;
-
-        macro_rules! print_prop {
-            ($prop:ident) => {
-                if $prop.user_assigned {
-                    print!(
-                        "{:d$}{}{} ",
-                        "",
-                        $prop.property_name.blue().bold(),
-                        ":".blue().bold(),
-                        d = p_depth
-                    );
-                } else {
-                    print!("{:d$}{}: ", "", $prop.property_name, d = p_depth);
-                }
-
-                if $prop.can_debug_args {
-                    if $prop.args.len() == 1 {
-                        print!("{}", $prop.args[0].value);
+        macro_rules! write_property {
+            ($p:ident, $group:ident) => {
+                if $p.can_debug_args {
+                    if $p.args.len() == 1 {
+                        fmt.write_property($group, $p.property_name, &$p.args[0].value, $p.user_assigned);
                     } else {
-                        println!("{{");
-                        let a_depth = (depth + 2) * DEPTH_MUL;
-                        for arg in $prop.args.iter() {
-                            if arg.value.len() > 50 {
-                                println!("{:d$}{}: {}..,", "", arg.name, &arg.value[..50], d = a_depth);
-                            } else {
-                                println!("{:d$}{}: {},", "", arg.name, &arg.value, d = a_depth);
-                            };
+                        fmt.open_property($group, $p.property_name, $p.user_assigned);
+                        for arg in $p.args.iter() {
+                            fmt.write_property_arg(arg.name, &arg.value);
                         }
-                        print!("{:d$}}}", "", d = p_depth);
+                        fmt.close_property($p.user_assigned);
                     }
                 } else {
-                    print!("_");
-                }
-                if $prop.user_assigned {
-                    println!("{}", ";".blue().bold());
-                } else {
-                    println!(";");
+                    fmt.write_property($group, $p.property_name, "_", $p.user_assigned);
                 }
             };
         }
 
-        let mut capture_fn: Option<CapturedFn> = None;
-        for prop in instance.captured.iter() {
-            if capture_fn.is_none() {
-                println!("{:d$}{}", "", "// new_child".truecolor(117, 113, 94), d = p_depth);
-                capture_fn = Some(CapturedFn::NewChild);
-            } else if capture_fn != Some(prop.captured_by) {
-                println!("{:d$}{}", "", "// new".truecolor(117, 113, 94), d = p_depth);
-                capture_fn = Some(CapturedFn::New);
-            }
-            print_prop!(prop);
+        for p in wgt.captured.iter().filter(|c| c.captured_by == CapturedFn::NewChild) {
+            let group = "new_child";
+            write_property!(p, group);
+        }
+        for prop in widget.properties() {
+            let p = prop.borrow();
+            let group = p.priority.token_str();
+            write_property!(p, group);
+        }
+        for p in wgt.captured.iter().filter(|c| c.captured_by == CapturedFn::New) {
+            let group = "new";
+            write_property!(p, group);
         }
 
-        let mut priority: Option<PropertyPriority> = None;
-        for property in widget.properties() {
-            let prop = property.borrow();
-
-            if priority != Some(prop.priority) {
-                println!(
-                    "{:d$}{} {}",
-                    "",
-                    "//".truecolor(117, 113, 94),
-                    prop.priority.token_str().truecolor(117, 113, 94),
-                    d = p_depth
-                );
-                priority = Some(prop.priority);
-            }
-
-            print_prop!(prop);
-        }
-
-        let child_depth = depth + 1;
         for child in widget.children() {
-            print_widget_(child, child_depth);
+            print_tree(child, fmt);
         }
 
-        println!(
-            "{:d$}{} {} {}{}",
-            "",
-            "}".bold(),
-            "//".truecolor(117, 113, 94),
-            instance.widget_name.truecolor(117, 113, 94),
-            "!".truecolor(117, 113, 94),
-            d = w_depth
-        );
+        fmt.close_widget(wgt.widget_name);
     } else {
-        // no debug info
-        println!("{:d$}{} {}", "", "<widget>!".yellow().dimmed(), "{".bold().dimmed(), d = w_depth);
+        fmt.open_widget("<unknown>", "");
+        for child in widget.children() {
+            print_tree(child, fmt);
+        }
+        fmt.close_widget("<unknown>");
+    }
+}
 
-        if widget.contains_debug() {
-            let child_depth = depth + 1;
-            for child in widget.children() {
-                print_widget_(child, child_depth);
+mod print_fmt {
+    use colored::*;
+    use std::fmt::Display;
+    use std::io::Write;
+
+    pub struct Fmt<'w, W: Write> {
+        depth: u32,
+        output: &'w mut W,
+        property_group: &'static str,
+    }
+    impl<'w, W: Write> Fmt<'w, W> {
+        pub fn new(output: &'w mut W) -> Self {
+            Fmt {
+                depth: 0,
+                output,
+                property_group: "",
             }
-        } else {
-            let msg = format!("<{} omitted>", widget.descendants().count());
-            println!("{:d$}{}", "", msg.dimmed(), d = (depth + 1) * DEPTH_MUL)
         }
 
-        println!("{:d$}{}", "", "}".bold().dimmed(), d = w_depth);
+        fn write_tabs(&mut self) {
+            let _ = write!(&mut self.output, "{:d$}", "", d = self.depth as usize * 3);
+        }
+
+        fn write(&mut self, s: impl Display) {
+            let _ = write!(&mut self.output, "{}", s);
+        }
+
+        fn writeln(&mut self) {
+            let _ = writeln!(&mut self.output);
+        }
+
+        pub fn write_comment(&mut self, comment: impl Display) {
+            self.write_tabs();
+            self.write_comment_after(comment);
+        }
+
+        fn write_comment_after(&mut self, comment: impl Display) {
+            self.write("// ".truecolor(117, 113, 94));
+            self.write(comment.to_string().truecolor(117, 113, 94));
+            self.writeln();
+        }
+
+        pub fn open_widget(&mut self, name: &str, parent_property: &str) {
+            if !parent_property.is_empty() {
+                self.writeln();
+                self.write_comment(format_args!("in {}", parent_property));
+            }
+            self.write_tabs();
+            self.write(name.yellow());
+            self.write("!".yellow());
+            self.write(" {".bold());
+            self.writeln();
+            self.depth += 1;
+        }
+
+        fn write_property_header(&mut self, group: &'static str, name: &str, user_assigned: bool) {
+            if self.property_group != group {
+                self.write_comment(group);
+                self.property_group = group;
+            }
+
+            self.write_tabs();
+            if user_assigned {
+                self.write(name.blue().bold());
+                self.write(": ".blue().bold());
+            } else {
+                self.write(name);
+                self.write(": ");
+            }
+        }
+
+        fn write_property_end(&mut self, user_assigned: bool) {
+            if user_assigned {
+                self.write(";".blue().bold());
+            } else {
+                self.write(";");
+            }
+            self.writeln();
+        }
+
+        fn write_property_value(&mut self, value: &str) {
+            if value.len() > 50 {
+                self.write(&value[..50]);
+                self.write("..");
+            } else {
+                self.write(value);
+            }
+        }
+
+        pub fn write_property(&mut self, group: &'static str, name: &str, value: &str, user_assigned: bool) {
+            self.write_property_header(group, name, user_assigned);
+            self.write_property_value(value);
+            self.write_property_end(user_assigned);
+        }
+
+        pub fn open_property(&mut self, group: &'static str, name: &str, user_assigned: bool) {
+            self.write_property_header(group, name, user_assigned);
+            self.write("{");
+            self.writeln();
+            self.depth += 1;
+        }
+
+        pub fn write_property_arg(&mut self, name: &str, value: &str) {
+            self.write_tabs();
+            self.write(name);
+            self.write(": ");
+            self.write_property_value(value);
+            self.write(",");
+            self.writeln();
+        }
+
+        pub fn close_property(&mut self, user_assigned: bool) {
+            self.depth -= 1;
+            self.write_tabs();
+            self.write("}");
+            self.write_property_end(user_assigned);
+        }
+
+        pub fn close_widget(&mut self, name: &str) {
+            self.depth -= 1;
+            self.property_group = "";
+            self.write_tabs();
+            self.write("} ".bold());
+            self.write_comment_after(format_args!("{}!", name));
+        }
     }
 }

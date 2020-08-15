@@ -79,6 +79,6 @@ fn on_keydown_print_frame(args: &mut OnEventArgs<KeyInputArgs>) {
             .unwrap()
             .frame_info();
 
-        print_frame(frame);
+        print_frame(frame, &mut std::io::stderr());
     }
 }
