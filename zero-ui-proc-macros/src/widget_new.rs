@@ -1097,6 +1097,16 @@ mod output {
             }
 
             tokens.extend(quote!( let node = #name::new_child(#(#args),*); ));
+
+            #[cfg(debug_assertions)]
+            if self.debug_enabled {
+                let crate_ = zero_ui_crate_ident();
+                tokens.extend(quote! {
+                    let node = #crate_::core::debug::NewChildMarkerNode::new_v1(
+                        #crate_::core::UiNode::boxed(node)
+                    );
+                });
+            }
         }
     }
 

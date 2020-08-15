@@ -282,10 +282,11 @@ impl WidgetInstanceInfoNode {
         let mut new_child = vec![];
         let mut new = vec![];
 
-        for (is_nc, c) in captured_new_child
+        for ((is_nc, c), dbg_vars) in captured_new_child
             .into_iter()
             .map(|c| (true, c))
             .chain(captured_new.into_iter().map(|c| (false, c)))
+            .zip(debug_vars.iter())
         {
             let fn_ = if is_nc { &mut new_child } else { &mut new };
 
@@ -301,7 +302,7 @@ impl WidgetInstanceInfoNode {
                         value_version: 0,
                     })
                     .collect(),
-                can_debug_args: false, //TODO
+                can_debug_args: !dbg_vars.is_empty(),
                 user_assigned: c.user_assigned,
             });
         }
@@ -346,7 +347,12 @@ impl WidgetInstanceInfoNode {
 #[impl_ui_node(child)]
 impl UiNode for WidgetInstanceInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
+        {
+            let child = &mut self.child;
+            ctx.vars.with_context(ParentPropertyName, &"new(..)", false, 0, || {
+                child.init(ctx);
+            });
+        }
 
         let mut info_borrow = self.info.borrow_mut();
         let info = &mut *info_borrow;
@@ -535,6 +541,26 @@ impl UiNode for PropertyInfoNode {
 }
 
 #[doc(hidden)]
+pub struct NewChildMarkerNode {
+    child: Box<dyn UiNode>,
+}
+
+impl NewChildMarkerNode {
+    pub fn new_v1(child: Box<dyn UiNode>) -> Self {
+        NewChildMarkerNode { child }
+    }
+}
+#[impl_ui_node(child)]
+impl UiNode for NewChildMarkerNode {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        let child = &mut self.child;
+        ctx.vars.with_context(ParentPropertyName, &"new_child(..)", false, 0, || {
+            child.init(ctx);
+        });
+    }
+}
+
+#[doc(hidden)]
 pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
     var.into_map(|t| format!("{:?}", t)).boxed()
 }
@@ -587,14 +613,14 @@ pub fn print_frame<W: std::io::Write>(frame: &FrameInfo, out: &mut W) {
 
 #[inline]
 pub fn print_widget<W: std::io::Write>(widget: WidgetInfo, out: &mut W) {
-    print_tree(widget, &mut print_fmt::Fmt::new(out));
+    print_tree(widget, "", &mut print_fmt::Fmt::new(out));
 }
 
-fn print_tree<W: std::io::Write>(widget: WidgetInfo, fmt: &mut print_fmt::Fmt<W>) {
+fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
 
-        fmt.open_widget(wgt.widget_name, wgt.parent_property);
+        fmt.open_widget(wgt.widget_name, parent_name, wgt.parent_property);
 
         macro_rules! write_property {
             ($p:ident, $group:ident) => {
@@ -629,14 +655,14 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, fmt: &mut print_fmt::Fmt<W>
         }
 
         for child in widget.children() {
-            print_tree(child, fmt);
+            print_tree(child, wgt.widget_name, fmt);
         }
 
         fmt.close_widget(wgt.widget_name);
     } else {
-        fmt.open_widget("<unknown>", "");
+        fmt.open_widget("<unknown>", "", "");
         for child in widget.children() {
-            print_tree(child, fmt);
+            print_tree(child, "<unknown>", fmt);
         }
         fmt.close_widget("<unknown>");
     }
@@ -684,10 +710,10 @@ mod print_fmt {
             self.writeln();
         }
 
-        pub fn open_widget(&mut self, name: &str, parent_property: &str) {
+        pub fn open_widget(&mut self, name: &str, parent_name: &str, parent_property: &str) {
             if !parent_property.is_empty() {
                 self.writeln();
-                self.write_comment(format_args!("in {}", parent_property));
+                self.write_comment(format_args!("in {}::{}", parent_name, parent_property));
             }
             self.write_tabs();
             self.write(name.yellow());
