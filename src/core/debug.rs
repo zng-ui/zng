@@ -530,13 +530,14 @@ impl UiNode for PropertyInfoNode {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
         let t = Instant::now();
         self.child.render(frame);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.render = d;
         info.count.render += 1;
+
+        frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));        
     }
 }
 
