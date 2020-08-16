@@ -639,7 +639,7 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mu
                         fmt.close_property($p.user_assigned);
                     }
                 } else {
-                    fmt.write_property($group, $p.property_name, "_", $p.user_assigned);
+                    fmt.write_property_no_dbg($group, $p.property_name, $p.args.iter().map(|a| a.name), $p.user_assigned);
                 }
             };
         }
@@ -768,6 +768,28 @@ mod print_fmt {
         pub fn write_property(&mut self, group: &'static str, name: &str, value: &str, user_assigned: bool) {
             self.write_property_header(group, name, user_assigned);
             self.write_property_value(value);
+            self.write_property_end(user_assigned);
+        }
+
+        pub fn write_property_no_dbg(
+            &mut self,
+            group: &'static str,
+            name: &str,
+            arg_names: impl Iterator<Item = &'static str>,
+            user_assigned: bool,
+        ) {
+            self.write_property_header(group, name, user_assigned);
+            let mut a0 = true;
+            for arg in arg_names {
+                if a0 {
+                    a0 = false;
+                } else if user_assigned {
+                    self.write(", ".blue().bold());
+                } else {
+                    self.write(", ");
+                }
+                self.write_property_value(&format!("<{}>", arg));
+            }
             self.write_property_end(user_assigned);
         }
 
