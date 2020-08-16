@@ -87,6 +87,10 @@ macro_rules! impl_switch_vars {
                 }
             }
 
+            fn can_update(&self) -> bool {
+                self.r.index.can_update()
+            }
+
             fn is_new(&self, vars: &Vars) -> bool {
                 self.r.index.is_new(vars)
                     || match *self.r.index.get(vars) {
@@ -344,6 +348,10 @@ impl<I: Var<usize>, T: VarValue> ObjVar<T> for SwitchVarDyn<I, T> {
         } else {
             self.r.vars[*self.r.index.get(vars)].update(vars)
         }
+    }
+
+    fn can_update(&self) -> bool {
+        self.r.index.can_update()
     }
 
     fn is_new(&self, vars: &Vars) -> bool {

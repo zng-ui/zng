@@ -21,6 +21,10 @@ impl<T: VarValue> ObjVar<T> for OwnedVar<T> {
         None
     }
 
+    fn can_update(&self) -> bool {
+        false
+    }
+
     fn is_new(&self, _: &Vars) -> bool {
         false
     }

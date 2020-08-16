@@ -36,6 +36,10 @@ impl<T: VarValue, V: Var<T> + Clone> ObjVar<T> for ReadOnlyVar<T, V> {
         self.var.update(vars)
     }
 
+    fn can_update(&self) -> bool {
+        self.var.can_update()
+    }
+
     /// If the value changed this update.
     fn is_new(&self, vars: &Vars) -> bool {
         self.var.is_new(vars)

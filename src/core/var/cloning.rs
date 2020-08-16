@@ -61,6 +61,10 @@ impl<T: VarValue, V: Var<T>> ObjVar<T> for CloningLocalVar<T, V> {
         self.var.version(vars)
     }
 
+    fn can_update(&self) -> bool {
+        self.var.can_update()
+    }
+
     fn read_only(&self, vars: &Vars) -> bool {
         self.var.read_only(vars)
     }

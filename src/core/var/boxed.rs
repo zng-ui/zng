@@ -38,6 +38,9 @@ impl<T: VarValue> ObjVar<T> for BoxVar<T> {
     fn version(&self, vars: &Vars) -> u32 {
         self.as_ref().version(vars)
     }
+    fn can_update(&self) -> bool {
+        self.as_ref().can_update()
+    }
     fn read_only(&self, vars: &Vars) -> bool {
         self.as_ref().read_only(vars)
     }
@@ -99,6 +102,9 @@ impl<T: VarValue> ObjVar<T> for BoxLocalVar<T> {
     }
     fn version(&self, vars: &Vars) -> u32 {
         self.as_ref().version(vars)
+    }
+    fn can_update(&self) -> bool {
+        self.as_ref().can_update()
     }
     fn read_only(&self, vars: &Vars) -> bool {
         self.as_ref().read_only(vars)

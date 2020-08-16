@@ -88,6 +88,10 @@ impl<T: VarValue> ObjVar<T> for SharedVar<T> {
         }
     }
 
+    fn can_update(&self) -> bool {
+        true
+    }
+
     fn is_new(&self, _: &Vars) -> bool {
         self.r.is_new.get()
     }
@@ -339,6 +343,10 @@ where
         }
     }
 
+    fn can_update(&self) -> bool {
+        self.r.source.can_update()
+    }
+
     fn is_new(&self, vars: &Vars) -> bool {
         self.r.source.is_new(vars)
     }
@@ -374,6 +382,10 @@ where
 
     fn version(&self, vars: &Vars) -> u32 {
         self.r.source.version(vars)
+    }
+
+    fn can_update(&self) -> bool {
+        self.r.source.can_update()
     }
 
     fn read_only(&self, vars: &Vars) -> bool {

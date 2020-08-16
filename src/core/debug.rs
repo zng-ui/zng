@@ -87,6 +87,8 @@ pub struct PropertyArgInfo {
     pub value: String,
     /// Value version from the source variable.
     pub value_version: u32,
+    /// If the arg is a [`can_update` var](crate::core::var::ObjVar::can_update).
+    pub can_update: bool,
 }
 
 /// Property priority in a widget.
@@ -300,6 +302,7 @@ impl WidgetInstanceInfoNode {
                         name: n,
                         value: String::new(),
                         value_version: 0,
+                        can_update: false,
                     })
                     .collect(),
                 can_debug_args: !dbg_vars.is_empty(),
@@ -366,6 +369,7 @@ impl UiNode for WidgetInstanceInfoNode {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
                 arg.value = var.get(ctx.vars).clone();
                 arg.value_version = var.version(ctx.vars);
+                arg.can_update = var.can_update();
             }
         }
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
@@ -453,6 +457,7 @@ impl PropertyInfoNode {
                         name: n,
                         value: String::new(),
                         value_version: 0,
+                        can_update: false,
                     })
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
@@ -491,6 +496,7 @@ impl UiNode for PropertyInfoNode {
         for (var, arg) in self.arg_debug_vars.iter().zip(info.args.iter_mut()) {
             arg.value = var.get(ctx.vars).clone();
             arg.value_version = var.version(ctx.vars);
+            arg.can_update = var.can_update();
         }
     }
     fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -630,11 +636,17 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mu
             ($p:ident, $group:ident) => {
                 if $p.can_debug_args {
                     if $p.args.len() == 1 {
-                        fmt.write_property($group, $p.property_name, &$p.args[0].value, $p.user_assigned);
+                        fmt.write_property(
+                            $group,
+                            $p.property_name,
+                            &$p.args[0].value,
+                            $p.user_assigned,
+                            $p.args[0].can_update,
+                        );
                     } else {
                         fmt.open_property($group, $p.property_name, $p.user_assigned);
                         for arg in $p.args.iter() {
-                            fmt.write_property_arg(arg.name, &arg.value, $p.user_assigned);
+                            fmt.write_property_arg(arg.name, &arg.value, $p.user_assigned, arg.can_update);
                         }
                         fmt.close_property($p.user_assigned);
                     }
@@ -752,7 +764,7 @@ mod print_fmt {
             self.writeln();
         }
 
-        fn write_property_value(&mut self, value: &str) {
+        fn write_property_value(&mut self, value: &str, can_update: bool) {
             let mut l0 = true;
             for line in value.lines() {
                 if l0 {
@@ -761,13 +773,17 @@ mod print_fmt {
                     self.writeln();
                     self.write_tabs();
                 }
-                self.write(line.truecolor(200, 150, 150));
+                if can_update {
+                    self.write(line.truecolor(200, 150, 150));
+                } else {
+                    self.write(line.truecolor(150, 150, 200));
+                }
             }
         }
 
-        pub fn write_property(&mut self, group: &'static str, name: &str, value: &str, user_assigned: bool) {
+        pub fn write_property(&mut self, group: &'static str, name: &str, value: &str, user_assigned: bool, can_update: bool) {
             self.write_property_header(group, name, user_assigned);
-            self.write_property_value(value);
+            self.write_property_value(value, can_update);
             self.write_property_end(user_assigned);
         }
 
@@ -788,7 +804,7 @@ mod print_fmt {
                 } else {
                     self.write(", ");
                 }
-                self.write_property_value(&format!("<{}>", arg));
+                self.write_property_value(&format!("<{}>", arg), false);
             }
             self.write_property_end(user_assigned);
         }
@@ -804,7 +820,7 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool) {
+        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool, can_update: bool) {
             self.write_tabs();
             if user_assigned {
                 self.write(name.blue().bold());
@@ -813,7 +829,7 @@ mod print_fmt {
                 self.write(name);
                 self.write(": ");
             }
-            self.write_property_value(value);
+            self.write_property_value(value, can_update);
             if user_assigned {
                 self.write(",".blue().bold());
             } else {
@@ -850,6 +866,15 @@ mod print_fmt {
             self.writeln();
             self.write("▉  - property set by widget");
             self.writeln();
+            self.write("▉".truecolor(200, 150, 150));
+            self.write("  - variable");
+            self.writeln();
+            self.write("▉".truecolor(150, 150, 200));
+            self.write("  - frozen (init value only)");
+            self.writeln();
+            // self.write("▉".truecolor(150, 255, 150));
+            // self.write("  - variable that updated (since last print)");
+            // self.writeln();
         }
     }
 }

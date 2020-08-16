@@ -87,7 +87,11 @@ macro_rules! impl_merge_vars {
             }
 
             fn any_is_new(&self, vars: &Vars) -> bool {
-                 $(self.r.$vn.is_new(vars))||+
+                $(self.r.$vn.is_new(vars))||+
+            }
+
+            fn any_can_update(&self) -> bool {
+                $(self.r.$vn.can_update())||+
             }
         }
 
@@ -117,6 +121,10 @@ macro_rules! impl_merge_vars {
                 } else {
                     None
                 }
+            }
+
+            fn can_update(&self) -> bool {
+                self.any_can_update()
             }
 
             fn is_new(&self, vars: &Vars) -> bool {

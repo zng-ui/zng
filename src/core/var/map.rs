@@ -144,6 +144,14 @@ where
         }
     }
 
+    fn can_update(&self) -> bool {
+        match &self.r {
+            MapVarInner::Owned(o) => o.can_update(),
+            MapVarInner::Shared(s) => s.can_update(),
+            MapVarInner::Context(c) => c.can_update(),
+        }
+    }
+
     fn is_new(&self, vars: &Vars) -> bool {
         match &self.r {
             MapVarInner::Owned(o) => o.is_new(vars),
@@ -182,6 +190,14 @@ where
             MapVarBiDiInner::Owned(o) => o.update(vars),
             MapVarBiDiInner::Shared(s) => s.update(vars),
             MapVarBiDiInner::Context(c) => c.update(vars),
+        }
+    }
+
+    fn can_update(&self) -> bool {
+        match &self.r {
+            MapVarBiDiInner::Owned(o) => o.can_update(),
+            MapVarBiDiInner::Shared(s) => s.can_update(),
+            MapVarBiDiInner::Context(c) => c.can_update(),
         }
     }
 

@@ -47,6 +47,10 @@ impl<T: VarValue, V: ContextVar<Type = T>> ObjVar<T> for ContextVarImpl<V> {
         vars.context_is_new::<V>()
     }
 
+    fn can_update(&self) -> bool {
+        true
+    }
+
     fn version(&self, vars: &Vars) -> u32 {
         vars.context_version::<V>()
     }
@@ -188,6 +192,10 @@ where
         } else {
             None
         }
+    }
+
+    fn can_update(&self) -> bool {
+        self.r.source.can_update()
     }
 
     fn is_new(&self, vars: &Vars) -> bool {

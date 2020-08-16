@@ -102,19 +102,25 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
     /// Current value version. Version changes every time the value changes.
     fn version(&self, vars: &Vars) -> u32;
 
+    /// If the value can be change.
+    fn can_update(&self) -> bool;
+
     /// If the var is animating.
     fn is_animating(&self, vars: &Vars) -> bool {
         let _ = vars;
         false
     }
 
-    /// Gets if the variable is currently read-only.
+    /// If the variable cannot be set.
+    ///
+    /// Note the variable can still change from another endpoint, see [`can_update`] to
+    /// check if the variable is always a single value.
     fn read_only(&self, vars: &Vars) -> bool {
         let _ = vars;
         true
     }
 
-    /// Gets if the variable is always read-only.
+    /// If [`read_only`](Self::read_only) is always `true`.
     fn always_read_only(&self, vars: &Vars) -> bool {
         let _ = vars;
         true
