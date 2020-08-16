@@ -537,7 +537,7 @@ impl UiNode for PropertyInfoNode {
         info.duration.render = d;
         info.count.render += 1;
 
-        frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));        
+        frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
     }
 }
 
@@ -753,11 +753,15 @@ mod print_fmt {
         }
 
         fn write_property_value(&mut self, value: &str) {
-            if value.len() > 50 {
-                self.write(&value[..50]);
-                self.write("..");
-            } else {
-                self.write(value);
+            let mut l0 = true;
+            for line in value.lines() {
+                if l0 {
+                    l0 = false;
+                } else {
+                    self.writeln();
+                    self.write_tabs();
+                }
+                self.write(line.truecolor(200, 150, 150));
             }
         }
 
@@ -802,11 +806,11 @@ mod print_fmt {
             self.write("▉".yellow());
             self.write("  - widget");
             self.writeln();
-            self.write("▉".blue());  
+            self.write("▉".blue());
             self.write("  - property set by user");
-            self.writeln();      
+            self.writeln();
             self.write("▉  - property set by widget");
-            self.writeln();              
+            self.writeln();
         }
     }
 }
