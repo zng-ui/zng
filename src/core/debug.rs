@@ -634,7 +634,7 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mu
                     } else {
                         fmt.open_property($group, $p.property_name, $p.user_assigned);
                         for arg in $p.args.iter() {
-                            fmt.write_property_arg(arg.name, &arg.value);
+                            fmt.write_property_arg(arg.name, &arg.value, $p.user_assigned);
                         }
                         fmt.close_property($p.user_assigned);
                     }
@@ -795,24 +795,41 @@ mod print_fmt {
 
         pub fn open_property(&mut self, group: &'static str, name: &str, user_assigned: bool) {
             self.write_property_header(group, name, user_assigned);
-            self.write("{");
+            if user_assigned {
+                self.write("{".blue().bold());
+            } else {
+                self.write("{");
+            }
             self.writeln();
             self.depth += 1;
         }
 
-        pub fn write_property_arg(&mut self, name: &str, value: &str) {
+        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool) {
             self.write_tabs();
-            self.write(name);
-            self.write(": ");
+            if user_assigned {
+                self.write(name.blue().bold());
+                self.write(": ".blue().bold());
+            } else {
+                self.write(name);
+                self.write(": ");
+            }
             self.write_property_value(value);
-            self.write(",");
+            if user_assigned {
+                self.write(",".blue().bold());
+            } else {
+                self.write(",");
+            }
             self.writeln();
         }
 
         pub fn close_property(&mut self, user_assigned: bool) {
             self.depth -= 1;
             self.write_tabs();
-            self.write("}");
+            if user_assigned {
+                self.write("}".blue().bold());
+            } else {
+                self.write("}");
+            }
             self.write_property_end(user_assigned);
         }
 
