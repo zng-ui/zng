@@ -615,9 +615,13 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
 
 /// State for tracking updates in [`write_frame`](write_frame).
 pub struct WriteFrameState {
-    /// [instance_id => [(property_name, arg_name) => (value_version, value)]]
     #[allow(clippy::type_complexity)]
-    widgets: fnv::FnvHashMap<WidgetInstanceId, HashMap<(&'static str, &'static str), (u32, String)>>,
+    widgets: fnv::FnvHashMap<WidgetInstanceId, WriteWidgetState>,
+}
+struct WriteWidgetState {
+    bounds: LayoutRect,
+    /// [(property_name, arg_name) => (value_version, value)]
+    properties: HashMap<(&'static str, &'static str), (u32, String)>,
 }
 impl WriteFrameState {
     /// No property update.
@@ -650,7 +654,13 @@ impl WriteFrameState {
                         properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
                     }
                 }
-                widgets.insert(info.instance_id, properties);
+                widgets.insert(
+                    info.instance_id,
+                    WriteWidgetState {
+                        bounds: *w.bounds(),
+                        properties,
+                    },
+                );
             }
         }
 
@@ -660,7 +670,7 @@ impl WriteFrameState {
     pub fn arg_diff(&self, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArgInfo) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
-                if let Some((value_version, value)) = wgt_state.get(&(property_name, arg.name)) {
+                if let Some((value_version, value)) = wgt_state.properties.get(&(property_name, arg.name)) {
                     if *value_version != arg.value_version {
                         return Some(if value != &arg.value {
                             WriteArgDiff::NewValue
@@ -668,6 +678,17 @@ impl WriteFrameState {
                             WriteArgDiff::NewVersion
                         });
                     }
+                }
+            }
+        }
+        None
+    }
+
+    pub fn bounds_diff(&self, widget_id: WidgetInstanceId, bounds: &LayoutRect) -> Option<WriteArgDiff> {
+        if !self.is_none() {
+            if let Some(wgt_state) = self.widgets.get(&widget_id) {
+                if &wgt_state.bounds != bounds {
+                    return Some(WriteArgDiff::NewValue);
                 }
             }
         }
@@ -742,6 +763,16 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
             write_property!(p, group);
         }
 
+        fmt.writeln();
+        fmt.write_property(
+            ".layout",
+            ".bounds",
+            &format!("{:?}", widget.bounds()),
+            false,
+            true,
+            updates_from.bounds_diff(wgt.instance_id, widget.bounds()),
+        );
+
         for child in widget.children() {
             write_tree(updates_from, child, wgt.widget_name, fmt);
         }
@@ -749,6 +780,9 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         fmt.close_widget(wgt.widget_name);
     } else {
         fmt.open_widget("<unknown>", "", "");
+
+        fmt.write_property(".layout", ".bounds", &format!("{:?}", widget.bounds()), false, true, None);
+
         for child in widget.children() {
             write_tree(updates_from, child, "<unknown>", fmt);
         }
@@ -784,7 +818,7 @@ mod print_fmt {
             let _ = write!(&mut self.output, "{}", s);
         }
 
-        fn writeln(&mut self) {
+        pub fn writeln(&mut self) {
             let _ = writeln!(&mut self.output);
         }
 
@@ -972,7 +1006,7 @@ mod print_fmt {
             self.write("▉".truecolor(150, 255, 150));
             self.write("  - updated, new value");
             self.writeln();
-            
+
             self.write("▉".truecolor(100, 150, 100));
             self.write("  - updated, same value");
             self.writeln();
