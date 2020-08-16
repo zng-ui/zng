@@ -587,6 +587,12 @@ impl FrameInfo {
         WidgetInfo::new(self, self.tree.root().id())
     }
 
+    /// All widgets including `root`.
+    #[inline]
+    pub fn all_widgets(&self) -> impl Iterator<Item = WidgetInfo> {
+        self.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
+    }
+
     #[inline]
     pub fn window_id(&self) -> WindowId {
         self.window_id

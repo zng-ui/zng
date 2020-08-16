@@ -11,7 +11,7 @@ use super::{
 };
 use std::{
     cell::RefCell,
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     rc::Rc,
     time::{Duration, Instant},
 };
@@ -613,20 +613,85 @@ impl<'a> WidgetDebugInfo<'a> for WidgetInfo<'a> {
     }
 }
 
+/// State for tracking updates in [`write_frame`](write_frame).
+pub struct WriteFrameState {
+    /// [instance_id => [(property_name, arg_name) => (value_version, value)]]
+    #[allow(clippy::type_complexity)]
+    widgets: fnv::FnvHashMap<WidgetInstanceId, HashMap<(&'static str, &'static str), (u32, String)>>,
+}
+impl WriteFrameState {
+    /// No property update.
+    pub fn none() -> Self {
+        WriteFrameState {
+            widgets: Default::default(),
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.widgets.is_empty()
+    }
+
+    /// State from `frame` that can be compared to future frames.
+    pub fn new(frame: &FrameInfo) -> Self {
+        let mut widgets = fnv::FnvHashMap::default();
+
+        for w in frame.all_widgets() {
+            if let Some(info) = w.instance() {
+                let info = info.borrow();
+                let mut properties = HashMap::new();
+                for p in info.captured_new_child.iter().chain(info.captured_new_child.iter()) {
+                    for arg in p.args.iter() {
+                        properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                    }
+                }
+                for p in w.properties() {
+                    let p = p.borrow();
+                    for arg in p.args.iter() {
+                        properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
+                    }
+                }
+                widgets.insert(info.instance_id, properties);
+            }
+        }
+
+        WriteFrameState { widgets }
+    }
+
+    pub fn arg_diff(&self, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArgInfo) -> Option<WriteArgDiff> {
+        if !self.is_none() {
+            if let Some(wgt_state) = self.widgets.get(&widget_id) {
+                if let Some((value_version, value)) = wgt_state.get(&(property_name, arg.name)) {
+                    if *value_version != arg.value_version {
+                        return Some(if value != &arg.value {
+                            WriteArgDiff::NewValue
+                        } else {
+                            WriteArgDiff::NewVersion
+                        });
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+pub enum WriteArgDiff {
+    NewVersion,
+    NewValue,
+}
+
+/// Writes the widget tree of a `frame` to `out`.
+///
+/// When writing to a terminal the text is color coded and a legend is printed. This coloring
+/// is done by [colored](https://github.com/mackwic/colored#features).
 #[inline]
-pub fn print_frame<W: std::io::Write>(frame: &FrameInfo, out: &mut W) {
+pub fn write_frame<W: std::io::Write>(frame: &FrameInfo, updates_from: &WriteFrameState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
+    write_tree(updates_from, frame.root(), "", &mut fmt);
     fmt.write_legend();
-    fmt.writeln();
-    print_tree(frame.root(), "", &mut fmt);
 }
 
-#[inline]
-pub fn print_widget<W: std::io::Write>(widget: WidgetInfo, out: &mut W) {
-    print_tree(widget, "", &mut print_fmt::Fmt::new(out));
-}
-
-fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
+fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
 
@@ -642,11 +707,18 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mu
                             &$p.args[0].value,
                             $p.user_assigned,
                             $p.args[0].can_update,
+                            updates_from.arg_diff(wgt.instance_id, $p.property_name, &$p.args[0]),
                         );
                     } else {
                         fmt.open_property($group, $p.property_name, $p.user_assigned);
                         for arg in $p.args.iter() {
-                            fmt.write_property_arg(arg.name, &arg.value, $p.user_assigned, arg.can_update);
+                            fmt.write_property_arg(
+                                arg.name,
+                                &arg.value,
+                                $p.user_assigned,
+                                arg.can_update,
+                                updates_from.arg_diff(wgt.instance_id, $p.property_name, &arg),
+                            );
                         }
                         fmt.close_property($p.user_assigned);
                     }
@@ -671,20 +743,21 @@ fn print_tree<W: std::io::Write>(widget: WidgetInfo, parent_name: &str, fmt: &mu
         }
 
         for child in widget.children() {
-            print_tree(child, wgt.widget_name, fmt);
+            write_tree(updates_from, child, wgt.widget_name, fmt);
         }
 
         fmt.close_widget(wgt.widget_name);
     } else {
         fmt.open_widget("<unknown>", "", "");
         for child in widget.children() {
-            print_tree(child, "<unknown>", fmt);
+            write_tree(updates_from, child, "<unknown>", fmt);
         }
         fmt.close_widget("<unknown>");
     }
 }
 
 mod print_fmt {
+    use super::WriteArgDiff;
     use colored::*;
     use std::fmt::Display;
     use std::io::Write;
@@ -711,7 +784,7 @@ mod print_fmt {
             let _ = write!(&mut self.output, "{}", s);
         }
 
-        pub fn writeln(&mut self) {
+        fn writeln(&mut self) {
             let _ = writeln!(&mut self.output);
         }
 
@@ -764,7 +837,7 @@ mod print_fmt {
             self.writeln();
         }
 
-        fn write_property_value(&mut self, value: &str, can_update: bool) {
+        fn write_property_value(&mut self, value: &str, can_update: bool, diff: Option<WriteArgDiff>) {
             let mut l0 = true;
             for line in value.lines() {
                 if l0 {
@@ -773,7 +846,13 @@ mod print_fmt {
                     self.writeln();
                     self.write_tabs();
                 }
-                if can_update {
+
+                if let Some(diff) = &diff {
+                    match diff {
+                        WriteArgDiff::NewVersion => self.write(line.truecolor(100, 150, 100)),
+                        WriteArgDiff::NewValue => self.write(line.truecolor(150, 255, 150).bold()),
+                    }
+                } else if can_update {
                     self.write(line.truecolor(200, 150, 150));
                 } else {
                     self.write(line.truecolor(150, 150, 200));
@@ -781,9 +860,17 @@ mod print_fmt {
             }
         }
 
-        pub fn write_property(&mut self, group: &'static str, name: &str, value: &str, user_assigned: bool, can_update: bool) {
+        pub fn write_property(
+            &mut self,
+            group: &'static str,
+            name: &str,
+            value: &str,
+            user_assigned: bool,
+            can_update: bool,
+            diff: Option<WriteArgDiff>,
+        ) {
             self.write_property_header(group, name, user_assigned);
-            self.write_property_value(value, can_update);
+            self.write_property_value(value, can_update, diff);
             self.write_property_end(user_assigned);
         }
 
@@ -804,7 +891,7 @@ mod print_fmt {
                 } else {
                     self.write(", ");
                 }
-                self.write_property_value(&format!("<{}>", arg), false);
+                self.write_property_value(&format!("<{}>", arg), false, None);
             }
             self.write_property_end(user_assigned);
         }
@@ -820,7 +907,7 @@ mod print_fmt {
             self.depth += 1;
         }
 
-        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool, can_update: bool) {
+        pub fn write_property_arg(&mut self, name: &str, value: &str, user_assigned: bool, can_update: bool, diff: Option<WriteArgDiff>) {
             self.write_tabs();
             if user_assigned {
                 self.write(name.blue().bold());
@@ -829,7 +916,7 @@ mod print_fmt {
                 self.write(name);
                 self.write(": ");
             }
-            self.write_property_value(value, can_update);
+            self.write_property_value(value, can_update, diff);
             if user_assigned {
                 self.write(",".blue().bold());
             } else {
@@ -858,23 +945,37 @@ mod print_fmt {
         }
 
         pub fn write_legend(&mut self) {
+            if !control::SHOULD_COLORIZE.should_colorize() {
+                return;
+            }
+
+            self.writeln();
             self.write("▉".yellow());
             self.write("  - widget");
             self.writeln();
+
             self.write("▉".blue());
-            self.write("  - property set by user");
+            self.write("  - property, set by user");
             self.writeln();
-            self.write("▉  - property set by widget");
+
+            self.write("▉  - property, set by widget");
             self.writeln();
+
             self.write("▉".truecolor(200, 150, 150));
             self.write("  - variable");
             self.writeln();
+
             self.write("▉".truecolor(150, 150, 200));
-            self.write("  - frozen (init value only)");
+            self.write("  - frozen, init value");
             self.writeln();
-            // self.write("▉".truecolor(150, 255, 150));
-            // self.write("  - variable that updated (since last print)");
-            // self.writeln();
+
+            self.write("▉".truecolor(150, 255, 150));
+            self.write("  - updated, new value");
+            self.writeln();
+            
+            self.write("▉".truecolor(100, 150, 100));
+            self.write("  - updated, same value");
+            self.writeln();
         }
     }
 }

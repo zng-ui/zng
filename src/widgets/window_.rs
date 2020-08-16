@@ -1,6 +1,5 @@
 use crate::core::widget;
 use crate::core::{
-    debug::print_frame,
     focus::TabNav,
     keyboard::KeyInputArgs,
     types::{rgb, WidgetId},
@@ -58,7 +57,7 @@ widget! {
         tab_nav: TabNav::Cycle;
 
         /// Test inspector.
-        on_key_down: on_keydown_print_frame;
+        on_key_down: print_frame_inspector();
     }
 
     /// Manually initializes a new [`window`](self).
@@ -68,17 +67,24 @@ widget! {
     }
 }
 
-fn on_keydown_print_frame(args: &mut OnEventArgs<KeyInputArgs>) {
-    if args.args().shortcut() == Some(shortcut!(CTRL | SHIFT + I)) {
-        let ctx = args.ctx();
+fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
+    use crate::core::debug::{write_frame, WriteFrameState};
 
-        let frame = ctx
-            .services
-            .req::<crate::core::window::Windows>()
-            .window(ctx.window_id)
-            .unwrap()
-            .frame_info();
+    let mut state = WriteFrameState::none();
+    move |args| {
+        if args.args().shortcut() == Some(shortcut!(CTRL | SHIFT + I)) {
+            let ctx = args.ctx();
 
-        print_frame(frame, &mut std::io::stderr());
+            let frame = ctx
+                .services
+                .req::<crate::core::window::Windows>()
+                .window(ctx.window_id)
+                .unwrap()
+                .frame_info();
+
+            write_frame(frame, &state, &mut std::io::stderr());
+
+            state = WriteFrameState::new(&frame);
+        }
     }
 }
