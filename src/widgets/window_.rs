@@ -36,12 +36,33 @@ widget! {
 
         /// Window position (left, top).
         ///
+        ///  If set to a variable it is kept in sync.
+        ///
         /// Set to [`f32::NAN`](f32::NAN) to not give an initial position.
-        position: (f32::NAN, f32::NAN);
-        /// Window size. If set to a variable it is kept in sync.
+        position: {
+            // use shared var in debug to allow inspecting the value.
+            #[cfg(debug_assertions)]
+            let r = crate::core::var::var(crate::core::types::LayoutPoint::new(f32::NAN, f32::NAN));
+            
+            #[cfg(not(debug_assertions))]
+            let r = (f32::NAN, f32::NAN);
+
+            r
+        };
+        /// Window size.
+        ///
+        /// If set to a variable it is kept in sync.
         ///
         /// Does not include the OS window border.
-        size: (800.0, 600.0);
+        size: {
+            #[cfg(debug_assertions)]
+            let r = crate::core::var::var(crate::core::types::LayoutSize::new(800.0, 600.0));
+
+            #[cfg(not(debug_assertions))]
+            let r = (800.0, 600.0);
+
+            r
+        };
 
         /// Window clear color.
         background_color: rgb(0.1, 0.1, 0.1);
