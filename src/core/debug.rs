@@ -643,7 +643,7 @@ impl WriteFrameState {
             if let Some(info) = w.instance() {
                 let info = info.borrow();
                 let mut properties = HashMap::new();
-                for p in info.captured_new_child.iter().chain(info.captured_new_child.iter()) {
+                for p in info.captured_new_child.iter().chain(info.captured_new.iter()) {
                     for arg in p.args.iter() {
                         properties.insert((p.property_name, arg.name), (arg.value_version, arg.value.clone()));
                     }
@@ -1010,6 +1010,8 @@ mod print_fmt {
 
             self.write("▉".truecolor(100, 150, 100));
             self.write("  - updated, same value");
+            self.writeln();
+
             self.writeln();
         }
     }
