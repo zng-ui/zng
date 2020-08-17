@@ -732,6 +732,13 @@ pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
     pub info: WidgetInfo<'a>,
 }
+macro_rules! DirectionFn {
+    (impl) => { impl Fn(LayoutPoint, LayoutPoint) -> (f32, f32, f32, f32) };
+    (up) => { |from_pt, cand_c| (cand_c.y, from_pt.y, cand_c.x, from_pt.x) };
+    (down) => { |from_pt, cand_c| (from_pt.y, cand_c.y, cand_c.x, from_pt.x) };
+    (left) => { |from_pt, cand_c| (cand_c.x, from_pt.x, cand_c.y, from_pt.y) };
+    (right) => { |from_pt, cand_c| (from_pt.x, cand_c.x, cand_c.y, from_pt.y) };
+}
 impl<'a> WidgetFocusInfo<'a> {
     #[inline]
     pub fn new(widget_info: WidgetInfo<'a>) -> Self {
@@ -1064,28 +1071,168 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
+    fn directional_from_pt(
+        scope: WidgetFocusInfo<'a>,
+        from_pt: LayoutPoint,
+        skip_id: WidgetId,
+        direction: DirectionFn![impl],
+    ) -> Option<WidgetFocusInfo<'a>> {
+        let distance = move |other_pt: LayoutPoint| {
+            let a = (other_pt.x - from_pt.x).powf(2.);
+            let b = (other_pt.y - from_pt.y).powf(2.);
+            a + b
+        };
+
+        let mut candidate_dist = f32::MAX;
+        let mut candidate = None;
+
+        for w in scope.descendants() {
+            if w.info.widget_id() != skip_id {
+                let candidate_center = w.info.center();
+
+                let (a, b, c, d) = direction(from_pt, candidate_center);
+                let mut is_in_direction = false;
+
+                // for 'above' this is:
+                // is above line?
+                if a <= b {
+                    // is to the right?
+                    if c >= d {
+                        // is in the 45º 'frustum'
+                        // │?╱
+                        // │╱__
+                        is_in_direction = c <= d + (b - a);
+                    } else {
+                        //  ╲?│
+                        // __╲│
+                        is_in_direction = c >= d - (b - a);
+                    }
+                }
+
+                if is_in_direction {
+                    let dist = distance(candidate_center);
+                    if dist < candidate_dist {
+                        candidate = Some(w);
+                        candidate_dist = dist;
+                    }
+                }
+            }
+        }
+
+        candidate
+    }
+
+    fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
+        self.scope()
+            .and_then(|s| Self::directional_from_pt(s, self.info.center(), s.info.widget_id(), direction_vals))
+    }
+
+    /// Closest focusable in the same scope above this widget.
+    #[inline]
+    pub fn focusable_above(self) -> Option<WidgetFocusInfo<'a>> {
+        self.directional_next(DirectionFn![up])
+    }
+
+    /// Closest focusable in the same scope below this widget.
+    #[inline]
+    pub fn focusable_below(self) -> Option<WidgetFocusInfo<'a>> {
+        self.directional_next(DirectionFn![down])
+    }
+
+    /// Closest focusable in the same scope to the left of this widget.
+    #[inline]
+    pub fn focusable_left(self) -> Option<WidgetFocusInfo<'a>> {
+        self.directional_next(DirectionFn![left])
+    }
+
+    /// Closest focusable in the same scope to the right of this widget.
+    #[inline]
+    pub fn focusable_right(self) -> Option<WidgetFocusInfo<'a>> {
+        self.directional_next(DirectionFn![right])
+    }
+
     /// Widget to focus when pressing the arrow up key from this widget.
     #[inline]
     pub fn next_up(self) -> Option<WidgetFocusInfo<'a>> {
-        None
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.directional_nav() {
+                DirectionalNav::None => None,
+                DirectionalNav::Continue => self.focusable_above().or_else(|| scope.focusable_above()),
+                DirectionalNav::Contained => self.focusable_above(),
+                DirectionalNav::Cycle => self.focusable_above().or_else(|| {
+                    // next up from the same X but from the bottom segment of scope.
+                    let mut from_pt = self.info.center();
+                    from_pt.y = scope.info.bounds().max_y();
+                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![up])
+                }),
+            }
+        } else {
+            None
+        }
     }
 
     /// Widget to focus when pressing the arrow right key from this widget.
     #[inline]
     pub fn next_right(self) -> Option<WidgetFocusInfo<'a>> {
-        None
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.directional_nav() {
+                DirectionalNav::None => None,
+                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.focusable_right()),
+                DirectionalNav::Contained => self.focusable_right(),
+                DirectionalNav::Cycle => self.focusable_right().or_else(|| {
+                    // next right from the same Y but from the left segment of scope.
+                    let mut from_pt = self.info.center();
+                    from_pt.x = scope.info.bounds().min_x();
+                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![right])
+                }),
+            }
+        } else {
+            None
+        }
     }
 
     /// Widget to focus when pressing the arrow down key from this widget.
     #[inline]
     pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
-        None
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.directional_nav() {
+                DirectionalNav::None => None,
+                DirectionalNav::Continue => self.focusable_below().or_else(|| scope.focusable_below()),
+                DirectionalNav::Contained => self.focusable_below(),
+                DirectionalNav::Cycle => self.focusable_below().or_else(|| {
+                    // next down from the same X but from the top segment of scope.
+                    let mut from_pt = self.info.center();
+                    from_pt.y = scope.info.bounds().min_y();
+                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![down])
+                }),
+            }
+        } else {
+            None
+        }
     }
 
     /// Widget to focus when pressing the arrow left key from this widget.
     #[inline]
     pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
-        None //TODO
+        if let Some(scope) = self.scope() {
+            let scope_info = scope.focus_info();
+            match scope_info.directional_nav() {
+                DirectionalNav::None => None,
+                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.focusable_left()),
+                DirectionalNav::Contained => self.focusable_left(),
+                DirectionalNav::Cycle => self.focusable_left().or_else(|| {
+                    // next left from the same Y but from the right segment of scope.
+                    let mut from_pt = self.info.center();
+                    from_pt.x = scope.info.bounds().max_x();
+                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![left])
+                }),
+            }
+        } else {
+            None
+        }
     }
 }
 
