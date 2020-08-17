@@ -619,7 +619,7 @@ pub struct WriteFrameState {
     widgets: fnv::FnvHashMap<WidgetInstanceId, WriteWidgetState>,
 }
 struct WriteWidgetState {
-    bounds: LayoutRect,
+    outer_size: LayoutSize,
     /// [(property_name, arg_name) => (value_version, value)]
     properties: HashMap<(&'static str, &'static str), (u32, String)>,
 }
@@ -657,7 +657,7 @@ impl WriteFrameState {
                 widgets.insert(
                     info.instance_id,
                     WriteWidgetState {
-                        bounds: *w.bounds(),
+                        outer_size: w.bounds().size,
                         properties,
                     },
                 );
@@ -684,10 +684,10 @@ impl WriteFrameState {
         None
     }
 
-    pub fn bounds_diff(&self, widget_id: WidgetInstanceId, bounds: &LayoutRect) -> Option<WriteArgDiff> {
+    pub fn outer_size_diff(&self, widget_id: WidgetInstanceId, outer_size: LayoutSize) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
-                if &wgt_state.bounds != bounds {
+                if wgt_state.outer_size != outer_size {
                     return Some(WriteArgDiff::NewValue);
                 }
             }
@@ -766,11 +766,11 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         fmt.writeln();
         fmt.write_property(
             ".layout",
-            ".bounds",
-            &format!("{:?}", widget.bounds()),
+            ".outer_size",
+            &format!("{:?}", widget.bounds().size),
             false,
             true,
-            updates_from.bounds_diff(wgt.instance_id, widget.bounds()),
+            updates_from.outer_size_diff(wgt.instance_id, widget.bounds().size),
         );
 
         for child in widget.children() {
