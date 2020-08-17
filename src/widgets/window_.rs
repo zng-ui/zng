@@ -43,7 +43,7 @@ widget! {
             // use shared var in debug to allow inspecting the value.
             #[cfg(debug_assertions)]
             let r = crate::core::var::var(crate::core::types::LayoutPoint::new(f32::NAN, f32::NAN));
-            
+
             #[cfg(not(debug_assertions))]
             let r = (f32::NAN, f32::NAN);
 

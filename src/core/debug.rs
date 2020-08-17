@@ -703,8 +703,9 @@ pub enum WriteArgDiff {
 
 /// Writes the widget tree of a `frame` to `out`.
 ///
-/// When writing to a terminal the text is color coded and a legend is printed. This coloring
-/// is done by [colored](https://github.com/mackwic/colored#features).
+/// When writing to a terminal the text is color coded and a legend is printed. The coloring
+/// can be configured using environment variables, see [colored](https://github.com/mackwic/colored#features)
+/// for details.
 #[inline]
 pub fn write_frame<W: std::io::Write>(frame: &FrameInfo, updates_from: &WriteFrameState, out: &mut W) {
     let mut fmt = print_fmt::Fmt::new(out);
