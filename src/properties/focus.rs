@@ -1,9 +1,16 @@
+use super::StopPropagation;
 use crate::core::context::*;
 use crate::core::focus::*;
 use crate::core::render::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::core::{
+    event::{Event, EventListener},
+    gesture::KeyShortcut,
+    impl_ui_node,
+    keyboard::{KeyDownEvent, KeyInputArgs},
+    property,
+};
 
 /// Enables a widget to receive focus.
 #[property(context)]
@@ -49,6 +56,16 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
     SetDirectionalNav {
         child,
         directional_nav: directional_nav.into_local(),
+    }
+}
+
+/// Keyboard shortcut that focus this widget.
+#[property(context)]
+pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<KeyShortcut>) -> impl UiNode {
+    FocusShortcut {
+        child,
+        shortcut: shortcut.into_var(),
+        key_down: KeyDownEvent::never(),
     }
 }
 
@@ -178,5 +195,44 @@ impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for SetDirectionalNav<C, E> 
     fn render(&self, frame: &mut FrameBuilder) {
         frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
         self.child.render(frame);
+    }
+}
+
+struct FocusShortcut<C: UiNode, S: Var<KeyShortcut>> {
+    child: C,
+    shortcut: S,
+    key_down: EventListener<KeyInputArgs>,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, S: Var<KeyShortcut>> UiNode for FocusShortcut<C, S> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.key_down = ctx.events.listen::<KeyDownEvent>();
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        let handled_key = StopPropagation::<KeyDownEvent>::key();
+        if !ctx.event_state.flagged(handled_key) {
+            let shortcut = Some(*self.shortcut.get(ctx.vars));
+            for update in self.key_down.updates(ctx.events) {
+                if update.shortcut() == shortcut {
+                    ctx.services.req::<Focus>().focus_widget(ctx.widget_id, true);
+                    ctx.event_state.flag(handled_key);
+                    break;
+                }
+            }
+        }
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.child.render(frame);
+
+        let focus = frame.meta().entry(FocusInfoKey).or_default();
+        if focus.focusable.is_none() {
+            focus.focusable = Some(true);
+        }
     }
 }

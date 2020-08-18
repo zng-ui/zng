@@ -46,11 +46,11 @@ pub trait Event: 'static {
 ///
 /// This trait is auto-implemented for all events with cancellable arguments.
 pub trait CancelableEvent: Event + 'static {
-    /// Cancellable event arguments type.
-    type Args: CancelableEventArgs;
+    /// Cancelable event arguments type.
+    type CancelableArgs: CancelableEventArgs;
 }
 impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
-    type Args = A;
+    type CancelableArgs = A;
 }
 
 struct EventChannelInner<T> {
