@@ -1072,11 +1072,13 @@ impl<'a> WidgetFocusInfo<'a> {
     }
 
     fn directional_from_pt(
+        self,
         scope: WidgetFocusInfo<'a>,
         from_pt: LayoutPoint,
-        skip_id: WidgetId,
         direction: DirectionFn![impl],
     ) -> Option<WidgetFocusInfo<'a>> {
+        let skip_id = self.info.widget_id();
+
         let distance = move |other_pt: LayoutPoint| {
             let a = (other_pt.x - from_pt.x).powf(2.);
             let b = (other_pt.y - from_pt.y).powf(2.);
@@ -1093,7 +1095,7 @@ impl<'a> WidgetFocusInfo<'a> {
                 let (a, b, c, d) = direction(from_pt, candidate_center);
                 let mut is_in_direction = false;
 
-                // for 'above' this is:
+                // for 'up' this is:
                 // is above line?
                 if a <= b {
                     // is to the right?
@@ -1124,18 +1126,18 @@ impl<'a> WidgetFocusInfo<'a> {
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| Self::directional_from_pt(s, self.info.center(), s.info.widget_id(), direction_vals))
+            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals))
     }
 
     /// Closest focusable in the same scope above this widget.
     #[inline]
-    pub fn focusable_above(self) -> Option<WidgetFocusInfo<'a>> {
+    pub fn focusable_up(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![up])
     }
 
     /// Closest focusable in the same scope below this widget.
     #[inline]
-    pub fn focusable_below(self) -> Option<WidgetFocusInfo<'a>> {
+    pub fn focusable_down(self) -> Option<WidgetFocusInfo<'a>> {
         self.directional_next(DirectionFn![down])
     }
 
@@ -1158,13 +1160,13 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_above().or_else(|| scope.focusable_above()),
-                DirectionalNav::Contained => self.focusable_above(),
-                DirectionalNav::Cycle => self.focusable_above().or_else(|| {
+                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.focusable_up()),
+                DirectionalNav::Contained => self.focusable_up(),
+                DirectionalNav::Cycle => self.focusable_up().or_else(|| {
                     // next up from the same X but from the bottom segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.y = scope.info.bounds().max_y();
-                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![up])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![up])
                 }),
             }
         } else {
@@ -1185,7 +1187,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.x = scope.info.bounds().min_x();
-                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![right])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![right])
                 }),
             }
         } else {
@@ -1200,13 +1202,13 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_below().or_else(|| scope.focusable_below()),
-                DirectionalNav::Contained => self.focusable_below(),
-                DirectionalNav::Cycle => self.focusable_below().or_else(|| {
+                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.focusable_down()),
+                DirectionalNav::Contained => self.focusable_down(),
+                DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.y = scope.info.bounds().min_y();
-                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![down])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![down])
                 }),
             }
         } else {
@@ -1227,7 +1229,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.x = scope.info.bounds().max_x();
-                    Self::directional_from_pt(scope, from_pt, self.info.widget_id(), DirectionFn![left])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![left])
                 }),
             }
         } else {
