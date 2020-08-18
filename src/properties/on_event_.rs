@@ -8,6 +8,7 @@ use crate::core::render::FrameBuilder;
 use crate::core::types::{LayoutSize, PixelGrid};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
+use std::fmt;
 
 struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     child: C,
@@ -120,21 +121,36 @@ impl<'c, 'a, A: EventArgs> OnEventArgs<'c, 'a, A> {
     }
 }
 
+/// Event state flag that indicate the event is "handled".
 pub struct StopPropagation<E: Event> {
     _e: std::marker::PhantomData<E>,
 }
-
-impl<E: Event> Default for StopPropagation<E> {
-    fn default() -> Self {
+impl<E: Event> StopPropagation<E> {
+    pub fn key() -> Self {
         StopPropagation {
             _e: std::marker::PhantomData,
         }
     }
 }
-
+impl<E: Event> Default for StopPropagation<E> {
+    fn default() -> Self {
+        Self::key()
+    }
+}
 impl<E: Event> StateKey for StopPropagation<E> {
     type Type = ();
 }
+impl<E: Event> fmt::Debug for StopPropagation<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "StopPropagation<{}>", std::any::type_name::<E>())
+    }
+}
+impl<E: Event> Clone for StopPropagation<E> {
+    fn clone(&self) -> Self {
+        Self::key()
+    }
+}
+impl<E: Event> Copy for StopPropagation<E> {}
 
 #[property(event)]
 pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<KeyInputArgs>) + 'static) -> impl UiNode {
