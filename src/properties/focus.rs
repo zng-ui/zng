@@ -72,7 +72,7 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for Focusable<C, E> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(IsFocusableKey, *self.is_focusable.get_local());
+        frame.meta().entry(FocusInfoKey).or_default().focusable = Some(*self.is_focusable.get_local());
         self.child.render(frame);
     }
 }
@@ -101,7 +101,7 @@ where
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(TabIndexKey, *self.tab_index.get_local());
+        frame.meta().entry(FocusInfoKey).or_default().tab_index = Some(*self.tab_index.get_local());
         self.child.render(frame);
     }
 }
@@ -126,7 +126,7 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScope<C, E> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(IsFocusScopeKey, *self.is_focus_scope.get_local());
+        frame.meta().entry(FocusInfoKey).or_default().scope = Some(*self.is_focus_scope.get_local());
         self.child.render(frame);
     }
 }
@@ -151,7 +151,7 @@ impl<C: UiNode, E: LocalVar<TabNav>> UiNode for SetTabNav<C, E> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(TabNavKey, *self.tab_nav.get_local());
+        frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get_local());
         self.child.render(frame);
     }
 }
@@ -176,7 +176,7 @@ impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for SetDirectionalNav<C, E> 
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().set(DirectionalNavKey, *self.directional_nav.get_local());
+        frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
         self.child.render(frame);
     }
 }

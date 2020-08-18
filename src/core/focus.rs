@@ -100,11 +100,7 @@ impl FocusChangedArgs {
 }
 
 state_key! {
-    pub(crate) struct IsFocusableKey: bool;
-    pub(crate) struct TabIndexKey: TabIndex;
-    pub(crate) struct IsFocusScopeKey: bool;
-    pub(crate) struct TabNavKey: TabNav;
-    pub(crate) struct DirectionalNavKey: DirectionalNav;
+    pub(crate) struct FocusInfoKey: FocusInfoBuilder;
 }
 
 /// Widget tab navigation position within a focus scope.
@@ -163,6 +159,12 @@ impl TabIndex {
     #[inline]
     pub fn after_auto(index: u32) -> Self {
         Self::not_skip((Self::AUTO.0 + 1).saturating_add(index))
+    }
+}
+impl Default for TabIndex {
+    /// `AUTO`
+    fn default() -> Self {
+        TabIndex::AUTO
     }
 }
 
@@ -773,33 +775,10 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget focus metadata.
     #[inline]
     pub fn focus_info(self) -> FocusInfo {
-        let m = self.info.meta();
-        match (
-            m.get(IsFocusableKey).copied(),
-            m.get(IsFocusScopeKey).copied(),
-            m.get(TabIndexKey).copied(),
-            m.get(TabNavKey).copied(),
-            m.get(DirectionalNavKey).copied(),
-        ) {
-            // Set as not focusable.
-            (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
-
-            // Set as focus scope and not set as not focusable
-            // or set tab navigation and did not set as not focus scope
-            // or set directional navigation and did not set as not focus scope.
-            (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
-                FocusInfo::FocusScope(
-                    idx.unwrap_or(TabIndex::AUTO),
-                    tab.unwrap_or(TabNav::Continue),
-                    dir.unwrap_or(DirectionalNav::None),
-                )
-            }
-
-            // Set as focusable and was not focus scope
-            // or set tab index and was not focus scope and did not set as not focusable.
-            (Some(true), _, idx, _, _) | (_, _, idx @ Some(_), _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
-
-            _ => FocusInfo::NotFocusable,
+        if let Some(builder) = self.info.meta().get(FocusInfoKey) {
+            builder.build()
+        } else {
+            FocusInfo::NotFocusable
         }
     }
 
@@ -1319,6 +1298,41 @@ impl FocusInfo {
             FocusInfo::Focusable(i) => i,
             FocusInfo::FocusScope(i, _, _) => i,
             FocusInfo::NotFocusable => TabIndex::SKIP,
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct FocusInfoBuilder {
+    pub focusable: Option<bool>,
+    pub scope: Option<bool>,
+    pub tab_index: Option<TabIndex>,
+    pub tab_nav: Option<TabNav>,
+    pub directional_nav: Option<DirectionalNav>,
+}
+impl FocusInfoBuilder {
+    #[inline]
+    pub fn build(&self) -> FocusInfo {
+        match (self.focusable, self.scope, self.tab_index, self.tab_nav, self.directional_nav) {
+            // Set as not focusable.
+            (Some(false), _, _, _, _) => FocusInfo::NotFocusable,
+
+            // Set as focus scope and not set as not focusable
+            // or set tab navigation and did not set as not focus scope
+            // or set directional navigation and did not set as not focus scope.
+            (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
+                FocusInfo::FocusScope(
+                    idx.unwrap_or(TabIndex::AUTO),
+                    tab.unwrap_or(TabNav::Continue),
+                    dir.unwrap_or(DirectionalNav::None),
+                )
+            }
+
+            // Set as focusable and was not focus scope
+            // or set tab index and was not focus scope and did not set as not focusable.
+            (Some(true), _, idx, _, _) | (_, _, idx @ Some(_), _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
+
+            _ => FocusInfo::NotFocusable,
         }
     }
 }
