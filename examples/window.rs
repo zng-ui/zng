@@ -26,11 +26,20 @@ fn main() {
             content: h_stack! {
                 spacing: 40.0;
                 items: ui_vec![
-                    property_stack("position", ui_vec![
-                        set_position(0.0, 0.0, &position),
-                        set_position(490.0, 290.0, &position),
-                        set_position(500.0, 300.0, &position),
-                    ]),
+                    v_stack! {
+                        spacing: 20.0;
+                        items: ui_vec![
+                            property_stack("position", ui_vec![
+                                set_position(0.0, 0.0, &position),
+                                set_position(490.0, 290.0, &position),
+                                set_position(500.0, 300.0, &position),
+                            ]),
+                            property_stack("miscellaneous", ui_vec![
+                                screenshot(),
+                                inspect(),
+                            ]),
+                       ];
+                    },
                     property_stack("size", ui_vec![
                         set_size(1000.0, 900.0, &size),
                         set_size(500.0, 1000.0, &size),
@@ -87,6 +96,34 @@ fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &SharedVar<T>, new_value: T
         on_click: move |a| {
             let ctx = a.ctx();
             ctx.updates.push_set(&var, new_value.clone(), ctx.vars).unwrap();
+        };
+    }
+}
+
+fn screenshot() -> impl Widget {
+    use std::time::Instant;
+    button! {
+        content: text("screenshot");
+        on_click: |args| {
+            println!("taking `screenshot.png`..");
+
+            let t = Instant::now();
+            let ctx = args.ctx();
+            let img = ctx.services.req::<Windows>().window(ctx.window_id).unwrap().screenshot();
+            println!("taken in {:?}", t.elapsed());
+
+            let t = Instant::now();
+            img.save("screenshot.png").unwrap();
+            println!("saved in {:?}", t.elapsed());
+        };
+    }
+}
+
+fn inspect() -> impl Widget {
+    button! {
+        content: text("inspector");
+        on_click: |_| {
+            println!("in debug only, press CTRL+SHIFT+I")
         };
     }
 }

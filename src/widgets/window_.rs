@@ -88,6 +88,12 @@ widget! {
     }
 }
 
+#[cfg(not(debug_assertions))]
+fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
+    |_| {}
+}
+
+#[cfg(debug_assertions)]
 fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
     use crate::core::debug::{write_frame, WriteFrameState};
 
