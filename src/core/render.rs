@@ -699,6 +699,17 @@ impl WidgetPath {
         self.path.iter().any(move |&w| w == widget_id)
     }
 
+    /// Make a path to an ancestor id that is contained in the current path.
+    #[inline]
+    pub fn ancestor_path(&self, ancestor_id: WidgetId) -> Option<WidgetPath> {
+        self.path.iter().position(|&id| id == ancestor_id).map(|i| WidgetPath {
+            node_id: None,
+            window_id: self.window_id,
+            frame_id: self.frame_id,
+            path: self.path[..i].iter().copied().collect(),
+        })
+    }
+
     /// Get the inner most widget parent shared by both `self` and `other`.
     ///
     /// The [`frame_id`](WidgetPath::frame_id) of `self` is used in the result.
