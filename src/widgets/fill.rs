@@ -1,10 +1,8 @@
 use crate::core::context::*;
-use crate::core::impl_ui_node;
-use crate::core::profiler::profile_scope;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::var::*;
-use crate::core::UiNode;
+use crate::core::{impl_ui_node, profiler::profile_scope, UiNode};
 
 struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> {
     start: A,

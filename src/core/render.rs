@@ -265,12 +265,12 @@ impl FrameBuilder {
 
     /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_border(&mut self, rect: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
-        debug_assert_aligned!(rect, self.pixel_grid());
+    pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        debug_assert_aligned!(bounds, self.pixel_grid());
         debug_assert_aligned!(widths, self.pixel_grid());
 
         self.display_list
-            .push_border(&self.common_item_properties(rect), rect, widths, details);
+            .push_border(&self.common_item_properties(bounds), bounds, widths, details);
     }
 
     /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
@@ -333,24 +333,23 @@ impl FrameBuilder {
     }
 
     #[inline]
-    pub fn push_line(&mut self) {
-        let line_bounds = self.info.tree.root().value().bounds;
-        self.display_list.push_line(
-            &self.common_item_properties(line_bounds),
-            &LayoutRect::new(LayoutPoint::new(10.0, 10.0), LayoutSize::new(50.0, 1000.0)),
-            3.0,
-            LineOrientation::Vertical,
-            &rgb(0, 0, 0),
-            LineStyle::Wavy,
-        );
+    pub fn push_line(
+        &mut self,
+        bounds: LayoutRect,
+        orientation: LineOrientation,
+        color: &ColorF,
+        style: LineStyle,
+        wavy_line_thickness: f32,
+    ) {
+        debug_assert_aligned!(bounds, self.pixel_grid());
 
         self.display_list.push_line(
-            &self.common_item_properties(line_bounds),
-            &LayoutRect::new(LayoutPoint::new(10.0, 10.0), LayoutSize::new(1000.0, 50.0)),
-            3.0,
-            LineOrientation::Horizontal,
-            &rgb(255, 255, 255),
-            LineStyle::Wavy,
+            &self.common_item_properties(bounds),
+            &bounds,
+            wavy_line_thickness,
+            orientation,
+            color,
+            style,
         );
     }
 

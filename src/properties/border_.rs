@@ -68,6 +68,7 @@ pub enum BorderStyle {
     Double = 2,
     Dotted = 3,
     Dashed = 4,
+
     Groove = 6,
     Ridge = 7,
     Inset = 8,

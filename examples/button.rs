@@ -10,10 +10,6 @@ fn main() {
                 spacing: 5.0;
                 items: ui_vec![example(), example()];
             };
-            on_render: |fb| {
-                // TODO test line drawing.
-                fb.push_line();
-            };
         }
     })
 }
