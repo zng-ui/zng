@@ -5,6 +5,7 @@ use crate::core::mouse::*;
 use crate::core::var::{ObjVar, StateVar};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
+use crate::properties::ReturnFocusVar;
 
 struct IsHovered<C: UiNode> {
     child: C,
@@ -288,4 +289,47 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
         state,
         focus_changed: FocusChangedEvent::never(),
     }
+}
+
+struct IsReturnFocus<C: UiNode> {
+    child: C,
+    state: StateVar,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsReturnFocus<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        if let Some(id) = *ReturnFocusVar::var().get(ctx.vars) {
+            if id == ctx.widget_id {
+                self.state.push_set(true, ctx.vars, ctx.updates).expect("is_return_focus");
+            }
+        }
+        self.child.init(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within_hgl");
+        }
+        self.child.deinit(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(&id) = ReturnFocusVar::var().update(ctx.vars) {
+            let is_return = id == Some(ctx.widget_id);
+            if is_return != *self.state.get(ctx.vars) {
+                self.state.push_set(is_return, ctx.vars, ctx.updates).expect("is_return_focus");
+            }
+        }
+        self.child.update(ctx);
+    }
+}
+
+/// If the widget is the focus restore target of the parent focus scope.
+///
+/// If the widget is not a focus scope and is currently focused or was the last focused within
+/// the parent focus scope.
+#[property(context)]
+pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsReturnFocus { child, state }
 }
