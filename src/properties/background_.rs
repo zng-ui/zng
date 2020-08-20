@@ -7,13 +7,13 @@ use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 use crate::widgets::{fill_color, fill_gradient};
 
-struct Background<T: UiNode, B: UiNode> {
+struct BackgroundNode<T: UiNode, B: UiNode> {
     child: T,
     background: B,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
+impl<T: UiNode, B: UiNode> UiNode for BackgroundNode<T, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.background.init(ctx);
         self.child.init(ctx);
@@ -53,7 +53,7 @@ impl<T: UiNode, B: UiNode> UiNode for Background<T, B> {
 /// Custom background property. Allows using any other widget as a background.
 #[property(inner, allowed_in_when: false)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
-    Background { child, background }
+    BackgroundNode { child, background }
 }
 
 /// Single color background property.
@@ -77,13 +77,13 @@ pub fn background_gradient(
     background::set(child, fill_gradient(start, end, stops))
 }
 
-struct Foreground<T: UiNode, B: UiNode> {
+struct ForegroundNode<T: UiNode, B: UiNode> {
     child: T,
     foreground: B,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, B: UiNode> UiNode for Foreground<T, B> {
+impl<T: UiNode, B: UiNode> UiNode for ForegroundNode<T, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.foreground.init(ctx);
@@ -123,7 +123,7 @@ impl<T: UiNode, B: UiNode> UiNode for Foreground<T, B> {
 /// Custom foreground property. Allows using any other widget as a foreground overlay.
 #[property(inner, allowed_in_when: false)]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
-    Foreground { child, foreground }
+    ForegroundNode { child, foreground }
 }
 
 /// Foreground highlight border overlay.

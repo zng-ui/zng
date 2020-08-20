@@ -7,15 +7,14 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-struct Margin<T: UiNode, M: LocalVar<LayoutSideOffsets>> {
+struct MarginNode<T: UiNode, M: LocalVar<LayoutSideOffsets>> {
     child: T,
     margin: M,
     size_increment: LayoutSize,
     child_rect: LayoutRect,
 }
-
 #[impl_ui_node(child)]
-impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for Margin<T, M> {
+impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for MarginNode<T, M> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.margin.init_local(ctx.vars);
         self.child.init(ctx);
@@ -49,7 +48,7 @@ impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for Margin<T, M> {
 /// Margin space around the widget.
 #[property(outer)]
 pub fn margin(child: impl UiNode, margin: impl IntoVar<LayoutSideOffsets>) -> impl UiNode {
-    Margin {
+    MarginNode {
         child,
         margin: margin.into_local(),
         size_increment: LayoutSize::zero(),

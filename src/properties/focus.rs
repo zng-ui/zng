@@ -16,7 +16,7 @@ use crate::core::{
 /// Enables a widget to receive focus.
 #[property(context)]
 pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNode {
-    Focusable {
+    FocusableNode {
         child,
         is_focusable: focusable.into_local(),
     }
@@ -25,7 +25,7 @@ pub fn focusable(child: impl UiNode, focusable: impl IntoVar<bool>) -> impl UiNo
 /// Customizes the widget order during TAB navigation.
 #[property(context)]
 pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl UiNode {
-    SetTabIndex {
+    TabIndexNode {
         child,
         tab_index: tab_index.into_local(),
     }
@@ -36,7 +36,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 /// Focus scopes are also [`focusable`] by default.
 #[property(context)]
 pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
-    FocusScope {
+    FocusScopeNode {
         child,
         is_focus_scope: focus_scope.into_local(),
     }
@@ -47,7 +47,7 @@ pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl 
 /// See also [`is_return_focus`](crate::properties::is_return_focus).
 #[property(context)]
 pub fn remember_last_focus(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    RememberLastFocus {
+    RememberLastFocusNode {
         child,
         enabled: enabled.into_local(),
         return_focus: None,
@@ -60,7 +60,7 @@ pub fn remember_last_focus(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
 /// Tab navigation within this widget.
 #[property(context)]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
-    SetTabNav {
+    TabNavNode {
         child,
         tab_nav: tab_nav.into_local(),
     }
@@ -69,7 +69,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
 /// Arrows navigation within this widget.
 #[property(context)]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
-    SetDirectionalNav {
+    DirectionalNavNode {
         child,
         directional_nav: directional_nav.into_local(),
     }
@@ -78,19 +78,19 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 /// Keyboard shortcut that focus this widget.
 #[property(context)]
 pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<KeyShortcut>) -> impl UiNode {
-    FocusShortcut {
+    FocusShortcutNode {
         child,
         shortcut: shortcut.into_var(),
         key_down: KeyDownEvent::never(),
     }
 }
 
-struct Focusable<C: UiNode, E: LocalVar<bool>> {
+struct FocusableNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     is_focusable: E,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for Focusable<C, E> {
+impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusableNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.is_focusable.init_local(ctx.vars);
         self.child.init(ctx);
@@ -109,12 +109,12 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for Focusable<C, E> {
     }
 }
 
-struct SetTabIndex<C: UiNode, T: LocalVar<TabIndex>> {
+struct TabIndexNode<C: UiNode, T: LocalVar<TabIndex>> {
     child: C,
     tab_index: T,
 }
 #[impl_ui_node(child)]
-impl<C, T> UiNode for SetTabIndex<C, T>
+impl<C, T> UiNode for TabIndexNode<C, T>
 where
     C: UiNode,
     T: LocalVar<TabIndex>,
@@ -137,12 +137,12 @@ where
     }
 }
 
-struct FocusScope<C: UiNode, E: LocalVar<bool>> {
+struct FocusScopeNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     is_focus_scope: E,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScope<C, E> {
+impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.is_focus_scope.init_local(ctx.vars);
         self.child.init(ctx);
@@ -161,11 +161,93 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScope<C, E> {
     }
 }
 
-context_var! {
-    /// The widget to which the focus returns to in the current focus scope.
-    pub struct ReturnFocusVar: Option<WidgetId> = return &None;
+struct TabNavNode<C: UiNode, E: LocalVar<TabNav>> {
+    child: C,
+    tab_nav: E,
 }
-struct RememberLastFocus<C: UiNode, E: LocalVar<bool>> {
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<TabNav>> UiNode for TabNavNode<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.tab_nav.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.tab_nav.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get_local());
+        self.child.render(frame);
+    }
+}
+
+struct DirectionalNavNode<C: UiNode, E: LocalVar<DirectionalNav>> {
+    child: C,
+    directional_nav: E,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.directional_nav.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.directional_nav.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
+        self.child.render(frame);
+    }
+}
+
+struct FocusShortcutNode<C: UiNode, S: Var<KeyShortcut>> {
+    child: C,
+    shortcut: S,
+    key_down: EventListener<KeyInputArgs>,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, S: Var<KeyShortcut>> UiNode for FocusShortcutNode<C, S> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.key_down = ctx.events.listen::<KeyDownEvent>();
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        let handled_key = StopPropagation::<KeyDownEvent>::key();
+        if !ctx.event_state.flagged(handled_key) {
+            let shortcut = Some(*self.shortcut.get(ctx.vars));
+            for update in self.key_down.updates(ctx.events) {
+                if update.shortcut() == shortcut {
+                    ctx.services.req::<Focus>().focus_widget(ctx.widget_id, true);
+                    ctx.event_state.flag(handled_key);
+                    break;
+                }
+            }
+        }
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.child.render(frame);
+
+        let focus = frame.meta().entry(FocusInfoKey).or_default();
+        if focus.focusable.is_none() {
+            focus.focusable = Some(true);
+        }
+    }
+}
+
+struct RememberLastFocusNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     enabled: E,
     is_in_scope: Option<bool>,
@@ -173,7 +255,11 @@ struct RememberLastFocus<C: UiNode, E: LocalVar<bool>> {
     return_focus_version: u32,
     focus_changed: EventListener<FocusChangedArgs>,
 }
-impl<C: UiNode, E: LocalVar<bool>> RememberLastFocus<C, E> {
+context_var! {
+    /// The widget to which the focus returns to in the current focus scope.
+    pub struct ReturnFocusVar: Option<WidgetId> = return &None;
+}
+impl<C: UiNode, E: LocalVar<bool>> RememberLastFocusNode<C, E> {
     fn with_return_focus_context(&mut self, is_new: bool, ctx: &mut WidgetContext, action: impl FnOnce(&mut C, &mut WidgetContext)) {
         if self.is_in_scope(ctx) {
             let value = self.return_focus;
@@ -215,7 +301,7 @@ impl<C: UiNode, E: LocalVar<bool>> RememberLastFocus<C, E> {
     }
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocus<C, E> {
+impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocusNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.enabled.init_local(ctx.vars);
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
@@ -251,91 +337,5 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocus<C, E> {
 
         let is_new = self.set_return_focus(return_focus);
         self.with_return_focus_context(is_new, ctx, |child, ctx| child.update(ctx));
-    }
-}
-
-struct SetTabNav<C: UiNode, E: LocalVar<TabNav>> {
-    child: C,
-    tab_nav: E,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<TabNav>> UiNode for SetTabNav<C, E> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.tab_nav.init_local(ctx.vars);
-        self.child.init(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.tab_nav.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
-        }
-        self.child.update(ctx);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().entry(FocusInfoKey).or_default().tab_nav = Some(*self.tab_nav.get_local());
-        self.child.render(frame);
-    }
-}
-
-struct SetDirectionalNav<C: UiNode, E: LocalVar<DirectionalNav>> {
-    child: C,
-    directional_nav: E,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for SetDirectionalNav<C, E> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.directional_nav.init_local(ctx.vars);
-        self.child.init(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.directional_nav.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
-        }
-        self.child.update(ctx);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        frame.meta().entry(FocusInfoKey).or_default().directional_nav = Some(*self.directional_nav.get_local());
-        self.child.render(frame);
-    }
-}
-
-struct FocusShortcut<C: UiNode, S: Var<KeyShortcut>> {
-    child: C,
-    shortcut: S,
-    key_down: EventListener<KeyInputArgs>,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, S: Var<KeyShortcut>> UiNode for FocusShortcut<C, S> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
-        self.key_down = ctx.events.listen::<KeyDownEvent>();
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-
-        let handled_key = StopPropagation::<KeyDownEvent>::key();
-        if !ctx.event_state.flagged(handled_key) {
-            let shortcut = Some(*self.shortcut.get(ctx.vars));
-            for update in self.key_down.updates(ctx.events) {
-                if update.shortcut() == shortcut {
-                    ctx.services.req::<Focus>().focus_widget(ctx.widget_id, true);
-                    ctx.event_state.flag(handled_key);
-                    break;
-                }
-            }
-        }
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        self.child.render(frame);
-
-        let focus = frame.meta().entry(FocusInfoKey).or_default();
-        if focus.focusable.is_none() {
-            focus.focusable = Some(true);
-        }
     }
 }

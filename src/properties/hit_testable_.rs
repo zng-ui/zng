@@ -4,12 +4,12 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
-struct HitTestable<U: UiNode, H: LocalVar<bool>> {
+struct HitTestableNode<U: UiNode, H: LocalVar<bool>> {
     child: U,
     hit_testable: H,
 }
 #[impl_ui_node(child)]
-impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
+impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestableNode<U, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.hit_testable.init_local(ctx.vars);
@@ -36,7 +36,7 @@ impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestable<U, H> {
 /// the window widget is hit-testable, so all widgets are hit-testable by default.
 #[property(context)]
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
-    HitTestable {
+    HitTestableNode {
         child,
         hit_testable: hit_testable.into_local(),
     }

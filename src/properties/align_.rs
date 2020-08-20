@@ -44,7 +44,7 @@ impl Alignment {
     }
 }
 
-struct Align<T: UiNode, A: LocalVar<Alignment>> {
+struct AlignNode<T: UiNode, A: LocalVar<Alignment>> {
     child: T,
     alignment: A,
 
@@ -53,7 +53,7 @@ struct Align<T: UiNode, A: LocalVar<Alignment>> {
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
+impl<T: UiNode, A: LocalVar<Alignment>> UiNode for AlignNode<T, A> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.alignment.init_local(ctx.vars);
         self.child.init(ctx);
@@ -96,7 +96,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for Align<T, A> {
 /// The property argument is an [`Alignment`] value.
 #[property(outer)]
 pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiNode {
-    Align {
+    AlignNode {
         child,
         alignment: alignment.into_local(),
         final_size: LayoutSize::zero(),

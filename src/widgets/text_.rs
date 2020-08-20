@@ -10,7 +10,7 @@ use crate::core::{UiNode, Widget};
 use std::{borrow::Cow, fmt, rc::Rc};
 use zero_ui_macros::widget;
 
-struct TextRun<T: Var<Text>> {
+struct TextNode<T: Var<Text>> {
     text: T,
 
     glyphs: Vec<GlyphInstance>,
@@ -18,15 +18,13 @@ struct TextRun<T: Var<Text>> {
     font: Option<FontInstance>,
     color: ColorF,
 }
-
-impl<T: Var<Text>> TextRun<T> {
+impl<T: Var<Text>> TextNode<T> {
     fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
         self.size.snap_to(pixels)
     }
 }
-
 #[impl_ui_node(none)]
-impl<T: Var<Text>> UiNode for TextRun<T> {
+impl<T: Var<Text>> UiNode for TextNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         profile_scope!("text::init");
 
@@ -217,7 +215,7 @@ widget! {
     /// Creates a [`text`](../fn.text.html).
     #[inline]
     fn new_child(text) -> impl UiNode {
-        TextRun {
+        TextNode {
             text: text.unwrap().into_var(),
 
             glyphs: vec![],

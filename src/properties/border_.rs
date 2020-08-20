@@ -205,7 +205,7 @@ impl From<BorderDetails> for w_api::BorderDetails {
     }
 }
 
-struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> {
+struct BorderNode<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> {
     child: T,
 
     widths: L,
@@ -220,7 +220,7 @@ struct Border<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> 
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for Border<T, L, B> {
+impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
 
@@ -273,7 +273,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     }
 }
 
-impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T, L, B> {
+impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
     fn size_increment(&self) -> LayoutSize {
         let rw = self.final_widths;
         LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
@@ -283,7 +283,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> Border<T,
 /// Border property
 #[property(inner)]
 pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
-    Border {
+    BorderNode {
         child,
 
         widths: widths.into_local(),

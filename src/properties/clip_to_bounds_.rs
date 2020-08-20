@@ -7,14 +7,14 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-struct ClipToBounds<T: UiNode, S: LocalVar<bool>> {
+struct ClipToBoundsNode<T: UiNode, S: LocalVar<bool>> {
     child: T,
     clip: S,
     bounds: LayoutSize,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
+impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBoundsNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.clip.init_local(ctx.vars);
         self.child.init(ctx);
@@ -66,7 +66,7 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBounds<T, S> {
 /// ```
 #[property(inner)]
 pub fn clip_to_bounds(child: impl UiNode, clip: impl IntoVar<bool>) -> impl UiNode {
-    ClipToBounds {
+    ClipToBoundsNode {
         child,
         clip: clip.into_local(),
         bounds: LayoutSize::zero(),

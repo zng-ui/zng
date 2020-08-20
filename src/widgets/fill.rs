@@ -4,7 +4,7 @@ use crate::core::types::*;
 use crate::core::var::*;
 use crate::core::{impl_ui_node, profiler::profile_scope, UiNode};
 
-struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> {
+struct FillGradientNode<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> {
     start: A,
     end: B,
     stops: S,
@@ -12,9 +12,8 @@ struct FillGradient<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<Gr
     render_end: LayoutPoint,
     final_size: LayoutSize,
 }
-
 #[impl_ui_node(none)]
-impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradient<A, B, S> {
+impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradientNode<A, B, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.render_start = *self.start.get(ctx.vars);
         self.render_end = *self.end.get(ctx.vars);
@@ -71,7 +70,7 @@ pub fn fill_gradient(
     end: impl IntoVar<LayoutPoint>,
     stops: impl IntoVar<Vec<GradientStop>>,
 ) -> impl UiNode {
-    FillGradient {
+    FillGradientNode {
         start: start.into_var(),
         end: end.into_var(),
         stops: stops.into_local(),
@@ -81,13 +80,12 @@ pub fn fill_gradient(
     }
 }
 
-struct FillColor<C: LocalVar<ColorF>> {
+struct FillColorNode<C: LocalVar<ColorF>> {
     color: C,
     final_size: LayoutSize,
 }
-
 #[impl_ui_node(none)]
-impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
+impl<C: LocalVar<ColorF>> UiNode for FillColorNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.color.init_local(ctx.vars);
     }
@@ -108,7 +106,7 @@ impl<C: LocalVar<ColorF>> UiNode for FillColor<C> {
 
 /// Fill the widget area with a color.
 pub fn fill_color(color: impl IntoVar<ColorF>) -> impl UiNode {
-    FillColor {
+    FillColorNode {
         color: color.into_local(),
         final_size: LayoutSize::default(),
     }

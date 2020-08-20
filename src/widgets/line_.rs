@@ -8,7 +8,7 @@ use crate::{
 };
 use webrender::api as w_api;
 
-struct Line<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> {
+struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> {
     width: W,
     length: L,
     orientation: O,
@@ -17,9 +17,8 @@ struct Line<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: Loca
     render_command: RenderLineCommand,
     bounds: LayoutSize,
 }
-
 #[impl_ui_node(none)]
-impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> Line<W, L, O, C, S> {
+impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
     fn refresh(&mut self, ctx: &mut WidgetContext) {
         let length = *self.length.get(ctx.vars);
         let width = *self.width.get(ctx.vars);
@@ -127,7 +126,7 @@ widget! {
     }
 
     fn new_child(orientation, length, width, color, style) -> impl UiNode {
-        Line {
+        LineNode {
             bounds: LayoutSize::zero(),
             render_command: RenderLineCommand::Line(w_api::LineStyle::Solid, 0.0),
             orientation: orientation.unwrap().into_local(),

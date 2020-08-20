@@ -5,14 +5,13 @@ use crate::core::{
 };
 use crate::properties::grid::GridChildState;
 
-struct Grid {
+struct GridNode {
     columns: Vec<ColumnDef>,
     rows: Vec<RowDef>,
     children: Vec<Box<dyn Widget>>,
 }
-
 #[impl_ui_node(children)]
-impl UiNode for Grid {
+impl UiNode for GridNode {
     fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
         let mut size = LayoutSize::zero();
         for child in &mut self.children {

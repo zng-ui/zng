@@ -22,17 +22,16 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct Stack<S: LocalVar<f32>, D: StackDimension> {
+struct StackNode<S: LocalVar<f32>, D: StackDimension> {
     children: Box<[Box<dyn UiNode>]>,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
-
 #[impl_ui_node(children)]
-impl<S: LocalVar<f32>, D: StackDimension> Stack<S, D> {
+impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
     fn new(children: UiVec, spacing: S, _dimension: D) -> Self {
-        Stack {
+        StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
             children: children.into_boxed_slice(),
             spacing,
@@ -167,7 +166,7 @@ widget! {
     /// New stack layout.
     #[inline]
     fn new_child(items, spacing) -> impl UiNode {
-        Stack::new(items.unwrap(), spacing.unwrap().into_local(), HorizontalD)
+        StackNode::new(items.unwrap(), spacing.unwrap().into_local(), HorizontalD)
     }
 }
 
@@ -203,7 +202,7 @@ widget! {
     /// New stack layout.
     #[inline]
     fn new_child(items, spacing) -> impl UiNode {
-        Stack::new(items.unwrap(), spacing.unwrap().into_local(), VerticalD)
+        StackNode::new(items.unwrap(), spacing.unwrap().into_local(), VerticalD)
     }
 }
 
@@ -251,12 +250,11 @@ pub fn v_stack(items: UiVec) -> impl Widget {
     }
 }
 
-struct ZStack {
+struct ZStackNode {
     children: Box<[Box<dyn UiNode>]>,
 }
-
 #[impl_ui_node(children)]
-impl UiNode for ZStack {}
+impl UiNode for ZStackNode {}
 
 widget! {
     /// Layering stack layout.
@@ -287,7 +285,7 @@ widget! {
     }
 
     fn new_child(items) -> impl UiNode {
-        ZStack {
+        ZStackNode {
             children: items.unwrap().into_boxed_slice(),
         }
     }

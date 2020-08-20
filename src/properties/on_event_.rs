@@ -10,15 +10,14 @@ use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 use std::fmt;
 
-struct OnEvent<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
+struct OnEventNode<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>)> {
     child: C,
     _event: E,
     listener: EventListener<E::Args>,
     handler: F,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent<C, E, F> {
+impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEventNode<C, E, F> {
     #[UiNode]
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.listener = ctx.events.listen::<E>();
@@ -77,7 +76,7 @@ impl<C: UiNode, E: Event, F: FnMut(&mut OnEventArgs<E::Args>) + 'static> OnEvent
 /// ```
 #[inline]
 pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut OnEventArgs<E::Args>) + 'static) -> impl UiNode {
-    OnEvent {
+    OnEventNode {
         child,
         _event: event,
         listener: E::never(),
@@ -267,19 +266,18 @@ macro_rules! on_ctx_mtd {
 
 on_ctx_mtd! {
     /// Called when the widget is initialized.
-    struct OnInit { fn init } fn on_init;
-    struct OnDeinit { fn deinit } fn on_denit;
-    struct OnUpdate { fn update } fn on_update;
-    struct OnUpdateHp { fn update_hp } fn on_update_hp;
+    struct OnInitNode { fn init } fn on_init;
+    struct OnDeinitNode { fn deinit } fn on_denit;
+    struct OnUpdateNode { fn update } fn on_update;
+    struct OnUpdateHpNode { fn update_hp } fn on_update_hp;
 }
 
-struct OnRender<C: UiNode, F: Fn(&mut FrameBuilder)> {
+struct OnRenderNode<C: UiNode, F: Fn(&mut FrameBuilder)> {
     child: C,
     handler: F,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRender<C, F> {
+impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F> {
     fn render(&self, frame: &mut FrameBuilder) {
         self.child.render(frame);
         (self.handler)(frame);
@@ -288,7 +286,7 @@ impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRender<C, F> {
 
 #[property(event)]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
-    OnRender { child, handler }
+    OnRenderNode { child, handler }
 }
 
 #[derive(Debug)]
@@ -297,13 +295,12 @@ pub struct OnArrangeArgs {
     pub pixel_grid: PixelGrid,
 }
 
-struct OnArrange<C: UiNode, F: FnMut(OnArrangeArgs)> {
+struct OnArrangeNode<C: UiNode, F: FnMut(OnArrangeArgs)> {
     child: C,
     handler: F,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrange<C, F> {
+impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrangeNode<C, F> {
     fn arrange(&mut self, final_size: LayoutSize, pixel_grid: PixelGrid) {
         self.child.arrange(final_size, pixel_grid);
         (self.handler)(OnArrangeArgs { final_size, pixel_grid });
@@ -312,7 +309,7 @@ impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrange<C, F> {
 
 #[property(event)]
 pub fn on_arrange(child: impl UiNode, handler: impl FnMut(OnArrangeArgs) + 'static) -> impl UiNode {
-    OnArrange { child, handler }
+    OnArrangeNode { child, handler }
 }
 
 #[derive(Debug)]
@@ -322,13 +319,12 @@ pub struct OnMeasureArgs {
     pub pixel_grid: PixelGrid,
 }
 
-struct OnMeasure<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
+struct OnMeasureNode<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
     child: C,
     handler: F,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMeasure<C, F> {
+impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMeasureNode<C, F> {
     fn measure(&mut self, available_size: LayoutSize, pixel_grid: PixelGrid) -> LayoutSize {
         let mut args = OnMeasureArgs {
             available_size,
@@ -344,5 +340,5 @@ impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMe
 
 #[property(event)]
 pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> LayoutSize + 'static) -> impl UiNode {
-    OnMeasure { child, handler }
+    OnMeasureNode { child, handler }
 }

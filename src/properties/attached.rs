@@ -5,13 +5,13 @@ use crate::core::impl_ui_node;
 use crate::core::var::*;
 use crate::core::UiNode;
 
-struct WithContextVar<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
+struct WithContextVarNode<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
     child: U,
     var: C,
     value: V,
 }
 #[impl_ui_node(child)]
-impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for WithContextVar<U, T, C, V> {
+impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for WithContextVarNode<U, T, C, V> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
         ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
@@ -49,20 +49,20 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 /// }
 /// ```
 pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
-    WithContextVar {
+    WithContextVarNode {
         child,
         var,
         value: value.into_var(),
     }
 }
 
-struct SetWidgetState<U: UiNode, K: StateKey> {
+struct SetWidgetStateNode<U: UiNode, K: StateKey> {
     child: U,
     pre_init: Option<(K, K::Type)>,
 }
 
 #[impl_ui_node(child)]
-impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
+impl<U: UiNode, K: StateKey> UiNode for SetWidgetStateNode<U, K> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         if let Some((key, value)) = self.pre_init.take() {
             ctx.widget_state.set(key, value);
@@ -103,7 +103,7 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetState<U, K> {
 /// }
 /// ```
 pub fn set_widget_state<K: StateKey>(child: impl UiNode, key: K, value: K::Type) -> impl UiNode {
-    SetWidgetState {
+    SetWidgetStateNode {
         child,
         pre_init: Some((key, value)),
     }

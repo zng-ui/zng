@@ -5,14 +5,13 @@ use crate::core::{
     UiNode,
 };
 
-struct Position<T: UiNode, P: LocalVar<LayoutPoint>> {
+struct PositionNode<T: UiNode, P: LocalVar<LayoutPoint>> {
     child: T,
     position: P,
     final_position: LayoutPoint,
 }
-
 #[impl_ui_node(child)]
-impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for Position<T, P> {
+impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for PositionNode<T, P> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.position.init_local(ctx.vars);
         self.child.init(ctx);
@@ -38,7 +37,7 @@ impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for Position<T, P> {
 /// Widget left-top offset.
 #[property(outer)]
 pub fn position(child: impl UiNode, position: impl IntoVar<LayoutPoint>) -> impl UiNode {
-    Position {
+    PositionNode {
         child,
         position: position.into_local(),
         final_position: LayoutPoint::zero(),

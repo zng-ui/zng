@@ -5,13 +5,13 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
-struct Cursor<T: UiNode, C: LocalVar<CursorIcon>> {
+struct CursorNode<T: UiNode, C: LocalVar<CursorIcon>> {
     cursor: C,
     child: T,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
+impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for CursorNode<T, C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.cursor.init_local(ctx.vars);
         self.child.init(ctx);
@@ -42,7 +42,7 @@ impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for Cursor<T, C> {
 /// ```
 #[property(context)]
 pub fn cursor(child: impl UiNode, cursor: impl IntoVar<CursorIcon>) -> impl UiNode {
-    Cursor {
+    CursorNode {
         cursor: cursor.into_local(),
         child,
     }

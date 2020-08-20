@@ -6,13 +6,13 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-struct Title<C: UiNode, T: Var<Text>> {
+struct TitleNode<C: UiNode, T: Var<Text>> {
     child: C,
     title: T,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, T: Var<Text>> UiNode for Title<C, T> {
+impl<C: UiNode, T: Var<Text>> UiNode for TitleNode<C, T> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
         todo!("tooltip title not implemented {}", self.title.get(ctx.vars));
@@ -25,7 +25,7 @@ impl<C: UiNode, T: Var<Text>> UiNode for Title<C, T> {
 /// captures this value and uses it for the window title, some other custom widgets may also override the default behavior.
 #[property(context)]
 pub fn title(child: impl UiNode, title: impl IntoVar<Text>) -> impl UiNode {
-    Title {
+    TitleNode {
         child,
         title: title.into_var(),
     }

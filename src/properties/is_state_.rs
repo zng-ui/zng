@@ -7,15 +7,14 @@ use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 use crate::properties::ReturnFocusVar;
 
-struct IsHovered<C: UiNode> {
+struct IsHoveredNode<C: UiNode> {
     child: C,
     state: StateVar,
     mouse_enter: EventListener<MouseHoverArgs>,
     mouse_leave: EventListener<MouseHoverArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsHovered<C> {
+impl<C: UiNode> UiNode for IsHoveredNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
@@ -45,7 +44,7 @@ impl<C: UiNode> UiNode for IsHovered<C> {
 /// If the mouse pointer is over the widget.
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsHovered {
+    IsHoveredNode {
         child,
         state,
         mouse_enter: MouseEnterEvent::never(),
@@ -53,15 +52,14 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-struct IsPressed<C: UiNode> {
+struct IsPressedNode<C: UiNode> {
     child: C,
     state: StateVar,
     mouse_down: EventListener<MouseInputArgs>,
     mouse_up: EventListener<MouseInputArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsPressed<C> {
+impl<C: UiNode> UiNode for IsPressedNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.mouse_down = ctx.events.listen::<MouseDownEvent>();
@@ -93,7 +91,7 @@ impl<C: UiNode> UiNode for IsPressed<C> {
 /// If the mouse pointer is pressed in the widget.
 #[property(context)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsPressed {
+    IsPressedNode {
         child,
         state,
         mouse_down: MouseDownEvent::never(),
@@ -101,14 +99,13 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-struct IsFocused<C: UiNode> {
+struct IsFocusedNode<C: UiNode> {
     child: C,
     state: StateVar,
     focus_changed: EventListener<FocusChangedArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsFocused<C> {
+impl<C: UiNode> UiNode for IsFocusedNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
@@ -143,21 +140,20 @@ impl<C: UiNode> UiNode for IsFocused<C> {
 /// TODO
 #[property(context)]
 pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsFocused {
+    IsFocusedNode {
         child,
         state,
         focus_changed: FocusChangedEvent::never(),
     }
 }
 
-struct IsFocusWithin<C: UiNode> {
+struct IsFocusWithinNode<C: UiNode> {
     child: C,
     state: StateVar,
     focus_changed: EventListener<FocusChangedArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsFocusWithin<C> {
+impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
@@ -188,21 +184,20 @@ impl<C: UiNode> UiNode for IsFocusWithin<C> {
 /// To check if only the widget has keyboard focus use [`is_focused`].
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsFocusWithin {
+    IsFocusWithinNode {
         child,
         state,
         focus_changed: FocusChangedEvent::never(),
     }
 }
 
-struct IsFocusedHighlighted<C: UiNode> {
+struct IsFocusedHglNode<C: UiNode> {
     child: C,
     state: StateVar,
     focus_changed: EventListener<FocusChangedArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsFocusedHighlighted<C> {
+impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
@@ -235,21 +230,20 @@ impl<C: UiNode> UiNode for IsFocusedHighlighted<C> {
 /// Also see [`is_focused`] to check if the widget is focused regardless of highlighting.
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsFocusedHighlighted {
+    IsFocusedHglNode {
         child,
         state,
         focus_changed: FocusChangedEvent::never(),
     }
 }
 
-struct IsFocusWithinHighlighted<C: UiNode> {
+struct IsFocusWithinHglNode<C: UiNode> {
     child: C,
     state: StateVar,
     focus_changed: EventListener<FocusChangedArgs>,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsFocusWithinHighlighted<C> {
+impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
@@ -284,20 +278,19 @@ impl<C: UiNode> UiNode for IsFocusWithinHighlighted<C> {
 /// Also see [`is_focus_within`] to check if the widget has focus within regardless of highlighting.
 #[property(context)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsFocusWithinHighlighted {
+    IsFocusWithinHglNode {
         child,
         state,
         focus_changed: FocusChangedEvent::never(),
     }
 }
 
-struct IsReturnFocus<C: UiNode> {
+struct IsReturnFocusNode<C: UiNode> {
     child: C,
     state: StateVar,
 }
-
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsReturnFocus<C> {
+impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         if let Some(id) = *ReturnFocusVar::var().get(ctx.vars) {
             if id == ctx.widget_id {
@@ -331,5 +324,5 @@ impl<C: UiNode> UiNode for IsReturnFocus<C> {
 /// the parent focus scope.
 #[property(context)]
 pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsReturnFocus { child, state }
+    IsReturnFocusNode { child, state }
 }

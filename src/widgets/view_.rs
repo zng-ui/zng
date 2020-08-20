@@ -13,15 +13,14 @@ pub enum View<U: UiNode> {
     Same,
 }
 
-struct DataView<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U>> {
+struct ViewNode<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U>> {
     data: V,
     child: U,
     presenter: P,
     _d: std::marker::PhantomData<D>,
 }
-
 #[impl_ui_node(child)]
-impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static> DataView<D, U, V, P> {
+impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static> ViewNode<D, U, V, P> {
     fn refresh_child(&mut self, ctx: &mut WidgetContext) {
         if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
             self.child = new_child;
@@ -125,7 +124,7 @@ where
     V: Var<D>,
     P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static,
 {
-    DataView {
+    ViewNode {
         data,
         child: initial_ui,
         presenter,
