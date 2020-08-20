@@ -200,6 +200,7 @@ impl<C: UiNode, E: LocalVar<bool>> RememberLastFocus<C, E> {
                 .and_then(|w| w.frame_info().find(widget_id))
                 .map(|wid| wid.as_focus_info().is_scope())
                 .unwrap_or_default();
+                
             self.is_in_scope = Some(is);
             is
         }
@@ -219,6 +220,11 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocus<C, E> {
         self.enabled.init_local(ctx.vars);
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.is_in_scope = None;
+        self.child.deinit(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
