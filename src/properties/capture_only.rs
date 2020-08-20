@@ -1,8 +1,8 @@
 //! Properties that are only used by widgets directly.
 
 use crate::{
-    core::{gesture::KeyShortcut, property, types::WidgetId, var::IntoVar, UiVec},
-    prelude::{Text, UiNode},
+    core::{gesture::KeyShortcut, property, types::*, var::IntoVar, UiNode, UiVec},
+    widgets::LineStyle,
 };
 
 /// Widget id.
@@ -33,9 +33,9 @@ pub fn widget_child(child: impl UiNode) -> ! {}
 #[property(capture_only, allowed_in_when: false)]
 pub fn widget_children(children: UiVec) -> ! {}
 
-/// Stack in-between spacing.
+/// A `f32` spacing.
 #[property(capture_only)]
-pub fn stack_spacing(spacing: impl IntoVar<f32>) -> ! {}
+pub fn spacing(spacing: impl IntoVar<f32>) -> ! {}
 
 /// A [`text!`](crate::widgets::text) value.
 #[property(capture_only)]
@@ -43,4 +43,24 @@ pub fn text_value(text: impl IntoVar<Text>) -> ! {}
 
 /// A [`KeyShortcut`] variable.
 #[property(capture_only)]
-pub fn key_shortcut(text: impl IntoVar<KeyShortcut>) -> ! {}
+pub fn key_shortcut(shortcut: impl IntoVar<KeyShortcut>) -> ! {}
+
+/// A [`line!`](crate::widgets::line) orientation.
+#[property(capture_only)]
+pub fn line_orientation(orientation: impl IntoVar<LineOrientation>) -> ! {}
+
+/// `ColoF` value.
+#[property(capture_only)]
+pub fn color(color: impl IntoVar<ColorF>) -> ! {}
+
+/// A 'f32' width.
+#[property(capture_only)]
+pub fn width(width: impl IntoVar<f32>) -> ! {}
+
+/// A [`line!`](crate::widgets::line) length.
+#[property(capture_only)]
+pub fn length(length: impl IntoVar<f32>) -> ! {}
+
+/// A [`line!`](crate::widgets::line) style.
+#[property(capture_only)]
+pub fn line_style(style: impl IntoVar<LineStyle>) -> ! {}

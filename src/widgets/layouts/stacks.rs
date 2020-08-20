@@ -8,7 +8,7 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, widget};
 use crate::properties::{
-    capture_only::{stack_spacing, widget_children},
+    capture_only::{spacing, widget_children},
     margin,
 };
 use std::marker::PhantomData;
@@ -157,7 +157,7 @@ widget! {
 
     default_child {
         /// Space in-between items.
-        spacing -> stack_spacing: 0.0;
+        spacing: 0.0;
         /// Widget items.
         items -> widget_children: ui_vec![];
         /// Items margin.
@@ -193,7 +193,7 @@ widget! {
 
     default_child {
         /// Space in-between items.
-        spacing -> stack_spacing: 0.0;
+        spacing: 0.0;
         /// Widget items.
         items -> widget_children: ui_vec![];
         /// Items margin.

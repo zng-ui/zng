@@ -762,9 +762,9 @@ macro_rules! event_hp {
 macro_rules! source_location {
     () => {
         zero_ui::core::debug::SourceLocation {
-            file: file!(),
-            line: line!(),
-            column: column!(),
+            file: std::file!(),
+            line: std::line!(),
+            column: std::column!(),
         }
     };
 }

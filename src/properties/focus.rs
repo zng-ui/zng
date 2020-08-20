@@ -200,7 +200,7 @@ impl<C: UiNode, E: LocalVar<bool>> RememberLastFocus<C, E> {
                 .and_then(|w| w.frame_info().find(widget_id))
                 .map(|wid| wid.as_focus_info().is_scope())
                 .unwrap_or_default();
-                
+
             self.is_in_scope = Some(is);
             is
         }
