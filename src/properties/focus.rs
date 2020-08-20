@@ -4,13 +4,16 @@ use crate::core::focus::*;
 use crate::core::render::*;
 use crate::core::var::*;
 use crate::core::UiNode;
-use crate::core::{
-    event::{Event, EventListener},
-    gesture::KeyShortcut,
-    impl_ui_node,
-    keyboard::{KeyDownEvent, KeyInputArgs},
-    property,
-    types::WidgetId,
+use crate::{
+    core::{
+        event::{Event, EventListener},
+        gesture::KeyShortcut,
+        impl_ui_node,
+        keyboard::{KeyDownEvent, KeyInputArgs},
+        property,
+        types::WidgetId,
+    },
+    prelude::Windows,
 };
 
 /// Enables a widget to receive focus.
@@ -31,7 +34,7 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
     }
 }
 
-/// If this widget is a focus scope.
+/// Widget is a focus scope.
 ///
 /// Focus scopes are also [`focusable`] by default.
 #[property(context)]
@@ -42,7 +45,12 @@ pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl 
     }
 }
 
-/// If this focus scope restores the focus when focused.
+/// Focus scope returns focus to last focused.
+///
+/// The last focused widget within the scope is remembered. Focus is restored when the scope receives direct focus.
+/// If the focus cannot be restored, behaves like [`focus_first`].
+///
+/// This property does nothing if not set in a [`focus_scope`] widget.
 ///
 /// See also [`is_return_focus`](crate::properties::is_return_focus).
 #[property(context)]
@@ -53,6 +61,20 @@ pub fn remember_last_focus(child: impl UiNode, enabled: impl IntoVar<bool>) -> i
         return_focus: None,
         is_in_scope: None,
         return_focus_version: 0,
+        focus_changed: FocusChangedEvent::never(),
+    }
+}
+
+/// Focus scope moves focus to first child.
+///
+/// When the focus scope receives direct focus it moves the focus to its first descendent, considering tab indexes.
+///
+/// This property does nothing if not set in a [`focus_scope`] widget.
+pub fn focus_first(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    FocusFirstNode {
+        child,
+        enabled: enabled.into_local(),
+        is_in_scope: None,
         focus_changed: FocusChangedEvent::never(),
     }
 }
@@ -261,32 +283,25 @@ context_var! {
 }
 impl<C: UiNode, E: LocalVar<bool>> RememberLastFocusNode<C, E> {
     fn with_return_focus_context(&mut self, is_new: bool, ctx: &mut WidgetContext, action: impl FnOnce(&mut C, &mut WidgetContext)) {
-        if self.is_in_scope(ctx) {
+        if self.is_scope(ctx) {
             let value = self.return_focus;
             let version = self.return_focus_version;
             let child = &mut self.child;
             ctx.vars
                 .with_context(ReturnFocusVar, &value, is_new, version, || action(child, ctx));
         } else {
-            warn_println!("`remember_last_focus` not set in a focus scope, ignoring");
             action(&mut self.child, ctx);
         }
     }
 
-    fn is_in_scope(&mut self, ctx: &mut WidgetContext) -> bool {
+    fn is_scope(&mut self, ctx: &mut WidgetContext) -> bool {
         if let Some(is) = self.is_in_scope {
             is
         } else {
-            let widget_id = ctx.widget_id;
-            let is = ctx
-                .services
-                .req::<crate::core::window::Windows>()
-                .window(ctx.window_id)
-                .ok()
-                .and_then(|w| w.frame_info().find(widget_id))
-                .map(|wid| wid.as_focus_info().is_scope())
-                .unwrap_or_default();
-
+            let is = current_is_scope(ctx);
+            if !is {
+                warn_println!("`remember_last_focus` only works in a focus scope");
+            }
             self.is_in_scope = Some(is);
             is
         }
@@ -298,6 +313,26 @@ impl<C: UiNode, E: LocalVar<bool>> RememberLastFocusNode<C, E> {
             self.return_focus_version = self.return_focus_version.wrapping_add(1);
         }
         is_new
+    }
+
+    fn return_focus(&self, scope_path: &WidgetPath, ctx: &mut WidgetContext) -> Option<WidgetId> {
+        ctx.services.req::<Windows>().window(ctx.window_id).ok().and_then(|w| {
+            let frame = w.frame_info();
+            if let Some(return_) = self.return_focus {
+                if let Some(node) = frame.find(return_).and_then(|n| n.as_focusable()) {
+                    if node.ancestors().any(|d| d.info.widget_id() == scope_path.widget_id()) {
+                        // return focus is still valid.
+                        return Some(return_);
+                    }
+                }
+            }
+
+            // fallback to first child
+            frame
+                .get(scope_path)
+                .and_then(|s| s.as_focusable())
+                .and_then(|s| s.first_descendant_sorted().map(|f| f.info.widget_id()))
+        })
     }
 }
 #[impl_ui_node(child)]
@@ -316,18 +351,17 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocusNode<C, E> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         let mut return_focus = self.return_focus;
 
-        if *self.enabled.get(ctx.vars) {
-            if let Some(u) = self.focus_changed.updates(ctx.events).last() {
-                if let Some(id) = &u.new_focus {
-                    if id.widget_id() == ctx.widget_id {
-                        // direct focus scope
-                        if let Some(return_id) = self.return_focus {
-                            // restore focus
-                            ctx.services.req::<Focus>().focus_widget(return_id, u.highlight);
+        if self.is_scope(ctx) && *self.enabled.get(ctx.vars) {
+            if let Some(update) = self.focus_changed.updates(ctx.events).last() {
+                if let Some(path) = &update.new_focus {
+                    if path.widget_id() == ctx.widget_id {
+                        // we got direct focus, return focus or search first child.
+                        if let Some(child) = self.return_focus(path, ctx) {
+                            ctx.services.req::<Focus>().focus_widget(child, update.highlight);
                         }
-                    } else if id.contains(ctx.widget_id) {
+                    } else if path.contains(ctx.widget_id) {
                         // focus inside scope, remember
-                        return_focus = Some(id.widget_id());
+                        return_focus = Some(path.widget_id());
                     }
                 }
             }
@@ -338,4 +372,76 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocusNode<C, E> {
         let is_new = self.set_return_focus(return_focus);
         self.with_return_focus_context(is_new, ctx, |child, ctx| child.update(ctx));
     }
+}
+
+struct FocusFirstNode<C: UiNode, E: LocalVar<bool>> {
+    child: C,
+    enabled: E,
+    is_in_scope: Option<bool>,
+    focus_changed: EventListener<FocusChangedArgs>,
+}
+
+impl<C: UiNode, E: LocalVar<bool>> FocusFirstNode<C, E> {
+    fn is_scope(&mut self, ctx: &mut WidgetContext) -> bool {
+        if let Some(is) = self.is_in_scope {
+            is
+        } else {
+            let is = current_is_scope(ctx);
+            if !is {
+                warn_println!("`focus_first` only works in a focus scope");
+            }
+            self.is_in_scope = Some(is);
+            is
+        }
+    }
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusFirstNode<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.enabled.init_local(ctx.vars);
+        self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
+        self.child.init(ctx);
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.is_in_scope = None;
+        self.child.deinit(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.is_scope(ctx) && *self.enabled.get(ctx.vars) {
+            if let Some(update) = self.focus_changed.updates(ctx.events).last() {
+                if let Some(path) = &update.new_focus {
+                    if path.widget_id() == ctx.widget_id {
+                        // we got direct focus, search first child.
+                        let first_child = ctx
+                            .services
+                            .req::<Windows>()
+                            .window(path.window_id())
+                            .ok()
+                            .and_then(|w| w.frame_info().get(path))
+                            .and_then(|s| s.as_focusable())
+                            .and_then(|s| s.first_descendant_sorted())
+                            .map(|f| f.info.widget_id());
+
+                        if let Some(first) = first_child {
+                            ctx.services.req::<Focus>().focus_widget(first, update.highlight);
+                        }
+                    }
+                }
+            }
+        }
+        self.child.update(ctx);
+    }
+}
+
+fn current_is_scope(ctx: &mut WidgetContext) -> bool {
+    let widget_id = ctx.widget_id;
+    ctx.services
+        .req::<Windows>()
+        .window(ctx.window_id)
+        .ok()
+        .and_then(|w| w.frame_info().find(widget_id))
+        .map(|wid| wid.as_focus_info().is_scope())
+        .unwrap_or_default()
 }

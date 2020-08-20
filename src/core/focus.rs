@@ -827,6 +827,23 @@ impl<'a> WidgetFocusInfo<'a> {
         vec
     }
 
+    /// First descendant considering TAB index.
+    #[inline]
+    pub fn first_descendant_sorted(self) -> Option<WidgetFocusInfo<'a>> {
+        let mut r = None;
+        let mut r_index = TabIndex::SKIP;
+
+        for d in self.descendants() {
+            let ti = d.focus_info().tab_index();
+            if ti < r_index {
+                r = Some(d);
+                r_index = ti;
+            }
+        }
+
+        r
+    }
+
     /// Iterator over all focusable widgets in the same scope after this widget.
     #[inline]
     pub fn next_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
