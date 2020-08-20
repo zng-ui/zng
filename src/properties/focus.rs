@@ -9,9 +9,9 @@ use crate::{
         event::{Event, EventListener},
         gesture::KeyShortcut,
         impl_ui_node,
-        keyboard::{KeyDownEvent, KeyInputArgs},
+        keyboard::{KeyDownEvent, KeyInputEvent, KeyInputArgs},
         property,
-        types::WidgetId,
+        types::{WidgetId, ElementState},
     },
     prelude::Windows,
 };
@@ -35,13 +35,21 @@ pub fn tab_index(child: impl UiNode, tab_index: impl IntoVar<TabIndex>) -> impl 
 }
 
 /// Widget is a focus scope.
-///
-/// Focus scopes are also [`focusable`] by default.
 #[property(context)]
-pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl UiNode {
+pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
         child,
-        is_focus_scope: focus_scope.into_local(),
+        is_focus_scope: is_scope.into_local(),
+    }
+}
+
+/// Widget is the ALT focus scope.
+#[property(context)]
+pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
+    AltFocusScopeNode {
+        child,
+        is_focus_scope: is_scope.into_local(),
+        key_input: KeyInputEvent::never(),
     }
 }
 
@@ -54,8 +62,8 @@ pub fn focus_scope(child: impl UiNode, focus_scope: impl IntoVar<bool>) -> impl 
 ///
 /// See also [`is_return_focus`](crate::properties::is_return_focus).
 #[property(context)]
-pub fn remember_last_focus(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
-    RememberLastFocusNode {
+pub fn focus_last_focused(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    FocusLastFocusedNode {
         child,
         enabled: enabled.into_local(),
         return_focus: None,
@@ -183,6 +191,40 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
     }
 }
 
+struct AltFocusScopeNode<C: UiNode, E: LocalVar<bool>> {
+    child: C,
+    is_focus_scope: E,
+    key_input: EventListener<KeyInputArgs>,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.is_focus_scope.init_local(ctx.vars);
+        self.key_input = ctx.events.listen::<KeyInputEvent>();
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.is_focus_scope.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        for update in self.key_input.updates(ctx.events) {
+            match update.state {
+                ElementState::Pressed => {}
+                ElementState::Released => {
+                    //TODO
+                }
+            }
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.meta().entry(FocusInfoKey).or_default().scope = Some(*self.is_focus_scope.get_local());
+        self.child.render(frame);
+    }
+}
+
 struct TabNavNode<C: UiNode, E: LocalVar<TabNav>> {
     child: C,
     tab_nav: E,
@@ -269,7 +311,7 @@ impl<C: UiNode, S: Var<KeyShortcut>> UiNode for FocusShortcutNode<C, S> {
     }
 }
 
-struct RememberLastFocusNode<C: UiNode, E: LocalVar<bool>> {
+struct FocusLastFocusedNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     enabled: E,
     is_in_scope: Option<bool>,
@@ -281,7 +323,7 @@ context_var! {
     /// The widget to which the focus returns to in the current focus scope.
     pub struct ReturnFocusVar: Option<WidgetId> = return &None;
 }
-impl<C: UiNode, E: LocalVar<bool>> RememberLastFocusNode<C, E> {
+impl<C: UiNode, E: LocalVar<bool>> FocusLastFocusedNode<C, E> {
     fn with_return_focus_context(&mut self, is_new: bool, ctx: &mut WidgetContext, action: impl FnOnce(&mut C, &mut WidgetContext)) {
         if self.is_scope(ctx) {
             let value = self.return_focus;
@@ -336,7 +378,7 @@ impl<C: UiNode, E: LocalVar<bool>> RememberLastFocusNode<C, E> {
     }
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for RememberLastFocusNode<C, E> {
+impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusLastFocusedNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.enabled.init_local(ctx.vars);
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
