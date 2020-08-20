@@ -43,6 +43,14 @@ macro_rules! error_println {
     }}
 }
 
+/// Calls `eprintln!("warning: {}", format_args!($))` with `warning` colored bright yellow and bold.
+macro_rules! warn_println {
+    ($($tt:tt)*) => {{
+        use colored::*;
+        eprintln!("{}: {}", "warning".bright_yellow().bold(), format_args!($($tt)*))
+    }}
+}
+
 /// Declare a new unique id type.
 macro_rules! unique_id {
     ($(#[$docs:meta])* $vis:vis $Type:ident;) => {
