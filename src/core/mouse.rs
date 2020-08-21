@@ -1,5 +1,6 @@
 //! Mouse events.
 
+use super::window::OpenWindow;
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
@@ -8,7 +9,6 @@ use crate::core::types::*;
 use crate::core::window::Windows;
 use std::num::NonZeroU8;
 use std::time::*;
-use super::window::OpenWindow;
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
@@ -437,8 +437,13 @@ impl MouseManager {
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(target) = self.hovered_target.take() {
-                
-                let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), FrameHitInfo::no_hits(window_id), target );
+                let args = MouseHoverArgs::now(
+                    window_id,
+                    device_id,
+                    LayoutPoint::new(-1., -1.),
+                    FrameHitInfo::no_hits(window_id),
+                    target,
+                );
                 ctx.updates.push_notify(self.mouse_leave.clone(), args);
             }
         }

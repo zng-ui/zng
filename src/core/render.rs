@@ -466,7 +466,12 @@ impl FrameHitInfo {
     /// No hits info
     #[inline]
     pub fn no_hits(window_id: WindowId) -> Self {
-        FrameHitInfo::new(window_id, FrameId::invalid(), LayoutPoint::new(-1.0, -1.0), HitTestResult::default())
+        FrameHitInfo::new(
+            window_id,
+            FrameId::invalid(),
+            LayoutPoint::new(-1.0, -1.0),
+            HitTestResult::default(),
+        )
     }
 
     /// The window that was hit-tested.

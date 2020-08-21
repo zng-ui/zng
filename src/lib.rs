@@ -112,8 +112,9 @@ pub mod prelude {
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         types::{
-            formatx, rgb, rgba, rotate, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight,
-            LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
+            formatx, rgb, rgba, rotate, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle,
+            FontWeight, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, VirtualKeyCode,
+            WidgetId,
         },
         ui_vec,
         var::{merge_var, switch_var, var, SharedVar, Var},

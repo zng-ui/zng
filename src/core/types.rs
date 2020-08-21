@@ -137,7 +137,6 @@ pub fn rotate(degrees: f32) -> LayoutTransform {
     LayoutTransform::create_rotation(0.0, 0.0, -1.0, Angle::degrees(degrees))
 }
 
-
 /// Text string type, can be either a `&'static str` or a `String`.
 pub type Text = Cow<'static, str>;
 

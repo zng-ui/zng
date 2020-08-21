@@ -1,9 +1,14 @@
-use crate::core::{UiNode, impl_ui_node, property};
-use crate::core::{context::WidgetContext, types::LayoutTransform, var::{IntoVar, LocalVar}, render::FrameBuilder};
+use crate::core::{
+    context::WidgetContext,
+    render::FrameBuilder,
+    types::LayoutTransform,
+    var::{IntoVar, LocalVar},
+};
+use crate::core::{impl_ui_node, property, UiNode};
 
-struct TransformNode<C: UiNode, T: LocalVar<LayoutTransform>>{
+struct TransformNode<C: UiNode, T: LocalVar<LayoutTransform>> {
     child: C,
-    transform: T
+    transform: T,
 }
 
 #[impl_ui_node(child)]
@@ -15,7 +20,7 @@ impl<C: UiNode, T: LocalVar<LayoutTransform>> UiNode for TransformNode<C, T> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
-        if self.transform.update_local(ctx.vars).is_some(){
+        if self.transform.update_local(ctx.vars).is_some() {
             ctx.updates.push_render();
         }
     }
@@ -26,8 +31,8 @@ impl<C: UiNode, T: LocalVar<LayoutTransform>> UiNode for TransformNode<C, T> {
 
 #[property(outer)]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<LayoutTransform>) -> impl UiNode {
-    TransformNode{
+    TransformNode {
         child,
-        transform: transform.into_local()
+        transform: transform.into_local(),
     }
 }
