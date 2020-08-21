@@ -813,6 +813,39 @@ impl<'a> WidgetFocusInfo<'a> {
         self.scopes().next()
     }
 
+    /// Reference the ALT focus scope *closest* with the current widget.
+    ///
+    /// # Closest Alt Scope
+    ///
+    /// a - If `self` is a scope, search for an ALT scope descendant.
+    /// b - otherwise searches for an ALT scope in `self` previous scope siblings.
+    /// c - recursive over *b*, with the parent scope as `self`.
+    #[inline]
+    pub fn alt_scope(self) -> Option<WidgetFocusInfo<'a>> {
+        if self.focus_info().is_scope() {
+            // if we are a scope, search for an inner ALT scope.
+            let r = self.descendants().find(|w| w.focus_info().is_alt_scope());
+            if r.is_some() {
+                return r;
+            }
+        }
+        self.alt_scope_query()
+    }
+    fn alt_scope_query(self) -> Option<WidgetFocusInfo<'a>> {
+        if let Some(scope) = self.scope() {
+            // search for an ALT scope in our previous scope siblings.
+            scope
+                .descendants()
+                .take_while(|&w| w != self)
+                .find(|w| w.focus_info().is_alt_scope())
+                // if found no sibling ALT scope, do the same search for our scope.
+                .or_else(|| scope.alt_scope_query())
+        } else {
+            // we reached root, no ALT found.
+            None
+        }
+    }
+
     /// Iterator over the focusable widgets contained by this widget.
     #[inline]
     pub fn descendants(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
@@ -1249,7 +1282,33 @@ impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
 pub enum FocusInfo {
     NotFocusable,
     Focusable(TabIndex),
-    FocusScope(TabIndex, TabNav, DirectionalNav),
+    FocusScope {
+        tab_index: TabIndex,
+        tab_nav: TabNav,
+        directional_nav: DirectionalNav,
+        on_focus: FocusScopeOnFocus,
+        /// If this scope is focused when the ALT key is pressed.
+        alt: bool,
+    },
+}
+
+/// Behavior of a focus scope when it receives direct focus.
+#[derive(Debug, Clone, Copy)]
+pub enum FocusScopeOnFocus {
+    /// Just focus the scope widget.
+    Self_,
+    /// Focus the first descendant considering the TAB index, if the scope has no descendants
+    /// behaves like [`Self_`](Self::Self_).
+    FirstDescendant,
+    /// Focus the descendant that was last focused before focus moved out of the scope. If the
+    /// scope cannot return focus, behaves like [`FirstDescendant`](Self::FirstDescendant).
+    LastFocused,
+}
+impl Default for FocusScopeOnFocus {
+    /// [`FirstDescendant`](Self::FirstDescendant)
+    fn default() -> Self {
+        FocusScopeOnFocus::FirstDescendant
+    }
 }
 
 impl FocusInfo {
@@ -1266,7 +1325,16 @@ impl FocusInfo {
     #[inline]
     pub fn is_scope(self) -> bool {
         match self {
-            FocusInfo::FocusScope(..) => true,
+            FocusInfo::FocusScope { .. } => true,
+            _ => false,
+        }
+    }
+
+    /// If is an ALT focus scope.
+    #[inline]
+    pub fn is_alt_scope(self) -> bool {
+        match self {
+            FocusInfo::FocusScope { alt, .. } => alt,
             _ => false,
         }
     }
@@ -1281,7 +1349,7 @@ impl FocusInfo {
     #[inline]
     pub fn tab_nav(self) -> TabNav {
         match self {
-            FocusInfo::FocusScope(_, tab_nav, _) => tab_nav,
+            FocusInfo::FocusScope { tab_nav, .. } => tab_nav,
             FocusInfo::Focusable(_) => TabNav::Continue,
             FocusInfo::NotFocusable => TabNav::None,
         }
@@ -1297,7 +1365,7 @@ impl FocusInfo {
     #[inline]
     pub fn directional_nav(self) -> DirectionalNav {
         match self {
-            FocusInfo::FocusScope(_, _, dir_nav) => dir_nav,
+            FocusInfo::FocusScope { directional_nav, .. } => directional_nav,
             FocusInfo::Focusable(_) => DirectionalNav::Continue,
             FocusInfo::NotFocusable => DirectionalNav::None,
         }
@@ -1313,8 +1381,22 @@ impl FocusInfo {
     pub fn tab_index(self) -> TabIndex {
         match self {
             FocusInfo::Focusable(i) => i,
-            FocusInfo::FocusScope(i, _, _) => i,
+            FocusInfo::FocusScope { tab_index, .. } => tab_index,
             FocusInfo::NotFocusable => TabIndex::SKIP,
+        }
+    }
+
+    /// Focus scope behavior when it receives direct focus.
+    ///
+    /// | Variant                   | Returns                                                           |
+    /// |---------------------------|-------------------------------------------------------------------|
+    /// | Scope                     | Associated value, default is `FocusScopeOnFocus::FirstDescendant` |
+    /// | Focusable & Not-Focusable | `FocusScopeOnFocus::Self_`                                        |
+    #[inline]
+    pub fn scope_on_focus(self) -> FocusScopeOnFocus {
+        match self {
+            FocusInfo::FocusScope { on_focus, .. } => on_focus,
+            _ => FocusScopeOnFocus::Self_,
         }
     }
 }
@@ -1326,6 +1408,8 @@ pub(crate) struct FocusInfoBuilder {
     pub tab_index: Option<TabIndex>,
     pub tab_nav: Option<TabNav>,
     pub directional_nav: Option<DirectionalNav>,
+    pub alt_scope: bool,
+    pub on_focus: FocusScopeOnFocus,
 }
 impl FocusInfoBuilder {
     #[inline]
@@ -1338,11 +1422,13 @@ impl FocusInfoBuilder {
             // or set tab navigation and did not set as not focus scope
             // or set directional navigation and did not set as not focus scope.
             (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
-                FocusInfo::FocusScope(
-                    idx.unwrap_or(TabIndex::AUTO),
-                    tab.unwrap_or(TabNav::Continue),
-                    dir.unwrap_or(DirectionalNav::None),
-                )
+                FocusInfo::FocusScope {
+                    tab_index: idx.unwrap_or(TabIndex::AUTO),
+                    tab_nav: tab.unwrap_or(TabNav::Continue),
+                    directional_nav: dir.unwrap_or(DirectionalNav::None),
+                    alt: self.alt_scope,
+                    on_focus: self.on_focus,
+                }
             }
 
             // Set as focusable and was not focus scope
