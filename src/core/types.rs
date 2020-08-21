@@ -1,6 +1,7 @@
 //! Assorted small types.
+pub type Angle = euclid::Angle<f32>;
 
-pub use webrender::api::units::{LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize};
+pub use webrender::api::units::{LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, LayoutTransform};
 
 pub use webrender::api::{BorderRadius, ColorF, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
 
@@ -131,6 +132,11 @@ impl IntoVar<Vec<GradientStop>> for Vec<ColorF> {
         )
     }
 }
+
+pub fn rotate(degrees: f32) -> LayoutTransform {
+    LayoutTransform::create_rotation(0.0, 0.0, -1.0, Angle::degrees(degrees))
+}
+
 
 /// Text string type, can be either a `&'static str` or a `String`.
 pub type Text = Cow<'static, str>;

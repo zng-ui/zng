@@ -98,7 +98,7 @@ impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
     #[UiNode]
     fn render(&self, frame: &mut FrameBuilder) {
         for (child, r) in self.children.iter().zip(self.rectangles.iter()) {
-            frame.push_reference_frame(r.origin, |f| child.render(f));
+            frame.push_reference_frame(r.origin, |frame| child.render(frame));
         }
     }
 }

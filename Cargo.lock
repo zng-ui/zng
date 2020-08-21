@@ -1909,6 +1909,7 @@ dependencies = [
  "derive_more 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "ego-tree 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "enclose 1.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "euclid 0.20.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "fnv 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "font-kit 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "gleam 0.6.19 (registry+https://github.com/rust-lang/crates.io-index)",

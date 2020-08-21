@@ -263,6 +263,23 @@ impl FrameBuilder {
         self.offset -= offset;
     }
 
+    #[inline]
+    pub fn push_transform(&mut self, transform: LayoutTransform, f: impl FnOnce(&mut FrameBuilder)) {
+        let parent_spatial_id = self.spatial_id;
+        self.spatial_id = self.display_list.push_reference_frame(
+            LayoutPoint::zero(),
+            parent_spatial_id,
+            TransformStyle::Flat,
+            PropertyBinding::Value(transform),
+            ReferenceFrameKind::Transform,
+        );
+
+        f(self);
+
+        self.display_list.pop_reference_frame();
+        self.spatial_id = parent_spatial_id;
+    }
+
     /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {

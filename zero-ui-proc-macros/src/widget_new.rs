@@ -1177,11 +1177,11 @@ mod output {
         pub fn all_settable() -> [Self; 5] {
             use crate::property::input::keyword::*;
             [
-                Priority::Context(context::default()),
-                Priority::Event(event::default()),
-                Priority::Outer(outer::default()),
-                Priority::Size(size::default()),
                 Priority::Inner(inner::default()),
+                Priority::Size(size::default()),
+                Priority::Outer(outer::default()),
+                Priority::Event(event::default()),
+                Priority::Context(context::default()),
             ]
         }
     }
