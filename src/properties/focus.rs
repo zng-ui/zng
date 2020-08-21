@@ -51,6 +51,7 @@ pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl
         is_focus_scope: is_scope.into_local(),
         key_input: KeyInputEvent::never(),
         only_alt_pressed: false,
+        return_focus: None,
     }
 }
 
@@ -197,6 +198,7 @@ struct AltFocusScopeNode<C: UiNode, E: LocalVar<bool>> {
     is_focus_scope: E,
     key_input: EventListener<KeyInputArgs>,
     only_alt_pressed: bool,
+    return_focus: Option<WidgetId>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
@@ -225,7 +227,18 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
                             && (update.key == Some(VirtualKeyCode::LAlt) || update.key == Some(VirtualKeyCode::RAlt));
 
                         if update.modifiers == ModifiersState::empty() && update.key == Some(VirtualKeyCode::Escape) {
-                            // return focus TODO
+                            // return focus to previous widget or window root.
+                            let return_ = self.return_focus.take().or_else(|| {
+                                ctx.services
+                                    .req::<Windows>()
+                                    .window(ctx.window_id)
+                                    .ok()
+                                    .map(|w| w.frame_info().root().widget_id())
+                            });
+
+                            if let Some(return_) = return_ {
+                                ctx.services.req::<Focus>().focus_widget_or_parent(return_, true);
+                            }
                         }
                     }
                     ElementState::Released => {
@@ -234,7 +247,7 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
 
                             if update.key == Some(VirtualKeyCode::LAlt) || update.key == Some(VirtualKeyCode::RAlt) {
                                 let focus = ctx.services.req::<Focus>();
-                                // TODO check if we are focused.
+                                self.return_focus = focus.focused().map(|p| p.widget_id());
                                 // focus highlight self.
                                 focus.focus_widget(ctx.widget_id, true);
                             }
