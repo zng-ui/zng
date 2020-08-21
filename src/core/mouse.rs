@@ -6,9 +6,9 @@ use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::Windows;
-use fnv::FnvHashSet;
 use std::num::NonZeroU8;
 use std::time::*;
+use super::window::OpenWindow;
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
@@ -132,14 +132,17 @@ event_args! {
         /// Position of the mouse in the window.
         pub position: LayoutPoint,
 
-        /// Widgets affected by this event.
-        pub targets: FnvHashSet<WidgetId>,
+        /// Hit-test result for the mouse point in the window.
+        pub hits: FrameHitInfo,
+
+        /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
+        pub target: WidgetPath,
 
         ..
 
         /// If the widget is in [`targets`](MouseHoverArgs::targets).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.targets.contains(&ctx.widget_id)
+            self.target.contains(ctx.widget_id)
         }
     }
 }
@@ -224,7 +227,7 @@ pub struct MouseManager {
     click_target: Option<WidgetPath>,
     click_count: u8,
 
-    hovered_targets: FnvHashSet<WidgetId>,
+    hovered_target: Option<WidgetPath>,
 
     mouse_move: EventEmitter<MouseMoveArgs>,
 
@@ -254,7 +257,7 @@ impl Default for MouseManager {
             click_target: None,
             click_count: 0,
 
-            hovered_targets: FnvHashSet::default(),
+            hovered_target: None,
 
             mouse_move: MouseMoveEvent::emitter(),
 
@@ -344,7 +347,7 @@ impl MouseManager {
 
                     ctx.updates.push_notify(self.mouse_click.clone(), args);
                 } else {
-                    // initial mouse press, could be a click if a Released happen on the same target.
+                    // initial mouse press, could be a click if a Released happened on the same target.
                     self.click_count = 1;
                     self.click_target = Some(target);
                 }
@@ -432,11 +435,10 @@ impl MouseManager {
     }
 
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
-        if Some(window_id) == self.pos_window {
-            self.pos_window = None;
-            if !self.hovered_targets.is_empty() {
-                let left_set = std::mem::take(&mut self.hovered_targets);
-                let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), left_set);
+        if Some(window_id) == self.pos_window.take() {
+            if let Some(target) = self.hovered_target.take() {
+                
+                let args = MouseHoverArgs::now(window_id, device_id, LayoutPoint::new(-1., -1.), FrameHitInfo::no_hits(window_id), target );
                 ctx.updates.push_notify(self.mouse_leave.clone(), args);
             }
         }
@@ -449,21 +451,12 @@ impl MouseManager {
         }
     }
 
-    fn update_hovered(&mut self, window_id: WindowId, hits: &FrameHitInfo, ctx: &mut AppContext) {
-        let hits_set: FnvHashSet<_> = hits.hits().iter().map(|h| h.widget_id).collect();
-        let entered_set: FnvHashSet<_> = hits_set.difference(&self.hovered_targets).copied().collect();
-        let left_set: FnvHashSet<_> = self.hovered_targets.difference(&hits_set).copied().collect();
-
-        self.hovered_targets = hits_set;
-
-        if !left_set.is_empty() {
-            let args = MouseHoverArgs::now(window_id, None, self.pos, left_set);
-            ctx.updates.push_notify(self.mouse_leave.clone(), args);
-        }
-
-        if !entered_set.is_empty() {
-            let args = MouseHoverArgs::now(window_id, None, self.pos, entered_set);
-            ctx.updates.push_notify(self.mouse_enter.clone(), args);
+    fn update_hovered(&mut self, window_id: WindowId, hits: &FrameHitInfo, window: &OpenWindow, updates: &mut Updates) {
+        if self.hovered_target != hits.target().map(|i| i.widget_id) {
+            if let Some(target) = self.hovered_target.take() {
+                let args = MouseHoverArgs::now(window_id, None, self.pos, hits.clone(), window.frame_info().find(target));
+                updates.push_notify(self.mouse_leave.clone(), args);
+            }
         }
     }
 }

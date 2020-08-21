@@ -26,6 +26,7 @@ fn example() -> impl Widget {
             println!("{}", new_txt);
             ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
         }};
+        transform: rotate(30.0); // for testing the future mouse hover implementation
 
         content: text(t);
     }
