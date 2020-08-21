@@ -9,9 +9,9 @@ use crate::{
         event::{Event, EventListener},
         gesture::KeyShortcut,
         impl_ui_node,
-        keyboard::{KeyDownEvent, KeyInputEvent, KeyInputArgs},
+        keyboard::{KeyDownEvent, KeyInputArgs, KeyInputEvent},
         property,
-        types::{WidgetId, ElementState},
+        types::{ElementState, ModifiersState, VirtualKeyCode, WidgetId},
     },
     prelude::Windows,
 };
@@ -50,6 +50,7 @@ pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl
         child,
         is_focus_scope: is_scope.into_local(),
         key_input: KeyInputEvent::never(),
+        only_alt_pressed: false,
     }
 }
 
@@ -195,6 +196,7 @@ struct AltFocusScopeNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     is_focus_scope: E,
     key_input: EventListener<KeyInputArgs>,
+    only_alt_pressed: bool,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
@@ -205,17 +207,43 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for AltFocusScopeNode<C, E> {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.is_focus_scope.update_local(ctx.vars).is_some() {
+        let enabled = if let Some(&enabled) = self.is_focus_scope.update_local(ctx.vars) {
             ctx.updates.push_render();
-        }
-        for update in self.key_input.updates(ctx.events) {
-            match update.state {
-                ElementState::Pressed => {}
-                ElementState::Released => {
-                    //TODO
+            if !enabled {
+                self.only_alt_pressed = false;
+            }
+            enabled
+        } else {
+            *self.is_focus_scope.get(ctx.vars)
+        };
+
+        if enabled {
+            for update in self.key_input.updates(ctx.events) {
+                match update.state {
+                    ElementState::Pressed => {
+                        self.only_alt_pressed = update.modifiers == ModifiersState::ALT
+                            && (update.key == Some(VirtualKeyCode::LAlt) || update.key == Some(VirtualKeyCode::RAlt));
+
+                        if update.modifiers == ModifiersState::empty() && update.key == Some(VirtualKeyCode::Escape) {
+                            // return focus TODO
+                        }
+                    }
+                    ElementState::Released => {
+                        if self.only_alt_pressed {
+                            self.only_alt_pressed = false;
+
+                            if update.key == Some(VirtualKeyCode::LAlt) || update.key == Some(VirtualKeyCode::RAlt) {
+                                let focus = ctx.services.req::<Focus>();
+                                // TODO check if we are focused.
+                                // focus highlight self.
+                                focus.focus_widget(ctx.widget_id, true);
+                            }
+                        }
+                    }
                 }
             }
         }
+
         self.child.update(ctx);
     }
 
