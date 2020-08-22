@@ -323,7 +323,7 @@ impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.key_down = r.events.listen::<KeyDownEvent>();
         self.mouse_click = r.events.listen::<MouseClickEvent>();
-        
+
         r.events.register::<ClickEvent>(self.click.listener());
         r.events.register::<SingleClickEvent>(self.single_click.listener());
         r.events.register::<DoubleClickEvent>(self.double_click.listener());

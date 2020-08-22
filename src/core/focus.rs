@@ -63,8 +63,8 @@ event_args! {
 
         ..
 
-        /// If the widget is [prev_focus](FocusChangedArgs::prev_focus) or
-        /// [`new_focus`](FocusChangedArgs::new_focus).
+        /// If the widget is [`prev_focus`](Self::prev_focus) or
+        /// [`new_focus`](Self::new_focus).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
                 if prev.widget_id() == ctx.widget_id {
@@ -79,6 +79,38 @@ event_args! {
             }
 
             false
+        }
+    }
+
+    /// [`ReturnFocusChangedEvent`] arguments.
+    pub struct ReturnFocusChangedArgs {
+        /// The scope that returns the focus when focused directly.
+        pub scope_id : WidgetId,
+
+        /// Previous return focus of the widget.
+        pub prev_return: Option<WidgetPath>,
+
+        /// New return focus of the widget.
+        pub new_return: Option<WidgetPath>,
+
+        ..
+
+        /// If the widget is [`prev_return`](Self::prev_return), [`new_return`](Self::new_return)
+        /// or [`scope_id`](Self::scope_id).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            if let Some(prev) = &self.prev_return {
+                if prev.widget_id() == ctx.widget_id {
+                    return true
+                }
+            }
+
+            if let Some(new) = &self.new_return {
+                if new.widget_id() == ctx.widget_id {
+                    return true
+                }
+
+            }
+            self.scope_id == ctx.widget_id
         }
     }
 }
@@ -97,6 +129,17 @@ impl FocusChangedArgs {
     #[inline]
     pub fn is_hightlight_changed(&self) -> bool {
         self.prev_focus == self.new_focus
+    }
+}
+
+impl ReturnFocusChangedArgs {
+    /// If the return focus is the same widget but the widget path changed and the widget is still in the same focus scope.
+    #[inline]
+    pub fn is_widget_move(&self) -> bool {
+        match (&self.prev_return, &self.new_return) {
+            (Some(prev), Some(new)) => prev.widget_id() == new.widget_id() && prev != new,
+            _ => false,
+        }
     }
 }
 
@@ -207,6 +250,13 @@ event! {
     ///
     /// This event is provided by the [`FocusManager`] extension.
     pub FocusChangedEvent: FocusChangedArgs;
+
+    /// Scope return focus widget changed event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`FocusManager`] extension.
+    pub ReturnFocusChangedEvent: ReturnFocusChangedArgs;
 }
 
 /// Application extension that manages keyboard focus.
@@ -235,6 +285,7 @@ event! {
 /// focus concepts implemented by this app extension.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,
+    return_focus_changed: EventEmitter<ReturnFocusChangedArgs>,
     windows_activation: EventListener<WindowIsActiveArgs>,
     mouse_down: EventListener<MouseInputArgs>,
     key_down: EventListener<KeyInputArgs>,
@@ -244,6 +295,7 @@ impl Default for FocusManager {
     fn default() -> Self {
         Self {
             focus_changed: FocusChangedEvent::emitter(),
+            return_focus_changed: ReturnFocusChangedEvent::emitter(),
             windows_activation: WindowIsActiveChangedEvent::never(),
             mouse_down: MouseDownEvent::never(),
             key_down: KeyDownEvent::never(),
@@ -260,6 +312,7 @@ impl AppExtension for FocusManager {
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
 
         ctx.events.register::<FocusChangedEvent>(self.focus_changed.listener());
+        ctx.events.register::<ReturnFocusChangedEvent>(self.return_focus_changed.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -295,27 +348,44 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            self.notify(focus.fulfill_request(request, windows), ctx);
+            self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.updates);
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            self.notify(focus.continue_focus(windows), ctx);
+            self.notify(focus.continue_focus(windows), focus, windows, ctx.updates);
         }
     }
 
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
+
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
-            let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             // new window frame, check if focus is still valid
-            self.notify(focus.continue_focus(windows), ctx);
+            self.notify(focus.continue_focus(windows), focus, windows, ctx.updates);
+        }
+
+        for args in focus.cleanup_returns(FrameFocusInfo::new(
+            windows.window(window_id).expect("window in on_new_frame_ready").frame_info(),
+        )) {
+            ctx.updates.push_notify(self.return_focus_changed.clone(), args);
         }
     }
 }
 impl FocusManager {
-    fn notify(&mut self, args: Option<FocusChangedArgs>, ctx: &mut AppContext) {
+    fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, updates: &mut Updates) {
         if let Some(args) = args {
             self.focused = args.new_focus.clone();
-            ctx.updates.push_notify(self.focus_changed.clone(), args);
+            updates.push_notify(self.focus_changed.clone(), args);
+
+            // may have focused scope.
+            while let Some(args) = focus.move_after_focus(windows) {
+                self.focused = args.new_focus.clone();
+                updates.push_notify(self.focus_changed.clone(), args);
+            }
+
+            for args in focus.update_returns(windows) {
+                updates.push_notify(self.return_focus_changed.clone(), args);
+            }
         }
     }
 }
@@ -335,6 +405,7 @@ pub struct Focus {
 
 impl Focus {
     #[inline]
+    #[must_use]
     pub fn new(update_notifier: UpdateNotifier) -> Self {
         Focus {
             request: None,
@@ -347,12 +418,21 @@ impl Focus {
 
     /// Current focused widget.
     #[inline]
+    #[must_use]
     pub fn focused(&self) -> Option<&WidgetPath> {
         self.focused.as_ref()
     }
 
+    /// Current return focus of a scope.
+    #[inline]
+    #[must_use]
+    pub fn return_focused(&self, scope_id: WidgetId) -> Option<&WidgetPath> {
+        self.return_focused.get(&scope_id)
+    }
+
     /// If the current focused widget is visually indicated.
     #[inline]
+    #[must_use]
     pub fn is_highlighting(&self) -> bool {
         self.is_highlighting
     }
@@ -592,6 +672,85 @@ impl Focus {
             None
         }
     }
+
+    #[must_use]
+    fn move_after_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+        if let Some(focused) = &self.focused {
+            if let Ok(window) = windows.window(focused.window_id()) {
+                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
+                    if widget.is_scope() {
+                        if let Some(widget) = widget.on_focus_move(|id| self.return_focused(id)) {
+                            return self.move_focus(Some(widget.info.path()), self.is_highlighting);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Updates `return_focused` after `focused` changed.
+    #[must_use]
+    fn update_returns(&mut self, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
+        let mut r = vec![];
+        if let Some(focused) = &self.focused {
+            if let Ok(window) = windows.window(focused.window_id()) {
+                if let Some(mut widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
+                    while let Some(scope) = widget.scope() {
+                        widget = scope;
+
+                        if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                            let prev = self.return_focused.insert(scope.info.widget_id(), focused.clone());
+                            let new = Some(focused.clone());
+                            if prev != new {
+                                r.push(ReturnFocusChangedArgs::now(scope.info.widget_id(), prev, new));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        r
+    }
+
+    /// Cleanup `return_focused` after new `frame`.
+    #[must_use]
+    fn cleanup_returns(&mut self, frame: FrameFocusInfo) -> Vec<ReturnFocusChangedArgs> {
+        let mut r = vec![];
+
+        'map_update: for (&scope_id, widget_path) in self.return_focused.iter() {
+            if let Some(widget) = frame.get(widget_path) {
+                let mut scope_w = widget;
+                while let Some(scope) = scope_w.scope() {
+                    if scope.info.widget_id() == scope_id {
+                        if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                            let path = widget.info.path();
+                            if &path != widget_path {
+                                // still return focus but moved inside the scope.
+                                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
+                            }
+                        }
+
+                        continue 'map_update;
+                    }
+                    scope_w = scope;
+                }
+            }
+
+            // Did not find the widget, or the widget is not in the scope, or the scope no longer returns focus.
+            //
+            // None in new means we need to remove after return_focused is not borrowed.
+            r.push(ReturnFocusChangedArgs::now(scope_id, None, None));
+        }
+
+        for r in &mut r {
+            if r.new_return.is_none() {
+                r.prev_return = self.return_focused.remove(&r.scope_id);
+            }
+        }
+
+        r
+    }
 }
 
 impl AppService for Focus {}
@@ -700,6 +859,14 @@ impl<'a> FrameFocusInfo<'a> {
     #[inline]
     pub fn find(&self, widget_id: WidgetId) -> Option<WidgetFocusInfo> {
         self.info.find(widget_id).and_then(|i| i.as_focusable())
+    }
+
+    /// Reference to the widget in the frame, if it is present.
+    ///
+    /// Faster then [`find`](Self::find) if the widget path was generated by the same frame.
+    #[inline]
+    pub fn get(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
+        self.info.get(path).and_then(|i| i.as_focusable())
     }
 
     /// If the frame info contains the widget and it is focusable.
@@ -863,7 +1030,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     .and_then(|path| self.info.frame().get(path))
                     .and_then(|w| w.as_focusable())
                     .and_then(|f| {
-                        if f.ancestors().find(|&a| a == self).is_some() {
+                        if f.ancestors().any(|a| a == self) {
                             Some(f) // valid last focused
                         } else {
                             None
@@ -1323,7 +1490,7 @@ pub enum FocusInfo {
 }
 
 /// Behavior of a focus scope when it receives direct focus.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum FocusScopeOnFocus {
     /// Just focus the scope widget.
     Self_,

@@ -1,11 +1,11 @@
 use crate::core::widget;
 use crate::core::{
-    focus::TabNav,
+    focus::{TabNav, FocusScopeOnFocus},
     keyboard::KeyInputArgs,
     types::{rgb, WidgetId},
     window::Window,
 };
-use crate::properties::{background_color, focus_scope, on_key_down, position, size, tab_nav, title, OnEventArgs};
+use crate::properties::{background_color, focus_scope, focus_scope_behavior, on_key_down, position, size, tab_nav, title, OnEventArgs};
 use crate::widgets::container;
 use zero_ui_macros::shortcut;
 
@@ -76,6 +76,9 @@ widget! {
 
         /// Windows cycle TAB navigation by default.
         tab_nav: TabNav::Cycle;
+
+        /// Windows remember the last focused widget and return focus when activated again.
+        focus_scope_behavior: FocusScopeOnFocus::LastFocused;
 
         /// Test inspector.
         on_key_down: print_frame_inspector();

@@ -1,6 +1,6 @@
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::focus::{FocusChangedArgs, FocusChangedEvent};
+use crate::core::focus::*;
 use crate::core::mouse::*;
 use crate::core::var::{ObjVar, StateVar};
 use crate::core::UiNode;
@@ -291,12 +291,13 @@ pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 struct IsReturnFocusNode<C: UiNode> {
     child: C,
     state: StateVar,
+    return_focus_changed: EventListener<ReturnFocusChangedArgs>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        todo!()
+        self.return_focus_changed = ctx.events.listen::<ReturnFocusChangedEvent>();
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
@@ -307,16 +308,36 @@ impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        todo!();
         self.child.update(ctx);
+
+        let state = *self.state.get(ctx.vars);
+        let mut new_state = state;
+        for args in self.return_focus_changed.updates(ctx.events) {
+            if args
+                .prev_return
+                .as_ref()
+                .map(|p| p.widget_id() == ctx.widget_id)
+                .unwrap_or_default()
+            {
+                new_state = false;
+            }
+            if args.new_return.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default() {
+                new_state = true;
+            }
+        }
+
+        if new_state != state {
+            self.state.push_set(new_state, ctx.vars, ctx.updates).expect("is_return_focus");
+        }
     }
 }
 
-/// If the widget is the focus restore target of the parent focus scope.
-///
-/// If the widget is not a focus scope and is currently focused or was the last focused within
-/// the parent focus scope.
+/// If the widget is focused when a parent scope is focused.
 #[property(context)]
 pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsReturnFocusNode { child, state }
+    IsReturnFocusNode {
+        child,
+        state,
+        return_focus_changed: ReturnFocusChangedEvent::never(),
+    }
 }
