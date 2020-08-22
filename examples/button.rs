@@ -16,12 +16,12 @@ fn main() {
 
 fn example() -> impl Widget {
     let t = var("Click Me!");
-    let mut count = 1u128;
+    let mut count = 0;
 
     button! {
         on_click: enclose!{ (t) move |a| {
             let ctx = a.ctx();
-            count *= 10;
+            count += 1;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
             println!("{}", new_txt);
             ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
