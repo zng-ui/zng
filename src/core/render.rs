@@ -845,6 +845,12 @@ impl<'a> WidgetInfo<'a> {
         &self.info().meta
     }
 
+    /// Reference the [`FrameInfo`] that owns `self`.
+    #[inline]
+    pub fn frame(self) -> &'a FrameInfo {
+        self.frame
+    }
+
     /// Reference to the frame root widget.
     #[inline]
     pub fn root(self) -> Self {

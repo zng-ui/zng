@@ -43,6 +43,7 @@ use crate::core::mouse::*;
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::core::types::*;
 use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
+use fnv::FnvHashMap;
 
 event_args! {
     /// [`FocusChangedEvent`] arguments.
@@ -328,6 +329,7 @@ pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,
     focused: Option<WidgetPath>,
+    return_focused: FnvHashMap<WidgetId, WidgetPath>,
     is_highlighting: bool,
 }
 
@@ -339,6 +341,7 @@ impl Focus {
             update_notifier,
             focused: None,
             is_highlighting: false,
+            return_focused: FnvHashMap::default(),            
         }
     }
 
@@ -843,6 +846,33 @@ impl<'a> WidgetFocusInfo<'a> {
         } else {
             // we reached root, no ALT found.
             None
+        }
+    }
+
+    /// Widget the focus needs to move to when `self` gets focused.
+    ///
+    /// TODO input doc
+    ///
+    /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
+    #[inline]
+    pub fn on_focus_move<'p>(self, last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>) -> Option<WidgetFocusInfo<'a>> {
+        match self.focus_info() {
+            FocusInfo::FocusScope { on_focus, .. } => match on_focus {
+                FocusScopeOnFocus::FirstDescendant => self.descendants().next(),
+                FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
+                    .and_then(|path| self.info.frame().get(path))
+                    .and_then(|w| w.as_focusable())
+                    .and_then(|f| {
+                        if f.ancestors().find(|&a| a == self).is_some() {
+                            Some(f) // valid last focused
+                        } else {
+                            None
+                        }
+                    })
+                    .or_else(|| self.descendants().next()), // fallback
+                FocusScopeOnFocus::Self_ => None,
+            },
+            FocusInfo::NotFocusable | FocusInfo::Focusable(_) => None,
         }
     }
 
