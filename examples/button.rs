@@ -16,18 +16,18 @@ fn main() {
 
 fn example() -> impl Widget {
     let t = var("Click Me!");
-    let mut count = 0;
+    let mut count = 1u128;
 
     button! {
         on_click: enclose!{ (t) move |a| {
             let ctx = a.ctx();
-            count += 1;
+            count *= 10;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
             println!("{}", new_txt);
             ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
         }};
-        //on_double_click: |_| println!("double click!"); FIXME
-        //on_triple_click: |_| println!("triple click! OMG!");
+        on_double_click: |_| println!("double click!");
+        on_triple_click: |_| println!("triple click!");
         content: text(t);
     }
 }

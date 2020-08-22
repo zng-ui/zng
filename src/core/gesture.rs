@@ -10,7 +10,7 @@ use crate::core::render::*;
 use crate::core::types::*;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display};
-use std::num::NonZeroU8;
+use std::num::NonZeroU32;
 
 /// Specific information from the source of a [`ClickArgs`].
 #[derive(Debug, Clone)]
@@ -53,7 +53,7 @@ event_args! {
         /// Sequential click count . Number `1` is single click, `2` is double click, etc.
         ///
         /// This is always `1` for clicks initiated by the keyboard.
-        pub click_count: NonZeroU8,
+        pub click_count: NonZeroU32,
 
         // What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
@@ -102,7 +102,7 @@ impl TryFrom<KeyInputArgs> for ClickArgs {
                 args.window_id,
                 args.device_id,
                 ClickArgsSource::Key { repeat: args.repeat },
-                NonZeroU8::new(1).unwrap(),
+                NonZeroU32::new(1).unwrap(),
                 args.modifiers,
                 args.target,
             ))
@@ -323,7 +323,11 @@ impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.key_down = r.events.listen::<KeyDownEvent>();
         self.mouse_click = r.events.listen::<MouseClickEvent>();
+        
         r.events.register::<ClickEvent>(self.click.listener());
+        r.events.register::<SingleClickEvent>(self.single_click.listener());
+        r.events.register::<DoubleClickEvent>(self.double_click.listener());
+        r.events.register::<TripleClickEvent>(self.triple_click.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
