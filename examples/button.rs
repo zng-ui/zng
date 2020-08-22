@@ -27,7 +27,6 @@ fn example() -> impl Widget {
         }};
         on_double_click: |_| println!("double click!");
         on_triple_click: |_| println!("triple click!");
-        is_focused: var(false);
         content: text(t);
     }
 }
