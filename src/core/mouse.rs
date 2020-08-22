@@ -1,6 +1,5 @@
 //! Mouse events.
 
-use super::window::OpenWindow;
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
@@ -425,12 +424,12 @@ impl MouseManager {
                 (frame_info.root().path(), pos)
             };
 
-            // mouse_enter/mouse_leave.
-            self.update_hovered(window_id, &hits, ctx);
-
             // mouse_move
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits, target);
+            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits.clone(), target.clone());
             ctx.updates.push_notify(self.mouse_move.clone(), args);
+
+            // mouse_enter/mouse_leave.
+            self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.updates);
         }
     }
 
@@ -451,16 +450,30 @@ impl MouseManager {
 
     fn on_new_frame(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         if self.pos_window == Some(window_id) {
-            let hits = ctx.services.req::<Windows>().window(window_id).unwrap().hit_test(self.pos);
-            self.update_hovered(window_id, &hits, ctx);
+            let window = ctx.services.req::<Windows>().window(window_id).unwrap();
+            let hits = window.hit_test(self.pos);
+            let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
+            self.update_hovered(window_id, None, hits, target, ctx.updates);
         }
     }
 
-    fn update_hovered(&mut self, window_id: WindowId, hits: &FrameHitInfo, window: &OpenWindow, updates: &mut Updates) {
-        if self.hovered_target != hits.target().map(|i| i.widget_id) {
-            if let Some(target) = self.hovered_target.take() {
-                let args = MouseHoverArgs::now(window_id, None, self.pos, hits.clone(), window.frame_info().find(target));
+    fn update_hovered(
+        &mut self,
+        window_id: WindowId,
+        device_id: Option<DeviceId>,
+        hits: FrameHitInfo,
+        new_target: Option<WidgetPath>,
+        updates: &mut Updates,
+    ) {
+        if self.hovered_target != new_target {
+            if let Some(old_target) = self.hovered_target.take() {
+                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits.clone(), old_target);
                 updates.push_notify(self.mouse_leave.clone(), args);
+            }
+            self.hovered_target = new_target.clone();
+            if let Some(new_target) = new_target {
+                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, new_target);
+                updates.push_notify(self.mouse_enter.clone(), args);
             }
         }
     }

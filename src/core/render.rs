@@ -422,9 +422,6 @@ impl FrameHitInfo {
     /// * `u64`: Raw [`WidgetId`].
     /// * `u16`: Raw [`CursorIcon`] or `WIDGET_HIT_AREA`.
     ///
-    /// Only widgets that are where hit by a cursor tag and `WIDGET_HIT_AREA` tag are included in
-    /// the final result.
-    ///
     /// The tag marked with `WIDGET_HIT_AREA` is used to determine the [`HitInfo::point`](HitInfo::point).
     #[inline]
     pub fn new(window_id: WindowId, frame_id: FrameId, point: LayoutPoint, hits: HitTestResult) -> Self {
@@ -432,25 +429,36 @@ impl FrameHitInfo {
         let mut actual_hits = fnv::FnvHashMap::default();
 
         for hit in hits.items {
-            if hit.tag.1 == WIDGET_HIT_AREA {
-                candidates.push((hit.tag.0, hit.point_relative_to_item));
+            if let Some(widget_id) = WidgetId::new(hit.tag.0) {
+                if hit.tag.1 == WIDGET_HIT_AREA {
+                    candidates.push((widget_id, hit.point_relative_to_item));
+                } else {
+                    actual_hits.insert(widget_id, hit.tag.1);
+                }
             } else {
-                actual_hits.insert(hit.tag.0, hit.tag.1);
+                warn_println!("hit tag {} is not a WidgetId", hit.tag.0);
             }
         }
 
         let mut hits = Vec::default();
 
-        for candidate in candidates {
-            let raw_id = candidate.0;
-            if let Some(raw_cursor) = actual_hits.remove(&raw_id) {
+        for (widget_id, point) in candidates {
+            if let Some(raw_cursor) = actual_hits.remove(&widget_id) {
                 hits.push(HitInfo {
-                    // SAFETY: This is safe because we packed
-                    widget_id: unsafe { WidgetId::from_raw(raw_id) },
-                    point: candidate.1,
+                    widget_id,
+                    point,
                     cursor: unpack_cursor(raw_cursor),
                 })
             }
+        }
+
+        // hits outside WIDGET_HIT_AREA
+        for (widget_id, raw_cursor) in actual_hits.drain() {
+            hits.push(HitInfo {
+                widget_id,
+                point: LayoutPoint::new(-1.0, -1.0),
+                cursor: unpack_cursor(raw_cursor),
+            })
         }
 
         hits.shrink_to_fit();
@@ -682,14 +690,20 @@ impl FrameInfo {
 }
 
 /// Full address of a widget in a specific [`FrameInfo`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct WidgetPath {
     node_id: Option<ego_tree::NodeId>,
     window_id: WindowId,
     frame_id: FrameId,
     path: Box<[WidgetId]>,
 }
-
+impl PartialEq for WidgetPath {
+    /// Paths are equal if they share the same [window](Self::window_id) and [widget paths](Self::widgets_path).
+    fn eq(&self, other: &Self) -> bool {
+        self.window_id == other.window_id && self.path == other.path
+    }
+}
+impl Eq for WidgetPath {}
 impl WidgetPath {
     /// Window the [frame_id](WidgetPath::frame_id) belongs too.
     #[inline]

@@ -36,6 +36,7 @@
 extern crate self as zero_ui;
 
 /// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
+#[allow(unused)]
 macro_rules! error_println {
     ($($tt:tt)*) => {{
         use colored::*;
@@ -44,6 +45,7 @@ macro_rules! error_println {
 }
 
 /// Calls `eprintln!("warning: {}", format_args!($))` with `warning` colored bright yellow and bold.
+#[allow(unused)]
 macro_rules! warn_println {
     ($($tt:tt)*) => {{
         use colored::*;
@@ -60,21 +62,26 @@ macro_rules! unique_id {
         $vis struct $Type(std::num::NonZeroU64);
 
         impl $Type {
+            fn next() -> &'static std::sync::atomic::AtomicU64 {
+                use std::sync::atomic::AtomicU64;
+                static NEXT: AtomicU64 = AtomicU64::new(1);
+                &NEXT
+            }
+
             /// Generates a new unique ID.
             ///
             /// # Panics
-            /// Panics if called more then `u64::max_value()` times.
+            /// Panics if called more then `u64::MAX` times.
             pub fn new_unique() -> Self {
-                use std::sync::atomic::{AtomicU64, Ordering};
-                static NEXT: AtomicU64 = AtomicU64::new(1);
+                use std::sync::atomic::Ordering;
 
-                let id = NEXT.fetch_add(1, Ordering::Relaxed);
+                let id = Self::next().fetch_add(1, Ordering::Relaxed);
 
                 if let Some(id) = std::num::NonZeroU64::new(id) {
                     $Type(id)
                 } else {
-                    NEXT.store(0, Ordering::SeqCst);
-                    panic!("`{}` reached `u64::max_value()` IDs.", stringify!($Type))
+                    Self::next().store(0, Ordering::SeqCst);
+                    panic!("`{}` reached `u64::MAX` IDs.", stringify!($Type))
                 }
             }
 
@@ -93,6 +100,22 @@ macro_rules! unique_id {
             #[allow(dead_code)]
             pub unsafe fn from_raw(raw: u64) -> $Type {
                 $Type(std::num::NonZeroU64::new_unchecked(raw))
+            }
+
+            /// Creates an id from a raw value.
+            ///
+            /// Checks if `raw` is in the range of generated widgets.
+            #[inline]
+            #[allow(dead_code)]
+            pub fn new(raw: u64) -> Option<$Type> {
+                use std::sync::atomic::Ordering;
+
+                if raw >= 1 && raw < Self::next().load(Ordering::Relaxed) {
+                    // SAFETY: we just validated raw.
+                    Some(unsafe { Self::from_raw(raw) })
+                } else {
+                    None
+                }
             }
         }
     };

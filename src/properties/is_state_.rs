@@ -23,12 +23,16 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        if *self.state.get(ctx.vars) {
-            if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-                ctx.updates.push_set(&self.state, false, ctx.vars).expect("is_hovered");
-            }
-        } else if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            ctx.updates.push_set(&self.state, true, ctx.vars).expect("is_hovered");
+        let mut new_state = *self.state.get(ctx.vars);
+        if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+            new_state = false;
+        }
+        if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+            new_state = true;
+        }
+
+        if new_state != *self.state.get(ctx.vars) {
+            ctx.updates.push_set(&self.state, new_state, ctx.vars).expect("is_hovered");
         }
     }
 

@@ -26,8 +26,8 @@ fn example() -> impl Widget {
             println!("{}", new_txt);
             ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
         }};
-        transform: rotate(30.0); // for testing the future mouse hover implementation
-
+        //on_double_click: |_| println!("double click!"); FIXME
+        //on_triple_click: |_| println!("triple click! OMG!");
         content: text(t);
     }
 }
