@@ -20,8 +20,13 @@ fn main() {
 }
 
 fn example(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
+    let content = content.into();
     button! {
-        content: text(content.into());
+        content: text(content.clone());
+        is_focused: var(false);
         tab_index;
+        on_click: move |_| {
+            println!("Clicked {}, {:?}", content, tab_index)
+        };
     }
 }

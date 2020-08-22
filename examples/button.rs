@@ -23,11 +23,11 @@ fn example() -> impl Widget {
             let ctx = a.ctx();
             count += 1;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
-            println!("{}", new_txt);
             ctx.updates.push_set(&t, new_txt, ctx.vars).unwrap();
         }};
         on_double_click: |_| println!("double click!");
         on_triple_click: |_| println!("triple click!");
+        is_focused: var(false);
         content: text(t);
     }
 }

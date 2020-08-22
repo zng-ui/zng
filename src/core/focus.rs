@@ -1025,7 +1025,7 @@ impl<'a> WidgetFocusInfo<'a> {
     pub fn on_focus_move<'p>(self, last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>) -> Option<WidgetFocusInfo<'a>> {
         match self.focus_info() {
             FocusInfo::FocusScope { on_focus, .. } => match on_focus {
-                FocusScopeOnFocus::FirstDescendant => self.descendants().next(),
+                FocusScopeOnFocus::FirstDescendant => self.first_descendant_sorted(),
                 FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
                     .and_then(|path| self.info.frame().get(path))
                     .and_then(|w| w.as_focusable())
@@ -1036,7 +1036,7 @@ impl<'a> WidgetFocusInfo<'a> {
                             None
                         }
                     })
-                    .or_else(|| self.descendants().next()), // fallback
+                    .or_else(|| self.first_descendant_sorted()), // fallback
                 FocusScopeOnFocus::Self_ => None,
             },
             FocusInfo::NotFocusable | FocusInfo::Focusable(_) => None,
