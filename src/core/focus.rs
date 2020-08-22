@@ -341,7 +341,7 @@ impl Focus {
             update_notifier,
             focused: None,
             is_highlighting: false,
-            return_focused: FnvHashMap::default(),            
+            return_focused: FnvHashMap::default(),
         }
     }
 

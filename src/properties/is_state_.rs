@@ -5,7 +5,6 @@ use crate::core::mouse::*;
 use crate::core::var::{ObjVar, StateVar};
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
-use crate::properties::ReturnFocusVar;
 
 struct IsHoveredNode<C: UiNode> {
     child: C,
@@ -292,28 +291,19 @@ struct IsReturnFocusNode<C: UiNode> {
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        if let Some(id) = *ReturnFocusVar::var().get(ctx.vars) {
-            if id == ctx.widget_id {
-                self.state.push_set(true, ctx.vars, ctx.updates).expect("is_return_focus");
-            }
-        }
         self.child.init(ctx);
+        todo!()
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within_hgl");
+            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_return_focus");
         }
         self.child.deinit(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(&id) = ReturnFocusVar::var().update(ctx.vars) {
-            let is_return = id == Some(ctx.widget_id);
-            if is_return != *self.state.get(ctx.vars) {
-                self.state.push_set(is_return, ctx.vars, ctx.updates).expect("is_return_focus");
-            }
-        }
+        todo!();
         self.child.update(ctx);
     }
 }
