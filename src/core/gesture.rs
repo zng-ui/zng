@@ -237,6 +237,18 @@ impl Display for ModifierGesture {
         }
     }
 }
+impl TryFrom<VirtualKeyCode> for ModifierGesture {
+    type Error = VirtualKeyCode;
+    fn try_from(value: VirtualKeyCode) -> Result<Self, Self::Error> {
+        match value {
+            VirtualKeyCode::LAlt | VirtualKeyCode::RAlt => Ok(ModifierGesture::Alt),
+            VirtualKeyCode::LControl | VirtualKeyCode::RControl => Ok(ModifierGesture::Ctrl),
+            VirtualKeyCode::LShift | VirtualKeyCode::RShift => Ok(ModifierGesture::Shift),
+            VirtualKeyCode::LWin | VirtualKeyCode::RWin => Ok(ModifierGesture::Logo),
+            key => Err(key),
+        }
+    }
+}
 
 /// A sequence of two keyboard combinations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -360,7 +372,7 @@ event! {
 /// * [DoubleClickEvent]
 /// * [TripleClickEvent]
 pub struct GestureManager {
-    key_down: EventListener<KeyInputArgs>,
+    key_input: EventListener<KeyInputArgs>,
     mouse_click: EventListener<MouseClickArgs>,
 
     click: EventEmitter<ClickArgs>,
@@ -369,12 +381,13 @@ pub struct GestureManager {
     triple_click: EventEmitter<ClickArgs>,
 
     shortcut_input: EventEmitter<ShortcutArgs>,
+    pressed_modifier: Option<ModifierGesture>,
 }
 
 impl Default for GestureManager {
     fn default() -> Self {
         GestureManager {
-            key_down: KeyDownEvent::never(),
+            key_input: KeyInputEvent::never(),
             mouse_click: MouseClickEvent::never(),
 
             click: ClickEvent::emitter(),
@@ -383,13 +396,14 @@ impl Default for GestureManager {
             triple_click: TripleClickEvent::emitter(),
 
             shortcut_input: ShortcutEvent::emitter(),
+            pressed_modifier: None,
         }
     }
 }
 
 impl AppExtension for GestureManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        self.key_down = r.events.listen::<KeyDownEvent>();
+        self.key_input = r.events.listen::<KeyInputEvent>();
         self.mouse_click = r.events.listen::<MouseClickEvent>();
 
         r.events.register::<ClickEvent>(self.click.listener());
@@ -419,7 +433,7 @@ impl AppExtension for GestureManager {
                 ctx.updates.push_notify(self.click.clone(), args);
             }
 
-            for args in self.key_down.updates(ctx.events) {
+            for args in self.key_input.updates(ctx.events) {
                 if key_input_is_click(args) {
                     let args: ClickArgs = args.clone().try_into().unwrap();
 
@@ -428,6 +442,38 @@ impl AppExtension for GestureManager {
                     }
 
                     ctx.updates.push_notify(self.click.clone(), args);
+                }
+
+                if let Some(key) = args.key {
+                    match args.state {
+                        ElementState::Pressed => {
+                            if let Ok(gesture_key) = GestureKey::try_from(key) {
+                                ctx.updates.push_notify(
+                                    self.shortcut_input.clone(),
+                                    ShortcutArgs::now(
+                                        args.window_id,
+                                        args.device_id,
+                                        Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
+                                        args.target.clone(),
+                                    ),
+                                );
+                                self.pressed_modifier = None;
+                            } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                                self.pressed_modifier = Some(mod_gesture)
+                            }
+                        }
+                        ElementState::Released => {
+                            if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                                if Some(mod_gesture) == self.pressed_modifier {
+                                    ctx.updates.push_notify(
+                                        self.shortcut_input.clone(),
+                                        ShortcutArgs::now(args.window_id, args.device_id, Shortcut::Modifier(mod_gesture), args.target.clone()),
+                                    );
+                                    self.pressed_modifier = None;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
