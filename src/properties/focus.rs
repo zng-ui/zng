@@ -6,10 +6,8 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{
     event::{Event, EventListener},
-    gesture::Shortcut,
-    impl_ui_node,
-    keyboard::{KeyDownEvent, KeyInputArgs},
-    property,
+    gesture::{Shortcut, ShortcutArgs, ShortcutEvent},
+    impl_ui_node, property,
 };
 
 /// Enables a widget to receive focus.
@@ -78,12 +76,14 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 }
 
 /// Keyboard shortcut that focus this widget.
+///
+/// When `shortcut` is pressed focus this widget if focusable or the parent focusable widget.
 #[property(context)]
 pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<Shortcut>) -> impl UiNode {
     FocusShortcutNode {
         child,
         shortcut: shortcut.into_var(),
-        key_down: KeyDownEvent::never(),
+        shortcut_listener: ShortcutEvent::never(),
     }
 }
 
@@ -219,24 +219,29 @@ impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for DirectionalNavNode<C, E>
 struct FocusShortcutNode<C: UiNode, S: Var<Shortcut>> {
     child: C,
     shortcut: S,
-    key_down: EventListener<KeyInputArgs>,
+    shortcut_listener: EventListener<ShortcutArgs>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        self.key_down = ctx.events.listen::<KeyDownEvent>();
+        self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let handled_key = StopPropagation::<KeyDownEvent>::key();
+        let handled_key = StopPropagation::<ShortcutEvent>::key();
         if !ctx.event_state.flagged(handled_key) {
-            let shortcut = Some(*self.shortcut.get(ctx.vars));
-            for update in self.key_down.updates(ctx.events) {
-                if update.shortcut() == shortcut {
-                    ctx.services.req::<Focus>().focus_widget(ctx.widget_id, true);
+            // if shortcut not handled
+
+            let shortcut = *self.shortcut.get(ctx.vars);
+
+            for update in self.shortcut_listener.updates(ctx.events) {
+                if update.shortcut == shortcut {
+                    // focus on shortcut
+
+                    ctx.services.req::<Focus>().focus_widget_or_parent(ctx.widget_id, true);
                     ctx.event_state.flag(handled_key);
                     break;
                 }

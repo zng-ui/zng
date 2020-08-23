@@ -276,7 +276,7 @@ event! {
 /// # Requirements
 ///
 /// This extension requires the [`MouseDownEvent`],
-/// [`KeyDownEvent`] and [`WindowIsActiveChangedEvent`]
+/// [`ShortcutEvent`] and [`WindowIsActiveChangedEvent`]
 ///  events to function.
 ///
 /// # About Focus
