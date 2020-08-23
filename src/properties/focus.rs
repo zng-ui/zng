@@ -6,7 +6,7 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{
     event::{Event, EventListener},
-    gesture::KeyShortcut,
+    gesture::Shortcut,
     impl_ui_node,
     keyboard::{KeyDownEvent, KeyInputArgs},
     property,
@@ -79,7 +79,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 
 /// Keyboard shortcut that focus this widget.
 #[property(context)]
-pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<KeyShortcut>) -> impl UiNode {
+pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<Shortcut>) -> impl UiNode {
     FocusShortcutNode {
         child,
         shortcut: shortcut.into_var(),
@@ -216,13 +216,13 @@ impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for DirectionalNavNode<C, E>
     }
 }
 
-struct FocusShortcutNode<C: UiNode, S: Var<KeyShortcut>> {
+struct FocusShortcutNode<C: UiNode, S: Var<Shortcut>> {
     child: C,
     shortcut: S,
     key_down: EventListener<KeyInputArgs>,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<KeyShortcut>> UiNode for FocusShortcutNode<C, S> {
+impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.key_down = ctx.events.listen::<KeyDownEvent>();

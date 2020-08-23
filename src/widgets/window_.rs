@@ -1,6 +1,6 @@
 use crate::core::widget;
 use crate::core::{
-    focus::{TabNav, FocusScopeOnFocus},
+    focus::{FocusScopeOnFocus, TabNav},
     keyboard::KeyInputArgs,
     types::{rgb, WidgetId},
     window::Window,

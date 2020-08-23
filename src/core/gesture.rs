@@ -37,7 +37,7 @@ pub enum ClickArgsSource {
 }
 
 event_args! {
-    /// [`Click`] event args.
+    /// [`ClickEvent`] arguments.
     pub struct ClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -63,7 +63,31 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`target`](ClickArgs::target).
+        /// If the widget is in [`target`](Self::target).
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            self.target.contains(ctx.widget_id)
+        }
+    }
+
+    /// [`ShortcutEvent`] arguments.
+    pub struct ShortcutArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+
+        /// Id of device that generated the event.
+        ///
+        /// Is `None` if the event was generated programmatically.
+        pub device_id: Option<DeviceId>,
+
+        /// The shortcut.
+        pub shortcut: Shortcut,
+
+        /// The focused element at the time of the shortcut input.
+        pub target: WidgetPath,
+
+        ..
+
+        // If the widget is in [`target`](Self::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.widget_id)
         }
@@ -195,6 +219,25 @@ impl Display for KeyGesture {
     }
 }
 
+/// A modifier key press and release without any other key press in between.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub enum ModifierGesture {
+    Logo,
+    Ctrl,
+    Shift,
+    Alt,
+}
+impl Display for ModifierGesture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ModifierGesture::Logo => write!(f, "logo"),
+            ModifierGesture::Ctrl => write!(f, "ctrl"),
+            ModifierGesture::Shift => write!(f, "shift"),
+            ModifierGesture::Alt => write!(f, "alt"),
+        }
+    }
+}
+
 /// A sequence of two keyboard combinations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyChord {
@@ -212,15 +255,17 @@ impl Display for KeyChord {
 
 /// Keyboard gesture or chord associated with a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum KeyShortcut {
+pub enum Shortcut {
     Gesture(KeyGesture),
     Chord(KeyChord),
+    Modifier(ModifierGesture),
 }
-impl Display for KeyShortcut {
+impl Display for Shortcut {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            KeyShortcut::Gesture(g) => write!(f, "{}", g),
-            KeyShortcut::Chord(c) => write!(f, "{}", c),
+            Shortcut::Gesture(g) => Display::fmt(g, f),
+            Shortcut::Chord(c) => Display::fmt(c, f),
+            Shortcut::Modifier(m) => Display::fmt(m, f),
         }
     }
 }
@@ -241,31 +286,43 @@ impl KeyInputArgs {
 
     /// Gets [`gesture`](Self::gesture) as a shortcut.
     #[inline]
-    pub fn shortcut(&self) -> Option<KeyShortcut> {
-        self.gesture().map(KeyShortcut::Gesture)
+    pub fn shortcut(&self) -> Option<Shortcut> {
+        self.gesture().map(Shortcut::Gesture)
     }
 }
 
-impl From<KeyGesture> for KeyShortcut {
+impl From<KeyGesture> for Shortcut {
     #[inline]
     fn from(g: KeyGesture) -> Self {
-        KeyShortcut::Gesture(g)
+        Shortcut::Gesture(g)
     }
 }
-impl From<KeyChord> for KeyShortcut {
+impl From<KeyChord> for Shortcut {
     #[inline]
     fn from(c: KeyChord) -> Self {
-        KeyShortcut::Chord(c)
+        Shortcut::Chord(c)
     }
 }
-impl IntoVar<KeyShortcut> for KeyGesture {
-    type Var = OwnedVar<KeyShortcut>;
+impl From<ModifierGesture> for Shortcut {
+    #[inline]
+    fn from(m: ModifierGesture) -> Self {
+        Shortcut::Modifier(m)
+    }
+}
+impl IntoVar<Shortcut> for KeyGesture {
+    type Var = OwnedVar<Shortcut>;
     fn into_var(self) -> Self::Var {
         OwnedVar(self.into())
     }
 }
-impl IntoVar<KeyShortcut> for KeyChord {
-    type Var = OwnedVar<KeyShortcut>;
+impl IntoVar<Shortcut> for KeyChord {
+    type Var = OwnedVar<Shortcut>;
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl IntoVar<Shortcut> for ModifierGesture {
+    type Var = OwnedVar<Shortcut>;
     fn into_var(self) -> Self::Var {
         OwnedVar(self.into())
     }
@@ -274,7 +331,9 @@ impl IntoVar<KeyShortcut> for KeyChord {
 pub use zero_ui_macros::shortcut;
 
 event! {
-    /// Aggregate click event. Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
+    /// Aggregate click event.
+    ///
+    /// Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
     pub ClickEvent: ClickArgs;
 
     /// [`ClickEvent`] when the [`click_count`](ClickArgs::click_count) is `1`.
@@ -285,6 +344,11 @@ event! {
 
     /// [`ClickEvent`] when the [`click_count`](ClickArgs::click_count) is `3`.
     pub TripleClickEvent: ClickArgs;
+
+    /// Shortcut input event.
+    ///
+    /// Event happens every time a full [`Shortcut`] is completed.
+    pub ShortcutEvent: ShortcutArgs;
 }
 
 /// Application extension that provides aggregate events.
@@ -303,6 +367,8 @@ pub struct GestureManager {
     single_click: EventEmitter<ClickArgs>,
     double_click: EventEmitter<ClickArgs>,
     triple_click: EventEmitter<ClickArgs>,
+
+    shortcut_input: EventEmitter<ShortcutArgs>,
 }
 
 impl Default for GestureManager {
@@ -315,6 +381,8 @@ impl Default for GestureManager {
             single_click: SingleClickEvent::emitter(),
             double_click: DoubleClickEvent::emitter(),
             triple_click: TripleClickEvent::emitter(),
+
+            shortcut_input: ShortcutEvent::emitter(),
         }
     }
 }
@@ -328,6 +396,8 @@ impl AppExtension for GestureManager {
         r.events.register::<SingleClickEvent>(self.single_click.listener());
         r.events.register::<DoubleClickEvent>(self.double_click.listener());
         r.events.register::<TripleClickEvent>(self.triple_click.listener());
+
+        r.events.register::<ShortcutEvent>(self.shortcut_input.listener()); //TODO
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -364,6 +434,7 @@ impl AppExtension for GestureManager {
     }
 }
 
+/// [`GestureKey`] parse error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GestureKeyNotFound(pub String);
 impl GestureKeyNotFound {

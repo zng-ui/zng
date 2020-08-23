@@ -507,7 +507,7 @@ impl Focus {
                             FocusTarget::Right => w.next_right(),
                             FocusTarget::Down => w.next_down(),
                             FocusTarget::Left => w.next_left(),
-                            FocusTarget::Alt => w.alt_scope(),//TODO
+                            FocusTarget::Alt => w.alt_scope(), //TODO
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)

@@ -238,6 +238,11 @@ pub fn on_triple_click(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<
     on_event(child, TripleClickEvent, handler)
 }
 
+#[property(event)]
+pub fn on_shortcut(child: impl UiNode, handler: impl FnMut(&mut OnEventArgs<ShortcutArgs>) + 'static) -> impl UiNode {
+    on_event(child, ShortcutEvent, handler)
+}
+
 macro_rules! on_ctx_mtd {
     ($( $(#[$outer:meta])* struct $OnCtxMtd:ident { fn $mtd:ident } fn $on_mtd:ident;)+) => {$(
         struct $OnCtxMtd<C: UiNode, F: FnMut(&mut WidgetContext)> {

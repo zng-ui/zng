@@ -1,7 +1,7 @@
 //! Properties that are only used by widgets directly.
 
 use crate::{
-    core::{gesture::KeyShortcut, property, types::*, var::IntoVar, UiNode, UiVec},
+    core::{gesture::Shortcut, property, types::*, var::IntoVar, UiNode, UiVec},
     widgets::LineStyle,
 };
 
@@ -43,7 +43,7 @@ pub fn text_value(text: impl IntoVar<Text>) -> ! {}
 
 /// A [`KeyShortcut`] variable.
 #[property(capture_only)]
-pub fn key_shortcut(shortcut: impl IntoVar<KeyShortcut>) -> ! {}
+pub fn key_shortcut(shortcut: impl IntoVar<Shortcut>) -> ! {}
 
 /// A [`line!`](crate::widgets::line) orientation.
 #[property(capture_only)]
