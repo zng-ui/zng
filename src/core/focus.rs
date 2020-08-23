@@ -486,6 +486,11 @@ impl Focus {
         self.focus(FocusRequest::left(self.is_highlighting));
     }
 
+    #[inline]
+    pub fn focus_alt(&mut self) {
+        self.focus(FocusRequest::alt(self.is_highlighting));
+    }
+
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
@@ -502,6 +507,7 @@ impl Focus {
                             FocusTarget::Right => w.next_right(),
                             FocusTarget::Down => w.next_down(),
                             FocusTarget::Left => w.next_left(),
+                            FocusTarget::Alt => w.alt_scope(),//TODO
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
@@ -809,6 +815,11 @@ impl FocusRequest {
     pub fn left(highlight: bool) -> Self {
         Self::new(FocusTarget::Left, highlight)
     }
+
+    #[inline]
+    pub fn alt(highlight: bool) -> Self {
+        Self::new(FocusTarget::Alt, highlight)
+    }
 }
 
 /// Focus request target.
@@ -832,6 +843,9 @@ pub enum FocusTarget {
     Down,
     /// Move focus to the left of current.
     Left,
+
+    /// Move focus to the current widget ALT scope.
+    Alt,
 }
 
 /// A [`FrameInfo`] wrapper for querying focus info out of the widget tree.
