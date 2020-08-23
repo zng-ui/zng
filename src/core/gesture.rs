@@ -192,6 +192,7 @@ impl KeyGesture {
         KeyGesture { modifiers, key }
     }
 
+    /// New key gesture without modifiers.
     #[inline]
     pub fn new_key(key: GestureKey) -> Self {
         KeyGesture {
@@ -284,6 +285,8 @@ impl Display for Shortcut {
 
 impl KeyInputArgs {
     /// Key gesture this key press triggers.
+    ///
+    /// See also [`ShortcutArgs`].
     #[inline]
     pub fn gesture(&self) -> Option<KeyGesture> {
         if self.state == ElementState::Released {
@@ -297,6 +300,8 @@ impl KeyInputArgs {
     }
 
     /// Gets [`gesture`](Self::gesture) as a shortcut.
+    ///
+    /// See also [`ShortcutArgs`].
     #[inline]
     pub fn shortcut(&self) -> Option<Shortcut> {
         self.gesture().map(Shortcut::Gesture)
@@ -467,7 +472,12 @@ impl AppExtension for GestureManager {
                                 if Some(mod_gesture) == self.pressed_modifier {
                                     ctx.updates.push_notify(
                                         self.shortcut_input.clone(),
-                                        ShortcutArgs::now(args.window_id, args.device_id, Shortcut::Modifier(mod_gesture), args.target.clone()),
+                                        ShortcutArgs::now(
+                                            args.window_id,
+                                            args.device_id,
+                                            Shortcut::Modifier(mod_gesture),
+                                            args.target.clone(),
+                                        ),
                                     );
                                     self.pressed_modifier = None;
                                 }

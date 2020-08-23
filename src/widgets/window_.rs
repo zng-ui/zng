@@ -1,11 +1,11 @@
 use crate::core::widget;
 use crate::core::{
     focus::{FocusScopeOnFocus, TabNav},
-    keyboard::KeyInputArgs,
+    gesture::ShortcutArgs,
     types::{rgb, WidgetId},
     window::Window,
 };
-use crate::properties::{background_color, focus_scope, focus_scope_behavior, on_key_down, position, size, tab_nav, title, OnEventArgs};
+use crate::properties::{background_color, focus_scope, focus_scope_behavior, on_shortcut, position, size, tab_nav, title, OnEventArgs};
 use crate::widgets::container;
 use zero_ui_macros::shortcut;
 
@@ -81,7 +81,7 @@ widget! {
         focus_scope_behavior: FocusScopeOnFocus::LastFocused;
 
         /// Test inspector.
-        on_key_down: print_frame_inspector();
+        on_shortcut_inspect -> on_shortcut: print_frame_inspector();
     }
 
     /// Manually initializes a new [`window`](self).
@@ -97,12 +97,12 @@ fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
 }
 
 #[cfg(debug_assertions)]
-fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
+fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<ShortcutArgs>) {
     use crate::core::debug::{write_frame, WriteFrameState};
 
     let mut state = WriteFrameState::none();
     move |args| {
-        if args.args().shortcut() == Some(shortcut!(CTRL | SHIFT + I)) {
+        if args.args().shortcut == shortcut!(CTRL | SHIFT + I) {
             let ctx = args.ctx();
 
             let frame = ctx
