@@ -38,10 +38,10 @@
 use crate::core::app::AppExtension;
 use crate::core::context::*;
 use crate::core::event::*;
-use crate::core::keyboard::*;
-use crate::core::mouse::*;
+use crate::core::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
+use crate::core::mouse::{MouseDownEvent, MouseInputArgs};
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::core::types::*;
+use crate::core::types::{LayoutPoint, WidgetId, WindowId};
 use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use fnv::FnvHashMap;
 
@@ -288,7 +288,7 @@ pub struct FocusManager {
     return_focus_changed: EventEmitter<ReturnFocusChangedArgs>,
     windows_activation: EventListener<WindowIsActiveArgs>,
     mouse_down: EventListener<MouseInputArgs>,
-    key_down: EventListener<KeyInputArgs>,
+    shortcut: EventListener<ShortcutArgs>,
     focused: Option<WidgetPath>,
 }
 impl Default for FocusManager {
@@ -298,7 +298,7 @@ impl Default for FocusManager {
             return_focus_changed: ReturnFocusChangedEvent::emitter(),
             windows_activation: WindowIsActiveChangedEvent::never(),
             mouse_down: MouseDownEvent::never(),
-            key_down: KeyDownEvent::never(),
+            shortcut: ShortcutEvent::never(),
             focused: None,
         }
     }
@@ -307,7 +307,7 @@ impl AppExtension for FocusManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         self.windows_activation = ctx.events.listen::<WindowIsActiveChangedEvent>();
         self.mouse_down = ctx.events.listen::<MouseDownEvent>();
-        self.key_down = ctx.events.listen::<KeyDownEvent>();
+        self.shortcut = ctx.events.listen::<ShortcutEvent>();
 
         ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
 
@@ -328,21 +328,22 @@ impl AppExtension for FocusManager {
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
             // click
             request = Some(FocusRequest::direct_or_parent(args.target.widget_id(), false));
-        } else if let Some(args) = self.key_down.updates(ctx.events).last() {
+        } else if let Some(args) = self.shortcut.updates(ctx.events).last() {
             // keyboard
-            match &args.key {
-                Some(VirtualKeyCode::Tab) => {
-                    request = Some(if args.modifiers.shift() {
-                        FocusRequest::prev(true)
-                    } else {
-                        FocusRequest::next(true)
-                    })
-                }
-                Some(VirtualKeyCode::Up) => request = Some(FocusRequest::up(true)),
-                Some(VirtualKeyCode::Right) => request = Some(FocusRequest::right(true)),
-                Some(VirtualKeyCode::Down) => request = Some(FocusRequest::down(true)),
-                Some(VirtualKeyCode::Left) => request = Some(FocusRequest::left(true)),
-                _ => {}
+            if args.shortcut == shortcut!(Tab) {
+                request = Some(FocusRequest::next(true))
+            } else if args.shortcut == shortcut!(SHIFT + Tab) {
+                request = Some(FocusRequest::prev(true))
+            } else if args.shortcut == shortcut!(Alt) {
+                request = Some(FocusRequest::alt(true))
+            } else if args.shortcut == shortcut!(Up) {
+                request = Some(FocusRequest::up(true))
+            } else if args.shortcut == shortcut!(Right) {
+                request = Some(FocusRequest::right(true))
+            } else if args.shortcut == shortcut!(Down) {
+                request = Some(FocusRequest::down(true))
+            } else if args.shortcut == shortcut!(Left) {
+                request = Some(FocusRequest::left(true))
             }
         }
 

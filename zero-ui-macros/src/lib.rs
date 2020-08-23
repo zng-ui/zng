@@ -824,16 +824,16 @@ macro_rules! __shortcut {
 #[macro_export]
 macro_rules! shortcut {
     (Logo) => {
-        zero_ui::core::gesture::Shortcut::Modifier( zero_ui::core::gesture::Shortcut::ModifierGesture::Logo)
+        zero_ui::core::gesture::Shortcut::Modifier(zero_ui::core::gesture::ModifierGesture::Logo)
     };
     (Shift) => {
-        zero_ui::core::gesture::Shortcut::Modifier( zero_ui::core::gesture::Shortcut::ModifierGesture::Shift)
+        zero_ui::core::gesture::Shortcut::Modifier(zero_ui::core::gesture::ModifierGesture::Shift)
     };
     (Ctrl) => {
-        zero_ui::core::gesture::Shortcut::Modifier( zero_ui::core::gesture::Shortcut::ModifierGesture::Ctrl)
+        zero_ui::core::gesture::Shortcut::Modifier(zero_ui::core::gesture::ModifierGesture::Ctrl)
     };
     (Alt) => {
-        zero_ui::core::gesture::Shortcut::Modifier( zero_ui::core::gesture::Shortcut::ModifierGesture::Alt)
+        zero_ui::core::gesture::Shortcut::Modifier(zero_ui::core::gesture::ModifierGesture::Alt)
     };
 
     ($Key:ident) => {

@@ -416,7 +416,7 @@ impl AppExtension for GestureManager {
         r.events.register::<DoubleClickEvent>(self.double_click.listener());
         r.events.register::<TripleClickEvent>(self.triple_click.listener());
 
-        r.events.register::<ShortcutEvent>(self.shortcut_input.listener()); //TODO
+        r.events.register::<ShortcutEvent>(self.shortcut_input.listener());
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -642,5 +642,6 @@ gesture_keys! {
     Numpad8 = "Numpad 8",
     Numpad9 = "Numpad 9",
     Numpad0 = "Numpad 0",
-    NumpadComma = "Numpad ,"
+    NumpadComma = "Numpad ,",
+    Tab
 }
