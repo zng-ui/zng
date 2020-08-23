@@ -490,21 +490,87 @@ impl AppExtension for GestureManager {
     }
 }
 
-/// [`GestureKey`] parse error.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct GestureKeyNotFound(pub String);
-impl GestureKeyNotFound {
-    #[inline]
-    pub fn key_name(&self) -> &str {
-        &self.0
+impl std::str::FromStr for ModifierGesture {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim() {
+            "Ctrl" => Ok(ModifierGesture::Ctrl),
+            "Shift" => Ok(ModifierGesture::Shift),
+            "Alt" => Ok(ModifierGesture::Alt),
+            "Logo" => Ok(ModifierGesture::Logo),
+            s => Err(ParseError::new(format!("`{}` is not a modifier", s))),
+        }
     }
 }
-impl fmt::Display for GestureKeyNotFound {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "`{}` is not a gesture key", self.0)
+
+impl std::str::FromStr for KeyGesture {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut modifiers = ModifiersState::empty();
+        let mut parts = s.split('+');
+
+        while let Some(part) = parts.next() {
+            if let Ok(mod_) = part.parse::<ModifierGesture>() {
+                match mod_ {
+                    ModifierGesture::Logo => modifiers |= ModifiersState::LOGO,
+                    ModifierGesture::Ctrl => modifiers |= ModifiersState::CTRL,
+                    ModifierGesture::Shift => modifiers |= ModifiersState::SHIFT,
+                    ModifierGesture::Alt => modifiers |= ModifiersState::ALT,
+                }
+            } else if let Ok(key) = part.parse::<GestureKey>() {
+                if let Some(extra) = parts.next() {
+                    return Err(ParseError::new(format!("`{}` is not a key gesture, unexpected `+{}`", s, extra)));
+                }
+
+                return Ok(KeyGesture { modifiers, key });
+            } else {
+                return Err(ParseError::new(format!("`{}` is not a key gesture, unexpected `{}`", s, part)));
+            }
+        }
+
+        Err(ParseError::new(format!("`{}` is not a key gesture, missing key", s)))
     }
 }
-impl std::error::Error for GestureKeyNotFound {}
+
+impl std::str::FromStr for KeyChord {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.split(',');
+
+        let starter = if let Some(starter) = parts.next() {
+            starter.parse()?
+        } else {
+            return Err(ParseError::new("`` is not a key chord, empty"));
+        };
+
+        let complement = if let Some(complement) = parts.next() {
+            complement.parse()?
+        } else {
+            return Err(ParseError::new(format!("`{}` is not a key chord, expected `, <complement>`", s)));
+        };
+
+        if let Some(extra) = parts.next() {
+            return Err(ParseError::new(format!("`{}` is not a key chord, unexpected `,{}`", s, extra)));
+        }
+
+        Ok(KeyChord { starter, complement })
+    }
+}
+
+impl std::str::FromStr for Shortcut {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains(',') {
+            s.parse().map(Shortcut::Chord)
+        } else if s.contains('+') {
+            s.parse().map(Shortcut::Gesture)
+        } else {
+            s.parse()
+                .map(Shortcut::Modifier)
+                .map_err(|_| ParseError::new(format!("`{}` is not a shortcut", s)))
+        }
+    }
+}
 
 macro_rules! gesture_key_name {
     ($key:ident = $name:expr) => {
@@ -540,12 +606,12 @@ macro_rules! gesture_keys {
             }
         }
         impl std::str::FromStr for GestureKey {
-            type Err = GestureKeyNotFound;
+            type Err = ParseError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                match s {
+                match s.trim() {
                     $(stringify!($key) $(| $name)? => Ok(Self::$key),)+
-                    _ => Err(GestureKeyNotFound(s.to_owned()))
+                    s => Err(ParseError::new(format!("`{}` is not a gesture key", s)))
                 }
             }
         }
@@ -645,3 +711,20 @@ gesture_keys! {
     NumpadComma = "Numpad ,",
     Tab
 }
+
+/// Shortcut, gesture parsing error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError {
+    pub error: String,
+}
+impl ParseError {
+    pub fn new(error: impl ToString) -> Self {
+        ParseError { error: error.to_string() }
+    }
+}
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.error.fmt(f)
+    }
+}
+impl std::error::Error for ParseError {}
