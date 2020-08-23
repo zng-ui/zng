@@ -34,6 +34,10 @@
 //! ## Focus Scopes
 //!
 //! TODO
+//!
+//! ## Alt Focus Scopes
+//!
+//! TODO
 
 use crate::core::app::AppExtension;
 use crate::core::context::*;

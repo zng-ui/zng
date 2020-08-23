@@ -17,7 +17,7 @@ pub trait ContextVar: Clone + Copy + 'static {
     type Type: VarValue;
 
     /// Default value, used when the variable is not set in the context.
-    fn default() -> &'static Self::Type;
+    fn default_value() -> &'static Self::Type;
 }
 
 /// Part of vars that is not public.

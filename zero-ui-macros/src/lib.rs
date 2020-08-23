@@ -478,7 +478,7 @@ macro_rules! __context_var_inner {
         impl zero_ui::core::var::ContextVar for $ident {
             type Type = $type;
 
-            fn default() -> &'static Self::Type {
+            fn default_value() -> &'static Self::Type {
                $DEFAULT
             }
         }

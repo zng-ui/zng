@@ -1,6 +1,8 @@
 use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
 use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontSize, FontStyle};
+use crate::core::var::ContextVar;
+use crate::widgets::FontFamilyVar;
 
 use fnv::FnvHashMap;
 use std::{collections::HashMap, sync::Arc};
@@ -42,6 +44,16 @@ impl Fonts {
         } else {
             None
         }
+    }
+
+    /// Gets a font using [`get`](Self::get) or fallback to the any of the default fonts.
+    pub fn get_or_default(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSize) -> FontInstance {
+        self.get(font_names, properties, font_size)
+            .or_else(|| {
+                warn_println!("did not found font: {:?}", font_names);
+                self.get(FontFamilyVar::default_value(), &FontProperties::default(), font_size)
+            })
+            .expect("did not find any default font")
     }
 
     fn load_font(

@@ -12,7 +12,7 @@ pub struct ContextVarImpl<V: ContextVar>(PhantomData<V>);
 
 impl<T: VarValue, V: ContextVar<Type = T>> protected::Var<T> for ContextVarImpl<V> {
     fn bind_info<'a, 'b>(&'a self, _: &'b Vars) -> protected::BindInfo<'a, T> {
-        protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default(), None)
+        protected::BindInfo::ContextVar(std::any::TypeId::of::<V>(), V::default_value(), None)
     }
 
     fn is_context_var(&self) -> bool {

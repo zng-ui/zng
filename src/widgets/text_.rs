@@ -41,8 +41,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let font = ctx
             .window_services
             .req::<Fonts>()
-            .get(font_family, &font_properties, font_size)
-            .expect("TODO");
+            .get_or_default(font_family, &font_properties, font_size);
 
         let font_size = font_size as f32;
 

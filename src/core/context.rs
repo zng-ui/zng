@@ -269,22 +269,22 @@ impl Vars {
 
     /// Get the context var value or default.
     pub fn context<V: ContextVar>(&self) -> &V::Type {
-        self.context_impl(TypeId::of::<V>(), V::default()).0
+        self.context_impl(TypeId::of::<V>(), V::default_value()).0
     }
 
     /// Gets if the context var value is new.
     pub fn context_is_new<V: ContextVar>(&self) -> bool {
-        self.context_impl(TypeId::of::<V>(), V::default()).1
+        self.context_impl(TypeId::of::<V>(), V::default_value()).1
     }
 
     /// Gets the context var value version.
     pub fn context_version<V: ContextVar>(&self) -> u32 {
-        self.context_impl(TypeId::of::<V>(), V::default()).2
+        self.context_impl(TypeId::of::<V>(), V::default_value()).2
     }
 
     /// Gets the context var value if it is new.
     pub fn context_update<V: ContextVar>(&self) -> Option<&V::Type> {
-        let (value, is_new, _) = self.context_impl(TypeId::of::<V>(), V::default());
+        let (value, is_new, _) = self.context_impl(TypeId::of::<V>(), V::default_value());
 
         if is_new {
             Some(value)
