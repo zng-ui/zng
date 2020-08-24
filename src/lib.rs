@@ -134,6 +134,7 @@ pub mod prelude {
         app::App,
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
+        render::WidgetPath,
         types::{
             formatx, rgb, rgba, rotate, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle,
             FontWeight, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, VirtualKeyCode,

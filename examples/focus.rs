@@ -5,6 +5,13 @@ fn main() {
     App::default().run_window(|_| {
         window! {
             title: "Focus Example";
+            on_focus_changed: |a| {
+                fn id(path: &Option<WidgetPath>) -> Option<WidgetId> {
+                    path.as_ref().map(|p|p.widget_id())
+                }
+                let args = a.args();
+                println!("focus changed: {:?} -> {:?}", id(&args.prev_focus), id(&args.new_focus));
+            };
             content: v_stack! {
                 spacing: 5.0;
                 items: ui_vec![

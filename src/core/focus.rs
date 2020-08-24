@@ -71,13 +71,13 @@ event_args! {
         /// [`new_focus`](Self::new_focus).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
-                if prev.widget_id() == ctx.widget_id {
+                if prev.contains(ctx.widget_id) {
                     return true
                 }
             }
 
             if let Some(new) = &self.new_focus {
-                if new.widget_id() == ctx.widget_id {
+                if new.contains(ctx.widget_id) {
                     return true
                 }
             }
