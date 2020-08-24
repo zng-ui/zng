@@ -1,6 +1,7 @@
 use super::{protected, CloningLocalVar, ContextVar, IntoVar, MapVar, MapVarBiDi, MapVarBiDiInner, MapVarInner, ObjVar, Var, VarValue};
 use crate::core::context::{ContextVarStageId, Vars};
 use fnv::FnvHashMap;
+use std::collections::hash_map::Entry as HmEntry;
 use std::{
     cell::{RefCell, UnsafeCell},
     marker::PhantomData,
@@ -132,13 +133,12 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
     }
 
     fn borrow<'a>(&'a self, vars: &'a Vars) -> &'a O {
-        use std::collections::hash_map::Entry::{Occupied, Vacant};
         let mut outputs = self.r.outputs.borrow_mut();
         let context_id = vars.context_id();
         let source_version = self.r.source.version(vars);
 
         let output = match outputs.entry(context_id) {
-            Occupied(entry) => {
+            HmEntry::Occupied(entry) => {
                 let (output, output_version) = entry.into_mut();
                 if *output_version != source_version {
                     let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(vars));
@@ -149,7 +149,7 @@ impl<T: VarValue, S: ObjVar<T>, O: VarValue, M: FnMut(&T) -> O> MapContextVar<T,
                 }
                 output
             }
-            Vacant(entry) => {
+            HmEntry::Vacant(entry) => {
                 let value = (&mut *self.r.map.borrow_mut())(self.r.source.get(vars));
                 let (output, _) = entry.insert((UnsafeCell::new(value), source_version));
                 output
