@@ -21,7 +21,6 @@ fn main() {
             position: position.clone();
             size: size.clone();
             background_color: background_color.clone();
-            directional_nav: DirectionalNav::Cycle;
             title;
             content: h_stack! {
                 spacing: 40.0;

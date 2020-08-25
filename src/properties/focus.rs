@@ -39,6 +39,8 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 }
 
 /// Widget is the ALT focus scope.
+///
+/// ALT focus scopes are also, `TabIndex::SKIP`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
 #[property(context)]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
@@ -163,6 +165,16 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
         info.scope = Some(*self.is_focus_scope.get_local());
         if self.is_alt {
             info.alt_scope = true;
+
+            if info.tab_index == None {
+                info.tab_index = Some(TabIndex::SKIP);
+            }
+            if info.tab_nav == None {
+                info.tab_nav = Some(TabNav::Cycle);
+            }
+            if info.directional_nav == None {
+                info.directional_nav = Some(DirectionalNav::Cycle);
+            }
         }
         self.child.render(frame);
     }

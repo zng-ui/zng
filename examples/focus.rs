@@ -55,7 +55,7 @@ fn example(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
         content: text(content.clone());
         tab_index;
         on_click: move |_| {
-            println!("Clicked {}, {:?}", content, tab_index)
+            println!("Clicked {}", content)
         };
     }
 }

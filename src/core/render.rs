@@ -940,6 +940,18 @@ impl<'a> WidgetInfo<'a> {
         self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.frame, n.id()))
     }
 
+    /// Iterator over all widgets contained by this widget filtered by a predicate.
+    #[inline]
+    pub fn filter_descendants<P: FnMut(WidgetInfo<'a>) -> DescendantFilter>(self, predicate: P) -> FilterDescendants<'a, P> {
+        let mut traverse = self.node().traverse();
+        traverse.next(); // skip self.
+        FilterDescendants {
+            traverse,
+            predicate,
+            frame: self.frame,
+        }
+    }
+
     /// Iterator over parent -> grandparent -> .. -> root.
     #[inline]
     pub fn ancestors(self) -> impl Iterator<Item = WidgetInfo<'a>> {
@@ -1074,6 +1086,51 @@ impl<'a> WidgetInfo<'a> {
         let origin = self.center();
         vec.sort_by_cached_key(|n| n.distance_key(origin));
         vec
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DescendantFilter {
+    /// Include the descendant and its filters its descendants.
+    Include,
+    /// Skip the descendant but filters its descendants.
+    Skip,
+    /// Skip the descendant and its descendants.
+    SkipTree,
+}
+
+pub struct FilterDescendants<'a, P: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
+    traverse: ego_tree::iter::Traverse<'a, WidgetInfoInner>,
+    predicate: P,
+    frame: &'a FrameInfo,
+}
+
+impl<'a, P: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, P> {
+    type Item = WidgetInfo<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        use ego_tree::iter::Edge;
+
+        while let Some(edge) = self.traverse.next() {
+            if let Edge::Open(node) = edge {
+                let widget = WidgetInfo::new(self.frame, node.id());
+                match (self.predicate)(widget) {
+                    DescendantFilter::Include => return Some(widget),
+                    DescendantFilter::Skip => continue,
+                    DescendantFilter::SkipTree => {
+                        for edge in &mut self.traverse {
+                            if let Edge::Close(node2) = edge {
+                                if node2 == node {
+                                    break; // skip to close node.
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+            }
+        }
+        None
     }
 }
 

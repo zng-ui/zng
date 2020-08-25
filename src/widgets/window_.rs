@@ -1,11 +1,13 @@
 use crate::core::widget;
 use crate::core::{
-    focus::{FocusScopeOnFocus, TabNav},
+    focus::{DirectionalNav, FocusScopeOnFocus, TabNav},
     gesture::ShortcutArgs,
     types::{rgb, WidgetId},
     window::Window,
 };
-use crate::properties::{background_color, focus_scope, focus_scope_behavior, on_shortcut, position, size, tab_nav, title, OnEventArgs};
+use crate::properties::{
+    background_color, directional_nav, focus_scope, focus_scope_behavior, on_shortcut, position, size, tab_nav, title, OnEventArgs,
+};
 use crate::widgets::container;
 use zero_ui_macros::shortcut;
 
@@ -76,6 +78,9 @@ widget! {
 
         /// Windows cycle TAB navigation by default.
         tab_nav: TabNav::Cycle;
+
+        /// Windows cycle arrow navigation by default.
+        directional_nav: DirectionalNav::Cycle;
 
         /// Windows remember the last focused widget and return focus when activated again.
         focus_scope_behavior: FocusScopeOnFocus::LastFocused;
