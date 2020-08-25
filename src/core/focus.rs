@@ -145,6 +145,17 @@ impl ReturnFocusChangedArgs {
             _ => false,
         }
     }
+
+    /// If [`scope_id`](Self::scope_id) is an ALT scope and `prev_return` or `new_return` if the
+    /// widget outside the scope that will be focused back when the user escapes the ALT scope.
+    #[inline]
+    pub fn is_alt_return(&self) -> bool {
+        match (&self.prev_return, &self.new_return) {
+            (Some(prev), None) => prev.contains(self.scope_id),
+            (None, Some(new)) => new.contains(self.scope_id),
+            _ => false,
+        }
+    }
 }
 
 state_key! {
@@ -326,7 +337,8 @@ impl AppExtension for FocusManager {
 
         let mut request = None;
 
-        if let Some(req) = ctx.services.req::<Focus>().request.take() {
+        let focus = ctx.services.req::<Focus>();
+        if let Some(req) = focus.request.take() {
             // custom
             request = Some(req);
         } else if let Some(args) = self.mouse_down.updates(ctx.events).last() {
@@ -340,6 +352,8 @@ impl AppExtension for FocusManager {
                 request = Some(FocusRequest::prev(true))
             } else if args.shortcut == shortcut!(Alt) {
                 request = Some(FocusRequest::alt(true))
+            } else if args.shortcut == shortcut!(Escape) {
+                request = Some(FocusRequest::escape_alt(true))
             } else if args.shortcut == shortcut!(Up) {
                 request = Some(FocusRequest::up(true))
             } else if args.shortcut == shortcut!(Right) {
@@ -353,7 +367,16 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.updates);
+            let mut alt_return_changed = None;
+            self.notify(
+                focus.fulfill_request(request, windows, &mut alt_return_changed),
+                focus,
+                windows,
+                ctx.updates,
+            );
+            if let Some(args) = alt_return_changed {
+                ctx.updates.push_notify(self.return_focus_changed.clone(), args);
+            }
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
@@ -405,6 +428,7 @@ pub struct Focus {
     update_notifier: UpdateNotifier,
     focused: Option<WidgetPath>,
     return_focused: FnvHashMap<WidgetId, WidgetPath>,
+    alt_return: Option<WidgetPath>,
     is_highlighting: bool,
 }
 
@@ -418,6 +442,7 @@ impl Focus {
             focused: None,
             is_highlighting: false,
             return_focused: FnvHashMap::default(),
+            alt_return: None,
         }
     }
 
@@ -433,6 +458,20 @@ impl Focus {
     #[must_use]
     pub fn return_focused(&self, scope_id: WidgetId) -> Option<&WidgetPath> {
         self.return_focused.get(&scope_id)
+    }
+
+    /// Current ALT return focus.
+    #[inline]
+    #[must_use]
+    pub fn alt_return(&self) -> Option<&WidgetPath> {
+        self.alt_return.as_ref()
+    }
+
+    /// If focus is in an ALT scope.
+    #[inline]
+    #[must_use]
+    pub fn in_alt(&self) -> bool {
+        self.alt_return.is_some()
     }
 
     /// If the current focused widget is visually indicated.
@@ -496,8 +535,18 @@ impl Focus {
         self.focus(FocusRequest::alt(self.is_highlighting));
     }
 
+    #[inline]
+    pub fn escape_alt(&mut self) {
+        self.focus(FocusRequest::escape_alt(self.is_highlighting));
+    }
+
     #[must_use]
-    fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
+    fn fulfill_request(
+        &mut self,
+        request: FocusRequest,
+        windows: &Windows,
+        alt_return_changed: &mut Option<ReturnFocusChangedArgs>,
+    ) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
             (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, windows),
             (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, true, windows),
@@ -512,7 +561,30 @@ impl Focus {
                             FocusTarget::Right => w.next_right(),
                             FocusTarget::Down => w.next_down(),
                             FocusTarget::Left => w.next_left(),
-                            FocusTarget::Alt => w.alt_scope(), //TODO
+                            FocusTarget::Alt => {
+                                if let Some(alt) = w.alt_scope() {
+                                    if self.alt_return.is_none() {
+                                        self.alt_return = Some(prev.clone());
+                                        *alt_return_changed =
+                                            Some(ReturnFocusChangedArgs::now(alt.info.widget_id(), None, Some(prev.clone())));
+                                    }
+                                    Some(alt)
+                                } else if self.alt_return.is_some() {
+                                    // Alt toggles when there is no alt scope.
+                                    return self.fulfill_request(FocusRequest::escape_alt(request.highlight), windows, alt_return_changed);
+                                } else {
+                                    None
+                                }
+                            }
+                            FocusTarget::EscapeAlt => {
+                                if let Some(alt_return) = self.alt_return.take() {
+                                    let actual_return = frame.get_or_parent(&alt_return);
+                                    *alt_return_changed = Some(ReturnFocusChangedArgs::now(prev.widget_id(), Some(alt_return), None));
+                                    actual_return
+                                } else {
+                                    None
+                                }
+                            }
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
@@ -825,6 +897,11 @@ impl FocusRequest {
     pub fn alt(highlight: bool) -> Self {
         Self::new(FocusTarget::Alt, highlight)
     }
+
+    #[inline]
+    pub fn escape_alt(highlight: bool) -> Self {
+        Self::new(FocusTarget::EscapeAlt, highlight)
+    }
 }
 
 /// Focus request target.
@@ -851,6 +928,8 @@ pub enum FocusTarget {
 
     /// Move focus to the current widget ALT scope.
     Alt,
+    /// Move focus back from ALT scope.
+    EscapeAlt,
 }
 
 /// A [`FrameInfo`] wrapper for querying focus info out of the widget tree.
@@ -880,12 +959,19 @@ impl<'a> FrameFocusInfo<'a> {
         self.info.find(widget_id).and_then(|i| i.as_focusable())
     }
 
-    /// Reference to the widget in the frame, if it is present.
+    /// Reference to the widget in the frame, if it is present and is focusable.
     ///
     /// Faster then [`find`](Self::find) if the widget path was generated by the same frame.
     #[inline]
     pub fn get(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
         self.info.get(path).and_then(|i| i.as_focusable())
+    }
+
+    /// Reference to the first focusable widget or parent in the frame.
+    #[inline]
+    pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
+        self.get(path)
+            .or_else(|| path.ancestors().iter().rev().filter_map(|&id| self.find(id)).next())
     }
 
     /// If the frame info contains the widget and it is focusable.

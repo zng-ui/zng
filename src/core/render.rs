@@ -686,6 +686,13 @@ impl FrameInfo {
         }
         self.find(path.widget_id())
     }
+
+    /// Reference to the widget or first parent that is present.
+    #[inline]
+    pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetInfo> {
+        self.get(path)
+            .or_else(|| path.ancestors().iter().rev().filter_map(|&id| self.find(id)).next())
+    }
 }
 
 /// Full address of a widget in a specific [`FrameInfo`].
