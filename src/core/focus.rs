@@ -565,6 +565,7 @@ impl Focus {
                             FocusTarget::Alt => {
                                 if let Some(alt) = w.alt_scope() {
                                     if self.alt_return.is_none() {
+                                        // TODO, cover all cases of entering ALT.
                                         self.alt_return = Some(prev.clone());
                                         *alt_return_changed =
                                             Some(ReturnFocusChangedArgs::now(alt.info.widget_id(), None, Some(prev.clone())));
