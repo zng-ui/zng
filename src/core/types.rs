@@ -137,6 +137,51 @@ pub fn rotate(degrees: f32) -> LayoutTransform {
     LayoutTransform::create_rotation(0.0, 0.0, -1.0, Angle::degrees(degrees))
 }
 
+pub trait Units{
+    fn deg(self) -> Angle;
+    fn rad(self) -> Angle;
+    fn grad(self) -> Angle;
+    fn turn(self) -> Angle;
+}
+impl Units for f32{
+    fn deg(self) -> Angle {
+        self.to_radians();
+        Angle::degrees(self)
+    }
+    fn rad(self) -> Angle {
+        Angle::radians(self)
+    }
+
+    fn grad(self) -> Angle {
+        Angle::radians(self * std::f32::consts::PI / 200.0)
+    }
+
+    fn turn(self) -> Angle {
+        Angle::radians(self * std::f32::consts::PI * 2.0f32)
+    }
+}
+
+#[cfg(test)]
+mod unit_tests{
+    use super::Units;
+    //shortcut for testing if two f32 values are equal accounting for the imprecision inherit in float/f32 calculations
+    fn about_equal(a: f32, b: f32) -> bool {
+        (a - b).abs() < f32::EPSILON
+    }
+
+    //1.0 turn is equal to 360 degrees
+    #[test]
+    fn turn(){
+         assert!(about_equal(1.0.turn().to_degrees(), 360.0))
+    }
+
+    //400 gradians is equal to 360 degrees
+    #[test]
+    fn grad(){
+        assert!(about_equal(400.0.grad().to_degrees(), 360.0))
+    }
+}
+
 /// Text string type, can be either a `&'static str` or a `String`.
 pub type Text = Cow<'static, str>;
 
