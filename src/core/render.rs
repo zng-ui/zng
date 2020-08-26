@@ -809,6 +809,14 @@ impl<'a> std::hash::Hash for WidgetInfo<'a> {
         std::hash::Hash::hash(&self.node_id, state)
     }
 }
+impl<'a> std::fmt::Debug for WidgetInfo<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WidgetInfo")
+            .field("frame", &"<omitted>")
+            .field("node_id", &self.node_id)
+            .finish()
+    }
+}
 
 impl<'a> WidgetInfo<'a> {
     #[inline]
@@ -970,7 +978,7 @@ impl<'a> WidgetInfo<'a> {
         self.node().next_siblings().map(move |n| WidgetInfo::new(self.frame, n.id()))
     }
 
-    /// This widgets orientation in relation to a `origin`.
+    /// This widgets [`center`](Self::center) orientation in relation to a `origin`.
     #[inline]
     pub fn orientation_from(self, origin: LayoutPoint) -> WidgetOrientation {
         let o = self.center();

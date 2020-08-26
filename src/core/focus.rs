@@ -1005,7 +1005,7 @@ impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {
 }
 
 /// [`WidgetInfo`] wrapper that adds focus information for each widget.
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct WidgetFocusInfo<'a> {
     /// Full widget info.
     pub info: WidgetInfo<'a>,
@@ -1181,16 +1181,6 @@ impl<'a> WidgetFocusInfo<'a> {
     fn descendants_skip_tab(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.filter_descendants(|f| {
             if f.focus_info().tab_index() == TabIndex::SKIP {
-                DescendantFilter::SkipTree
-            } else {
-                DescendantFilter::Include
-            }
-        })
-    }
-
-    fn descendants_skip_directional(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
-        self.filter_descendants(|f| {
-            if f.focus_info().skip_directional() {
                 DescendantFilter::SkipTree
             } else {
                 DescendantFilter::Include
@@ -1444,11 +1434,22 @@ impl<'a> WidgetFocusInfo<'a> {
         }
     }
 
+    fn descendants_skip_directional(self, also_skip: Option<WidgetFocusInfo<'a>>) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        self.filter_descendants(move |f| {
+            if also_skip == Some(f) || f.focus_info().skip_directional() {
+                DescendantFilter::SkipTree
+            } else {
+                DescendantFilter::Include
+            }
+        })
+    }
+
     fn directional_from_pt(
         self,
         scope: WidgetFocusInfo<'a>,
         from_pt: LayoutPoint,
         direction: DirectionFn![impl],
+        skip_descendants: bool,
     ) -> Option<WidgetFocusInfo<'a>> {
         let skip_id = self.info.widget_id();
 
@@ -1461,7 +1462,7 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut candidate_dist = f32::MAX;
         let mut candidate = None;
 
-        for w in scope.descendants_skip_directional() {
+        for w in scope.descendants_skip_directional(if skip_descendants { Some(self) } else { None }) {
             if w.info.widget_id() != skip_id {
                 let candidate_center = w.info.center();
 
@@ -1499,7 +1500,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
     fn directional_next(self, direction_vals: DirectionFn![impl]) -> Option<WidgetFocusInfo<'a>> {
         self.scope()
-            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals))
+            .and_then(|s| self.directional_from_pt(s, self.info.center(), direction_vals, true))
     }
 
     /// Closest focusable in the same scope above this widget.
@@ -1533,14 +1534,16 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.focusable_up()),
+                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up()),
                 DirectionalNav::Contained => self.focusable_up(),
-                DirectionalNav::Cycle => self.focusable_up().or_else(|| {
-                    // next up from the same X but from the bottom segment of scope.
-                    let mut from_pt = self.info.center();
-                    from_pt.y = scope.info.bounds().max_y();
-                    self.directional_from_pt(scope, from_pt, DirectionFn![up])
-                }),
+                DirectionalNav::Cycle => {
+                    self.focusable_up().or_else(|| {
+                        // next up from the same X but from the bottom segment of scope.
+                        let mut from_pt = self.info.center();
+                        from_pt.y = scope.info.bounds().max_y();
+                        self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
+                    })
+                }
             }
         } else {
             None
@@ -1554,13 +1557,13 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.focusable_right()),
+                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right()),
                 DirectionalNav::Contained => self.focusable_right(),
                 DirectionalNav::Cycle => self.focusable_right().or_else(|| {
                     // next right from the same Y but from the left segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.x = scope.info.bounds().min_x();
-                    self.directional_from_pt(scope, from_pt, DirectionFn![right])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
                 }),
             }
         } else {
@@ -1575,13 +1578,13 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.focusable_down()),
+                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down()),
                 DirectionalNav::Contained => self.focusable_down(),
                 DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.y = scope.info.bounds().min_y();
-                    self.directional_from_pt(scope, from_pt, DirectionFn![down])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
                 }),
             }
         } else {
@@ -1596,13 +1599,13 @@ impl<'a> WidgetFocusInfo<'a> {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.focusable_left()),
+                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left()),
                 DirectionalNav::Contained => self.focusable_left(),
                 DirectionalNav::Cycle => self.focusable_left().or_else(|| {
                     // next left from the same Y but from the right segment of scope.
                     let mut from_pt = self.info.center();
                     from_pt.x = scope.info.bounds().max_x();
-                    self.directional_from_pt(scope, from_pt, DirectionFn![left])
+                    self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
                 }),
             }
         } else {
