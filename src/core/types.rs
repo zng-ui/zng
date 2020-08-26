@@ -137,13 +137,13 @@ pub fn rotate(degrees: f32) -> LayoutTransform {
     LayoutTransform::create_rotation(0.0, 0.0, -1.0, Angle::degrees(degrees))
 }
 
-pub trait Units{
+pub trait Units {
     fn deg(self) -> Angle;
     fn rad(self) -> Angle;
     fn grad(self) -> Angle;
     fn turn(self) -> Angle;
 }
-impl Units for f32{
+impl Units for f32 {
     fn deg(self) -> Angle {
         self.to_radians();
         Angle::degrees(self)
@@ -162,7 +162,7 @@ impl Units for f32{
 }
 
 #[cfg(test)]
-mod unit_tests{
+mod unit_tests {
     use super::Units;
     //shortcut for testing if two f32 values are equal accounting for the imprecision inherit in float/f32 calculations
     fn about_equal(a: f32, b: f32) -> bool {
@@ -171,13 +171,13 @@ mod unit_tests{
 
     //1.0 turn is equal to 360 degrees
     #[test]
-    fn turn(){
-         assert!(about_equal(1.0.turn().to_degrees(), 360.0))
+    fn turn() {
+        assert!(about_equal(1.0.turn().to_degrees(), 360.0))
     }
 
     //400 gradians is equal to 360 degrees
     #[test]
-    fn grad(){
+    fn grad() {
         assert!(about_equal(400.0.grad().to_degrees(), 360.0))
     }
 }

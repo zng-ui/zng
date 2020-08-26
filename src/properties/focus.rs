@@ -40,7 +40,7 @@ pub fn focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiN
 
 /// Widget is the ALT focus scope.
 ///
-/// ALT focus scopes are also, `TabIndex::SKIP`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
+/// ALT focus scopes are also, `TabIndex::SKIP`, `skip_directional_nav`, `TabNav::Cycle` and `DirectionalNav::Cycle` by default.
 #[property(context)]
 pub fn alt_focus_scope(child: impl UiNode, is_scope: impl IntoVar<bool>) -> impl UiNode {
     FocusScopeNode {
@@ -59,7 +59,7 @@ pub fn focus_scope_behavior(child: impl UiNode, behavior: impl IntoVar<FocusScop
     }
 }
 
-/// Tab navigation within this widget.
+/// Tab navigation within this focus scope.
 #[property(context)]
 pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode {
     TabNavNode {
@@ -68,7 +68,7 @@ pub fn tab_nav(child: impl UiNode, tab_nav: impl IntoVar<TabNav>) -> impl UiNode
     }
 }
 
-/// Arrows navigation within this widget.
+/// Arrows navigation within this focus scope.
 #[property(context)]
 pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<DirectionalNav>) -> impl UiNode {
     DirectionalNavNode {
@@ -86,6 +86,17 @@ pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<Shortcut>) -> i
         child,
         shortcut: shortcut.into_var(),
         shortcut_listener: ShortcutEvent::never(),
+    }
+}
+
+/// If directional navigation from outside this widget skips over it and its descendants.
+///
+/// Setting this to `true` is the directional navigation equivalent of setting `tab_index` to `SKIP`.
+#[property(context)]
+pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    SkipDirectionalNode {
+        child,
+        enabled: enabled.into_local(),
     }
 }
 
@@ -141,6 +152,34 @@ where
     }
 }
 
+struct SkipDirectionalNode<C: UiNode, E: LocalVar<bool>> {
+    child: C,
+    enabled: E,
+}
+#[impl_ui_node(child)]
+impl<C, E> UiNode for SkipDirectionalNode<C, E>
+where
+    C: UiNode,
+    E: LocalVar<bool>,
+{
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.enabled.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.enabled.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render();
+        }
+        self.child.update(ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.meta().entry(FocusInfoKey).or_default().skip_directional = Some(*self.enabled.get_local());
+        self.child.render(frame);
+    }
+}
+
 struct FocusScopeNode<C: UiNode, E: LocalVar<bool>> {
     child: C,
     is_focus_scope: E,
@@ -174,6 +213,9 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
             }
             if info.directional_nav == None {
                 info.directional_nav = Some(DirectionalNav::Cycle);
+            }
+            if info.skip_directional == None {
+                info.skip_directional = Some(true);
             }
         }
         self.child.render(frame);

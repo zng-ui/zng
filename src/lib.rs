@@ -137,8 +137,8 @@ pub mod prelude {
         render::WidgetPath,
         types::{
             formatx, rgb, rgba, rotate, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle,
-            FontWeight, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, Units, VirtualKeyCode,
-            WidgetId,
+            FontWeight, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, Units,
+            VirtualKeyCode, WidgetId,
         },
         ui_vec,
         var::{merge_var, switch_var, var, SharedVar, Var},

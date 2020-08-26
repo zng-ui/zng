@@ -763,7 +763,7 @@ impl Focus {
             if let Ok(window) = windows.window(focused.window_id()) {
                 if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
                     if widget.is_scope() {
-                        if let Some(widget) = widget.on_focus_move(|id| self.return_focused(id)) {
+                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused(id)) {
                             return self.move_focus(Some(widget.info.path()), self.is_highlighting);
                         }
                     }
@@ -1124,11 +1124,17 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget the focus needs to move to when `self` gets focused.
     ///
-    /// TODO input doc
+    /// # Input
+    ///
+    /// `last_focused`: A function that returns the last focused widget within a focus scope identified by `WidgetId`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the different widget the focus must move to after focusing in `self` that is a focus scope.
     ///
     /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
     #[inline]
-    pub fn on_focus_move<'p>(self, last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>) -> Option<WidgetFocusInfo<'a>> {
+    pub fn on_focus_scope_move<'p>(self, last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>) -> Option<WidgetFocusInfo<'a>> {
         match self.focus_info() {
             FocusInfo::FocusScope { on_focus, .. } => match on_focus {
                 FocusScopeOnFocus::FirstDescendant => self.first_tab_descendant(),
@@ -1145,7 +1151,7 @@ impl<'a> WidgetFocusInfo<'a> {
                     .or_else(|| self.first_tab_descendant()), // fallback
                 FocusScopeOnFocus::Self_ => None,
             },
-            FocusInfo::NotFocusable | FocusInfo::Focusable(_) => None,
+            FocusInfo::NotFocusable | FocusInfo::Focusable { .. } => None,
         }
     }
 
@@ -1172,9 +1178,19 @@ impl<'a> WidgetFocusInfo<'a> {
             .map(|info| info.as_focus_info())
     }
 
-    fn tab_descendants_skipping(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+    fn descendants_skip_tab(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.filter_descendants(|f| {
             if f.focus_info().tab_index() == TabIndex::SKIP {
+                DescendantFilter::SkipTree
+            } else {
+                DescendantFilter::Include
+            }
+        })
+    }
+
+    fn descendants_skip_directional(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
+        self.filter_descendants(|f| {
+            if f.focus_info().skip_directional() {
                 DescendantFilter::SkipTree
             } else {
                 DescendantFilter::Include
@@ -1187,7 +1203,7 @@ impl<'a> WidgetFocusInfo<'a> {
     /// [`SKIP`](TabIndex::SKIP) items and its descendants are not included.
     #[inline]
     pub fn tab_descendants(self) -> Vec<WidgetFocusInfo<'a>> {
-        let mut vec: Vec<_> = self.tab_descendants_skipping().collect();
+        let mut vec: Vec<_> = self.descendants_skip_tab().collect();
 
         vec.sort_by_key(|f| f.focus_info().tab_index());
 
@@ -1200,7 +1216,7 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut r = None;
         let mut r_index = TabIndex::SKIP;
 
-        for d in self.tab_descendants_skipping() {
+        for d in self.descendants_skip_tab() {
             let ti = d.focus_info().tab_index();
             if ti < r_index {
                 r = Some(d);
@@ -1445,7 +1461,7 @@ impl<'a> WidgetFocusInfo<'a> {
         let mut candidate_dist = f32::MAX;
         let mut candidate = None;
 
-        for w in scope.descendants() {
+        for w in scope.descendants_skip_directional() {
             if w.info.widget_id() != skip_id {
                 let candidate_center = w.info.center();
 
@@ -1609,9 +1625,13 @@ impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
 #[derive(Debug, Clone, Copy)]
 pub enum FocusInfo {
     NotFocusable,
-    Focusable(TabIndex),
+    Focusable {
+        tab_index: TabIndex,
+        skip_directional: bool,
+    },
     FocusScope {
         tab_index: TabIndex,
+        skip_directional: bool,
         tab_nav: TabNav,
         directional_nav: DirectionalNav,
         on_focus: FocusScopeOnFocus,
@@ -1678,7 +1698,7 @@ impl FocusInfo {
     pub fn tab_nav(self) -> TabNav {
         match self {
             FocusInfo::FocusScope { tab_nav, .. } => tab_nav,
-            FocusInfo::Focusable(_) => TabNav::Continue,
+            FocusInfo::Focusable { .. } => TabNav::Continue,
             FocusInfo::NotFocusable => TabNav::None,
         }
     }
@@ -1694,7 +1714,7 @@ impl FocusInfo {
     pub fn directional_nav(self) -> DirectionalNav {
         match self {
             FocusInfo::FocusScope { directional_nav, .. } => directional_nav,
-            FocusInfo::Focusable(_) => DirectionalNav::Continue,
+            FocusInfo::Focusable { .. } => DirectionalNav::Continue,
             FocusInfo::NotFocusable => DirectionalNav::None,
         }
     }
@@ -1708,9 +1728,24 @@ impl FocusInfo {
     #[inline]
     pub fn tab_index(self) -> TabIndex {
         match self {
-            FocusInfo::Focusable(i) => i,
+            FocusInfo::Focusable { tab_index, .. } => tab_index,
             FocusInfo::FocusScope { tab_index, .. } => tab_index,
             FocusInfo::NotFocusable => TabIndex::SKIP,
+        }
+    }
+
+    /// If directional navigation skips over this widget.
+    ///
+    /// | Variant           | Returns                                       |
+    /// |-------------------|-----------------------------------------------|
+    /// | Focusable & Scope | Associated value, default is `false`          |
+    /// | Not-Focusable     | `true`                                        |
+    #[inline]
+    pub fn skip_directional(self) -> bool {
+        match self {
+            FocusInfo::Focusable { skip_directional, .. } => skip_directional,
+            FocusInfo::FocusScope { skip_directional, .. } => skip_directional,
+            FocusInfo::NotFocusable => true,
         }
     }
 
@@ -1737,6 +1772,7 @@ pub(crate) struct FocusInfoBuilder {
     pub tab_nav: Option<TabNav>,
     pub directional_nav: Option<DirectionalNav>,
     pub alt_scope: bool,
+    pub skip_directional: Option<bool>,
     pub on_focus: FocusScopeOnFocus,
 }
 impl FocusInfoBuilder {
@@ -1752,6 +1788,7 @@ impl FocusInfoBuilder {
             (_, Some(true), idx, tab, dir) | (_, None, idx, tab @ Some(_), dir) | (_, None, idx, tab, dir @ Some(_)) => {
                 FocusInfo::FocusScope {
                     tab_index: idx.unwrap_or(TabIndex::AUTO),
+                    skip_directional: self.skip_directional.unwrap_or_default(),
                     tab_nav: tab.unwrap_or(TabNav::Continue),
                     directional_nav: dir.unwrap_or(DirectionalNav::Continue),
                     alt: self.alt_scope,
@@ -1761,7 +1798,10 @@ impl FocusInfoBuilder {
 
             // Set as focusable and was not focus scope
             // or set tab index and was not focus scope and did not set as not focusable.
-            (Some(true), _, idx, _, _) | (_, _, idx @ Some(_), _, _) => FocusInfo::Focusable(idx.unwrap_or(TabIndex::AUTO)),
+            (Some(true), _, idx, _, _) | (_, _, idx @ Some(_), _, _) => FocusInfo::Focusable {
+                tab_index: idx.unwrap_or(TabIndex::AUTO),
+                skip_directional: self.skip_directional.unwrap_or_default(),
+            },
 
             _ => FocusInfo::NotFocusable,
         }
