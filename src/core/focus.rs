@@ -602,7 +602,7 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
-                if window.is_active() {
+                if window.is_active() { //TODO check if activated by keyboard to enable highlight?
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
