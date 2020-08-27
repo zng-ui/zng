@@ -1,16 +1,14 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::{core::focus::TabIndex, prelude::*};
+use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|_| {
         window! {
             title: "Focus Example";
             on_focus_changed: |a| {
-                fn id(path: &Option<WidgetPath>) -> String {
-                    path.as_ref().map(|p|format!("{:?}", p.widget_id())).unwrap_or_else(||"None".to_owned())
-                }
                 let args = a.args();
-                println!("focus changed: {} -> {}", id(&args.prev_focus), id(&args.new_focus));
+                let ctx = a.ctx();
+                println!("{:<18} -> {}", inspect::focus(&args.prev_focus, ctx), inspect::focus(&args.new_focus, ctx));
             };
             content_align: unset!;
             content: v_stack! {
@@ -32,11 +30,11 @@ fn main() {
                         spacing: 5.0;
                         items: ui_vec![
                             text! { text: "TabIndex (T)"; font_weight: FontWeight::BOLD; align: Alignment::CENTER; },
-                            tab_index_btn(TabIndex(5)),
-                            tab_index_btn(TabIndex(3)),
-                            tab_index_btn(TabIndex(2)),
-                            tab_index_btn(TabIndex(0)),
-                            tab_index_btn(TabIndex(0)),
+                            example("Button 5", TabIndex(5)),
+                            example("Button 4", TabIndex(3)),
+                            example("Button 3", TabIndex(2)),
+                            example("Button 1", TabIndex(0)),
+                            example("Button 2", TabIndex(0)),
                         ];
                     }
                 ];
@@ -45,17 +43,64 @@ fn main() {
     })
 }
 
-fn tab_index_btn(tab_index: TabIndex) -> impl Widget {
-    example(format!("{:?}", tab_index), tab_index)
-}
-
 fn example(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
     let content = content.into();
     button! {
         content: text(content.clone());
         tab_index;
         on_click: move |_| {
-            println!("Clicked {}", content)
+            println!("Clicked {} {:?}", content, tab_index)
         };
+    }
+}
+
+#[cfg(debug_assertions)]
+mod inspect {
+    use zero_ui::core::debug::WidgetDebugInfo;
+    use zero_ui::core::focus::WidgetInfoFocusExt;
+    use zero_ui::core::context::WidgetContext;
+    use super::*;
+
+    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {   
+        path.as_ref()
+            .map(|p| {
+                let window = ctx.services.req::<Windows>().window(p.window_id()).expect("expected window");
+                let frame = window.frame_info();
+                let widget = frame.get(p).expect("expected widget");
+                let info = widget.instance().expect("expected debug info").borrow();
+    
+                if info.widget_name == "button" {
+                    let text_wgt = widget.descendants().next().expect("expected text in button");
+                    let info = text_wgt.instance().expect("expected debug info").borrow();
+                    format!("button({})", info.captured_new_child
+                        .iter()
+                        .find(|p| p.property_name == "text")
+                        .expect("expected text in capture_new")
+                        .args[0]
+                        .value
+                    )
+                } else {
+                    let focus_info = widget.as_focus_info();
+                    if focus_info.is_alt_scope() {
+                        format!("{}(is_alt_scope)", info.widget_name)
+                    } else if focus_info.is_scope() {
+                        format!("{}(is_scope)", info.widget_name)
+                    } else {
+                        info.widget_name.to_owned()
+                    }                    
+                }
+            })
+            .unwrap_or_else(|| "<none>".to_owned())
+    }
+    
+}
+
+#[cfg(not(debug_assertions))]
+mod inspect {
+    use super::*;
+    use zero_ui::core::context::WidgetContext;
+
+    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {   
+        path.as_ref().map(|p|format!("{:?}", p.widget_id())).unwrap_or_else(||"<none>".to_owned())
     }
 }

@@ -97,7 +97,7 @@ widget! {
 }
 
 #[cfg(not(debug_assertions))]
-fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<KeyInputArgs>) {
+fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<ShortcutArgs>) {
     |_| {}
 }
 
