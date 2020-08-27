@@ -373,6 +373,7 @@ impl AppExtension for FocusManager {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
             self.notify(focus.continue_focus(windows), focus, windows, ctx.updates);
+            //TODO check if activated by keyboard to enable highlight?
         }
     }
 
@@ -602,7 +603,7 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
-                if window.is_active() { //TODO check if activated by keyboard to enable highlight?
+                if window.is_active() {                    
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.

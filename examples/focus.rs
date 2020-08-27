@@ -8,7 +8,15 @@ fn main() {
             on_focus_changed: |a| {
                 let args = a.args();
                 let ctx = a.ctx();
-                println!("{:<18} -> {}", inspect::focus(&args.prev_focus, ctx), inspect::focus(&args.new_focus, ctx));
+
+                if args.is_hightlight_changed() {
+                    println!("highlight: {}", args.highlight);
+                } else if args.is_widget_move() {
+                    println!("focused {:?} moved", args.new_focus.as_ref().unwrap());
+                } else {
+                    println!("{:<18} -> {}", inspect::focus(&args.prev_focus, ctx), inspect::focus(&args.new_focus, ctx));
+                }
+
             };
             content_align: unset!;
             content: v_stack! {
