@@ -542,13 +542,17 @@ impl Focus {
                 if let Ok(w) = windows.window(prev.window_id()) {
                     let frame = FrameFocusInfo::new(w.frame_info());
                     if let Some(w) = frame.find(prev.widget_id()) {
+                        let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
+                            // tabular
                             FocusTarget::Next => w.next_tab(),
                             FocusTarget::Prev => w.prev_tab(),
+                            // directional
                             FocusTarget::Up => w.next_up(),
                             FocusTarget::Right => w.next_right(),
                             FocusTarget::Down => w.next_down(),
                             FocusTarget::Left => w.next_left(),
+                            // alt
                             FocusTarget::Alt => {
                                 if let Some(alt) = w.alt_scope() {
                                     Some(alt)
@@ -559,16 +563,29 @@ impl Focus {
                                     None
                                 }
                             }
-                            FocusTarget::EscapeAlt => self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(&p)),
+                            FocusTarget::EscapeAlt => {
+                                // Esc does not enable highlight without moving focus.
+                                can_only_highlight = false;
+                                self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(&p))
+                            }
+                            // cases covered by parent match
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
+                            // found `new_focus`
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
                         } else {
-                            // widget may have moved inside the same window.
-                            self.continue_focus_highlight(windows, request.highlight)
+                            // no `new_focus`, maybe update highlight and widget path.
+                            self.continue_focus_highlight(
+                                windows,
+                                if can_only_highlight {
+                                    request.highlight
+                                } else {
+                                    self.is_highlighting
+                                },
+                            )
                         }
                     } else {
-                        // widget not found.
+                        // widget not found
                         self.continue_focus_highlight(windows, request.highlight)
                     }
                 } else {
@@ -762,7 +779,7 @@ impl Focus {
                         if alt_scope.is_none() && scope.is_alt_scope() {
                             alt_scope = Some(scope.info.widget_id());
                         }
-                        
+
                         if scope_info.scope_on_focus() == FocusScopeOnFocus::LastFocused {
                             let prev = self.return_focused.insert(scope.info.widget_id(), focused.clone());
                             let new = Some(focused.clone());
@@ -770,8 +787,8 @@ impl Focus {
                                 r.push(ReturnFocusChangedArgs::now(scope.info.widget_id(), prev, new));
                             }
                         }
-                        
-                        widget = scope;// continue
+
+                        widget = scope; // continue
                     }
 
                     if let Some(alt_scope) = alt_scope {
