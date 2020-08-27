@@ -56,28 +56,30 @@ fn example(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
 
 #[cfg(debug_assertions)]
 mod inspect {
+    use super::*;
+    use zero_ui::core::context::WidgetContext;
     use zero_ui::core::debug::WidgetDebugInfo;
     use zero_ui::core::focus::WidgetInfoFocusExt;
-    use zero_ui::core::context::WidgetContext;
-    use super::*;
 
-    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {   
+    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {
         path.as_ref()
             .map(|p| {
                 let window = ctx.services.req::<Windows>().window(p.window_id()).expect("expected window");
                 let frame = window.frame_info();
                 let widget = frame.get(p).expect("expected widget");
                 let info = widget.instance().expect("expected debug info").borrow();
-    
+
                 if info.widget_name == "button" {
                     let text_wgt = widget.descendants().next().expect("expected text in button");
                     let info = text_wgt.instance().expect("expected debug info").borrow();
-                    format!("button({})", info.captured_new_child
-                        .iter()
-                        .find(|p| p.property_name == "text")
-                        .expect("expected text in capture_new")
-                        .args[0]
-                        .value
+                    format!(
+                        "button({})",
+                        info.captured_new_child
+                            .iter()
+                            .find(|p| p.property_name == "text")
+                            .expect("expected text in capture_new")
+                            .args[0]
+                            .value
                     )
                 } else {
                     let focus_info = widget.as_focus_info();
@@ -87,12 +89,11 @@ mod inspect {
                         format!("{}(is_scope)", info.widget_name)
                     } else {
                         info.widget_name.to_owned()
-                    }                    
+                    }
                 }
             })
             .unwrap_or_else(|| "<none>".to_owned())
     }
-    
 }
 
 #[cfg(not(debug_assertions))]
@@ -100,7 +101,9 @@ mod inspect {
     use super::*;
     use zero_ui::core::context::WidgetContext;
 
-    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {   
-        path.as_ref().map(|p|format!("{:?}", p.widget_id())).unwrap_or_else(||"<none>".to_owned())
+    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {
+        path.as_ref()
+            .map(|p| format!("{:?}", p.widget_id()))
+            .unwrap_or_else(|| "<none>".to_owned())
     }
 }

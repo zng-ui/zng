@@ -152,8 +152,8 @@ impl ReturnFocusChangedArgs {
     #[inline]
     pub fn is_alt_return(&self) -> bool {
         match (&self.prev_return, &self.new_return) {
-            (Some(prev), None) => prev.contains(self.scope_id),
-            (None, Some(new)) => new.contains(self.scope_id),
+            (Some(prev), None) => !prev.contains(self.scope_id),
+            (None, Some(new)) => !new.contains(self.scope_id),
             _ => false,
         }
     }
@@ -368,16 +368,7 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            let mut alt_return_changed = None;
-            self.notify(
-                focus.fulfill_request(request, windows, &mut alt_return_changed),
-                focus,
-                windows,
-                ctx.updates,
-            );
-            if let Some(args) = alt_return_changed {
-                ctx.updates.push_notify(self.return_focus_changed.clone(), args);
-            }
+            self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.updates);
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
@@ -403,17 +394,18 @@ impl AppExtension for FocusManager {
 impl FocusManager {
     fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, updates: &mut Updates) {
         if let Some(args) = args {
+            let prev_focus = args.prev_focus.clone();
             self.focused = args.new_focus.clone();
             updates.push_notify(self.focus_changed.clone(), args);
 
             // may have focused scope.
-            while let Some(args) = focus.move_after_focus(windows) {
-                self.focused = args.new_focus.clone();
-                updates.push_notify(self.focus_changed.clone(), args);
+            while let Some(after_args) = focus.move_after_focus(windows) {
+                self.focused = after_args.new_focus.clone();
+                updates.push_notify(self.focus_changed.clone(), after_args);
             }
 
-            for args in focus.update_returns(windows) {
-                updates.push_notify(self.return_focus_changed.clone(), args);
+            for return_args in focus.update_returns(prev_focus, windows) {
+                updates.push_notify(self.return_focus_changed.clone(), return_args);
             }
         }
     }
@@ -429,7 +421,7 @@ pub struct Focus {
     update_notifier: UpdateNotifier,
     focused: Option<WidgetPath>,
     return_focused: FnvHashMap<WidgetId, WidgetPath>,
-    alt_return: Option<WidgetPath>,
+    alt_return: Option<(WidgetId, WidgetPath)>,
     is_highlighting: bool,
 }
 
@@ -465,7 +457,7 @@ impl Focus {
     #[inline]
     #[must_use]
     pub fn alt_return(&self) -> Option<&WidgetPath> {
-        self.alt_return.as_ref()
+        self.alt_return.as_ref().map(|(_, p)| p)
     }
 
     /// If focus is in an ALT scope.
@@ -542,12 +534,7 @@ impl Focus {
     }
 
     #[must_use]
-    fn fulfill_request(
-        &mut self,
-        request: FocusRequest,
-        windows: &Windows,
-        alt_return_changed: &mut Option<ReturnFocusChangedArgs>,
-    ) -> Option<FocusChangedArgs> {
+    fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
             (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, windows),
             (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, true, windows),
@@ -564,29 +551,15 @@ impl Focus {
                             FocusTarget::Left => w.next_left(),
                             FocusTarget::Alt => {
                                 if let Some(alt) = w.alt_scope() {
-                                    if self.alt_return.is_none() {
-                                        // TODO, cover all cases of entering ALT.
-                                        self.alt_return = Some(prev.clone());
-                                        *alt_return_changed =
-                                            Some(ReturnFocusChangedArgs::now(alt.info.widget_id(), None, Some(prev.clone())));
-                                    }
                                     Some(alt)
                                 } else if self.alt_return.is_some() {
                                     // Alt toggles when there is no alt scope.
-                                    return self.fulfill_request(FocusRequest::escape_alt(request.highlight), windows, alt_return_changed);
+                                    return self.fulfill_request(FocusRequest::escape_alt(request.highlight), windows);
                                 } else {
                                     None
                                 }
                             }
-                            FocusTarget::EscapeAlt => {
-                                if let Some(alt_return) = self.alt_return.take() {
-                                    let actual_return = frame.get_or_parent(&alt_return);
-                                    *alt_return_changed = Some(ReturnFocusChangedArgs::now(prev.widget_id(), Some(alt_return), None));
-                                    actual_return
-                                } else {
-                                    None
-                                }
-                            }
+                            FocusTarget::EscapeAlt => self.alt_return.as_ref().and_then(|(_, p)| frame.get_or_parent(&p)),
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             self.move_focus(Some(new_focus.info.path()), request.highlight)
@@ -774,26 +747,47 @@ impl Focus {
         None
     }
 
-    /// Updates `return_focused` after `focused` changed.
+    /// Updates `return_focused` and `alt_return` after `focused` changed.
     #[must_use]
-    fn update_returns(&mut self, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
+    fn update_returns(&mut self, prev_focus: Option<WidgetPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
                 if let Some(mut widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
-                    while let Some(scope) = widget.scope() {
-                        widget = scope;
+                    let mut alt_scope = None;
 
-                        if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                    while let Some(scope) = widget.scope() {
+                        let scope_info = scope.focus_info();
+
+                        if alt_scope.is_none() && scope.is_alt_scope() {
+                            alt_scope = Some(scope.info.widget_id());
+                        }
+                        
+                        if scope_info.scope_on_focus() == FocusScopeOnFocus::LastFocused {
                             let prev = self.return_focused.insert(scope.info.widget_id(), focused.clone());
                             let new = Some(focused.clone());
                             if prev != new {
                                 r.push(ReturnFocusChangedArgs::now(scope.info.widget_id(), prev, new));
                             }
                         }
+                        
+                        widget = scope;// continue
+                    }
+
+                    if let Some(alt_scope) = alt_scope {
+                        if self.alt_return.is_none() {
+                            if let Some(alt_return) = prev_focus {
+                                self.alt_return = Some((alt_scope, alt_return.clone()));
+                                r.push(ReturnFocusChangedArgs::now(alt_scope, None, Some(alt_return)));
+                            }
+                        }
+                    } else if let Some((alt_scope, alt_return)) = self.alt_return.take() {
+                        r.push(ReturnFocusChangedArgs::now(alt_scope, Some(alt_return), None));
                     }
                 }
             }
+        } else if let Some((alt_scope, alt_return)) = self.alt_return.take() {
+            r.push(ReturnFocusChangedArgs::now(alt_scope, Some(alt_return), None));
         }
         r
     }
