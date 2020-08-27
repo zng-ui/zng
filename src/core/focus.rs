@@ -1174,16 +1174,16 @@ impl<'a> WidgetFocusInfo<'a> {
         self.info.descendants().focusable()
     }
 
-    /// Iterator over all the focusable widgets contained by this widget filtered by a predicate.
+    /// Iterator over all focusable widgets contained by this widget filtered by the `filter` closure.
     #[inline]
     pub fn filter_descendants(
         self,
-        mut predicate: impl FnMut(WidgetFocusInfo<'a>) -> DescendantFilter,
+        mut filter: impl FnMut(WidgetFocusInfo<'a>) -> DescendantFilter,
     ) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
         self.info
             .filter_descendants(move |info| {
                 if let Some(focusable) = info.as_focusable() {
-                    predicate(focusable)
+                    filter(focusable)
                 } else {
                     DescendantFilter::Skip
                 }

@@ -948,14 +948,14 @@ impl<'a> WidgetInfo<'a> {
         self.node().descendants().skip(1).map(move |n| WidgetInfo::new(self.frame, n.id()))
     }
 
-    /// Iterator over all widgets contained by this widget filtered by a predicate.
+    /// Iterator over all widgets contained by this widget filtered by the `filter` closure.
     #[inline]
-    pub fn filter_descendants<P: FnMut(WidgetInfo<'a>) -> DescendantFilter>(self, predicate: P) -> FilterDescendants<'a, P> {
+    pub fn filter_descendants<F: FnMut(WidgetInfo<'a>) -> DescendantFilter>(self, filter: F) -> FilterDescendants<'a, F> {
         let mut traverse = self.node().traverse();
         traverse.next(); // skip self.
         FilterDescendants {
             traverse,
-            predicate,
+            filter,
             frame: self.frame,
         }
     }
@@ -1097,7 +1097,9 @@ impl<'a> WidgetInfo<'a> {
     }
 }
 
-/// Filter result of the [`filter_descendants`](WidgetInfo::filter_descendants) predicate.
+/// Widget tree filter result.
+///
+/// This `enum` is used by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DescendantFilter {
     /// Include the descendant and continue filtering its descendants.
@@ -1108,13 +1110,15 @@ pub enum DescendantFilter {
     SkipTree,
 }
 
-pub struct FilterDescendants<'a, P: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
+/// An iterator that filters a widget tree.
+///
+/// This `struct` is created by the [`filter_descendants`](WidgetInfo::filter_descendants) method on [`WidgetInfo`]. See its documentation for more.
+pub struct FilterDescendants<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> {
     traverse: ego_tree::iter::Traverse<'a, WidgetInfoInner>,
-    predicate: P,
+    filter: F,
     frame: &'a FrameInfo,
 }
-
-impl<'a, P: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, P> {
+impl<'a, F: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescendants<'a, F> {
     type Item = WidgetInfo<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1123,7 +1127,7 @@ impl<'a, P: FnMut(WidgetInfo<'a>) -> DescendantFilter> Iterator for FilterDescen
         while let Some(edge) = self.traverse.next() {
             if let Edge::Open(node) = edge {
                 let widget = WidgetInfo::new(self.frame, node.id());
-                match (self.predicate)(widget) {
+                match (self.filter)(widget) {
                     DescendantFilter::Include => return Some(widget),
                     DescendantFilter::Skip => continue,
                     DescendantFilter::SkipTree => {
