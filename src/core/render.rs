@@ -1097,11 +1097,12 @@ impl<'a> WidgetInfo<'a> {
     }
 }
 
+/// Filter result of the [`filter_descendants`](WidgetInfo::filter_descendants) predicate.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DescendantFilter {
-    /// Include the descendant and its filters its descendants.
+    /// Include the descendant and continue filtering its descendants.
     Include,
-    /// Skip the descendant but filters its descendants.
+    /// Skip the descendant but continue filtering its descendants.
     Skip,
     /// Skip the descendant and its descendants.
     SkipTree,

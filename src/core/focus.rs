@@ -1543,16 +1543,19 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing the arrow up key from this widget.
     #[inline]
     pub fn next_up(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_up_from(self.info.center())
+    }
+    fn next_up_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up()),
+                DirectionalNav::Continue => self.focusable_up().or_else(|| scope.next_up_from(point)),
                 DirectionalNav::Contained => self.focusable_up(),
                 DirectionalNav::Cycle => {
                     self.focusable_up().or_else(|| {
                         // next up from the same X but from the bottom segment of scope.
-                        let mut from_pt = self.info.center();
+                        let mut from_pt = point;
                         from_pt.y = scope.info.bounds().max_y();
                         self.directional_from_pt(scope, from_pt, DirectionFn![up], false)
                     })
@@ -1566,15 +1569,18 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing the arrow right key from this widget.
     #[inline]
     pub fn next_right(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_right_from(self.info.center())
+    }
+    fn next_right_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right()),
+                DirectionalNav::Continue => self.focusable_right().or_else(|| scope.next_right_from(point)),
                 DirectionalNav::Contained => self.focusable_right(),
                 DirectionalNav::Cycle => self.focusable_right().or_else(|| {
                     // next right from the same Y but from the left segment of scope.
-                    let mut from_pt = self.info.center();
+                    let mut from_pt = point;
                     from_pt.x = scope.info.bounds().min_x();
                     self.directional_from_pt(scope, from_pt, DirectionFn![right], false)
                 }),
@@ -1587,15 +1593,18 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing the arrow down key from this widget.
     #[inline]
     pub fn next_down(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_down_from(self.info.center())
+    }
+    fn next_down_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down()),
+                DirectionalNav::Continue => self.focusable_down().or_else(|| scope.next_down_from(point)),
                 DirectionalNav::Contained => self.focusable_down(),
                 DirectionalNav::Cycle => self.focusable_down().or_else(|| {
                     // next down from the same X but from the top segment of scope.
-                    let mut from_pt = self.info.center();
+                    let mut from_pt = point;
                     from_pt.y = scope.info.bounds().min_y();
                     self.directional_from_pt(scope, from_pt, DirectionFn![down], false)
                 }),
@@ -1608,15 +1617,18 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget to focus when pressing the arrow left key from this widget.
     #[inline]
     pub fn next_left(self) -> Option<WidgetFocusInfo<'a>> {
+        self.next_left_from(self.info.center())
+    }
+    fn next_left_from(self, point: LayoutPoint) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.directional_nav() {
                 DirectionalNav::None => None,
-                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left()),
+                DirectionalNav::Continue => self.focusable_left().or_else(|| scope.next_left_from(point)),
                 DirectionalNav::Contained => self.focusable_left(),
                 DirectionalNav::Cycle => self.focusable_left().or_else(|| {
                     // next left from the same Y but from the right segment of scope.
-                    let mut from_pt = self.info.center();
+                    let mut from_pt = point;
                     from_pt.x = scope.info.bounds().max_x();
                     self.directional_from_pt(scope, from_pt, DirectionFn![left], false)
                 }),
