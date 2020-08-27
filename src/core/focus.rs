@@ -1049,6 +1049,12 @@ impl<'a> WidgetFocusInfo<'a> {
         self.focus_info().is_scope()
     }
 
+    /// Is ALT focus scope.
+    #[inline]
+    pub fn is_alt_scope(self) -> bool {
+        self.focus_info().is_alt_scope()
+    }
+
     /// Widget focus metadata.
     #[inline]
     pub fn focus_info(self) -> FocusInfo {
@@ -1121,6 +1127,12 @@ impl<'a> WidgetFocusInfo<'a> {
             // we reached root, no ALT found.
             None
         }
+    }
+
+    /// Widget is in a ALT scope or is an ALT scope.
+    #[inline]
+    pub fn in_alt_scope(self) -> bool {
+        self.is_alt_scope() || self.scopes().any(|s| s.is_alt_scope())
     }
 
     /// Widget the focus needs to move to when `self` gets focused.
