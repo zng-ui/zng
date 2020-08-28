@@ -46,9 +46,10 @@ use crate::core::event::*;
 use crate::core::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
 use crate::core::mouse::{MouseDownEvent, MouseInputArgs};
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::core::types::{LayoutPoint, WidgetId, WindowId};
+use crate::core::types::{DeviceEvent, DeviceId, LayoutPoint, WidgetId, WindowId};
 use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use fnv::FnvHashMap;
+use std::time::{Duration, Instant};
 
 event_args! {
     /// [`FocusChangedEvent`] arguments.
@@ -306,6 +307,7 @@ pub struct FocusManager {
     mouse_down: EventListener<MouseInputArgs>,
     shortcut: EventListener<ShortcutArgs>,
     focused: Option<WidgetPath>,
+    last_keyboard_event: Instant,
 }
 impl Default for FocusManager {
     fn default() -> Self {
@@ -316,6 +318,7 @@ impl Default for FocusManager {
             mouse_down: MouseDownEvent::never(),
             shortcut: ShortcutEvent::never(),
             focused: None,
+            last_keyboard_event: Instant::now() - Duration::from_secs(10),
         }
     }
 }
@@ -372,8 +375,21 @@ impl AppExtension for FocusManager {
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            self.notify(focus.continue_focus(windows), focus, windows, ctx.updates);
-            //TODO check if activated by keyboard to enable highlight?
+            if let Some(mut args) = focus.continue_focus(windows) {
+                if !args.highlight && args.new_focus.is_some() && (Instant::now() - self.last_keyboard_event) < Duration::from_millis(300) {
+                    // window probably activated using keyboard.
+                    args.highlight = true;
+                    focus.is_highlighting = true;
+                }
+                self.notify(Some(args), focus, windows, ctx.updates);
+                // TODO debug escape alt scope here.
+            }
+        }
+    }
+
+    fn on_device_event(&mut self, _: DeviceId, event: &DeviceEvent, _: &mut AppContext) {
+        if let DeviceEvent::Key(_) = event {
+            self.last_keyboard_event = Instant::now();
         }
     }
 
@@ -603,7 +619,7 @@ impl Focus {
     fn continue_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
-                if window.is_active() {                    
+                if window.is_active() {
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
