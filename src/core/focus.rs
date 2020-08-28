@@ -790,14 +790,18 @@ impl Focus {
                 if let Some(mut widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
                     let mut alt_scope = None;
 
+                    // collect the ALT scope and updates the return focus of every parent scopes that return last focused.
                     while let Some(scope) = widget.scope() {
                         let scope_info = scope.focus_info();
+                        let already_in_alt = alt_scope.is_some();
 
-                        if alt_scope.is_none() && scope.is_alt_scope() {
+                        if !already_in_alt && scope.is_alt_scope() {
                             alt_scope = Some(scope.info.widget_id());
                         }
 
-                        if scope_info.scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                        if !already_in_alt && scope_info.scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                            // update return focus for the scope if the new `focused` is not inside an inner ALT scope
+                            // and the scope returns last focused.
                             let prev = self.return_focused.insert(scope.info.widget_id(), focused.clone());
                             let new = Some(focused.clone());
                             if prev != new {
@@ -805,7 +809,7 @@ impl Focus {
                             }
                         }
 
-                        widget = scope; // continue
+                        widget = scope; // continue to parent scope.
                     }
 
                     if let Some(alt_scope) = alt_scope {
