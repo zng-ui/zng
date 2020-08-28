@@ -76,17 +76,17 @@ pub fn hsla<A: Into<RgbaComponent>>(hue: Angle, saturation: f32, lightness: f32,
             }
         };
 
-        rgba(hue_to_rgb(hue + 1.0/3.0), hue_to_rgb(hue), hue_to_rgb(hue - 1.0/3.0), alpha)
+        rgba(hue_to_rgb(hue + 1.0 / 3.0), hue_to_rgb(hue), hue_to_rgb(hue - 1.0 / 3.0), alpha)
     }
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     use crate::core::types::Units;
     #[test]
     fn hsl_red() {
-        assert_eq!(hsl(0.0.deg(), 1.0, 0.5), rgb(1.0, 0.0, 0.0) )
+        assert_eq!(hsl(0.0.deg(), 1.0, 0.5), rgb(1.0, 0.0, 0.0))
     }
 }
 

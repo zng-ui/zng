@@ -382,7 +382,7 @@ impl AppExtension for FocusManager {
                     focus.is_highlighting = true;
                 }
                 self.notify(Some(args), focus, windows, ctx.updates);
-                // TODO debug escape alt scope here.
+                // TODO alt scope focused just before ALT+TAB clears the focus.
             }
         }
     }
