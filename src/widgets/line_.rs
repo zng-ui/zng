@@ -1,3 +1,4 @@
+use crate::core::color::{rgb, Color};
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
@@ -8,7 +9,7 @@ use crate::{
 };
 use webrender::api as w_api;
 
-struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> {
+struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Color>, S: Var<LineStyle>> {
     width: W,
     length: L,
     orientation: O,
@@ -18,7 +19,7 @@ struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: 
     bounds: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<ColorF>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
+impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Color>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
     fn refresh(&mut self, ctx: &mut WidgetContext) {
         let length = *self.length.get(ctx.vars);
         let width = *self.width.get(ctx.vars);
@@ -143,7 +144,7 @@ pub fn line_w(
     orientation: impl IntoVar<LineOrientation> + 'static,
     length: impl IntoVar<f32> + 'static,
     width: impl IntoVar<f32> + 'static,
-    color: impl IntoVar<ColorF> + 'static,
+    color: impl IntoVar<Color> + 'static,
     style: impl IntoVar<LineStyle> + 'static,
 ) -> impl Widget {
     line_w! { orientation; length; width; color; style; }

@@ -84,7 +84,7 @@ fn set_size(width: f32, height: f32, window_size: &SharedVar<LayoutSize>) -> imp
     )
 }
 
-fn set_background(color: ColorF, color_name: &str, background_color: &SharedVar<ColorF>) -> impl Widget {
+fn set_background(color: Color, color_name: &str, background_color: &SharedVar<Color>) -> impl Widget {
     set_var_btn(background_color, color, formatx!("{} background", color_name))
 }
 

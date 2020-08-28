@@ -1,7 +1,7 @@
 //! Properties that are only used by widgets directly.
 
 use crate::{
-    core::{gesture::Shortcut, property, types::*, var::IntoVar, UiNode, UiVec},
+    core::{color::Color, gesture::Shortcut, property, types::*, var::IntoVar, UiNode, UiVec},
     widgets::LineStyle,
 };
 
@@ -51,7 +51,7 @@ pub fn line_orientation(orientation: impl IntoVar<LineOrientation>) -> ! {}
 
 /// `ColoF` value.
 #[property(capture_only)]
-pub fn color(color: impl IntoVar<ColorF>) -> ! {}
+pub fn color(color: impl IntoVar<Color>) -> ! {}
 
 /// A 'f32' width.
 #[property(capture_only)]

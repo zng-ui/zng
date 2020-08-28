@@ -4,12 +4,13 @@ use super::event::*;
 use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
+    color::Color,
     context::{
         AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Updates, Vars,
         WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
-    types::{ColorF, FrameId, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Text, WidgetId, WindowEvent, WindowId},
+    types::{FrameId, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Text, WidgetId, WindowEvent, WindowId},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
     UiNode,
 };
@@ -680,7 +681,7 @@ pub struct Window {
     title: BoxLocalVar<Text>,
     position: BoxVar<LayoutPoint>,
     size: BoxVar<LayoutSize>,
-    background_color: BoxLocalVar<ColorF>,
+    background_color: BoxLocalVar<Color>,
     child: Box<dyn UiNode>,
 }
 
@@ -690,7 +691,7 @@ impl Window {
         title: impl IntoVar<Text>,
         position: impl IntoVar<LayoutPoint>,
         size: impl IntoVar<LayoutSize>,
-        background_color: impl IntoVar<ColorF>,
+        background_color: impl IntoVar<Color>,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -713,7 +714,7 @@ pub struct OpenWindow {
     renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    clear_color: ColorF,
+    clear_color: Color,
 
     first_draw: bool,
     frame_info: FrameInfo,

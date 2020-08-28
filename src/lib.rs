@@ -132,13 +132,13 @@ pub mod widgets;
 pub mod prelude {
     pub use crate::core::{
         app::App,
+        color::{rgb, rgba, Color},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
         types::{
-            formatx, rgb, rgba, rotate, BorderRadius, ColorF, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle,
-            FontWeight, LayoutPoint, LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, Units,
-            VirtualKeyCode, WidgetId,
+            formatx, rotate, BorderRadius, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight, LayoutPoint,
+            LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, Units, VirtualKeyCode, WidgetId,
         },
         ui_vec,
         var::{merge_var, switch_var, var, SharedVar, Var},

@@ -1,8 +1,9 @@
 use crate::core::widget;
 use crate::core::{
+    color::rgb,
     focus::{DirectionalNav, FocusScopeOnFocus, TabNav},
     gesture::ShortcutArgs,
-    types::{rgb, WidgetId},
+    types::WidgetId,
     window::Window,
 };
 use crate::properties::{

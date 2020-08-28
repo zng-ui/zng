@@ -1,4 +1,5 @@
 use super::BorderDetails;
+use crate::core::color::Color;
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
@@ -60,7 +61,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 ///
 /// This property applies a [`fill_color`] as [`background`].
 #[property(inner)]
-pub fn background_color(child: impl UiNode, color: impl IntoVar<ColorF>) -> impl UiNode {
+pub fn background_color(child: impl UiNode, color: impl IntoVar<Color>) -> impl UiNode {
     background::set(child, fill_color(color))
 }
 

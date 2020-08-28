@@ -1,4 +1,5 @@
-use crate::core::types::{rgba, LayoutSideOffsets};
+use crate::core::color::rgba;
+use crate::core::types::LayoutSideOffsets;
 use crate::core::var::context_var;
 use crate::core::widget_mixin;
 use crate::properties::{focusable, foreground_highlight, is_focused_hgl, BorderDetails};
