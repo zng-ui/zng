@@ -11,7 +11,7 @@ pub type Color = webrender::api::ColorF;
 ///
 /// # Example
 /// ```
-/// use zero_ui::core::types::rgb;
+/// use zero_ui::core::color::rgb;
 ///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
@@ -31,7 +31,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Color {
 ///
 /// # Example
 /// ```
-/// use zero_ui::core::types::rgba;
+/// use zero_ui::core::color::rgba;
 ///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
