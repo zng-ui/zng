@@ -47,37 +47,33 @@ pub fn hsl(hue: Angle, saturation: f32, lightness: f32) -> Color {
 
 pub fn hsla<A: Into<RgbaComponent>>(hue: Angle, saturation: f32, lightness: f32, alpha: A) -> Color {
     if saturation <= f32::EPSILON {
-        // greyscale
-        rgba(lightness, lightness, lightness, alpha)
-    } else {
-        let hue = hue.to_degrees() / 360.0;
-        let q = if lightness < 0.5 {
-            lightness * (1.0 + saturation)
-        } else {
-            lightness + saturation - lightness * saturation
-        };
-        let p = 2.0 * lightness - q;
-
-        let hue_to_rgb = |mut t: f32| {
-            if t < 0.0 {
-                t += 1.0;
-            } else if t > 1.0 {
-                t -= 1.0;
-            }
-
-            if t < 1.0 / 6.0 {
-                p + (q - p) * 6.0 * t
-            } else if t < 0.5 {
-                q
-            } else if t < 2.0 / 3.0 {
-                p + (q - p) * 6.0 * (2.0 / 3.0 - t)
-            } else {
-                p
-            }
-        };
-
-        rgba(hue_to_rgb(hue + 1.0 / 3.0), hue_to_rgb(hue), hue_to_rgb(hue - 1.0 / 3.0), alpha)
+        return rgba(lightness, lightness, lightness, alpha);
     }
+
+    let hue = hue.to_degrees();
+    let c = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
+    let hp = hue / 60.0;
+    let x = c * (1.0 - ((hp % 2.0) - 1.0).abs());
+    let rgb = if hp <= 1.0 {
+        [c, x, 0.0]
+    } else if hp <= 2.0 {
+        [x, c, 0.0]
+    } else if hp <= 3.0 {
+        [0.0, c, x]
+    } else if hp <= 4.0 {
+        [0.0, x, c]
+    } else if hp <= 5.0 {
+        [x, 0.0, c]
+    } else if hp <= 6.0 {
+        [c, 0.0, x]
+    } else {
+        [0.0, 0.0, 0.0]
+    };
+    let m = lightness - c * 0.5;
+
+    let f = |i: usize| ((rgb[i] + m) * 255.0).round() / 255.0;
+
+    rgba(f(0), f(1), f(2), alpha)
 }
 
 #[cfg(test)]
@@ -87,6 +83,11 @@ mod tests {
     #[test]
     fn hsl_red() {
         assert_eq!(hsl(0.0.deg(), 1.0, 0.5), rgb(1.0, 0.0, 0.0))
+    }
+
+    #[test]
+    fn hsl_color() {
+        assert_eq!(hsl(91.0.deg(), 1.0, 0.5), rgb(123, 255, 0))
     }
 }
 
