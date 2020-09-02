@@ -8,6 +8,7 @@ const TAU: f32 = 2.0 * PI;
 #[display(fmt = "{} rad", self.0)]
 pub struct AngleRad(f32);
 impl AngleRad {
+    /// Radians in `[0.0 ..= TAU]`.
     #[inline]
     pub fn modulo(self) -> f32 {
         self.0.rem_euclid(TAU)
@@ -39,6 +40,7 @@ impl From<AngleTurn> for AngleRad {
 #[display(fmt = "{} gon", self.0)]
 pub struct AngleGrad(pub f32);
 impl AngleGrad {
+    /// Gradians in `[0.0 ..= 400.0]`.
     #[inline]
     pub fn modulo(self) -> f32 {
         self.0.rem_euclid(400.0)
@@ -102,6 +104,7 @@ impl From<AngleTurn> for AngleDeg {
 #[display(fmt = "{} tr", self.0)]
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
+    /// Turns in `[0.0 ..= 1.0]`.
     #[inline]
     pub fn modulo(self) -> f32 {
         self.0.rem_euclid(1.0)
@@ -128,13 +131,25 @@ impl From<AngleDeg> for AngleTurn {
     }
 }
 
+/// Extension methods for creating angle unit types.
+///
+/// This trait is implemented for [`f32`] and [`u32`] allowing initialization of angle unit types using the `<number>.<unit>()` syntax.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::units::*;
+/// let radians = 6.28318.rad();
+/// let gradians = 400.grad();
+/// let degrees = 360.deg();
+/// let turns = 1.turn();
+/// ```
 pub trait AngleUnits {
     fn rad(self) -> AngleRad;
     fn grad(self) -> AngleGrad;
     fn deg(self) -> AngleDeg;
     fn turn(self) -> AngleTurn;
 }
-
 impl AngleUnits for f32 {
     #[inline]
     fn rad(self) -> AngleRad {
@@ -154,5 +169,22 @@ impl AngleUnits for f32 {
     #[inline]
     fn turn(self) -> AngleTurn {
         AngleTurn(self)
+    }
+}
+impl AngleUnits for u32 {
+    fn rad(self) -> AngleRad {
+        AngleRad(self as f32)
+    }
+
+    fn grad(self) -> AngleGrad {
+        AngleGrad(self as f32)
+    }
+
+    fn deg(self) -> AngleDeg {
+        AngleDeg(self as f32)
+    }
+
+    fn turn(self) -> AngleTurn {
+        AngleTurn(self as f32)
     }
 }
