@@ -173,13 +173,79 @@ impl AngleUnits for u32 {
     }
 }
 
+/// Multiplication factor in percentage (0%-100%).
+#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+#[display(fmt = "{}%", self.0)]
+pub struct FactorPercent(pub f32);
+
+impl From<FactorNormal> for FactorPercent {
+    fn from(n: FactorNormal) -> Self {
+        FactorPercent(n.0 * 100.0)
+    }
+}
+
+/// Normalized multiplication factor (0.0-1.0).
+#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq, dm::From)]
+pub struct FactorNormal(pub f32);
+
+impl From<FactorPercent> for FactorNormal {
+    fn from(percent: FactorPercent) -> Self {
+        FactorNormal(percent.0 / 100.0)
+    }
+}
+
+/// Extension methods for factor unit types.
+///
+/// This trait is implemented for [`f32`] and [`u32`] allowing initialization of factor unit types using the `<number>.<unit>()` syntax.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::units::*;
+/// let percent = 100.pct();
+/// ```
+pub trait FactorUnits {
+    /// Percent.
+    fn pct(self) -> FactorPercent;
+
+    /// Normal.
+    ///
+    /// # Note
+    ///
+    /// [`FactorNormal`] implements `From<f32>`.
+    fn normal(self) -> FactorNormal;
+}
+
+impl FactorUnits for f32 {
+    #[inline]
+    fn pct(self) -> FactorPercent {
+        FactorPercent(self)
+    }
+
+    #[inline]
+    fn normal(self) -> FactorNormal {
+        self.into()
+    }
+}
+impl FactorUnits for u32 {
+    #[inline]
+    fn pct(self) -> FactorPercent {
+        FactorPercent(self as f32)
+    }
+
+    #[inline]
+    fn normal(self) -> FactorNormal {
+        FactorNormal(self as f32)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     pub fn zero() {
-        all_equal(0.rad(), 0.grad(), 0.deg(), 0.turn()); 
+        all_equal(0.rad(), 0.grad(), 0.deg(), 0.turn());
     }
 
     #[test]
@@ -194,12 +260,12 @@ mod tests {
 
     #[test]
     pub fn one_and_a_half_circle() {
-        all_equal((TAU+PI).rad(), 600.grad(), 540.deg(), 1.5.turn())
+        all_equal((TAU + PI).rad(), 600.grad(), 540.deg(), 1.5.turn())
     }
 
     #[test]
     pub fn modulo_rad() {
-        assert_eq!(PI.rad(), (TAU+PI).rad().modulo());
+        assert_eq!(PI.rad(), (TAU + PI).rad().modulo());
     }
 
     #[test]
