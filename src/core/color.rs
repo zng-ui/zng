@@ -1,4 +1,4 @@
-use super::types::Angle;
+use super::units::*;
 
 pub type Color = webrender::api::ColorF;
 
@@ -41,16 +41,20 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
     Color::new(red.into().0, green.into().0, blue.into().0, alpha.into().0)
 }
 
-pub fn hsl(hue: Angle, saturation: f32, lightness: f32) -> Color {
+pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, lightness: N) -> Color {
     hsla(hue, saturation, lightness, 1.0)
 }
 
-pub fn hsla<A: Into<RgbaComponent>>(hue: Angle, saturation: f32, lightness: f32, alpha: A) -> Color {
+pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, lightness: N, alpha: A) -> Color {
+    let saturation = saturation.into().0;
+    let lightness = lightness.into().0;
+    let alpha = alpha.into().0;
+
     if saturation <= f32::EPSILON {
         return rgba(lightness, lightness, lightness, alpha);
     }
 
-    let hue = hue.to_degrees();
+    let hue = hue.into().0;
     let c = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
     let hp = hue / 60.0;
     let x = c * (1.0 - ((hp % 2.0) - 1.0).abs());
@@ -79,10 +83,10 @@ pub fn hsla<A: Into<RgbaComponent>>(hue: Angle, saturation: f32, lightness: f32,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::Units;
+
     #[test]
     fn hsl_red() {
-        assert_eq!(hsl(0.0.deg(), 1.0, 0.5), rgb(1.0, 0.0, 0.0))
+        assert_eq!(hsl(0.0.deg(), 100.pct(), 50.pct()), rgb(1.0, 0.0, 0.0))
     }
 
     #[test]
@@ -101,5 +105,10 @@ impl From<f32> for RgbaComponent {
 impl From<u8> for RgbaComponent {
     fn from(u: u8) -> Self {
         RgbaComponent(f32::from(u) / 255.)
+    }
+}
+impl From<FactorPercent> for RgbaComponent {
+    fn from(p: FactorPercent) -> Self {
+        RgbaComponent(p.0 / 100.)
     }
 }
