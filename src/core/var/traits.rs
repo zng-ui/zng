@@ -113,7 +113,7 @@ pub trait ObjVar<T: VarValue>: protected::Var<T> {
 
     /// If the variable cannot be set.
     ///
-    /// Note the variable can still change from another endpoint, see [`can_update`] to
+    /// Note the variable can still change from another endpoint, see [`can_update`](Self::can_update) to
     /// check if the variable is always a single value.
     fn read_only(&self, vars: &Vars) -> bool {
         let _ = vars;
