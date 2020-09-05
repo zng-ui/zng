@@ -335,6 +335,59 @@ impl LengthUnits for u32 {
     }
 }
 
+pub struct Size {
+    pub width: Length,
+    pub height: Length,
+}
+impl Size {
+    pub fn new<W: Into<Length>, H: Into<Length>>(width: W, height: H) -> Self {
+        Size {
+            width: width.into(),
+            height: height.into(),
+        }
+    }
+}
+
+pub struct Point {
+    pub x: Length,
+    pub y: Length,
+}
+impl Point {
+    pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
+        Point { x: x.into(), y: y.into() }
+    }
+}
+
+pub struct Rect {
+    pub origin: Point,
+    pub size: Size,
+}
+impl Rect {
+    pub fn new<O: Into<Point>, S: Into<Size>>(origin: O, size: S) -> Self {
+        Rect {
+            origin: origin.into(),
+            size: size.into(),
+        }
+    }
+}
+
+pub struct SideOffsets {
+    pub top: Length,
+    pub right: Length,
+    pub bottom: Length,
+    pub left: Length,
+}
+impl SideOffsets {
+    pub fn new<T: Into<Length>, R: Into<Length>, B: Into<Length>, L: Into<Length>>(top: T, right: R, bottom: B, left: L) -> Self {
+        SideOffsets {
+            top: top.into(),
+            right: right.into(),
+            bottom: bottom.into(),
+            left: left.into(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
