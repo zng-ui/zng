@@ -747,7 +747,7 @@ pub fn widget_new(input: TokenStream) -> TokenStream {
     widget_new::expand(input)
 }
 
-/// Hexadecimal color initialization.
+/// Hexadecimal color literal.
 ///
 /// # Syntax
 ///

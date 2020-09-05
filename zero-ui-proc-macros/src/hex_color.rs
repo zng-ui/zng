@@ -11,7 +11,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .trim_start()
         .replace('_', "");
     let crate_ = zero_ui_crate_ident();
-    println!("{}", hex_only);
 
     match hex_only.len() {
         // RRGGBB
@@ -24,7 +23,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // RRGGBBAA
         8 => {
             let rgba = pair_to_f32(&hex_only);
-            println!("{}", rgba);
             quote! {
                 #crate_::core::color::Color::new(#rgba)
             }

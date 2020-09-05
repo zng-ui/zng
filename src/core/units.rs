@@ -1,3 +1,5 @@
+//! Angle, factor and length units.
+
 use derive_more as dm;
 use std::f32::consts::*;
 

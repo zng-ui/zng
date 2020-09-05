@@ -1,13 +1,15 @@
+//! Color types.
+
 use super::units::*;
 
 pub type Color = webrender::api::ColorF;
 
-/// Opaque RGB color.
+/// RGB color, opaque, alpha is set to `1.0`.
 ///
 /// # Arguments
 ///
-/// The arguments can either be `f32` in the `0.0..=1.0` range or
-/// `u8` in the `0..=255` range.
+/// The arguments can either be [`f32`] in the `0.0..=1.0` range or
+/// [`u8`] in the `0..=255` range or a [percentage](FactorPercent).
 ///
 /// # Example
 /// ```
@@ -24,8 +26,8 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Color {
 ///
 /// # Arguments
 ///
-/// The arguments can either be floating pointer in the `0.0..=1.0` range or
-/// integers in the `0..=255` range.
+/// The arguments can either be `f32` in the `0.0..=1.0` range or
+/// `u8` in the `0..=255` range or a [percentage](FactorPercent).
 ///
 /// The rgb arguments must be of the same type, the alpha argument can be of a different type.
 ///
@@ -41,10 +43,47 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
     Color::new(red.into().0, green.into().0, blue.into().0, alpha.into().0)
 }
 
+/// HSL color, opaque, alpha is set to `1.0`.
+///
+/// # Arguments
+///
+/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// range or a [percentage](FactorPercent).
+///
+/// The `saturation` and `lightness` arguments must be of the same type.
+///
+/// # Example
+///
+/// ```
+/// use zero_ui::core::color::hsl;
+/// use zero_ui::core::units::*;
+///
+/// let red = hsl(0.deg(), 100.pct(), 50.pct());
+/// let green = hsl(115.deg(), 1.0, 0.5);
+/// ```
 pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, lightness: N) -> Color {
     hsla(hue, saturation, lightness, 1.0)
 }
 
+/// HSLA color.
+///
+/// # Arguments
+///
+/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// range or a [percentage](FactorPercent).
+///
+/// The `saturation` and `lightness` arguments must be of the same type.
+///
+/// # Example
+///
+/// ```
+/// use zero_ui::core::color::hsla;
+/// use zero_ui::core::units::*;
+///
+/// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
+/// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());
+/// let transparent = hsla(0.deg(), 1.0, 0.5, 0.0);
+/// ```
 pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, lightness: N, alpha: A) -> Color {
     let saturation = saturation.into().0;
     let lightness = lightness.into().0;
@@ -113,23 +152,23 @@ impl From<FactorPercent> for RgbaComponent {
     }
 }
 
-pub use zero_ui_macros::hex_color;
+pub use zero_ui_macros::hex_color as hex;
 
 #[test]
 fn test_hex_color() {
     fn f(n: u8) -> f32 {
         n as f32 / 255.0
     }
-    assert_eq!(Color::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex_color!(0x11223344));
+    assert_eq!(Color::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex!(0x11223344));
 
-    assert_eq!(Color::BLACK, hex_color!(0x00_00_00_FF));
-    assert_eq!(Color::WHITE, hex_color!(0xFF_FF_FF_FF));
-    assert_eq!(Color::WHITE, hex_color!(0xFF_FF_FF));
-    assert_eq!(Color::WHITE, hex_color!(0xFFFFFF));
-    assert_eq!(Color::WHITE, hex_color!(#FFFFFF));
-    assert_eq!(Color::WHITE, hex_color!(FFFFFF));
-    assert_eq!(Color::WHITE, hex_color!(0xFFFF));
-    assert_eq!(Color::BLACK, hex_color!(0x000));
-    assert_eq!(Color::BLACK, hex_color!(#000));
-    assert_eq!(Color::BLACK, hex_color!(000));
+    assert_eq!(Color::BLACK, hex!(0x00_00_00_FF));
+    assert_eq!(Color::WHITE, hex!(0xFF_FF_FF_FF));
+    assert_eq!(Color::WHITE, hex!(0xFF_FF_FF));
+    assert_eq!(Color::WHITE, hex!(0xFFFFFF));
+    assert_eq!(Color::WHITE, hex!(#FFFFFF));
+    assert_eq!(Color::WHITE, hex!(FFFFFF));
+    assert_eq!(Color::WHITE, hex!(0xFFFF));
+    assert_eq!(Color::BLACK, hex!(0x000));
+    assert_eq!(Color::BLACK, hex!(#000));
+    assert_eq!(Color::BLACK, hex!(000));
 }
