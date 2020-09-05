@@ -112,3 +112,24 @@ impl From<FactorPercent> for RgbaComponent {
         RgbaComponent(p.0 / 100.)
     }
 }
+
+pub use zero_ui_macros::hex_color;
+
+#[test]
+fn test_hex_color() {
+    fn f(n: u8) -> f32 {
+        n as f32 / 255.0
+    }
+    assert_eq!(Color::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex_color!(0x11223344));
+
+    assert_eq!(Color::BLACK, hex_color!(0x00_00_00_FF));
+    assert_eq!(Color::WHITE, hex_color!(0xFF_FF_FF_FF));
+    assert_eq!(Color::WHITE, hex_color!(0xFF_FF_FF));
+    assert_eq!(Color::WHITE, hex_color!(0xFFFFFF));
+    assert_eq!(Color::WHITE, hex_color!(#FFFFFF));
+    assert_eq!(Color::WHITE, hex_color!(FFFFFF));
+    assert_eq!(Color::WHITE, hex_color!(0xFFFF));
+    assert_eq!(Color::BLACK, hex_color!(0x000));
+    assert_eq!(Color::BLACK, hex_color!(#000));
+    assert_eq!(Color::BLACK, hex_color!(000));
+}
