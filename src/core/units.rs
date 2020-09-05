@@ -239,6 +239,102 @@ impl FactorUnits for u32 {
     }
 }
 
+pub enum Length {
+    /// The exact length.
+    Exact(f32),
+    /// Relative to the available size.
+    Relative(FactorNormal),
+    /// Relative to the font-size of the widget.
+    Em(FactorNormal),
+    /// Relative to the font-size of the root widget.
+    RootEm(FactorNormal),
+    /// Relative to 1% of the width of the viewport.
+    ViewportWidth(f32),
+    /// Relative to 1% of the height of the viewport.
+    ViewportHeight(f32),
+    /// Relative to 1% of the smallest of the viewport's dimensions.
+    ViewportMin(f32),
+    /// Relative to 1% of the largest of the viewport's dimensions.
+    ViewportMax(f32),
+}
+impl From<FactorPercent> for Length {
+    /// Conversion to [`Length::Relative`]
+    fn from(percent: FactorPercent) -> Self {
+        Length::Relative(percent.into())
+    }
+}
+impl From<f32> for Length {
+    fn from(f: f32) -> Self {
+        Length::Exact(f)
+    }
+}
+impl From<u32> for Length {
+    fn from(u: u32) -> Self {
+        Length::Exact(u as f32)
+    }
+}
+
+pub trait LengthUnits {
+    fn em(self) -> Length;
+    fn rem(self) -> Length;
+    fn vw(self) -> Length;
+    fn vh(self) -> Length;
+    fn vmin(self) -> Length;
+    fn vmax(self) -> Length;
+}
+impl LengthUnits for f32 {
+    #[inline]
+    fn em(self) -> Length {
+        Length::Em(self.into())
+    }
+    #[inline]
+    fn rem(self) -> Length {
+        Length::RootEm(self.into())
+    }
+    #[inline]
+    fn vw(self) -> Length {
+        Length::ViewportWidth(self)
+    }
+    #[inline]
+    fn vh(self) -> Length {
+        Length::ViewportHeight(self)
+    }
+    #[inline]
+    fn vmin(self) -> Length {
+        Length::ViewportMin(self)
+    }
+    #[inline]
+    fn vmax(self) -> Length {
+        Length::ViewportMax(self)
+    }
+}
+impl LengthUnits for u32 {
+    #[inline]
+    fn em(self) -> Length {
+        Length::Em(self.normal())
+    }
+    #[inline]
+    fn rem(self) -> Length {
+        Length::RootEm(self.normal())
+    }
+    #[inline]
+    fn vw(self) -> Length {
+        Length::ViewportWidth(self as f32)
+    }
+    #[inline]
+    fn vh(self) -> Length {
+        Length::ViewportHeight(self as f32)
+    }
+    #[inline]
+    fn vmin(self) -> Length {
+        Length::ViewportMin(self as f32)
+    }
+    #[inline]
+    fn vmax(self) -> Length {
+        Length::ViewportMax(self as f32)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
