@@ -11,6 +11,7 @@ use std::mem;
 use std::sync::atomic::{self, AtomicBool, AtomicU8};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
+use super::types::PixelGrid;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 
@@ -1143,7 +1144,7 @@ impl<'a> AppContext<'a> {
 
         let mut window_services = WindowServices { m: Default::default() };
         let ctx = WindowContext {
-            window_id,
+            window_id: ReadOnly(window_id),
             render_api,
             app_state: self.app_state,
             window_state: &mut window_state,
@@ -1174,7 +1175,7 @@ impl<'a> AppContext<'a> {
         let mut event_state = StateMap::default();
 
         f(&mut WindowContext {
-            window_id,
+            window_id: ReadOnly(window_id),
             render_api,
             app_state: self.app_state,
             window_state,
@@ -1192,7 +1193,7 @@ impl<'a> AppContext<'a> {
 
 /// A window context.
 pub struct WindowContext<'a> {
-    pub window_id: WindowId,
+    pub window_id: ReadOnly<WindowId>,
     pub render_api: &'a Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
@@ -1217,10 +1218,19 @@ pub struct WindowContext<'a> {
     pub updates: &'a mut Updates,
 }
 
+/// Read-only value in a public context struct field.
+pub struct ReadOnly<T>(T);
+impl<T: Copy> ReadOnly<T> {
+    #[inline]
+    pub fn get(self) -> T {
+        self.0
+    }
+}
+
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
-        let mut path = WidgetContextPath::new(self.window_id, widget_id);
+        let mut path = WidgetContextPath::new(self.window_id.0, widget_id);
         f(&mut WidgetContext {
             path: &mut path,
 
@@ -1268,7 +1278,6 @@ pub struct WidgetContext<'a> {
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
-
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
@@ -1345,4 +1354,32 @@ impl WidgetContextPath {
     pub fn parent(&self) -> Option<WidgetId> {
         self.ancestors().next()
     }
+}
+
+/// A widget layout context.
+pub struct LayoutContext {
+    font_size: f32,
+    pixel_grid: PixelGrid,
+    //TODO
+}
+
+impl LayoutContext {
+    /// Current computed font size.
+    #[inline]
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+    }
+    
+    #[inline]
+    pub fn pixel_grid(&self) -> PixelGrid {
+        self.pixel_grid
+    }
+
+    /// Runs a function `f` within a context that has the new computed font size.
+    pub fn with_font_size<R>(&mut self, new_font_size: f32, f: impl FnOnce(&mut LayoutContext) -> R) -> R {
+        let old_font_size = mem::replace(&mut self.font_size, new_font_size);
+        let r = f(self);
+        self.font_size = old_font_size;
+        r
+    }    
 }
