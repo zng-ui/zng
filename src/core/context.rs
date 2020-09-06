@@ -691,7 +691,7 @@ impl AppServicesInit {
     }
 }
 
-/// Application services access.
+/// Access to application services.
 pub struct AppServices {
     m: ServiceMap,
 }
@@ -766,7 +766,7 @@ impl WindowServicesInit {
     }
 }
 
-/// Window services access.
+/// Access to window services.
 pub struct WindowServices {
     m: ServiceMap,
 }
@@ -1115,12 +1115,20 @@ pub struct AppContext<'a> {
     /// Information about this context if it is running in headless mode.
     pub headless: HeadlessInfo<'a>,
 
+    /// Access to application variables.
     pub vars: &'a Vars,
+    /// Access to application events.
     pub events: &'a Events,
+    /// Access to application services.
     pub services: &'a mut AppServices,
+
+    /// Window services registration.
     pub window_services: &'a WindowServicesInit,
+
+    /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 
+    /// Reference to raw event loop.
     pub event_loop: EventLoopWindowTarget<'a>,
 }
 
@@ -1196,11 +1204,16 @@ pub struct WindowContext<'a> {
     /// State that lives for the duration of the event.
     pub event_state: &'a mut StateMap,
 
+    /// Access to application variables.
     pub vars: &'a Vars,
+    /// Access to application events.
     pub events: &'a Events,
+    /// Access to application services.
     pub services: &'a mut AppServices,
+    /// Access to window services.
     pub window_services: &'a mut WindowServices,
 
+    /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
 
@@ -1243,11 +1256,16 @@ pub struct WidgetContext<'a> {
     /// State that lives for the duration of the event.
     pub event_state: &'a mut StateMap,
 
+    /// Access to application variables.
     pub vars: &'a Vars,
+    /// Access to application events.
     pub events: &'a Events,
+    /// Access to application services.
     pub services: &'a mut AppServices,
+    /// Access to window services.
     pub window_services: &'a mut WindowServices,
 
+    /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
 
@@ -1283,10 +1301,9 @@ pub struct WidgetContextPath {
 
 impl WidgetContextPath {
     fn new(window_id: WindowId, root_id: WidgetId) -> Self {
-        WidgetContextPath {
-            window_id,
-            widget_ids: vec![root_id],
-        }
+        let mut widget_ids = Vec::with_capacity(50);
+        widget_ids.push(root_id);
+        WidgetContextPath { window_id, widget_ids }
     }
 
     fn push(&mut self, widget_id: WidgetId) {
