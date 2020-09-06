@@ -57,7 +57,7 @@ impl FrameBuilder {
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let mut new = FrameBuilder {
             scale_factor,
-            display_list: DisplayListBuilder::new(pipeline_id, root_size),
+            display_list: DisplayListBuilder::with_capacity(pipeline_id, root_size, 100),
             info_id: info.root_id(),
             info,
             widget_id: root_id,
