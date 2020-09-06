@@ -36,7 +36,7 @@ event_args! {
 
         /// If the widget is in [`target`](MouseMoveArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
          }
     }
 
@@ -70,7 +70,7 @@ event_args! {
 
         /// If the widget is in [`target`](MouseInputArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 
@@ -116,7 +116,7 @@ event_args! {
 
         /// If the widget is in [`target`](MouseClickArgs::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 
@@ -141,7 +141,7 @@ event_args! {
 
         /// If the widget is in [`targets`](MouseHoverArgs::targets).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 }

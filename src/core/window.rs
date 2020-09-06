@@ -82,7 +82,7 @@ event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 
@@ -98,7 +98,7 @@ event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 
@@ -111,7 +111,7 @@ event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 
@@ -124,7 +124,7 @@ event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 
@@ -138,7 +138,7 @@ event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 }
@@ -152,7 +152,7 @@ cancelable_event_args! {
 
         /// If the widget is in the same window.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            ctx.window_id == self.window_id
+            ctx.path.window_id() == self.window_id
         }
     }
 }

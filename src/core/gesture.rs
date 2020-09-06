@@ -65,7 +65,7 @@ event_args! {
 
         /// If the widget is in [`target`](Self::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 
@@ -89,7 +89,7 @@ event_args! {
 
         // If the widget is in [`target`](Self::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 }

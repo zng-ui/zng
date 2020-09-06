@@ -114,7 +114,7 @@ fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<ShortcutArgs>) {
             let frame = ctx
                 .services
                 .req::<crate::core::window::Windows>()
-                .window(ctx.window_id)
+                .window(ctx.path.window_id())
                 .unwrap()
                 .frame_info();
 

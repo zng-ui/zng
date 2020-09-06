@@ -1207,9 +1207,9 @@ pub struct WindowContext<'a> {
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
+        let mut path = WidgetContextPath::new(self.window_id, widget_id);
         f(&mut WidgetContext {
-            window_id: self.window_id,
-            widget_id,
+            path: &mut path,
 
             app_state: self.app_state,
             window_state: self.window_state,
@@ -1228,8 +1228,8 @@ impl<'a> WindowContext<'a> {
 
 /// A widget context.
 pub struct WidgetContext<'a> {
-    pub window_id: WindowId,
-    pub widget_id: WidgetId,
+    /// Current widget path.
+    pub path: &'a mut WidgetContextPath,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
@@ -1254,9 +1254,9 @@ pub struct WidgetContext<'a> {
 impl<'a> WidgetContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
+        self.path.push(widget_id);
         f(&mut WidgetContext {
-            window_id: self.window_id,
-            widget_id,
+            path: self.path,
 
             app_state: self.app_state,
             window_state: self.window_state,
@@ -1270,5 +1270,62 @@ impl<'a> WidgetContext<'a> {
 
             updates: self.updates,
         });
+        self.path.pop();
+    }
+}
+
+/// Current widget context path.
+#[derive(Debug)]
+pub struct WidgetContextPath {
+    window_id: WindowId,
+    widget_ids: Vec<WidgetId>,
+}
+
+impl WidgetContextPath {
+    fn new(window_id: WindowId, root_id: WidgetId) -> Self {
+        WidgetContextPath {
+            window_id,
+            widget_ids: vec![root_id],
+        }
+    }
+
+    fn push(&mut self, widget_id: WidgetId) {
+        self.widget_ids.push(widget_id);
+    }
+
+    fn pop(&mut self) {
+        debug_assert!(self.widget_ids.len() > 1, "cannot pop root");
+        self.widget_ids.pop();
+    }
+
+    /// Parent window id.
+    #[inline]
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+
+    /// Window root widget id.
+    #[inline]
+    pub fn root_id(&self) -> WidgetId {
+        self.widget_ids[0]
+    }
+
+    /// Current widget id.
+    #[inline]
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_ids[self.widget_ids.len() - 1]
+    }
+
+    /// Ancestor widgets, parent first.
+    #[inline]
+    pub fn ancestors<'s>(&'s self) -> impl Iterator<Item = WidgetId> + 's {
+        let max = self.widget_ids.len() - 1;
+        self.widget_ids[0..max].iter().copied().rev()
+    }
+
+    /// Parent widget id.
+    #[inline]
+    pub fn parent(&self) -> Option<WidgetId> {
+        self.ancestors().next()
     }
 }

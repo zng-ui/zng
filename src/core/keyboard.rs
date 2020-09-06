@@ -45,7 +45,7 @@ event_args! {
 
         /// If the widget is focused or contains the focused widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 
@@ -64,7 +64,7 @@ event_args! {
 
         /// If the widget is focused or contains the focused widget.
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-            self.target.contains(ctx.widget_id)
+            self.target.contains(ctx.path.widget_id())
         }
     }
 }

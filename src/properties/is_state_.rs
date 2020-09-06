@@ -117,7 +117,11 @@ impl<C: UiNode> UiNode for IsFocusedNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
             let was_focused = *self.state.get(ctx.vars);
-            let is_focused = u.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default();
+            let is_focused = u
+                .new_focus
+                .as_ref()
+                .map(|p| p.widget_id() == ctx.path.widget_id())
+                .unwrap_or_default();
             if was_focused != is_focused {
                 self.state.push_set(is_focused, ctx.vars, ctx.updates).expect("is_focused");
             }
@@ -165,7 +169,7 @@ impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
             let was_focused = *self.state.get(ctx.vars);
-            let is_focused = u.new_focus.as_ref().map(|p| p.contains(ctx.widget_id)).unwrap_or_default();
+            let is_focused = u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
 
             if was_focused != is_focused {
                 self.state.push_set(is_focused, ctx.vars, ctx.updates).expect("is_focus_within");
@@ -209,7 +213,11 @@ impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
             let was_focused_hgl = *self.state.get(ctx.vars);
-            let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default();
+            let is_focused_hgl = u.highlight
+                && u.new_focus
+                    .as_ref()
+                    .map(|p| p.widget_id() == ctx.path.widget_id())
+                    .unwrap_or_default();
             if was_focused_hgl != is_focused_hgl {
                 self.state.push_set(is_focused_hgl, ctx.vars, ctx.updates).expect("is_focused_hgl");
             }
@@ -255,7 +263,7 @@ impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
             let was_focused_hgl = *self.state.get(ctx.vars);
-            let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.contains(ctx.widget_id)).unwrap_or_default();
+            let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
 
             if was_focused_hgl != is_focused_hgl {
                 self.state
@@ -316,12 +324,17 @@ impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
             if args
                 .prev_return
                 .as_ref()
-                .map(|p| p.widget_id() == ctx.widget_id)
+                .map(|p| p.widget_id() == ctx.path.widget_id())
                 .unwrap_or_default()
             {
                 new_state = false;
             }
-            if args.new_return.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default() {
+            if args
+                .new_return
+                .as_ref()
+                .map(|p| p.widget_id() == ctx.path.widget_id())
+                .unwrap_or_default()
+            {
                 new_state = true;
             }
         }

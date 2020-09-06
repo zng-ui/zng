@@ -73,13 +73,13 @@ event_args! {
         /// [`new_focus`](Self::new_focus).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_focus {
-                if prev.contains(ctx.widget_id) {
+                if prev.contains(ctx.path.widget_id()) {
                     return true
                 }
             }
 
             if let Some(new) = &self.new_focus {
-                if new.contains(ctx.widget_id) {
+                if new.contains(ctx.path.widget_id()) {
                     return true
                 }
             }
@@ -105,18 +105,18 @@ event_args! {
         /// or [`scope_id`](Self::scope_id).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             if let Some(prev) = &self.prev_return {
-                if prev.widget_id() == ctx.widget_id {
+                if prev.widget_id() == ctx.path.widget_id() {
                     return true
                 }
             }
 
             if let Some(new) = &self.new_return {
-                if new.widget_id() == ctx.widget_id {
+                if new.widget_id() == ctx.path.widget_id() {
                     return true
                 }
 
             }
-            self.scope_id == ctx.widget_id
+            self.scope_id == ctx.path.widget_id()
         }
     }
 }

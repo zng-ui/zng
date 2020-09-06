@@ -307,7 +307,12 @@ impl<C: UiNode, H: FnMut(&mut OnEventArgs<FocusChangedArgs>) + 'static> UiNode f
         self.child.update(ctx);
 
         for args in self.listener.updates(ctx.events) {
-            if args.new_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default() {
+            if args
+                .new_focus
+                .as_ref()
+                .map(|p| p.widget_id() == ctx.path.widget_id())
+                .unwrap_or_default()
+            {
                 (self.handler)(&mut OnEventArgs::new(ctx, args));
             }
         }
@@ -331,7 +336,12 @@ impl<C: UiNode, H: FnMut(&mut OnEventArgs<FocusChangedArgs>) + 'static> UiNode f
         self.child.update(ctx);
 
         for args in self.listener.updates(ctx.events) {
-            if args.prev_focus.as_ref().map(|p| p.widget_id() == ctx.widget_id).unwrap_or_default() {
+            if args
+                .prev_focus
+                .as_ref()
+                .map(|p| p.widget_id() == ctx.path.widget_id())
+                .unwrap_or_default()
+            {
                 (self.handler)(&mut OnEventArgs::new(ctx, args));
             }
         }
@@ -355,8 +365,12 @@ impl<C: UiNode, H: FnMut(&mut OnEventArgs<FocusChangedArgs>) + 'static> UiNode f
         self.child.update(ctx);
 
         for args in self.listener.updates(ctx.events) {
-            if args.new_focus.as_ref().map(|p| p.contains(ctx.widget_id)).unwrap_or_default()
-                && args.prev_focus.as_ref().map(|p| !p.contains(ctx.widget_id)).unwrap_or(true)
+            if args
+                .new_focus
+                .as_ref()
+                .map(|p| p.contains(ctx.path.widget_id()))
+                .unwrap_or_default()
+                && args.prev_focus.as_ref().map(|p| !p.contains(ctx.path.widget_id())).unwrap_or(true)
             {
                 // if we are in `new_focus` and are not in `prev_focus`
                 (self.handler)(&mut OnEventArgs::new(ctx, args));
@@ -382,8 +396,12 @@ impl<C: UiNode, H: FnMut(&mut OnEventArgs<FocusChangedArgs>) + 'static> UiNode f
         self.child.update(ctx);
 
         for args in self.listener.updates(ctx.events) {
-            if args.prev_focus.as_ref().map(|p| p.contains(ctx.widget_id)).unwrap_or_default()
-                && args.new_focus.as_ref().map(|p| !p.contains(ctx.widget_id)).unwrap_or(true)
+            if args
+                .prev_focus
+                .as_ref()
+                .map(|p| p.contains(ctx.path.widget_id()))
+                .unwrap_or_default()
+                && args.new_focus.as_ref().map(|p| !p.contains(ctx.path.widget_id())).unwrap_or(true)
             {
                 // if we are in `prev_focus` and are not in `new_focus`
                 (self.handler)(&mut OnEventArgs::new(ctx, args));

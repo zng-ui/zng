@@ -295,7 +295,7 @@ impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
                 if update.shortcut == shortcut {
                     // focus on shortcut
 
-                    ctx.services.req::<Focus>().focus_widget_or_parent(ctx.widget_id, true);
+                    ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
                     ctx.event_state.flag(handled_key);
                     break;
                 }

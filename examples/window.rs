@@ -108,7 +108,7 @@ fn screenshot() -> impl Widget {
 
             let t = Instant::now();
             let ctx = args.ctx();
-            let img = ctx.services.req::<Windows>().window(ctx.window_id).unwrap().screenshot();
+            let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().screenshot();
             println!("taken in {:?}", t.elapsed());
 
             let t = Instant::now();
