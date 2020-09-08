@@ -332,7 +332,7 @@ pub type LayoutLength = f32;
 /// let root_font_size = 1.rem();
 /// let viewport_width = 100.vw();
 /// let viewport_height = 100.vh();
-/// let viewport_min = 100.vmin();// min(_width, height)
+/// let viewport_min = 100.vmin();// min(width, height)
 /// let viewport_max = 100.vmax();// max(width, height)
 ///
 /// // other length units not provided by `LengthUnits`:
