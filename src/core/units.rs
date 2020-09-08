@@ -323,6 +323,24 @@ pub type LayoutLength = f32;
 /// Extension methods for initializing [`Length`] units.
 ///
 /// This trait is implemented for [`f32`] and [`u32`] allowing initialization of length units using the `<number>.<unit>()` syntax.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::units::*;
+/// let font_size = 1.em();
+/// let root_font_size = 1.rem();
+/// let viewport_width = 100.vw();
+/// let viewport_height = 100.vh();
+/// let viewport_min = 100.vmin();// min(_width, height)
+/// let viewport_max = 100.vmax();// max(width, height)
+///
+/// // other length units not provided by `LengthUnits`:
+///
+/// let exact_size: Length = 500.into();
+/// let available_size: Length = 100.pct().into();// FactorUnits
+/// let available_size: Length = 1.0.normal().into();// FactorUnits
+/// ```
 pub trait LengthUnits {
     /// Relative to the font-size of the widget.
     ///
