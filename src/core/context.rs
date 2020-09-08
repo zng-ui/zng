@@ -1,5 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
+use super::types::PixelGrid;
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::types::{WidgetId, WindowId};
@@ -11,7 +12,6 @@ use std::mem;
 use std::sync::atomic::{self, AtomicBool, AtomicU8};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
-use super::types::PixelGrid;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
 
@@ -1369,7 +1369,7 @@ impl LayoutContext {
     pub fn font_size(&self) -> f32 {
         self.font_size
     }
-    
+
     #[inline]
     pub fn pixel_grid(&self) -> PixelGrid {
         self.pixel_grid
@@ -1381,5 +1381,5 @@ impl LayoutContext {
         let r = f(self);
         self.font_size = old_font_size;
         r
-    }    
+    }
 }

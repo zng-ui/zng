@@ -3,9 +3,13 @@
 use derive_more as dm;
 use std::f32::consts::*;
 
+use super::context::LayoutContext;
+
 const TAU: f32 = 2.0 * PI;
 
 /// Angle in radians.
+///
+/// See [`AngleUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{} rad", self.0)]
 pub struct AngleRadian(f32);
@@ -33,6 +37,8 @@ impl From<AngleTurn> for AngleRadian {
 }
 
 /// Angle in gradians.
+///
+/// See [`AngleUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{} gon", self.0)]
 pub struct AngleGradian(pub f32);
@@ -60,6 +66,8 @@ impl From<AngleTurn> for AngleGradian {
 }
 
 /// Angle in degrees.
+///
+/// See [`AngleUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{}º", self.0)]
 pub struct AngleDegree(pub f32);
@@ -86,7 +94,9 @@ impl From<AngleTurn> for AngleDegree {
     }
 }
 
-/// Angle in turns (complete rotations)
+/// Angle in turns (complete rotations).
+///
+/// See [`AngleUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{} tr", self.0)]
 pub struct AngleTurn(pub f32);
@@ -113,7 +123,7 @@ impl From<AngleDegree> for AngleTurn {
     }
 }
 
-/// Extension methods for creating angle unit types.
+/// Extension methods for initializing angle units.
 ///
 /// This trait is implemented for [`f32`] and [`u32`] allowing initialization of angle unit types using the `<number>.<unit>()` syntax.
 ///
@@ -176,10 +186,11 @@ impl AngleUnits for u32 {
 }
 
 /// Multiplication factor in percentage (0%-100%).
+///
+/// See [`FactorUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{}%", self.0)]
 pub struct FactorPercent(pub f32);
-
 impl From<FactorNormal> for FactorPercent {
     fn from(n: FactorNormal) -> Self {
         FactorPercent(n.0 * 100.0)
@@ -187,16 +198,17 @@ impl From<FactorNormal> for FactorPercent {
 }
 
 /// Normalized multiplication factor (0.0-1.0).
+///
+/// See [`FactorUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq, dm::From)]
 pub struct FactorNormal(pub f32);
-
 impl From<FactorPercent> for FactorNormal {
     fn from(percent: FactorPercent) -> Self {
         FactorNormal(percent.0 / 100.0)
     }
 }
 
-/// Extension methods for factor unit types.
+/// Extension methods for initializing factor units.
 ///
 /// This trait is implemented for [`f32`] and [`u32`] allowing initialization of factor unit types using the `<number>.<unit>()` syntax.
 ///
@@ -217,7 +229,6 @@ pub trait FactorUnits {
     /// [`FactorNormal`] implements `From<f32>`.
     fn normal(self) -> FactorNormal;
 }
-
 impl FactorUnits for f32 {
     #[inline]
     fn pct(self) -> FactorPercent {
@@ -241,6 +252,10 @@ impl FactorUnits for u32 {
     }
 }
 
+/// 1D length units.
+///
+/// See [`LengthUnits`] for more details.
+#[derive(Copy, Clone, Debug)]
 pub enum Length {
     /// The exact length.
     Exact(f32),
@@ -275,13 +290,65 @@ impl From<u32> for Length {
         Length::Exact(u as f32)
     }
 }
+impl Length {
+    #[inline]
+    pub fn zero() -> Length {
+        Length::Exact(0.0)
+    }
 
+    /// Length that fills the available space.
+    #[inline]
+    pub fn fill() -> Length {
+        Length::Relative(FactorNormal(1.0))
+    }
+
+    /// Compute the length at a context.
+    pub fn to_layout(self, orientation: Orientation, ctx: &LayoutContext) -> LayoutLength {
+        todo!()
+    }
+}
+
+/// Orientation of a line.
+#[derive(Copy, Clone, Debug)]
+pub enum Orientation {
+    /// Length grows left-to-right.
+    Horizontal,
+    /// Length grows top-to-bottom.
+    Vertical,
+}
+
+/// Computed [`Length`].
+pub type LayoutLength = f32;
+
+/// Extension methods for initializing [`Length`] units.
+///
+/// This trait is implemented for [`f32`] and [`u32`] allowing initialization of length units using the `<number>.<unit>()` syntax.
 pub trait LengthUnits {
+    /// Relative to the font-size of the widget.
+    ///
+    /// Returns [`Length::Em`].
     fn em(self) -> Length;
+    /// Relative to the font-size of the root widget.
+    ///
+    /// Returns [`Length::RootEm`].
     fn rem(self) -> Length;
+
+    /// Relative to 1% of the width of the viewport.
+    ///
+    /// Returns [`Length::ViewportWidth`].
     fn vw(self) -> Length;
+    /// Relative to 1% of the height of the viewport.
+    ///
+    /// Returns [`Length::ViewportHeight`].
     fn vh(self) -> Length;
+
+    /// Relative to 1% of the smallest of the viewport's dimensions.
+    ///
+    /// Returns [`Length::ViewportMin`].
     fn vmin(self) -> Length;
+    /// Relative to 1% of the largest of the viewport's dimensions.
+    ///
+    /// Returns [`Length::ViewportMax`].
     fn vmax(self) -> Length;
 }
 impl LengthUnits for f32 {
@@ -337,6 +404,48 @@ impl LengthUnits for u32 {
     }
 }
 
+/// 2D point in [`Length`] units.
+#[derive(Copy, Clone, Debug)]
+pub struct Point {
+    pub x: Length,
+    pub y: Length,
+}
+impl Point {
+    pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
+        Point { x: x.into(), y: y.into() }
+    }
+
+    #[inline]
+    pub fn zero() -> Self {
+        Self::new(Length::zero(), Length::zero())
+    }
+
+    /// Swap `x` and `y`.
+    #[inline]
+    pub fn yx(self) -> Self {
+        Point { y: self.x, x: self.y }
+    }
+
+    #[inline]
+    pub fn to_tuple(self) -> (Length, Length) {
+        (self.x, self.y)
+    }
+
+    /// Compute the point in a context.
+    #[inline]
+    pub fn to_layout(self, ctx: &LayoutContext) -> LayoutPoint {
+        LayoutPoint::new(
+            self.x.to_layout(Orientation::Horizontal, ctx),
+            self.y.to_layout(Orientation::Vertical, ctx),
+        )
+    }
+}
+
+/// Computed [`Point`].
+pub type LayoutPoint = webrender::api::units::LayoutPoint;
+
+/// 2D size in [`Length`] units.
+#[derive(Copy, Clone, Debug)]
 pub struct Size {
     pub width: Length,
     pub height: Length,
@@ -348,18 +457,32 @@ impl Size {
             height: height.into(),
         }
     }
-}
 
-pub struct Point {
-    pub x: Length,
-    pub y: Length,
-}
-impl Point {
-    pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
-        Point { x: x.into(), y: y.into() }
+    #[inline]
+    pub fn zero() -> Self {
+        Self::new(Length::zero(), Length::zero())
+    }
+
+    /// Size that fills the available space.
+    #[inline]
+    pub fn fill() -> Self {
+        Self::new(Length::fill(), Length::fill())
+    }
+
+    #[inline]
+    pub fn to_layout(self, ctx: &LayoutContext) -> LayoutSize {
+        LayoutSize::new(
+            self.width.to_layout(Orientation::Horizontal, ctx),
+            self.height.to_layout(Orientation::Vertical, ctx),
+        )
     }
 }
 
+/// Computed [`Size`].
+pub type LayoutSize = webrender::api::units::LayoutSize;
+
+/// 2D rect in [`Length`] units.
+#[derive(Copy, Clone, Debug)]
 pub struct Rect {
     pub origin: Point,
     pub size: Size,
@@ -371,8 +494,48 @@ impl Rect {
             size: size.into(),
         }
     }
+
+    pub fn from_size<S: Into<Size>>(size: S) -> Self {
+        Self::new(Point::zero(), size)
+    }
+
+    #[inline]
+    pub fn zero() -> Self {
+        Self::new(Point::zero(), Size::zero())
+    }
+
+    /// Rect that fills the available space.
+    #[inline]
+    pub fn fill() -> Self {
+        Self::from_size(Size::fill())
+    }
+
+    #[inline]
+    pub fn to_layout(&self, ctx: &LayoutContext) -> LayoutRect {
+        LayoutRect::new(self.origin.to_layout(ctx), self.size.to_layout(ctx))
+    }
+}
+impl From<Size> for Rect {
+    fn from(size: Size) -> Self {
+        Self::from_size(size)
+    }
+}
+impl From<Rect> for Size {
+    fn from(rect: Rect) -> Self {
+        rect.size
+    }
+}
+impl From<Rect> for Point {
+    fn from(rect: Rect) -> Self {
+        rect.origin
+    }
 }
 
+/// Computed [`Rect`].
+pub type LayoutRect = webrender::api::units::LayoutRect;
+
+/// 2D size offsets in [`Length`] units.
+#[derive(Copy, Clone, Debug)]
 pub struct SideOffsets {
     pub top: Length,
     pub right: Length,
@@ -388,7 +551,48 @@ impl SideOffsets {
             left: left.into(),
         }
     }
+
+    /// Top-Bottom and Left-Right equal.
+    pub fn new_dimension<TB: Into<Length>, LR: Into<Length>>(top_bottom: TB, left_right: LR) -> Self {
+        let top_bottom = top_bottom.into();
+        let left_right = left_right.into();
+        SideOffsets {
+            top: top_bottom,
+            bottom: top_bottom,
+            left: left_right,
+            right: left_right,
+        }
+    }
+
+    /// All sides equal.
+    pub fn new_all<T: Into<Length>>(all_sides: T) -> Self {
+        let all_sides = all_sides.into();
+        SideOffsets {
+            top: all_sides,
+            right: all_sides,
+            bottom: all_sides,
+            left: all_sides,
+        }
+    }
+
+    #[inline]
+    pub fn zero() -> Self {
+        Self::new_all(Length::zero())
+    }
+
+    #[inline]
+    pub fn to_layout(&self, ctx: &LayoutContext) -> LayoutSideOffsets {
+        LayoutSideOffsets::new(
+            self.top.to_layout(Orientation::Horizontal, ctx),
+            self.right.to_layout(Orientation::Vertical, ctx),
+            self.bottom.to_layout(Orientation::Horizontal, ctx),
+            self.left.to_layout(Orientation::Vertical, ctx),
+        )
+    }
 }
+
+/// Computed [`SideOffsets`].
+pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
 
 #[cfg(test)]
 mod tests {
