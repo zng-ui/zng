@@ -1141,8 +1141,7 @@ impl<'a> WidgetFocusInfo<'a> {
         if self.in_alt_scope() {
             // We do not allow nested alt scopes, search for sibling focus scope.
             return self.scopes().find(|s| !s.is_alt_scope()).and_then(|s| s.alt_scope_query(s));
-        }
-        else if self.is_scope() {
+        } else if self.is_scope() {
             // if we are a normal scope, search for an inner ALT scope first.
             let r = self.descendants().find(|w| w.focus_info().is_alt_scope());
             if r.is_some() {
@@ -1156,7 +1155,14 @@ impl<'a> WidgetFocusInfo<'a> {
     fn alt_scope_query(self, skip: WidgetFocusInfo<'a>) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             // search for an ALT scope in our previous scope siblings.
-            scope.filter_descendants(|w|if w == skip { DescendantFilter::SkipTree } else { DescendantFilter::Include })
+            scope
+                .filter_descendants(|w| {
+                    if w == skip {
+                        DescendantFilter::SkipTree
+                    } else {
+                        DescendantFilter::Include
+                    }
+                })
                 .find(|w| w.focus_info().is_alt_scope())
                 // if found no sibling ALT scope, do the same search for our scope.
                 .or_else(|| scope.alt_scope_query(skip))

@@ -423,6 +423,12 @@ impl AppExtension for GestureManager {
         r.events.register::<ShortcutEvent>(self.shortcut_input.listener());
     }
 
+    fn on_window_event(&mut self, _: WindowId, event: &WindowEvent, _: &mut AppContext) {
+        if let WindowEvent::Focused(false) = event {
+            self.pressed_modifier = None;
+        }
+    }
+
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update {
             let notify_single = self.single_click.has_listeners();
@@ -473,11 +479,7 @@ impl AppExtension for GestureManager {
                         }
                         ElementState::Released => {
                             if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                                // windows captures the key press that completes shortcuts like ALT+TAB
-                                // so from our perspective only ALT was pressed and released.
-                                //
-                                // TODO detect such situations.
-                                if Some(mod_gesture) == self.pressed_modifier {
+                                if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
                                     ctx.updates.push_notify(
                                         self.shortcut_input.clone(),
                                         ShortcutArgs::now(
@@ -487,7 +489,6 @@ impl AppExtension for GestureManager {
                                             args.target.clone(),
                                         ),
                                     );
-                                    self.pressed_modifier = None;
                                 }
                             }
                         }
