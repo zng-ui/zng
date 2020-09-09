@@ -379,6 +379,7 @@ event! {
 /// * [SingleClickEvent]
 /// * [DoubleClickEvent]
 /// * [TripleClickEvent]
+/// * [ShortcutEvent]
 pub struct GestureManager {
     key_input: EventListener<KeyInputArgs>,
     mouse_click: EventListener<MouseClickArgs>,
@@ -467,11 +468,15 @@ impl AppExtension for GestureManager {
                                 );
                                 self.pressed_modifier = None;
                             } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                                self.pressed_modifier = Some(mod_gesture)
+                                self.pressed_modifier = Some(mod_gesture);
                             }
                         }
                         ElementState::Released => {
                             if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
+                                // windows captures the key press that completes shortcuts like ALT+TAB
+                                // so from our perspective only ALT was pressed and released.
+                                //
+                                // TODO detect such situations.
                                 if Some(mod_gesture) == self.pressed_modifier {
                                     ctx.updates.push_notify(
                                         self.shortcut_input.clone(),
