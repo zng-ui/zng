@@ -137,10 +137,11 @@ pub mod prelude {
         gesture::shortcut,
         render::WidgetPath,
         types::{
-            formatx, rotate, BorderRadius, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight, LayoutPoint,
-            LayoutRect, LayoutSideOffsets, LayoutSize, ModifiersState, MouseButton, Text, ToText, Units, VirtualKeyCode, WidgetId,
+            formatx, rotate, BorderRadius, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight,
+            ModifiersState, MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
+        units::{AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size},
         var::{merge_var, switch_var, var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,

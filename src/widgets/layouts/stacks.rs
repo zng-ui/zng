@@ -1,8 +1,8 @@
 use crate::core::{
-    context::WidgetContext,
+    context::{LayoutContext, WidgetContext},
     render::FrameBuilder,
-    types::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid},
     ui_vec,
+    units::{LayoutPoint, LayoutRect, LayoutSize},
     var::{IntoVar, LocalVar},
     UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
 };
@@ -58,16 +58,16 @@ impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
     }
 
     #[UiNode]
-    fn measure(&mut self, mut available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+    fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         *D::lengths_mut(&mut available_size).0 = LAYOUT_ANY_SIZE;
 
         let mut total_size = LayoutSize::zero();
         let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
-        let spacing = pixels.snap(*self.spacing.get_local());
+        let spacing = ctx.pixel_grid().snap(*self.spacing.get_local());
         let mut first = true;
 
         for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {
-            r.size = child.measure(available_size, pixels);
+            r.size = child.measure(available_size, ctx);
 
             let origin = D::origin_mut(&mut r.origin);
             *origin = *total_len;
@@ -86,12 +86,12 @@ impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
     }
 
     #[UiNode]
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         let max_ort_len = D::ort_length(final_size);
         for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {
             let mut size = r.size;
             *D::lengths_mut(&mut size).1 = max_ort_len;
-            child.arrange(size, pixels);
+            child.arrange(size, ctx);
         }
     }
 

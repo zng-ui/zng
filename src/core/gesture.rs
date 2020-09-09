@@ -1,6 +1,9 @@
 //! Aggregate events.
 
-use super::var::{IntoVar, OwnedVar};
+use super::{
+    units::LayoutPoint,
+    var::{IntoVar, OwnedVar},
+};
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;

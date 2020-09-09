@@ -6,6 +6,7 @@ use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::types::Text;
 use crate::core::types::*;
+use crate::core::units::*;
 use crate::core::var::{context_var, IntoVar, ObjVar, Var};
 use crate::core::{UiNode, Widget};
 use std::{borrow::Cow, fmt, rc::Rc};
@@ -89,8 +90,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
     }
 
-    fn measure(&mut self, _: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        self.aligned_size(pixels)
+    fn measure(&mut self, _: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        self.aligned_size(ctx.pixel_grid())
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

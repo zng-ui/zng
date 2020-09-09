@@ -9,6 +9,8 @@ use crate::core::window::Windows;
 use std::num::NonZeroU8;
 use std::time::*;
 
+use super::units::LayoutPoint;
+
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
 event_args! {

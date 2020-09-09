@@ -4,6 +4,7 @@ use derive_more as dm;
 use std::f32::consts::*;
 
 use super::context::LayoutContext;
+use crate::core::var::{IntoVar, OwnedVar};
 
 const TAU: f32 = 2.0 * PI;
 
@@ -12,7 +13,7 @@ const TAU: f32 = 2.0 * PI;
 /// See [`AngleUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{} rad", self.0)]
-pub struct AngleRadian(f32);
+pub struct AngleRadian(pub f32);
 impl AngleRadian {
     /// Radians in `[0.0 ..= TAU]`.
     #[inline]
@@ -619,6 +620,166 @@ impl SideOffsets {
 
 /// Computed [`SideOffsets`].
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
+
+// TODO
+/// for uniform
+impl IntoVar<LayoutSideOffsets> for f32 {
+    type Var = OwnedVar<LayoutSideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(LayoutSideOffsets::new_all_same(self))
+    }
+}
+
+///for (top-bottom, left-right)
+impl IntoVar<LayoutSideOffsets> for (f32, f32) {
+    type Var = OwnedVar<LayoutSideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(LayoutSideOffsets::new(self.0, self.1, self.0, self.1))
+    }
+}
+
+///for (top, right, bottom, left)
+impl IntoVar<LayoutSideOffsets> for (f32, f32, f32, f32) {
+    type Var = OwnedVar<LayoutSideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(LayoutSideOffsets::new(self.0, self.1, self.2, self.3))
+    }
+}
+
+impl IntoVar<LayoutPoint> for (f32, f32) {
+    type Var = OwnedVar<LayoutPoint>;
+
+    fn into_var(self) -> Self::Var {
+        let (x, y) = self;
+        OwnedVar(LayoutPoint::new(x, y))
+    }
+}
+
+impl IntoVar<LayoutSize> for (f32, f32) {
+    type Var = OwnedVar<LayoutSize>;
+
+    fn into_var(self) -> Self::Var {
+        let (w, h) = self;
+        OwnedVar(LayoutSize::new(w, h))
+    }
+}
+
+impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
+    type Var = OwnedVar<LayoutRect>;
+
+    fn into_var(self) -> Self::Var {
+        let (x, y, w, h) = self;
+        OwnedVar(LayoutRect::new(LayoutPoint::new(x, y), LayoutSize::new(w, h)))
+    }
+}
+
+/// A device pixel scale factor used for pixel alignment.
+///
+/// Types that can be aligned with this grid implement [`PixelGridExt`].
+#[derive(Copy, Clone, Debug)]
+pub struct PixelGrid {
+    pub scale_factor: f32,
+}
+impl PixelGrid {
+    #[inline]
+    pub fn new(scale_factor: f32) -> Self {
+        PixelGrid { scale_factor }
+    }
+
+    /// Aligns the layout value `n` using this algorithm:
+    ///
+    /// scaled `n` | op
+    /// -----------|------------------------
+    /// < 0.01     | floor (`0`)
+    /// < 1.0      | ceil (`1` pixel)
+    /// >= 1.0     | round to nearest pixel
+    #[inline]
+    pub fn snap(self, layout_value: f32) -> f32 {
+        let px = layout_value * self.scale_factor;
+        if px < 0.01 {
+            0.0
+        } else if px < 1.0 {
+            1.0 / self.scale_factor
+        } else {
+            px.round() / self.scale_factor
+        }
+    }
+
+    /// Checks if the layout value is aligned with this grid.
+    #[inline]
+    pub fn is_aligned(self, layout_value: f32) -> bool {
+        let scaled = layout_value * self.scale_factor;
+        (scaled - scaled.round()).abs() < 0.0001
+    }
+}
+impl Default for PixelGrid {
+    /// `1.0` scale factor.
+    #[inline]
+    fn default() -> Self {
+        PixelGrid::new(1.0)
+    }
+}
+impl PartialEq for PixelGrid {
+    fn eq(&self, other: &Self) -> bool {
+        (self.scale_factor - other.scale_factor).abs() < 0.01
+    }
+}
+
+/// Methods for types that can be aligned to a [`PixelGrid`].
+pub trait PixelGridExt {
+    /// Gets a copy of self that is aligned with the pixel grid.
+    fn snap_to(self, grid: PixelGrid) -> Self;
+    /// Checks if self is aligned with the pixel grid.
+    fn is_aligned_to(self, grid: PixelGrid) -> bool;
+}
+impl PixelGridExt for LayoutPoint {
+    #[inline]
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutPoint::new(grid.snap(self.x), grid.snap(self.y))
+    }
+    #[inline]
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.x) && grid.is_aligned(self.y)
+    }
+}
+impl PixelGridExt for LayoutSize {
+    #[inline]
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutSize::new(grid.snap(self.width), grid.snap(self.height))
+    }
+    #[inline]
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.width) && grid.is_aligned(self.height)
+    }
+}
+impl PixelGridExt for LayoutRect {
+    #[inline]
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutRect::new(self.origin.snap_to(grid), self.size.snap_to(grid))
+    }
+    #[inline]
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
+    }
+}
+impl PixelGridExt for LayoutSideOffsets {
+    #[inline]
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutSideOffsets::new(
+            grid.snap(self.top),
+            grid.snap(self.right),
+            grid.snap(self.bottom),
+            grid.snap(self.left),
+        )
+    }
+    #[inline]
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
+    }
+}
 
 #[cfg(test)]
 mod tests {

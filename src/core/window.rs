@@ -6,11 +6,12 @@ use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     color::Color,
     context::{
-        AppContext, AppInitContext, AppService, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Updates, Vars,
-        WidgetContext, WindowServices, WindowState,
+        AppContext, AppInitContext, AppService, LayoutContext, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Updates,
+        Vars, WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
-    types::{FrameId, LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Text, WidgetId, WindowEvent, WindowId},
+    types::{FrameId, Text, WidgetId, WindowEvent, WindowId},
+    units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
     UiNode,
 };
@@ -1020,9 +1021,11 @@ impl OpenWindow {
 
             let available_size = self.size();
             let pixels = self.pixel_grid();
+            //TODO root font size
+            let mut layout_ctx = LayoutContext::new(12.0, available_size, pixels);
 
-            ctx.root.child.measure(available_size, pixels);
-            ctx.root.child.arrange(available_size, pixels);
+            ctx.root.child.measure(available_size, &mut layout_ctx);
+            ctx.root.child.arrange(available_size, &mut layout_ctx);
         }
     }
 

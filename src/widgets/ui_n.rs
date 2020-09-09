@@ -1,7 +1,7 @@
 use crate::core::{
-    context::WidgetContext,
+    context::{LayoutContext, WidgetContext},
     render::FrameBuilder,
-    types::{LayoutSize, PixelGrid},
+    units::LayoutSize,
     UiNode,
 };
 
@@ -37,15 +37,15 @@ macro_rules! ui_n {
                 }
             }
 
-            fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+            fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.measure(available_size, pixels),)+
+                    $($UiEnum::$UiNode(ui) => ui.measure(available_size, ctx),)+
                 }
             }
 
-            fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+            fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
                 match self {
-                    $($UiEnum::$UiNode(ui) => ui.arrange(final_size, pixels),)+
+                    $($UiEnum::$UiNode(ui) => ui.arrange(final_size, ctx),)+
                 }
             }
 

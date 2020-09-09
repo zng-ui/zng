@@ -20,9 +20,10 @@ pub mod window;
 
 pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
 
-use context::{LazyStateMap, WidgetContext};
+use context::{LayoutContext, LazyStateMap, WidgetContext};
 use render::FrameBuilder;
-use types::{LayoutSize, PixelGrid, WidgetId};
+use types::WidgetId;
+use units::LayoutSize;
 
 /// An Ui tree node.
 pub trait UiNode: 'static {
@@ -52,18 +53,19 @@ pub trait UiNode: 'static {
     /// # Arguments
     /// * `available_size`: The total available size for the node. Can contain positive infinity to
     /// indicate the parent will accommodate [any size](is_layout_any_size). Finite values are pixel aligned.
-    /// * `pixels`: The pixel grid the return value must align too.
+    /// * `ctx`: Measure context.
     ///
     /// # Return
     /// Return the nodes desired size. Must not contain infinity or NaN. Must be pixel aligned.
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize;
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize;
 
     /// Called every time a layout update is needed, after [`measure`](UiNode::measure).
     ///
     /// # Arguments
     /// * `final_size`: The size the parent node reserved for the node. Must reposition its contents
     /// to fit this size. The value does not contain infinity or NaNs and is pixel aligned.
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid);
+    /// TODO args docs.
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext);
 
     /// Called every time a new frame must be rendered.
     ///
@@ -116,9 +118,9 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.size = final_size;
-        self.child.arrange(final_size, pixels);
+        self.child.arrange(final_size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -194,7 +196,7 @@ impl Widget for Box<dyn Widget> {
 pub struct NilUiNode;
 #[impl_ui_node(none)]
 impl UiNode for NilUiNode {
-    fn measure(&mut self, _: LayoutSize, _: PixelGrid) -> LayoutSize {
+    fn measure(&mut self, _: LayoutSize, _: &mut LayoutContext) -> LayoutSize {
         LayoutSize::zero()
     }
 }

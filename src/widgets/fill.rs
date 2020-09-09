@@ -1,7 +1,8 @@
 use crate::core::color::Color;
 use crate::core::context::*;
 use crate::core::render::*;
-use crate::core::types::*;
+use crate::core::types::GradientStop;
+use crate::core::units::*;
 use crate::core::var::*;
 use crate::core::{impl_ui_node, profiler::profile_scope, UiNode};
 
@@ -39,7 +40,7 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> U
         }
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, _: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
         self.render_start.x /= self.final_size.width;
         self.render_start.y /= self.final_size.height;
         self.render_end.x /= self.final_size.width;
@@ -95,7 +96,7 @@ impl<C: LocalVar<Color>> UiNode for FillColorNode<C> {
             ctx.updates.push_render();
         }
     }
-    fn arrange(&mut self, final_size: LayoutSize, _: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
         self.final_size = final_size;
     }
 

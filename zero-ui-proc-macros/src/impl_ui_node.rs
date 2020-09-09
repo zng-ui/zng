@@ -188,9 +188,9 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
 
         [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) { }]
 
-        [fn arrange(&mut self, final_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) { }]
+        [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) { }]
 
-        [fn measure(&mut self, available_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) -> #crate_::core::types::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
             let mut size = available_size;
 
             if #crate_::core::is_layout_any_size(size.width) {
@@ -234,14 +234,14 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
             child.render(frame)
         }]
 
-        [fn arrange(&mut self, final_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) {
+        [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) {
             let child = {#borrow_mut};
-            child.arrange(final_size, pixels)
+            child.arrange(final_size, ctx)
         }]
 
-        [fn measure(&mut self, available_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) -> #crate_::core::types::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
             let child = {#borrow_mut};
-            child.measure(available_size, pixels)
+            child.measure(available_size, ctx)
         }]
     }
 }
@@ -279,16 +279,16 @@ fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, i
             }
         }]
 
-        [fn arrange(&mut self, final_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) {
+        [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) {
             for child in {#iter_mut} {
-                child.arrange(final_size, pixels)
+                child.arrange(final_size, ctx)
             }
         }]
 
-        [fn measure(&mut self, available_size: #crate_::core::types::LayoutSize, pixels: #crate_::core::types::PixelGrid) -> #crate_::core::types::LayoutSize {
+        [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
             let mut size = Default::default();
             for child in #iter_mut {
-                size = child.measure(available_size, pixels).max(size);
+                size = child.measure(available_size, ctx).max(size);
             }
             size
         }]

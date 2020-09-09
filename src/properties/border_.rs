@@ -2,6 +2,7 @@ use crate::core::color::Color;
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
+use crate::core::units::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
@@ -253,17 +254,17 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
         }
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        self.final_widths = self.widths.get_local().snap_to(pixels);
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        self.final_widths = self.widths.get_local().snap_to(ctx.pixel_grid());
         let size_inc = self.size_increment();
-        self.child.measure(available_size - size_inc, pixels) + size_inc
+        self.child.measure(available_size - size_inc, ctx) + size_inc
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
         self.child_rect.size = final_size - self.size_increment();
         self.final_size = final_size;
-        self.child.arrange(self.child_rect.size, pixels);
+        self.child.arrange(self.child_rect.size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

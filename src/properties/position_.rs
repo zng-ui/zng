@@ -1,6 +1,10 @@
-use crate::core::{context::WidgetContext, impl_ui_node, property, render::FrameBuilder};
 use crate::core::{
-    types::*,
+    context::{LayoutContext, WidgetContext},
+    impl_ui_node, property,
+    render::FrameBuilder,
+};
+use crate::core::{
+    units::*,
     var::{IntoVar, LocalVar},
     UiNode,
 };
@@ -24,9 +28,9 @@ impl<T: UiNode, P: LocalVar<LayoutPoint>> UiNode for PositionNode<T, P> {
         self.child.update(ctx);
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
-        self.child.arrange(final_size, pixels);
-        self.final_position = self.position.get_local().snap_to(pixels)
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.child.arrange(final_size, ctx);
+        self.final_position = self.position.get_local().snap_to(ctx.pixel_grid())
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

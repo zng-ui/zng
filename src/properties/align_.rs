@@ -1,7 +1,8 @@
 use crate::core::{
+    context::LayoutContext,
     context::WidgetContext,
     render::FrameBuilder,
-    types::*,
+    units::*,
     var::{IntoVar, LocalVar},
     UiNode,
 };
@@ -67,15 +68,15 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for AlignNode<T, A> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        self.child_rect.size = self.child.measure(available_size, pixels);
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        self.child_rect.size = self.child.measure(available_size, ctx);
         self.child_rect.size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.final_size = final_size;
         self.child_rect.size = final_size.min(self.child_rect.size);
-        self.child.arrange(self.child_rect.size, pixels);
+        self.child.arrange(self.child_rect.size, ctx);
 
         let alignment = self.alignment.get_local();
 
@@ -83,7 +84,7 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for AlignNode<T, A> {
             (final_size.width - self.child_rect.size.width) * alignment.0,
             (final_size.height - self.child_rect.size.height) * alignment.1,
         )
-        .snap_to(pixels);
+        .snap_to(ctx.pixel_grid());
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

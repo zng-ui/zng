@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::{types::PixelGrid, units::LayoutSize};
+use super::units::{LayoutSize, PixelGrid};
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::types::{WidgetId, WindowId};
@@ -1357,6 +1357,7 @@ impl WidgetContextPath {
 }
 
 /// A widget layout context.
+#[derive(Debug)]
 pub struct LayoutContext {
     font_size: f32,
     root_font_size: f32,

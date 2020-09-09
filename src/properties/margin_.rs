@@ -1,7 +1,8 @@
 use crate::core::{
+    context::LayoutContext,
     context::WidgetContext,
     render::FrameBuilder,
-    types::*,
+    units::*,
     var::{IntoVar, LocalVar},
     UiNode,
 };
@@ -27,17 +28,17 @@ impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for MarginNode<T, M> {
         self.child.update(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let margin = self.margin.get_local().snap_to(pixels);
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let margin = self.margin.get_local().snap_to(ctx.pixel_grid());
         self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
         self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
-        self.child.measure(available_size - self.size_increment, pixels) + self.size_increment
+        self.child.measure(available_size - self.size_increment, ctx) + self.size_increment
     }
 
-    fn arrange(&mut self, mut final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
         final_size -= self.size_increment;
         self.child_rect.size = final_size;
-        self.child.arrange(final_size, pixels);
+        self.child.arrange(final_size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

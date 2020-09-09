@@ -6,7 +6,7 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
-use crate::core::types::{LayoutSize, PixelGrid};
+use crate::core::units::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 use std::fmt;
@@ -462,9 +462,9 @@ pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'stat
 }
 
 #[derive(Debug)]
-pub struct OnArrangeArgs {
+pub struct OnArrangeArgs<'c> {
     pub final_size: LayoutSize,
-    pub pixel_grid: PixelGrid,
+    pub ctx: &'c mut LayoutContext,
 }
 
 struct OnArrangeNode<C: UiNode, F: FnMut(OnArrangeArgs)> {
@@ -473,9 +473,9 @@ struct OnArrangeNode<C: UiNode, F: FnMut(OnArrangeArgs)> {
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrangeNode<C, F> {
-    fn arrange(&mut self, final_size: LayoutSize, pixel_grid: PixelGrid) {
-        self.child.arrange(final_size, pixel_grid);
-        (self.handler)(OnArrangeArgs { final_size, pixel_grid });
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.child.arrange(final_size, ctx);
+        (self.handler)(OnArrangeArgs { final_size, ctx });
     }
 }
 
@@ -485,10 +485,10 @@ pub fn on_arrange(child: impl UiNode, handler: impl FnMut(OnArrangeArgs) + 'stat
 }
 
 #[derive(Debug)]
-pub struct OnMeasureArgs {
+pub struct OnMeasureArgs<'c> {
     pub available_size: LayoutSize,
     pub desired_size: LayoutSize,
-    pub pixel_grid: PixelGrid,
+    pub ctx: &'c mut LayoutContext,
 }
 
 struct OnMeasureNode<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
@@ -497,16 +497,14 @@ struct OnMeasureNode<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize> {
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMeasureNode<C, F> {
-    fn measure(&mut self, available_size: LayoutSize, pixel_grid: PixelGrid) -> LayoutSize {
-        let mut args = OnMeasureArgs {
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let desired_size = self.child.measure(available_size, ctx);
+
+        (self.handler)(OnMeasureArgs {
             available_size,
-            desired_size: LayoutSize::zero(),
-            pixel_grid,
-        };
-
-        args.desired_size = self.child.measure(available_size, pixel_grid);
-
-        (self.handler)(args)
+            desired_size,
+            ctx,
+        })
     }
 }
 

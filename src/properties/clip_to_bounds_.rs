@@ -1,7 +1,7 @@
 use crate::core::{
-    context::WidgetContext,
+    context::{LayoutContext, WidgetContext},
     render::FrameBuilder,
-    types::*,
+    units::*,
     var::{IntoVar, LocalVar},
     UiNode,
 };
@@ -28,9 +28,9 @@ impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBoundsNode<T, S> {
         self.child.update(ctx);
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.bounds = final_size;
-        self.child.arrange(final_size, pixels)
+        self.child.arrange(final_size, ctx)
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

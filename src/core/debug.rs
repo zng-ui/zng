@@ -2,10 +2,11 @@
 //! Helper types for debugging an UI tree.
 
 use super::{
+    context::LayoutContext,
     context::{state_key, WidgetContext},
     impl_ui_node,
     render::{FrameBuilder, FrameInfo, WidgetInfo},
-    types::*,
+    units::LayoutSize,
     var::{context_var, BoxVar, ObjVar, Var, VarValue},
     UiNode,
 };
@@ -517,18 +518,18 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.update, ctx, mut info);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         let t = Instant::now();
-        let r = self.child.measure(available_size, pixels);
+        let r = self.child.measure(available_size, ctx);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.measure = d;
         info.count.measure += 1;
         r
     }
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         let t = Instant::now();
-        self.child.arrange(final_size, pixels);
+        self.child.arrange(final_size, ctx);
         let d = t.elapsed();
         let mut info = self.info.borrow_mut();
         info.duration.arrange = d;

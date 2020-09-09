@@ -3,6 +3,7 @@ use crate::core::color::Color;
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
+use crate::core::units::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
@@ -34,15 +35,15 @@ impl<T: UiNode, B: UiNode> UiNode for BackgroundNode<T, B> {
         self.child.update_hp(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let available_size = self.child.measure(available_size, pixels);
-        self.background.measure(available_size, pixels);
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let available_size = self.child.measure(available_size, ctx);
+        self.background.measure(available_size, ctx);
         available_size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
-        self.background.arrange(final_size, pixels);
-        self.child.arrange(final_size, pixels);
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.background.arrange(final_size, ctx);
+        self.child.arrange(final_size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -104,15 +105,15 @@ impl<T: UiNode, B: UiNode> UiNode for ForegroundNode<T, B> {
         self.foreground.update_hp(ctx);
     }
 
-    fn measure(&mut self, available_size: LayoutSize, pixels: PixelGrid) -> LayoutSize {
-        let available_size = self.child.measure(available_size, pixels);
-        self.foreground.measure(available_size, pixels);
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let available_size = self.child.measure(available_size, ctx);
+        self.foreground.measure(available_size, ctx);
         available_size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, pixels: PixelGrid) {
-        self.foreground.arrange(final_size, pixels);
-        self.child.arrange(final_size, pixels);
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.foreground.arrange(final_size, ctx);
+        self.child.arrange(final_size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

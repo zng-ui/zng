@@ -2,6 +2,7 @@ use crate::core::color::{rgb, Color};
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
+use crate::core::units::*;
 use crate::core::var::*;
 use crate::{
     core::{impl_ui_node, is_layout_any_size, widget, UiNode, Widget},
@@ -53,7 +54,7 @@ impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Co
     }
 
     #[UiNode]
-    fn measure(&mut self, _: LayoutSize, pixels: PixelGrid) -> LayoutSize {
+    fn measure(&mut self, _: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         if is_layout_any_size(*self.length.get_local()) {
             // if length is infinity we use the available size.
             match *self.orientation.get_local() {
@@ -65,12 +66,12 @@ impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Co
                 }
             }
         }
-        self.bounds = self.bounds.snap_to(pixels);
+        self.bounds = self.bounds.snap_to(ctx.pixel_grid());
         self.bounds
     }
 
     #[UiNode]
-    fn arrange(&mut self, final_size: LayoutSize, _: PixelGrid) {
+    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
         if is_layout_any_size(*self.length.get_local()) {
             match *self.orientation.get_local() {
                 LineOrientation::Vertical => {

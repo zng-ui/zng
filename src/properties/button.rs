@@ -1,6 +1,6 @@
 use crate::core::color::Color;
 use crate::core::property;
-use crate::core::types::*;
+use crate::core::units::*;
 use crate::core::var::IntoVar;
 use crate::core::UiNode;
 use crate::properties::{with_context_var, BorderDetails};

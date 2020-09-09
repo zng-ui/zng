@@ -45,7 +45,7 @@ widget! {
         position: {
             // use shared var in debug to allow inspecting the value.
             #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::types::LayoutPoint::new(f32::NAN, f32::NAN));
+            let r = crate::core::var::var(crate::core::units::LayoutPoint::new(f32::NAN, f32::NAN));
 
             #[cfg(not(debug_assertions))]
             let r = (f32::NAN, f32::NAN);
@@ -59,7 +59,7 @@ widget! {
         /// Does not include the OS window border.
         size: {
             #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::types::LayoutSize::new(800.0, 600.0));
+            let r = crate::core::var::var(crate::core::units::LayoutSize::new(800.0, 600.0));
 
             #[cfg(not(debug_assertions))]
             let r = (800.0, 600.0);
