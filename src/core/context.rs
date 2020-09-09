@@ -1,6 +1,6 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::types::PixelGrid;
+use super::{types::PixelGrid, units::LayoutSize};
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::types::{WidgetId, WindowId};
@@ -1359,11 +1359,22 @@ impl WidgetContextPath {
 /// A widget layout context.
 pub struct LayoutContext {
     font_size: f32,
+    root_font_size: f32,
     pixel_grid: PixelGrid,
-    //TODO
+    viewport_size: LayoutSize,
 }
 
 impl LayoutContext {
+    #[inline]
+    pub fn new(root_font_size: f32, viewport_size: LayoutSize, pixel_grid: PixelGrid) -> Self {
+        LayoutContext {
+            font_size: root_font_size,
+            root_font_size,
+            viewport_size,
+            pixel_grid,
+        }
+    }
+
     /// Current computed font size.
     #[inline]
     pub fn font_size(&self) -> f32 {
@@ -1371,8 +1382,28 @@ impl LayoutContext {
     }
 
     #[inline]
+    pub fn root_font_size(&self) -> f32 {
+        self.root_font_size
+    }
+
+    #[inline]
     pub fn pixel_grid(&self) -> PixelGrid {
         self.pixel_grid
+    }
+
+    #[inline]
+    pub fn viewport_size(&self) -> LayoutSize {
+        self.viewport_size
+    }
+
+    #[inline]
+    pub fn viewport_min(&self) -> f32 {
+        self.viewport_size.width.min(self.viewport_size.height)
+    }
+
+    #[inline]
+    pub fn viewport_max(&self) -> f32 {
+        self.viewport_size.width.max(self.viewport_size.height)
     }
 
     /// Runs a function `f` within a context that has the new computed font size.

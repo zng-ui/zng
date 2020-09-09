@@ -303,22 +303,23 @@ impl Length {
     }
 
     /// Compute the length at a context.
-    pub fn to_layout(self, orientation: Orientation, ctx: &LayoutContext) -> LayoutLength {
-        todo!()
+    pub fn to_layout(self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
+        let l = match self {
+            Length::Exact(l) => l,
+            Length::Relative(s) => available_size.get() * s.0,
+            Length::Em(s) => ctx.font_size() * s.0,
+            Length::RootEm(s) => ctx.root_font_size() * s.0,
+            Length::ViewportWidth(p) => p * ctx.viewport_size().width / 100.0,
+            Length::ViewportHeight(p) => p * ctx.viewport_size().height / 100.0,
+            Length::ViewportMin(p) => p * ctx.viewport_min() / 100.0,
+            Length::ViewportMax(p) => p * ctx.viewport_max() / 100.0,
+        };
+        LayoutLength::new(ctx.pixel_grid().snap(l))
     }
 }
 
-/// Orientation of a line.
-#[derive(Copy, Clone, Debug)]
-pub enum Orientation {
-    /// Length grows left-to-right.
-    Horizontal,
-    /// Length grows top-to-bottom.
-    Vertical,
-}
-
 /// Computed [`Length`].
-pub type LayoutLength = f32;
+pub type LayoutLength = euclid::Length<f32, webrender::api::units::LayoutPixel>;
 
 /// Extension methods for initializing [`Length`] units.
 ///
@@ -451,10 +452,10 @@ impl Point {
 
     /// Compute the point in a context.
     #[inline]
-    pub fn to_layout(self, ctx: &LayoutContext) -> LayoutPoint {
-        LayoutPoint::new(
-            self.x.to_layout(Orientation::Horizontal, ctx),
-            self.y.to_layout(Orientation::Vertical, ctx),
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutPoint {
+        LayoutPoint::from_lengths(
+            self.x.to_layout(LayoutLength::new(available_size.width), ctx),
+            self.y.to_layout(LayoutLength::new(available_size.height), ctx),
         )
     }
 }
@@ -488,10 +489,15 @@ impl Size {
     }
 
     #[inline]
-    pub fn to_layout(self, ctx: &LayoutContext) -> LayoutSize {
-        LayoutSize::new(
-            self.width.to_layout(Orientation::Horizontal, ctx),
-            self.height.to_layout(Orientation::Vertical, ctx),
+    pub fn to_tuple(self) -> (Length, Length) {
+        (self.width, self.height)
+    }
+
+    #[inline]
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSize {
+        LayoutSize::from_lengths(
+            self.width.to_layout(LayoutLength::new(available_size.width), ctx),
+            self.height.to_layout(LayoutLength::new(available_size.height), ctx),
         )
     }
 }
@@ -529,8 +535,8 @@ impl Rect {
     }
 
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutContext) -> LayoutRect {
-        LayoutRect::new(self.origin.to_layout(ctx), self.size.to_layout(ctx))
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
+        LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
     }
 }
 impl From<Size> for Rect {
@@ -599,12 +605,14 @@ impl SideOffsets {
     }
 
     #[inline]
-    pub fn to_layout(&self, ctx: &LayoutContext) -> LayoutSideOffsets {
-        LayoutSideOffsets::new(
-            self.top.to_layout(Orientation::Horizontal, ctx),
-            self.right.to_layout(Orientation::Vertical, ctx),
-            self.bottom.to_layout(Orientation::Horizontal, ctx),
-            self.left.to_layout(Orientation::Vertical, ctx),
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
+        let width = LayoutLength::new(available_size.width);
+        let height = LayoutLength::new(available_size.height);
+        LayoutSideOffsets::from_lengths(
+            self.top.to_layout(height, ctx),
+            self.right.to_layout(width, ctx),
+            self.bottom.to_layout(height, ctx),
+            self.left.to_layout(width, ctx),
         )
     }
 }
