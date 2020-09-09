@@ -21,37 +21,45 @@ fn main() {
             content_align: unset!;
             content: v_stack! {
                 items: ui_vec![
-                    h_stack! {
-                        alt_focus_scope: true;
-                        spacing: 5.0;
-                        margin: 5.0;
-                        items: ui_vec![
-                            example("alt", TabIndex::AUTO),
-                            example("scope", TabIndex::AUTO),
-                        ];
-                    },
-                    v_stack! {
-                        focus_scope: true;
-                        focus_shortcut: shortcut!(T);
-                        margin: (50.0, 0.0, 0.0, 0.0);
-                        align: Alignment::CENTER;
-                        spacing: 5.0;
-                        items: ui_vec![
-                            text! { text: "TabIndex (T)"; font_weight: FontWeight::BOLD; align: Alignment::CENTER; },
-                            example("Button 5", TabIndex(5)),
-                            example("Button 4", TabIndex(3)),
-                            example("Button 3", TabIndex(2)),
-                            example("Button 1", TabIndex(0)),
-                            example("Button 2", TabIndex(0)),
-                        ];
-                    }
+                    alt_scope(),
+                    normal_scope(),
                 ];
             };
         }
     })
 }
 
-fn example(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
+fn alt_scope() -> impl Widget {
+    h_stack! {
+        alt_focus_scope: true;
+        spacing: 5.0;
+        margin: 5.0;
+        items: ui_vec![
+            button("alt", TabIndex::AUTO),
+            button("scope", TabIndex::AUTO),
+        ];
+    }
+}
+
+fn normal_scope() -> impl Widget {
+    v_stack! {
+        focus_scope: true;
+        focus_shortcut: shortcut!(T);
+        margin: (50.0, 0.0, 0.0, 0.0);
+        align: Alignment::CENTER;
+        spacing: 5.0;
+        items: ui_vec![
+            text! { text: "TabIndex (T)"; font_weight: FontWeight::BOLD; align: Alignment::CENTER; },
+            button("Button 5", TabIndex(5)),
+            button("Button 4", TabIndex(3)),
+            button("Button 3", TabIndex(2)),
+            button("Button 1", TabIndex(0)),
+            button("Button 2", TabIndex(0)),
+        ];
+    }
+}
+
+fn button(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
     let content = content.into();
     button! {
         content: text(content.clone());
