@@ -460,6 +460,18 @@ impl Point {
         )
     }
 }
+impl<X: Into<Length>, Y: Into<Length>> From<(X, Y)> for Point {
+    fn from(t: (X, Y)) -> Self {
+        Point::new(t.0, t.1)
+    }
+}
+impl<X: Into<Length> + Clone, Y: Into<Length> + Clone> IntoVar<Point> for (X, Y) {
+    type Var = OwnedVar<Point>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
 
 /// Computed [`Point`].
 pub type LayoutPoint = webrender::api::units::LayoutPoint;
@@ -500,6 +512,18 @@ impl Size {
             self.width.to_layout(LayoutLength::new(available_size.width), ctx),
             self.height.to_layout(LayoutLength::new(available_size.height), ctx),
         )
+    }
+}
+impl<W: Into<Length>, H: Into<Length>> From<(W, H)> for Size {
+    fn from(t: (W, H)) -> Self {
+        Size::new(t.0, t.1)
+    }
+}
+impl<W: Into<Length> + Clone, H: Into<Length> + Clone> IntoVar<Size> for (W, H) {
+    type Var = OwnedVar<Size>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
     }
 }
 
@@ -553,6 +577,42 @@ impl From<Rect> for Size {
 impl From<Rect> for Point {
     fn from(rect: Rect) -> Self {
         rect.origin
+    }
+}
+impl<O: Into<Point>, S: Into<Size>> From<(O, S)> for Rect {
+    fn from(t: (O, S)) -> Self {
+        Rect::new(t.0, t.1)
+    }
+}
+impl<X, Y, W, H> From<(X, Y, W, H)> for Rect
+where
+    X: Into<Length>,
+    Y: Into<Length>,
+    W: Into<Length>,
+    H: Into<Length>,
+{
+    fn from(t: (X, Y, W, H)) -> Self {
+        Rect::new((t.0, t.1), (t.2, t.3))
+    }
+}
+impl<O: Into<Point> + Clone, S: Into<Size> + Clone> IntoVar<Rect> for (O, S) {
+    type Var = OwnedVar<Rect>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl<X, Y, W, H> IntoVar<Rect> for (X, Y, W, H)
+where
+    X: Into<Length> + Clone,
+    Y: Into<Length> + Clone,
+    W: Into<Length> + Clone,
+    H: Into<Length> + Clone,
+{
+    type Var = OwnedVar<Rect>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
     }
 }
 
@@ -618,10 +678,75 @@ impl SideOffsets {
     }
 }
 
+/// all sides equal.
+impl<A: Into<Length>> From<A> for SideOffsets {
+    fn from(all: A) -> Self {
+        SideOffsets::new_all(all)
+    }
+}
+
+/// all sides equal.
+impl<A: Into<Length> + Clone> IntoVar<SideOffsets> for A {
+    type Var = OwnedVar<SideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(SideOffsets::new_all(self))
+    }
+}
+
+/// (top-bottom, left-right)
+impl<TB: Into<Length>, LR: Into<Length>> From<(TB, LR)> for SideOffsets {
+    fn from(t: (TB, LR)) -> Self {
+        SideOffsets::new_dimension(t.0, t.1)
+    }
+}
+
+/// (top-bottom, left-right)
+impl<TB, LR> IntoVar<SideOffsets> for (TB, LR)
+where
+    TB: Into<Length> + Clone,
+    LR: Into<Length> + Clone,
+{
+    type Var = OwnedVar<SideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+
+/// (top, right, bottom, left)
+impl<T, R, B, L> From<(T, R, B, L)> for SideOffsets
+where
+    T: Into<Length>,
+    R: Into<Length>,
+    B: Into<Length>,
+    L: Into<Length>,
+{
+    fn from(t: (T, R, B, L)) -> Self {
+        SideOffsets::new(t.0, t.1, t.2, t.3)
+    }
+}
+
+/// (top, right, bottom, left)
+impl<T, R, B, L> IntoVar<SideOffsets> for (T, R, B, L)
+where
+    T: Into<Length> + Clone,
+    R: Into<Length> + Clone,
+    B: Into<Length> + Clone,
+    L: Into<Length> + Clone,
+{
+    type Var = OwnedVar<SideOffsets>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+
 /// Computed [`SideOffsets`].
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
 
 // TODO
+
 /// for uniform
 impl IntoVar<LayoutSideOffsets> for f32 {
     type Var = OwnedVar<LayoutSideOffsets>;
