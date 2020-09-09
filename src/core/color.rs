@@ -154,6 +154,8 @@ impl From<FactorPercent> for RgbaComponent {
 
 pub use zero_ui_macros::hex_color as hex;
 
+//TODO use this https://gist.github.com/raineorshine/10394189 to generate a WebColors struct?
+
 #[test]
 fn test_hex_color() {
     fn f(n: u8) -> f32 {
