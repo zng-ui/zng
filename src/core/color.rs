@@ -1,6 +1,7 @@
 //! Color types.
 
 use super::units::*;
+use std::fmt;
 
 /// Webrender RGBA.
 pub type RenderColor = webrender::api::ColorF;
@@ -17,7 +18,6 @@ pub struct Rgba {
     /// [0.0..1.0]
     pub alpha: f32,
 }
-
 impl Rgba {
     /// See [`rgba`] for a better constructor.
     pub fn new(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
@@ -45,6 +45,19 @@ impl Rgba {
         self.into()
     }
 }
+impl fmt::Display for Rgba {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn i(n: f32) -> u8 {
+            (clamp_normal(n) * 255.0).round() as u8
+        }
+        let a = i(self.alpha);
+        if a == 255 {
+            write!(f, "rgb({}, {}, {})", i(self.red), i(self.green), i(self.blue))
+        } else {
+            write!(f, "rgba({}, {}, {}, {})", i(self.red), i(self.green), i(self.blue), a)
+        }
+    }
+}
 
 /// HSL + alpha.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -58,7 +71,6 @@ pub struct Hsla {
     /// [0.0..1.0]
     pub alpha: f32,
 }
-
 impl Hsla {
     pub fn lighten<A: Into<FactorNormal>>(self, ammount: A) -> Self {
         let mut lighter = self;
@@ -91,6 +103,20 @@ impl Hsla {
     #[inline]
     pub fn to_rgba(self) -> Rgba {
         self.into()
+    }
+}
+impl fmt::Display for Hsla {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn p(n: f32) -> u8 {
+            (clamp_normal(n) * 100.0).round() as u8
+        }
+        let a = p(self.alpha);
+        let h = AngleDegree(self.hue).modulo().0.round();
+        if a == 100 {
+            write!(f, "hsl({}º, {}%, {}%)", h, p(self.saturation), p(self.lightness))
+        } else {
+            write!(f, "hsla({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.lightness), a)
+        }
     }
 }
 
@@ -312,7 +338,9 @@ mod tests {
         // see https://stackoverflow.com/questions/39118528/rgb-to-hsl-conversion // implemented this one same exact result
         // https://www.rapidtables.com/convert/color/rgb-to-hsl.html
         let color = rgba(0, 100, 200, 0.2);
-        assert_eq!(color, color.to_hsla().to_rgba())
+        let a = color.to_string();
+        let b = color.to_hsla().to_rgba().to_string();
+        assert_eq!(a, b)
     }
 }
 
