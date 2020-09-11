@@ -340,6 +340,21 @@ mod tests {
         let b = color.to_hsla().to_rgba().to_string();
         assert_eq!(a, b)
     }
+
+    // #[test]
+    // fn rgb_to_hsl_all() {
+    //     for r in 0..=255 {
+    //         println!("{}", r);
+    //         for g in 0..=255 {
+    //             for b in 0..=255 {
+    //                 let color = rgb(r, g, b);
+    //                 let a = color.to_string();
+    //                 let b = color.to_hsla().to_rgba().to_string();
+    //                 assert_eq!(a, b)
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 /// [`rgb`] and [`rgba`] argument conversion helper.
