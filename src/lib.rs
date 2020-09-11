@@ -132,7 +132,7 @@ pub mod widgets;
 pub mod prelude {
     pub use crate::core::{
         app::App,
-        color::{rgb, rgba, Color},
+        color::{hex, hsl, hsla, rgb, rgba, web_colors, Rgba},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,

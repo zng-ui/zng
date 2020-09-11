@@ -1,4 +1,4 @@
-use crate::core::color::Color;
+use crate::core::color::{RenderColor, Rgba};
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
@@ -8,7 +8,7 @@ use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 use webrender::api as w_api;
 
-impl IntoVar<BorderDetails> for Color {
+impl IntoVar<BorderDetails> for Rgba {
     type Var = OwnedVar<BorderDetails>;
 
     fn into_var(self) -> Self::Var {
@@ -26,7 +26,7 @@ impl IntoVar<BorderDetails> for Color {
     }
 }
 
-impl IntoVar<BorderDetails> for (Color, BorderStyle) {
+impl IntoVar<BorderDetails> for (Rgba, BorderStyle) {
     type Var = OwnedVar<BorderDetails>;
 
     fn into_var(self) -> Self::Var {
@@ -44,13 +44,13 @@ impl IntoVar<BorderDetails> for (Color, BorderStyle) {
     }
 }
 
-impl<V: Var<Color>> IntoVar<BorderDetails> for (V, BorderStyle) {
+impl<V: Var<Rgba>> IntoVar<BorderDetails> for (V, BorderStyle) {
     #[allow(clippy::type_complexity)]
-    type Var = MapVar<Color, V, BorderDetails, Box<dyn FnMut(&Color) -> BorderDetails>>;
+    type Var = MapVar<Rgba, V, BorderDetails, Box<dyn FnMut(&Rgba) -> BorderDetails>>;
 
     fn into_var(self) -> Self::Var {
         let style = self.1;
-        self.0.map(Box::new(move |color: &Color| {
+        self.0.map(Box::new(move |color: &Rgba| {
             let border_side = BorderSide { color: *color, style };
             BorderDetails {
                 left: border_side,
@@ -80,32 +80,32 @@ pub enum BorderStyle {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderSide {
-    pub color: Color,
+    pub color: Rgba,
     pub style: BorderStyle,
 }
 impl BorderSide {
     #[inline]
     pub fn visible(&self) -> bool {
-        self.color.a > 0.0
+        self.color.alpha > 0.0
     }
 
     #[inline]
-    pub fn new(color: Color, style: BorderStyle) -> Self {
+    pub fn new(color: Rgba, style: BorderStyle) -> Self {
         BorderSide { color, style }
     }
 
     #[inline]
-    pub fn solid(color: Color) -> Self {
+    pub fn solid(color: Rgba) -> Self {
         Self::new(color, BorderStyle::Solid)
     }
 
     #[inline]
-    pub fn dotted(color: Color) -> Self {
+    pub fn dotted(color: Rgba) -> Self {
         Self::new(color, BorderStyle::Dotted)
     }
 
     #[inline]
-    pub fn dashed(color: Color) -> Self {
+    pub fn dashed(color: Rgba) -> Self {
         Self::new(color, BorderStyle::Dashed)
     }
 }
@@ -125,17 +125,17 @@ impl BorderDetails {
     }
 
     #[inline]
-    pub fn solid(color: Color) -> Self {
+    pub fn solid(color: Rgba) -> Self {
         Self::new_all_same(BorderSide::solid(color))
     }
 
     #[inline]
-    pub fn dotted(color: Color) -> Self {
+    pub fn dotted(color: Rgba) -> Self {
         Self::new_all_same(BorderSide::dotted(color))
     }
 
     #[inline]
-    pub fn dashed(color: Color) -> Self {
+    pub fn dashed(color: Rgba) -> Self {
         Self::new_all_same(BorderSide::dashed(color))
     }
 
@@ -150,8 +150,8 @@ impl BorderDetails {
         }
     }
 }
-impl From<Color> for BorderDetails {
-    fn from(color: Color) -> Self {
+impl From<Rgba> for BorderDetails {
+    fn from(color: Rgba) -> Self {
         BorderDetails::solid(color)
     }
 }
@@ -189,7 +189,7 @@ impl From<BorderStyle> for w_api::BorderStyle {
 impl From<BorderSide> for w_api::BorderSide {
     fn from(border_side: BorderSide) -> Self {
         w_api::BorderSide {
-            color: border_side.color,
+            color: border_side.color.into(),
             style: border_side.style.into(),
         }
     }
@@ -302,7 +302,7 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, detai
 
 fn border_details_none() -> w_api::BorderDetails {
     let side_none = w_api::BorderSide {
-        color: Color::BLACK,
+        color: RenderColor::BLACK,
         style: w_api::BorderStyle::None,
     };
 

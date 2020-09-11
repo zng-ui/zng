@@ -8,6 +8,8 @@ use ego_tree::Tree;
 use std::mem;
 use webrender::api::*;
 
+use super::color::RenderColor;
+
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
         #[cfg(debug_assertions)]
@@ -325,10 +327,10 @@ impl FrameBuilder {
 
     /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_color(&mut self, rect: LayoutRect, color: ColorF) {
+    pub fn push_color<C: Into<RenderColor>>(&mut self, rect: LayoutRect, color: C) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
-        self.display_list.push_rect(&self.common_item_properties(rect), color);
+        self.display_list.push_rect(&self.common_item_properties(rect), color.into());
     }
 
     /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).

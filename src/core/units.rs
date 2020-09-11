@@ -192,6 +192,13 @@ impl AngleUnits for u32 {
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 #[display(fmt = "{}%", self.0)]
 pub struct FactorPercent(pub f32);
+impl FactorPercent {
+    /// Clamp factor to [0.0..=100.0] range.
+    #[inline]
+    pub fn clamp_range(self) -> Self {
+        FactorPercent(self.0.max(0.0).min(100.0))
+    }
+}
 impl From<FactorNormal> for FactorPercent {
     fn from(n: FactorNormal) -> Self {
         FactorPercent(n.0 * 100.0)
@@ -203,6 +210,13 @@ impl From<FactorNormal> for FactorPercent {
 /// See [`FactorUnits`] for more details.
 #[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq, dm::From)]
 pub struct FactorNormal(pub f32);
+impl FactorNormal {
+    /// Clamp factor to [0.0..=1.0] range.
+    #[inline]
+    pub fn clamp_range(self) -> Self {
+        FactorNormal(self.0.max(0.0).min(1.0))
+    }
+}
 impl From<FactorPercent> for FactorNormal {
     fn from(percent: FactorPercent) -> Self {
         FactorNormal(percent.0 / 100.0)

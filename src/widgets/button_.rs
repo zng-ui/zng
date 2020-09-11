@@ -1,4 +1,4 @@
-use crate::core::color::{rgb, Color};
+use crate::core::color::{rgb, Rgba};
 use crate::core::units::LayoutSideOffsets;
 use crate::core::var::context_var;
 use crate::core::widget;
@@ -7,9 +7,9 @@ use crate::widgets::{container, mixins::focusable_mixin};
 
 context_var! {
     /// Default background of [`button!`](crate::widgets::button) widgets.
-    pub struct ButtonBackgroundVar: Color = once rgb(0.2, 0.2, 0.2);
-    pub struct ButtonBackgroundHoveredVar: Color = once rgb(0.25, 0.25, 0.25);
-    pub struct ButtonBackgroundPressedVar: Color = once rgb(0.3, 0.3, 0.3);
+    pub struct ButtonBackgroundVar: Rgba = once rgb(0.2, 0.2, 0.2);
+    pub struct ButtonBackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
+    pub struct ButtonBackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
 
     pub struct ButtonBorderWidthsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
     pub struct ButtonBorderWidthsHoveredVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);

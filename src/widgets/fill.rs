@@ -1,4 +1,4 @@
-use crate::core::color::Color;
+use crate::core::color::Rgba;
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::GradientStop;
@@ -82,12 +82,12 @@ pub fn fill_gradient(
     }
 }
 
-struct FillColorNode<C: LocalVar<Color>> {
+struct FillColorNode<C: LocalVar<Rgba>> {
     color: C,
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<C: LocalVar<Color>> UiNode for FillColorNode<C> {
+impl<C: LocalVar<Rgba>> UiNode for FillColorNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.color.init_local(ctx.vars);
     }
@@ -107,7 +107,7 @@ impl<C: LocalVar<Color>> UiNode for FillColorNode<C> {
 }
 
 /// Fill the widget area with a color.
-pub fn fill_color(color: impl IntoVar<Color>) -> impl UiNode {
+pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     FillColorNode {
         color: color.into_local(),
         final_size: LayoutSize::default(),

@@ -4,8 +4,9 @@ pub use webrender::api::units::LayoutTransform;
 
 pub use webrender::api::{BorderRadius, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
 
+use super::{color::Rgba, units::AngleRadian};
+use font_kit::family_name::FamilyName;
 pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
-
 pub use glutin::event::{
     DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode, WindowEvent,
 };
@@ -28,15 +29,22 @@ unique_id! {
 use crate::core::var::{IntoVar, OwnedVar};
 use std::{borrow::Cow, fmt};
 
-impl IntoVar<Vec<GradientStop>> for Vec<(f32, Color)> {
+impl IntoVar<Vec<GradientStop>> for Vec<(f32, Rgba)> {
     type Var = OwnedVar<Vec<GradientStop>>;
 
     fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_iter().map(|(offset, color)| GradientStop { offset, color }).collect())
+        OwnedVar(
+            self.into_iter()
+                .map(|(offset, color)| GradientStop {
+                    offset,
+                    color: color.into(),
+                })
+                .collect(),
+        )
     }
 }
 
-impl IntoVar<Vec<GradientStop>> for Vec<Color> {
+impl IntoVar<Vec<GradientStop>> for Vec<Rgba> {
     type Var = OwnedVar<Vec<GradientStop>>;
 
     fn into_var(self) -> Self::Var {
@@ -46,7 +54,7 @@ impl IntoVar<Vec<GradientStop>> for Vec<Color> {
                 .enumerate()
                 .map(|(i, color)| GradientStop {
                     offset: (i as f32) * point,
-                    color,
+                    color: color.into(),
                 })
                 .collect(),
         )
@@ -225,9 +233,6 @@ mod bezier {
         }
     }
 }
-
-use super::{color::Color, units::AngleRadian};
-use font_kit::family_name::FamilyName;
 
 /// A possible value for the `font_family` property.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

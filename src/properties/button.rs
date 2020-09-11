@@ -1,4 +1,4 @@
-use crate::core::color::Color;
+use crate::core::color::Rgba;
 use crate::core::property;
 use crate::core::units::*;
 use crate::core::var::IntoVar;
@@ -8,19 +8,19 @@ use crate::widgets::*;
 
 /// Sets the [`ButtonBackground`] context var.
 #[property(context)]
-pub fn button_background(child: impl UiNode, color: impl IntoVar<Color>) -> impl UiNode {
+pub fn button_background(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ButtonBackgroundVar, color)
 }
 
 /// Sets the [`ButtonBackgroundHovered`] context var.
 #[property(context)]
-pub fn button_background_hovered(child: impl UiNode, color: impl IntoVar<Color>) -> impl UiNode {
+pub fn button_background_hovered(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ButtonBackgroundHoveredVar, color)
 }
 
 /// Sets the [`ButtonBackgroundPressed`] context var.
 #[property(context)]
-pub fn button_background_pressed(child: impl UiNode, color: impl IntoVar<Color>) -> impl UiNode {
+pub fn button_background_pressed(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ButtonBackgroundPressedVar, color)
 }
 

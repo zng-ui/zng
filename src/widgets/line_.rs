@@ -1,4 +1,4 @@
-use crate::core::color::{rgb, Color};
+use crate::core::color::{rgb, Rgba};
 use crate::core::context::*;
 use crate::core::render::*;
 use crate::core::types::*;
@@ -10,7 +10,7 @@ use crate::{
 };
 use webrender::api as w_api;
 
-struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Color>, S: Var<LineStyle>> {
+struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Rgba>, S: Var<LineStyle>> {
     width: W,
     length: L,
     orientation: O,
@@ -20,7 +20,7 @@ struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: 
     bounds: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Color>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
+impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Rgba>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
     fn refresh(&mut self, ctx: &mut WidgetContext) {
         let length = *self.length.get(ctx.vars);
         let width = *self.width.get(ctx.vars);
@@ -88,15 +88,15 @@ impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Co
     fn render(&self, frame: &mut FrameBuilder) {
         let bounds = LayoutRect::from_size(self.bounds);
         let orientation = *self.orientation.get_local();
-        let color = self.color.get_local();
+        let color = *self.color.get_local();
         match self.render_command {
-            RenderLineCommand::Line(style, thickness) => frame.push_line(bounds, orientation, color, style, thickness),
+            RenderLineCommand::Line(style, thickness) => frame.push_line(bounds, orientation, &color.into(), style, thickness),
             RenderLineCommand::Border(style) => {
                 let widths = match orientation {
                     LineOrientation::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, self.bounds.width),
                     LineOrientation::Horizontal => LayoutSideOffsets::new(self.bounds.height, 0.0, 0.0, 0.0),
                 };
-                let details = BorderDetails::new_all_same(BorderSide { color: *color, style });
+                let details = BorderDetails::new_all_same(BorderSide { color, style });
 
                 frame.push_border(bounds, widths, details.into());
             }
@@ -145,7 +145,7 @@ pub fn line_w(
     orientation: impl IntoVar<LineOrientation> + 'static,
     length: impl IntoVar<f32> + 'static,
     width: impl IntoVar<f32> + 'static,
-    color: impl IntoVar<Color> + 'static,
+    color: impl IntoVar<Rgba> + 'static,
     style: impl IntoVar<LineStyle> + 'static,
 ) -> impl Widget {
     line_w! { orientation; length; width; color; style; }

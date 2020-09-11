@@ -1,4 +1,4 @@
-use crate::core::color::Color;
+use crate::core::color::Rgba;
 use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::IntoVar;
@@ -40,7 +40,7 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNod
 
 /// Sets the [`TextColorVar`] context var.
 #[property(context)]
-pub fn text_color(child: impl UiNode, color: impl IntoVar<Color>) -> impl UiNode {
+pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TextColorVar, color)
 }
 

@@ -1,4 +1,4 @@
-use crate::core::color::Color;
+use crate::core::color::{web_colors, Rgba};
 use crate::core::context::*;
 use crate::core::font::*;
 use crate::core::impl_ui_node;
@@ -18,7 +18,7 @@ struct TextNode<T: Var<Text>> {
     glyphs: Vec<GlyphInstance>,
     size: LayoutSize,
     font: Option<FontInstance>,
-    color: Color,
+    color: Rgba,
 }
 impl<T: Var<Text>> TextNode<T> {
     fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
@@ -101,7 +101,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             LayoutRect::from_size(size),
             &self.glyphs,
             self.font.as_ref().unwrap().instance_key(),
-            self.color,
+            self.color.into(),
             None,
         )
     }
@@ -130,7 +130,7 @@ context_var! {
     pub struct FontSizeVar: FontSize = const 14;
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColorVar: Color = const Color::WHITE;
+    pub struct TextColorVar: Rgba = const web_colors::WHITE;
 
     /// Text transformation function applied to [`text`](crate::widgets::text) spans.
     pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
@@ -222,7 +222,7 @@ widget! {
             glyphs: vec![],
             size: LayoutSize::default(),
             font: None,
-            color: Color::BLACK,
+            color: web_colors::BLACK,
         }
     }
 }

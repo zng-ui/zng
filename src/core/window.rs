@@ -4,7 +4,7 @@ use super::event::*;
 use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
-    color::Color,
+    color::Rgba,
     context::{
         AppContext, AppInitContext, AppService, LayoutContext, LazyStateMap, UpdateDisplayRequest, UpdateNotifier, UpdateRequest, Updates,
         Vars, WidgetContext, WindowServices, WindowState,
@@ -682,7 +682,7 @@ pub struct Window {
     title: BoxLocalVar<Text>,
     position: BoxVar<LayoutPoint>,
     size: BoxVar<LayoutSize>,
-    background_color: BoxLocalVar<Color>,
+    background_color: BoxLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
 
@@ -692,7 +692,7 @@ impl Window {
         title: impl IntoVar<Text>,
         position: impl IntoVar<LayoutPoint>,
         size: impl IntoVar<LayoutSize>,
-        background_color: impl IntoVar<Color>,
+        background_color: impl IntoVar<Rgba>,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -715,7 +715,7 @@ pub struct OpenWindow {
     renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    clear_color: Color,
+    clear_color: Rgba,
 
     first_draw: bool,
     frame_info: FrameInfo,
@@ -773,7 +773,7 @@ impl OpenWindow {
 
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
-            clear_color: Some(clear_color),
+            clear_color: Some(clear_color.into()),
             workers: Some(ui_threads),
             ..webrender::RendererOptions::default()
         };
@@ -1067,7 +1067,7 @@ impl OpenWindow {
             self.frame_info = frame_info;
 
             let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, Some(clear_color), size, display_list_data, true);
+            txn.set_display_list(frame_id, Some(clear_color.into()), size, display_list_data, true);
             txn.set_root_pipeline(self.pipeline_id);
 
             if self.doc_view_changed {
