@@ -107,12 +107,12 @@ impl Hsla {
 }
 impl fmt::Display for Hsla {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fn p(n: f32) -> u8 {
-            (clamp_normal(n) * 100.0).round() as u8
+        fn p(n: f32) -> f32 {
+            clamp_normal(n) * 100.0
         }
         let a = p(self.alpha);
         let h = AngleDegree(self.hue).modulo().0.round();
-        if a == 100 {
+        if (a - 100.0).abs() <= f32::EPSILON {
             write!(f, "hsl({}º, {}%, {}%)", h, p(self.saturation), p(self.lightness))
         } else {
             write!(f, "hsla({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.lightness), a)
