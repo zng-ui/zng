@@ -303,6 +303,8 @@ mod tests {
 
     #[test]
     fn rgb_to_hsl() {
+        // see https://stackoverflow.com/questions/39118528/rgb-to-hsl-conversion
+        // https://www.rapidtables.com/convert/color/rgb-to-hsl.html
         let color = rgba(0, 100, 200, 0.2);
         assert_eq!(color, color.to_hsla().to_rgba())
     }
