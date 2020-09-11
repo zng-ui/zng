@@ -200,9 +200,9 @@ impl From<Rgba> for Hsla {
         };
 
         Hsla {
-            hue: hue.round(),
-            lightness: (lightness * 100.0).round() / 100.0,
-            saturation: (saturation * 100.0).round() / 100.0,
+            hue,
+            lightness,
+            saturation,
             alpha: rgba.alpha,
         }
     }
@@ -335,8 +335,6 @@ mod tests {
 
     #[test]
     fn rgb_to_hsl() {
-        // see https://stackoverflow.com/questions/39118528/rgb-to-hsl-conversion // implemented this one same exact result
-        // https://www.rapidtables.com/convert/color/rgb-to-hsl.html
         let color = rgba(0, 100, 200, 0.2);
         let a = color.to_string();
         let b = color.to_hsla().to_rgba().to_string();
