@@ -105,8 +105,10 @@ impl From<Hsla> for Rgba {
         }
 
         let hue = AngleDegree(hsla.hue).modulo().0;
+        let lightness = clamp_normal(hsla.lightness);
+        let saturation = clamp_normal(hsla.saturation);
 
-        let c = (1.0 - (2.0 * hsla.lightness - 1.0).abs()) * hsla.saturation;
+        let c = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
         let hp = hue / 60.0;
         let x = c * (1.0 - ((hp % 2.0) - 1.0).abs());
         let rgb = if hp <= 1.0 {
@@ -124,7 +126,7 @@ impl From<Hsla> for Rgba {
         } else {
             [0.0, 0.0, 0.0]
         };
-        let m = hsla.lightness - c * 0.5;
+        let m = lightness - c * 0.5;
 
         let f = |i: usize| ((rgb[i] + m) * 255.0).round() / 255.0;
 
@@ -133,9 +135,13 @@ impl From<Hsla> for Rgba {
 }
 impl From<Rgba> for Hsla {
     fn from(rgba: Rgba) -> Self {
-        let r = clamp_normal(rgba.red);
-        let g = clamp_normal(rgba.green);
-        let b = clamp_normal(rgba.blue);
+        fn sanitize(i: f32) -> f32 {
+            clamp_normal((i * 255.0).round() / 255.0)
+        }
+
+        let r = sanitize(rgba.red);
+        let g = sanitize(rgba.green);
+        let b = sanitize(rgba.blue);
 
         let min = r.min(g).min(b);
         let max = r.max(g).max(b);
@@ -303,7 +309,7 @@ mod tests {
 
     #[test]
     fn rgb_to_hsl() {
-        // see https://stackoverflow.com/questions/39118528/rgb-to-hsl-conversion
+        // see https://stackoverflow.com/questions/39118528/rgb-to-hsl-conversion // implemented this one same exact result
         // https://www.rapidtables.com/convert/color/rgb-to-hsl.html
         let color = rgba(0, 100, 200, 0.2);
         assert_eq!(color, color.to_hsla().to_rgba())
