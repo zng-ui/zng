@@ -44,6 +44,11 @@ impl Rgba {
     pub fn to_hsla(self) -> Hsla {
         self.into()
     }
+
+    #[inline]
+    pub fn to_hsva(self) -> Hsva {
+        self.into()
+    }
 }
 impl fmt::Display for Rgba {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -104,6 +109,11 @@ impl Hsla {
     pub fn to_rgba(self) -> Rgba {
         self.into()
     }
+
+    #[inline]
+    pub fn to_hsva(self) -> Hsva {
+        self.into()
+    }
 }
 impl fmt::Display for Hsla {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -120,10 +130,141 @@ impl fmt::Display for Hsla {
     }
 }
 
-fn clamp_normal(i: f32) -> f32 {
-    i.max(0.0).min(1.0)
+/// HSV + alpha
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Hsva {
+    /// [0.0..=360.0]
+    pub hue: f32,
+    /// [0.0..1.0]
+    pub saturation: f32,
+    /// [0.0..1.0]
+    pub value: f32,
+    /// [0.0..1.0]
+    pub alpha: f32,
 }
 
+impl Hsva {
+    pub fn set_hue<H: Into<AngleDegree>>(&mut self, hue: H) {
+        self.hue = hue.into().modulo().0
+    }
+
+    pub fn set_value<L: Into<FactorNormal>>(&mut self, value: L) {
+        self.value = value.into().clamp_range().0;
+    }
+
+    pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
+        self.saturation = saturation.into().clamp_range().0;
+    }
+
+    pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
+        self.alpha = alpha.into().clamp_range().0
+    }
+
+    #[inline]
+    pub fn to_rgba(self) -> Rgba {
+        self.into()
+    }
+
+    #[inline]
+    pub fn to_hsla(self) -> Hsla {
+        self.into()
+    }
+}
+
+impl fmt::Display for Hsva {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fn p(n: f32) -> f32 {
+            clamp_normal(n) * 100.0
+        }
+        let a = p(self.alpha);
+        let h = AngleDegree(self.hue).modulo().0.round();
+        if (a - 100.0).abs() <= f32::EPSILON {
+            write!(f, "hsv({}º, {}%, {}%)", h, p(self.saturation), p(self.value))
+        } else {
+            write!(f, "hsva({}º, {}%, {}%, {}%)", h, p(self.saturation), p(self.value), a)
+        }
+    }
+}
+
+impl From<Hsla> for Hsva {
+    fn from(hsla: Hsla) -> Self {
+        let lightness = clamp_normal(hsla.lightness);
+        let saturation = clamp_normal(hsla.saturation);
+
+        let value = lightness + saturation * lightness.min(1.0 - lightness);
+        let saturation = if value <= f32::EPSILON {
+            0.0
+        } else {
+            2.0 * (1.0 - lightness / value)
+        };
+
+        Hsva {
+            hue: hsla.hue,
+            saturation,
+            value,
+            alpha: hsla.alpha,
+        }
+    }
+}
+impl From<Hsva> for Hsla {
+    fn from(hsva: Hsva) -> Self {
+        let saturation = clamp_normal(hsva.saturation);
+        let value = clamp_normal(hsva.value);
+
+        let lightness = value * (1.0 - saturation / 2.0);
+        let saturation = if lightness <= f32::EPSILON || lightness >= 1.0 - f32::EPSILON {
+            0.0
+        } else {
+            2.0 * (1.0 * lightness / value)
+        };
+
+        Hsla {
+            hue: hsva.hue,
+            saturation,
+            lightness,
+            alpha: hsva.alpha,
+        }
+    }
+}
+
+impl From<Hsva> for Rgba {
+    fn from(hsva: Hsva) -> Self {
+        let hue = AngleDegree(hsva.hue).modulo().0;
+        let saturation = clamp_normal(hsva.saturation);
+        let value = clamp_normal(hsva.value);
+
+        let c = value * saturation;
+        let hue = hue / 60.0;
+        let x = c * (1.0 - (hue.rem_euclid(2.0) - 1.0).abs());
+
+        let (red, green, blue) = if hue <= 1.0 {
+            (c, x, 0.0)
+        } else if hue <= 2.0 {
+            (x, c, 0.0)
+        } else if hue <= 3.0 {
+            (0.0, c, x)
+        } else if hue <= 4.0 {
+            (0.0, x, c)
+        } else if hue <= 5.0 {
+            (x, 0.0, c)
+        } else if hue <= 6.0 {
+            (c, 0.0, x)
+        } else {
+            (0.0, 0.0, 0.0)
+        };
+
+        let m = value - c;
+
+        let f = |n: f32| ((n + m) * 255.0).round() / 255.0;
+
+        Rgba {
+            red: f(red),
+            green: f(green),
+            blue: f(blue),
+            alpha: hsva.alpha,
+        }
+    }
+}
 impl From<Hsla> for Rgba {
     fn from(hsla: Hsla) -> Self {
         if hsla.saturation <= f32::EPSILON {
@@ -131,32 +272,42 @@ impl From<Hsla> for Rgba {
         }
 
         let hue = AngleDegree(hsla.hue).modulo().0;
-        let lightness = clamp_normal(hsla.lightness);
         let saturation = clamp_normal(hsla.saturation);
+        let lightness = clamp_normal(hsla.lightness);
 
         let c = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
         let hp = hue / 60.0;
         let x = c * (1.0 - ((hp % 2.0) - 1.0).abs());
-        let rgb = if hp <= 1.0 {
-            [c, x, 0.0]
+        let (red, green, blue) = if hp <= 1.0 {
+            (c, x, 0.0)
         } else if hp <= 2.0 {
-            [x, c, 0.0]
+            (x, c, 0.0)
         } else if hp <= 3.0 {
-            [0.0, c, x]
+            (0.0, c, x)
         } else if hp <= 4.0 {
-            [0.0, x, c]
+            (0.0, x, c)
         } else if hp <= 5.0 {
-            [x, 0.0, c]
+            (x, 0.0, c)
         } else if hp <= 6.0 {
-            [c, 0.0, x]
+            (c, 0.0, x)
         } else {
-            [0.0, 0.0, 0.0]
+            (0.0, 0.0, 0.0)
         };
         let m = lightness - c * 0.5;
 
-        let f = |i: usize| ((rgb[i] + m) * 255.0).round() / 255.0;
+        let f = |i: f32| ((i + m) * 255.0).round() / 255.0;
 
-        rgba(f(0), f(1), f(2), hsla.alpha)
+        Rgba {
+            red: f(red),
+            green: f(green),
+            blue: f(blue),
+            alpha: hsla.alpha,
+        }
+    }
+}
+impl From<Rgba> for Hsva {
+    fn from(rgba: Rgba) -> Self {
+        todo!() // TODO https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
     }
 }
 impl From<Rgba> for Hsla {
@@ -223,6 +374,11 @@ impl From<Hsla> for RenderColor {
     fn from(hsla: Hsla) -> Self {
         Rgba::from(hsla).into()
     }
+}
+
+// Util
+fn clamp_normal(i: f32) -> f32 {
+    i.max(0.0).min(1.0)
 }
 
 /// RGB color, opaque, alpha is set to `1.0`.
@@ -315,6 +471,19 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(
         hue: hue.into().0,
         saturation: saturation.into().0,
         lightness: lightness.into().0,
+        alpha: alpha.into().0,
+    }
+}
+
+pub fn hsv<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, value: N) -> Hsva {
+    hsva(hue, saturation, value, 1.0)
+}
+
+pub fn hsva<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
+    Hsva {
+        hue: hue.into().0,
+        saturation: saturation.into().0,
+        value: value.into().0,
         alpha: alpha.into().0,
     }
 }
