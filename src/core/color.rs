@@ -305,42 +305,58 @@ impl From<Hsla> for Rgba {
         }
     }
 }
-impl From<Rgba> for Hsva {
-    fn from(rgba: Rgba) -> Self {
-        todo!() // TODO https://en.wikipedia.org/wiki/HSL_and_HSV#From_RGB
-    }
-}
-impl From<Rgba> for Hsla {
-    fn from(rgba: Rgba) -> Self {
+macro_rules! cylindrical_color {
+    ($rgba:ident -> ($min:ident, $max:ident, $delta:ident, $hue:ident)) => {
         fn sanitize(i: f32) -> f32 {
             clamp_normal((i * 255.0).round() / 255.0)
         }
 
-        let r = sanitize(rgba.red);
-        let g = sanitize(rgba.green);
-        let b = sanitize(rgba.blue);
+        let r = sanitize($rgba.red);
+        let g = sanitize($rgba.green);
+        let b = sanitize($rgba.blue);
 
-        let min = r.min(g).min(b);
-        let max = r.max(g).max(b);
+        let $min = r.min(g).min(b);
+        let $max = r.max(g).max(b);
 
         fn about_eq(a: f32, b: f32) -> bool {
             (a - b) <= f32::EPSILON
         }
 
-        let delta = max - min;
+        let $delta = $max - $min;
 
-        let hue = if delta <= f32::EPSILON {
+        let $hue = if $delta <= f32::EPSILON {
             0.0
         } else {
-            60.0 * if about_eq(max, r) {
-                ((g - b) / delta).rem_euclid(6.0)
-            } else if about_eq(max, g) {
-                (b - r) / delta + 2.0
+            60.0 * if about_eq($max, r) {
+                ((g - b) / $delta).rem_euclid(6.0)
+            } else if about_eq($max, g) {
+                (b - r) / $delta + 2.0
             } else {
-                debug_assert!(about_eq(max, b));
-                (r - g) / delta + 4.0
+                debug_assert!(about_eq($max, b));
+                (r - g) / $delta + 4.0
             }
         };
+    };
+}
+impl From<Rgba> for Hsva {
+    fn from(rgba: Rgba) -> Self {
+        cylindrical_color!(rgba -> (min, max, delta, hue));
+
+        let saturation = if max <= f32::EPSILON { 0.0 } else { delta / max };
+
+        let value = max;
+
+        Hsva {
+            hue,
+            saturation,
+            value,
+            alpha: rgba.alpha,
+        }
+    }
+}
+impl From<Rgba> for Hsla {
+    fn from(rgba: Rgba) -> Self {
+        cylindrical_color!(rgba -> (min, max, delta, hue));
 
         let lightness = (max + min) / 2.0;
 
@@ -510,15 +526,23 @@ mod tests {
         assert_eq!(a, b)
     }
 
+    #[test]
+    fn rgb_to_hsvl() {
+        let color = rgba(0, 100, 200, 0.2);
+        let a = color.to_string();
+        let b = color.to_hsva().to_rgba().to_string();
+        assert_eq!(a, b)
+    }
+
     // #[test]
-    // fn rgb_to_hsl_all() {
+    // fn rgb_to_hsv_all() {
     //     for r in 0..=255 {
     //         println!("{}", r);
     //         for g in 0..=255 {
     //             for b in 0..=255 {
     //                 let color = rgb(r, g, b);
     //                 let a = color.to_string();
-    //                 let b = color.to_hsla().to_rgba().to_string();
+    //                 let b = color.to_hsva().to_rgba().to_string();
     //                 assert_eq!(a, b)
     //             }
     //         }
