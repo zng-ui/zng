@@ -85,11 +85,6 @@ pub struct BorderSide {
 }
 impl BorderSide {
     #[inline]
-    pub fn visible(&self) -> bool {
-        self.color.alpha > 0.0
-    }
-
-    #[inline]
     pub fn new(color: Rgba, style: BorderStyle) -> Self {
         BorderSide { color, style }
     }
@@ -119,11 +114,6 @@ pub struct BorderDetails {
     pub radius: BorderRadius,
 }
 impl BorderDetails {
-    #[inline]
-    pub fn visible(&self) -> bool {
-        self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
-    }
-
     #[inline]
     pub fn solid(color: Rgba) -> Self {
         Self::new_all_same(BorderSide::solid(color))
@@ -169,13 +159,30 @@ pub fn new_border_radius_all_same_circular(corner_radius: f32) -> BorderRadius {
     new_border_radius_all_same(LayoutSize::new(corner_radius, corner_radius))
 }
 
-trait LayoutSideOffsetsExt {
+trait VisibleExt {
     fn visible(&self) -> bool;
 }
-
-impl LayoutSideOffsetsExt for LayoutSideOffsets {
+impl VisibleExt for LayoutSideOffsets {
     fn visible(&self) -> bool {
         self.top > 0.0 || self.bottom > 0.0 || self.left > 0.0 || self.right > 0.0
+    }
+}
+impl VisibleExt for w_api::BorderDetails {
+    fn visible(&self) -> bool {
+        match self {
+            w_api::BorderDetails::Normal(border) => border.visible(),
+            w_api::BorderDetails::NinePatch(_) => unimplemented!(),
+        }
+    }
+}
+impl VisibleExt for w_api::NormalBorder {
+    fn visible(&self) -> bool {
+        self.left.visible() || self.right.visible() || self.top.visible() || self.bottom.visible()
+    }
+}
+impl VisibleExt for w_api::BorderSide {
+    fn visible(&self) -> bool {
+        !self.style.is_hidden() && self.color.a > f32::EPSILON
     }
 }
 
@@ -207,7 +214,7 @@ impl From<BorderDetails> for w_api::BorderDetails {
     }
 }
 
-struct BorderNode<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> {
+struct BorderNode<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> {
     child: T,
 
     widths: L,
@@ -222,40 +229,33 @@ struct BorderNode<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetail
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
+impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
 
-        let widths = *self.widths.init_local(ctx.vars);
+        self.widths.init_local(ctx.vars);
         let details = *self.details.get(ctx.vars);
-        self.visible = widths.visible() && details.visible();
         self.final_details = details.into();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let mut widths_visible = None;
-        let mut details_visible = None;
-        if let Some(&widths) = self.widths.update_local(ctx.vars) {
-            widths_visible = Some(widths.visible());
-            self.child_rect.origin = LayoutPoint::new(widths.left, widths.top);
-            ctx.updates.push_layout();
-        }
-        if let Some(&details) = self.details.update(ctx.vars) {
-            details_visible = Some(details.visible());
-            self.final_details = details.into();
-            ctx.updates.push_render();
+        if self.widths.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout()
         }
 
-        if widths_visible.is_some() || details_visible.is_some() {
-            self.visible = widths_visible.unwrap_or_else(|| self.widths.get_local().visible())
-                && details_visible.unwrap_or_else(|| self.details.get(ctx.vars).visible());
+        if let Some(&details) = self.details.update(ctx.vars) {
+            self.final_details = details.into();
+            ctx.updates.push_render()
         }
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        self.final_widths = self.widths.get_local().snap_to(ctx.pixel_grid());
+        self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
+
+        self.visible = self.final_widths.visible() && self.final_details.visible();
+
         let size_inc = self.size_increment();
         self.child.measure(available_size - size_inc, ctx) + size_inc
     }
@@ -275,7 +275,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> UiNode fo
     }
 }
 
-impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
+impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
     fn size_increment(&self) -> LayoutSize {
         let rw = self.final_widths;
         LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
@@ -284,7 +284,7 @@ impl<T: UiNode, L: LocalVar<LayoutSideOffsets>, B: Var<BorderDetails>> BorderNod
 
 /// Border property
 #[property(inner)]
-pub fn border(child: impl UiNode, widths: impl IntoVar<LayoutSideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
+pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     BorderNode {
         child,
 

@@ -8,14 +8,14 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-struct MarginNode<T: UiNode, M: LocalVar<LayoutSideOffsets>> {
+struct MarginNode<T: UiNode, M: LocalVar<SideOffsets>> {
     child: T,
     margin: M,
     size_increment: LayoutSize,
     child_rect: LayoutRect,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for MarginNode<T, M> {
+impl<T: UiNode, M: LocalVar<SideOffsets>> UiNode for MarginNode<T, M> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.margin.init_local(ctx.vars);
         self.child.init(ctx);
@@ -29,7 +29,7 @@ impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for MarginNode<T, M> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let margin = self.margin.get_local().snap_to(ctx.pixel_grid());
+        let margin = self.margin.get_local().to_layout(available_size, ctx);
         self.size_increment = LayoutSize::new(margin.left + margin.right, margin.top + margin.bottom);
         self.child_rect.origin = LayoutPoint::new(margin.left, margin.top);
         self.child.measure(available_size - self.size_increment, ctx) + self.size_increment
@@ -48,7 +48,7 @@ impl<T: UiNode, M: LocalVar<LayoutSideOffsets>> UiNode for MarginNode<T, M> {
 
 /// Margin space around the widget.
 #[property(outer)]
-pub fn margin(child: impl UiNode, margin: impl IntoVar<LayoutSideOffsets>) -> impl UiNode {
+pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
     MarginNode {
         child,
         margin: margin.into_local(),

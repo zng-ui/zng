@@ -759,34 +759,7 @@ where
 /// Computed [`SideOffsets`].
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
 
-// TODO
-
-/// for uniform
-impl IntoVar<LayoutSideOffsets> for f32 {
-    type Var = OwnedVar<LayoutSideOffsets>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(LayoutSideOffsets::new_all_same(self))
-    }
-}
-
-///for (top-bottom, left-right)
-impl IntoVar<LayoutSideOffsets> for (f32, f32) {
-    type Var = OwnedVar<LayoutSideOffsets>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(LayoutSideOffsets::new(self.0, self.1, self.0, self.1))
-    }
-}
-
-///for (top, right, bottom, left)
-impl IntoVar<LayoutSideOffsets> for (f32, f32, f32, f32) {
-    type Var = OwnedVar<LayoutSideOffsets>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(LayoutSideOffsets::new(self.0, self.1, self.2, self.3))
-    }
-}
+// TODO - Remove IntoVar for Layout types and replace in all properties.
 
 impl IntoVar<LayoutPoint> for (f32, f32) {
     type Var = OwnedVar<LayoutPoint>;

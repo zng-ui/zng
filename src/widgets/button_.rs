@@ -1,5 +1,5 @@
 use crate::core::color::{rgb, Rgba};
-use crate::core::units::LayoutSideOffsets;
+use crate::core::units::SideOffsets;
 use crate::core::var::context_var;
 use crate::core::widget;
 use crate::properties::{background_color, border, is_hovered, is_pressed, on_click, BorderDetails};
@@ -11,15 +11,15 @@ context_var! {
     pub struct ButtonBackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
     pub struct ButtonBackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
 
-    pub struct ButtonBorderWidthsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
-    pub struct ButtonBorderWidthsHoveredVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
-    pub struct ButtonBorderWidthsPressedVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
+    pub struct ButtonBorderWidthsVar: SideOffsets = once SideOffsets::new_all(1.0);
+    pub struct ButtonBorderWidthsHoveredVar: SideOffsets = once SideOffsets::new_all(1.0);
+    pub struct ButtonBorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
 
     pub struct ButtonBorderDetailsVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
     pub struct ButtonBorderDetailsHoveredVar: BorderDetails = once BorderDetails::solid(rgb(0.4, 0.4, 0.4));
     pub struct ButtonBorderDetailsPressedVar: BorderDetails = once BorderDetails::solid(rgb(0.6, 0.6, 0.6));
 
-    pub struct ButtonPaddingVar: LayoutSideOffsets = once LayoutSideOffsets::new(7.0, 15.0, 7.0, 15.0);
+    pub struct ButtonPaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
 }
 
 widget! {

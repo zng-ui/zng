@@ -1,12 +1,12 @@
 use crate::core::color::rgba;
-use crate::core::units::LayoutSideOffsets;
+use crate::core::units::SideOffsets;
 use crate::core::var::context_var;
 use crate::core::widget_mixin;
 use crate::properties::{focusable, foreground_highlight, is_focused_hgl, BorderDetails};
 
 context_var! {
-    pub struct FocusHighlightWidthsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(0.5);
-    pub struct FocusHighlightOffsetsVar: LayoutSideOffsets = once LayoutSideOffsets::new_all_same(1.0);
+    pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);
+    pub struct FocusHighlightOffsetsVar: SideOffsets = once SideOffsets::new_all(1.0);
     pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(0, 255, 255, 1.0));
 }
 
@@ -22,8 +22,8 @@ widget_mixin! {
 
         /// A border overlay that is visible when the widget is focused.
         focus_highlight -> foreground_highlight: {
-            widths: LayoutSideOffsets::new_all_same(0.0),
-            offsets: LayoutSideOffsets::new_all_same(0.0),
+            widths: SideOffsets::new_all(0.0),
+            offsets: SideOffsets::new_all(0.0),
             details: FocusHighlightDetailsVar
         };
     }

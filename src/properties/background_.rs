@@ -132,8 +132,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 #[property(inner)]
 pub fn foreground_highlight(
     child: impl UiNode,
-    offsets: impl IntoVar<LayoutSideOffsets>,
-    widths: impl IntoVar<LayoutSideOffsets>,
+    offsets: impl IntoVar<SideOffsets>,
+    widths: impl IntoVar<SideOffsets>,
     details: impl IntoVar<BorderDetails>,
 ) -> impl UiNode {
     use crate::properties as p;
