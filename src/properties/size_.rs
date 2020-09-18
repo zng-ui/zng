@@ -7,12 +7,12 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-struct MinSizeNode<T: UiNode, S: LocalVar<LayoutSize>> {
+struct MinSizeNode<T: UiNode, S: LocalVar<Size>> {
     child: T,
     min_size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSizeNode<T, S> {
+impl<T: UiNode, S: LocalVar<Size>> UiNode for MinSizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -27,30 +27,30 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MinSizeNode<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), available_size).snap_to(ctx.pixel_grid());
+        let min_size = replace_layout_any_size(self.min_size.get_local().to_layout(available_size, ctx), available_size);
         self.child.measure(min_size.max(available_size), ctx)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let min_size = replace_layout_any_size(*self.min_size.get_local(), final_size).snap_to(ctx.pixel_grid());
+        let min_size = replace_layout_any_size(self.min_size.get_local().to_layout(final_size, ctx), final_size);
         self.child.arrange(min_size.max(final_size), ctx);
     }
 }
 
 #[property(size)]
-pub fn min_size(child: impl UiNode, min_size: impl IntoVar<LayoutSize>) -> impl UiNode {
+pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
     MinSizeNode {
         child,
         min_size: min_size.into_local(),
     }
 }
 
-struct MinWidthNode<T: UiNode, W: LocalVar<f32>> {
+struct MinWidthNode<T: UiNode, W: LocalVar<Length>> {
     child: T,
     min_width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<f32>> UiNode for MinWidthNode<T, W> {
+impl<T: UiNode, W: LocalVar<Length>> UiNode for MinWidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -65,36 +65,40 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for MinWidthNode<T, W> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let min_width = *self.min_width.get_local();
+        let min_width = self
+            .min_width
+            .get_local()
+            .to_layout(LayoutLength::new(available_size.width), ctx)
+            .get();
         if !is_layout_any_size(min_width) {
-            available_size.width = ctx.pixel_grid().snap(min_width.max(available_size.width));
+            available_size.width = min_width.max(available_size.width);
         }
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let min_width = *self.min_width.get_local();
+        let min_width = self.min_width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
         if !is_layout_any_size(min_width) {
-            final_size.width = ctx.pixel_grid().snap(min_width.max(final_size.width));
+            final_size.width = min_width.max(final_size.width);
         }
         self.child.arrange(final_size, ctx);
     }
 }
 
 #[property(size)]
-pub fn min_width(child: impl UiNode, min_width: impl IntoVar<f32>) -> impl UiNode {
+pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
     MinWidthNode {
         child,
         min_width: min_width.into_local(),
     }
 }
 
-struct MinHeightNode<T: UiNode, H: LocalVar<f32>> {
+struct MinHeightNode<T: UiNode, H: LocalVar<Length>> {
     child: T,
     min_height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<f32>> UiNode for MinHeightNode<T, H> {
+impl<T: UiNode, H: LocalVar<Length>> UiNode for MinHeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_height.init_local(ctx.vars);
         self.child.init(ctx);
@@ -109,36 +113,44 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for MinHeightNode<T, H> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let min_height = *self.min_height.get_local();
+        let min_height = self
+            .min_height
+            .get_local()
+            .to_layout(LayoutLength::new(available_size.height), ctx)
+            .get();
         if !is_layout_any_size(min_height) {
-            available_size.height = ctx.pixel_grid().snap(min_height.max(available_size.height));
+            available_size.height = min_height.max(available_size.height);
         }
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let min_height = *self.min_height.get_local();
+        let min_height = self
+            .min_height
+            .get_local()
+            .to_layout(LayoutLength::new(final_size.height), ctx)
+            .get();
         if !is_layout_any_size(min_height) {
-            final_size.height = ctx.pixel_grid().snap(min_height.max(final_size.height));
+            final_size.height = min_height.max(final_size.height);
         }
         self.child.arrange(final_size, ctx);
     }
 }
 
 #[property(size)]
-pub fn min_height(child: impl UiNode, min_height: impl IntoVar<f32>) -> impl UiNode {
+pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
     MinHeightNode {
         child,
         min_height: min_height.into_local(),
     }
 }
 
-struct MaxSizeNode<T: UiNode, S: LocalVar<LayoutSize>> {
+struct MaxSizeNode<T: UiNode, S: LocalVar<Size>> {
     child: T,
     max_size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSizeNode<T, S> {
+impl<T: UiNode, S: LocalVar<Size>> UiNode for MaxSizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -154,29 +166,29 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for MaxSizeNode<T, S> {
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         self.child
-            .measure(self.max_size.get_local().snap_to(ctx.pixel_grid()).min(available_size), ctx)
+            .measure(self.max_size.get_local().to_layout(available_size, ctx).min(available_size), ctx)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.child
-            .arrange(self.max_size.get_local().snap_to(ctx.pixel_grid()).min(final_size), ctx);
+            .arrange(self.max_size.get_local().to_layout(final_size, ctx).min(final_size), ctx);
     }
 }
 
 #[property(size)]
-pub fn max_size(child: impl UiNode, max_size: impl IntoVar<LayoutSize>) -> impl UiNode {
+pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
     MaxSizeNode {
         child,
         max_size: max_size.into_local(),
     }
 }
 
-struct MaxWidthNode<T: UiNode, W: LocalVar<f32>> {
+struct MaxWidthNode<T: UiNode, W: LocalVar<Length>> {
     child: T,
     max_width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<f32>> UiNode for MaxWidthNode<T, W> {
+impl<T: UiNode, W: LocalVar<Length>> UiNode for MaxWidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -191,30 +203,40 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for MaxWidthNode<T, W> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        available_size.width = ctx.pixel_grid().snap(self.max_width.get_local().min(available_size.width));
+        available_size.width = self
+            .max_width
+            .get_local()
+            .to_layout(LayoutLength::new(available_size.width), ctx)
+            .get()
+            .min(available_size.width);
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        final_size.width = ctx.pixel_grid().snap(self.max_width.get_local().min(final_size.width));
+        final_size.width = self
+            .max_width
+            .get_local()
+            .to_layout(LayoutLength::new(final_size.width), ctx)
+            .get()
+            .min(final_size.width);
         self.child.arrange(final_size, ctx);
     }
 }
 
 #[property(size)]
-pub fn max_width(child: impl UiNode, max_width: impl IntoVar<f32>) -> impl UiNode {
+pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
     MaxWidthNode {
         child,
         max_width: max_width.into_local(),
     }
 }
 
-struct MaxHeightNode<T: UiNode, H: LocalVar<f32>> {
+struct MaxHeightNode<T: UiNode, H: LocalVar<Length>> {
     child: T,
     max_height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<f32>> UiNode for MaxHeightNode<T, H> {
+impl<T: UiNode, H: LocalVar<Length>> UiNode for MaxHeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_height.init_local(ctx.vars);
         self.child.init(ctx);
@@ -229,30 +251,40 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for MaxHeightNode<T, H> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        available_size.height = ctx.pixel_grid().snap(self.max_height.get_local().min(available_size.height));
+        available_size.height = self
+            .max_height
+            .get_local()
+            .to_layout(LayoutLength::new(available_size.height), ctx)
+            .get()
+            .min(available_size.height);
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        final_size.height = ctx.pixel_grid().snap(self.max_height.get_local().min(final_size.height));
+        final_size.height = self
+            .max_height
+            .get_local()
+            .to_layout(LayoutLength::new(final_size.height), ctx)
+            .get()
+            .min(final_size.height);
         self.child.arrange(final_size, ctx);
     }
 }
 
 #[property(size)]
-pub fn max_height(child: impl UiNode, max_height: impl IntoVar<f32>) -> impl UiNode {
+pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
     MaxHeightNode {
         child,
         max_height: max_height.into_local(),
     }
 }
 
-struct SizeNode<T: UiNode, S: LocalVar<LayoutSize>> {
+struct SizeNode<T: UiNode, S: LocalVar<Size>> {
     child: T,
     size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for SizeNode<T, S> {
+impl<T: UiNode, S: LocalVar<Size>> UiNode for SizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -267,12 +299,12 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for SizeNode<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let size = replace_layout_any_size(*self.size.get_local(), available_size).snap_to(ctx.pixel_grid());
+        let size = replace_layout_any_size(self.size.get_local().to_layout(available_size, ctx), available_size);
         self.child.measure(size, ctx)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let size = replace_layout_any_size(*self.size.get_local(), final_size).snap_to(ctx.pixel_grid());
+        let size = replace_layout_any_size(self.size.get_local().to_layout(final_size, ctx), final_size);
         self.child.arrange(size, ctx);
     }
 }
@@ -294,19 +326,19 @@ impl<T: UiNode, S: LocalVar<LayoutSize>> UiNode for SizeNode<T, S> {
 /// # ;
 /// ```
 #[property(size)]
-pub fn size(child: impl UiNode, size: impl IntoVar<LayoutSize>) -> impl UiNode {
+pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     SizeNode {
         child,
         size: size.into_local(),
     }
 }
 
-struct WidthNode<T: UiNode, W: LocalVar<f32>> {
+struct WidthNode<T: UiNode, W: LocalVar<Length>> {
     child: T,
     width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<f32>> UiNode for WidthNode<T, W> {
+impl<T: UiNode, W: LocalVar<Length>> UiNode for WidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -321,36 +353,36 @@ impl<T: UiNode, W: LocalVar<f32>> UiNode for WidthNode<T, W> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let width = *self.width.get_local();
+        let width = self.width.get_local().to_layout(LayoutLength::new(available_size.width), ctx).get();
         if !is_layout_any_size(width) {
-            available_size.width = ctx.pixel_grid().snap(width);
+            available_size.width = width;
         }
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let width = *self.width.get_local();
+        let width = self.width.get_local().to_layout(LayoutLength::new(final_size.width), ctx).get();
         if !is_layout_any_size(width) {
-            final_size.width = ctx.pixel_grid().snap(width);
+            final_size.width = width;
         }
         self.child.arrange(final_size, ctx)
     }
 }
 
 #[property(size)]
-pub fn width(child: impl UiNode, width: impl IntoVar<f32>) -> impl UiNode {
+pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     WidthNode {
         child,
         width: width.into_local(),
     }
 }
 
-struct HeightNode<T: UiNode, H: LocalVar<f32>> {
+struct HeightNode<T: UiNode, H: LocalVar<Length>> {
     child: T,
     height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<f32>> UiNode for HeightNode<T, H> {
+impl<T: UiNode, H: LocalVar<Length>> UiNode for HeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.height.init_local(ctx.vars);
         self.child.init(ctx);
@@ -365,24 +397,28 @@ impl<T: UiNode, H: LocalVar<f32>> UiNode for HeightNode<T, H> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let height = *self.height.get_local();
+        let height = self
+            .height
+            .get_local()
+            .to_layout(LayoutLength::new(available_size.height), ctx)
+            .get();
         if !is_layout_any_size(height) {
-            available_size.height = ctx.pixel_grid().snap(height);
+            available_size.height = height;
         }
         self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
-        let height = *self.height.get_local();
+        let height = self.height.get_local().to_layout(LayoutLength::new(final_size.height), ctx).get();
         if !is_layout_any_size(height) {
-            final_size.height = ctx.pixel_grid().snap(height);
+            final_size.height = height;
         }
         self.child.arrange(final_size, ctx)
     }
 }
 
 #[property(size)]
-pub fn height(child: impl UiNode, height: impl IntoVar<f32>) -> impl UiNode {
+pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     HeightNode {
         child,
         height: height.into_local(),

@@ -11,7 +11,7 @@ use super::{
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
     types::{FrameId, Text, WidgetId, WindowEvent, WindowId},
-    units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point},
+    units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
     UiNode,
 };
@@ -292,35 +292,37 @@ impl AppExtension for WindowManager {
                     window.expect_layout_update();
                     window.resize_next_render();
 
-                    // raise window_resize
-                    ctx.updates
-                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
-
                     // set the window size variable if it is not read-only.
                     let wn_ctx = window.wn_ctx.borrow();
                     if !wn_ctx.root.size.read_only(ctx.vars) {
+                        let new_size = Size::from((new_size.width, new_size.height));
                         let current_size = *wn_ctx.root.size.get(ctx.vars);
                         // the var can already be set if the user modified it to resize the window.
                         if current_size != new_size {
                             ctx.updates.push_set(&wn_ctx.root.size, new_size, ctx.vars).unwrap();
                         }
                     }
+
+                    // raise window_resize
+                    ctx.updates
+                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
                 }
             }
             WindowEvent::Moved(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_position = window.position();
-                    let new_pos = Point::from((new_position.x, new_position.y));
 
                     // set the window position variable if it is not read-only.
                     let wn_ctx = window.wn_ctx.borrow();
                     if !wn_ctx.root.position.read_only(ctx.vars) {
+                        let new_position = Point::from((new_position.x, new_position.y));
                         let var = *wn_ctx.root.position.get(ctx.vars);
-                        if new_pos != var {
-                            ctx.updates.push_set(&wn_ctx.root.position, new_pos, ctx.vars).unwrap();
+                        if new_position != var {
+                            ctx.updates.push_set(&wn_ctx.root.position, new_position, ctx.vars).unwrap();
                         }
                     }
 
+                    // raise window_move
                     ctx.updates
                         .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
                 }
@@ -681,7 +683,7 @@ pub struct Window {
     id: WidgetId,
     title: BoxLocalVar<Text>,
     position: BoxVar<Point>,
-    size: BoxVar<LayoutSize>,
+    size: BoxVar<Size>,
     background_color: BoxLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
@@ -691,7 +693,7 @@ impl Window {
         root_id: WidgetId,
         title: impl IntoVar<Text>,
         position: impl IntoVar<Point>,
-        size: impl IntoVar<LayoutSize>,
+        size: impl IntoVar<Size>,
         background_color: impl IntoVar<Rgba>,
         child: impl UiNode,
     ) -> Self {
@@ -737,13 +739,10 @@ impl OpenWindow {
         ui_threads: Arc<ThreadPool>,
     ) -> Self {
         let root = new_window(ctx);
-        let inner_size = *root.size.get(ctx.vars);
-        let clear_color = *root.background_color.get(ctx.vars);
 
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to avoid flickering
-            .with_title(root.title.get(ctx.vars).to_owned())
-            .with_inner_size(WLogicalSize::<f64>::new(inner_size.width.into(), inner_size.height.into()));
+            .with_title(root.title.get(ctx.vars).to_owned());
 
         let mut gl_ctx = GlContext::new(window_builder, event_loop.headed_target().expect("headless window not implemented"));
 
@@ -756,10 +755,12 @@ impl OpenWindow {
             (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
         };
         let system_init_pos = gl_ctx.window().outer_position().expect("only desktop windows are supported");
+        let system_init_size = gl_ctx.window().inner_size();
 
         let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
 
         let user_init_pos = root.position.get(ctx.vars).to_layout(available_size, &layout_ctx);
+        let user_init_size = root.size.get(ctx.vars).to_layout(available_size, &layout_ctx);
 
         let valid_init_pos = glutin::dpi::PhysicalPosition::new(
             if user_init_pos.x.is_finite() {
@@ -773,13 +774,33 @@ impl OpenWindow {
                 system_init_pos.y
             },
         );
+        let valid_init_size = glutin::dpi::PhysicalSize::new(
+            if user_init_size.width.is_finite() {
+                (user_init_size.width * dpi_factor) as u32
+            } else {
+                system_init_size.width
+            },
+            if user_init_size.height.is_finite() {
+                (user_init_size.height * dpi_factor) as u32
+            } else {
+                system_init_size.height
+            },
+        );
+
         let mut set_position_var = false;
+        let mut set_size_var = false;
         if valid_init_pos != system_init_pos {
             gl_ctx.window().set_outer_position(valid_init_pos);
         } else {
             set_position_var = !root.position.read_only(ctx.vars);
         }
+        if valid_init_size != system_init_size {
+            gl_ctx.window().set_inner_size(valid_init_size);
+        } else {
+            set_size_var = !root.position.read_only(ctx.vars);
+        }
 
+        let clear_color = *root.background_color.get(ctx.vars);
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
             clear_color: Some(clear_color.into()),
@@ -792,8 +813,7 @@ impl OpenWindow {
             event_loop: event_loop_proxy,
         });
 
-        let start_size = inner_size * units::LayoutToDeviceScale::new(dpi_factor);
-        let start_size = units::DeviceIntSize::new(start_size.width as i32, start_size.height as i32);
+        let start_size = units::DeviceIntSize::new(valid_init_size.width as i32, valid_init_size.height as i32);
         let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl.clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
         let document_id = api.add_document(start_size, 0);
@@ -829,11 +849,19 @@ impl OpenWindow {
         };
 
         if set_position_var {
-            // use did not set position, but variable is read-write,
+            // user did not set position, but variable is read-write,
             // so we update with the OS provided initial position.
             let LayoutPoint { x, y, .. } = w.position();
             ctx.updates
                 .push_set(&w.wn_ctx.borrow().root.position, (x, y).into(), ctx.vars)
+                .unwrap();
+        }
+        if set_size_var {
+            // user did not set size, but variable is read-write,
+            // so we update with the OS provided initial size.
+            let LayoutSize { width, height, .. } = w.size();
+            ctx.updates
+                .push_set(&w.wn_ctx.borrow().root.size, (width, height).into(), ctx.vars)
                 .unwrap();
         }
 
@@ -991,15 +1019,9 @@ impl OpenWindow {
         if let Some(&new_pos) = wn_ctx.root.position.update(vars) {
             let current_pos = window.outer_position().expect("only desktop windows are supported");
 
-            let (available_size, dpi_factor) = {
-                let monitor = gl_ctx.window().current_monitor();
-                let size = monitor.size();
-                let scale = monitor.scale_factor() as f32;
-                (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
-            };
-
-            let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
-            let new_pos = new_pos.to_layout(available_size, &layout_ctx);
+            let layout_ctx = self.monitor_layout_ctx();
+            let dpi_factor = layout_ctx.pixel_grid().scale_factor;
+            let new_pos = new_pos.to_layout(layout_ctx.viewport_size(), &layout_ctx);
 
             let valid_pos = glutin::dpi::PhysicalPosition::new(
                 if new_pos.x.is_finite() {
@@ -1022,11 +1044,28 @@ impl OpenWindow {
 
         // size
         if let Some(&new_size) = wn_ctx.root.size.update(vars) {
-            let s = window.scale_factor() as f32;
-            let new_size = glutin::dpi::PhysicalSize::new((new_size.width * s) as u32, (new_size.height * s) as u32);
-            if new_size != window.inner_size() {
-                // the size variable was changed to set the window size.
-                window.set_inner_size(new_size);
+            let current_size = window.inner_size();
+
+            let layout_ctx = self.monitor_layout_ctx();
+            let dpi_factor = layout_ctx.pixel_grid().scale_factor;
+            let new_size = new_size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
+
+            let valid_size = glutin::dpi::PhysicalSize::new(
+                if new_size.width.is_finite() {
+                    (new_size.width * dpi_factor) as u32
+                } else {
+                    current_size.width
+                },
+                if new_size.height.is_finite() {
+                    (new_size.height * dpi_factor) as u32
+                } else {
+                    current_size.height
+                },
+            );
+
+            if valid_size != current_size {
+                // the size var was changed to set the position size.
+                window.set_inner_size(valid_size);
             }
         }
 
@@ -1035,6 +1074,20 @@ impl OpenWindow {
             wn_ctx.update |= UpdateDisplayRequest::Render;
             updates.push_render();
         }
+    }
+
+    fn monitor_layout_ctx(&self) -> LayoutContext {
+        let monitor = self.gl_ctx.borrow().window().current_monitor();
+        let size = monitor.size();
+        let scale = monitor.scale_factor() as f32;
+        let size = LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale);
+        // TODO font size
+        LayoutContext::new(14.0, size, PixelGrid::new(scale))
+    }
+
+    fn layout_ctx(&self) -> LayoutContext {
+        // TODO font size
+        LayoutContext::new(14.0, self.size(), PixelGrid::new(self.scale_factor()))
     }
 
     /// Re-flow layout if a layout pass was required. If yes will
@@ -1047,13 +1100,10 @@ impl OpenWindow {
 
             ctx.update = UpdateDisplayRequest::Render;
 
-            let available_size = self.size();
-            let pixels = self.pixel_grid();
-            //TODO root font size
-            let mut layout_ctx = LayoutContext::new(12.0, available_size, pixels);
+            let mut layout_ctx = self.layout_ctx();
 
-            ctx.root.child.measure(available_size, &mut layout_ctx);
-            ctx.root.child.arrange(available_size, &mut layout_ctx);
+            ctx.root.child.measure(layout_ctx.viewport_size(), &mut layout_ctx);
+            ctx.root.child.arrange(layout_ctx.viewport_size(), &mut layout_ctx);
         }
     }
 

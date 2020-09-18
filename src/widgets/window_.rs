@@ -59,7 +59,7 @@ widget! {
         /// Does not include the OS window border.
         size: {
             #[cfg(debug_assertions)]
-            let r = crate::core::var::var(crate::core::units::LayoutSize::new(800.0, 600.0));
+            let r = crate::core::var::var(crate::core::units::Size::new(800.0, 600.0));
 
             #[cfg(not(debug_assertions))]
             let r = (800.0, 600.0);

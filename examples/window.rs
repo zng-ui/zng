@@ -7,8 +7,8 @@ fn main() {
         let position = var((f32::NAN, f32::NAN));
         let size = var((800., 600.));
 
-        let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &LayoutSize| {
-            formatx!("Window Example - position: {:.0}, size: {}×{}", p, s.width.ceil(), s.height.ceil())
+        let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &Size| {
+            formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
@@ -71,10 +71,10 @@ fn set_position(x: f32, y: f32, window_position: &SharedVar<Point>) -> impl Widg
     set_var_btn(window_position, (x, y).into(), formatx!("move to {}x{}", x, y))
 }
 
-fn set_size(width: f32, height: f32, window_size: &SharedVar<LayoutSize>) -> impl Widget {
+fn set_size(width: f32, height: f32, window_size: &SharedVar<Size>) -> impl Widget {
     set_var_btn(
         window_size,
-        LayoutSize::new(width, height),
+        (width, height).into(),
         formatx!("resize to {}x{}", width, height),
     )
 }

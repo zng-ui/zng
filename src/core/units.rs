@@ -514,7 +514,7 @@ impl<X: Into<Length> + Clone, Y: Into<Length> + Clone> IntoVar<Point> for (X, Y)
 pub type LayoutPoint = webrender::api::units::LayoutPoint;
 
 /// 2D size in [`Length`] units.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Size {
     pub width: Length,
     pub height: Length,
@@ -577,10 +577,19 @@ impl<W: Into<Length> + Clone, H: Into<Length> + Clone> IntoVar<Size> for (W, H) 
 pub type LayoutSize = webrender::api::units::LayoutSize;
 
 /// 2D rect in [`Length`] units.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect {
     pub origin: Point,
     pub size: Size,
+}
+impl fmt::Display for Rect {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.p$} {:.p$}", self.origin, self.size, p = p)
+        } else {
+            write!(f, "{} {}", self.origin, self.size)
+        }
+    }
 }
 impl Rect {
     pub fn new<O: Into<Point>, S: Into<Size>>(origin: O, size: S) -> Self {
@@ -790,26 +799,6 @@ where
 
 /// Computed [`SideOffsets`].
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
-
-// TODO - Remove IntoVar for Layout types and replace in all properties.
-
-impl IntoVar<LayoutSize> for (f32, f32) {
-    type Var = OwnedVar<LayoutSize>;
-
-    fn into_var(self) -> Self::Var {
-        let (w, h) = self;
-        OwnedVar(LayoutSize::new(w, h))
-    }
-}
-
-impl IntoVar<LayoutRect> for (f32, f32, f32, f32) {
-    type Var = OwnedVar<LayoutRect>;
-
-    fn into_var(self) -> Self::Var {
-        let (x, y, w, h) = self;
-        OwnedVar(LayoutRect::new(LayoutPoint::new(x, y), LayoutSize::new(w, h)))
-    }
-}
 
 /// A device pixel scale factor used for pixel alignment.
 ///
