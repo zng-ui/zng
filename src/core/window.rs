@@ -310,21 +310,14 @@ impl AppExtension for WindowManager {
             WindowEvent::Moved(_) => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_position = window.position();
+                    let new_pos = Point::from((new_position.x, new_position.y));
 
                     // set the window position variable if it is not read-only.
-                    let mut wn_ctx = window.wn_ctx.borrow_mut();
+                    let wn_ctx = window.wn_ctx.borrow();
                     if !wn_ctx.root.position.read_only(ctx.vars) {
-                        let var_version = wn_ctx.root.position.version(ctx.vars);
-
-                        // Moved(_) can be caused internally by the variable changing, or externally by the user.
-                        if wn_ctx.pos_version == var_version {
-                            // no pending var update, is external move event.
-                            ctx.updates
-                                .push_set(&wn_ctx.root.position, (new_position.x, new_position.y).into(), ctx.vars)
-                                .unwrap();
-                        } else {
-                            // pending var update, completed move after var update.
-                            wn_ctx.pos_version = var_version;
+                        let var = *wn_ctx.root.position.get(ctx.vars);
+                        if new_pos != var {
+                            ctx.updates.push_set(&wn_ctx.root.position, new_pos, ctx.vars).unwrap();
                         }
                     }
 
@@ -816,7 +809,6 @@ impl OpenWindow {
             gl_ctx: RefCell::new(gl_ctx),
             wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
                 api,
-                pos_version: root.position.version(ctx.vars),
                 root,
                 state,
                 services,
@@ -1196,7 +1188,6 @@ struct OwnedWindowContext {
     root: Window,
     api: Arc<RenderApi>,
     update: UpdateDisplayRequest,
-    pos_version: u32,
 }
 
 impl OwnedWindowContext {

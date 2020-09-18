@@ -270,7 +270,7 @@ impl FactorUnits for u32 {
 /// 1D length units.
 ///
 /// See [`LengthUnits`] for more details.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Length {
     /// The exact length.
     Exact(f32),
@@ -453,10 +453,19 @@ impl LengthUnits for u32 {
 }
 
 /// 2D point in [`Length`] units.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Point {
     pub x: Length,
     pub y: Length,
+}
+impl fmt::Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.p$} × {:.p$}", self.x, self.y, p = p)
+        } else {
+            write!(f, "{} × {}", self.x, self.y)
+        }
+    }
 }
 impl Point {
     pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
@@ -509,6 +518,15 @@ pub type LayoutPoint = webrender::api::units::LayoutPoint;
 pub struct Size {
     pub width: Length,
     pub height: Length,
+}
+impl fmt::Display for Size {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.p$} × {:.p$}", self.width, self.height, p = p)
+        } else {
+            write!(f, "{} × {}", self.width, self.height)
+        }
+    }
 }
 impl Size {
     pub fn new<W: Into<Length>, H: Into<Length>>(width: W, height: H) -> Self {

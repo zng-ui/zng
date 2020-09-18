@@ -8,13 +8,7 @@ fn main() {
         let size = var((800., 600.));
 
         let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &LayoutSize| {
-            formatx!(
-                "Window Example - position: {:.0}×{:.0}, size: {}×{}",
-                p.x,
-                p.y,
-                s.width.ceil(),
-                s.height.ceil()
-            )
+            formatx!("Window Example - position: {:.0}, size: {}×{}", p, s.width.ceil(), s.height.ceil())
         });
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
