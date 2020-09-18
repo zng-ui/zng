@@ -72,11 +72,7 @@ fn set_position(x: f32, y: f32, window_position: &SharedVar<Point>) -> impl Widg
 }
 
 fn set_size(width: f32, height: f32, window_size: &SharedVar<Size>) -> impl Widget {
-    set_var_btn(
-        window_size,
-        (width, height).into(),
-        formatx!("resize to {}x{}", width, height),
-    )
+    set_var_btn(window_size, (width, height).into(), formatx!("resize to {}x{}", width, height))
 }
 
 fn set_background(color: Rgba, color_name: &str, background_color: &SharedVar<Rgba>) -> impl Widget {
