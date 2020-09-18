@@ -1,7 +1,7 @@
 //! Angle, factor and length units.
 
 use derive_more as dm;
-use std::f32::consts::*;
+use std::{f32::consts::*, fmt};
 
 use super::context::LayoutContext;
 use crate::core::var::{IntoVar, OwnedVar};
@@ -288,6 +288,20 @@ pub enum Length {
     ViewportMin(f32),
     /// Relative to 1% of the largest of the viewport's dimensions.
     ViewportMax(f32),
+}
+impl fmt::Display for Length {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Length::Exact(l) => fmt::Display::fmt(l, f),
+            Length::Relative(n) => write!(f, "{:.*}%", f.precision().unwrap_or(0), n.0 * 100.0),
+            Length::Em(e) => write!(f, "{}em", e),
+            Length::RootEm(re) => write!(f, "{}rem", re),
+            Length::ViewportWidth(vw) => write!(f, "{}vw", vw),
+            Length::ViewportHeight(vh) => write!(f, "{}vh", vh),
+            Length::ViewportMin(vmin) => write!(f, "{}vmin", vmin),
+            Length::ViewportMax(vmax) => write!(f, "{}vmax", vmax),
+        }
+    }
 }
 impl From<FactorPercent> for Length {
     /// Conversion to [`Length::Relative`]
@@ -760,15 +774,6 @@ where
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
 
 // TODO - Remove IntoVar for Layout types and replace in all properties.
-
-impl IntoVar<LayoutPoint> for (f32, f32) {
-    type Var = OwnedVar<LayoutPoint>;
-
-    fn into_var(self) -> Self::Var {
-        let (x, y) = self;
-        OwnedVar(LayoutPoint::new(x, y))
-    }
-}
 
 impl IntoVar<LayoutSize> for (f32, f32) {
     type Var = OwnedVar<LayoutSize>;

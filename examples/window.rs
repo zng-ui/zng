@@ -7,11 +7,11 @@ fn main() {
         let position = var((f32::NAN, f32::NAN));
         let size = var((800., 600.));
 
-        let title = merge_var!(position.clone(), size.clone(), |p: &LayoutPoint, s: &LayoutSize| {
+        let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &LayoutSize| {
             formatx!(
-                "Window Example - position: {}×{}, size: {}×{}",
-                p.x.ceil(),
-                p.y.ceil(),
+                "Window Example - position: {:.0}×{:.0}, size: {}×{}",
+                p.x,
+                p.y,
                 s.width.ceil(),
                 s.height.ceil()
             )
@@ -73,8 +73,8 @@ fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
     }
 }
 
-fn set_position(x: f32, y: f32, window_position: &SharedVar<LayoutPoint>) -> impl Widget {
-    set_var_btn(window_position, LayoutPoint::new(x, y), formatx!("move to {}x{}", x, y))
+fn set_position(x: f32, y: f32, window_position: &SharedVar<Point>) -> impl Widget {
+    set_var_btn(window_position, (x, y).into(), formatx!("move to {}x{}", x, y))
 }
 
 fn set_size(width: f32, height: f32, window_size: &SharedVar<LayoutSize>) -> impl Widget {

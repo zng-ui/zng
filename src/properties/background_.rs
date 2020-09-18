@@ -72,8 +72,8 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 #[property(inner)]
 pub fn background_gradient(
     child: impl UiNode,
-    start: impl IntoVar<LayoutPoint>,
-    end: impl IntoVar<LayoutPoint>,
+    start: impl IntoVar<Point>,
+    end: impl IntoVar<Point>,
     stops: impl IntoVar<Vec<GradientStop>>,
 ) -> impl UiNode {
     background::set(child, fill_gradient(start, end, stops))

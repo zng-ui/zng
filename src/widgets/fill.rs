@@ -6,7 +6,7 @@ use crate::core::units::*;
 use crate::core::var::*;
 use crate::core::{impl_ui_node, profiler::profile_scope, UiNode};
 
-struct FillGradientNode<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> {
+struct FillGradientNode<A: LocalVar<Point>, B: LocalVar<Point>, S: LocalVar<Vec<GradientStop>>> {
     start: A,
     end: B,
     stops: S,
@@ -15,43 +15,29 @@ struct FillGradientNode<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Ve
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradientNode<A, B, S> {
+impl<A: LocalVar<Point>, B: LocalVar<Point>, S: LocalVar<Vec<GradientStop>>> UiNode for FillGradientNode<A, B, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.render_start = *self.start.get(ctx.vars);
-        self.render_end = *self.end.get(ctx.vars);
+        self.start.init_local(ctx.vars);
+        self.end.init_local(ctx.vars);
         self.stops.init_local(ctx.vars);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(start) = self.start.update(ctx.vars) {
-            self.render_start = *start;
-            self.render_start.x *= self.final_size.width;
-            self.render_start.y *= self.final_size.height;
-            ctx.updates.push_render();
+        if self.start.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
-        if let Some(end) = self.end.update(ctx.vars) {
-            self.render_end = *end;
-            self.render_end.x *= self.final_size.width;
-            self.render_end.y *= self.final_size.height;
-            ctx.updates.push_render();
+        if self.end.update_local(ctx.vars).is_some() {
+            ctx.updates.push_layout();
         }
         if self.stops.update_local(ctx.vars).is_some() {
             ctx.updates.push_render();
         }
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
-        self.render_start.x /= self.final_size.width;
-        self.render_start.y /= self.final_size.height;
-        self.render_end.x /= self.final_size.width;
-        self.render_end.y /= self.final_size.height;
-
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.render_start = self.start.get_local().to_layout(final_size, ctx);
+        self.render_end = self.end.get_local().to_layout(final_size, ctx);
         self.final_size = final_size;
-
-        self.render_start.x *= self.final_size.width;
-        self.render_start.y *= self.final_size.height;
-        self.render_end.x *= self.final_size.width;
-        self.render_end.y *= self.final_size.height;
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -67,14 +53,10 @@ impl<A: Var<LayoutPoint>, B: Var<LayoutPoint>, S: LocalVar<Vec<GradientStop>>> U
 }
 
 /// Fill the widget area with a linear gradient.
-pub fn fill_gradient(
-    start: impl IntoVar<LayoutPoint>,
-    end: impl IntoVar<LayoutPoint>,
-    stops: impl IntoVar<Vec<GradientStop>>,
-) -> impl UiNode {
+pub fn fill_gradient(start: impl IntoVar<Point>, end: impl IntoVar<Point>, stops: impl IntoVar<Vec<GradientStop>>) -> impl UiNode {
     FillGradientNode {
-        start: start.into_var(),
-        end: end.into_var(),
+        start: start.into_local(),
+        end: end.into_local(),
         stops: stops.into_local(),
         render_start: LayoutPoint::zero(),
         render_end: LayoutPoint::zero(),
