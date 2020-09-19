@@ -20,6 +20,10 @@ impl AngleRadian {
     pub fn modulo(self) -> Self {
         AngleGradian::from(self).modulo().into()
     }
+    #[inline]
+    pub fn to_layout(self) -> LayoutAngle {
+        self.into()
+    }
 }
 impl From<AngleGradian> for AngleRadian {
     fn from(grad: AngleGradian) -> Self {
@@ -121,6 +125,14 @@ impl From<AngleGradian> for AngleTurn {
 impl From<AngleDegree> for AngleTurn {
     fn from(deg: AngleDegree) -> Self {
         AngleTurn(deg.0 / 360.0)
+    }
+}
+
+/// Radian angle type used by webrender.
+pub type LayoutAngle = euclid::Angle<f32>;
+impl From<AngleRadian> for LayoutAngle {
+    fn from(rad: AngleRadian) -> Self {
+        LayoutAngle::radians(rad.0)
     }
 }
 
@@ -911,6 +923,44 @@ impl PixelGridExt for LayoutSideOffsets {
     #[inline]
     fn is_aligned_to(self, grid: PixelGrid) -> bool {
         grid.is_aligned(self.top) && grid.is_aligned(self.right) && grid.is_aligned(self.bottom) && grid.is_aligned(self.left)
+    }
+}
+
+pub struct Transform(LayoutTransform);
+impl Transform {
+    pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
+        self.0 = self.0.post_rotate(0.0, 0.0, -1.0, angle.into().to_layout());
+        self
+    }
+    #[inline]
+    pub fn translate(mut self, x: f32, y: f32) -> Self {
+        self.0 = self.0.post_translate(euclid::vec3(x, y, 0.0));
+        self
+    }
+    pub fn skew<A: Into<AngleRadian>>(mut self, alpha: A, beta: A) -> Self {
+        self.0 = self.0.post_transform(&skew(alpha, beta).0);
+        self
+    }
+    #[inline]
+    pub fn into_layout(self) -> LayoutTransform {
+        self.into()
+    }
+}
+pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
+    Transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()))
+}
+pub fn translate(x: f32, y: f32) -> Transform {
+    Transform(LayoutTransform::create_translation(x, y, 0.0))
+}
+pub fn skew<A: Into<AngleRadian>>(alpha: A, beta: A) -> Transform {
+    Transform(LayoutTransform::create_skew(alpha.into().to_layout(), beta.into().to_layout()))
+}
+
+/// Computed [`Transform`].
+pub type LayoutTransform = webrender::api::units::LayoutTransform;
+impl From<Transform> for LayoutTransform {
+    fn from(t: Transform) -> Self {
+        t.0
     }
 }
 

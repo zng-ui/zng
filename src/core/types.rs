@@ -1,10 +1,8 @@
 //! Assorted small types.
 
-pub use webrender::api::units::LayoutTransform;
-
 pub use webrender::api::{BorderRadius, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
 
-use super::{color::Rgba, units::AngleRadian};
+use super::color::Rgba;
 use font_kit::family_name::FamilyName;
 pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 pub use glutin::event::{
@@ -59,10 +57,6 @@ impl IntoVar<Vec<GradientStop>> for Vec<Rgba> {
                 .collect(),
         )
     }
-}
-
-pub fn rotate<A: Into<AngleRadian>>(angle: A) -> LayoutTransform {
-    LayoutTransform::create_rotation(0.0, 0.0, -1.0, euclid::Angle::radians(angle.into().0))
 }
 
 /// Text string type, can be either a `&'static str` or a `String`.
