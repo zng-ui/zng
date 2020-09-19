@@ -19,7 +19,6 @@ use app::{AppExtended, AppExtension, AppProcess};
 use fnv::FnvHashMap;
 use gleam::gl;
 use glutin::{
-    dpi::LogicalSize as WLogicalSize,
     window::{Window as GlutinWindow, WindowBuilder},
     Api, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };

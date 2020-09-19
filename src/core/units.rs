@@ -461,9 +461,9 @@ pub struct Point {
 impl fmt::Display for Point {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(p) = f.precision() {
-            write!(f, "{:.p$} × {:.p$}", self.x, self.y, p = p)
+            write!(f, "({:.p$}, {:.p$})", self.x, self.y, p = p)
         } else {
-            write!(f, "{} × {}", self.x, self.y)
+            write!(f, "({}, {})", self.x, self.y)
         }
     }
 }
@@ -823,10 +823,19 @@ impl PixelGrid {
     #[inline]
     pub fn snap(self, layout_value: f32) -> f32 {
         let px = layout_value * self.scale_factor;
-        if px < 0.01 {
+
+        if px > 0.0 {
+            if px < 0.01 {
+                0.0
+            } else if px < 1.0 {
+                1.0 / self.scale_factor
+            } else {
+                px.round() / self.scale_factor
+            }
+        } else if px > -0.01 {
             0.0
-        } else if px < 1.0 {
-            1.0 / self.scale_factor
+        } else if px > -1.0 {
+            -1.0 / self.scale_factor
         } else {
             px.round() / self.scale_factor
         }
