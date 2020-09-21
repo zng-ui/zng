@@ -1,7 +1,7 @@
 //! Angle, factor and length units.
 
 use derive_more as dm;
-use std::{f32::consts::*, fmt};
+use std::{f32::consts::*, fmt, time::Duration};
 
 use super::context::LayoutContext;
 use crate::core::var::{IntoVar, OwnedVar};
@@ -961,6 +961,48 @@ pub type LayoutTransform = webrender::api::units::LayoutTransform;
 impl From<Transform> for LayoutTransform {
     fn from(t: Transform) -> Self {
         t.0
+    }
+}
+
+/// Extension methods for initializing [`Duration`] values.
+pub trait TimeUnits {
+    /// Milliseconds.
+    fn ms(self) -> Duration;
+    /// Seconds.
+    fn secs(self) -> Duration;
+    /// Minutes.
+    fn minutes(self) -> Duration;
+}
+impl TimeUnits for u64 {
+    #[inline]
+    fn ms(self) -> Duration {
+        Duration::from_millis(self)
+    }
+
+    #[inline]
+    fn secs(self) -> Duration {
+        Duration::from_secs(self)
+    }
+
+    #[inline]
+    fn minutes(self) -> Duration {
+        Duration::from_secs(self / 60)
+    }
+}
+impl TimeUnits for f32 {
+    #[inline]
+    fn ms(self) -> Duration {
+        Duration::from_secs_f32(self / 60.0)
+    }
+
+    #[inline]
+    fn secs(self) -> Duration {
+        Duration::from_secs_f32(self)
+    }
+
+    #[inline]
+    fn minutes(self) -> Duration {
+        Duration::from_secs_f32(self * 60.0)
     }
 }
 
