@@ -125,7 +125,7 @@ where
     U: UiNode,
     K: StateKey,
     K::Type: VarValue,
-    V: Var<K::Type>,
+    V: IntoVar<K::Type>,
 {
     SetWidgetStateNode {
         child,
