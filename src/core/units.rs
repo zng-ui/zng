@@ -321,6 +321,12 @@ impl From<FactorPercent> for Length {
         Length::Relative(percent.into())
     }
 }
+impl From<FactorNormal> for Length {
+    /// Conversion to [`Length::Relative`]
+    fn from(norm: FactorNormal) -> Self {
+        Length::Relative(norm)
+    }
+}
 impl From<f32> for Length {
     fn from(f: f32) -> Self {
         Length::Exact(f)
@@ -926,6 +932,20 @@ impl PixelGridExt for LayoutSideOffsets {
     }
 }
 
+/// A transform builder type.
+///
+/// # Builder
+///
+/// The transform can be started by one of this functions, [`rotate`], [`translate`], [`skew`]. More
+/// transforms can be chained by calling the methods of this type.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// let rotate_then_move = rotate(10.deg()).translate(50.0, 30.0);
+/// ```
+#[derive(Clone)]
 pub struct Transform(LayoutTransform);
 impl Transform {
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
@@ -946,12 +966,18 @@ impl Transform {
         self.into()
     }
 }
+
+/// Create a 2d rotation transform.
 pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
     Transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()))
 }
+
+/// Create a 2d translation transform.
 pub fn translate(x: f32, y: f32) -> Transform {
     Transform(LayoutTransform::create_translation(x, y, 0.0))
 }
+
+/// Create a 2d skew transform.
 pub fn skew<A: Into<AngleRadian>>(alpha: A, beta: A) -> Transform {
     Transform(LayoutTransform::create_skew(alpha.into().to_layout(), beta.into().to_layout()))
 }

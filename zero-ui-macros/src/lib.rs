@@ -19,6 +19,7 @@ macro_rules! state_key {
         $(#[$outer])*
         /// # StateKey
         /// This `struct` is a [`StateKey`](zero_ui::core::context::StateKey).
+        #[derive(Clone, Copy)]
         $vis struct $ident;
 
         impl zero_ui::core::context::StateKey for $ident {

@@ -56,29 +56,47 @@ pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Ty
     }
 }
 
-struct SetWidgetStateNode<U: UiNode, K: StateKey> {
+struct SetWidgetStateNode<U, K, V>
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: Var<K::Type>,
+{
     child: U,
-    pre_init: Option<(K, K::Type)>,
+    key: K,
+    var: V,
 }
 
 #[impl_ui_node(child)]
-impl<U: UiNode, K: StateKey> UiNode for SetWidgetStateNode<U, K> {
+impl<U, K, V> UiNode for SetWidgetStateNode<U, K, V>
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: Var<K::Type>,
+{
     fn init(&mut self, ctx: &mut WidgetContext) {
-        if let Some((key, value)) = self.pre_init.take() {
-            ctx.widget_state.set(key, value);
-        }
+        ctx.widget_state.set(self.key, self.var.get(ctx.vars).clone());
         self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if let Some(new) = self.var.update(ctx.vars) {
+            ctx.widget_state.set(self.key, new.clone());
+        }
+        self.child.update(ctx);
     }
 }
 
 /// Helper for declaring properties that set the widget state.
 ///
-/// On the first [`init`](UiNode::init) `key` and `value` are moved to the [`widget_state`](WidgetContext::widget_state).
+/// The state key is set in [`widget_state`](WidgetContext::widget_state) on init and is kept updated.
 ///
 /// # Example
 /// ```
 /// # fn main() -> () { }
-/// use zero_ui::core::{property, context::{state_key, WidgetContext}, UiNode, Widget};
+/// use zero_ui::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};
 /// use zero_ui::properties::set_widget_state;
 ///
 /// state_key! {
@@ -86,7 +104,7 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetStateNode<U, K> {
 /// }
 ///
 /// #[property(context)]
-/// pub fn foo(child: impl UiNode, value: u32) -> impl UiNode {
+/// pub fn foo(child: impl UiNode, value: impl IntoVar<u32>) -> impl UiNode {
 ///     set_widget_state(child, FooKey, value)
 /// }
 ///
@@ -102,9 +120,16 @@ impl<U: UiNode, K: StateKey> UiNode for SetWidgetStateNode<U, K> {
 ///     ctx.widget_state.get(FooKey).copied().unwrap_or_default()
 /// }
 /// ```
-pub fn set_widget_state<K: StateKey>(child: impl UiNode, key: K, value: K::Type) -> impl UiNode {
+pub fn set_widget_state<U, K, V>(child: U, key: K, value: V) -> impl UiNode
+where
+    U: UiNode,
+    K: StateKey,
+    K::Type: VarValue,
+    V: Var<K::Type>,
+{
     SetWidgetStateNode {
         child,
-        pre_init: Some((key, value)),
+        key,
+        var: value.into_var(),
     }
 }

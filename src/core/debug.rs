@@ -569,7 +569,7 @@ impl UiNode for NewChildMarkerNode {
 }
 
 #[doc(hidden)]
-pub fn debug_var<T: VarValue>(var: impl Var<T>) -> BoxVar<String> {
+pub fn debug_var<T: VarValue, V: Var<T>>(var: V) -> BoxVar<String> {
     var.into_map(|t| format!("{:?}", t)).boxed()
 }
 

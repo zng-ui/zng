@@ -9,7 +9,7 @@
 //! fn main () {
 //!     App::default().run_window(|_| {
 //!         let size = var((800., 600.));
-//!         let title = size.map(|s: &LayoutSize| formatx!("Button Example - {}x{}", s.width.ceil(), s.height.ceil()));
+//!         let title = size.map(|s: &Size| formatx!("Button Example - {}", s));
 //!         window! {
 //!             size;
 //!             title;

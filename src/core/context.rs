@@ -339,7 +339,7 @@ impl Vars {
 ///
 /// The type that implements this trait is the key. You
 /// can use the [`state_key!`](macro.state_key.html) macro.
-pub trait StateKey: 'static {
+pub trait StateKey: Clone + Copy + 'static {
     /// The value type.
     type Type: 'static;
 }
