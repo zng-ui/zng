@@ -75,7 +75,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     };
 
     if validate_manual_del {
-        let skip = vec![ident!("render"), ident!("boxed")];
+        let skip = vec![ident!("render"), ident!("render_update"), ident!("boxed")];
 
         for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
@@ -188,6 +188,8 @@ fn no_delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>) -> Vec<ImplItem
 
         [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) { }]
 
+        [fn render_update(&self, update: &mut #crate_::core::render::FrameUpdate) { }]
+
         [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) { }]
 
         [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
@@ -234,6 +236,11 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
             child.render(frame)
         }]
 
+        [fn render_update(&self, update: &mut #crate_::core::render::FrameUpdate) {
+            let child = {#borrow};
+            child.render_update(update)
+        }]
+
         [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) {
             let child = {#borrow_mut};
             child.arrange(final_size, ctx)
@@ -276,6 +283,12 @@ fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, i
         [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) {
             for child in {#iter} {
                 child.render(frame)
+            }
+        }]
+
+        [fn render_update(&self, update: &mut #crate_::core::render::FrameUpdate) {
+            for child in {#iter} {
+                child.render_update(update)
             }
         }]
 

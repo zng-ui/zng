@@ -1,6 +1,6 @@
 use crate::core::{
     context::{LayoutContext, WidgetContext},
-    render::FrameBuilder,
+    render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
     units::{LayoutSize, LayoutTransform, Transform},
     var::{IntoVar, LocalVar},
 };
@@ -10,6 +10,7 @@ struct TransformNode<C: UiNode, T: LocalVar<Transform>> {
     child: C,
     transform: T,
     layout_transform: LayoutTransform,
+    frame_key: FrameBindingKey<LayoutTransform>,
 }
 
 #[impl_ui_node(child)]
@@ -32,7 +33,19 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_transform(self.layout_transform, |frame| self.child.render(frame))
+        let transform = if self.transform.can_update() {
+            self.frame_key.bind(self.layout_transform)
+        } else {
+            FrameBinding::Value(self.layout_transform)
+        };
+        frame.push_transform(transform, |frame| self.child.render(frame));
+    }
+
+    fn render_update(&self, update: &mut FrameUpdate) {
+        if self.transform.can_update() {
+            update.update_transform(self.frame_key.update(self.layout_transform));
+        }
+        self.child.render_update(update);
     }
 }
 
@@ -41,6 +54,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
     TransformNode {
         child,
         transform: transform.into_local(),
+        frame_key: FrameBindingKey::new_unique(),
         layout_transform: LayoutTransform::identity(),
     }
 }

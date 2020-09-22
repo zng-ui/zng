@@ -1,6 +1,6 @@
 use crate::core::{
     context::{LayoutContext, WidgetContext},
-    render::FrameBuilder,
+    render::{FrameBuilder, FrameUpdate},
     units::LayoutSize,
     UiNode,
 };
@@ -52,6 +52,12 @@ macro_rules! ui_n {
             fn render(&self, f: &mut FrameBuilder) {
                 match self {
                     $($UiEnum::$UiNode(ui) => ui.render(f),)+
+                }
+            }
+
+            fn render_update(&self, u: &mut FrameUpdate) {
+                match self {
+                    $($UiEnum::$UiNode(ui) => ui.render_update(u),)+
                 }
             }
         }

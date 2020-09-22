@@ -5,7 +5,7 @@ use super::{
     context::LayoutContext,
     context::{state_key, WidgetContext},
     impl_ui_node,
-    render::{FrameBuilder, FrameInfo, WidgetInfo},
+    render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
     units::LayoutSize,
     var::{context_var, BoxVar, ObjVar, Var, VarValue},
     UiNode,
@@ -130,6 +130,7 @@ pub struct UiNodeDurations {
     pub measure: Duration,
     pub arrange: Duration,
     pub render: Duration,
+    pub render_update: Duration,
 }
 
 /// Number of times a [`UiNode`] method was called in a property branch.
@@ -144,6 +145,7 @@ pub struct UiNodeCounts {
     pub measure: usize,
     pub arrange: usize,
     pub render: usize,
+    pub render_update: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -545,6 +547,15 @@ impl UiNode for PropertyInfoNode {
         info.count.render += 1;
 
         frame.meta().entry(PropertiesInfoKey).or_default().push(Rc::clone(&self.info));
+    }
+
+    fn render_update(&self, update: &mut FrameUpdate) {
+        let t = Instant::now();
+        self.child.render_update(update);
+        let d = t.elapsed();
+        let mut info = self.info.borrow_mut();
+        info.duration.render_update = d;
+        info.count.render_update += 1;
     }
 }
 

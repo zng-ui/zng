@@ -39,36 +39,36 @@ type CleanupOnce = Box<dyn FnOnce()>;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UpdateDisplayRequest {
     /// No update required.
-    None,
+    None = 0,
+    /// No new full frame required, just update the current one and render again.
+    RenderUpdate = 1,
     /// No re-layout required, just render again.
-    Render,
+    Render = 2,
     /// Full update required, re-layout then render again.
-    Layout,
+    Layout = 3,
 }
-
 impl Default for UpdateDisplayRequest {
     #[inline]
     fn default() -> Self {
         UpdateDisplayRequest::None
     }
 }
-
 impl std::ops::BitOrAssign for UpdateDisplayRequest {
     #[inline]
     fn bitor_assign(&mut self, rhs: Self) {
-        use UpdateDisplayRequest::*;
-        match rhs {
-            Layout => *self = Layout,
-            Render => {
-                if *self == None {
-                    *self = Render;
-                }
+        let a = (*self) as u8;
+        let b = rhs as u8;
+        *self = match a.max(b) {
+            3 => UpdateDisplayRequest::Layout,
+            2 => UpdateDisplayRequest::Render,
+            1 => UpdateDisplayRequest::RenderUpdate,
+            n => {
+                debug_assert_eq!(n, 0);
+                UpdateDisplayRequest::None
             }
-            _ => {}
-        }
+        };
     }
 }
-
 impl std::ops::BitOr for UpdateDisplayRequest {
     type Output = Self;
 
@@ -950,6 +950,12 @@ impl Updates {
     /// Schedules a new frame.
     pub fn push_render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
+        self.display_update |= UpdateDisplayRequest::Render;
+    }
+
+    /// Schedule a frame update.
+    pub fn push_render_update(&mut self) {
+        self.win_display_update |= UpdateDisplayRequest::RenderUpdate;
         self.display_update |= UpdateDisplayRequest::Render;
     }
 }

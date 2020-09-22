@@ -21,7 +21,7 @@ pub mod window;
 pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
 
 use context::{LayoutContext, LazyStateMap, WidgetContext};
-use render::FrameBuilder;
+use render::{FrameBuilder, FrameUpdate};
 use types::WidgetId;
 use units::LayoutSize;
 
@@ -72,6 +72,12 @@ pub trait UiNode: 'static {
     /// # Arguments
     /// * `frame`: Contains the next frame draw instructions.
     fn render(&self, frame: &mut FrameBuilder);
+
+    /// Called every time a frame can be updated without fully rebuilding.
+    ///
+    /// # Arguments
+    /// * `update`: Contains the frame value updates.
+    fn render_update(&self, update: &mut FrameUpdate);
 
     /// Box this node, unless it is already `Box<dyn UiNode>`.
     fn boxed(self) -> Box<dyn UiNode>
@@ -125,6 +131,10 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
 
     fn render(&self, frame: &mut FrameBuilder) {
         frame.push_widget(self.id, self.size, &self.child);
+    }
+
+    fn render_update(&self, update: &mut FrameUpdate) {
+        update.update_widget(self.id, &self.child);
     }
 }
 

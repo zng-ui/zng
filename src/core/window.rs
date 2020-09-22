@@ -1,6 +1,5 @@
 //! App windows manager.
 
-use super::event::*;
 use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
@@ -15,6 +14,7 @@ use super::{
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
     UiNode,
 };
+use super::{event::*, render::FrameUpdate};
 use app::{AppExtended, AppExtension, AppProcess};
 use fnv::FnvHashMap;
 use gleam::gl;
@@ -362,6 +362,7 @@ impl AppExtension for WindowManager {
         for (_, window) in ctx.services.req::<Windows>().windows.iter_mut() {
             window.layout();
             window.render();
+            window.render_update();
         }
     }
 
@@ -1154,6 +1155,28 @@ impl OpenWindow {
 
             txn.generate_frame();
             ctx.api.send_transaction(self.document_id, txn);
+        }
+    }
+
+    /// Render a frame update if one was required.
+    fn render_update(&mut self) {
+        let mut ctx = self.wn_ctx.borrow_mut();
+
+        if ctx.update == UpdateDisplayRequest::RenderUpdate {
+            ctx.update = UpdateDisplayRequest::None;
+
+            let mut update = FrameUpdate::new(ctx.window_id, ctx.root.id, self.frame_info.frame_id());
+
+            ctx.root.child.render_update(&mut update);
+
+            let update = update.finalize();
+            if !update.transforms.is_empty() || update.floats.is_empty() {
+                let mut txn = Transaction::new();
+                txn.set_root_pipeline(self.pipeline_id);
+                txn.update_dynamic_properties(update);
+                txn.generate_frame();
+                ctx.api.send_transaction(self.document_id, txn);
+            }
         }
     }
 

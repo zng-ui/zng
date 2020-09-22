@@ -1,5 +1,6 @@
 //! Frame render and metadata API.
 
+use super::color::RenderColor;
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
@@ -7,8 +8,6 @@ use crate::core::UiNode;
 use ego_tree::Tree;
 use std::mem;
 use webrender::api::*;
-
-use super::color::RenderColor;
 
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
@@ -28,6 +27,7 @@ macro_rules! debug_assert_aligned {
     };
 }
 
+/// A full frame builder.
 pub struct FrameBuilder {
     scale_factor: f32,
     display_list: DisplayListBuilder,
@@ -95,6 +95,12 @@ impl FrameBuilder {
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list
+    }
+
+    /// Window that owns the frame.
+    #[inline]
+    pub fn window_id(&self) -> WindowId {
+        self.info.window_id
     }
 
     /// Current widget.
@@ -170,7 +176,7 @@ impl FrameBuilder {
         });
     }
 
-    /// Calls [`render`](UiNode::render) for `node` inside a new widget context.
+    /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
     pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
@@ -267,13 +273,13 @@ impl FrameBuilder {
     }
 
     #[inline]
-    pub fn push_transform(&mut self, transform: LayoutTransform, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             LayoutPoint::zero(),
             parent_spatial_id,
             TransformStyle::Flat,
-            PropertyBinding::Value(transform),
+            transform,
             ReferenceFrameKind::Transform,
         );
 
@@ -382,6 +388,107 @@ impl FrameBuilder {
     pub fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
         self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
+    }
+}
+
+/// A frame quick update.
+pub struct FrameUpdate {
+    bindings: DynamicProperties,
+    frame_id: FrameId,
+    window_id: WindowId,
+    widget_id: WidgetId,
+}
+impl FrameUpdate {
+    pub fn new(window_id: WindowId, root_id: WidgetId, frame_id: FrameId) -> Self {
+        FrameUpdate {
+            bindings: DynamicProperties::default(),
+            window_id,
+            widget_id: root_id,
+            frame_id,
+        }
+    }
+
+    /// Window that owns the frame.
+    #[inline]
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+
+    /// Current widget.
+    #[inline]
+    pub fn widget_id(&self) -> WidgetId {
+        self.widget_id
+    }
+
+    /// The frame that will be updated.
+    #[inline]
+    pub fn frame_id(&self) -> FrameId {
+        self.frame_id
+    }
+
+    /// Update a layout transform value.
+    #[inline]
+    pub fn update_transform(&mut self, new_value: FrameValue<LayoutTransform>) {
+        self.bindings.transforms.push(new_value);
+    }
+
+    /// Update a float value.
+    #[inline]
+    pub fn update_f32(&mut self, new_value: FrameValue<f32>) {
+        self.bindings.floats.push(new_value);
+    }
+
+    /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
+    #[inline]
+    pub fn update_widget(&mut self, id: WidgetId, child: &impl UiNode) {
+        let parent_id = mem::replace(&mut self.widget_id, id);
+        child.render_update(self);
+        self.widget_id = parent_id;
+    }
+
+    /// Finalize the update.
+    pub fn finalize(self) -> DynamicProperties {
+        self.bindings
+    }
+}
+
+/// A frame value that can be updated without regenerating the full frame.
+///
+/// Use `FrameBinding::Value(value)` to not use the quick update feature.
+///
+/// Create a [`FrameBindingKey`] and use its [`bind`](FrameBindingKey::bind) method to
+/// setup a frame binding.
+pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict with the zero_ui property terminology.
+
+/// A frame value update.
+pub type FrameValue<T> = PropertyValue<T>;
+
+/// Unique key of a [`FrameBinding`] value.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FrameBindingKey<T>(PropertyBindingKey<T>);
+unique_id! {
+    FrameBindingKeyId;
+}
+impl<T> FrameBindingKey<T> {
+    /// Generates a new unique ID.
+    ///
+    /// # Panics
+    /// Panics if called more then `u64::MAX` times.
+    #[inline]
+    pub fn new_unique() -> Self {
+        FrameBindingKey(PropertyBindingKey::new(FrameBindingKeyId::new_unique().get()))
+    }
+
+    /// Create a binding with this key.
+    #[inline]
+    pub fn bind(self, value: T) -> FrameBinding<T> {
+        FrameBinding::Binding(self.0, value)
+    }
+
+    /// Create a value update with this key.
+    #[inline]
+    pub fn update(self, value: T) -> FrameValue<T> {
+        FrameValue { key: self.0, value }
     }
 }
 
