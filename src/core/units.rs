@@ -952,15 +952,49 @@ impl Transform {
         self.0 = self.0.post_rotate(0.0, 0.0, -1.0, angle.into().to_layout());
         self
     }
+
     #[inline]
     pub fn translate(mut self, x: f32, y: f32) -> Self {
         self.0 = self.0.post_translate(euclid::vec3(x, y, 0.0));
         self
     }
-    pub fn skew<A: Into<AngleRadian>>(mut self, alpha: A, beta: A) -> Self {
-        self.0 = self.0.post_transform(&skew(alpha, beta).0);
+    #[inline]
+    pub fn translate_x(self, x: f32) -> Self {
+        self.translate(x, 0.0)
+    }
+    #[inline]
+    pub fn translate_y(self, y: f32) -> Self {
+        self.translate(0.0, y)
+    }
+
+    pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
+        self.0 = self.0.post_transform(&skew(x, y).0);
         self
     }
+    pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
+        self.skew(x, 0.rad())
+    }
+    pub fn skew_y<Y: Into<AngleRadian>>(self, y: Y) -> Self {
+        self.skew(0.rad(), y)
+    }
+
+    pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
+        self.0 = self.0.post_scale(x.into().0, y.into().0, 1.0);
+        self
+    }
+    pub fn scale_x<X: Into<FactorNormal>>(self, x: X) -> Self {
+        self.scale(x, 1.0)
+    }
+    pub fn scale_y<Y: Into<FactorNormal>>(self, y: Y) -> Self {
+        self.scale(1.0, y)
+    }
+
+    /// Appends the `other` transform.
+    pub fn and(mut self, other: &Transform) -> Self {
+        self.0 = self.0.post_transform(&other.0);
+        self
+    }
+
     #[inline]
     pub fn into_layout(self) -> LayoutTransform {
         self.into()
@@ -974,12 +1008,47 @@ pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
 
 /// Create a 2d translation transform.
 pub fn translate(x: f32, y: f32) -> Transform {
-    Transform(LayoutTransform::create_translation(x, y, 0.0))
+    Transform(LayoutTransform::create_translation(x, y, 1.0))
+}
+
+/// Create a 2d translation transform in the X dimension.
+pub fn translate_x(x: f32) -> Transform {
+    translate(x, 0.0)
+}
+
+/// Create a 2d translation transform in the Y dimension.
+pub fn translate_y(y: f32) -> Transform {
+    translate(0.0, y)
 }
 
 /// Create a 2d skew transform.
-pub fn skew<A: Into<AngleRadian>>(alpha: A, beta: A) -> Transform {
-    Transform(LayoutTransform::create_skew(alpha.into().to_layout(), beta.into().to_layout()))
+pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(x: X, y: Y) -> Transform {
+    Transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()))
+}
+
+/// Create a 2d skew transform in the X dimension.
+pub fn skew_x<X: Into<AngleRadian>>(x: X) -> Transform {
+    skew(x, 0.rad())
+}
+
+/// Create a 2d skew transform in the Y dimension.
+pub fn skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
+    skew(0.rad(), y)
+}
+
+/// Create a 2d scale transform.
+pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
+    Transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0))
+}
+
+/// Create a 2d scale transform on the X dimension.
+pub fn scale_x<X: Into<FactorNormal>>(x: X) -> Transform {
+    scale(x, 1.0)
+}
+
+/// Create a 2d scale transform on the Y dimension.
+pub fn scale_y<Y: Into<FactorNormal>>(y: Y) -> Transform {
+    scale(1.0, y)
 }
 
 /// Computed [`Transform`].
