@@ -936,7 +936,7 @@ impl PixelGridExt for LayoutSideOffsets {
 ///
 /// # Builder
 ///
-/// The transform can be started by one of this functions, [`rotate`], [`translate`], [`skew`]. More
+/// The transform can be started by one of this functions, [`rotate`], [`translate`], [`scale`] and [`skew`]. More
 /// transforms can be chained by calling the methods of this type.
 ///
 /// # Example
@@ -945,17 +945,39 @@ impl PixelGridExt for LayoutSideOffsets {
 /// # use zero_ui::prelude::*;
 /// let rotate_then_move = rotate(10.deg()).translate(50.0, 30.0);
 /// ```
+#[derive(Clone, Default)]
+pub struct Transform {
+    steps: Vec<TransformStep>,
+}
 #[derive(Clone)]
-pub struct Transform(LayoutTransform);
+enum TransformStep {
+    Computed(LayoutTransform),
+    Translate(Length, Length),
+}
 impl Transform {
+    #[inline]
+    pub fn identity() -> Self {
+        Self::default()
+    }
+
+    /// Appends the `other` transform.
+    pub fn and(mut self, other: Transform) -> Self {
+        self.steps.extend(other.steps);
+        self
+    }
+
+    fn push_transform(&mut self, transform: LayoutTransform) {
+        self.steps.push(TransformStep::Computed(transform));
+    }
+
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
-        self.0 = self.0.post_rotate(0.0, 0.0, -1.0, angle.into().to_layout());
+        self.push_transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
     #[inline]
-    pub fn translate(mut self, x: f32, y: f32) -> Self {
-        self.0 = self.0.post_translate(euclid::vec3(x, y, 0.0));
+    pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
+        self.steps.push(TransformStep::Translate(x.into(), y.into()));
         self
     }
     #[inline]
@@ -968,7 +990,7 @@ impl Transform {
     }
 
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-        self.0 = self.0.post_transform(&skew(x, y).0);
+       self.push_transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
     pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
@@ -979,7 +1001,7 @@ impl Transform {
     }
 
     pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
-        self.0 = self.0.post_scale(x.into().0, y.into().0, 1.0);
+        self.push_transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0));
         self
     }
     pub fn scale_x<X: Into<FactorNormal>>(self, x: X) -> Self {
@@ -989,41 +1011,47 @@ impl Transform {
         self.scale(1.0, y)
     }
 
-    /// Appends the `other` transform.
-    pub fn and(mut self, other: &Transform) -> Self {
-        self.0 = self.0.post_transform(&other.0);
-        self
-    }
-
+    /// Compute a [`LayoutTransform`].
     #[inline]
-    pub fn into_layout(self) -> LayoutTransform {
-        self.into()
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutTransform {
+        let mut r = LayoutTransform::identity();
+        for step in &self.steps {
+            r = match step {
+                TransformStep::Computed(m) => r.post_transform(m),
+                TransformStep::Translate(x, y) => r.post_translate(euclid::vec3(
+                    x.to_layout(LayoutLength::new(available_size.width), ctx).get(),
+                    y.to_layout(LayoutLength::new(available_size.height), ctx).get(),
+                    0.0,
+                )),
+            };
+        }
+        r
     }
 }
 
 /// Create a 2d rotation transform.
 pub fn rotate<A: Into<AngleRadian>>(angle: A) -> Transform {
-    Transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()))
+    Transform::default().rotate(angle)
 }
 
 /// Create a 2d translation transform.
-pub fn translate(x: f32, y: f32) -> Transform {
-    Transform(LayoutTransform::create_translation(x, y, 1.0))
+pub fn translate<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Transform {
+    Transform::default().translate(x, y)
 }
 
 /// Create a 2d translation transform in the X dimension.
-pub fn translate_x(x: f32) -> Transform {
+pub fn translate_x<X: Into<Length>>(x: X) -> Transform {
     translate(x, 0.0)
 }
 
 /// Create a 2d translation transform in the Y dimension.
-pub fn translate_y(y: f32) -> Transform {
+pub fn translate_y<Y: Into<Length>>(y: Y) -> Transform {
     translate(0.0, y)
 }
 
 /// Create a 2d skew transform.
 pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(x: X, y: Y) -> Transform {
-    Transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()))
+    Transform::default().skew(x, y)
 }
 
 /// Create a 2d skew transform in the X dimension.
@@ -1038,7 +1066,7 @@ pub fn skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
 
 /// Create a 2d scale transform.
 pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
-    Transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0))
+    Transform::default().scale(x, y)
 }
 
 /// Create a 2d scale transform on the X dimension.
@@ -1053,11 +1081,6 @@ pub fn scale_y<Y: Into<FactorNormal>>(y: Y) -> Transform {
 
 /// Computed [`Transform`].
 pub type LayoutTransform = webrender::api::units::LayoutTransform;
-impl From<Transform> for LayoutTransform {
-    fn from(t: Transform) -> Self {
-        t.0
-    }
-}
 
 /// Extension methods for initializing [`Duration`] values.
 pub trait TimeUnits {
