@@ -550,7 +550,7 @@ mod tests {
     // }
 }
 
-/// [`rgb`] and [`rgba`] argument conversion helper.
+/// [`rgb`](rgb()) and [`rgba`] argument conversion helper.
 pub struct RgbaComponent(pub f32);
 impl From<f32> for RgbaComponent {
     fn from(f: f32) -> Self {
