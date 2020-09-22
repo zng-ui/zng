@@ -945,11 +945,11 @@ impl PixelGridExt for LayoutSideOffsets {
 /// # use zero_ui::prelude::*;
 /// let rotate_then_move = rotate(10.deg()).translate(50.0, 30.0);
 /// ```
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct Transform {
     steps: Vec<TransformStep>,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum TransformStep {
     Computed(LayoutTransform),
     Translate(Length, Length),
@@ -967,6 +967,7 @@ impl Transform {
     }
 
     fn push_transform(&mut self, transform: LayoutTransform) {
+        // TODO, use LayoutTransform in the vector? it is a 512 bytes value.
         self.steps.push(TransformStep::Computed(transform));
     }
 
@@ -990,7 +991,7 @@ impl Transform {
     }
 
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
-       self.push_transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()));
+        self.push_transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
     pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
