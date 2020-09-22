@@ -1135,7 +1135,7 @@ impl OpenWindow {
             let clear_color = *ctx.root.background_color.get_local();
 
             if clear_color != self.clear_color {
-                frame.push_color(LayoutRect::from_size(size), clear_color);
+                frame.push_color(LayoutRect::from_size(size), clear_color.into());
             }
             ctx.root.child.render(&mut frame);
 

@@ -84,7 +84,7 @@ impl<C: LocalVar<Rgba>> UiNode for FillColorNode<C> {
 
     fn render(&self, frame: &mut FrameBuilder) {
         profile_scope!("render_color");
-        frame.push_color(LayoutRect::from_size(self.final_size), *self.color.get_local());
+        frame.push_color(LayoutRect::from_size(self.final_size), (*self.color.get_local()).into());
     }
 }
 

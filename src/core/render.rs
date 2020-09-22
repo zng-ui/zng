@@ -327,10 +327,10 @@ impl FrameBuilder {
 
     /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_color<C: Into<RenderColor>>(&mut self, rect: LayoutRect, color: C) {
+    pub fn push_color(&mut self, rect: LayoutRect, color: RenderColor) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
-        self.display_list.push_rect(&self.common_item_properties(rect), color.into());
+        self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
     /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
