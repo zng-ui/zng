@@ -6,7 +6,7 @@ use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::UiNode;
 use ego_tree::Tree;
-use std::mem;
+use std::{marker::PhantomData, mem};
 use webrender::api::*;
 
 macro_rules! debug_assert_aligned {
@@ -463,11 +463,15 @@ pub type FrameBinding<T> = PropertyBinding<T>; // we rename this to not conflict
 /// A frame value update.
 pub type FrameValue<T> = PropertyValue<T>;
 
-/// Unique key of a [`FrameBinding`] value.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct FrameBindingKey<T>(PropertyBindingKey<T>);
 unique_id! {
     struct FrameBindingKeyId;
+}
+
+/// Unique key of a [`FrameBinding`] value.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FrameBindingKey<T> {
+    id: FrameBindingKeyId,
+    _type: PhantomData<T>,
 }
 impl<T> FrameBindingKey<T> {
     /// Generates a new unique ID.
@@ -476,19 +480,29 @@ impl<T> FrameBindingKey<T> {
     /// Panics if called more then `u64::MAX` times.
     #[inline]
     pub fn new_unique() -> Self {
-        FrameBindingKey(PropertyBindingKey::new(FrameBindingKeyId::new_unique().get()))
+        FrameBindingKey {
+            id: FrameBindingKeyId::new_unique(),
+            _type: PhantomData,
+        }
+    }
+
+    fn property_key(&self) -> PropertyBindingKey<T> {
+        PropertyBindingKey::new(self.id.get())
     }
 
     /// Create a binding with this key.
     #[inline]
     pub fn bind(self, value: T) -> FrameBinding<T> {
-        FrameBinding::Binding(self.0, value)
+        FrameBinding::Binding(self.property_key(), value)
     }
 
     /// Create a value update with this key.
     #[inline]
     pub fn update(self, value: T) -> FrameValue<T> {
-        FrameValue { key: self.0, value }
+        FrameValue {
+            key: self.property_key(),
+            value,
+        }
     }
 }
 
