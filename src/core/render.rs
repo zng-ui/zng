@@ -467,7 +467,7 @@ pub type FrameValue<T> = PropertyValue<T>;
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FrameBindingKey<T>(PropertyBindingKey<T>);
 unique_id! {
-    FrameBindingKeyId;
+    struct FrameBindingKeyId;
 }
 impl<T> FrameBindingKey<T> {
     /// Generates a new unique ID.

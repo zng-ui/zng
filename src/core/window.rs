@@ -1170,7 +1170,7 @@ impl OpenWindow {
             ctx.root.child.render_update(&mut update);
 
             let update = update.finalize();
-            if !update.transforms.is_empty() || update.floats.is_empty() {
+            if !update.transforms.is_empty() || !update.floats.is_empty() {
                 let mut txn = Transaction::new();
                 txn.set_root_pipeline(self.pipeline_id);
                 txn.update_dynamic_properties(update);

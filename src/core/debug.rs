@@ -232,7 +232,7 @@ unique_id! {
     ///
     /// This is different from the `WidgetId` in that it cannot manipulated by the user
     /// and identifies the widget *instantiation* event during debug mode.
-    pub WidgetInstanceId;
+    pub struct WidgetInstanceId;
 }
 
 context_var! {

@@ -55,7 +55,7 @@ macro_rules! warn_println {
 
 /// Declare a new unique id type.
 macro_rules! unique_id {
-    ($(#[$docs:meta])* $vis:vis $Type:ident;) => {
+    ($(#[$docs:meta])* $vis:vis struct $Type:ident;) => {
 
         $(#[$docs])*
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

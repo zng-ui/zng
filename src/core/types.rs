@@ -21,7 +21,7 @@ unique_id! {
     /// so IDs are unique for the process duration, but order is not guaranteed.
     ///
     /// Panics if you somehow reach `u64::max_value()` calls to `new`.
-    pub WidgetId;
+    pub struct WidgetId;
 }
 
 use crate::core::var::{IntoVar, OwnedVar};
