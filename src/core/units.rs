@@ -967,8 +967,11 @@ impl Transform {
     }
 
     fn push_transform(&mut self, transform: LayoutTransform) {
-        // TODO, use LayoutTransform in the vector? it is a 512 bytes value.
-        self.steps.push(TransformStep::Computed(transform));
+        if let Some(TransformStep::Computed(last)) = self.steps.last_mut() {
+            *last = last.post_transform(&transform);
+        } else {
+            self.steps.push(TransformStep::Computed(transform));
+        }
     }
 
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
