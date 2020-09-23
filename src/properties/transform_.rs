@@ -2,7 +2,7 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
     units::{LayoutSize, LayoutTransform, Transform},
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, LocalVar, ObjVar},
 };
 use crate::core::{impl_ui_node, property, UiNode};
 
@@ -10,7 +10,7 @@ struct TransformNode<C: UiNode, T: LocalVar<Transform>> {
     child: C,
     transform: T,
     layout_transform: LayoutTransform,
-    frame_key: FrameBindingKey<LayoutTransform>,
+    frame_key: Option<FrameBindingKey<LayoutTransform>>,
 }
 
 #[impl_ui_node(child)]
@@ -24,6 +24,7 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
         self.child.update(ctx);
         if self.transform.update_local(ctx.vars).is_some() {
             ctx.updates.push_layout();
+            // ctx.updates.push_render_update(); TODO?
         }
     }
 
@@ -33,8 +34,8 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        let transform = if self.transform.can_update() {
-            self.frame_key.bind(self.layout_transform)
+        let transform = if let Some(frame_key) = self.frame_key {
+            frame_key.bind(self.layout_transform)
         } else {
             FrameBinding::Value(self.layout_transform)
         };
@@ -42,8 +43,8 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {
-        if self.transform.can_update() {
-            update.update_transform(self.frame_key.update(self.layout_transform));
+        if let Some(frame_key) = self.frame_key {
+            update.update_transform(frame_key.update(self.layout_transform));
         }
         self.child.render_update(update);
     }
@@ -51,10 +52,16 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
 
 #[property(outer)]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
+    let transform = transform.into_local();
+    let frame_key = if transform.can_update() {
+        Some(FrameBindingKey::new_unique())
+    } else {
+        None
+    };
     TransformNode {
         child,
-        transform: transform.into_local(),
-        frame_key: FrameBindingKey::new_unique(),
+        transform,
+        frame_key,
         layout_transform: LayoutTransform::identity(),
     }
 }
