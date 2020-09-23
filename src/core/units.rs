@@ -962,7 +962,14 @@ impl Transform {
 
     /// Appends the `other` transform.
     pub fn and(mut self, other: Transform) -> Self {
-        self.steps.extend(other.steps);
+        let mut other_steps = other.steps.into_iter();
+        if let Some(first) = other_steps.next() {
+            match first {
+                TransformStep::Computed(first) => self.push_transform(first),
+                first => self.steps.push(first),
+            }
+            self.steps.extend(other_steps);
+        }
         self
     }
 
