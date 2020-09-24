@@ -36,6 +36,8 @@ pub struct FrameBuilder {
     info_id: WidgetInfoId,
 
     widget_id: WidgetId,
+    widget_filters: Option<WidgetFilters>,
+    in_stacking_context: bool,
     meta: LazyStateMap,
     cursor: CursorIcon,
     hit_testable: bool,
@@ -64,6 +66,8 @@ impl FrameBuilder {
             info_id: info.root_id(),
             info,
             widget_id: root_id,
+            widget_filters: Some(WidgetFilters::default()),
+            in_stacking_context: false,
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
             hit_testable: true,
@@ -92,6 +96,8 @@ impl FrameBuilder {
     }
 
     /// Direct access to the display list builder.
+    ///
+    /// [`commit_widget_filters`] TODO careful.
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list
@@ -167,6 +173,8 @@ impl FrameBuilder {
     ///
     /// This is done so we have consistent hit coordinates with precise hit area.
     fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
+        self.commit_widget_filters();
+
         self.display_list.push_hit_test(&CommonItemProperties {
             hit_info: Some((id.get(), WIDGET_HIT_AREA)),
             clip_rect: LayoutRect::from_size(area),
@@ -176,6 +184,34 @@ impl FrameBuilder {
         });
     }
 
+    /// Current widget filters.
+    ///
+    /// This is `Some(_)` only when a widget started but no `push_*` method was called.
+    #[inline]
+    pub fn widget_filters(&mut self) -> Option<&mut WidgetFilters> {
+        self.widget_filters.as_mut()
+    }
+
+    /// Finish [`widget_filters`] and starts the widget stacking context.
+    #[inline]
+    pub fn commit_widget_filters(&mut self) {
+        if let Some(f) = self.widget_filters.take() {
+            let filters = f.filters;
+            if !filters.is_empty() {
+                self.in_stacking_context = true;
+
+                self.display_list.push_simple_stacking_context_with_filters(
+                    LayoutPoint::zero(),
+                    self.spatial_id,
+                    PrimitiveFlags::empty(),
+                    &filters,
+                    &[],
+                    &[],
+                )
+            }
+        }
+    }
+
     /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
     pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
@@ -183,9 +219,12 @@ impl FrameBuilder {
 
         debug_assert_aligned!(area, self.pixel_grid());
 
-        self.push_widget_hit_area(id, area);
+        self.push_widget_hit_area(id, area); // self.commit_widget_filters() happens here.
+
+        self.widget_filters = Some(WidgetFilters::default());
 
         let parent_id = mem::replace(&mut self.widget_id, id);
+        let parent_isc = mem::replace(&mut self.in_stacking_context, false);
 
         let parent_meta = mem::take(&mut self.meta);
 
@@ -197,9 +236,14 @@ impl FrameBuilder {
 
         child.render(self);
 
+        if self.in_stacking_context {
+            self.display_list.pop_stacking_context();
+        }
+
         self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
 
         self.widget_id = parent_id;
+        self.in_stacking_context = parent_isc;
         self.info_id = parent_node;
     }
 
@@ -210,6 +254,7 @@ impl FrameBuilder {
         debug_assert_aligned!(rect, self.pixel_grid());
 
         if self.hit_testable {
+            self.commit_widget_filters();
             self.display_list.push_hit_test(&self.common_item_properties(rect));
         }
     }
@@ -226,6 +271,8 @@ impl FrameBuilder {
     #[inline]
     pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
         debug_assert_aligned!(bounds, self.pixel_grid());
+
+        self.commit_widget_filters();
 
         let parent_clip_id = self.clip_id;
 
@@ -253,6 +300,8 @@ impl FrameBuilder {
 
         debug_assert_aligned!(origin, self.pixel_grid());
 
+        self.commit_widget_filters();
+
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             origin,
@@ -274,6 +323,8 @@ impl FrameBuilder {
 
     #[inline]
     pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
+        self.commit_widget_filters();
+
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
             LayoutPoint::zero(),
@@ -295,6 +346,8 @@ impl FrameBuilder {
         debug_assert_aligned!(bounds, self.pixel_grid());
         debug_assert_aligned!(widths, self.pixel_grid());
 
+        self.commit_widget_filters();
+
         self.display_list
             .push_border(&self.common_item_properties(bounds), bounds, widths, details);
     }
@@ -310,6 +363,8 @@ impl FrameBuilder {
         glyph_options: Option<GlyphOptions>,
     ) {
         debug_assert_aligned!(rect, self.pixel_grid());
+
+        self.commit_widget_filters();
 
         self.display_list.push_text(
             &self.common_item_properties(rect),
@@ -336,6 +391,8 @@ impl FrameBuilder {
     pub fn push_color(&mut self, rect: LayoutRect, color: RenderColor) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
+        self.commit_widget_filters();
+
         self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
@@ -343,6 +400,8 @@ impl FrameBuilder {
     #[inline]
     pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
         debug_assert_aligned!(rect, self.pixel_grid());
+
+        self.commit_widget_filters();
 
         self.display_list.push_stops(stops);
 
@@ -369,6 +428,8 @@ impl FrameBuilder {
     ) {
         debug_assert_aligned!(bounds, self.pixel_grid());
 
+        self.commit_widget_filters();
+
         self.display_list.push_line(
             &self.common_item_properties(bounds),
             &bounds,
@@ -386,8 +447,26 @@ impl FrameBuilder {
     /// `(PipelineId, LayoutSize, BuiltDisplayList)` : The display list finalize data.
     /// `FrameInfo`: The built frame info.
     pub fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
+        if self.in_stacking_context {
+            self.display_list.pop_stacking_context();
+        }
         self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
+    }
+}
+
+#[derive(Default)]
+pub struct WidgetFilters {
+    filters: Vec<FilterOp>,
+}
+
+impl WidgetFilters {
+    pub fn push_opacity(&mut self, opacity: FrameBinding<f32>) {
+        let value = match &opacity {
+            PropertyBinding::Value(v) => *v,
+            PropertyBinding::Binding(_, v) => *v,
+        };
+        self.filters.push(FilterOp::Opacity(opacity, value));
     }
 }
 

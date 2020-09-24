@@ -27,12 +27,15 @@ impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
 
     fn render(&self, frame: &mut FrameBuilder) {
         let opacity = self.opacity.get_local().0;
-        let binding = if let Some(frame_key) = self.frame_key {
+        let opacity = if let Some(frame_key) = self.frame_key {
             frame_key.bind(opacity)
         } else {
             FrameBinding::Value(opacity)
         };
-        //TODO
+        frame
+            .widget_filters()
+            .expect("opacity is `context`, expected `widget_filters` access")
+            .push_opacity(opacity);
         self.child.render(frame);
     }
 

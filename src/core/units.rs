@@ -216,6 +216,13 @@ impl From<FactorNormal> for FactorPercent {
         FactorPercent(n.0 * 100.0)
     }
 }
+impl IntoVar<FactorNormal> for FactorPercent {
+    type Var = OwnedVar<FactorNormal>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
 
 /// Normalized multiplication factor (0.0-1.0).
 ///
@@ -232,6 +239,13 @@ impl FactorNormal {
 impl From<FactorPercent> for FactorNormal {
     fn from(percent: FactorPercent) -> Self {
         FactorNormal(percent.0 / 100.0)
+    }
+}
+impl IntoVar<FactorPercent> for FactorNormal {
+    type Var = OwnedVar<FactorPercent>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
     }
 }
 
