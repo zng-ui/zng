@@ -57,6 +57,7 @@ impl FrameBuilder {
         root_id: WidgetId,
         root_size: LayoutSize,
         scale_factor: f32,
+        clear_color: RenderColor,
     ) -> Self {
         debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
@@ -76,6 +77,7 @@ impl FrameBuilder {
             offset: LayoutPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
+        new.push_color(LayoutRect::from_size(root_size), clear_color);
         new.widget_filters = Some(WidgetFilters::default());
         new
     }

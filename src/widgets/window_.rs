@@ -68,6 +68,13 @@ widget! {
         };
 
         /// Window clear color.
+        ///
+        /// Changes to this property are ignored, only the initial value is used.
+        ///
+        /// Color filters applied to the window don't affect this color.
+        clear_color -> background_color: rgb(0.1, 0.1, 0.1);
+
+        /// Window background color.
         background_color: rgb(0.1, 0.1, 0.1);
 
         id: unset!;
@@ -92,8 +99,8 @@ widget! {
 
     /// Manually initializes a new [`window`](self).
     #[inline]
-    fn new(child, root_id, title, position, size, background_color) -> Window {
-        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), background_color.unwrap(), child)
+    fn new(child, root_id, title, position, size, clear_color) -> Window {
+        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), clear_color.unwrap(), child)
     }
 }
 

@@ -684,7 +684,7 @@ pub struct Window {
     title: BoxLocalVar<Text>,
     position: BoxVar<Point>,
     size: BoxVar<Size>,
-    background_color: BoxLocalVar<Rgba>,
+    clear_color: BoxLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
 
@@ -694,7 +694,7 @@ impl Window {
         title: impl IntoVar<Text>,
         position: impl IntoVar<Point>,
         size: impl IntoVar<Size>,
-        background_color: impl IntoVar<Rgba>,
+        clear_color: impl IntoVar<Rgba>,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -703,7 +703,7 @@ impl Window {
             title: Box::new(title.into_local()),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
-            background_color: Box::new(background_color.into_local()),
+            clear_color: Box::new(clear_color.into_local()),
             child: child.boxed(),
         }
     }
@@ -717,7 +717,6 @@ pub struct OpenWindow {
     renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
-    clear_color: Rgba,
 
     first_draw: bool,
     frame_info: FrameInfo,
@@ -800,7 +799,7 @@ impl OpenWindow {
             set_size_var = !root.position.read_only(ctx.vars);
         }
 
-        let clear_color = *root.background_color.get(ctx.vars);
+        let clear_color = *root.clear_color.get(ctx.vars);
         let opts = webrender::RendererOptions {
             device_pixel_ratio: dpi_factor,
             clear_color: Some(clear_color.into()),
@@ -838,7 +837,6 @@ impl OpenWindow {
             renderer: RendererState::Running(renderer),
             document_id,
             pipeline_id: PipelineId(1, 0),
-            clear_color,
 
             first_draw: true,
             frame_info,
@@ -1070,7 +1068,7 @@ impl OpenWindow {
         }
 
         // background_color
-        if wn_ctx.root.background_color.update_local(vars).is_some() {
+        if wn_ctx.root.clear_color.update_local(vars).is_some() {
             wn_ctx.update |= UpdateDisplayRequest::Render;
             updates.push_render();
         }
@@ -1132,12 +1130,17 @@ impl OpenWindow {
             });
 
             let size = self.size();
-            let mut frame = FrameBuilder::new(frame_id, ctx.window_id, self.pipeline_id, ctx.root.id, size, self.scale_factor());
-            let clear_color = *ctx.root.background_color.get_local();
+            let clear_color = (*ctx.root.clear_color.get_local()).into();
+            let mut frame = FrameBuilder::new(
+                frame_id,
+                ctx.window_id,
+                self.pipeline_id,
+                ctx.root.id,
+                size,
+                self.scale_factor(),
+                clear_color,
+            );
 
-            if clear_color != self.clear_color {
-                frame.push_color(LayoutRect::from_size(size), clear_color.into());
-            }
             ctx.root.child.render(&mut frame);
 
             let (display_list_data, frame_info) = frame.finalize();
@@ -1145,7 +1148,7 @@ impl OpenWindow {
             self.frame_info = frame_info;
 
             let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, Some(clear_color.into()), size, display_list_data, true);
+            txn.set_display_list(frame_id, Some(clear_color), size, display_list_data, true);
             txn.set_root_pipeline(self.pipeline_id);
 
             if self.doc_view_changed {
@@ -1279,7 +1282,7 @@ impl OwnedWindowContext {
         profile_scope!("window::init");
 
         self.root.title.init_local(ctx.vars);
-        self.root.background_color.init_local(ctx.vars);
+        self.root.clear_color.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.push_layout();
