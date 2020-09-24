@@ -1,8 +1,8 @@
 use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
-    units::{LayoutSize, LayoutTransform, Transform},
-    var::{IntoVar, LocalVar, ObjVar},
+    units::{self, AngleRadian, LayoutSize, LayoutTransform, Transform},
+    var::{IntoVar, LocalVar, ObjVar, Var},
 };
 use crate::core::{impl_ui_node, property, UiNode};
 
@@ -50,6 +50,11 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 }
 
+/// Custom transform.
+///
+/// See [`Transform`] for how to initialize a custom transform.
+///
+/// This property does not affect layout, the widget is transformed only during rendering.
 #[property(outer)]
 pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl UiNode {
     let transform = transform.into_local();
@@ -64,4 +69,14 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
         frame_key,
         layout_transform: LayoutTransform::identity(),
     }
+}
+
+/// Rotate transform.
+///
+/// This property is a shorthand way of setting [`transform`] with [`rotate(angle)`](units::rotate) using variable mapping.
+///
+/// This property does not affect layout, the widget is rotated only during rendering.
+#[property(outer)]
+pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
+    transform::set(child, angle.into_var().map(|&a| units::rotate(a)))
 }
