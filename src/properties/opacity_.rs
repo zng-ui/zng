@@ -34,7 +34,7 @@ impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
         };
         frame
             .widget_filters()
-            .expect("opacity is `context`, expected `widget_filters` access")
+            .expect("opacity property is `context`, expected `widget_filters` access")
             .push_opacity(opacity);
         self.child.render(frame);
     }

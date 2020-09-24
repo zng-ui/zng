@@ -66,7 +66,7 @@ impl FrameBuilder {
             info_id: info.root_id(),
             info,
             widget_id: root_id,
-            widget_filters: Some(WidgetFilters::default()),
+            widget_filters: None,
             in_stacking_context: false,
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
@@ -76,6 +76,7 @@ impl FrameBuilder {
             offset: LayoutPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
+        new.widget_filters = Some(WidgetFilters::default());
         new
     }
 
@@ -461,12 +462,18 @@ pub struct WidgetFilters {
 }
 
 impl WidgetFilters {
+    #[inline]
     pub fn push_opacity(&mut self, opacity: FrameBinding<f32>) {
         let value = match &opacity {
             PropertyBinding::Value(v) => *v,
             PropertyBinding::Binding(_, v) => *v,
         };
         self.filters.push(FilterOp::Opacity(opacity, value));
+    }
+
+    #[inline]
+    pub fn push_invert(&mut self, amount: f32) {
+        self.filters.push(FilterOp::Invert(amount));
     }
 }
 

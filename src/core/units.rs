@@ -248,6 +248,13 @@ impl IntoVar<FactorPercent> for FactorNormal {
         OwnedVar(self.into())
     }
 }
+impl IntoVar<FactorNormal> for f32 {
+    type Var = OwnedVar<FactorNormal>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
 
 /// Extension methods for initializing factor units.
 ///
