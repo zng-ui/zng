@@ -981,15 +981,19 @@ impl Transform {
         self.skew(0.rad(), y)
     }
 
-    pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
+    pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
         self.push_transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0));
         self
     }
     pub fn scale_x<X: Into<FactorNormal>>(self, x: X) -> Self {
-        self.scale(x, 1.0)
+        self.scale_xy(x, 1.0)
     }
     pub fn scale_y<Y: Into<FactorNormal>>(self, y: Y) -> Self {
-        self.scale(1.0, y)
+        self.scale_xy(1.0, y)
+    }
+    pub fn scale<S: Into<FactorNormal>>(self, scale: S) -> Self {
+        let s = scale.into();
+        self.scale_xy(s, s)
     }
 
     /// Compute a [`LayoutTransform`].
@@ -1046,18 +1050,26 @@ pub fn skew_y<Y: Into<AngleRadian>>(y: Y) -> Transform {
 }
 
 /// Create a 2d scale transform.
-pub fn scale<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
-    Transform::default().scale(x, y)
+///
+/// The same `scale` is applied to both dimensions.
+pub fn scale<S: Into<FactorNormal>>(scale: S) -> Transform {
+    let scale = scale.into();
+    scale_xy(scale, scale)
 }
 
 /// Create a 2d scale transform on the X dimension.
 pub fn scale_x<X: Into<FactorNormal>>(x: X) -> Transform {
-    scale(x, 1.0)
+    scale_xy(x, 1.0)
 }
 
 /// Create a 2d scale transform on the Y dimension.
 pub fn scale_y<Y: Into<FactorNormal>>(y: Y) -> Transform {
-    scale(1.0, y)
+    scale_xy(1.0, y)
+}
+
+/// Create a 2d scale transform.
+pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Transform {
+    Transform::default().scale_xy(x, y)
 }
 
 /// Computed [`Transform`].

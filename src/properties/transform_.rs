@@ -1,8 +1,8 @@
 use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
-    units::{self, AngleRadian, LayoutSize, LayoutTransform, Transform},
-    var::{IntoVar, LocalVar, ObjVar, Var},
+    units::{self, *},
+    var::{merge_var, IntoVar, LocalVar, ObjVar, Var},
 };
 use crate::core::{impl_ui_node, property, UiNode};
 
@@ -79,4 +79,44 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 #[property(outer)]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform::set(child, angle.into_var().map(|&a| units::rotate(a)))
+}
+
+/// Scale transform.
+///
+/// This property is a shorthand way of setting [`transform`] with [`scale(s)`](units::scale) using variable mapping.
+///
+/// This property does not affect layout, the widget is scaled only during rendering.
+#[property(outer)]
+pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
+    transform::set(child, s.into_var().map(|&x| units::scale(x)))
+}
+
+/// Scale X and Y transform.
+///
+/// This property is a shorthand way of setting [`transform`] with [`scale_xy(x, y)`](units::scale) using variable merging.
+///
+/// This property does not affect layout, the widget is scaled only during rendering.
+#[property(outer)]
+pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoVar<FactorNormal>) -> impl UiNode {
+    transform::set(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
+}
+
+/// Scale X transform.
+///
+/// This property is a shorthand way of setting [`transform`] with [`scale_x(x)`](units::scale_x) using variable mapping.
+///
+/// This property does not affect layout, the widget is scaled only during rendering.
+#[property(outer)]
+pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode {
+    transform::set(child, x.into_var().map(|&x| units::scale_x(x)))
+}
+
+/// Scale Y transform.
+///
+/// This property is a shorthand way of setting [`transform`] with [`scale_y(y)`](units::scale_y) using variable mapping.
+///
+/// This property does not affect layout, the widget is scaled only during rendering.
+#[property(outer)]
+pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode {
+    transform::set(child, y.into_var().map(|&y| units::scale_y(y)))
 }
