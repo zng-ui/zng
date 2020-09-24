@@ -185,9 +185,8 @@ impl fmt::Display for Hsva {
         }
     }
 }
-
-impl From<Hsla> for Hsva {
-    fn from(hsla: Hsla) -> Self {
+impl_from_and_into_var! {
+    fn from(hsla: Hsla) -> Hsva {{
         let lightness = clamp_normal(hsla.lightness);
         let saturation = clamp_normal(hsla.saturation);
 
@@ -204,10 +203,9 @@ impl From<Hsla> for Hsva {
             value,
             alpha: hsla.alpha,
         }
-    }
-}
-impl From<Hsva> for Hsla {
-    fn from(hsva: Hsva) -> Self {
+    }}
+
+    fn from(hsva: Hsva) -> Hsla {{
         let saturation = clamp_normal(hsva.saturation);
         let value = clamp_normal(hsva.value);
 
@@ -224,11 +222,9 @@ impl From<Hsva> for Hsla {
             lightness,
             alpha: hsva.alpha,
         }
-    }
-}
+    }}
 
-impl From<Hsva> for Rgba {
-    fn from(hsva: Hsva) -> Self {
+    fn from(hsva: Hsva) -> Rgba {{
         let hue = AngleDegree(hsva.hue).modulo().0;
         let saturation = clamp_normal(hsva.saturation);
         let value = clamp_normal(hsva.value);
@@ -263,10 +259,9 @@ impl From<Hsva> for Rgba {
             blue: f(blue),
             alpha: hsva.alpha,
         }
-    }
-}
-impl From<Hsla> for Rgba {
-    fn from(hsla: Hsla) -> Self {
+    }}
+
+    fn from(hsla: Hsla) -> Rgba {{
         if hsla.saturation <= f32::EPSILON {
             return rgba(hsla.lightness, hsla.lightness, hsla.lightness, hsla.alpha);
         }
@@ -303,8 +298,9 @@ impl From<Hsla> for Rgba {
             blue: f(blue),
             alpha: hsla.alpha,
         }
-    }
+    }}
 }
+
 macro_rules! cylindrical_color {
     ($rgba:ident -> ($min:ident, $max:ident, $delta:ident, $hue:ident)) => {
         fn sanitize(i: f32) -> f32 {
@@ -338,8 +334,9 @@ macro_rules! cylindrical_color {
         };
     };
 }
-impl From<Rgba> for Hsva {
-    fn from(rgba: Rgba) -> Self {
+
+impl_from_and_into_var! {
+    fn from(rgba: Rgba) -> Hsva {{
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
         let saturation = if max <= f32::EPSILON { 0.0 } else { delta / max };
@@ -352,10 +349,9 @@ impl From<Rgba> for Hsva {
             value,
             alpha: rgba.alpha,
         }
-    }
-}
-impl From<Rgba> for Hsla {
-    fn from(rgba: Rgba) -> Self {
+    }}
+
+    fn from(rgba: Rgba) -> Hsla {{
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
         let lightness = (max + min) / 2.0;
@@ -372,7 +368,7 @@ impl From<Rgba> for Hsla {
             saturation,
             alpha: rgba.alpha,
         }
-    }
+    }}
 }
 
 impl From<Rgba> for RenderColor {
@@ -383,12 +379,6 @@ impl From<Rgba> for RenderColor {
             b: rgba.blue,
             a: rgba.alpha,
         }
-    }
-}
-
-impl From<Hsla> for RenderColor {
-    fn from(hsla: Hsla) -> Self {
-        Rgba::from(hsla).into()
     }
 }
 

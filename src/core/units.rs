@@ -25,18 +25,16 @@ impl AngleRadian {
         self.into()
     }
 }
-impl From<AngleGradian> for AngleRadian {
-    fn from(grad: AngleGradian) -> Self {
+impl_from_and_into_var! {
+    fn from(grad: AngleGradian) -> AngleRadian {
         AngleRadian(grad.0 * PI / 200.0)
     }
-}
-impl From<AngleDegree> for AngleRadian {
-    fn from(deg: AngleDegree) -> Self {
+
+    fn from(deg: AngleDegree) -> AngleRadian {
         AngleRadian(deg.0.to_radians())
     }
-}
-impl From<AngleTurn> for AngleRadian {
-    fn from(turn: AngleTurn) -> Self {
+
+    fn from(turn: AngleTurn) -> AngleRadian {
         AngleRadian(turn.0 * TAU)
     }
 }
@@ -54,18 +52,16 @@ impl AngleGradian {
         AngleGradian(self.0.rem_euclid(400.0))
     }
 }
-impl From<AngleRadian> for AngleGradian {
-    fn from(rad: AngleRadian) -> Self {
+impl_from_and_into_var! {
+    fn from(rad: AngleRadian) -> AngleGradian {
         AngleGradian(rad.0 * 200.0 / PI)
     }
-}
-impl From<AngleDegree> for AngleGradian {
-    fn from(deg: AngleDegree) -> Self {
+
+    fn from(deg: AngleDegree) -> AngleGradian {
         AngleGradian(deg.0 * 10.0 / 9.0)
     }
-}
-impl From<AngleTurn> for AngleGradian {
-    fn from(turn: AngleTurn) -> Self {
+
+    fn from(turn: AngleTurn) -> AngleGradian {
         AngleGradian(turn.0 * 400.0)
     }
 }
@@ -83,18 +79,16 @@ impl AngleDegree {
         AngleDegree(self.0.rem_euclid(360.0))
     }
 }
-impl From<AngleRadian> for AngleDegree {
-    fn from(rad: AngleRadian) -> Self {
+impl_from_and_into_var! {
+    fn from(rad: AngleRadian) -> AngleDegree {
         AngleDegree(rad.0.to_degrees())
     }
-}
-impl From<AngleGradian> for AngleDegree {
-    fn from(grad: AngleGradian) -> Self {
+
+    fn from(grad: AngleGradian) -> AngleDegree {
         AngleDegree(grad.0 * 9.0 / 10.0)
     }
-}
-impl From<AngleTurn> for AngleDegree {
-    fn from(turn: AngleTurn) -> Self {
+
+    fn from(turn: AngleTurn) -> AngleDegree {
         AngleDegree(turn.0 * 360.0)
     }
 }
@@ -112,18 +106,16 @@ impl AngleTurn {
         AngleTurn(self.0.rem_euclid(1.0))
     }
 }
-impl From<AngleRadian> for AngleTurn {
-    fn from(rad: AngleRadian) -> Self {
+impl_from_and_into_var! {
+    fn from(rad: AngleRadian) -> AngleTurn {
         AngleTurn(rad.0 / TAU)
     }
-}
-impl From<AngleGradian> for AngleTurn {
-    fn from(grad: AngleGradian) -> Self {
+
+    fn from(grad: AngleGradian) -> AngleTurn {
         AngleTurn(grad.0 / 400.0)
     }
-}
-impl From<AngleDegree> for AngleTurn {
-    fn from(deg: AngleDegree) -> Self {
+
+    fn from(deg: AngleDegree) -> AngleTurn {
         AngleTurn(deg.0 / 360.0)
     }
 }
@@ -211,23 +203,16 @@ impl FactorPercent {
         FactorPercent(self.0.max(0.0).min(100.0))
     }
 }
-impl From<FactorNormal> for FactorPercent {
-    fn from(n: FactorNormal) -> Self {
+impl_from_and_into_var! {
+    fn from(n: FactorNormal) -> FactorPercent {
         FactorPercent(n.0 * 100.0)
-    }
-}
-impl IntoVar<FactorNormal> for FactorPercent {
-    type Var = OwnedVar<FactorNormal>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
     }
 }
 
 /// Normalized multiplication factor (0.0-1.0).
 ///
 /// See [`FactorUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq, dm::From)]
+#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
 pub struct FactorNormal(pub f32);
 impl FactorNormal {
     /// Clamp factor to [0.0..=1.0] range.
@@ -236,23 +221,13 @@ impl FactorNormal {
         FactorNormal(self.0.max(0.0).min(1.0))
     }
 }
-impl From<FactorPercent> for FactorNormal {
-    fn from(percent: FactorPercent) -> Self {
+impl_from_and_into_var! {
+    fn from(percent: FactorPercent) -> FactorNormal {
         FactorNormal(percent.0 / 100.0)
     }
-}
-impl IntoVar<FactorPercent> for FactorNormal {
-    type Var = OwnedVar<FactorPercent>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
-    }
-}
-impl IntoVar<FactorNormal> for f32 {
-    type Var = OwnedVar<FactorNormal>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    fn from(f: f32) -> FactorNormal {
+        FactorNormal(f)
     }
 }
 
@@ -336,25 +311,24 @@ impl fmt::Display for Length {
         }
     }
 }
-impl From<FactorPercent> for Length {
+impl_from_and_into_var! {
     /// Conversion to [`Length::Relative`]
-    fn from(percent: FactorPercent) -> Self {
+    fn from(percent: FactorPercent) -> Length {
         Length::Relative(percent.into())
     }
-}
-impl From<FactorNormal> for Length {
+
     /// Conversion to [`Length::Relative`]
-    fn from(norm: FactorNormal) -> Self {
+    fn from(norm: FactorNormal) -> Length {
         Length::Relative(norm)
     }
-}
-impl From<f32> for Length {
-    fn from(f: f32) -> Self {
+
+    /// Conversion to [`Length::Exact`]
+    fn from(f: f32) -> Length {
         Length::Exact(f)
     }
-}
-impl From<u32> for Length {
-    fn from(u: u32) -> Self {
+
+    /// Conversion to [`Length::Exact`]
+    fn from(u: u32) -> Length {
         Length::Exact(u as f32)
     }
 }
@@ -491,6 +465,40 @@ impl LengthUnits for u32 {
     }
 }
 
+/// Implement From<{tuple of Into<Length>}> and IntoVar for Length compound types.
+macro_rules! impl_length_comp_conversions {
+    ($(
+        $(#[$docs:meta])*
+        fn from($($n:ident : $N:ident),+) -> $For:ty {
+            $convert:expr
+        }
+    )+) => {
+        $(
+            impl<$($N),+> From<($($N),+)> for $For
+            where
+                $($N: Into<Length>,)+
+            {
+                $(#[$docs])*
+                fn from(($($n),+) : ($($N),+)) -> Self {
+                    $convert
+                }
+            }
+
+            impl<$($N),+> IntoVar<$For> for ($($N),+)
+            where
+            $($N: Into<Length> + Clone,)+
+            {
+                type Var = OwnedVar<$For>;
+
+                $(#[$docs])*
+                fn into_var(self) -> Self::Var {
+                    OwnedVar(self.into())
+                }
+            }
+        )+
+    };
+}
+
 /// 2D point in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Point {
@@ -536,16 +544,9 @@ impl Point {
         )
     }
 }
-impl<X: Into<Length>, Y: Into<Length>> From<(X, Y)> for Point {
-    fn from(t: (X, Y)) -> Self {
-        Point::new(t.0, t.1)
-    }
-}
-impl<X: Into<Length> + Clone, Y: Into<Length> + Clone> IntoVar<Point> for (X, Y) {
-    type Var = OwnedVar<Point>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+impl_length_comp_conversions! {
+    fn from(x: X, y: Y) -> Point {
+        Point::new(x, y)
     }
 }
 
@@ -599,16 +600,9 @@ impl Size {
         )
     }
 }
-impl<W: Into<Length>, H: Into<Length>> From<(W, H)> for Size {
-    fn from(t: (W, H)) -> Self {
-        Size::new(t.0, t.1)
-    }
-}
-impl<W: Into<Length> + Clone, H: Into<Length> + Clone> IntoVar<Size> for (W, H) {
-    type Var = OwnedVar<Size>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+impl_length_comp_conversions! {
+    fn from(width: W, height: H) -> Size {
+        Size::new(width, height)
     }
 }
 
@@ -678,17 +672,6 @@ impl<O: Into<Point>, S: Into<Size>> From<(O, S)> for Rect {
         Rect::new(t.0, t.1)
     }
 }
-impl<X, Y, W, H> From<(X, Y, W, H)> for Rect
-where
-    X: Into<Length>,
-    Y: Into<Length>,
-    W: Into<Length>,
-    H: Into<Length>,
-{
-    fn from(t: (X, Y, W, H)) -> Self {
-        Rect::new((t.0, t.1), (t.2, t.3))
-    }
-}
 impl<O: Into<Point> + Clone, S: Into<Size> + Clone> IntoVar<Rect> for (O, S) {
     type Var = OwnedVar<Rect>;
 
@@ -696,17 +679,10 @@ impl<O: Into<Point> + Clone, S: Into<Size> + Clone> IntoVar<Rect> for (O, S) {
         OwnedVar(self.into())
     }
 }
-impl<X, Y, W, H> IntoVar<Rect> for (X, Y, W, H)
-where
-    X: Into<Length> + Clone,
-    Y: Into<Length> + Clone,
-    W: Into<Length> + Clone,
-    H: Into<Length> + Clone,
-{
-    type Var = OwnedVar<Rect>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+impl_length_comp_conversions! {
+    fn from(x: X, y: Y, width: W, height: H) -> Rect {
+        Rect::new((x, y), (width, height))
     }
 }
 
@@ -772,67 +748,40 @@ impl SideOffsets {
     }
 }
 
-/// all sides equal.
-impl<A: Into<Length>> From<A> for SideOffsets {
-    fn from(all: A) -> Self {
+impl_from_and_into_var! {
+    /// All sides equal.
+    fn from(all: Length) -> SideOffsets {
         SideOffsets::new_all(all)
     }
-}
 
-/// all sides equal.
-impl<A: Into<Length> + Clone> IntoVar<SideOffsets> for A {
-    type Var = OwnedVar<SideOffsets>;
+    /// All sides equal relative length.
+    fn from(percent: FactorPercent) -> SideOffsets {
+        SideOffsets::new_all(percent)
+    }
+    /// All sides equal relative length.
+    fn from(norm: FactorNormal) -> SideOffsets {
+        SideOffsets::new_all(norm)
+    }
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(SideOffsets::new_all(self))
+    /// All sides equal exact length.
+    fn from(f: f32) -> SideOffsets {
+        SideOffsets::new_all(f)
+    }
+    /// All sides equal exact length.
+    fn from(u: u32) -> SideOffsets {
+        SideOffsets::new_all(u)
     }
 }
 
-/// (top-bottom, left-right)
-impl<TB: Into<Length>, LR: Into<Length>> From<(TB, LR)> for SideOffsets {
-    fn from(t: (TB, LR)) -> Self {
-        SideOffsets::new_dimension(t.0, t.1)
+impl_length_comp_conversions! {
+    /// (top-bottom, left-right)
+    fn from(top_bottom: TB, left_right: LR) -> SideOffsets {
+        SideOffsets::new_dimension(top_bottom,left_right)
     }
-}
 
-/// (top-bottom, left-right)
-impl<TB, LR> IntoVar<SideOffsets> for (TB, LR)
-where
-    TB: Into<Length> + Clone,
-    LR: Into<Length> + Clone,
-{
-    type Var = OwnedVar<SideOffsets>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
-    }
-}
-
-/// (top, right, bottom, left)
-impl<T, R, B, L> From<(T, R, B, L)> for SideOffsets
-where
-    T: Into<Length>,
-    R: Into<Length>,
-    B: Into<Length>,
-    L: Into<Length>,
-{
-    fn from(t: (T, R, B, L)) -> Self {
-        SideOffsets::new(t.0, t.1, t.2, t.3)
-    }
-}
-
-/// (top, right, bottom, left)
-impl<T, R, B, L> IntoVar<SideOffsets> for (T, R, B, L)
-where
-    T: Into<Length> + Clone,
-    R: Into<Length> + Clone,
-    B: Into<Length> + Clone,
-    L: Into<Length> + Clone,
-{
-    type Var = OwnedVar<SideOffsets>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into())
+    /// (top, right, bottom, left)
+    fn from(top: T, right: R, bottom: B, left: L) -> SideOffsets {
+        SideOffsets::new(top, right, bottom, left)
     }
 }
 

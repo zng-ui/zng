@@ -121,6 +121,35 @@ macro_rules! unique_id {
     };
 }
 
+/// Implements From and IntoVar without boilerplate.
+macro_rules! impl_from_and_into_var {
+    ($(
+        $(#[$docs:meta])*
+        fn from($name:ident : $From:ty) -> $To:ty {
+            $convert:expr
+        }
+    )+) => {
+        $(
+            impl From<$From> for $To {
+                $(#[$docs])*
+                #[inline]
+                fn from($name: $From) -> Self {
+                    $convert
+                }
+            }
+
+            impl $crate::core::var::IntoVar<$To> for $From {
+                type Var = $crate::core::var::OwnedVar<$To>;
+
+                $(#[$docs])*
+                fn into_var(self) -> Self::Var {
+                    $crate::core::var::OwnedVar(self.into())
+                }
+            }
+        )+
+    };
+}
+
 #[doc(hidden)]
 pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
 
