@@ -1,3 +1,4 @@
+var local = document.currentScript.parentElement;
 document.addEventListener("DOMContentLoaded", function() {
     var modules = document.querySelector("h2#modules.section-header");
     if(modules !== null) {

@@ -760,28 +760,33 @@ mod output {
     }
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+            let script: String = include_str!("js/property_mods_ext.js")
+                .lines()
+                .map(|l| l.trim())
+                .collect::<Vec<&str>>()
+                .join(" ");
             let mut first = true;
             for attr in &self.user_docs {
                 if first {
                     first = false;
                     let inner = attr.tokens.to_string();
-                    if inner.starts_with("= \"") {
-                        let doc = &inner["= \"".len()..];
-                        let doc = &doc[..doc.len() - 1];// remove \"
-                        let script: String = include_str!("js/property_mods_ext.js")
-                            .lines()
-                            .map(|l| l.trim())
-                            .collect::<Vec<&str>>()
-                            .join(" ");
-                        doc_extend!(tokens, "<script>{}</script>{}", script, doc);
-                    } else {
-                        attr.to_tokens(tokens);
+                    if inner.starts_with('=') {
+                        let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
+                        if doc.starts_with('"') {
+                            let doc = &doc[1..]; // remove \" start
+                            let doc = &doc[..doc.len() - 1]; // remove \" end
+                            doc_extend!(tokens, "<script>{}</script>{}\n\n", script, doc);
+                            continue;
+                        }
                     }
-                } else {
-                    attr.to_tokens(tokens);
                 }
+                attr.to_tokens(tokens);
+            }
+            if first {
+                doc_extend!(tokens, "<script>{}</script>", script);
             }
             doc_extend!(tokens, "\n# Property\n");
+
             doc_extend!(
                 tokens,
                 "This module is a widget [`{0}`](zero_ui::core::property#{0}) property. It {1} be used in widget `when` condition expressions.",
