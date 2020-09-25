@@ -229,6 +229,14 @@ impl_from_and_into_var! {
     fn from(f: f32) -> FactorNormal {
         FactorNormal(f)
     }
+
+    /// | Input  | Output  |
+    /// |--------|---------|
+    /// |`true`  | `1.0`   |
+    /// |`false` | `0.0`   |
+    fn from(b: bool) -> FactorNormal {
+        FactorNormal(if b { 1.0 } else { 0.0 })
+    }
 }
 
 /// Extension methods for initializing factor units.
