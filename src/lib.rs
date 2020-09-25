@@ -175,6 +175,7 @@ pub mod prelude {
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,
     };
+    pub use crate::properties::transform::*;
     pub use crate::properties::*;
     pub use crate::widgets::layouts::*;
     pub use crate::widgets::*;

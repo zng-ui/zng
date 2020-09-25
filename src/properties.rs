@@ -19,7 +19,7 @@ mod position_;
 mod size_;
 mod text;
 mod title_;
-mod transform_;
+pub mod transform;
 
 pub use align_::*;
 pub use attached::*;
@@ -39,7 +39,6 @@ pub use position_::*;
 pub use size_::*;
 pub use text::*;
 pub use title_::*;
-pub use transform_::*;
 
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]

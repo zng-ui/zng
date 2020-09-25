@@ -1,3 +1,5 @@
+//! Transform properties, [`scale`](module@scale), [`rotate`](module@rotate), [`transform`](module@transform) and more.
+
 use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
