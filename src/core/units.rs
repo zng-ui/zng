@@ -11,7 +11,22 @@ const TAU: f32 = 2.0 * PI;
 /// Angle in radians.
 ///
 /// See [`AngleUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+#[derive(
+    Debug,
+    dm::Display,
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    PartialEq,
+)]
 #[display(fmt = "{} rad", self.0)]
 pub struct AngleRadian(pub f32);
 impl AngleRadian {
@@ -42,7 +57,22 @@ impl_from_and_into_var! {
 /// Angle in gradians.
 ///
 /// See [`AngleUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+#[derive(
+    Debug,
+    dm::Display,
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    PartialEq,
+)]
 #[display(fmt = "{} gon", self.0)]
 pub struct AngleGradian(pub f32);
 impl AngleGradian {
@@ -69,7 +99,22 @@ impl_from_and_into_var! {
 /// Angle in degrees.
 ///
 /// See [`AngleUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+#[derive(
+    Debug,
+    dm::Display,
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    PartialEq,
+)]
 #[display(fmt = "{}º", self.0)]
 pub struct AngleDegree(pub f32);
 impl AngleDegree {
@@ -96,7 +141,22 @@ impl_from_and_into_var! {
 /// Angle in turns (complete rotations).
 ///
 /// See [`AngleUnits`] for more details.
-#[derive(Debug, dm::Display, Copy, Clone, dm::Add, dm::AddAssign, dm::Sub, dm::SubAssign, PartialEq)]
+#[derive(
+    Debug,
+    dm::Display,
+    Copy,
+    Clone,
+    dm::Add,
+    dm::AddAssign,
+    dm::Sub,
+    dm::SubAssign,
+    dm::Mul,
+    dm::MulAssign,
+    dm::Div,
+    dm::DivAssign,
+    dm::Neg,
+    PartialEq,
+)]
 #[display(fmt = "{} tr", self.0)]
 pub struct AngleTurn(pub f32);
 impl AngleTurn {
@@ -172,7 +232,7 @@ impl AngleUnits for f32 {
         AngleTurn(self)
     }
 }
-impl AngleUnits for u32 {
+impl AngleUnits for i32 {
     fn rad(self) -> AngleRadian {
         AngleRadian(self as f32)
     }
