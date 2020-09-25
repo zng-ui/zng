@@ -760,8 +760,26 @@ mod output {
     }
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+            let mut first = true;
             for attr in &self.user_docs {
-                attr.to_tokens(tokens);
+                if first {
+                    first = false;
+                    let inner = attr.tokens.to_string();
+                    if inner.starts_with("= \"") {
+                        let doc = &inner["= \"".len()..];
+                        let doc = &doc[..doc.len() - 1];// remove \"
+                        let script: String = include_str!("js/property_mods_ext.js")
+                            .lines()
+                            .map(|l| l.trim())
+                            .collect::<Vec<&str>>()
+                            .join(" ");
+                        doc_extend!(tokens, "<script>{}</script>{}", script, doc);
+                    } else {
+                        attr.to_tokens(tokens);
+                    }
+                } else {
+                    attr.to_tokens(tokens);
+                }
             }
             doc_extend!(tokens, "\n# Property\n");
             doc_extend!(
