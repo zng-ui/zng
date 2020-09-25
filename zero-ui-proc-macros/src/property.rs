@@ -773,9 +773,13 @@ mod output {
                     if inner.starts_with('=') {
                         let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
                         if doc.starts_with('"') {
+                            // is #[doc=".."] like attribute.
+                            // inject JS without breaking line so that it is included in the item summary.
+
                             let doc = &doc[1..]; // remove \" start
                             let doc = &doc[..doc.len() - 1]; // remove \" end
-                            doc_extend!(tokens, "<script>{}</script>{}\n\n", script, doc);
+
+                            doc_extend!(tokens, "{}<script>{}</script>\n\n", doc, script);
                             continue;
                         }
                     }
