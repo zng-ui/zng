@@ -100,7 +100,18 @@ impl FrameBuilder {
 
     /// Direct access to the display list builder.
     ///
-    /// [`commit_widget_filters`] TODO careful.
+    /// # Careful
+    ///
+    /// This provides direct access to the underlying WebRender display list builder, modifying it
+    /// can interfere with the working of the [`FrameBuilder`].
+    ///
+    /// Call [`commit_widget_filters`](Self::commit_widget_filters) before modifying the display list.
+    ///
+    /// Check the [`FrameBuilder`] source code before modifying the display list.
+    ///
+    /// Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
+    /// use the [`clip_id`](Self::clip_id) and [`spatial_id`](Self::spatial_id). Custom items added to the display list
+    /// should be self-contained and completely custom.
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list
@@ -195,7 +206,7 @@ impl FrameBuilder {
         self.widget_filters.as_mut()
     }
 
-    /// Finish [`widget_filters`] and starts the widget stacking context.
+    /// Finish [`widget_filters`](Self::widget_filters) and starts the widget stacking context.
     #[inline]
     pub fn commit_widget_filters(&mut self) {
         if let Some(f) = self.widget_filters.take() {

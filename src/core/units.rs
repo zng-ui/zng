@@ -933,6 +933,7 @@ enum TransformStep {
     Translate(Length, Length),
 }
 impl Transform {
+    /// No transform.
     #[inline]
     pub fn identity() -> Self {
         Self::default()
@@ -959,46 +960,57 @@ impl Transform {
         }
     }
 
+    /// Append a 2d rotation transform.
     pub fn rotate<A: Into<AngleRadian>>(mut self, angle: A) -> Self {
         self.push_transform(LayoutTransform::create_rotation(0.0, 0.0, -1.0, angle.into().to_layout()));
         self
     }
 
+    /// Append a 2d translation transform.
     #[inline]
     pub fn translate<X: Into<Length>, Y: Into<Length>>(mut self, x: X, y: Y) -> Self {
         self.steps.push(TransformStep::Translate(x.into(), y.into()));
         self
     }
+    /// Append a 2d translation transform in the X dimension.
     #[inline]
     pub fn translate_x(self, x: f32) -> Self {
         self.translate(x, 0.0)
     }
+    /// Append a 2d translation transform in the Y dimension.
     #[inline]
     pub fn translate_y(self, y: f32) -> Self {
         self.translate(0.0, y)
     }
 
+    /// Append a 2d skew transform.
     pub fn skew<X: Into<AngleRadian>, Y: Into<AngleRadian>>(mut self, x: X, y: Y) -> Self {
         self.push_transform(LayoutTransform::create_skew(x.into().to_layout(), y.into().to_layout()));
         self
     }
+    /// Append a 2d skew transform in the X dimension.
     pub fn skew_x<X: Into<AngleRadian>>(self, x: X) -> Self {
         self.skew(x, 0.rad())
     }
+    /// Append a 2d skew transform in the Y dimension.
     pub fn skew_y<Y: Into<AngleRadian>>(self, y: Y) -> Self {
         self.skew(0.rad(), y)
     }
 
+    /// Append a 2d scale transform.
     pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(mut self, x: X, y: Y) -> Self {
         self.push_transform(LayoutTransform::create_scale(x.into().0, y.into().0, 1.0));
         self
     }
+    /// Append a 2d scale transform in the X dimension.
     pub fn scale_x<X: Into<FactorNormal>>(self, x: X) -> Self {
         self.scale_xy(x, 1.0)
     }
+    /// Append a 2d scale transform in the Y dimension.
     pub fn scale_y<Y: Into<FactorNormal>>(self, y: Y) -> Self {
         self.scale_xy(1.0, y)
     }
+    /// Append a 2d uniform scale transform.
     pub fn scale<S: Into<FactorNormal>>(self, scale: S) -> Self {
         let s = scale.into();
         self.scale_xy(s, s)
