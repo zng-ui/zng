@@ -1,7 +1,9 @@
 //! Color types.
 
-use super::units::*;
+use super::{render::FrameBinding, units::*};
 use std::fmt;
+use webrender::api::FilterOp;
+pub use zero_ui_macros::hex_color as hex;
 
 /// Webrender RGBA.
 pub type RenderColor = webrender::api::ColorF;
@@ -558,7 +560,30 @@ impl From<FactorPercent> for RgbaComponent {
     }
 }
 
-pub use zero_ui_macros::hex_color as hex;
+#[derive(Clone, Default, Debug)]
+pub struct Filter {
+    pub(super) filters: Vec<FilterOp>,
+}
+impl Filter {
+    pub fn opacity<O: Into<FactorNormal>>(mut self, opacity: O) -> Self {
+        let opacity = opacity.into().0;
+        self.filters.push(FilterOp::Opacity(FrameBinding::Value(opacity), opacity));
+        self
+    }
+
+    pub fn invert<I: Into<FactorNormal>>(mut self, invert: I) -> Self {
+        let invert = invert.into().0;
+        self.filters.push(FilterOp::Invert(invert));
+        self
+    }
+}
+
+pub fn opacity<O: Into<FactorNormal>>(opacity: O) -> Filter {
+    Filter::default().opacity(opacity)
+}
+pub fn invert<I: Into<FactorNormal>>(invert: I) -> Filter {
+    Filter::default().invert(invert)
+}
 
 /// Named web colors
 pub mod web_colors {

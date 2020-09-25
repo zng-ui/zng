@@ -1,6 +1,6 @@
 //! Frame render and metadata API.
 
-use super::color::RenderColor;
+use super::color::{Filter, RenderColor};
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
@@ -464,6 +464,10 @@ pub struct WidgetFilters {
 }
 
 impl WidgetFilters {
+    pub fn push_filter(&mut self, filter: Filter) {
+        self.filters.extend(filter.filters)
+    }
+
     #[inline]
     pub fn push_opacity(&mut self, opacity: FrameBinding<f32>) {
         let value = match &opacity {
