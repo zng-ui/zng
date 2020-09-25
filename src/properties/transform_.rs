@@ -150,3 +150,33 @@ pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
 pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
     transform::set(child, y.into_var().map(|&y| units::skew_y(y)))
 }
+
+/// Translate transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`translate(x, y)`](units::translate) using variable merging.
+///
+/// This property does not affect layout, the widget is moved only during rendering.
+#[property(outer)]
+pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
+    transform::set(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::translate(x, y)))
+}
+
+/// Translate X transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`translate_x(x)`](units::translate_x) using variable mapping.
+///
+/// This property does not affect layout, the widget is moved only during rendering.
+#[property(outer)]
+pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
+    transform::set(child, x.into_var().map(|&x| units::translate_x(x)))
+}
+
+/// Translate Y transform.
+///
+/// This property is a shorthand way of setting [`transform`] to [`translate_y(y)`](units::translate_y) using variable mapping.
+///
+/// This property does not affect layout, the widget is moved only during rendering.
+#[property(outer)]
+pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
+    transform::set(child, y.into_var().map(|&y| units::translate_y(y)))
+}
