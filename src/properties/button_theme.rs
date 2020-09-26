@@ -1,10 +1,29 @@
+//! Theme context vars and properties for the [`button!`](module@crate::widgets::button) widget.
+
+use crate::core::color::rgb;
 use crate::core::color::Rgba;
 use crate::core::property;
 use crate::core::units::*;
-use crate::core::var::IntoVar;
+use crate::core::var::{context_var, IntoVar};
 use crate::core::UiNode;
 use crate::properties::{with_context_var, BorderDetails};
-use crate::widgets::*;
+
+context_var! {
+    /// Default background of [`button!`](module@crate::widgets::button) widgets.
+    pub struct ButtonBackgroundVar: Rgba = once rgb(0.2, 0.2, 0.2);
+    pub struct ButtonBackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
+    pub struct ButtonBackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
+
+    pub struct ButtonBorderWidthsVar: SideOffsets = once SideOffsets::new_all(1.0);
+    pub struct ButtonBorderWidthsHoveredVar: SideOffsets = once SideOffsets::new_all(1.0);
+    pub struct ButtonBorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
+
+    pub struct ButtonBorderDetailsVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
+    pub struct ButtonBorderDetailsHoveredVar: BorderDetails = once BorderDetails::solid(rgb(0.4, 0.4, 0.4));
+    pub struct ButtonBorderDetailsPressedVar: BorderDetails = once BorderDetails::solid(rgb(0.6, 0.6, 0.6));
+
+    pub struct ButtonPaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
+}
 
 /// Sets the [`ButtonBackgroundVar`] context var.
 #[property(context)]
