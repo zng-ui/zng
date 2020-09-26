@@ -43,7 +43,7 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 
 /// Inverts the colors of the widget.
 ///
-/// This property is a shorthand way of setting [`filter`] to [`invert(amount)`](color::invert) using variable merging.
+/// This property is a shorthand way of setting [`filter`] to [`color::invert(amount)`](color::invert) using variable merging.
 #[property(context)]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter::set(child, amount.into_var().map(|&a| color::invert(a)))

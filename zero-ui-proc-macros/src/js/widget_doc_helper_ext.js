@@ -1,6 +1,6 @@
-document.addEventListener("DOMContentLoaded", function() {
-    var table = document.querySelector("table");
+document.addEventListener('DOMContentLoaded', function() {
+    var table = document.querySelector('table');
     if(table !== null) {
-        window.parent.postMessage(table.outerHTML, "*");
+        window.parent.postMessage(table.outerHTML, '*');
     }
 });

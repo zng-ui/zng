@@ -19,3 +19,8 @@ usually removes all empty lines.
 The files cannot use `fetch` because its common to open documentation from local files and CORS blocks it (origin null).
 
 To circumvent this issue load the extra content using `iframe` elements and use the `window.message` event to send data from inside the frame to the outside.
+
+## Use Single Quotes
+
+Use `'` instead of `"`, rust-doc incorrectly escapes `"` with `&quot;`. Escaped quotes works in most browsers, but
+prints errors to the console.
