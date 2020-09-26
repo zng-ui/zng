@@ -1439,7 +1439,7 @@ pub mod output {
                     .filter(|p| p.docs.is_empty())
                     .map(|p| &p.ident);
 
-                let callback = format!("<script>{}</script>", include_str!("js/widget_doc_helper_ext.js"));
+                let callback = js_tag!("widget_doc_helper_ext.js");
 
                 Some(quote! {
                     /// <style>#modules, a[href="doc_helper/index.html"], a[href="#modules"] { display: none; }</style>
@@ -1461,8 +1461,8 @@ pub mod output {
 
             doc_extend!(
                 tokens,
-                "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style><script>{}</script>",
-                include_str!("js/widget_docs_ext.js")
+                "\n</div><style>span.wgprop p {{ display: inline; margin-left:-1ch; }}</style>{}",
+                js_tag!("widget_docs_ext.js")
             );
 
             fn open_section(tokens: &mut TokenStream, id: &str, title: &str) {

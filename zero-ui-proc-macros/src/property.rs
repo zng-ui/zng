@@ -729,11 +729,7 @@ mod output {
         /// Generate dummy function for argument type links.
         fn inner_tokens(&self) -> TokenStream {
             let mut t = TokenStream::new();
-            doc_extend!(
-                t,
-                "<span></span>\n\n<script>{}</script>",
-                include_str!("js/property_doc_helper_ext.js")
-            );
+            doc_extend!(t, "<span></span>\n\n{}", js_tag!("property_doc_helper_ext.js"));
             let args = &self.args;
 
             let generics = if self.generics.is_empty() {
@@ -760,11 +756,7 @@ mod output {
     }
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            let script: String = include_str!("js/property_mods_ext.js")
-                .lines()
-                .map(|l| l.trim())
-                .collect::<Vec<&str>>()
-                .join(" ");
+            let script = js_tag!("property_mods_ext.js");
             let mut first = true;
             for attr in &self.user_docs {
                 if first {
@@ -779,7 +771,7 @@ mod output {
                             let doc = &doc[1..]; // remove \" start
                             let doc = &doc[..doc.len() - 1]; // remove \" end
 
-                            doc_extend!(tokens, "{}<script>{}</script>\n\n", doc, script);
+                            doc_extend!(tokens, "{}{}\n\n", doc, script);
                             continue;
                         }
                     }
@@ -787,7 +779,7 @@ mod output {
                 attr.to_tokens(tokens);
             }
             if first {
-                doc_extend!(tokens, "<script>{}</script>", script);
+                doc_extend!(tokens, "{}", script);
             }
             doc_extend!(tokens, "\n# Property\n");
 
@@ -806,7 +798,7 @@ mod output {
             }
             doc_extend!(tokens, "</pre>\n");
             doc_extend!(tokens, "</div>");
-            doc_extend!(tokens, "<script>{}</script>", include_str!("js/property_args_ext.js"));
+            doc_extend!(tokens, "<script>{}</script>", js!("property_args_ext.js"));
             doc_extend!(
                 tokens,
                 "<style>a[href='fn.doc_helper.html']{ display: none; } #args_example { margin: 0 0 0 24px; padding: 0; }</style>"

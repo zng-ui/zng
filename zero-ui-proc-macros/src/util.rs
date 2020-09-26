@@ -90,6 +90,20 @@ macro_rules! non_user_error {
     };
 }
 
+/// Include minified JS string from the "src/js" dir.
+macro_rules! js {
+    ($file_name:tt) => {
+        include_str!(concat!(env!("OUT_DIR"), "\\js_min\\", $file_name))
+    };
+}
+
+/// Like [`js!`] but quoted with `<script>..</script>` tag.
+macro_rules! js_tag {
+    ($file_name:tt) => {
+        concat!("<script>", js!($file_name), "</script>")
+    };
+}
+
 /// Does a `braced!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
 pub fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
     fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
