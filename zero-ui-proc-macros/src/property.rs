@@ -655,7 +655,7 @@ mod analysis {
 
 mod output {
     use super::input::{Prefix, Priority, PropertyArg};
-    use crate::util::{uuid, zero_ui_crate_ident, Errors};
+    use crate::util::{docs_with_first_line_js, uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
@@ -756,31 +756,8 @@ mod output {
     }
     impl ToTokens for PropertyDocs {
         fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            let script = js_tag!("property_mods_ext.js");
-            let mut first = true;
-            for attr in &self.user_docs {
-                if first {
-                    first = false;
-                    let inner = attr.tokens.to_string();
-                    if inner.starts_with('=') {
-                        let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
-                        if doc.starts_with('"') {
-                            // is #[doc=".."] like attribute.
-                            // inject JS without breaking line so that it is included in the item summary.
+            docs_with_first_line_js(tokens, &self.user_docs, js_tag!("property_mods_ext.js"));
 
-                            let doc = &doc[1..]; // remove \" start
-                            let doc = &doc[..doc.len() - 1]; // remove \" end
-
-                            doc_extend!(tokens, "{}{}\n\n", doc, script);
-                            continue;
-                        }
-                    }
-                }
-                attr.to_tokens(tokens);
-            }
-            if first {
-                doc_extend!(tokens, "{}", script);
-            }
             doc_extend!(tokens, "\n# Property\n");
 
             doc_extend!(

@@ -222,3 +222,28 @@ impl Attributes {
         Attributes { docs, inline, cfg, others }
     }
 }
+
+pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
+    if docs.is_empty() {
+        doc_extend!(output, "{}", js);
+    } else {
+        let inner = docs[0].tokens.to_string();
+        if inner.starts_with('=') {
+            let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
+            if doc.starts_with('"') {
+                // is #[doc=".."] like attribute.
+                // inject JS without breaking line so that it is included in the item summary.
+
+                let doc = &doc[1..]; // remove \" start
+                let doc = &doc[..doc.len() - 1]; // remove \" end
+
+                doc_extend!(output, "{}{}\n\n", doc, js);
+                return;
+            }
+        }
+
+        for attr in docs.iter().skip(1) {
+            attr.to_tokens(output);
+        }
+    }
+}

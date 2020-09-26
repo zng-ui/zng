@@ -1184,7 +1184,7 @@ pub mod analysis {
 
 pub mod output {
     use super::input::{keyword, BuiltPropertyKind, NewTarget, PropertyArgs, PropertyFields, WgtItemNew};
-    use crate::util::{uuid, zero_ui_crate_ident, Errors};
+    use crate::util::{docs_with_first_line_js, uuid, zero_ui_crate_ident, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::{collections::HashSet, fmt};
@@ -1455,9 +1455,7 @@ pub mod output {
     impl ToTokens for WidgetDocs {
         // TODO generate when documentation.
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            for doc in &self.docs {
-                doc.to_tokens(tokens)
-            }
+            docs_with_first_line_js(tokens, &self.docs, js_tag!("widget_mods_ext.js"));
 
             doc_extend!(
                 tokens,
