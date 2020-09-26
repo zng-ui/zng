@@ -1,7 +1,9 @@
 //! Properties that are only used by widgets directly.
+//!
+//! Setting this properties in a widget that does not reexports then is an error.
 
 use crate::{
-    core::{color::Rgba, gesture::Shortcut, property, types::*, var::IntoVar, UiNode, UiVec},
+    core::{color::Rgba, gesture::Shortcut, property, types::*, units::Length, var::IntoVar, UiNode, UiVec},
     widgets::LineStyle,
 };
 
@@ -33,9 +35,9 @@ pub fn widget_child(child: impl UiNode) -> ! {}
 #[property(capture_only, allowed_in_when: false)]
 pub fn widget_children(children: UiVec) -> ! {}
 
-/// A `f32` spacing.
+/// A [`Length`] spacing.
 #[property(capture_only)]
-pub fn spacing(spacing: impl IntoVar<f32>) -> ! {}
+pub fn spacing(spacing: impl IntoVar<Length>) -> ! {}
 
 /// A [`text!`](crate::widgets::text) value.
 #[property(capture_only)]

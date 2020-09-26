@@ -2,7 +2,7 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::FrameBuilder,
     ui_vec,
-    units::{LayoutPoint, LayoutRect, LayoutSize},
+    units::{LayoutLength, LayoutPoint, LayoutRect, LayoutSize, Length},
     var::{IntoVar, LocalVar},
     UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
 };
@@ -22,14 +22,14 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct StackNode<S: LocalVar<f32>, D: StackDimension> {
+struct StackNode<S: LocalVar<Length>, D: StackDimension> {
     children: Box<[Box<dyn UiNode>]>,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
 #[impl_ui_node(children)]
-impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
+impl<S: LocalVar<Length>, D: StackDimension> StackNode<S, D> {
     fn new(children: UiVec, spacing: S, _dimension: D) -> Self {
         StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
@@ -63,7 +63,11 @@ impl<S: LocalVar<f32>, D: StackDimension> StackNode<S, D> {
 
         let mut total_size = LayoutSize::zero();
         let (total_len, max_ort_len) = D::lengths_mut(&mut total_size);
-        let spacing = ctx.pixel_grid().snap(*self.spacing.get_local());
+        let spacing = self
+            .spacing
+            .get_local()
+            .to_layout(LayoutLength::new(D::length(available_size)), ctx)
+            .get();
         let mut first = true;
 
         for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {
