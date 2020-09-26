@@ -30,21 +30,21 @@ pub fn button_padding(child: impl UiNode, padding: impl IntoVar<SideOffsets>) ->
     with_context_var(child, ButtonPaddingVar, padding)
 }
 
-/// Sets the [`ButtonBorderWidthsVarVar`](ButtonBorderDetailsVar) and [`ButtonBorderDetailsVarVar`] context var.
+/// Sets the [`ButtonBorderWidthsVar`] and [`ButtonBorderDetailsVar`] context var.
 #[property(context)]
 pub fn button_border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     let child = with_context_var(child, ButtonBorderWidthsVar, widths);
     with_context_var(child, ButtonBorderDetailsVar, details)
 }
 
-/// Sets the [`ButtonBorderWidthsVarVar`](ButtonBorderDetailsVar) and [`ButtonBorderDetailsVarVar`] context var.
+/// Sets the [`ButtonBorderWidthsVar`] and [`ButtonBorderDetailsVar`] context var.
 #[property(context)]
 pub fn button_border_hovered(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     let child = with_context_var(child, ButtonBorderWidthsHoveredVar, widths);
     with_context_var(child, ButtonBorderDetailsHoveredVar, details)
 }
 
-/// Sets the [`ButtonBorderWidthsPressedVarVar`](ButtonBorderDetailsPressedVar) and [`ButtonBorderDetailsPressedVarVar`] context var.
+/// Sets the [`ButtonBorderWidthsPressedVar`] and [`ButtonBorderDetailsPressedVar`] context var.
 #[property(context)]
 pub fn button_border_pressed(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     let child = with_context_var(child, ButtonBorderWidthsPressedVar, widths);

@@ -41,7 +41,7 @@ pub fn spacing(spacing: impl IntoVar<f32>) -> ! {}
 #[property(capture_only)]
 pub fn text_value(text: impl IntoVar<Text>) -> ! {}
 
-/// A [`KeyShortcut`] variable.
+/// A [`Shortcut`] variable.
 #[property(capture_only)]
 pub fn key_shortcut(shortcut: impl IntoVar<Shortcut>) -> ! {}
 
