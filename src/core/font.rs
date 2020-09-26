@@ -2,7 +2,7 @@ use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
 use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontSize, FontStyle};
 use crate::core::var::ContextVar;
-use crate::widgets::FontFamilyVar;
+use crate::properties::text_theme::FontFamilyVar;
 
 use fnv::FnvHashMap;
 use std::{collections::HashMap, sync::Arc};

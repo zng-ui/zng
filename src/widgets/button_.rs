@@ -1,5 +1,11 @@
 use crate::core::widget;
-use crate::properties::{background_color, border, button_theme::*, is_hovered, is_pressed, on_click};
+use crate::properties::{
+    background::background_color,
+    border,
+    button_theme::*,
+    events::on_click,
+    states::{is_hovered, is_pressed},
+};
 use crate::widgets::{container, mixins::focusable_mixin};
 
 widget! {

@@ -2,41 +2,33 @@
 
 mod align_;
 mod attached;
-mod background_;
+pub mod background;
 mod border_;
 pub mod button_theme;
 pub mod capture_only;
 mod clip_to_bounds_;
 mod cursor_;
-mod filter_;
-mod focus;
+pub mod events;
+pub mod filters;
+pub mod focus;
+pub mod foreground;
 mod hit_testable_;
-mod is_state_;
 mod margin_;
-mod on_event_;
-mod opacity_;
 mod position_;
-mod size_;
-mod text;
+pub mod size;
+pub mod states;
+pub mod text_theme;
 mod title_;
 pub mod transform;
 
 pub use align_::*;
 pub use attached::*;
-pub use background_::*;
 pub use border_::*;
 pub use clip_to_bounds_::*;
 pub use cursor_::*;
-pub use filter_::*;
-pub use focus::*;
 pub use hit_testable_::*;
-pub use is_state_::*;
 pub use margin_::*;
-pub use on_event_::*;
-pub use opacity_::*;
 pub use position_::*;
-pub use size_::*;
-pub use text::*;
 pub use title_::*;
 
 /// Tests on the #[property(..)] code generator.

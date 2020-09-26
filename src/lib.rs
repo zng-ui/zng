@@ -175,8 +175,18 @@ pub mod prelude {
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,
     };
-    pub use crate::properties::transform::*;
     pub use crate::properties::*;
+
+    pub use crate::properties::background::*;
+    pub use crate::properties::events::*;
+    pub use crate::properties::filters::*;
+    pub use crate::properties::focus::*;
+    pub use crate::properties::foreground::*;
+    pub use crate::properties::size::*;
+    pub use crate::properties::states::*;
+    pub use crate::properties::text_theme::{font_family, font_size, font_stretch, font_style, font_weight};
+    pub use crate::properties::transform::*;
+
     pub use crate::widgets::layouts::*;
     pub use crate::widgets::*;
 }

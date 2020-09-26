@@ -1,4 +1,5 @@
-use super::StopPropagation;
+//! Keyboard focus properties, [`tab_index`], [`focusable`] and more.
+
 use crate::core::context::*;
 use crate::core::focus::*;
 use crate::core::render::*;
@@ -9,6 +10,7 @@ use crate::core::{
     gesture::{Shortcut, ShortcutArgs, ShortcutEvent},
     impl_ui_node, property,
 };
+use crate::properties::events::StopPropagation;
 
 /// Enables a widget to receive focus.
 #[property(context)]

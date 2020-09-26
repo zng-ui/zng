@@ -1,3 +1,5 @@
+//! Manually sizing properties, [`min_size`], [`max_size`] and more.
+
 use crate::core::{
     context::{LayoutContext, WidgetContext},
     is_layout_any_size,
@@ -37,6 +39,9 @@ impl<T: UiNode, S: LocalVar<Size>> UiNode for MinSizeNode<T, S> {
     }
 }
 
+/// Minimum size of the widget.
+///
+/// The widget size can be larger then this but not smaller.
 #[property(size)]
 pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode {
     MinSizeNode {
@@ -85,6 +90,9 @@ impl<T: UiNode, W: LocalVar<Length>> UiNode for MinWidthNode<T, W> {
     }
 }
 
+/// Minimum width of the widget.
+///
+/// The widget width can be larger then this but not smaller.
 #[property(size)]
 pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl UiNode {
     MinWidthNode {
@@ -137,6 +145,9 @@ impl<T: UiNode, H: LocalVar<Length>> UiNode for MinHeightNode<T, H> {
     }
 }
 
+/// Minimum height of the widget.
+///
+/// The widget height can be larger then this but not smaller.
 #[property(size)]
 pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl UiNode {
     MinHeightNode {
@@ -175,6 +186,9 @@ impl<T: UiNode, S: LocalVar<Size>> UiNode for MaxSizeNode<T, S> {
     }
 }
 
+/// Maximum size of the widget.
+///
+/// The widget size can be smaller then this but not larger.
 #[property(size)]
 pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode {
     MaxSizeNode {
@@ -223,6 +237,9 @@ impl<T: UiNode, W: LocalVar<Length>> UiNode for MaxWidthNode<T, W> {
     }
 }
 
+/// Maximum width of the widget.
+///
+/// The widget width can be smaller then this but not larger.
 #[property(size)]
 pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl UiNode {
     MaxWidthNode {
@@ -271,6 +288,9 @@ impl<T: UiNode, H: LocalVar<Length>> UiNode for MaxHeightNode<T, H> {
     }
 }
 
+/// Maximum height of the widget.
+///
+/// The widget height can be smaller then this but not larger.
 #[property(size)]
 pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl UiNode {
     MaxHeightNode {
@@ -309,7 +329,7 @@ impl<T: UiNode, S: LocalVar<Size>> UiNode for SizeNode<T, S> {
     }
 }
 
-/// Size of the widget.
+/// Manually sets the size of the widget.
 ///
 /// When set the widget is sized with the given value, independent of the parent available size.
 ///
@@ -369,6 +389,7 @@ impl<T: UiNode, W: LocalVar<Length>> UiNode for WidthNode<T, W> {
     }
 }
 
+/// Exact width of the widget.
 #[property(size)]
 pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     WidthNode {
@@ -417,6 +438,7 @@ impl<T: UiNode, H: LocalVar<Length>> UiNode for HeightNode<T, H> {
     }
 }
 
+/// Exact height of the widget.
 #[property(size)]
 pub fn height(child: impl UiNode, height: impl IntoVar<Length>) -> impl UiNode {
     HeightNode {

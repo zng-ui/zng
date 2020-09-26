@@ -2,7 +2,7 @@ use crate::core::color::rgba;
 use crate::core::units::SideOffsets;
 use crate::core::var::context_var;
 use crate::core::widget_mixin;
-use crate::properties::{focusable, foreground_highlight, is_focused_hgl, BorderDetails};
+use crate::properties::{focus::focusable, foreground::foreground_highlight, states::is_focused_hgl, BorderDetails};
 
 context_var! {
     pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);

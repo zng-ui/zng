@@ -6,9 +6,7 @@ use crate::core::{
     types::WidgetId,
     window::Window,
 };
-use crate::properties::{
-    background_color, directional_nav, focus_scope, focus_scope_behavior, on_shortcut, position, size, tab_nav, title, OnEventArgs,
-};
+use crate::properties::{background::*, events::on_shortcut, events::OnEventArgs, focus::*, position, size::size, title};
 use crate::widgets::container;
 use zero_ui_macros::shortcut;
 

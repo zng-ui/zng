@@ -1,3 +1,5 @@
+//! Event handler properties, [`on_click`], [`on_key_down`], [`on_focus`] and more.
+
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::focus::*;

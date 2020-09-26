@@ -1,4 +1,4 @@
-//! Theme context vars and properties for the [`button!`](module@crate::widgets::button) widget.
+//! Context properties for theming the [`button!`](module@crate::widgets::button) widget.
 
 use crate::core::color::rgb;
 use crate::core::color::Rgba;

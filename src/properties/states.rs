@@ -1,3 +1,5 @@
+//! Widget state properties, [`is_hovered`], [`is_pressed`], [`is_focused`] and more.
+
 use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::focus::*;

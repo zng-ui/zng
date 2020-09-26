@@ -7,9 +7,9 @@ use crate::core::render::FrameBuilder;
 use crate::core::types::Text;
 use crate::core::types::*;
 use crate::core::units::*;
-use crate::core::var::{context_var, IntoVar, ObjVar, Var};
+use crate::core::var::{IntoVar, ObjVar, Var};
 use crate::core::{UiNode, Widget};
-use std::{borrow::Cow, fmt, rc::Rc};
+use crate::properties::{capture_only::text_value, text_theme::*};
 use zero_ui_macros::widget;
 
 struct TextNode<T: Var<Text>> {
@@ -107,71 +107,6 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     }
 }
 
-context_var! {
-    /// Font family of [`text`](crate::widgets::text) spans.
-    pub struct FontFamilyVar: Box<[FontName]> = once Box::new([
-        FontName::sans_serif(),
-        FontName::serif(),
-        FontName::monospace(),
-        FontName::cursive(),
-        FontName::fantasy()
-    ]);
-
-    /// Font weight of [`text`](crate::widgets::text) spans.
-    pub struct FontWeightVar: FontWeight = const FontWeight::NORMAL;
-
-    /// Font style of [`text`](crate::widgets::text) spans.
-    pub struct FontStyleVar: FontStyle = const FontStyle::Normal;
-
-    /// Font stretch of [`text`](crate::widgets::text) spans.
-    pub struct FontStretchVar: FontStretch = const FontStretch::NORMAL;
-
-    /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSizeVar: FontSize = const 14;
-
-    /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColorVar: Rgba = const web_colors::WHITE;
-
-    /// Text transformation function applied to [`text`](crate::widgets::text) spans.
-    pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
-}
-
-#[derive(Clone)]
-pub enum TextTransformFn {
-    None,
-    Uppercase,
-    Lowercase,
-    Custom(Rc<dyn Fn(&str) -> Cow<str>>),
-}
-
-impl TextTransformFn {
-    pub fn transform<'a, 'b>(&'a self, text: &'b str) -> Cow<'b, str> {
-        match self {
-            TextTransformFn::None => Cow::Borrowed(text),
-            TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
-            TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
-            TextTransformFn::Custom(fn_) => fn_(text),
-        }
-    }
-
-    pub fn custom(fn_: impl Fn(&str) -> Cow<str> + 'static) -> Self {
-        TextTransformFn::Custom(Rc::new(fn_))
-    }
-}
-
-impl fmt::Debug for TextTransformFn {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TextTransformFn::None => write!(f, "None"),
-            TextTransformFn::Uppercase => write!(f, "Uppercase"),
-            TextTransformFn::Lowercase => write!(f, "Lowercase"),
-            TextTransformFn::Custom(_) => write!(f, "Custom"),
-        }
-    }
-}
-
-use crate::properties::{capture_only::text_value, font_family, font_size, font_stretch, font_style, font_weight, text_color};
-
 widget! {
     /// A configured [`text`](../fn.text.html).
     ///
@@ -231,8 +166,8 @@ widget! {
 ///
 /// # Configure
 ///
-/// Text spans can be configured by setting [`font_family`](crate::properties::font_family),
-/// [`font_size`](crate::properties::font_size) or [`text_color`](crate::properties::text_color)
+/// Text spans can be configured by setting [`font_family`](crate::properties::text_theme::font_family),
+/// [`font_size`](crate::properties::text_theme::font_size) or [`text_color`](crate::properties::text_theme::text_color)
 /// in parent widgets.
 ///
 /// # Example
