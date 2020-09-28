@@ -5,6 +5,7 @@ use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::UiNode;
+use derive_more as dm;
 use ego_tree::Tree;
 use std::{marker::PhantomData, mem};
 use webrender::api::*;
@@ -211,24 +212,42 @@ impl FrameBuilder {
         });
     }
 
-    /// Current widget transform.
+    /// Multiply a transform with the widget transform.
     ///
-    /// This is `Some(_)` only when a widget started but no `push_*` method was called.
+    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
     #[inline]
-    pub fn widget_transform(&mut self) -> Option<&mut LayoutTransform> {
-        self.widget_stack_ctx_data.as_mut().map(|(t, _)| t)
+    pub fn push_widget_transform(&mut self, transform: &LayoutTransform) -> Result<(), WidgetStartedError> {
+        if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
+            *t = t.post_transform(transform);
+            Ok(())
+        } else {
+            Err(WidgetStartedError)
+        }
+    }
+
+    /// Adds a translation to the widget transform.
+    ///
+    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
+    #[inline]
+    pub fn push_widget_translate(&mut self, offset: LayoutPoint) -> Result<(), WidgetStartedError> {
+        // TODO update meta transform?
+        if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
+            *t = t.post_translate(euclid::vec3(offset.x, offset.y, 0.0));
+            Ok(())
+        } else {
+            Err(WidgetStartedError)
+        }
     }
 
     /// Current widget filters.
     ///
-    /// This is `Some(_)` only when a widget started but no `push_*` method was called.
+    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
     #[inline]
-    pub fn widget_filters(&mut self) -> Option<&mut WidgetFilters> {
-        self.widget_stack_ctx_data.as_mut().map(|(_, f)| f)
+    pub fn widget_filters(&mut self) -> Result<&mut WidgetFilters, WidgetStartedError> {
+        self.widget_stack_ctx_data.as_mut().map(|(_, f)| f).ok_or(WidgetStartedError)
     }
 
-    /// Finish [`widget_transform`](Self::widget_transform) and [`widget_filters`](Self::widget_filters) by starting
-    /// the widget stacking context.
+    /// Finish widget transform and filters by starting the widget reference frame and stacking context.
     #[inline]
     pub fn open_widget_display(&mut self) {
         if let Some((transform, filters)) = self.widget_stack_ctx_data.take() {
@@ -514,6 +533,13 @@ impl FrameBuilder {
     }
 }
 
+/// Attempt to modify a widget transform or filters when it already started
+/// pushing display items.
+#[derive(Debug, dm::Display)]
+#[display("cannot modify widget transform or filters, widget display items already pushed")]
+pub struct WidgetStartedError;
+impl std::error::Error for WidgetStartedError {}
+
 #[derive(Default)]
 pub struct WidgetFilters {
     filters: Vec<FilterOp>,
@@ -578,10 +604,10 @@ impl FrameUpdate {
         self.frame_id
     }
 
-    /// The widget transform.
+    /// Update the widget transform.
     #[inline]
-    pub fn widget_transform(&mut self) -> &mut LayoutTransform {
-        &mut self.widget_transform
+    pub fn push_widget_transform(&mut self, transform: &LayoutTransform) {
+        self.widget_transform = self.widget_transform.post_transform(transform)
     }
 
     /// Update a layout transform value.

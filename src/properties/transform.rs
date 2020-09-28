@@ -34,19 +34,12 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        let wt = frame
-            .widget_transform()
-            .expect("transform property expected `widget_filters` access");
-
-        *wt = wt.post_transform(&self.layout_transform);
-
+        frame.push_widget_transform(&self.layout_transform).unwrap();
         self.child.render(frame);
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {
-        let wt = update.widget_transform();
-        *wt = wt.post_transform(&self.layout_transform);
-
+        update.push_widget_transform(&self.layout_transform);
         self.child.render_update(update);
     }
 }
