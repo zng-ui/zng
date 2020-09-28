@@ -36,49 +36,62 @@ pub struct FrameBuilder {
     info_id: WidgetInfoId,
 
     widget_id: WidgetId,
-    widget_filters: Option<WidgetFilters>,
-    in_stacking_context: bool,
+    widget_transform_key: WidgetTransformKey,
+    widget_stack_ctx_data: Option<(LayoutTransform, WidgetFilters)>,
+    widget_display_mode: WidgetDisplayMode,
+
     meta: LazyStateMap,
     cursor: CursorIcon,
     hit_testable: bool,
 
     clip_id: ClipId,
     spatial_id: SpatialId,
+    parent_spatial_id: SpatialId,
 
     offset: LayoutPoint,
 }
-
+bitflags! {
+    struct WidgetDisplayMode: u8 {
+        const REFERENCE_FRAME = 1;
+        const STACKING_CONTEXT = 2;
+    }
+}
 impl FrameBuilder {
+    #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn new(
         frame_id: FrameId,
         window_id: WindowId,
         pipeline_id: PipelineId,
         root_id: WidgetId,
+        root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
         scale_factor: f32,
         clear_color: RenderColor,
     ) -> Self {
         debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
+        let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {
             scale_factor,
             display_list: DisplayListBuilder::with_capacity(pipeline_id, root_size, 100),
             info_id: info.root_id(),
             info,
             widget_id: root_id,
-            widget_filters: None,
-            in_stacking_context: false,
+            widget_transform_key: root_transform_key,
+            widget_stack_ctx_data: None,
+            widget_display_mode: WidgetDisplayMode::empty(),
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
             hit_testable: true,
             clip_id: ClipId::root(pipeline_id),
-            spatial_id: SpatialId::root_reference_frame(pipeline_id),
+            spatial_id,
+            parent_spatial_id: spatial_id,
             offset: LayoutPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
         new.push_color(LayoutRect::from_size(root_size), clear_color);
-        new.widget_filters = Some(WidgetFilters::default());
+        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), WidgetFilters::default()));
         new
     }
 
@@ -105,7 +118,7 @@ impl FrameBuilder {
     /// This provides direct access to the underlying WebRender display list builder, modifying it
     /// can interfere with the working of the [`FrameBuilder`].
     ///
-    /// Call [`commit_widget_filters`](Self::commit_widget_filters) before modifying the display list.
+    /// Call [`start_widget_display`](Self::start_widget_display) before modifying the display list.
     ///
     /// Check the [`FrameBuilder`] source code before modifying the display list.
     ///
@@ -187,7 +200,7 @@ impl FrameBuilder {
     ///
     /// This is done so we have consistent hit coordinates with precise hit area.
     fn push_widget_hit_area(&mut self, id: WidgetId, area: LayoutSize) {
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list.push_hit_test(&CommonItemProperties {
             hit_info: Some((id.get(), WIDGET_HIT_AREA)),
@@ -198,21 +211,43 @@ impl FrameBuilder {
         });
     }
 
+    /// Current widget transform.
+    ///
+    /// This is `Some(_)` only when a widget started but no `push_*` method was called.
+    #[inline]
+    pub fn widget_transform(&mut self) -> Option<&mut LayoutTransform> {
+        self.widget_stack_ctx_data.as_mut().map(|(t, _)| t)
+    }
+
     /// Current widget filters.
     ///
     /// This is `Some(_)` only when a widget started but no `push_*` method was called.
     #[inline]
     pub fn widget_filters(&mut self) -> Option<&mut WidgetFilters> {
-        self.widget_filters.as_mut()
+        self.widget_stack_ctx_data.as_mut().map(|(_, f)| f)
     }
 
-    /// Finish [`widget_filters`](Self::widget_filters) and starts the widget stacking context.
+    /// Finish [`widget_transform`](Self::widget_transform) and [`widget_filters`](Self::widget_filters) by starting
+    /// the widget stacking context.
     #[inline]
-    pub fn commit_widget_filters(&mut self) {
-        if let Some(f) = self.widget_filters.take() {
-            let filters = f.filters;
+    pub fn open_widget_display(&mut self) {
+        if let Some((transform, filters)) = self.widget_stack_ctx_data.take() {
+            if transform != LayoutTransform::identity() {
+                self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
+
+                self.parent_spatial_id = self.spatial_id;
+                self.spatial_id = self.display_list.push_reference_frame(
+                    LayoutPoint::zero(),
+                    self.spatial_id,
+                    TransformStyle::Flat,
+                    self.widget_transform_key.bind(transform),
+                    ReferenceFrameKind::Transform,
+                );
+            }
+
+            let filters = filters.filters;
             if !filters.is_empty() {
-                self.in_stacking_context = true;
+                self.widget_display_mode |= WidgetDisplayMode::STACKING_CONTEXT;
 
                 self.display_list.push_simple_stacking_context_with_filters(
                     LayoutPoint::zero(),
@@ -223,22 +258,34 @@ impl FrameBuilder {
                     &[],
                 )
             }
+        } // else already started widget display
+    }
+
+    fn close_widget_display(&mut self) {
+        if self.widget_display_mode.contains(WidgetDisplayMode::STACKING_CONTEXT) {
+            self.display_list.pop_stacking_context();
         }
+        if self.widget_display_mode.contains(WidgetDisplayMode::REFERENCE_FRAME) {
+            self.display_list.pop_reference_frame();
+            self.spatial_id = self.parent_spatial_id;
+        }
+        self.widget_display_mode = WidgetDisplayMode::empty();
     }
 
     /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
-    pub fn push_widget(&mut self, id: WidgetId, area: LayoutSize, child: &impl UiNode) {
+    pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, area: LayoutSize, child: &impl UiNode) {
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
 
         debug_assert_aligned!(area, self.pixel_grid());
 
-        self.push_widget_hit_area(id, area); // self.commit_widget_filters() happens here.
+        self.push_widget_hit_area(id, area); // self.start_widget_display() happens here.
 
-        self.widget_filters = Some(WidgetFilters::default());
+        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), WidgetFilters::default()));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
-        let parent_isc = mem::replace(&mut self.in_stacking_context, false);
+        let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
+        let parent_display_mode = mem::replace(&mut self.widget_display_mode, WidgetDisplayMode::empty());
 
         let parent_meta = mem::take(&mut self.meta);
 
@@ -250,14 +297,13 @@ impl FrameBuilder {
 
         child.render(self);
 
-        if self.in_stacking_context {
-            self.display_list.pop_stacking_context();
-        }
+        self.close_widget_display();
 
         self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
 
         self.widget_id = parent_id;
-        self.in_stacking_context = parent_isc;
+        self.widget_transform_key = parent_transform_key;
+        self.widget_display_mode = parent_display_mode;
         self.info_id = parent_node;
     }
 
@@ -268,7 +314,7 @@ impl FrameBuilder {
         debug_assert_aligned!(rect, self.pixel_grid());
 
         if self.hit_testable {
-            self.commit_widget_filters();
+            self.open_widget_display();
             self.display_list.push_hit_test(&self.common_item_properties(rect));
         }
     }
@@ -286,7 +332,7 @@ impl FrameBuilder {
     pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
         debug_assert_aligned!(bounds, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         let parent_clip_id = self.clip_id;
 
@@ -305,6 +351,7 @@ impl FrameBuilder {
         self.clip_id = parent_clip_id;
     }
 
+    // TODO use the widget transform instead of calling this method.
     /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
     pub fn push_reference_frame(&mut self, origin: LayoutPoint, f: impl FnOnce(&mut FrameBuilder)) {
@@ -314,7 +361,7 @@ impl FrameBuilder {
 
         debug_assert_aligned!(origin, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
@@ -337,7 +384,7 @@ impl FrameBuilder {
 
     #[inline]
     pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         let parent_spatial_id = self.spatial_id;
         self.spatial_id = self.display_list.push_reference_frame(
@@ -360,7 +407,7 @@ impl FrameBuilder {
         debug_assert_aligned!(bounds, self.pixel_grid());
         debug_assert_aligned!(widths, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list
             .push_border(&self.common_item_properties(bounds), bounds, widths, details);
@@ -378,7 +425,7 @@ impl FrameBuilder {
     ) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list.push_text(
             &self.common_item_properties(rect),
@@ -405,7 +452,7 @@ impl FrameBuilder {
     pub fn push_color(&mut self, rect: LayoutRect, color: RenderColor) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
@@ -415,7 +462,7 @@ impl FrameBuilder {
     pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list.push_stops(stops);
 
@@ -442,7 +489,7 @@ impl FrameBuilder {
     ) {
         debug_assert_aligned!(bounds, self.pixel_grid());
 
-        self.commit_widget_filters();
+        self.open_widget_display();
 
         self.display_list.push_line(
             &self.common_item_properties(bounds),
@@ -461,9 +508,7 @@ impl FrameBuilder {
     /// `(PipelineId, LayoutSize, BuiltDisplayList)` : The display list finalize data.
     /// `FrameInfo`: The built frame info.
     pub fn finalize(mut self) -> ((PipelineId, LayoutSize, BuiltDisplayList), FrameInfo) {
-        if self.in_stacking_context {
-            self.display_list.pop_stacking_context();
-        }
+        self.close_widget_display();
         self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
     }
@@ -500,13 +545,17 @@ pub struct FrameUpdate {
     frame_id: FrameId,
     window_id: WindowId,
     widget_id: WidgetId,
+    widget_transform: LayoutTransform,
+    widget_transform_key: WidgetTransformKey,
 }
 impl FrameUpdate {
-    pub fn new(window_id: WindowId, root_id: WidgetId, frame_id: FrameId) -> Self {
+    pub fn new(window_id: WindowId, root_id: WidgetId, root_transform_key: WidgetTransformKey, frame_id: FrameId) -> Self {
         FrameUpdate {
             bindings: DynamicProperties::default(),
             window_id,
             widget_id: root_id,
+            widget_transform: LayoutTransform::identity(),
+            widget_transform_key: root_transform_key,
             frame_id,
         }
     }
@@ -529,6 +578,12 @@ impl FrameUpdate {
         self.frame_id
     }
 
+    /// The widget transform.
+    #[inline]
+    pub fn widget_transform(&mut self) -> &mut LayoutTransform {
+        &mut self.widget_transform
+    }
+
     /// Update a layout transform value.
     #[inline]
     pub fn update_transform(&mut self, new_value: FrameValue<LayoutTransform>) {
@@ -543,14 +598,31 @@ impl FrameUpdate {
 
     /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
     #[inline]
-    pub fn update_widget(&mut self, id: WidgetId, child: &impl UiNode) {
+    pub fn update_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, child: &impl UiNode) {
+        // NOTE: root widget is not processed by this method, if you add widget behavior here
+        // similar behavior must be added in the `new` and `finalize` methods.
+
         let parent_id = mem::replace(&mut self.widget_id, id);
+        let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
+        let parent_transform = mem::replace(&mut self.widget_transform, LayoutTransform::identity());
+
         child.render_update(self);
+
         self.widget_id = parent_id;
+        self.widget_transform_key = parent_transform_key;
+        let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
+
+        if widget_transform != LayoutTransform::identity() {
+            self.update_transform(self.widget_transform_key.update(widget_transform));
+        }
     }
 
     /// Finalize the update.
-    pub fn finalize(self) -> DynamicProperties {
+    pub fn finalize(mut self) -> DynamicProperties {
+        if self.widget_transform != LayoutTransform::identity() {
+            self.update_transform(self.widget_transform_key.update(self.widget_transform));
+        }
+
         self.bindings
     }
 }
@@ -608,6 +680,9 @@ impl<T> FrameBindingKey<T> {
         }
     }
 }
+
+/// `FrameBindingKey<LayoutTransform>`.
+pub type WidgetTransformKey = FrameBindingKey<LayoutTransform>;
 
 /// Complement of [`ItemTag`] that indicates the hit area of a widget.
 pub const WIDGET_HIT_AREA: u16 = u16::max_value();

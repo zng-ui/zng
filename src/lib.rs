@@ -35,6 +35,9 @@
 // for proc_macros that don't have $self.
 extern crate self as zero_ui;
 
+#[macro_use]
+extern crate bitflags;
+
 /// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
 #[allow(unused)]
 macro_rules! error_println {

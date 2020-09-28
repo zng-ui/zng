@@ -1,6 +1,5 @@
 //! App windows manager.
 
-use super::profiler::profile_scope;
 use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     color::Rgba,
@@ -15,6 +14,7 @@ use super::{
     UiNode,
 };
 use super::{event::*, render::FrameUpdate};
+use super::{profiler::profile_scope, render::WidgetTransformKey};
 use app::{AppExtended, AppExtension, AppProcess};
 use fnv::FnvHashMap;
 use gleam::gl;
@@ -832,6 +832,7 @@ impl OpenWindow {
                 state,
                 services,
                 window_id,
+                root_transform_key: WidgetTransformKey::new_unique(),
                 update: UpdateDisplayRequest::Layout,
             })),
             renderer: RendererState::Running(renderer),
@@ -1136,6 +1137,7 @@ impl OpenWindow {
                 ctx.window_id,
                 self.pipeline_id,
                 ctx.root.id,
+                ctx.root_transform_key,
                 size,
                 self.scale_factor(),
                 clear_color,
@@ -1168,7 +1170,7 @@ impl OpenWindow {
         if ctx.update == UpdateDisplayRequest::RenderUpdate {
             ctx.update = UpdateDisplayRequest::None;
 
-            let mut update = FrameUpdate::new(ctx.window_id, ctx.root.id, self.frame_info.frame_id());
+            let mut update = FrameUpdate::new(ctx.window_id, ctx.root.id, ctx.root_transform_key, self.frame_info.frame_id());
 
             ctx.root.child.render_update(&mut update);
 
@@ -1258,6 +1260,7 @@ impl ScreenshotData {
 
 struct OwnedWindowContext {
     window_id: WindowId,
+    root_transform_key: WidgetTransformKey,
     state: WindowState,
     services: WindowServices,
     root: Window,

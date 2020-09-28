@@ -21,7 +21,7 @@ pub mod window;
 pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
 
 use context::{LayoutContext, LazyStateMap, WidgetContext};
-use render::{FrameBuilder, FrameUpdate};
+use render::{FrameBuilder, FrameUpdate, WidgetTransformKey};
 use types::WidgetId;
 use units::LayoutSize;
 
@@ -97,6 +97,7 @@ impl UiNode for Box<dyn UiNode> {
 
 struct WidgetNode<T: UiNode> {
     id: WidgetId,
+    transform_key: WidgetTransformKey,
     state: LazyStateMap,
     child: T,
     size: LayoutSize,
@@ -130,11 +131,11 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_widget(self.id, self.size, &self.child);
+        frame.push_widget(self.id, self.transform_key, self.size, &self.child);
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {
-        update.update_widget(self.id, &self.child);
+        update.update_widget(self.id, self.transform_key, &self.child);
     }
 }
 
@@ -232,6 +233,7 @@ pub fn default_widget_new_child() -> impl UiNode {
 pub fn default_widget_new(child: impl UiNode, id_args: impl zero_ui::properties::capture_only::widget_id::Args) -> impl Widget {
     WidgetNode {
         id: id_args.unwrap(),
+        transform_key: WidgetTransformKey::new_unique(),
         state: LazyStateMap::default(),
         child,
         size: LayoutSize::zero(),

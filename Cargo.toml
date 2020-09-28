@@ -28,6 +28,7 @@ fnv = "1.0.7"
 ego-tree = "0.6.2"
 colored = "2.0.0"
 derive_more = "0.99.10"
+bitflags = "1.2.1"
 
 # app_profiler only
 serde_json = { version = "1.0", optional = true }

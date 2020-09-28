@@ -29,7 +29,7 @@ impl<C: UiNode, F: LocalVar<Filter>> UiNode for FilterNode<C, F> {
     fn render(&self, frame: &mut FrameBuilder) {
         frame
             .widget_filters()
-            .expect("filter property is `context`, expected `widget_filters` access")
+            .expect("filter property expected `widget_filters` access")
             .push_filter(self.filter.get_local().clone());
         self.child.render(frame)
     }
@@ -89,7 +89,7 @@ impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
         };
         frame
             .widget_filters()
-            .expect("opacity property is `context`, expected `widget_filters` access")
+            .expect("opacity property expected `widget_filters` access")
             .push_opacity(opacity);
         self.child.render(frame);
     }
