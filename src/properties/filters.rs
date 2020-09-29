@@ -1,6 +1,14 @@
 //! Color filter properties, [`opacity`], [`filter`] and more.
 
-use crate::core::{color::{self, Filter, RenderFilter}, context::LayoutContext, context::WidgetContext, render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate}, units::LayoutSize, units::Length, var::{IntoVar, LocalVar, ObjVar, Var}};
+use crate::core::{
+    color::{self, Filter, RenderFilter},
+    context::LayoutContext,
+    context::WidgetContext,
+    render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
+    units::LayoutSize,
+    units::Length,
+    var::{IntoVar, LocalVar, ObjVar, Var},
+};
 use crate::core::{impl_ui_node, property, units::FactorNormal, UiNode};
 
 struct FilterNode<C: UiNode, F: LocalVar<Filter>> {
@@ -17,7 +25,7 @@ impl<C: UiNode, F: LocalVar<Filter>> UiNode for FilterNode<C, F> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.filter.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout()//TODO don't use layout when not needed.
+            ctx.updates.push_layout() //TODO don't use layout when not needed.
         }
         self.child.update(ctx)
     }
@@ -68,7 +76,6 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter::set(child, amount.into_var().map(|&a| color::sepia(a)))
 }
-
 
 struct OpacityNode<C: UiNode, O: LocalVar<FactorNormal>> {
     child: C,

@@ -167,3 +167,51 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform::set(child, y.into_var().map(|&y| units::translate_y(y)))
 }
+
+struct TransformOriginNode<C: UiNode, O: LocalVar<Point>> {
+    child: C,
+    origin: O,
+    layout_origin: LayoutPoint,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, O: LocalVar<Point>> UiNode for TransformOriginNode<C, O> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.origin.init_local(ctx.vars);
+        self.child.init(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.origin.update_local(ctx.vars).is_some() {
+            ctx.updates.push_render_update();
+        }
+        self.child.update(ctx);
+    }
+
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.layout_origin = self.origin.get_local().to_layout(final_size, ctx);
+        self.child.arrange(final_size, ctx);
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        self.child.render(frame);
+        //TODO
+    }
+
+    fn render_update(&self, update: &mut FrameUpdate) {
+        self.child.render_update(update);
+        // TODO
+    }
+}
+
+/// Point relative to the widget bounds around which the widget transform is applied.
+///
+/// When unset the default origin is the center (50%, 50%).
+#[property(context)]
+pub fn transform_origin(child: impl UiNode, origin: impl IntoVar<Point>) -> impl UiNode {
+    TransformOriginNode {
+        child,
+        origin: origin.into_local(),
+        layout_origin: LayoutPoint::zero(),
+    }
+}
