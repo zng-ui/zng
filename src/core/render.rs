@@ -1,6 +1,6 @@
 //! Frame render and metadata API.
 
-use super::color::{Filter, RenderColor};
+use super::color::{RenderColor, RenderFilter};
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
@@ -119,7 +119,7 @@ impl FrameBuilder {
     /// This provides direct access to the underlying WebRender display list builder, modifying it
     /// can interfere with the working of the [`FrameBuilder`].
     ///
-    /// Call [`start_widget_display`](Self::start_widget_display) before modifying the display list.
+    /// Call [`open_widget_display`](Self::open_widget_display) before modifying the display list.
     ///
     /// Check the [`FrameBuilder`] source code before modifying the display list.
     ///
@@ -298,7 +298,7 @@ impl FrameBuilder {
 
         debug_assert_aligned!(area, self.pixel_grid());
 
-        self.push_widget_hit_area(id, area); // self.start_widget_display() happens here.
+        self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
         self.widget_stack_ctx_data = Some((LayoutTransform::identity(), WidgetFilters::default()));
 
@@ -545,8 +545,8 @@ pub struct WidgetFilters {
 }
 
 impl WidgetFilters {
-    pub fn push_filter(&mut self, filter: Filter) {
-        self.filters.extend(filter.filters)
+    pub fn push_filter(&mut self, filter: RenderFilter) {
+        self.filters.extend(filter)
     }
 
     #[inline]

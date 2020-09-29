@@ -1,6 +1,6 @@
 //! Color types.
 
-use super::{render::FrameBinding, units::*};
+use super::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
 use webrender::api::FilterOp;
 pub use zero_ui_macros::hex_color as hex;
@@ -562,27 +562,63 @@ impl From<FactorPercent> for RgbaComponent {
 
 #[derive(Clone, Default, Debug)]
 pub struct Filter {
-    pub(super) filters: Vec<FilterOp>,
+    filters: Vec<FilterData>,
 }
 impl Filter {
-    pub fn opacity<O: Into<FactorNormal>>(mut self, opacity: O) -> Self {
-        let opacity = opacity.into().0;
-        self.filters.push(FilterOp::Opacity(FrameBinding::Value(opacity), opacity));
+    fn op(mut self, op: FilterOp) -> Self {
+        self.filters.push(FilterData::Op(op));
         self
     }
 
-    pub fn invert<I: Into<FactorNormal>>(mut self, invert: I) -> Self {
+    pub fn to_render(&self, available_size: LayoutSize, ctx: &LayoutContext) -> RenderFilter {
+        self.filters
+            .iter()
+            .map(|f| match f {
+                FilterData::Op(op) => *op,
+                FilterData::Blur(l) => FilterOp::Blur(l.to_layout(LayoutLength::new(available_size.width), ctx).get()),
+            })
+            .collect()
+    }
+
+    pub fn opacity<O: Into<FactorNormal>>(self, opacity: O) -> Self {
+        let opacity = opacity.into().0;
+        self.op(FilterOp::Opacity(FrameBinding::Value(opacity), opacity))
+    }
+
+    pub fn invert<I: Into<FactorNormal>>(self, invert: I) -> Self {
         let invert = invert.into().0;
-        self.filters.push(FilterOp::Invert(invert));
+        self.op(FilterOp::Invert(invert))
+    }
+
+    pub fn blur<R: Into<Length>>(mut self, radius: R) -> Self {
+        self.filters.push(FilterData::Blur(radius.into()));
         self
+    }
+
+    pub fn sepia<I: Into<FactorNormal>>(self, amount: I) -> Self {
+        let amount = amount.into().0;
+        self.op(FilterOp::Sepia(amount))
     }
 }
+pub type RenderFilter = Vec<FilterOp>;
 
+#[derive(Clone, Debug)]
+enum FilterData {
+    Op(FilterOp),
+    Blur(Length),
+}
+// TODO review paremeter names
 pub fn opacity<O: Into<FactorNormal>>(opacity: O) -> Filter {
     Filter::default().opacity(opacity)
 }
 pub fn invert<I: Into<FactorNormal>>(invert: I) -> Filter {
     Filter::default().invert(invert)
+}
+pub fn blur<R: Into<Length>>(radius: R) -> Filter {
+    Filter::default().blur(radius)
+}
+pub fn sepia<I: Into<FactorNormal>>(amount: I) -> Filter {
+    Filter::default().sepia(amount)
 }
 
 /// Named web colors
