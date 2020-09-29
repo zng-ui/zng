@@ -214,7 +214,7 @@ impl FrameBuilder {
 
     /// Multiply a transform with the widget transform.
     ///
-    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
     #[inline]
     pub fn push_widget_transform(&mut self, transform: &LayoutTransform) -> Result<(), WidgetStartedError> {
         if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
@@ -227,7 +227,7 @@ impl FrameBuilder {
 
     /// Adds a translation to the widget transform.
     ///
-    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
     #[inline]
     pub fn push_widget_translate(&mut self, offset: LayoutPoint) -> Result<(), WidgetStartedError> {
         // TODO update meta transform?
@@ -241,7 +241,7 @@ impl FrameBuilder {
 
     /// Current widget filters.
     ///
-    /// This is `Ok(_)` only when a widget started but [`open_widget_display`](Self::open_widget_display) was not called.
+    /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
     #[inline]
     pub fn widget_filters(&mut self) -> Result<&mut WidgetFilters, WidgetStartedError> {
         self.widget_stack_ctx_data.as_mut().map(|(_, f)| f).ok_or(WidgetStartedError)
@@ -535,10 +535,9 @@ impl FrameBuilder {
 
 /// Attempt to modify a widget transform or filters when it already started
 /// pushing display items.
-#[derive(Debug, dm::Display)]
-#[display("cannot modify widget transform or filters, widget display items already pushed")]
+#[derive(Debug, dm::Display, dm::Error)]
+#[display(fmt = "cannot modify widget transform or filters, widget display items already pushed")]
 pub struct WidgetStartedError;
-impl std::error::Error for WidgetStartedError {}
 
 #[derive(Default)]
 pub struct WidgetFilters {
