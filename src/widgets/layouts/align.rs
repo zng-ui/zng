@@ -5,17 +5,19 @@ widget! {
     center;
 
     default_child {
-        child -> widget_child: required!;
+        content -> widget_child: required!;
     }
 
     #[inline]
-    fn new_child(child) -> impl UiNode {
-        align::set(child.unwrap(), Alignment::CENTER)
+    fn new_child(content) -> impl UiNode {
+        align::set(content.unwrap(), Alignment::CENTER)
     }
 }
 
-/// Centralizes the node.
+/// Centralizes the content in the available space.
+///
+/// This is the equivalent of setting [`align`] to [`Alignment::CENTER`], but as a widget.
 #[inline]
-pub fn center(child: impl UiNode) -> impl Widget {
-    center! { child; }
+pub fn center(content: impl UiNode) -> impl Widget {
+    center! { content; }
 }
