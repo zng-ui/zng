@@ -173,7 +173,7 @@ pub mod prelude {
             MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
-        units::{rotate, skew, translate, AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size, TimeUnits},
+        units::{rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size, TimeUnits},
         var::{merge_var, switch_var, var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,

@@ -856,6 +856,106 @@ impl_length_comp_conversions! {
 /// Computed [`SideOffsets`].
 pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
 
+/// `x` and `y` alignment.
+///
+/// The numbers indicate how much to the right and bottom the content is moved within
+/// a larger available space.
+#[derive(PartialEq, Clone, Copy)]
+pub struct Alignment {
+    pub x: FactorNormal,
+    pub y: FactorNormal,
+}
+impl<X: Into<FactorNormal>, Y: Into<FactorNormal>> From<(X, Y)> for Alignment {
+    fn from((x, y): (X, Y)) -> Self {
+        Alignment { x: x.into(), y: y.into() }
+    }
+}
+impl<X: Into<FactorNormal> + Clone, Y: Into<FactorNormal> + Clone> IntoVar<Alignment> for (X, Y) {
+    type Var = OwnedVar<Alignment>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+macro_rules! named_aligns {
+    ( $($NAME:ident = ($x:expr, $y:expr);)+ ) => {named_aligns!{$(
+        [stringify!(($x, $y))] $NAME = ($x, $y);
+    )+}};
+
+    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {$(
+        #[doc=$doc]
+        pub const $NAME: Alignment = Alignment { x: FactorNormal($x), y: FactorNormal($y) };
+
+    )+};
+}
+impl Alignment {
+    named_aligns! {
+        TOP_LEFT = (0.0, 0.0);
+        TOP_CENTER = (0.0, 0.5);
+        TOP_RIGHT = (0.0, 1.0);
+
+        CENTER_LEFT = (0.0, 0.5);
+        CENTER = (0.5, 0.5);
+        CENTER_RIGHT = (1.0, 0.5);
+
+        BOTTOM_LEFT = (0.0, 1.0);
+        BOTTOM_CENTER = (0.5, 1.0);
+        BOTTOM_RIGHT = (1.0, 1.0);
+    }
+}
+macro_rules! debug_display_align {
+    (  $($NAME:ident),+ $(,)?) => {
+        impl fmt::Display for Alignment {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let a = *self;
+                $(if a == Alignment::$NAME { write!(f, "{}", stringify!($NAME)) }) else +
+                else {
+                    write!(f, "({}%, {}%)", a.x.0 * 100.0, a.y.0 * 100.0)
+                }
+            }
+        }
+        impl fmt::Debug for Alignment {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let a = *self;
+                $(if a == Alignment::$NAME { write!(f, "Alignment::{}", stringify!($NAME)) }) else +
+                else {
+                    f.debug_struct("Alignment").field("x", &a.x).field("y", &a.y).finish()
+                }
+            }
+        }
+    };
+}
+debug_display_align! {
+   TOP_LEFT,
+   TOP_CENTER,
+   TOP_RIGHT,
+
+   CENTER_LEFT,
+   CENTER,
+   CENTER_RIGHT,
+
+   BOTTOM_LEFT,
+   BOTTOM_CENTER,
+   BOTTOM_RIGHT,
+}
+impl From<Alignment> for Point {
+    /// To relative length x and y.
+    fn from(a: Alignment) -> Self {
+        Point {
+            x: a.x.into(),
+            y: a.y.into(),
+        }
+    }
+}
+impl IntoVar<Point> for Alignment {
+    type Var = OwnedVar<Point>;
+
+    /// To relative length x and y.
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+
 /// A device pixel scale factor used for pixel alignment.
 ///
 /// Types that can be aligned with this grid implement [`PixelGridExt`].

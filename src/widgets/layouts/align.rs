@@ -1,5 +1,5 @@
-use crate::core::UiNode;
-use crate::properties::{align, Alignment};
+use crate::core::{units::Alignment, UiNode};
+use crate::properties::align;
 
 /// Centralizes the node.
 #[inline]

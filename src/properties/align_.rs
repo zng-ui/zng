@@ -8,43 +8,6 @@ use crate::core::{
 };
 use crate::core::{impl_ui_node, property};
 
-/// Normalized `x, y` alignment.
-///
-/// The numbers indicate how much to the right and bottom the content is moved within
-/// a larger available space.
-///
-/// This is the value of the [`align`] property.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct Alignment(pub f32, pub f32);
-
-macro_rules! named_aligns {
-    ( $($NAME:ident = ($x:expr, $y:expr);)+ ) => {named_aligns!{$(
-        [stringify!(($x, $y))] $NAME = ($x, $y);
-    )+}};
-
-    ( $([$doc:expr] $NAME:ident = ($x:expr, $y:expr);)+ ) => {$(
-        #[doc=$doc]
-        pub const $NAME: Alignment = Alignment($x, $y);
-
-    )+};
-}
-
-impl Alignment {
-    named_aligns! {
-        TOP_LEFT = (0.0, 0.0);
-        TOP_CENTER = (0.0, 0.5);
-        TOP_RIGHT = (0.0, 1.0);
-
-        CENTER_LEFT = (0.0, 0.5);
-        CENTER = (0.5, 0.5);
-        CENTER_RIGHT = (1.0, 0.5);
-
-        BOTTOM_LEFT = (0.0, 1.0);
-        BOTTOM_CENTER = (0.5, 1.0);
-        BOTTOM_RIGHT = (1.0, 1.0);
-    }
-}
-
 struct AlignNode<T: UiNode, A: LocalVar<Alignment>> {
     child: T,
     alignment: A,
@@ -81,8 +44,8 @@ impl<T: UiNode, A: LocalVar<Alignment>> UiNode for AlignNode<T, A> {
         let alignment = self.alignment.get_local();
 
         self.child_rect.origin = LayoutPoint::new(
-            (final_size.width - self.child_rect.size.width) * alignment.0,
-            (final_size.height - self.child_rect.size.height) * alignment.1,
+            (final_size.width - self.child_rect.size.width) * alignment.x.0,
+            (final_size.height - self.child_rect.size.height) * alignment.y.0,
         )
         .snap_to(ctx.pixel_grid());
     }
