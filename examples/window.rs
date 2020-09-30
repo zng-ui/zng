@@ -110,13 +110,7 @@ fn screenshot() -> impl Widget {
 
 fn inspect() -> impl Widget {
     button! {
-        content: text("inspector");
-        
-        rotate: 45.deg();
-        translate: 80, 0;
-        //transform: translate(80, 0).rotate(45.deg());
-        //transform: rotate(45.deg()).translate(80, 0);
-
+        content: text("inspector");        
         on_click: |_| {
             println!("in debug only, press CTRL+SHIFT+I")
         };
