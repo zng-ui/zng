@@ -597,6 +597,10 @@ impl Filter {
     pub fn sepia<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Sepia(amount.into().0))
     }
+
+    pub fn grayscale<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.op(FilterOp::Grayscale(amount.into().0))
+    }
 }
 pub type RenderFilter = Vec<FilterOp>;
 
@@ -617,6 +621,9 @@ pub fn blur<R: Into<Length>>(radius: R) -> Filter {
 }
 pub fn sepia<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().sepia(amount)
+}
+pub fn grayscale<A: Into<FactorNormal>>(amount: A) -> Filter {
+    Filter::default().grayscale(amount)
 }
 
 /// Named web colors

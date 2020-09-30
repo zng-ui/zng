@@ -36,8 +36,9 @@ impl<C: UiNode, F: LocalVar<Filter>> UiNode for FilterNode<C, F> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
+        // TODO filter properties are not in widget written order.
         frame.widget_filters().unwrap().push_filter(self.render_filter.clone());
-        self.child.render(frame)
+        self.child.render(frame);
     }
 }
 
@@ -75,6 +76,11 @@ pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
 #[property(context)]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
     filter::set(child, amount.into_var().map(|&a| color::sepia(a)))
+}
+
+#[property(context)]
+pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+    filter::set(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
 struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
