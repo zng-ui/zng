@@ -2,6 +2,7 @@
 
 use derive_more as dm;
 use std::{f32::consts::*, fmt, time::Duration};
+use webrender::api::units as wr;
 
 use super::context::LayoutContext;
 use crate::core::var::{IntoVar, OwnedVar};
@@ -331,7 +332,7 @@ impl FactorUnits for f32 {
         self.into()
     }
 }
-impl FactorUnits for u32 {
+impl FactorUnits for i32 {
     #[inline]
     fn pct(self) -> FactorPercent {
         FactorPercent(self as f32)
@@ -396,8 +397,8 @@ impl_from_and_into_var! {
     }
 
     /// Conversion to [`Length::Exact`]
-    fn from(u: u32) -> Length {
-        Length::Exact(u as f32)
+    fn from(i: i32) -> Length {
+        Length::Exact(i as f32)
     }
 }
 impl Length {
@@ -429,7 +430,7 @@ impl Length {
 }
 
 /// Computed [`Length`].
-pub type LayoutLength = euclid::Length<f32, webrender::api::units::LayoutPixel>;
+pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
 
 /// Extension methods for initializing [`Length`] units.
 ///
@@ -506,7 +507,7 @@ impl LengthUnits for f32 {
         Length::ViewportMax(self)
     }
 }
-impl LengthUnits for u32 {
+impl LengthUnits for i32 {
     #[inline]
     fn em(self) -> Length {
         Length::Em(self.normal())
@@ -619,7 +620,7 @@ impl_length_comp_conversions! {
 }
 
 /// Computed [`Point`].
-pub type LayoutPoint = webrender::api::units::LayoutPoint;
+pub type LayoutPoint = wr::LayoutPoint;
 
 /// 2D size in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -675,7 +676,7 @@ impl_length_comp_conversions! {
 }
 
 /// Computed [`Size`].
-pub type LayoutSize = webrender::api::units::LayoutSize;
+pub type LayoutSize = wr::LayoutSize;
 
 /// 2D rect in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -755,7 +756,7 @@ impl_length_comp_conversions! {
 }
 
 /// Computed [`Rect`].
-pub type LayoutRect = webrender::api::units::LayoutRect;
+pub type LayoutRect = wr::LayoutRect;
 
 /// 2D size offsets in [`Length`] units.
 #[derive(Copy, Clone, Debug)]
@@ -836,8 +837,8 @@ impl_from_and_into_var! {
         SideOffsets::new_all(f)
     }
     /// All sides equal exact length.
-    fn from(u: u32) -> SideOffsets {
-        SideOffsets::new_all(u)
+    fn from(i: i32) -> SideOffsets {
+        SideOffsets::new_all(i)
     }
 }
 
@@ -854,7 +855,7 @@ impl_length_comp_conversions! {
 }
 
 /// Computed [`SideOffsets`].
-pub type LayoutSideOffsets = webrender::api::units::LayoutSideOffsets;
+pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 
 /// `x` and `y` alignment.
 ///
@@ -1253,7 +1254,7 @@ pub fn scale_xy<X: Into<FactorNormal>, Y: Into<FactorNormal>>(x: X, y: Y) -> Tra
 }
 
 /// Computed [`Transform`].
-pub type LayoutTransform = webrender::api::units::LayoutTransform;
+pub type LayoutTransform = wr::LayoutTransform;
 
 /// Extension methods for initializing [`Duration`] values.
 pub trait TimeUnits {

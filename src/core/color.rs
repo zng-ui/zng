@@ -2,7 +2,7 @@
 
 use super::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
-use webrender::api::FilterOp;
+use webrender::api::{self as wr, FilterOp};
 pub use zero_ui_macros::hex_color as hex;
 
 /// Webrender RGBA.
@@ -576,6 +576,15 @@ impl Filter {
             .map(|f| match f {
                 FilterData::Op(op) => *op,
                 FilterData::Blur(l) => FilterOp::Blur(l.to_layout(LayoutLength::new(available_size.width), ctx).get()),
+                FilterData::DropShadow {
+                    offset,
+                    blur_radius,
+                    color,
+                } => FilterOp::DropShadow(wr::Shadow {
+                    offset: offset.to_layout(available_size, ctx).to_vector(),
+                    color: RenderColor::from(*color),
+                    blur_radius: blur_radius.to_layout(LayoutLength::new(available_size.width), ctx).get(),
+                }),
             })
             .collect()
     }
@@ -601,6 +610,15 @@ impl Filter {
     pub fn grayscale<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Grayscale(amount.into().0))
     }
+
+    pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(mut self, offset: O, blur_radius: R, color: C) -> Self {
+        self.filters.push(FilterData::DropShadow {
+            offset: offset.into(),
+            blur_radius: blur_radius.into(),
+            color: color.into(),
+        });
+        self
+    }
 }
 pub type RenderFilter = Vec<FilterOp>;
 
@@ -608,6 +626,7 @@ pub type RenderFilter = Vec<FilterOp>;
 enum FilterData {
     Op(FilterOp),
     Blur(Length),
+    DropShadow { offset: Point, blur_radius: Length, color: Rgba },
 }
 
 pub fn opacity<A: Into<FactorNormal>>(alpha: A) -> Filter {
@@ -624,6 +643,9 @@ pub fn sepia<A: Into<FactorNormal>>(amount: A) -> Filter {
 }
 pub fn grayscale<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().grayscale(amount)
+}
+pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, blur_radius: R, color: C) -> Filter {
+    Filter::default().drop_shadow(offset, blur_radius, color)
 }
 
 /// Named web colors

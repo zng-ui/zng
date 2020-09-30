@@ -1,13 +1,12 @@
 //! Color filter properties, [`opacity`], [`filter`] and more.
 
 use crate::core::{
-    color::{self, Filter, RenderFilter},
+    color::{self, Filter, RenderFilter, Rgba},
     context::LayoutContext,
     context::WidgetContext,
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
-    units::LayoutSize,
-    units::Length,
-    var::{IntoVar, LocalVar, ObjVar, Var},
+    units::{LayoutSize, Length, Point},
+    var::{merge_var, IntoVar, LocalVar, ObjVar, Var},
 };
 use crate::core::{impl_ui_node, property, units::FactorNormal, UiNode};
 
@@ -83,6 +82,21 @@ pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl
     filter::set(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
+#[property(context)]
+pub fn drop_shadow(
+    child: impl UiNode,
+    offset: impl IntoVar<Point>,
+    blur_radius: impl IntoVar<Length>,
+    color: impl IntoVar<Rgba>,
+) -> impl UiNode {
+    filter::set(
+        child,
+        merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |&o, &r, &c| {
+            color::drop_shadow(o, r, c)
+        }),
+    )
+}
+
 struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
     child: C,
     alpha_value: A,
@@ -135,5 +149,9 @@ pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl Ui
         None
     };
 
-    OpacityNode { child, alpha_value, frame_key }
+    OpacityNode {
+        child,
+        alpha_value,
+        frame_key,
+    }
 }
