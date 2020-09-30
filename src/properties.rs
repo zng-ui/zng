@@ -67,14 +67,17 @@ mod build_tests {
     fn phantom_gen<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: impl IntoVar<A>) -> impl UiNode {
         println!("{:?}", a.into_local().get_local());
         println!("{:?}", b.into_local().get_local());
-        let _args = phantom_gen::args(0, 1);
+        let _args = phantom_gen::args(TestInput, TestInput);
         child
     }
+
+    #[derive(Debug, Clone)]
+    struct TestInput;
 
     #[property(context)]
     fn no_phantom_required<A: VarValue>(child: impl UiNode, a: Vec<A>) -> impl UiNode {
         println!("{:?}", a);
-        let _args = no_phantom_required::args(vec![0, 1]);
+        let _args = no_phantom_required::args(vec![TestInput, TestInput]);
         child
     }
 
