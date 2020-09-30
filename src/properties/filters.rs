@@ -35,9 +35,7 @@ impl<C: UiNode, F: LocalVar<Filter>> UiNode for FilterNode<C, F> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        // TODO filter properties are not in widget written order.
-        frame.widget_filters().unwrap().push_filter(self.render_filter.clone());
-        self.child.render(frame);
+        frame.with_widget_filter(self.render_filter.clone(), &self.child).unwrap();
     }
 }
 
@@ -124,8 +122,7 @@ impl<C: UiNode, A: LocalVar<FactorNormal>> UiNode for OpacityNode<C, A> {
         } else {
             FrameBinding::Value(opacity)
         };
-        frame.widget_filters().unwrap().push_opacity(opacity);
-        self.child.render(frame);
+        frame.with_widget_opacity(opacity, &self.child).unwrap();
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {

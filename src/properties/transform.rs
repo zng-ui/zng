@@ -34,13 +34,11 @@ impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_widget_transform(&self.layout_transform).unwrap();
-        self.child.render(frame);
+        frame.with_widget_transform(&self.layout_transform, &self.child).unwrap();
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {
-        update.push_widget_transform(&self.layout_transform);
-        self.child.render_update(update);
+        update.with_widget_transform(&self.layout_transform, &self.child);
     }
 }
 

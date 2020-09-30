@@ -1,5 +1,4 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::core::units::*;
 use zero_ui::prelude::*;
 
 fn main() {
@@ -112,6 +111,12 @@ fn screenshot() -> impl Widget {
 fn inspect() -> impl Widget {
     button! {
         content: text("inspector");
+        
+        rotate: 45.deg();
+        translate: 80, 0;
+        //transform: translate(80, 0).rotate(45.deg());
+        //transform: rotate(45.deg()).translate(80, 0);
+
         on_click: |_| {
             println!("in debug only, press CTRL+SHIFT+I")
         };

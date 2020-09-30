@@ -38,7 +38,7 @@ pub struct FrameBuilder {
 
     widget_id: WidgetId,
     widget_transform_key: WidgetTransformKey,
-    widget_stack_ctx_data: Option<(LayoutTransform, WidgetFilters)>,
+    widget_stack_ctx_data: Option<(LayoutTransform, Vec<FilterOp>)>,
     widget_display_mode: WidgetDisplayMode,
 
     meta: LazyStateMap,
@@ -92,7 +92,7 @@ impl FrameBuilder {
         };
         new.push_widget_hit_area(root_id, root_size);
         new.push_color(LayoutRect::from_size(root_size), clear_color);
-        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), WidgetFilters::default()));
+        new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
         new
     }
 
@@ -212,45 +212,67 @@ impl FrameBuilder {
         });
     }
 
-    /// Multiply a transform with the widget transform.
+    /// Includes a widget transform and continues the render build.
     ///
     /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
+    ///
+    /// In case of error the `child` render is still called just without the transform.
     #[inline]
-    pub fn push_widget_transform(&mut self, transform: &LayoutTransform) -> Result<(), WidgetStartedError> {
+    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) -> Result<(), WidgetStartedError> {
         if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
-            *t = t.post_transform(transform);
+            // we don't use pos_transform here fore the same reason `Self::open_widget_display`
+            // reverses filters, there is a detailed comment there.
+            *t = t.pre_transform(transform);
+            child.render(self);
             Ok(())
         } else {
+            child.render(self);
             Err(WidgetStartedError)
         }
     }
 
-    /// Adds a translation to the widget transform.
+    /// Includes a widget filter and continues the render build.
     ///
     /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
+    ///
+    /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn push_widget_translate(&mut self, offset: LayoutPoint) -> Result<(), WidgetStartedError> {
-        // TODO update meta transform?
-        if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
-            *t = t.post_translate(euclid::vec3(offset.x, offset.y, 0.0));
+    pub fn with_widget_filter(&mut self, filter: RenderFilter, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+        if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
+            f.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
+            child.render(self);
             Ok(())
         } else {
+            child.render(self);
             Err(WidgetStartedError)
         }
     }
 
-    /// Current widget filters.
+    /// Includes a widget opacity filter and continues the render build.
     ///
     /// This is `Ok(_)` only when a widget started, but [`open_widget_display`](Self::open_widget_display) was not called.
+    ///
+    /// In case of error the `child` render is still called just without the filter.
     #[inline]
-    pub fn widget_filters(&mut self) -> Result<&mut WidgetFilters, WidgetStartedError> {
-        self.widget_stack_ctx_data.as_mut().map(|(_, f)| f).ok_or(WidgetStartedError)
+    pub fn with_widget_opacity(&mut self, bind: FrameBinding<f32>, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+        if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
+            let value = match &bind {
+                PropertyBinding::Value(v) => *v,
+                PropertyBinding::Binding(_, v) => *v,
+            };
+            f.push(FilterOp::Opacity(bind, value));
+            child.render(self);
+            Ok(())
+        } else {
+            child.render(self);
+            Err(WidgetStartedError)
+        }
     }
 
     /// Finish widget transform and filters by starting the widget reference frame and stacking context.
     #[inline]
     pub fn open_widget_display(&mut self) {
-        if let Some((transform, filters)) = self.widget_stack_ctx_data.take() {
+        if let Some((transform, mut filters)) = self.widget_stack_ctx_data.take() {
             if transform != LayoutTransform::identity() {
                 self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
 
@@ -264,8 +286,15 @@ impl FrameBuilder {
                 );
             }
 
-            let filters = filters.filters;
             if !filters.is_empty() {
+                // we want to apply filters in the top-to-bottom, left-to-right order they appear in
+                // the widget declaration, but the widget declaration expands to have the top property
+                // node be inside the bottom property node, so the bottom property ends up inserting
+                // a filter first, because we cannot insert filters after the child node render is called
+                // so we need to reverse the filters here. Left-to-right sequences are reversed on insert
+                // so they get reversed again here and everything ends up in order.
+                filters.reverse();
+
                 self.widget_display_mode |= WidgetDisplayMode::STACKING_CONTEXT;
 
                 self.display_list.push_simple_stacking_context_with_filters(
@@ -300,7 +329,7 @@ impl FrameBuilder {
 
         self.push_widget_hit_area(id, area); // self.open_widget_display() happens here.
 
-        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), WidgetFilters::default()));
+        self.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
@@ -539,31 +568,6 @@ impl FrameBuilder {
 #[display(fmt = "cannot modify widget transform or filters, widget display items already pushed")]
 pub struct WidgetStartedError;
 
-#[derive(Default)]
-pub struct WidgetFilters {
-    filters: Vec<FilterOp>,
-}
-
-impl WidgetFilters {
-    pub fn push_filter(&mut self, filter: RenderFilter) {
-        self.filters.extend(filter)
-    }
-
-    #[inline]
-    pub fn push_opacity(&mut self, opacity: FrameBinding<f32>) {
-        let value = match &opacity {
-            PropertyBinding::Value(v) => *v,
-            PropertyBinding::Binding(_, v) => *v,
-        };
-        self.filters.push(FilterOp::Opacity(opacity, value));
-    }
-
-    #[inline]
-    pub fn push_invert(&mut self, amount: f32) {
-        self.filters.push(FilterOp::Invert(amount));
-    }
-}
-
 /// A frame quick update.
 pub struct FrameUpdate {
     bindings: DynamicProperties,
@@ -603,10 +607,11 @@ impl FrameUpdate {
         self.frame_id
     }
 
-    /// Update the widget transform.
+    /// Includes the widget transform.
     #[inline]
-    pub fn push_widget_transform(&mut self, transform: &LayoutTransform) {
-        self.widget_transform = self.widget_transform.post_transform(transform)
+    pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) {
+        self.widget_transform = self.widget_transform.post_transform(transform);
+        child.render_update(self);
     }
 
     /// Update a layout transform value.
