@@ -77,28 +77,28 @@ pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiN
     filter::set(child, amount.into_var().map(|&a| color::sepia(a)))
 }
 
-struct OpacityNode<C: UiNode, O: LocalVar<FactorNormal>> {
+struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
     child: C,
-    opacity: O,
+    alpha_value: A,
     frame_key: Option<FrameBindingKey<f32>>,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
+impl<C: UiNode, A: LocalVar<FactorNormal>> UiNode for OpacityNode<C, A> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        self.opacity.init_local(ctx.vars);
+        self.alpha_value.init_local(ctx.vars);
         self.child.init(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.opacity.update_local(ctx.vars).is_some() {
+        if self.alpha_value.update_local(ctx.vars).is_some() {
             ctx.updates.push_render_update();
         }
         self.child.update(ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        let opacity = self.opacity.get_local().0;
+        let opacity = self.alpha_value.get_local().0;
         let opacity = if let Some(frame_key) = self.frame_key {
             frame_key.bind(opacity)
         } else {
@@ -110,7 +110,7 @@ impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
 
     fn render_update(&self, update: &mut FrameUpdate) {
         if let Some(frame_key) = self.frame_key {
-            update.update_f32(frame_key.update(self.opacity.get_local().0));
+            update.update_f32(frame_key.update(self.alpha_value.get_local().0));
         }
         self.child.render_update(update);
     }
@@ -121,13 +121,13 @@ impl<C: UiNode, O: LocalVar<FactorNormal>> UiNode for OpacityNode<C, O> {
 /// This property provides the same visual result as setting [`filter`] to [`color::opacity(opacity)`](color::opacity),
 /// **but** updating the opacity is faster in this property.
 #[property(context)]
-pub fn opacity(child: impl UiNode, opacity: impl IntoVar<FactorNormal>) -> impl UiNode {
-    let opacity = opacity.into_local();
-    let frame_key = if opacity.can_update() {
+pub fn opacity(child: impl UiNode, alpha: impl IntoVar<FactorNormal>) -> impl UiNode {
+    let alpha_value = alpha.into_local();
+    let frame_key = if alpha_value.can_update() {
         Some(FrameBindingKey::new_unique())
     } else {
         None
     };
 
-    OpacityNode { child, opacity, frame_key }
+    OpacityNode { child, alpha_value, frame_key }
 }

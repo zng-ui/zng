@@ -580,14 +580,13 @@ impl Filter {
             .collect()
     }
 
-    pub fn opacity<O: Into<FactorNormal>>(self, opacity: O) -> Self {
-        let opacity = opacity.into().0;
-        self.op(FilterOp::Opacity(FrameBinding::Value(opacity), opacity))
+    pub fn opacity<A: Into<FactorNormal>>(self, alpha: A) -> Self {
+        let alpha_value = alpha.into().0;
+        self.op(FilterOp::Opacity(FrameBinding::Value(alpha_value), alpha_value))
     }
 
-    pub fn invert<I: Into<FactorNormal>>(self, invert: I) -> Self {
-        let invert = invert.into().0;
-        self.op(FilterOp::Invert(invert))
+    pub fn invert<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.op(FilterOp::Invert(amount.into().0))
     }
 
     pub fn blur<R: Into<Length>>(mut self, radius: R) -> Self {
@@ -595,9 +594,8 @@ impl Filter {
         self
     }
 
-    pub fn sepia<I: Into<FactorNormal>>(self, amount: I) -> Self {
-        let amount = amount.into().0;
-        self.op(FilterOp::Sepia(amount))
+    pub fn sepia<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.op(FilterOp::Sepia(amount.into().0))
     }
 }
 pub type RenderFilter = Vec<FilterOp>;
@@ -607,17 +605,17 @@ enum FilterData {
     Op(FilterOp),
     Blur(Length),
 }
-// TODO review paremeter names
-pub fn opacity<O: Into<FactorNormal>>(opacity: O) -> Filter {
-    Filter::default().opacity(opacity)
+
+pub fn opacity<A: Into<FactorNormal>>(alpha: A) -> Filter {
+    Filter::default().opacity(alpha)
 }
-pub fn invert<I: Into<FactorNormal>>(invert: I) -> Filter {
-    Filter::default().invert(invert)
+pub fn invert<A: Into<FactorNormal>>(amount: A) -> Filter {
+    Filter::default().invert(amount)
 }
 pub fn blur<R: Into<Length>>(radius: R) -> Filter {
     Filter::default().blur(radius)
 }
-pub fn sepia<I: Into<FactorNormal>>(amount: I) -> Filter {
+pub fn sepia<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().sepia(amount)
 }
 
