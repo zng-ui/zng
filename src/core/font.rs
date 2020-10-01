@@ -180,15 +180,21 @@ impl FontInstance {
 
     /// Gets the glyphs and glyph dimensions required for drawing the given `text`.
     pub fn glyph_layout(&self, text: &str) -> (Vec<u32>, Vec<Option<GlyphDimensions>>) {
-        let indices: Vec<_> = self
-            .inner
-            .api
-            .get_glyph_indices(self.inner.font_key, text)
-            .into_iter()
-            .filter_map(|i| i)
-            .collect();
+        let text = harfbuzz_rs::UnicodeBuffer::new().add_str(text);
+        let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, text, &[]);
 
-        let dimensions = self.inner.api.get_glyph_dimensions(self.inner.instance_key, indices.clone());
+        let indices = r.get_glyph_infos().iter().map(|i|i.codepoint).collect();
+        
+        let dimensions = r.get_glyph_positions().iter().map(|p| {
+            Some(GlyphDimensions {
+                left: p.x_offset,
+                top: p.y_offset,
+                width: p.x_advance - p.x_offset,
+                height: p.y_advance - p.y_offset,
+                advance: p.x_advance as f32,
+            })
+        }).collect();
+        
         (indices, dimensions)
     }
 
