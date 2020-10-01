@@ -110,7 +110,7 @@ fn screenshot() -> impl Widget {
 
 fn inspect() -> impl Widget {
     button! {
-        content: text("inspector");        
+        content: text("inspector");
         on_click: |_| {
             println!("in debug only, press CTRL+SHIFT+I")
         };

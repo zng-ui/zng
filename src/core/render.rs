@@ -220,7 +220,7 @@ impl FrameBuilder {
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) -> Result<(), WidgetStartedError> {
         if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
-            // we don't use pos_transform here fore the same reason `Self::open_widget_display`
+            // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
             *t = t.pre_transform(transform);
             child.render(self);

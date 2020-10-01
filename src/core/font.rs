@@ -173,6 +173,13 @@ impl FontInstance {
         (indices, dimensions)
     }
 
+    pub fn glyph_outline(&self, _text: &str) {
+        todo!("Implement this after full text shaping")
+        // https://docs.rs/font-kit/0.10.0/font_kit/loaders/freetype/struct.Font.html#method.outline
+        // Frame of reference: https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
+        // Text shaping: https://crates.io/crates/harfbuzz_rs
+    }
+
     /// Gets the font instance key.
     pub fn instance_key(&self) -> FontInstanceKey {
         self.inner.instance_key

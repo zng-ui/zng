@@ -164,7 +164,7 @@ pub mod widgets;
 pub mod prelude {
     pub use crate::core::{
         app::App,
-        color::{self, blur, hex, hsl, hsla, opacity, rgb, rgba, web_colors, Rgba},
+        color::{self, blur, drop_shadow, grayscale, hex, hsl, hsla, opacity, rgb, rgba, sepia, web_colors, Rgba},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
