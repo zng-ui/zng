@@ -19,15 +19,16 @@ gleam = "0.6.17" #version required by webrender
 webrender = "0.61.0"
 euclid = "0.20.7" #version required by webrender
 font-kit = "0.10.0"
-rayon = "1.4.0"
-image = "0.23.9"
+harfbuzz_rs = "1.2.0"
+rayon = "1.4.1"
+image = "0.23.10"
 
 # util
 once_cell = "1.4.1"
 fnv = "1.0.7"
 ego-tree = "0.6.2"
 colored = "2.0.0"
-derive_more = "0.99.10"
+derive_more = "0.99.11"
 bitflags = "1.2.1"
 
 # app_profiler only

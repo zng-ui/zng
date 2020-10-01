@@ -69,17 +69,26 @@ impl Fonts {
                 let mut txn = Transaction::new();
                 let font_key = self.api.generate_font_key();
 
-                match handle {
+                let harfbuzz_face = match handle {
                     font_kit::handle::Handle::Path { path, font_index } => {
-                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index })
+                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font");
+                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
+                        r
                     }
-                    font_kit::handle::Handle::Memory { bytes, font_index } => txn.add_raw_font(font_key, (&*bytes).clone(), font_index),
-                }
+                    font_kit::handle::Handle::Memory { bytes, font_index } => {
+                        let blob = harfbuzz_rs::Blob::with_bytes_owned(Arc::clone(&bytes), |a| &*a);
+                        let r = harfbuzz_rs::Face::new(blob, font_index);
+                        txn.add_raw_font(font_key, (&*bytes).clone(), font_index);
+                        r
+                    }
+                };
 
                 let mut font_instances = FontInstances {
                     font_key,
+                    harfbuzz_face: harfbuzz_face.to_shared(),
                     instances: FnvHashMap::default(),
                 };
+
                 self.api.update_resources(txn.resource_updates);
                 let instance = Self::load_font_size(self.api.clone(), &mut font_instances, size);
                 self.fonts.insert(query_key, font_instances);
@@ -104,7 +113,11 @@ impl Fonts {
         );
         api.update_resources(txn.resource_updates);
 
-        let instance = FontInstance::new(api, font_instances.font_key, instance_key);
+        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
+        harfbuzz_font.set_ppem(size, size);
+        //harfbuzz_font.set_scale(x, y); TODO // size * dpi
+
+        let instance = FontInstance::new(api, font_instances.font_key, instance_key, harfbuzz_font.to_shared());
         font_instances.instances.insert(size, instance.clone());
 
         instance
@@ -132,15 +145,20 @@ impl FontPropertiesKey {
 /// All instances of a font family.
 struct FontInstances {
     pub font_key: FontKey,
+    pub harfbuzz_face: HarfbuzzFace,
     pub instances: FnvHashMap<FontSize, FontInstance>,
 }
 
-#[derive(Clone)]
 struct FontInstanceInner {
     api: Arc<RenderApi>,
     font_key: FontKey,
     instance_key: FontInstanceKey,
+    harfbuzz_font: HarfbuzzFont,
 }
+
+type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
+
+type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
 
 /// Reference to a specific font instance (family and size).
 #[derive(Clone)]
@@ -149,12 +167,13 @@ pub struct FontInstance {
 }
 
 impl FontInstance {
-    fn new(api: Arc<RenderApi>, font_key: FontKey, instance_key: FontInstanceKey) -> Self {
+    fn new(api: Arc<RenderApi>, font_key: FontKey, instance_key: FontInstanceKey, harfbuzz_font: HarfbuzzFont) -> Self {
         FontInstance {
             inner: Arc::new(FontInstanceInner {
                 api,
                 font_key,
                 instance_key,
+                harfbuzz_font,
             }),
         }
     }
