@@ -100,6 +100,11 @@ pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> imp
     filter::set(child, amount.into_var().map(|&a| color::brightness(a)))
 }
 
+#[property(context)]
+pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+    filter::set(child, amount.into_var().map(|&a| color::contrast(a)))
+}
+
 struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
     child: C,
     alpha_value: A,
