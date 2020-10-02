@@ -95,6 +95,11 @@ pub fn drop_shadow(
     )
 }
 
+#[property(context)]
+pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
+    filter::set(child, amount.into_var().map(|&a| color::brightness(a)))
+}
+
 struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
     child: C,
     alpha_value: A,

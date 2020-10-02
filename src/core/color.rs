@@ -619,6 +619,10 @@ impl Filter {
         });
         self
     }
+
+    pub fn brightness<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.op(FilterOp::Brightness(amount.into().0))
+    }
 }
 pub type RenderFilter = Vec<FilterOp>;
 
@@ -646,6 +650,9 @@ pub fn grayscale<A: Into<FactorNormal>>(amount: A) -> Filter {
 }
 pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, blur_radius: R, color: C) -> Filter {
     Filter::default().drop_shadow(offset, blur_radius, color)
+}
+pub fn brightness<A: Into<FactorNormal>>(amount: A) -> Filter {
+    Filter::default().brightness(amount)
 }
 
 /// Named web colors
