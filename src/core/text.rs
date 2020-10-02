@@ -181,7 +181,7 @@ impl FontInstance {
     }
 
     /// Shapes the text using the font.
-    pub fn shape_text(&self, text: &str, config: &ShapingConfig) -> ShapedText {
+    pub fn shape_text(&self, text: &str, config: &ShapingConfig) -> ShapedLine {
         let text = harfbuzz_rs::UnicodeBuffer::new().add_str(text);
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, text, &[]);
 
@@ -195,7 +195,7 @@ impl FontInstance {
             })
             .collect();
 
-        ShapedText {
+        ShapedLine {
             glyphs,
             bounds: LayoutSize::zero(),
         }
@@ -221,16 +221,22 @@ use super::units::{LayoutPoint, LayoutSize};
 /// Extra configuration for [`shape_text`](FontInstance::shape_text).
 #[derive(Debug, Clone, Default)]
 pub struct ShapingConfig {
-    /// Spacing to add between each letter.
+    /// Extra spacing to add between characters.
     pub letter_spacing: Option<f32>,
 
     /// Spacing to add between each word.
+    ///
+    /// Use [`word_spacing(..)`](function@Self::word_spacing) to compute the value.
     pub word_spacing: Option<f32>,
 
     /// Space to add between each line.
-    pub line_spacing: Option<f32>,
+    ///
+    /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
+    pub line_height: Option<f32>,
 
     /// Space to add between each paragraph.
+    ///
+    /// use [`paragraph_spacing(.).`](function@Self::paragraph_spacing) to compute the value.
     pub paragraph_spacing: Option<f32>,
 
     /// Unicode script of the text.
@@ -248,11 +254,41 @@ pub struct ShapingConfig {
     pub word_break: (),
 
     pub line_break: LineBreak,
+
+    pub justify: Option<Justify>,
+
+    /// Width of the TAB character.
+    ///
+    /// By default 8 x space.
+    pub tab_size: Option<f32>,
+
+    /// Extra space before the start of the first line.
+    pub text_indent: f32,
+}
+
+impl ShapingConfig {
+    /// Gets the custom word spacing or 0.25em.
+    #[inline]
+    pub fn word_spacing(&self, font_size: f32) -> f32 {
+        self.word_spacing.unwrap_or(font_size * 0.25)
+    }
+
+    /// Gets the custom line height or 1.3em.
+    #[inline]
+    pub fn line_height(&self, font_size: f32) -> f32 {
+        self.line_height.unwrap_or(font_size * 1.3)
+    }
+
+    /// Gets the custom paragraph spacing or one line height.
+    #[inline]
+    pub fn paragraph_spacing(&self, font_size: f32) -> f32 {
+        self.line_height(font_size)
+    }
 }
 
 /// Result of [`shape_text`](FontInstance::shape_text).
 #[derive(Debug, Clone)]
-pub struct ShapedText {
+pub struct ShapedLine {
     /// Glyphs for the renderer.
     pub glyphs: Vec<GlyphInstance>,
     /// Size of the text for the layout.
@@ -300,5 +336,30 @@ impl Default for WordBreak {
     /// [`WordBreak::Normal`]
     fn default() -> Self {
         WordBreak::Normal
+    }
+}
+pub enum TextAlign {
+    /// `Left` in LTR or `Right` in RTL.
+    Start,
+    /// `Right` in LTR or `Left` in RTL.
+    End,
+
+    Left,
+    Center,
+    Right, 
+
+    Justify,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Justify {
+    Auto,
+    InterWord,
+    InterCharacter,
+}
+impl Default for Justify {
+    /// [`Justify::Auto`]
+    fn default() -> Self {
+        Justify::Auto
     }
 }
