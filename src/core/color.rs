@@ -627,6 +627,10 @@ impl Filter {
     pub fn contrast<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Contrast(amount.into().0))
     }
+
+    pub fn saturate<A: Into<FactorNormal>>(self, amount: A) -> Self {
+        self.op(FilterOp::Saturate(amount.into().0))
+    }
 }
 pub type RenderFilter = Vec<FilterOp>;
 
@@ -660,6 +664,9 @@ pub fn brightness<A: Into<FactorNormal>>(amount: A) -> Filter {
 }
 pub fn contrast<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().contrast(amount)
+}
+pub fn saturate<A: Into<FactorNormal>>(amount: A) -> Filter {
+    Filter::default().saturate(amount)
 }
 
 /// Named web colors
