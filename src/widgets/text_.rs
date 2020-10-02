@@ -50,25 +50,9 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let text = self.text.get(ctx.vars);
         let text = TextTransformVar::var().get(ctx.vars).transform(text);
 
-        let (indices, dimensions) = font.glyph_layout(&text);
-        let mut glyphs = Vec::with_capacity(indices.len());
-        let mut offset = 0.;
-        assert_eq!(indices.len(), dimensions.len());
-        for (index, dimension) in indices.into_iter().zip(dimensions) {
-            if let Some(dimension) = dimension {
-                glyphs.push(GlyphInstance {
-                    index,
-                    point: LayoutPoint::new(offset, font_size),
-                });
-                offset += dimension.advance as f32;
-            } else {
-                offset += font_size / 4.;
-            }
-        }
-        glyphs.shrink_to_fit();
+        let (glyphs, width) = font.glyph_layout(&text);
 
-        self.glyphs = glyphs;
-        self.size = LayoutSize::new(offset, font_size * 1.3);
+        self.size = LayoutSize::new(width, font_size * 1.3);
         self.font = Some(font);
     }
 

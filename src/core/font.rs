@@ -179,23 +179,23 @@ impl FontInstance {
     }
 
     /// Gets the glyphs and glyph dimensions required for drawing the given `text`.
-    pub fn glyph_layout(&self, text: &str) -> (Vec<u32>, Vec<Option<GlyphDimensions>>) {
+    pub fn glyph_layout(&self, text: &str) -> (Vec<GlyphInstance>, f32) {
         let text = harfbuzz_rs::UnicodeBuffer::new().add_str(text);
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, text, &[]);
 
-        let indices = r.get_glyph_infos().iter().map(|i|i.codepoint).collect();
-        
-        let dimensions = r.get_glyph_positions().iter().map(|p| {
-            Some(GlyphDimensions {
-                left: p.x_offset,
-                top: p.y_offset,
-                width: p.x_advance - p.x_offset,
-                height: p.y_advance - p.y_offset,
-                advance: p.x_advance as f32,
-            })
+        let mut offset = 0;
+
+        let r =  r.get_glyph_infos().iter().zip(r.get_glyph_positions()).map(|(i, p)| {
+            let r = GlyphInstance {
+                index: i.codepoint,
+                point: LayoutPoint::new(offset as f32, 0.0),
+                
+            };
+            offset += p.x_advance;
+            r
         }).collect();
-        
-        (indices, dimensions)
+
+        (r, offset as f32)
     }
 
     pub fn glyph_outline(&self, _text: &str) {
@@ -210,3 +210,7 @@ impl FontInstance {
         self.inner.instance_key
     }
 }
+
+pub use webrender::api::GlyphInstance;
+
+use super::units::LayoutPoint;
