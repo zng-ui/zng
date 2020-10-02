@@ -303,7 +303,7 @@ pub enum LineBreak {
     Loose,
     Normal,
     Strict,
-    Anywhere
+    Anywhere,
 }
 impl Default for LineBreak {
     /// [`LineBreak::Auto`]
@@ -317,7 +317,7 @@ pub enum Hyphenation {
     None,
     /// `\u{2010}` HYPHEN, `\u{00AD}` SHY
     Manual,
-    Auto
+    Auto,
 }
 impl Default for Hyphenation {
     /// [`Hyphenation::Auto`]
@@ -346,7 +346,7 @@ pub enum TextAlign {
 
     Left,
     Center,
-    Right, 
+    Right,
 
     Justify,
 }

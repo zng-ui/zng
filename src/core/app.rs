@@ -7,10 +7,10 @@ use crate::core::{
     context::*,
     event::{cancelable_event_args, CancelableEventArgs},
     focus::FocusManager,
-    text::FontManager,
     gesture::GestureManager,
     keyboard::KeyboardManager,
     mouse::MouseManager,
+    text::FontManager,
     types::*,
     window::WindowManager,
 };

@@ -61,8 +61,8 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 /// ```
 /// use zero_ui::{
 ///     core::{color::{rgb, rgba}, types::ToText, var::Var, UiNode},
-///     properties::{text_color, font_size},
-///     widgets::{text, view, View},
+///     properties::text_theme::{text_color, font_size},
+///     widgets::{text::text, view, View},
 /// };
 ///
 /// fn countdown(n: impl Var<usize>) -> impl UiNode {

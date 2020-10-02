@@ -178,7 +178,9 @@ pub mod prelude {
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,
     };
+
     pub use crate::properties::*;
+    pub use crate::widgets::*;
 
     pub use crate::properties::background::{background, *};
     pub use crate::properties::events::*;
@@ -191,5 +193,5 @@ pub mod prelude {
     pub use crate::properties::transform::{transform, *};
 
     pub use crate::widgets::layouts::*;
-    pub use crate::widgets::*;
+    pub use crate::widgets::text::{text, *};
 }

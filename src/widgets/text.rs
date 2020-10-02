@@ -1,9 +1,11 @@
+//! Text widgets.
+
 use crate::core::color::{web_colors, Rgba};
 use crate::core::context::*;
-use crate::core::text::*;
 use crate::core::impl_ui_node;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
+use crate::core::text::*;
 use crate::core::types::Text;
 use crate::core::types::*;
 use crate::core::units::*;
@@ -21,6 +23,16 @@ struct TextNode<T: Var<Text>> {
     color: Rgba,
 }
 impl<T: Var<Text>> TextNode<T> {
+    fn new(text: T) -> TextNode<T> {
+        TextNode {
+            text,
+            glyphs: vec![],
+            size: LayoutSize::zero(),
+            font: None,
+            color: web_colors::BLACK,
+        }
+    }
+
     fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
         self.size.snap_to(pixels)
     }
@@ -134,14 +146,7 @@ widget! {
     /// Creates a [`text`](../fn.text.html).
     #[inline]
     fn new_child(text) -> impl UiNode {
-        TextNode {
-            text: text.unwrap().into_var(),
-
-            glyphs: vec![],
-            size: LayoutSize::default(),
-            font: None,
-            color: web_colors::BLACK,
-        }
+        TextNode::new(text.unwrap().into_var())
     }
 }
 
@@ -156,8 +161,8 @@ widget! {
 /// # Example
 /// ```
 /// # fn main() -> () {
-/// use zero_ui::widgets::{container, text};
-/// use zero_ui::properties::{font_family, font_size};
+/// use zero_ui::widgets::{container, text::text};
+/// use zero_ui::properties::text_theme::{font_family, font_size};
 ///
 /// let hello_txt = container! {
 ///     font_family: "Arial";
@@ -175,4 +180,50 @@ pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
     text! {
         text;
     }
+}
+
+widget! {
+    strong;
+
+    default_child {
+        text -> text_value;
+    }
+
+    #[inline]
+    fn new_child(text) -> impl UiNode {
+        let text = TextNode::new(text.unwrap().into_var());
+        font_weight::set(text, FontWeight::BOLD)
+    }
+}
+
+/// A simple text run with **bold** font weight.
+///
+/// # Configure
+///
+/// Apart from the font weight this widget can be configured with contextual properties like [`text`](function@text).
+pub fn strong(text: impl IntoVar<Text> + 'static) -> impl Widget {
+    strong! { text; }
+}
+
+widget! {
+    em;
+
+    default_child {
+        text -> text_value;
+    }
+
+    #[inline]
+    fn new_child(text) -> impl UiNode {
+        let text = TextNode::new(text.unwrap().into_var());
+        font_style::set(text, FontStyle::Italic)
+    }
+}
+
+/// A simple text run with *italic* font style.
+///
+/// # Configure
+///
+/// Apart from the font style this widget can be configured with contextual properties like [`text`](function@text).
+pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
+    em! { text; }
 }
