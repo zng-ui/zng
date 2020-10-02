@@ -7,7 +7,7 @@ pub mod context;
 pub mod debug;
 pub mod event;
 pub mod focus;
-pub mod font;
+pub mod text;
 pub mod gesture;
 pub mod keyboard;
 pub mod mouse;

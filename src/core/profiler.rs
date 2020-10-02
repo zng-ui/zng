@@ -1,4 +1,8 @@
-//! Generate profiles compatible with `chrome://tracing`.
+//! Performance profiling.
+//! 
+//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`] and [`write_profile`] for more details.
+//!
+//! Profiler can be viewed using the `chrome://tracing` app.
 
 #[cfg(feature = "app_profiler")]
 mod profiler_impl {

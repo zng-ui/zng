@@ -1,3 +1,5 @@
+//! Font resolving and text shaping.
+
 use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
 use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontSize, FontStyle};
@@ -7,7 +9,7 @@ use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
-use webrender::api::{FontKey, GlyphDimensions, RenderApi, Transaction};
+use webrender::api::{FontKey, RenderApi, Transaction};
 
 /// Application extension that provides the [`Fonts`] window service.
 #[derive(Default)]
@@ -178,24 +180,25 @@ impl FontInstance {
         }
     }
 
-    /// Gets the glyphs and glyph dimensions required for drawing the given `text`.
-    pub fn glyph_layout(&self, text: &str) -> (Vec<GlyphInstance>, f32) {
+    /// Shapes the text using the font.
+    pub fn shape_text(&self, text: &str, config: &ShapingConfig) -> ShapedText {
         let text = harfbuzz_rs::UnicodeBuffer::new().add_str(text);
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, text, &[]);
 
-        let mut offset = 0;
-
-        let r =  r.get_glyph_infos().iter().zip(r.get_glyph_positions()).map(|(i, p)| {
-            let r = GlyphInstance {
+        let glyphs = r
+            .get_glyph_infos()
+            .iter()
+            .zip(r.get_glyph_positions())
+            .map(|(i, p)| GlyphInstance {
                 index: i.codepoint,
-                point: LayoutPoint::new(offset as f32, 0.0),
-                
-            };
-            offset += p.x_advance;
-            r
-        }).collect();
+                point: LayoutPoint::new(p.x_offset as f32, p.y_offset as f32),
+            })
+            .collect();
 
-        (r, offset as f32)
+        ShapedText {
+            glyphs,
+            bounds: LayoutSize::zero(),
+        }
     }
 
     pub fn glyph_outline(&self, _text: &str) {
@@ -211,6 +214,91 @@ impl FontInstance {
     }
 }
 
-pub use webrender::api::GlyphInstance;
+use webrender::api::GlyphInstance;
 
-use super::units::LayoutPoint;
+use super::units::{LayoutPoint, LayoutSize};
+
+/// Extra configuration for [`shape_text`](FontInstance::shape_text).
+#[derive(Debug, Clone, Default)]
+pub struct ShapingConfig {
+    /// Spacing to add between each letter.
+    pub letter_spacing: Option<f32>,
+
+    /// Spacing to add between each word.
+    pub word_spacing: Option<f32>,
+
+    /// Space to add between each line.
+    pub line_spacing: Option<f32>,
+
+    /// Space to add between each paragraph.
+    pub paragraph_spacing: Option<f32>,
+
+    /// Unicode script of the text.
+    pub script: Script,
+
+    /// Don't use font ligatures.
+    pub ignore_ligatures: bool,
+
+    /// Don't use font letter spacing.
+    pub disable_kerning: bool,
+
+    /// Text is right-to-left.
+    pub right_to_left: bool,
+
+    pub word_break: (),
+
+    pub line_break: LineBreak,
+}
+
+/// Result of [`shape_text`](FontInstance::shape_text).
+#[derive(Debug, Clone)]
+pub struct ShapedText {
+    /// Glyphs for the renderer.
+    pub glyphs: Vec<GlyphInstance>,
+    /// Size of the text for the layout.
+    pub bounds: LayoutSize,
+}
+
+pub use unicode_script::{self, Script};
+
+#[derive(Debug, Copy, Clone)]
+pub enum LineBreak {
+    Auto,
+    Loose,
+    Normal,
+    Strict,
+    Anywhere
+}
+impl Default for LineBreak {
+    /// [`LineBreak::Auto`]
+    fn default() -> Self {
+        LineBreak::Auto
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Hyphenation {
+    None,
+    /// `\u{2010}` HYPHEN, `\u{00AD}` SHY
+    Manual,
+    Auto
+}
+impl Default for Hyphenation {
+    /// [`Hyphenation::Auto`]
+    fn default() -> Self {
+        Hyphenation::Auto
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum WordBreak {
+    Normal,
+    BreakAll,
+    KeepAll,
+}
+impl Default for WordBreak {
+    /// [`WordBreak::Normal`]
+    fn default() -> Self {
+        WordBreak::Normal
+    }
+}

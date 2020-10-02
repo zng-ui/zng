@@ -1,6 +1,6 @@
 use crate::core::color::{web_colors, Rgba};
 use crate::core::context::*;
-use crate::core::font::*;
+use crate::core::text::*;
 use crate::core::impl_ui_node;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
@@ -45,14 +45,13 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             .req::<Fonts>()
             .get_or_default(font_family, &font_properties, font_size);
 
-        let font_size = font_size as f32;
-
         let text = self.text.get(ctx.vars);
         let text = TextTransformVar::var().get(ctx.vars).transform(text);
 
-        let (glyphs, width) = font.glyph_layout(&text);
+        let r = font.shape_text(&text, &Default::default());
+        self.glyphs = r.glyphs;
 
-        self.size = LayoutSize::new(width, font_size * 1.3);
+        self.size = r.bounds;
         self.font = Some(font);
     }
 
