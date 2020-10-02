@@ -1,13 +1,6 @@
 //! Color filter properties, [`opacity`], [`filter`] and more.
 
-use crate::core::{
-    color::{self, Filter, RenderFilter, Rgba},
-    context::LayoutContext,
-    context::WidgetContext,
-    render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
-    units::{LayoutSize, Length, Point},
-    var::{merge_var, IntoVar, LocalVar, ObjVar, Var},
-};
+use crate::core::{color::{self, Filter, RenderFilter, Rgba}, context::LayoutContext, context::WidgetContext, render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate}, units::{AngleDegree, LayoutSize, Length, Point}, var::{merge_var, IntoVar, LocalVar, ObjVar, Var}};
 use crate::core::{impl_ui_node, property, units::FactorNormal, UiNode};
 
 struct FilterNode<C: UiNode, F: LocalVar<Filter>> {
@@ -110,6 +103,10 @@ pub fn saturate(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl 
     filter::set(child, amount.into_var().map(|&a| color::saturate(a)))
 }
 
+#[property(context)]
+pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
+    filter::set(child, angle.into_var().map(|&a| color::hue_rotate(a)))
+}
 
 struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
     child: C,

@@ -631,6 +631,10 @@ impl Filter {
     pub fn saturate<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Saturate(amount.into().0))
     }
+
+    pub fn hue_rotate<A: Into<AngleDegree>>(self, angle: A) -> Self {
+        self.op(FilterOp::HueRotate(angle.into().0))
+    }
 }
 pub type RenderFilter = Vec<FilterOp>;
 
@@ -667,6 +671,9 @@ pub fn contrast<A: Into<FactorNormal>>(amount: A) -> Filter {
 }
 pub fn saturate<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().saturate(amount)
+}
+pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
+    Filter::default().hue_rotate(angle)
 }
 
 /// Named web colors
