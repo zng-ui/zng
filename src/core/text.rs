@@ -237,10 +237,6 @@ impl FontInstance {
             LayoutSize::new(config.line_height(font_size), glyphs[glyphs.len() - 1].point.y)
         };
 
-        for (c, g) in text.chars().zip(glyphs.iter()) {
-            println!("{}={:?}", c, g);
-        }
-
         ShapedLine { glyphs, bounds }
     }
 

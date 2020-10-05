@@ -141,8 +141,6 @@ widget! {
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
         color -> text_color;
-
-        debug_background -> background_color: web_colors::RED;
     }
 
     /// Creates a [`text`](../fn.text.html).
