@@ -317,6 +317,7 @@ impl fmt::Display for FontName {
     }
 }
 
+///
 pub type FontSize = u32;
 
 impl IntoVar<Box<[FontName]>> for &'static str {

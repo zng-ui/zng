@@ -117,9 +117,9 @@ impl Fonts {
 
         let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
         harfbuzz_font.set_ppem(size, size);
-        //harfbuzz_font.set_scale(x, y); TODO // size * dpi
+        harfbuzz_font.set_scale(12, 12);
 
-        let instance = FontInstance::new(api, font_instances.font_key, instance_key, harfbuzz_font.to_shared());
+        let instance = FontInstance::new(api, font_instances.font_key, instance_key, size, harfbuzz_font.to_shared());
         font_instances.instances.insert(size, instance.clone());
 
         instance
@@ -155,6 +155,7 @@ struct FontInstanceInner {
     api: Arc<RenderApi>,
     font_key: FontKey,
     instance_key: FontInstanceKey,
+    font_size: FontSize,
     harfbuzz_font: HarfbuzzFont,
 }
 
@@ -169,39 +170,81 @@ pub struct FontInstance {
 }
 
 impl FontInstance {
-    fn new(api: Arc<RenderApi>, font_key: FontKey, instance_key: FontInstanceKey, harfbuzz_font: HarfbuzzFont) -> Self {
+    fn new(
+        api: Arc<RenderApi>,
+        font_key: FontKey,
+        instance_key: FontInstanceKey,
+        font_size: FontSize,
+        harfbuzz_font: HarfbuzzFont,
+    ) -> Self {
         FontInstance {
             inner: Arc::new(FontInstanceInner {
                 api,
                 font_key,
                 instance_key,
+                font_size,
                 harfbuzz_font,
             }),
         }
     }
 
-    /// Shapes the text using the font.
-    pub fn shape_text(&self, text: &str, config: &ShapingConfig) -> ShapedLine {
-        let text = harfbuzz_rs::UnicodeBuffer::new().add_str(text);
-        let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, text, &[]);
+    /// Shapes the text line using the font.
+    ///
+    /// The `text` should not contain line breaks, if it does the line breaks are ignored.
+    pub fn shape_line(&self, text: &str, config: &ShapingConfig) -> ShapedLine {
+        let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
+            harfbuzz_rs::Direction::Rtl
+        } else {
+            harfbuzz_rs::Direction::Ltr
+        });
+        if config.script != Script::Unknown {
+            buffer = buffer.set_script(script_to_tag(config.script));
+        }
+        buffer = buffer.add_str(text);
 
-        let glyphs = r
+        let mut features = vec![];
+        if config.ignore_ligatures {
+            features.push(harfbuzz_rs::Feature::new(b"liga", 0, 0..buffer.len()));
+        }
+        if config.disable_kerning {
+            features.push(harfbuzz_rs::Feature::new(b"kern", 0, 0..buffer.len()));
+        }
+
+        let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
+
+        let mut origin = LayoutPoint::zero();
+        let glyphs: Vec<_> = r
             .get_glyph_infos()
             .iter()
             .zip(r.get_glyph_positions())
-            .map(|(i, p)| GlyphInstance {
-                index: i.codepoint,
-                point: LayoutPoint::new(p.x_offset as f32, p.y_offset as f32),
+            .map(|(i, p)| {
+                let point = LayoutPoint::new(origin.x + p.x_offset as f32, p.y_offset as f32);
+                origin.x += p.x_advance as f32;
+                origin.y += p.y_advance as f32;
+                GlyphInstance { index: i.codepoint, point }
             })
             .collect();
 
-        ShapedLine {
-            glyphs,
-            bounds: LayoutSize::zero(),
+        let font_size = self.inner.font_size as f32;
+        let bounds = if glyphs.is_empty() {
+            LayoutSize::new(0.0, font_size)
+        } else if origin.x > 0.0 {
+            debug_assert!(origin.y < 0.0001);
+            LayoutSize::new(glyphs[glyphs.len() - 1].point.x, config.line_height(font_size))
+        } else {
+            debug_assert!(origin.y > 0.0);
+            debug_assert!(origin.x < 0.0001);
+            LayoutSize::new(config.line_height(font_size), glyphs[glyphs.len() - 1].point.y)
+        };
+
+        for (c, g) in text.chars().zip(glyphs.iter()) {
+            println!("{}={:?}", c, g);
         }
+
+        ShapedLine { glyphs, bounds }
     }
 
-    pub fn glyph_outline(&self, _text: &str) {
+    pub fn glyph_outline(&self, _line: &ShapedLine) {
         todo!("Implement this after full text shaping")
         // https://docs.rs/font-kit/0.10.0/font_kit/loaders/freetype/struct.Font.html#method.outline
         // Frame of reference: https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
@@ -217,6 +260,16 @@ impl FontInstance {
 use webrender::api::GlyphInstance;
 
 use super::units::{LayoutPoint, LayoutSize};
+
+fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
+    let mut name = script.short_name().chars();
+    harfbuzz_rs::Tag::new(
+        name.next().unwrap(),
+        name.next().unwrap(),
+        name.next().unwrap(),
+        name.next().unwrap(),
+    )
+}
 
 /// Extra configuration for [`shape_text`](FontInstance::shape_text).
 #[derive(Debug, Clone, Default)]

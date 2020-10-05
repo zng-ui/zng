@@ -11,7 +11,7 @@ use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::var::{IntoVar, ObjVar, Var};
 use crate::core::{UiNode, Widget};
-use crate::properties::{capture_only::text_value, text_theme::*};
+use crate::properties::{background::background_color, capture_only::text_value, text_theme::*};
 use zero_ui_macros::widget;
 
 struct TextNode<T: Var<Text>> {
@@ -60,7 +60,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let text = self.text.get(ctx.vars);
         let text = TextTransformVar::var().get(ctx.vars).transform(text);
 
-        let r = font.shape_text(&text, &Default::default());
+        let r = font.shape_line(text.lines().next().unwrap_or_default(), &Default::default());
         self.glyphs = r.glyphs;
 
         self.size = r.bounds;
@@ -141,6 +141,8 @@ widget! {
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
         color -> text_color;
+
+        debug_background -> background_color: web_colors::RED;
     }
 
     /// Creates a [`text`](../fn.text.html).
