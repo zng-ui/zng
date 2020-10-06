@@ -983,6 +983,26 @@ impl IntoVar<Point> for Alignment {
     }
 }
 
+/// Text line height.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum LineHeight {
+    /// Default height from the font data.
+    ///
+    /// The final value is computed from the font metrics: `ascent - descent + line_gap`. This 
+    /// is usually similar to `1.2.em()`.
+    Font,
+    /// Height in [`Length`].
+    ///
+    /// Relative lengths are computed to the font size.
+    Length(Length)
+}
+impl Default for LineHeight {
+    /// [`LineHeight::Font`]
+    fn default() -> Self {
+        LineHeight::Font
+    }
+}
+
 /// A device pixel scale factor used for pixel alignment.
 ///
 /// Types that can be aligned with this grid implement [`PixelGridExt`].

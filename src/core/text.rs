@@ -242,7 +242,8 @@ impl FontInstance {
 
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
 
-        let mut origin = LayoutPoint::new(0.0, metrics.ascent + metrics.line_gap / 2.0);
+        let baseline = metrics.ascent + metrics.line_gap / 2.0;
+        let mut origin = LayoutPoint::new(0.0, baseline);
 
         let glyphs: Vec<_> = r
             .get_glyph_infos()
@@ -267,7 +268,7 @@ impl FontInstance {
 
         let bounds = LayoutSize::new(origin.x, config.line_height(metrics));
 
-        ShapedLine { glyphs, bounds }
+        ShapedLine { glyphs, baseline, bounds }
     }
 
     pub fn glyph_outline(&self, _line: &ShapedLine) {
@@ -370,6 +371,12 @@ impl ShapingConfig {
 pub struct ShapedLine {
     /// Glyphs for the renderer.
     pub glyphs: Vec<GlyphInstance>,
+
+    /// Baseline within `bounds`.
+    ///
+    /// This is the font ascent + half the line gap.
+    pub baseline: f32,
+
     /// Size of the text for the layout.
     pub bounds: LayoutSize,
 }
