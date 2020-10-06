@@ -413,6 +413,13 @@ impl Length {
         Length::Relative(FactorNormal(1.0))
     }
 
+    /// Exact length in font units.
+    #[inline]
+    pub fn pt(font_pt: f32) -> Length {
+        // make this const when https://github.com/rust-lang/rust/issues/57241
+        Length::Exact(font_pt * 96.0 / 72.0)
+    }
+
     /// Compute the length at a context.
     pub fn to_layout(self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
         let l = match self {
@@ -431,6 +438,12 @@ impl Length {
 
 /// Computed [`Length`].
 pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
+
+/// Convert a [`LayoutLength`] to font units.
+#[inline]
+pub fn layout_length_to_pt(length: LayoutLength) -> f32 {
+    length.get() * 72.0 / 96.0
+}
 
 /// Extension methods for initializing [`Length`] units.
 ///
@@ -454,6 +467,11 @@ pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
 /// let available_size: Length = 1.0.normal().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
+    /// Exact size in font units.
+    ///
+    /// Returns [`Length::Exact`].
+    fn pt(self) -> Length;
+
     /// Relative to the font-size of the widget.
     ///
     /// Returns [`Length::Em`].
@@ -483,6 +501,10 @@ pub trait LengthUnits {
 }
 impl LengthUnits for f32 {
     #[inline]
+    fn pt(self) -> Length {
+        Length::pt(self)
+    }
+    #[inline]
     fn em(self) -> Length {
         Length::Em(self.into())
     }
@@ -508,6 +530,10 @@ impl LengthUnits for f32 {
     }
 }
 impl LengthUnits for i32 {
+    #[inline]
+    fn pt(self) -> Length {
+        Length::pt(self as f32)
+    }
     #[inline]
     fn em(self) -> Length {
         Length::Em(self.normal())

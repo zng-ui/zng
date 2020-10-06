@@ -11,13 +11,14 @@ use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::var::{IntoVar, ObjVar, Var};
 use crate::core::{UiNode, Widget};
-use crate::properties::{background::background_color, capture_only::text_value, text_theme::*};
+use crate::properties::{capture_only::text_value, text_theme::*};
 use zero_ui_macros::widget;
 
 struct TextNode<T: Var<Text>> {
     text: T,
 
     glyphs: Vec<GlyphInstance>,
+    font_size: FontSizePt,
     size: LayoutSize,
     font: Option<FontInstance>,
     color: Rgba,
@@ -27,6 +28,7 @@ impl<T: Var<Text>> TextNode<T> {
         TextNode {
             text,
             glyphs: vec![],
+            font_size: 14, //TODO
             size: LayoutSize::zero(),
             font: None,
             color: web_colors::BLACK,
@@ -43,7 +45,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         profile_scope!("text::init");
 
         self.color = *TextColorVar::var().get(ctx.vars);
-        let font_size = *FontSizeVar::var().get(ctx.vars);
+        //let font_size = *FontSizeVar::var().get(ctx.vars);
+        let font_size = self.font_size; //TODO
         let font_properties = FontProperties {
             style: *FontStyleVar::var().get(ctx.vars),
             weight: *FontWeightVar::var().get(ctx.vars),

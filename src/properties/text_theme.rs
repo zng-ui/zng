@@ -1,11 +1,11 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::color::web_colors;
 use crate::core::color::Rgba;
 use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar};
 use crate::core::UiNode;
+use crate::core::{color::web_colors, units::Length};
 use crate::properties::with_context_var;
 use std::{borrow::Cow, fmt, rc::Rc};
 
@@ -62,7 +62,7 @@ context_var! {
     pub struct FontStretchVar: FontStretch = const FontStretch::NORMAL;
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSizeVar: FontSize = const 14;
+    pub struct FontSizeVar: Length = once Length::pt(14.0);
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
@@ -97,7 +97,7 @@ pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> i
 
 /// Sets the [`FontSizeVar`] context var.
 #[property(context)]
-pub fn font_size(child: impl UiNode, size: impl IntoVar<FontSize>) -> impl UiNode {
+pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode {
     with_context_var(child, FontSizeVar, size)
 }
 

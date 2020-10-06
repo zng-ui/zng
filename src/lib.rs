@@ -169,8 +169,8 @@ pub mod prelude {
         gesture::shortcut,
         render::WidgetPath,
         types::{
-            formatx, BorderRadius, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight, ModifiersState,
-            MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
+            formatx, BorderRadius, CursorIcon, ElementState, FontName, FontStretch, FontStyle, FontWeight, ModifiersState, MouseButton,
+            Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
         units::{rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size, TimeUnits},

@@ -1,15 +1,18 @@
 //! Font resolving and text shaping.
 
+use super::units::{layout_length_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppInitContext, WindowService};
-use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontSize, FontStyle};
+use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
 use crate::core::var::ContextVar;
 use crate::properties::text_theme::FontFamilyVar;
-
 use fnv::FnvHashMap;
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
+use webrender::api::GlyphInstance;
 use webrender::api::{FontKey, RenderApi, Transaction};
+
+pub use unicode_script::{self, Script};
 
 /// Application extension that provides the [`Fonts`] window service.
 #[derive(Default)]
@@ -31,15 +34,24 @@ pub struct Fonts {
 }
 type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
 
+/// Font size in round points.
+pub type FontSizePt = u32;
+
+/// Convert a [`LayoutLength`] to [`FontSizePt`].
+#[inline]
+pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
+    layout_length_to_pt(length).round().max(0.0) as u32
+}
+
 impl Fonts {
     /// Gets a cached font instance or loads a new instance.
-    pub fn get(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSize) -> Option<FontInstance> {
+    pub fn get(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> Option<FontInstance> {
         let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(*properties));
         if let Some(font) = self.fonts.get_mut(&query_key) {
             if let Some(instance) = font.instances.get(&font_size) {
                 Some(instance.clone())
             } else {
-                Some(Self::load_font_size(self.api.clone(), font, font_size))
+                Some(Self::load_font_size(&self.api, font, font_size))
             }
         } else if let Some(instance) = self.load_font(query_key, font_names, properties, font_size) {
             Some(instance)
@@ -49,7 +61,7 @@ impl Fonts {
     }
 
     /// Gets a font using [`get`](Self::get) or fallback to the any of the default fonts.
-    pub fn get_or_default(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSize) -> FontInstance {
+    pub fn get_or_default(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> FontInstance {
         self.get(font_names, properties, font_size)
             .or_else(|| {
                 warn_println!("did not found font: {:?}", font_names);
@@ -63,7 +75,7 @@ impl Fonts {
         query_key: FontQueryKey,
         font_names: &[FontName],
         properties: &FontProperties,
-        size: FontSize,
+        size: FontSizePt,
     ) -> Option<FontInstance> {
         let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
         match font_kit::source::SystemSource::new().select_best_match(&family_names, properties) {
@@ -71,9 +83,14 @@ impl Fonts {
                 let mut txn = Transaction::new();
                 let font_key = self.api.generate_font_key();
 
+                let metrics = {
+                    let loader = handle.load().expect("cannot load font [2]");
+                    loader.metrics()
+                };
+
                 let harfbuzz_face = match handle {
                     font_kit::handle::Handle::Path { path, font_index } => {
-                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font");
+                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font [1]");
                         txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
                         r
                     }
@@ -87,12 +104,13 @@ impl Fonts {
 
                 let mut font_instances = FontInstances {
                     font_key,
+                    metrics,
                     harfbuzz_face: harfbuzz_face.to_shared(),
                     instances: FnvHashMap::default(),
                 };
 
                 self.api.update_resources(txn.resource_updates);
-                let instance = Self::load_font_size(self.api.clone(), &mut font_instances, size);
+                let instance = Self::load_font_size(&self.api, &mut font_instances, size);
                 self.fonts.insert(query_key, font_instances);
                 Some(instance)
             }
@@ -101,14 +119,14 @@ impl Fonts {
         }
     }
 
-    fn load_font_size(api: Arc<RenderApi>, font_instances: &mut FontInstances, size: FontSize) -> FontInstance {
+    fn load_font_size(api: &RenderApi, font_instances: &mut FontInstances, size: FontSizePt) -> FontInstance {
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
 
         txn.add_font_instance(
             instance_key,
             font_instances.font_key,
-            Au::from_px(size as i32),
+            Au::from_f32_px(size as f32 * 96.0 / 72.0),
             None,
             None,
             Vec::new(),
@@ -116,10 +134,13 @@ impl Fonts {
         api.update_resources(txn.resource_updates);
 
         let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
-        harfbuzz_font.set_ppem(size, size);
-        harfbuzz_font.set_scale(12, 12);
 
-        let instance = FontInstance::new(api, font_instances.font_key, instance_key, size, harfbuzz_font.to_shared());
+        harfbuzz_font.set_ppem(size, size);
+        harfbuzz_font.set_scale(size as i32, size as i32);
+
+        let metrics = FontMetrics::new(size as f32, &font_instances.metrics);
+
+        let instance = FontInstance::new(instance_key, size, metrics, harfbuzz_font.to_shared());
         font_instances.instances.insert(size, instance.clone());
 
         instance
@@ -147,16 +168,16 @@ impl FontPropertiesKey {
 /// All instances of a font family.
 struct FontInstances {
     pub font_key: FontKey,
+    pub metrics: font_kit::metrics::Metrics,
     pub harfbuzz_face: HarfbuzzFace,
-    pub instances: FnvHashMap<FontSize, FontInstance>,
+    pub instances: FnvHashMap<FontSizePt, FontInstance>,
 }
 
 struct FontInstanceInner {
-    api: Arc<RenderApi>,
-    font_key: FontKey,
     instance_key: FontInstanceKey,
-    font_size: FontSize,
+    font_size: FontSizePt,
     harfbuzz_font: HarfbuzzFont,
+    metrics: FontMetrics,
 }
 
 type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
@@ -171,21 +192,31 @@ pub struct FontInstance {
 
 impl FontInstance {
     fn new(
-        api: Arc<RenderApi>,
-        font_key: FontKey,
         instance_key: FontInstanceKey,
-        font_size: FontSize,
+        font_size: FontSizePt,
+        metrics: FontMetrics,
         harfbuzz_font: HarfbuzzFont,
     ) -> Self {
         FontInstance {
             inner: Arc::new(FontInstanceInner {
-                api,
-                font_key,
                 instance_key,
                 font_size,
+                metrics,
                 harfbuzz_font,
             }),
         }
+    }
+
+    /// Size of this font instance.
+    #[inline]
+    pub fn size(&self) -> FontSizePt {
+        self.inner.font_size
+    }
+
+    /// Various metrics that apply to this font.
+    #[inline]
+    pub fn metrics(&self) -> &FontMetrics {
+        &self.inner.metrics
     }
 
     /// Shapes the text line using the font.
@@ -212,7 +243,7 @@ impl FontInstance {
 
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
 
-        let mut origin = LayoutPoint::zero();
+        let mut origin = LayoutPoint::new(0.0, self.metrics().ascent);
         let glyphs: Vec<_> = r
             .get_glyph_infos()
             .iter()
@@ -228,13 +259,8 @@ impl FontInstance {
         let font_size = self.inner.font_size as f32;
         let bounds = if glyphs.is_empty() {
             LayoutSize::new(0.0, font_size)
-        } else if origin.x > 0.0 {
-            debug_assert!(origin.y < 0.0001);
-            LayoutSize::new(glyphs[glyphs.len() - 1].point.x, config.line_height(font_size))
         } else {
-            debug_assert!(origin.y > 0.0);
-            debug_assert!(origin.x < 0.0001);
-            LayoutSize::new(config.line_height(font_size), glyphs[glyphs.len() - 1].point.y)
+            LayoutSize::new(glyphs[glyphs.len() - 1].point.x, config.line_height(font_size))
         };
 
         ShapedLine { glyphs, bounds }
@@ -252,10 +278,6 @@ impl FontInstance {
         self.inner.instance_key
     }
 }
-
-use webrender::api::GlyphInstance;
-
-use super::units::{LayoutPoint, LayoutSize};
 
 fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
     let mut name = script.short_name().chars();
@@ -344,8 +366,6 @@ pub struct ShapedLine {
     pub bounds: LayoutSize,
 }
 
-pub use unicode_script::{self, Script};
-
 #[derive(Debug, Copy, Clone)]
 pub enum LineBreak {
     Auto,
@@ -410,5 +430,72 @@ impl Default for Justify {
     /// [`Justify::Auto`]
     fn default() -> Self {
         Justify::Auto
+    }
+}
+
+/// Various metrics about a [`FontInstance`].
+#[derive(Clone, Debug)]
+pub struct FontMetrics {
+    /// The number of font units per em.
+    ///
+    /// Font sizes are usually expressed in pixels per em; e.g. `12px` means 12 pixels per em.
+    pub units_per_em: u32,
+
+    /// The maximum amount the font rises above the baseline, in layout units.
+    pub ascent: f32,
+
+    /// The maximum amount the font descends below the baseline, in layout units.
+    ///
+    /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
+    /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
+    /// beware, as the sign is reversed from what those APIs return.
+    pub descent: f32,
+
+    /// Distance between baselines, in layout units.
+    pub line_gap: f32,
+
+    /// The suggested distance of the top of the underline from the baseline (negative values
+    /// indicate below baseline), in layout units.
+    pub underline_position: f32,
+
+    /// A suggested value for the underline thickness, in layout units.
+    pub underline_thickness: f32,
+
+    /// The approximate amount that uppercase letters rise above the baseline, in layout units.
+    pub cap_height: f32,
+
+    /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
+    /// font units.
+    pub x_height: f32,
+
+    /// A rectangle that surrounds all bounding boxes of all glyphs, in layout units.
+    ///
+    /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
+    pub bounding_box: LayoutRect,
+}
+
+impl FontMetrics {
+    /// Calculate metrics from global.
+    fn new(font_size: f32, metrics: &font_kit::metrics::Metrics) -> Self {
+        let em = metrics.units_per_em as f32;
+        let font_size = font_size / em;
+        let s = move |f: f32| f / em * font_size;
+        FontMetrics {
+            units_per_em: metrics.units_per_em,
+            ascent: s(metrics.ascent),
+            descent: s(metrics.descent),
+            line_gap: s(metrics.line_gap),
+            underline_position: s(metrics.underline_position),
+            underline_thickness: s(metrics.underline_thickness),
+            cap_height: s(metrics.cap_height),
+            x_height: (s(metrics.x_height)),
+            bounding_box: {
+                let b = metrics.bounding_box;
+                LayoutRect::new(
+                    LayoutPoint::new(s(b.origin_x()), s(b.origin_y())),
+                    LayoutSize::new(s(b.width()), s(b.height())),
+                )
+            },
+        }
     }
 }
