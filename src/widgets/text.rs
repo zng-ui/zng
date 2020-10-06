@@ -144,6 +144,8 @@ widget! {
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
         color -> text_color;
+        /// Height of each text line. If not set inherits the `line_height` from the parent widget.
+        line_height;
     }
 
     /// Creates a [`text`](../fn.text.html).

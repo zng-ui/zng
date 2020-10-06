@@ -173,7 +173,9 @@ pub mod prelude {
             Text, ToText, VirtualKeyCode, WidgetId,
         },
         ui_vec,
-        units::{rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size, TimeUnits},
+        units::{
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size, TimeUnits,
+        },
         var::{merge_var, switch_var, var, SharedVar, Var},
         window::{AppRunWindow, Window, Windows},
         UiNode, UiVec, Widget,
@@ -189,7 +191,9 @@ pub mod prelude {
     pub use crate::properties::foreground::{foreground, *};
     pub use crate::properties::size::{size, *};
     pub use crate::properties::states::*;
-    pub use crate::properties::text_theme::{font_family, font_size, font_stretch, font_style, font_weight};
+    pub use crate::properties::text_theme::{
+        font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, word_spacing,
+    };
     pub use crate::properties::transform::{transform, *};
 
     pub use crate::widgets::layouts::*;

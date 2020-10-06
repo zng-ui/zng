@@ -343,6 +343,9 @@ pub struct ShapingConfig {
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
+
+    /// Collapse/preserve line-breaks/etc.
+    pub white_space: (),
 }
 
 impl ShapingConfig {

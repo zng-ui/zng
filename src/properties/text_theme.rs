@@ -5,16 +5,23 @@ use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar};
 use crate::core::UiNode;
-use crate::core::{color::web_colors, units::Length};
+use crate::core::{
+    color::web_colors,
+    units::{Length, LetterSpacing, LineHeight, WordSpacing},
+};
 use crate::properties::with_context_var;
 use std::{borrow::Cow, fmt, rc::Rc};
 
 /// Text transform function.
 #[derive(Clone)]
 pub enum TextTransformFn {
+    /// No transform.
     None,
+    /// To UPPERCASE.
     Uppercase,
+    /// to lowercase.
     Lowercase,
+    /// Custom transform function.
     Custom(Rc<dyn Fn(&str) -> Cow<str>>),
 }
 impl TextTransformFn {
@@ -69,6 +76,15 @@ context_var! {
 
     /// Text transformation function applied to [`text`](crate::widgets::text) spans.
     pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
+
+    /// Text line height of [`text`](crate::widgets::text) spans.
+    pub struct LineHeightVar: LineHeight = return &LineHeight::Font;
+
+    /// Extra letter spacing of [`text`](crate::widgets::text) spans.
+    pub struct LetterSpacingVar: LetterSpacing = return &LetterSpacing::Auto;
+
+    /// Extra word spacing of [`text`](crate::widgets::text) spans.
+    pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Font;
 }
 
 /// Sets the [`FontFamilyVar`] context var.
@@ -111,4 +127,22 @@ pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode 
 #[property(context)]
 pub fn text_transform(child: impl UiNode, transform: impl IntoVar<TextTransformFn>) -> impl UiNode {
     with_context_var(child, TextTransformVar, transform)
+}
+
+/// Sets the [`LineHeightVar`] context var.
+#[property(context)]
+pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl UiNode {
+    with_context_var(child, LineHeightVar, height)
+}
+
+/// Sets the [`LetterSpacingVar`] context var.
+#[property(context)]
+pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
+    with_context_var(child, LetterSpacingVar, extra)
+}
+
+/// Sets the [`WordSpacingVar`] context var.
+#[property(context)]
+pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
+    with_context_var(child, WordSpacingVar, extra)
 }

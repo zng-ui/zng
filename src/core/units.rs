@@ -988,18 +988,137 @@ impl IntoVar<Point> for Alignment {
 pub enum LineHeight {
     /// Default height from the font data.
     ///
-    /// The final value is computed from the font metrics: `ascent - descent + line_gap`. This 
+    /// The final value is computed from the font metrics: `ascent - descent + line_gap`. This
     /// is usually similar to `1.2.em()`.
     Font,
-    /// Height in [`Length`].
+    /// Height in [`Length`] units.
     ///
     /// Relative lengths are computed to the font size.
-    Length(Length)
+    Length(Length),
 }
 impl Default for LineHeight {
     /// [`LineHeight::Font`]
     fn default() -> Self {
         LineHeight::Font
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> LineHeight {
+        LineHeight::Length(length)
+    }
+
+    /// Percentage of font size.
+    fn from(percent: FactorPercent) -> LineHeight {
+        LineHeight::Length(percent.into())
+    }
+    /// Relative to font size.
+    fn from(norm: FactorNormal) -> LineHeight {
+        LineHeight::Length(norm.into())
+    }
+
+    /// Exact size in layout pixels.
+    fn from(f: f32) -> LineHeight {
+        LineHeight::Length(f.into())
+    }
+    /// Exact size in layout pixels.
+    fn from(i: i32) -> LineHeight {
+        LineHeight::Length(i.into())
+    }
+}
+
+/// Extra spacing added in between text letters.
+///
+/// Letter spacing is computed using the font data, this unit represents
+/// extra space added to the computed spacing.
+///
+/// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum LetterSpacing {
+    /// Letter spacing can be tweaked when justification is enabled.
+    Auto,
+    /// Extra space in [`Length`] units.
+    ///
+    /// Relative lengths are computed from the affected glyph "advance",
+    /// that is, how much "width" the next letter will take.
+    ///
+    /// This variant disables automatic adjustments for justification.
+    Length(Length),
+}
+impl Default for LetterSpacing {
+    /// [`LetterSpacing::Auto`]
+    fn default() -> Self {
+        LetterSpacing::Auto
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> LetterSpacing {
+        LetterSpacing::Length(length)
+    }
+
+    /// Percentage of font size.
+    fn from(percent: FactorPercent) -> LetterSpacing {
+        LetterSpacing::Length(percent.into())
+    }
+    /// Relative to font size.
+    fn from(norm: FactorNormal) -> LetterSpacing {
+        LetterSpacing::Length(norm.into())
+    }
+
+    /// Exact size in layout pixels.
+    fn from(f: f32) -> LetterSpacing {
+        LetterSpacing::Length(f.into())
+    }
+    /// Exact size in layout pixels.
+    fn from(i: i32) -> LetterSpacing {
+        LetterSpacing::Length(i.into())
+    }
+}
+
+/// Extra spacing added to the Unicode `U+0020 SPACE` character.
+///
+/// Word spacing is done using the space character "advance" as defined in the font,
+/// this unit represents extra spacing added to that default spacing.
+///
+/// A "word" is the sequence of characters in between space characters. This extra
+/// spacing is applied per space character not per word, if there are three spaces between words
+/// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
+/// see [`white_space`](crate::properties::text_theme::white_space) for more details.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum WordSpacing {
+    /// Default space advance.
+    Font,
+    /// Extra space in [`Length`] units.
+    ///
+    /// Relative lengths are computed from the default space advance.
+    Length(Length),
+}
+impl Default for WordSpacing {
+    /// [`WordSpacing::Font`]
+    fn default() -> Self {
+        WordSpacing::Font
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> WordSpacing {
+        WordSpacing::Length(length)
+    }
+
+    /// Percentage of space advance (width).
+    fn from(percent: FactorPercent) -> WordSpacing {
+        WordSpacing::Length(percent.into())
+    }
+    /// Relative to the space advance (width).
+    fn from(norm: FactorNormal) -> WordSpacing {
+        WordSpacing::Length(norm.into())
+    }
+
+    /// Exact space in layout pixels.
+    fn from(f: f32) -> WordSpacing {
+        WordSpacing::Length(f.into())
+    }
+    /// Exact space in layout pixels.
+    fn from(i: i32) -> WordSpacing {
+        WordSpacing::Length(i.into())
     }
 }
 
