@@ -123,10 +123,11 @@ impl Fonts {
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
 
+        let size_px = size as f32 * 96.0 / 72.0;
         txn.add_font_instance(
             instance_key,
             font_instances.font_key,
-            Au::from_f32_px(size as f32 * 96.0 / 72.0),
+            Au::from_f32_px(size_px),
             None,
             None,
             Vec::new(),
@@ -136,9 +137,9 @@ impl Fonts {
         let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
 
         harfbuzz_font.set_ppem(size, size);
-        harfbuzz_font.set_scale(size as i32, size as i32);
+        harfbuzz_font.set_scale(size as i32 * 64, size as i32 * 64);
 
-        let metrics = FontMetrics::new(size as f32, &font_instances.metrics);
+        let metrics = FontMetrics::new(size_px, &font_instances.metrics);
 
         let instance = FontInstance::new(instance_key, size, metrics, harfbuzz_font.to_shared());
         font_instances.instances.insert(size, instance.clone());
@@ -191,12 +192,7 @@ pub struct FontInstance {
 }
 
 impl FontInstance {
-    fn new(
-        instance_key: FontInstanceKey,
-        font_size: FontSizePt,
-        metrics: FontMetrics,
-        harfbuzz_font: HarfbuzzFont,
-    ) -> Self {
+    fn new(instance_key: FontInstanceKey, font_size: FontSizePt, metrics: FontMetrics, harfbuzz_font: HarfbuzzFont) -> Self {
         FontInstance {
             inner: Arc::new(FontInstanceInner {
                 instance_key,
@@ -229,9 +225,10 @@ impl FontInstance {
             harfbuzz_rs::Direction::Ltr
         });
         if config.script != Script::Unknown {
-            buffer = buffer.set_script(script_to_tag(config.script));
+            buffer = buffer.set_script(script_to_tag(config.script)).add_str(text);
+        } else {
+            buffer = buffer.add_str(text).guess_segment_properties();
         }
-        buffer = buffer.add_str(text);
 
         let mut features = vec![];
         if config.ignore_ligatures {
@@ -244,14 +241,24 @@ impl FontInstance {
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
 
         let mut origin = LayoutPoint::new(0.0, self.metrics().ascent);
+
         let glyphs: Vec<_> = r
             .get_glyph_infos()
             .iter()
             .zip(r.get_glyph_positions())
             .map(|(i, p)| {
-                let point = LayoutPoint::new(origin.x + p.x_offset as f32, p.y_offset as f32);
-                origin.x += p.x_advance as f32;
-                origin.y += p.y_advance as f32;
+                fn to_layout(p: harfbuzz_rs::Position) -> f32 {
+                    // remove our scale of 64 and convert to layout pixels
+                    (p as f32 / 64.0) * 96.0 / 72.0
+                }
+                let x_offset = to_layout(p.x_offset);
+                let y_offset = to_layout(p.y_offset);
+                let x_advance = to_layout(p.x_advance);
+                let y_advance = to_layout(p.y_advance);
+
+                let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
+                origin.x += x_advance;
+                origin.y += y_advance;
                 GlyphInstance { index: i.codepoint, point }
             })
             .collect();
@@ -476,13 +483,12 @@ pub struct FontMetrics {
 
 impl FontMetrics {
     /// Calculate metrics from global.
-    fn new(font_size: f32, metrics: &font_kit::metrics::Metrics) -> Self {
+    fn new(font_size_px: f32, metrics: &font_kit::metrics::Metrics) -> Self {
         let em = metrics.units_per_em as f32;
-        let font_size = font_size / em;
-        let s = move |f: f32| f / em * font_size;
+        let s = move |f: f32| f / em * font_size_px;
         FontMetrics {
             units_per_em: metrics.units_per_em,
-            ascent: s(metrics.ascent),
+            ascent: s(dbg!(metrics.ascent)),
             descent: s(metrics.descent),
             line_gap: s(metrics.line_gap),
             underline_position: s(metrics.underline_position),
