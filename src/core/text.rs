@@ -238,9 +238,11 @@ impl FontInstance {
             features.push(harfbuzz_rs::Feature::new(b"kern", 0, 0..buffer.len()));
         }
 
+        let metrics = self.metrics();
+
         let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
 
-        let mut origin = LayoutPoint::new(0.0, self.metrics().ascent);
+        let mut origin = LayoutPoint::new(0.0, metrics.ascent + metrics.line_gap / 2.0);
 
         let glyphs: Vec<_> = r
             .get_glyph_infos()
@@ -263,12 +265,7 @@ impl FontInstance {
             })
             .collect();
 
-        let font_size = self.inner.font_size as f32;
-        let bounds = if glyphs.is_empty() {
-            LayoutSize::new(0.0, font_size)
-        } else {
-            LayoutSize::new(origin.x, config.line_height(font_size))
-        };
+        let bounds = LayoutSize::new(origin.x, config.line_height(metrics));
 
         ShapedLine { glyphs, bounds }
     }
@@ -307,10 +304,13 @@ pub struct ShapingConfig {
     /// Use [`word_spacing(..)`](function@Self::word_spacing) to compute the value.
     pub word_spacing: Option<f32>,
 
-    /// Space to add between each line.
+    /// Height of each line.
     ///
     /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
     pub line_height: Option<f32>,
+
+    /// Space to add between each line.
+    pub line_spacing: f32,
 
     /// Space to add between each paragraph.
     ///
@@ -351,16 +351,17 @@ impl ShapingConfig {
         self.word_spacing.unwrap_or(font_size * 0.25)
     }
 
-    /// Gets the custom line height or 1.3em.
+    /// Gets the custom line height or the font line height.
     #[inline]
-    pub fn line_height(&self, font_size: f32) -> f32 {
-        self.line_height.unwrap_or(font_size * 1.3)
+    pub fn line_height(&self, metrics: &FontMetrics) -> f32 {
+        // servo uses the line-gap as default I think.
+        self.line_height.unwrap_or_else(|| metrics.line_height())
     }
 
-    /// Gets the custom paragraph spacing or one line height.
+    /// Gets the custom paragraph spacing or one line height + two line spacing.
     #[inline]
-    pub fn paragraph_spacing(&self, font_size: f32) -> f32 {
-        self.line_height(font_size)
+    pub fn paragraph_spacing(&self, metrics: &FontMetrics) -> f32 {
+        self.line_height(metrics) + self.line_spacing * 2.0
     }
 }
 
@@ -488,7 +489,7 @@ impl FontMetrics {
         let s = move |f: f32| f / em * font_size_px;
         FontMetrics {
             units_per_em: metrics.units_per_em,
-            ascent: s(dbg!(metrics.ascent)),
+            ascent: s(metrics.ascent),
             descent: s(metrics.descent),
             line_gap: s(metrics.line_gap),
             underline_position: s(metrics.underline_position),
@@ -503,5 +504,10 @@ impl FontMetrics {
                 )
             },
         }
+    }
+
+    /// The font line height.
+    pub fn line_height(&self) -> f32 {
+        self.ascent - self.descent + self.line_gap
     }
 }
