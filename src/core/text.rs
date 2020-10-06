@@ -267,7 +267,7 @@ impl FontInstance {
         let bounds = if glyphs.is_empty() {
             LayoutSize::new(0.0, font_size)
         } else {
-            LayoutSize::new(glyphs[glyphs.len() - 1].point.x, config.line_height(font_size))
+            LayoutSize::new(origin.x, config.line_height(font_size))
         };
 
         ShapedLine { glyphs, bounds }
