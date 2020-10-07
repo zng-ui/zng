@@ -1085,17 +1085,19 @@ impl_from_and_into_var! {
 /// see [`white_space`](crate::properties::text_theme::white_space) for more details.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum WordSpacing {
-    /// Default space advance.
-    Font,
+    /// Word spacing can be tweaked when justification is enabled.
+    Auto,
     /// Extra space in [`Length`] units.
     ///
     /// Relative lengths are computed from the default space advance.
+    ///
+    /// This variant disables automatic adjustments for justification.
     Length(Length),
 }
 impl Default for WordSpacing {
-    /// [`WordSpacing::Font`]
+    /// [`WordSpacing::Auto`]
     fn default() -> Self {
-        WordSpacing::Font
+        WordSpacing::Auto
     }
 }
 impl_from_and_into_var! {
@@ -1121,6 +1123,12 @@ impl_from_and_into_var! {
         WordSpacing::Length(i.into())
     }
 }
+
+/// Length of a `TAB` space.
+///
+/// Relative lengths are computed from the normal space character "advance" plus the [`WordSpacing`].
+/// So a `400%` length is 4 spaces.
+pub type TabLength = Length;
 
 /// A device pixel scale factor used for pixel alignment.
 ///

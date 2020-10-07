@@ -1,53 +1,15 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::color::Rgba;
+use crate::core::{color::Rgba, text::*, units::TabLength};
 use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar};
 use crate::core::UiNode;
 use crate::core::{
     color::web_colors,
-    units::{Length, LetterSpacing, LineHeight, WordSpacing},
+    units::*,
 };
 use crate::properties::with_context_var;
-use std::{borrow::Cow, fmt, rc::Rc};
-
-/// Text transform function.
-#[derive(Clone)]
-pub enum TextTransformFn {
-    /// No transform.
-    None,
-    /// To UPPERCASE.
-    Uppercase,
-    /// to lowercase.
-    Lowercase,
-    /// Custom transform function.
-    Custom(Rc<dyn Fn(&str) -> Cow<str>>),
-}
-impl TextTransformFn {
-    pub fn transform<'a, 'b>(&'a self, text: &'b str) -> Cow<'b, str> {
-        match self {
-            TextTransformFn::None => Cow::Borrowed(text),
-            TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
-            TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
-            TextTransformFn::Custom(fn_) => fn_(text),
-        }
-    }
-
-    pub fn custom(fn_: impl Fn(&str) -> Cow<str> + 'static) -> Self {
-        TextTransformFn::Custom(Rc::new(fn_))
-    }
-}
-impl fmt::Debug for TextTransformFn {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TextTransformFn::None => write!(f, "None"),
-            TextTransformFn::Uppercase => write!(f, "Uppercase"),
-            TextTransformFn::Lowercase => write!(f, "Lowercase"),
-            TextTransformFn::Custom(_) => write!(f, "Custom"),
-        }
-    }
-}
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
@@ -71,6 +33,9 @@ context_var! {
     /// Font size of [`text`](crate::widgets::text) spans.
     pub struct FontSizeVar: Length = once Length::pt(14.0);
 
+    /// Font kerning of [`text`](crate::widgets::text) spans.
+    pub struct FontKerningVar: Kerning = return &Kerning::Auto;
+
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
 
@@ -84,7 +49,22 @@ context_var! {
     pub struct LetterSpacingVar: LetterSpacing = return &LetterSpacing::Auto;
 
     /// Extra word spacing of [`text`](crate::widgets::text) spans.
-    pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Font;
+    pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Auto;
+
+    /// Configuration of line breaks inside words during text wrap.
+    pub struct WordBreakVar: WordBreak = return &WordBreak::Normal;
+
+    /// Configuration of line breaks in Chinese, Japanese, or Korean text.
+    pub struct LineBreakVar: LineBreak = return &LineBreak::Auto;
+
+    /// Text line alignment in a text block.
+    pub struct TextAlignVar: TextAlign = return &TextAlign::Start;
+
+    /// Length of the `TAB` space.
+    pub struct TabLengthVar: TabLength = once 400.pct().into();
+
+    /// Text white space transform of [`text`](crate::widgets::text) spans.
+    pub struct WhiteSpaceVar: WhiteSpace = return &WhiteSpace::Preserve;
 }
 
 /// Sets the [`FontFamilyVar`] context var.
@@ -109,6 +89,12 @@ pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl
 #[property(context)]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FontStretchVar, stretch)
+}
+
+/// Sets the [`FontKerningVar`] context var.
+#[property(context)]
+pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<Kerning>) -> impl UiNode {
+    with_context_var(child, FontKerningVar, kerning)
 }
 
 /// Sets the [`FontSizeVar`] context var.
@@ -146,3 +132,35 @@ pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) ->
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WordSpacingVar, extra)
 }
+
+/// Sets the [`WordBreakVar`] context var.
+#[property(context)]
+pub fn word_break(child: impl UiNode, mode: impl IntoVar<WordBreak>) -> impl UiNode {
+    with_context_var(child, WordBreakVar, mode)
+}
+
+/// Sets the [`LineBreakVar`] context var.
+#[property(context)]
+pub fn line_break(child: impl UiNode, mode: impl IntoVar<LineBreak>) -> impl UiNode {
+    with_context_var(child, LineBreakVar, mode)
+}
+
+/// Sets the [`TextAlignVar`] context var.
+#[property(context)]
+pub fn text_align(child: impl UiNode, mode: impl IntoVar<TextAlign>) -> impl UiNode {
+    with_context_var(child, TextAlignVar, mode)
+}
+
+/// Sets the [`TabLengthVar`] context var.
+#[property(context)]
+pub fn tab_length(child: impl UiNode, length: impl IntoVar<TabLength>) -> impl UiNode {
+    with_context_var(child, TabLengthVar, length)
+}
+
+/// Sets the [`WhiteSpaceVar`] context var.
+#[property(context)]
+pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> impl UiNode {
+    with_context_var(child, WhiteSpaceVar, transform)
+}
+
+// TODO font features.

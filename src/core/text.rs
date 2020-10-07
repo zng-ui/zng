@@ -11,6 +11,7 @@ use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
 use webrender::api::GlyphInstance;
 use webrender::api::{FontKey, RenderApi, Transaction};
+use std::{borrow::Cow, fmt, rc::Rc};
 
 pub use unicode_script::{self, Script};
 
@@ -294,7 +295,7 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
     )
 }
 
-/// Extra configuration for [`shape_text`](FontInstance::shape_text).
+/// Extra configuration for [`shape_line`](FontInstance::shape_line).
 #[derive(Debug, Clone, Default)]
 pub struct ShapingConfig {
     /// Extra spacing to add between characters.
@@ -330,22 +331,22 @@ pub struct ShapingConfig {
     /// Text is right-to-left.
     pub right_to_left: bool,
 
-    pub word_break: (),
+    pub word_break: WordBreak,
 
     pub line_break: LineBreak,
 
-    pub justify: Option<Justify>,
+    pub text_align: TextAlign,
 
     /// Width of the TAB character.
     ///
-    /// By default 8 x space.
+    /// By default 3 x space.
     pub tab_size: Option<f32>,
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
 
     /// Collapse/preserve line-breaks/etc.
-    pub white_space: (),
+    pub white_space: WhiteSpace,
 }
 
 impl ShapingConfig {
@@ -369,7 +370,7 @@ impl ShapingConfig {
     }
 }
 
-/// Result of [`shape_text`](FontInstance::shape_text).
+/// Result of [`shape_line`](FontInstance::shape_line).
 #[derive(Debug, Clone)]
 pub struct ShapedLine {
     /// Glyphs for the renderer.
@@ -384,12 +385,18 @@ pub struct ShapedLine {
     pub bounds: LayoutSize,
 }
 
+/// Configuration of text wrapping for Chinese, Japanese, or Korean text.
 #[derive(Debug, Copy, Clone)]
 pub enum LineBreak {
+    /// The same rule used by other languages.
     Auto,
+    /// The least restrictive rule, good for short lines.
     Loose,
+    /// The most common rule.
     Normal,
+    /// The most stringent rule.
     Strict,
+    /// Allow line breaks in between any character including punctuation.
     Anywhere,
 }
 impl Default for LineBreak {
@@ -399,24 +406,39 @@ impl Default for LineBreak {
     }
 }
 
+/// Hyphenation configuration.
 #[derive(Debug, Copy, Clone)]
-pub enum Hyphenation {
+pub enum Hyphens {
+    /// Hyphens are never inserted in word breaks.
     None,
-    /// `\u{2010}` HYPHEN, `\u{00AD}` SHY
+    /// Word breaks only happen in specially marked break characters: `-` and `\u{00AD} SHY`.
+    ///
+    /// * `U+2010` - The visible hyphen character.
+    /// * `U+00AD` - The invisible hyphen character, is made visible in a word break.
     Manual,
+    /// Hyphens are inserted like `Manual` and also using language specific hyphenation rules.
+    // TODO https://sourceforge.net/projects/hunspell/files/Hyphen/2.8/
     Auto,
 }
-impl Default for Hyphenation {
-    /// [`Hyphenation::Auto`]
+impl Default for Hyphens {
+    /// [`Hyphens::Auto`]
     fn default() -> Self {
-        Hyphenation::Auto
+        Hyphens::Auto
     }
 }
 
+/// Configure line breaks inside words during text wrap.
+///
+/// This value is only considered if it is impossible to fit the a word to a line.
+///
+/// Hyphens can be inserted in word breaks using the [`Hyphens`] configuration.
 #[derive(Debug, Copy, Clone)]
 pub enum WordBreak {
+    /// Line breaks can be inserted in between letters of Chinese/Japanese/Korean text only.
     Normal,
+    /// Line breaks can be inserted between any letter.
     BreakAll,
+    /// Line breaks are not inserted between any letter.
     KeepAll,
 }
 impl Default for WordBreak {
@@ -425,6 +447,9 @@ impl Default for WordBreak {
         WordBreak::Normal
     }
 }
+
+/// Text alignment.
+#[derive(Debug, Copy, Clone)]
 pub enum TextAlign {
     /// `Left` in LTR or `Right` in RTL.
     Start,
@@ -435,20 +460,57 @@ pub enum TextAlign {
     Center,
     Right,
 
-    Justify,
+    /// Adjust spacing to fill the available width.
+    ///
+    /// The justify can be configured using [`Justify`].
+    Justify(Justify),
+}
+impl TextAlign {
+    /// Justify Auto.
+    #[inline]
+    pub fn justify() -> Self {
+        TextAlign::Justify(Justify::Auto)
+    }
+}
+impl Default for TextAlign {
+    /// [`TextAlign::Start`].
+    #[inline]
+    fn default() -> Self {
+        TextAlign::Start
+    }
 }
 
+/// Text alignment justification mode.
 #[derive(Debug, Copy, Clone)]
 pub enum Justify {
+    /// Selects the justification mode based on the language.
+    /// For Chinese/Japanese/Korean uses `InterLetter` for the others uses `InterWord`.
     Auto,
+    /// The text is justified by adding space between words.
+    ///
+    /// This only works if [`word_spacing`](crate::properties::text_theme::word_spacing) is set to auto.
     InterWord,
-    InterCharacter,
+    /// The text is justified by adding space between letters.
+    ///
+    /// This only works if [`letter_spacing`](crate::properties::text_theme::letter_spacing) is set to auto.
+    InterLetter,
 }
 impl Default for Justify {
     /// [`Justify::Auto`]
     fn default() -> Self {
         Justify::Auto
     }
+}
+
+/// Font kerning.
+#[derive(Debug, Copy, Clone)]
+pub enum Kerning {
+    /// Enabled for font size larger then 5 layout pixels.
+    Auto,
+    /// Uses the font kerning.
+    Enabled,
+    /// Don't do kerning. Glyph boundaries don't overlap.
+    Disabled,
 }
 
 /// Various metrics about a [`FontInstance`].
@@ -519,5 +581,61 @@ impl FontMetrics {
     /// The font line height.
     pub fn line_height(&self) -> f32 {
         self.ascent - self.descent + self.line_gap
+    }
+}
+
+/// Text transform function.
+#[derive(Clone)]
+pub enum TextTransformFn {
+    /// No transform.
+    None,
+    /// To UPPERCASE.
+    Uppercase,
+    /// to lowercase.
+    Lowercase,
+    /// Custom transform function.
+    Custom(Rc<dyn Fn(&str) -> Cow<str>>),
+}
+impl TextTransformFn {
+    pub fn transform<'a, 'b>(&'a self, text: &'b str) -> Cow<'b, str> {
+        match self {
+            TextTransformFn::None => Cow::Borrowed(text),
+            TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
+            TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
+            TextTransformFn::Custom(fn_) => fn_(text),
+        }
+    }
+
+    pub fn custom(fn_: impl Fn(&str) -> Cow<str> + 'static) -> Self {
+        TextTransformFn::Custom(Rc::new(fn_))
+    }
+}
+impl fmt::Debug for TextTransformFn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TextTransformFn::None => write!(f, "None"),
+            TextTransformFn::Uppercase => write!(f, "Uppercase"),
+            TextTransformFn::Lowercase => write!(f, "Lowercase"),
+            TextTransformFn::Custom(_) => write!(f, "Custom"),
+        }
+    }
+}
+
+
+/// Text white space transform.
+#[derive(Debug, Copy, Clone)]
+pub enum WhiteSpace {
+    /// Text is not changed, all white spaces and line breaks are preserved.
+    Preserve,
+    /// Replace sequences of white space with a single `U+0020 SPACE` and trim lines. Line breaks are preserved.
+    Merge,
+    /// Replace sequences of white space and line breaks with `U+0020 SPACE` and trim the text.
+    MergeNoBreak,
+}
+impl Default for WhiteSpace {
+    /// [`WhiteSpace::Preserve`].
+    #[inline]
+    fn default() -> Self {
+        WhiteSpace::Preserve
     }
 }
