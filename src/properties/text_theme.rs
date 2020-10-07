@@ -1,14 +1,11 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::{color::Rgba, text::*, units::TabLength};
-use crate::core::property;
 use crate::core::types::*;
 use crate::core::var::{context_var, IntoVar};
-use crate::core::UiNode;
-use crate::core::{
-    color::web_colors,
-    units::*,
-};
+use crate::core::{color::web_colors, units::*};
+use crate::core::{color::Rgba, text::*, units::TabLength};
+use crate::core::{impl_ui_node, UiNode};
+use crate::core::{property, var::protected::Var};
 use crate::properties::with_context_var;
 
 context_var! {
@@ -33,8 +30,8 @@ context_var! {
     /// Font size of [`text`](crate::widgets::text) spans.
     pub struct FontSizeVar: Length = once Length::pt(14.0);
 
-    /// Font kerning of [`text`](crate::widgets::text) spans.
-    pub struct FontKerningVar: Kerning = return &Kerning::Auto;
+    /// Font features of [`text`](crate::widgets::text) spans.
+    pub struct FontFeaturesVar: FontFeatures = once FontFeatures::default();
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
@@ -89,12 +86,6 @@ pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl
 #[property(context)]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FontStretchVar, stretch)
-}
-
-/// Sets the [`FontKerningVar`] context var.
-#[property(context)]
-pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<Kerning>) -> impl UiNode {
-    with_context_var(child, FontKerningVar, kerning)
 }
 
 /// Sets the [`FontSizeVar`] context var.
@@ -163,4 +154,25 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
     with_context_var(child, WhiteSpaceVar, transform)
 }
 
-// TODO font features.
+struct FontFeaturesNode<C: UiNode, F: Var<FontFeatures>> {
+    child: C,
+    features: F,
+}
+
+#[impl_ui_node(child)]
+impl<C: UiNode, F: Var<FontFeatures>> UiNode for FontFeaturesNode<C, F> {}
+
+/// Sets/overrides font features.
+#[property(context)]
+pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -> impl UiNode {
+    FontFeaturesNode {
+        child,
+        features: features.into_var(),
+    }
+}
+
+/// Sets the font kerning feature.
+#[property(context)]
+pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<Kerning>) -> impl UiNode {
+    child // TODO
+}

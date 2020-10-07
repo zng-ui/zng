@@ -7,11 +7,11 @@ use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
 use crate::core::var::ContextVar;
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
+use std::{borrow::Cow, fmt, rc::Rc};
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
 use webrender::api::GlyphInstance;
 use webrender::api::{FontKey, RenderApi, Transaction};
-use std::{borrow::Cow, fmt, rc::Rc};
 
 pub use unicode_script::{self, Script};
 
@@ -502,17 +502,6 @@ impl Default for Justify {
     }
 }
 
-/// Font kerning.
-#[derive(Debug, Copy, Clone)]
-pub enum Kerning {
-    /// Enabled for font size larger then 5 layout pixels.
-    Auto,
-    /// Uses the font kerning.
-    Enabled,
-    /// Don't do kerning. Glyph boundaries don't overlap.
-    Disabled,
-}
-
 /// Various metrics about a [`FontInstance`].
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
@@ -621,7 +610,6 @@ impl fmt::Debug for TextTransformFn {
     }
 }
 
-
 /// Text white space transform.
 #[derive(Debug, Copy, Clone)]
 pub enum WhiteSpace {
@@ -639,3 +627,191 @@ impl Default for WhiteSpace {
         WhiteSpace::Preserve
     }
 }
+
+/// Name of a font feature.
+///
+/// # Example
+///
+/// ```
+/// let common_ligatures: FontFeatureName = b"liga";
+/// ```
+pub type FontFeatureName = &'static [u8; 4];
+
+/// Font features.
+#[derive(Clone, Default)]
+pub struct FontFeatures {
+    features: FnvHashMap<FontFeatureName, bool>,
+}
+impl FontFeatures {
+    /// Explicitly disable common ligatures and kerning.
+    #[inline]
+    pub fn none() -> Self {
+        FontFeatures::default()
+            .set_feature(b"liga", FontFeatureState::Auto)
+            .set_feature(b"kern", FontFeatureState::Auto)
+    }
+
+    /// Sets the feature state.
+    #[inline]
+    pub fn set_feature(mut self, name: FontFeatureName, state: FontFeatureState) -> Self {
+        match state {
+            FontFeatureState::Auto => self.features.remove(name),
+            FontFeatureState::Enabled => self.features.insert(name, true),
+            FontFeatureState::Disabled => self.features.insert(name, false),
+        };
+        self
+    }
+    /// Gets the feature state.
+    #[inline]
+    pub fn get_feature(&self, name: FontFeatureName) -> FontFeatureState {
+        self.features
+            .get(name)
+            .map(|&e| if e { FontFeatureState::Enabled } else { FontFeatureState::Disabled })
+            .unwrap_or(FontFeatureState::Auto)
+    }
+    /// Enables the feature.
+    #[inline]
+    pub fn feature(mut self, name: FontFeatureName) -> Self {
+        self.features.insert(name, true);
+        self
+    }
+    /// Disables the feature.
+    #[inline]
+    pub fn disable_feature(mut self, name: FontFeatureName) -> Self {
+        self.features.insert(name, false);
+        self
+    }
+
+    /// Allow glyphs boundaries to overlap for a more pleasant reading.
+    ///
+    /// This corresponds to OpenType `kern` feature.
+    ///
+    /// `Auto` always activates these kerning.
+    #[inline]
+    pub fn kerning(self) -> Self {
+        self.feature(b"kern")
+    }
+    /// Disable [kerning](Self::kerning).
+    #[inline]
+    pub fn disable_kerning(self) -> Self {
+        self.feature(b"kern")
+    }
+    /// Gets the [kerning](Self::kerning) feature state.
+    #[inline]
+    pub fn get_kerning(&self) -> FontFeatureState {
+        self.get_feature(b"kern")
+    }
+
+    /// Enable the most common ligatures, like for `fi`, `ffi`, `th` or similar.
+    ///
+    /// This corresponds to OpenType `liga` and `clig` features.
+    ///
+    /// `Auto` always activates these ligatures.
+    #[inline]
+    pub fn common_lig(self) -> Self {
+        self.feature(b"liga").feature(b"clig")
+    }
+    /// Disable [common ligatures](Self::common_lig).
+    #[inline]
+    pub fn disable_common_lig(self) -> Self {
+        self.disable_feature(b"liga").disable_feature(b"clig")
+    }
+    /// Gets the [common ligatures](Self::kerning) features state.
+    #[inline]
+    pub fn get_common_lig(&self) -> FontFeatureState {
+        let liga = self.get_feature(b"liga");
+        if liga == self.get_feature(b"clig") {
+            liga
+        } else {
+            FontFeatureState::Auto
+        }
+    }
+
+    /// Enabled ligatures specific to the font.
+    ///
+    /// This corresponds to OpenType `dlig` feature.
+    ///
+    /// `Auto` usually disables these ligatures.
+    #[inline]
+    pub fn discretionary_lig(self) -> Self {
+        self.feature(b"dlig")
+    }
+    /// Disable [discretionary ligatures](Self::discretionary_lig).
+    #[inline]
+    pub fn disable_discretionary_lig(self) -> Self {
+        self.disable_feature(b"dlig")
+    }
+    /// Gets the [discretionary ligatures](Self::discretionary_lig) state.
+    #[inline]
+    pub fn get_discretionary(&self) -> FontFeatureState {
+        self.get_feature(b"dlig")
+    }
+
+    /// Enabled ligatures used historically, in old books, like the German tz digraph being displayed ß.
+    ///
+    /// This corresponds to OpenType `hlig` feature.
+    ///
+    /// `Auto` usually disables these ligatures.
+    #[inline]
+    pub fn historical_lig(self) -> Self {
+        self.feature(b"hlig")
+    }
+    /// Disable [historical ligatures](Self::historical_lig).
+    #[inline]
+    pub fn disable_historical_lig(self) -> Self {
+        self.disable_feature(b"hlig")
+    }
+    /// Gets the [historical ligatures](Self::historical_lig) state.
+    #[inline]
+    pub fn get_historical(&self) -> FontFeatureState {
+        self.get_feature(b"hlig")
+    }
+
+    /// If letters adapt to their surrounding letters.
+    ///
+    /// This corresponds to OpenType `calt` feature.
+    ///
+    /// `Auto` usually activates this feature.
+    #[inline]
+    pub fn contextual_alt(self) -> Self {
+        self.feature(b"calt")
+    }
+
+    /// Disable [contextual alternatives](Self::contextual_alt).
+    #[inline]
+    pub fn disable_contextual_alt(self) -> Self {
+        self.disable_feature(b"calt")
+    }
+    /// Gets the [contextual alternatives](Self::contextual_alt) state.
+    #[inline]
+    pub fn get_contextual_alt(&self) -> FontFeatureState {
+        self.get_feature(b"calt")
+    }
+
+    /// Add and override features.
+    #[inline]
+    pub fn extend(mut self, other: Self) -> Self {
+        self.features.extend(other.features);
+        self
+    }
+}
+impl fmt::Debug for FontFeatures {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut r = f.debug_map();
+        for (name, enabled) in self.features.iter() {
+            r.entry(&std::str::from_utf8(*name).unwrap(), enabled);
+        }
+        r.finish()
+    }
+}
+
+/// State of a [font feature](FontFeatures).
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum FontFeatureState {
+    Auto,
+    Enabled,
+    Disabled,
+}
+
+/// State of  the [kerning](FontFeatures::kerning) font feature.
+pub type Kerning = FontFeatureState;
