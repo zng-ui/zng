@@ -920,3 +920,10 @@ pub enum CapsVariant {
     /// This corresponds to OpenType `titl` feature.
     TitlingCaps,
 }
+
+// TODO
+// main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
+// 1 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-east-asian
+// 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
+// 3 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-numeric
+// 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
