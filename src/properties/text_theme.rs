@@ -5,7 +5,7 @@ use crate::core::var::{context_var, IntoVar};
 use crate::core::{color::web_colors, units::*};
 use crate::core::{color::Rgba, text::*, units::TabLength};
 use crate::core::{impl_ui_node, UiNode};
-use crate::core::{property, var::protected::Var};
+use crate::core::{property, var::Var};
 use crate::properties::with_context_var;
 
 context_var! {
@@ -173,6 +173,36 @@ pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -
 
 /// Sets the font kerning feature.
 #[property(context)]
-pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<Kerning>) -> impl UiNode {
-    child // TODO
+pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<KerningState>) -> impl UiNode {
+    font_features::set(child, kerning.into_var().map(|&k| FontFeatures::new().set_kerning(k)))
+}
+
+/// Sets the font common ligatures features.
+#[property(context)]
+pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
+    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_common_lig(k)))
+}
+
+/// Sets the font discretionary ligatures feature.
+#[property(context)]
+pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
+    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_discretionary_lig(k)))
+}
+
+/// Sets the font historical ligatures feature.
+#[property(context)]
+pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
+    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_historical_lig(k)))
+}
+
+/// Sets the font contextual alternatives feature.
+#[property(context)]
+pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
+    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_contextual_alt(k)))
+}
+
+/// Sets the font capital variant features.
+#[property(context)]
+pub fn font_caps_alt(child: impl UiNode, variant: impl IntoVar<CapsVariant>) -> impl UiNode {
+    font_features::set(child, variant.into_var().map(|&k| FontFeatures::new().caps(k)))
 }

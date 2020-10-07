@@ -643,12 +643,10 @@ pub struct FontFeatures {
     features: FnvHashMap<FontFeatureName, bool>,
 }
 impl FontFeatures {
-    /// Explicitly disable common ligatures and kerning.
+    /// New default.
     #[inline]
-    pub fn none() -> Self {
-        FontFeatures::default()
-            .set_feature(b"liga", FontFeatureState::Auto)
-            .set_feature(b"kern", FontFeatureState::Auto)
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Sets the feature state.
@@ -698,8 +696,13 @@ impl FontFeatures {
     }
     /// Gets the [kerning](Self::kerning) feature state.
     #[inline]
-    pub fn get_kerning(&self) -> FontFeatureState {
+    pub fn get_kerning(&self) -> KerningState {
         self.get_feature(b"kern")
+    }
+    /// Sets the [kerning](Self::kerning) feature state.
+    #[inline]
+    pub fn set_kerning(self, state: KerningState) -> Self {
+        self.set_feature(b"kern", state)
     }
 
     /// Enable the most common ligatures, like for `fi`, `ffi`, `th` or similar.
@@ -718,7 +721,7 @@ impl FontFeatures {
     }
     /// Gets the [common ligatures](Self::kerning) features state.
     #[inline]
-    pub fn get_common_lig(&self) -> FontFeatureState {
+    pub fn get_common_lig(&self) -> LigatureState {
         let liga = self.get_feature(b"liga");
         if liga == self.get_feature(b"clig") {
             liga
@@ -726,8 +729,13 @@ impl FontFeatures {
             FontFeatureState::Auto
         }
     }
+    /// Sets the [common ligatures](Self::kerning) features state.
+    #[inline]
+    pub fn set_common_lig(self, state: LigatureState) -> Self {
+        self.set_feature(b"liga", state).set_feature(b"clig", state)
+    }
 
-    /// Enabled ligatures specific to the font.
+    /// Enabled ligatures specific to the font, usually decorative.
     ///
     /// This corresponds to OpenType `dlig` feature.
     ///
@@ -743,8 +751,13 @@ impl FontFeatures {
     }
     /// Gets the [discretionary ligatures](Self::discretionary_lig) state.
     #[inline]
-    pub fn get_discretionary(&self) -> FontFeatureState {
+    pub fn get_discretionary_lig(&self) -> LigatureState {
         self.get_feature(b"dlig")
+    }
+    /// Sets the [discretionary ligatures](Self::discretionary_lig) state.
+    #[inline]
+    pub fn set_discretionary_lig(self, state: LigatureState) -> Self {
+        self.set_feature(b"dlig", state)
     }
 
     /// Enabled ligatures used historically, in old books, like the German tz digraph being displayed ß.
@@ -763,11 +776,16 @@ impl FontFeatures {
     }
     /// Gets the [historical ligatures](Self::historical_lig) state.
     #[inline]
-    pub fn get_historical(&self) -> FontFeatureState {
+    pub fn get_historical_lig(&self) -> LigatureState {
         self.get_feature(b"hlig")
     }
+    /// Sets the [historical ligatures](Self::historical_lig) state.
+    #[inline]
+    pub fn set_historical_lig(self, state: LigatureState) -> Self {
+        self.set_feature(b"hlig", state)
+    }
 
-    /// If letters adapt to their surrounding letters.
+    /// Enable alternative letters that adapt to their surrounding letters.
     ///
     /// This corresponds to OpenType `calt` feature.
     ///
@@ -776,7 +794,6 @@ impl FontFeatures {
     pub fn contextual_alt(self) -> Self {
         self.feature(b"calt")
     }
-
     /// Disable [contextual alternatives](Self::contextual_alt).
     #[inline]
     pub fn disable_contextual_alt(self) -> Self {
@@ -784,8 +801,56 @@ impl FontFeatures {
     }
     /// Gets the [contextual alternatives](Self::contextual_alt) state.
     #[inline]
-    pub fn get_contextual_alt(&self) -> FontFeatureState {
+    pub fn get_contextual_alt(&self) -> LigatureState {
         self.get_feature(b"calt")
+    }
+    /// Sets the [contextual alternatives](Self::contextual_alt) state.
+    #[inline]
+    pub fn set_contextual_alt(self, state: LigatureState) -> Self {
+        self.set_feature(b"calt", state)
+    }
+
+    /// Sets the caps alternative features.
+    ///
+    /// This disables any previously set caps features.
+    #[inline]
+    pub fn caps(self, state: CapsVariant) -> Self {
+        let s = self
+            .disable_feature(b"smcp")
+            .disable_feature(b"c2sc")
+            .disable_feature(b"pcap")
+            .disable_feature(b"c2pc")
+            .disable_feature(b"unic")
+            .disable_feature(b"titl");
+
+        match state {
+            CapsVariant::Auto => s,
+            CapsVariant::SmallCaps => s.feature(b"smcp"),
+            CapsVariant::AllSmallCaps => s.feature(b"smcp").feature(b"c2sc"),
+            CapsVariant::Petite => s.feature(b"pcap"),
+            CapsVariant::AllPetite => s.feature(b"pcap").feature(b"c2pc"),
+            CapsVariant::Unicase => s.feature(b"unic"),
+            CapsVariant::TitlingCaps => s.feature(b"titl"),
+        }
+    }
+
+    /// Gets the caps variant feature enabled.
+    pub fn get_caps(&self) -> CapsVariant {
+        if self.features.contains_key(b"c2sc") {
+            CapsVariant::AllSmallCaps
+        } else if self.features.contains_key(b"smcp") {
+            CapsVariant::SmallCaps
+        } else if self.features.contains_key(b"c2pc") {
+            CapsVariant::AllPetite
+        } else if self.features.contains_key(b"pcap") {
+            CapsVariant::Petite
+        } else if self.features.contains_key(b"unic") {
+            CapsVariant::Unicase
+        } else if self.features.contains_key(b"titl") {
+            CapsVariant::TitlingCaps
+        } else {
+            CapsVariant::Auto
+        }
     }
 
     /// Add and override features.
@@ -813,5 +878,45 @@ pub enum FontFeatureState {
     Disabled,
 }
 
-/// State of  the [kerning](FontFeatures::kerning) font feature.
-pub type Kerning = FontFeatureState;
+/// State of the [kerning](FontFeatures::kerning) font feature.
+pub type KerningState = FontFeatureState;
+
+/// State of a ligature set font feature.
+pub type LigatureState = FontFeatureState;
+
+/// Font variant features
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CapsVariant {
+    /// No caps variant, for most text. `TitlingCaps` if the text is all in uppercase.
+    Auto,
+
+    /// Enable small caps alternative for lowercase letters.
+    ///
+    /// This corresponds to OpenType `smcp` feature.
+    SmallCaps,
+
+    /// Enable small caps alternative for lower and upper case letters.
+    ///
+    /// This corresponds to OpenType `smcp` and `c2sc` features.
+    AllSmallCaps,
+
+    /// Enable petite caps alternative for lowercase letters.
+    ///
+    /// This corresponds to OpenType `pcap` feature.
+    Petite,
+
+    /// Enable petite caps alternative for lower and upper case letters.
+    ///
+    /// This corresponds to OpenType `pcap` and `c2pc` features.
+    AllPetite,
+
+    /// Enables unicase, using small caps for upper case letters mixed with normal lowercase letters.
+    ///
+    /// This corresponds to OpenType `unic` feature.
+    Unicase,
+
+    /// Enable title caps alternatives. This uses alternative uppercase glyphs designed for all uppercase words.
+    ///
+    /// This corresponds to OpenType `titl` feature.
+    TitlingCaps,
+}
