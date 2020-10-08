@@ -713,6 +713,29 @@ impl FontFeatures {
     pub fn caps(&mut self) -> CapsVariantFeatures {
         CapsVariantFeatures { features: &mut self.0 }
     }
+
+    /// Font numeric glyph variants.
+    ///
+    /// See [`NumVariant`] for more details.
+    #[inline]
+    pub fn numeric(&mut self) -> NumVariantFeatures {
+        NumVariantFeatures { features: &mut self.0 }
+    }
+
+    /// Font numeric spacing variants.
+    ///
+    /// See [`NumSpacing`] for more details.
+    #[inline]
+    pub fn num_spacing(&mut self) -> NumSpacingFeatures {
+        NumSpacingFeatures { features: &mut self.0 }
+    }
+
+    /// Font numeric spacing variants.
+    ///
+    /// See [`NumSpacing`] for more details.
+    pub fn num_fraction(&mut self) -> NumFractionFeatures {
+        NumFractionFeatures { features: &mut self.0 }
+    }
 }
 impl fmt::Debug for FontFeatures {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -768,6 +791,33 @@ impl FontFeaturesBuilder {
     #[inline]
     pub fn caps(mut self, state: impl Into<CapsVariant>) -> Self {
         self.0.caps().set(state);
+        self
+    }
+
+    /// Font numeric glyph variants.
+    ///
+    /// See [`NumVariant`] for more details.
+    #[inline]
+    pub fn numeric(mut self, state: impl Into<NumVariant>) -> Self {
+        self.0.numeric().set(state);
+        self
+    }
+
+    /// Font numeric spacing variants.
+    ///
+    /// See [`NumSpacing`] for more details.
+    #[inline]
+    pub fn num_spacing(mut self, state: impl Into<NumSpacing>) -> Self {
+        self.0.num_spacing().set(state);
+        self
+    }
+
+    /// Font numeric fraction variants.
+    ///
+    /// See [`NumFraction`] for more details.
+    #[inline]
+    pub fn num_fraction(mut self, state: impl Into<NumFraction>) -> Self {
+        self.0.num_fraction().set(state);
         self
     }
 }
@@ -841,6 +891,13 @@ font_features! {
     /// `Auto` deactivates this feature.
     fn slashed_zero(b"zero");
 }
+
+// TODO
+// main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
+// 1 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-east-asian
+// 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
+// 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
+// 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
 
 /// Represents a feature in a [`FontFeatures`] configuration.
 pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, bool>);
@@ -1021,7 +1078,12 @@ impl<'a> FontFeatureSet<'a> {
 }
 impl<'a> fmt::Debug for FontFeatureSet<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "b\"{:?}\": {:?}", self.names(), self.state())
+        write!(
+            f,
+            "{:?}: {:?}",
+            self.names().iter().map(|s| name_to_str(s)).collect::<Vec<_>>(),
+            self.state()
+        )
     }
 }
 
@@ -1139,6 +1201,203 @@ impl<'a> fmt::Debug for CapsVariantFeatures<'a> {
     }
 }
 
+/// Represents the [numeric variant](FontFeatures::numeric) features. At any time only one of
+/// these features are be enabled.
+pub struct NumVariantFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+}
+impl<'a> NumVariantFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 2] {
+        [b"lnum", b"onum"]
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> NumVariant {
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+
+        if enabled(b"lnum") {
+            NumVariant::Lining
+        } else if enabled(b"onum") {
+            NumVariant::OldStyle
+        } else {
+            NumVariant::Auto
+        }
+    }
+
+    fn take_state(&mut self) -> NumVariant {
+        let lnum = self.features.remove(b"lnum");
+        let onum = self.features.remove(b"onum");
+
+        if lnum.unwrap_or_default() {
+            NumVariant::Lining
+        } else if onum.unwrap_or_default() {
+            NumVariant::OldStyle
+        } else {
+            NumVariant::Auto
+        }
+    }
+
+    /// If no feature is explicitly enabled/disabled.
+    #[inline]
+    pub fn is_auto(&self) -> bool {
+        self.state() == NumVariant::Auto
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<NumVariant>) -> NumVariant {
+        let prev = self.take_state();
+
+        match state.into() {
+            NumVariant::OldStyle => {
+                self.features.insert(b"onum", true);
+            }
+            NumVariant::Lining => {
+                self.features.insert(b"lnum", true);
+            }
+            NumVariant::Auto => {}
+        }
+
+        prev
+    }
+}
+impl<'a> fmt::Debug for NumVariantFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
+
+/// Represents the [numeric spacing](FontFeatures::num_spacing) features. At any time only one of
+/// these features are be enabled.
+pub struct NumSpacingFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+}
+impl<'a> NumSpacingFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 2] {
+        [b"pnum", b"tnum"]
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> NumSpacing {
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+
+        if enabled(b"pnum") {
+            NumSpacing::Proportional
+        } else if enabled(b"tnum") {
+            NumSpacing::Tabular
+        } else {
+            NumSpacing::Auto
+        }
+    }
+
+    fn take_state(&mut self) -> NumSpacing {
+        let pnum = self.features.remove(b"pnum");
+        let tnum = self.features.remove(b"tnum");
+
+        if pnum.unwrap_or_default() {
+            NumSpacing::Proportional
+        } else if tnum.unwrap_or_default() {
+            NumSpacing::Tabular
+        } else {
+            NumSpacing::Auto
+        }
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<NumSpacing>) -> NumSpacing {
+        let prev = self.take_state();
+        match state.into() {
+            NumSpacing::Tabular => {
+                self.features.insert(b"tnum", true);
+            }
+            NumSpacing::Proportional => {
+                self.features.insert(b"pnum", true);
+            }
+            NumSpacing::Auto => {}
+        }
+        prev
+    }
+}
+impl<'a> fmt::Debug for NumSpacingFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
+
+/// Represents the [numeric fraction](FontFeatures::num_fraction) features. At any time only one of
+/// these features are be enabled.
+pub struct NumFractionFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+}
+impl<'a> NumFractionFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 2] {
+        [b"frac", b"afrc"]
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> NumFraction {
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+
+        if enabled(b"frac") {
+            NumFraction::Diagonal
+        } else if enabled(b"afrc") {
+            NumFraction::Stacked
+        } else {
+            NumFraction::Auto
+        }
+    }
+
+    fn take_state(&mut self) -> NumFraction {
+        let frac = self.features.remove(b"frac");
+        let afrc = self.features.remove(b"afrc");
+
+        if frac.unwrap_or_default() {
+            NumFraction::Diagonal
+        } else if afrc.unwrap_or_default() {
+            NumFraction::Stacked
+        } else {
+            NumFraction::Auto
+        }
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<NumFraction>) -> NumFraction {
+        let prev = self.take_state();
+        match state.into() {
+            NumFraction::Diagonal => {
+                self.features.insert(b"frac", true);
+            }
+            NumFraction::Stacked => {
+                self.features.insert(b"afrc", true);
+            }
+            NumFraction::Auto => {}
+        }
+        prev
+    }
+}
+impl<'a> fmt::Debug for NumFractionFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
+
 /// State of a [font feature](FontFeatures).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FontFeatureState {
@@ -1159,7 +1418,7 @@ impl_from_and_into_var! {
     }
 }
 
-/// Font caps variant features.
+/// Font capital letters variant features.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CapsVariant {
     /// Disable all caps variant.
@@ -1199,10 +1458,47 @@ pub enum CapsVariant {
     TitlingCaps,
 }
 
-// TODO
-// main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
-// 1 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-east-asian
-// 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
-// 3 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-numeric
-// 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
-// 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
+/// Font numeric variant features.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum NumVariant {
+    /// Uses the default numeric glyphs, in most fonts this is the same as `Lining`, some fonts use the `OldStyle`.
+    Auto,
+    /// Uses numeric glyphs that rest on the baseline.
+    ///
+    /// This corresponds to OpenType `lnum` feature.
+    Lining,
+    /// Uses old-style numeric glyphs, where some numbers, like 3, 4, 7, 9 have descenders.
+    ///
+    /// This corresponds to OpenType `onum` feature.
+    OldStyle,
+}
+
+/// Font numeric spacing features.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum NumSpacing {
+    /// Uses the default numeric width, usually this is `Tabular` for *monospace* fonts and `Proportional` for the others.
+    Auto,
+    /// Numeric glyphs take different space depending on the design of the glyph.
+    ///
+    /// This corresponds to OpenType `pnum` feature.
+    Proportional,
+    /// Numeric glyphs take the same space even if the glyphs design width is different.
+    ///
+    /// This corresponds to OpenType `tnum` feature.
+    Tabular,
+}
+
+/// Font numeric fraction features.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum NumFraction {
+    /// Don't use fraction variants.
+    Auto,
+    /// Variant where the numerator and denominator are made smaller and separated by a slash.
+    ///
+    /// This corresponds to OpenType `frac` feature.
+    Diagonal,
+    /// Variant where the numerator and denominator are made smaller, stacked and separated by a horizontal line.
+    ///
+    /// This corresponds to OpenType `afrc` feature.
+    Stacked,
+}

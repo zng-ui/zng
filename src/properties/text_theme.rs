@@ -246,3 +246,21 @@ pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<FontFeatureSt
 pub fn font_caps(child: impl UiNode, state: impl IntoVar<CapsVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.caps().set(s))
 }
+
+/// Sets the font numeric variant features.
+#[property(context)]
+pub fn font_numeric(child: impl UiNode, state: impl IntoVar<NumVariant>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.numeric().set(s))
+}
+
+/// Sets the font numeric spacing features.
+#[property(context)]
+pub fn font_num_spacing(child: impl UiNode, state: impl IntoVar<NumSpacing>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.num_spacing().set(s))
+}
+
+/// Sets the font numeric fraction features.
+#[property(context)]
+pub fn font_num_fraction(child: impl UiNode, state: impl IntoVar<NumFraction>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.num_fraction().set(s))
+}
