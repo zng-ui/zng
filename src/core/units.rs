@@ -7,8 +7,6 @@ use webrender::api::units as wr;
 use super::context::LayoutContext;
 use crate::core::var::{IntoVar, OwnedVar};
 
-const TAU: f32 = 2.0 * PI;
-
 /// Angle in radians.
 ///
 /// See [`AngleUnits`] for more details.
