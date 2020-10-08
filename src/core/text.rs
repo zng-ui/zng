@@ -834,6 +834,58 @@ impl FontFeatures {
         }
     }
 
+    /// Enable force usage of ordinal special glyphs, 1a becomes 1ª.
+    ///
+    /// This corresponds to OpenType `ordn` feature.
+    ///
+    /// `Auto` deactivates this feature.
+    #[inline]
+    pub fn ordinal(self) -> Self {
+        self.feature(b"ordn")
+    }
+    /// Disable [forced ordinal](Self::ordinal).
+    #[inline]
+    pub fn disable_ordinal(self) -> Self {
+        self.disable_feature(b"ordn")
+    }
+    /// Gets the [forced ordinal](Self::ordinal) state.
+    #[inline]
+    pub fn get_ordinal(&self) -> FontFeatureState {
+        self.get_feature(b"ordn")
+    }
+    /// Sets the [forced ordinal](Self::ordinal) state.
+    #[inline]
+    pub fn set_ordinal(self, state: FontFeatureState) -> Self {
+        self.set_feature(b"ordn", state)
+    }
+
+    /// Enable force use of a slashed zero for `0`.
+    ///
+    /// This corresponds to OpenType `zero` feature.
+    ///
+    /// `Auto` deactivates this feature.
+    #[inline]
+    pub fn slashed_zero(self) -> Self {
+        self.feature(b"zero")
+    }
+    /// Disable [slashed zero](Self::slashed_zero).
+    #[inline]
+    pub fn disable_slashed_zero(self) -> Self {
+        self.disable_feature(b"zero")
+    }
+    /// Gets the [slashed zero](Self::slashed_zero) state.
+    #[inline]
+    pub fn get_slashed_zero(&self) -> FontFeatureState {
+        self.get_feature(b"zero")
+    }
+    /// Sets the [slashed zero](Self::slashed_zero) state.
+    #[inline]
+    pub fn set_slashed_zero(self, state: FontFeatureState) -> Self {
+        self.set_feature(b"zero", state)
+    }
+
+
+
     /// Gets the caps variant feature enabled.
     pub fn get_caps(&self) -> CapsVariant {
         if self.features.contains_key(b"c2sc") {
@@ -927,3 +979,4 @@ pub enum CapsVariant {
 // 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
 // 3 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-numeric
 // 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
+// 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
