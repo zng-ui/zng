@@ -634,6 +634,7 @@ impl Default for WhiteSpace {
 /// # Example
 ///
 /// ```
+/// # use zero_ui::core::text::FontFeatureName;
 /// let historical_lig: FontFeatureName = b"hlig";
 /// ```
 pub type FontFeatureName = &'static [u8; 4];
@@ -732,6 +733,7 @@ fn name_to_str(name: FontFeatureName) -> &'static str {
 /// # Example
 ///
 /// ```
+/// # use zero_ui::core::text::FontFeatures;
 /// let features = FontFeatures::builder().kerning(false).build();
 /// ```
 #[derive(Default)]

@@ -168,8 +168,10 @@ struct WithFontFeatureNode<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut Font
 #[impl_ui_node(child)]
 impl<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> UiNode for WithFontFeatureNode<C, S, V, D> {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        let state = self.var.get(ctx.vars).clone();
+        let prev = (self.delegate)(&mut FontFeatures::new(), state);
+        println!("TODO {:?}", prev);
         self.child.init(ctx);
-        // TODO
     }
 }
 
@@ -194,8 +196,9 @@ struct FontFeaturesNode<C: UiNode, V: Var<FontFeatures>> {
 #[impl_ui_node(child)]
 impl<C: UiNode, V: Var<FontFeatures>> UiNode for FontFeaturesNode<C, V> {
     fn init(&mut self, ctx: &mut WidgetContext) {
+        let features = self.features.get(ctx.vars);
+        println!("TODO {:?}", features);
         self.child.init(ctx);
-        //TODO
     }
 }
 

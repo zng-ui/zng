@@ -85,16 +85,10 @@ pub mod input {
     }
     impl Priority {
         pub fn is_event(self) -> bool {
-            match self {
-                Priority::Event(_) => true,
-                _ => false,
-            }
+            matches!(self, Priority::Event(_))
         }
         pub fn is_capture_only(self) -> bool {
-            match self {
-                Priority::CaptureOnly(_) => true,
-                _ => false,
-            }
+            matches!(self, Priority::CaptureOnly(_))
         }
     }
     impl Parse for Priority {
@@ -512,10 +506,7 @@ mod analysis {
         }
         let set_attrs = attrs.inline.into_iter().collect();
 
-        let can_export = match fn_.vis {
-            syn::Visibility::Public(_) => true,
-            _ => false,
-        };
+        let can_export = matches!(fn_.vis, syn::Visibility::Public(_));
 
         let fn_block;
         let is_capture_only = priority.is_capture_only();

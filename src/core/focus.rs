@@ -1734,19 +1734,13 @@ impl FocusInfo {
     /// If is focusable or a focus scope.
     #[inline]
     pub fn is_focusable(self) -> bool {
-        match self {
-            FocusInfo::NotFocusable => false,
-            _ => true,
-        }
+        !matches!(self, FocusInfo::NotFocusable)
     }
 
     /// If is a focus scope.
     #[inline]
     pub fn is_scope(self) -> bool {
-        match self {
-            FocusInfo::FocusScope { .. } => true,
-            _ => false,
-        }
+        matches!(self, FocusInfo::FocusScope { .. })
     }
 
     /// If is an ALT focus scope.

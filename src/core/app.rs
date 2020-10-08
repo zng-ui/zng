@@ -249,10 +249,7 @@ impl EventLoop {
 
     /// If the event loop is a headless.
     pub fn is_headless(&self) -> bool {
-        match &self.0 {
-            EventLoopInner::Headless(_) => true,
-            _ => false,
-        }
+        matches!(&self.0, EventLoopInner::Headless(_))
     }
 
     /// Takes the headless user events send since the last call.

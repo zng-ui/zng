@@ -1358,10 +1358,7 @@ impl RendererState {
     }
 
     fn deinited(&self) -> bool {
-        match self {
-            RendererState::Deinited => true,
-            _ => false,
-        }
+        matches!(self, RendererState::Deinited)
     }
 }
 
