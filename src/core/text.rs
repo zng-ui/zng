@@ -634,306 +634,51 @@ impl Default for WhiteSpace {
 /// # Example
 ///
 /// ```
-/// let common_ligatures: FontFeatureName = b"liga";
+/// let historical_lig: FontFeatureName = b"hlig";
 /// ```
 pub type FontFeatureName = &'static [u8; 4];
 
-/// Font features.
-#[derive(Clone, Default)]
-pub struct FontFeatures {
-    features: FnvHashMap<FontFeatureName, bool>,
-}
+/// Font features configuration.
+#[derive(Default, Clone)]
+pub struct FontFeatures(FnvHashMap<FontFeatureName, bool>);
 impl FontFeatures {
     /// New default.
     #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Sets the feature state.
-    #[inline]
-    pub fn set_feature(mut self, name: FontFeatureName, state: FontFeatureState) -> Self {
-        match state {
-            FontFeatureState::Auto => self.features.remove(name),
-            FontFeatureState::Enabled => self.features.insert(name, true),
-            FontFeatureState::Disabled => self.features.insert(name, false),
-        };
-        self
-    }
-    /// Gets the feature state.
-    #[inline]
-    pub fn get_feature(&self, name: FontFeatureName) -> FontFeatureState {
-        self.features
-            .get(name)
-            .map(|&e| if e { FontFeatureState::Enabled } else { FontFeatureState::Disabled })
-            .unwrap_or(FontFeatureState::Auto)
-    }
-    /// Enables the feature.
-    #[inline]
-    pub fn feature(mut self, name: FontFeatureName) -> Self {
-        self.features.insert(name, true);
-        self
-    }
-    /// Disables the feature.
-    #[inline]
-    pub fn disable_feature(mut self, name: FontFeatureName) -> Self {
-        self.features.insert(name, false);
-        self
-    }
-
-    /// Allow glyphs boundaries to overlap for a more pleasant reading.
-    ///
-    /// This corresponds to OpenType `kern` feature.
-    ///
-    /// `Auto` always activates these kerning.
-    #[inline]
-    pub fn kerning(self) -> Self {
-        self.feature(b"kern")
-    }
-    /// Disable [kerning](Self::kerning).
-    #[inline]
-    pub fn disable_kerning(self) -> Self {
-        self.feature(b"kern")
-    }
-    /// Gets the [kerning](Self::kerning) feature state.
-    #[inline]
-    pub fn get_kerning(&self) -> KerningState {
-        self.get_feature(b"kern")
-    }
-    /// Sets the [kerning](Self::kerning) feature state.
-    #[inline]
-    pub fn set_kerning(self, state: KerningState) -> Self {
-        self.set_feature(b"kern", state)
-    }
-
-    /// Enable the most common ligatures, like for `fi`, `ffi`, `th` or similar.
-    ///
-    /// This corresponds to OpenType `liga` and `clig` features.
-    ///
-    /// `Auto` always activates these ligatures.
-    #[inline]
-    pub fn common_lig(self) -> Self {
-        self.feature(b"liga").feature(b"clig")
-    }
-    /// Disable [common ligatures](Self::common_lig).
-    #[inline]
-    pub fn disable_common_lig(self) -> Self {
-        self.disable_feature(b"liga").disable_feature(b"clig")
-    }
-    /// Gets the [common ligatures](Self::kerning) features state.
-    #[inline]
-    pub fn get_common_lig(&self) -> LigatureState {
-        let liga = self.get_feature(b"liga");
-        if liga == self.get_feature(b"clig") {
-            liga
-        } else {
-            FontFeatureState::Auto
-        }
-    }
-    /// Sets the [common ligatures](Self::kerning) features state.
-    #[inline]
-    pub fn set_common_lig(self, state: LigatureState) -> Self {
-        self.set_feature(b"liga", state).set_feature(b"clig", state)
-    }
-
-    /// Enabled ligatures specific to the font, usually decorative.
-    ///
-    /// This corresponds to OpenType `dlig` feature.
-    ///
-    /// `Auto` usually disables these ligatures.
-    #[inline]
-    pub fn discretionary_lig(self) -> Self {
-        self.feature(b"dlig")
-    }
-    /// Disable [discretionary ligatures](Self::discretionary_lig).
-    #[inline]
-    pub fn disable_discretionary_lig(self) -> Self {
-        self.disable_feature(b"dlig")
-    }
-    /// Gets the [discretionary ligatures](Self::discretionary_lig) state.
-    #[inline]
-    pub fn get_discretionary_lig(&self) -> LigatureState {
-        self.get_feature(b"dlig")
-    }
-    /// Sets the [discretionary ligatures](Self::discretionary_lig) state.
-    #[inline]
-    pub fn set_discretionary_lig(self, state: LigatureState) -> Self {
-        self.set_feature(b"dlig", state)
-    }
-
-    /// Enabled ligatures used historically, in old books, like the German tz digraph being displayed ß.
-    ///
-    /// This corresponds to OpenType `hlig` feature.
-    ///
-    /// `Auto` usually disables these ligatures.
-    #[inline]
-    pub fn historical_lig(self) -> Self {
-        self.feature(b"hlig")
-    }
-    /// Disable [historical ligatures](Self::historical_lig).
-    #[inline]
-    pub fn disable_historical_lig(self) -> Self {
-        self.disable_feature(b"hlig")
-    }
-    /// Gets the [historical ligatures](Self::historical_lig) state.
-    #[inline]
-    pub fn get_historical_lig(&self) -> LigatureState {
-        self.get_feature(b"hlig")
-    }
-    /// Sets the [historical ligatures](Self::historical_lig) state.
-    #[inline]
-    pub fn set_historical_lig(self, state: LigatureState) -> Self {
-        self.set_feature(b"hlig", state)
-    }
-
-    /// Enable alternative letters that adapt to their surrounding letters.
-    ///
-    /// This corresponds to OpenType `calt` feature.
-    ///
-    /// `Auto` usually activates this feature.
-    #[inline]
-    pub fn contextual_alt(self) -> Self {
-        self.feature(b"calt")
-    }
-    /// Disable [contextual alternatives](Self::contextual_alt).
-    #[inline]
-    pub fn disable_contextual_alt(self) -> Self {
-        self.disable_feature(b"calt")
-    }
-    /// Gets the [contextual alternatives](Self::contextual_alt) state.
-    #[inline]
-    pub fn get_contextual_alt(&self) -> LigatureState {
-        self.get_feature(b"calt")
-    }
-    /// Sets the [contextual alternatives](Self::contextual_alt) state.
-    #[inline]
-    pub fn set_contextual_alt(self, state: LigatureState) -> Self {
-        self.set_feature(b"calt", state)
-    }
-
-    /// Sets the caps alternative features.
-    ///
-    /// This disables any previously set caps features.
-    #[inline]
-    pub fn caps(self, state: CapsVariant) -> Self {
-        let s = self
-            .disable_feature(b"smcp")
-            .disable_feature(b"c2sc")
-            .disable_feature(b"pcap")
-            .disable_feature(b"c2pc")
-            .disable_feature(b"unic")
-            .disable_feature(b"titl");
-
-        match state {
-            CapsVariant::Auto => s,
-            CapsVariant::SmallCaps => s.feature(b"smcp"),
-            CapsVariant::AllSmallCaps => s.feature(b"smcp").feature(b"c2sc"),
-            CapsVariant::Petite => s.feature(b"pcap"),
-            CapsVariant::AllPetite => s.feature(b"pcap").feature(b"c2pc"),
-            CapsVariant::Unicase => s.feature(b"unic"),
-            CapsVariant::TitlingCaps => s.feature(b"titl"),
-        }
-    }
-
-    /// Enable force usage of ordinal special glyphs, 1a becomes 1ª.
-    ///
-    /// This corresponds to OpenType `ordn` feature.
-    ///
-    /// `Auto` deactivates this feature.
-    #[inline]
-    pub fn ordinal(self) -> Self {
-        self.feature(b"ordn")
-    }
-    /// Disable [forced ordinal](Self::ordinal).
-    #[inline]
-    pub fn disable_ordinal(self) -> Self {
-        self.disable_feature(b"ordn")
-    }
-    /// Gets the [forced ordinal](Self::ordinal) state.
-    #[inline]
-    pub fn get_ordinal(&self) -> FontFeatureState {
-        self.get_feature(b"ordn")
-    }
-    /// Sets the [forced ordinal](Self::ordinal) state.
-    #[inline]
-    pub fn set_ordinal(self, state: FontFeatureState) -> Self {
-        self.set_feature(b"ordn", state)
-    }
-
-    /// Enable force use of a slashed zero for `0`.
-    ///
-    /// This corresponds to OpenType `zero` feature.
-    ///
-    /// `Auto` deactivates this feature.
-    #[inline]
-    pub fn slashed_zero(self) -> Self {
-        self.feature(b"zero")
-    }
-    /// Disable [slashed zero](Self::slashed_zero).
-    #[inline]
-    pub fn disable_slashed_zero(self) -> Self {
-        self.disable_feature(b"zero")
-    }
-    /// Gets the [slashed zero](Self::slashed_zero) state.
-    #[inline]
-    pub fn get_slashed_zero(&self) -> FontFeatureState {
-        self.get_feature(b"zero")
-    }
-    /// Sets the [slashed zero](Self::slashed_zero) state.
-    #[inline]
-    pub fn set_slashed_zero(self, state: FontFeatureState) -> Self {
-        self.set_feature(b"zero", state)
-    }
-
-    /// Gets the caps variant feature enabled.
-    pub fn get_caps(&self) -> CapsVariant {
-        if self.features.contains_key(b"c2sc") {
-            CapsVariant::AllSmallCaps
-        } else if self.features.contains_key(b"smcp") {
-            CapsVariant::SmallCaps
-        } else if self.features.contains_key(b"c2pc") {
-            CapsVariant::AllPetite
-        } else if self.features.contains_key(b"pcap") {
-            CapsVariant::Petite
-        } else if self.features.contains_key(b"unic") {
-            CapsVariant::Unicase
-        } else if self.features.contains_key(b"titl") {
-            CapsVariant::TitlingCaps
-        } else {
-            CapsVariant::Auto
-        }
-    }
-
-    /// Add and override features.
-    #[inline]
-    pub fn extend(mut self, other: Self) -> Self {
-        self.features.extend(other.features);
-        self
-    }
-}
-impl fmt::Debug for FontFeatures {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut r = f.debug_map();
-        for (name, enabled) in self.features.iter() {
-            r.entry(&std::str::from_utf8(*name).unwrap(), enabled);
-        }
-        r.finish()
-    }
-}
-
-#[derive(Default)]
-pub struct FontFeatures2(FnvHashMap<FontFeatureName, bool>);
-impl FontFeatures2 {
-    /// New default.
-    #[inline]
-    pub fn new() -> FontFeatures2 {
-        FontFeatures2::default()
+    pub fn new() -> FontFeatures {
+        FontFeatures::default()
     }
 
     /// New builder.
     #[inline]
     pub fn builder() -> FontFeaturesBuilder {
         FontFeaturesBuilder::default()
+    }
+
+    /// Set or override the features of `self` from `other`.
+    ///
+    /// Returns the previous state of all affected names.
+    #[inline]
+    pub fn set_all(&mut self, other: &FontFeatures) -> Vec<(FontFeatureName, Option<bool>)> {
+        let mut prev = Vec::with_capacity(other.0.len());
+        for (&name, &state) in other.0.iter() {
+            prev.push((name, self.0.insert(name, state)));
+        }
+        prev
+    }
+
+    /// Restore feature states that where overridden in [`set_all`](Self::set_all).
+    #[inline]
+    pub fn restore(&mut self, prev: Vec<(FontFeatureName, Option<bool>)>) {
+        for (name, state) in prev {
+            match state {
+                Some(state) => {
+                    self.0.insert(name, state);
+                }
+                None => {
+                    self.0.remove(name);
+                }
+            }
+        }
     }
 
     /// Access to the named feature.
@@ -951,18 +696,35 @@ impl FontFeatures2 {
         }
     }
 
-    /// Access to the `kern` feature.
+    /// The most common ligatures, like for `fi`, `ffi`, `th` or similar.
     ///
-    /// About TODO
-    #[inline]
-    pub fn kerning(&mut self) -> FontFeature {
-        self.feature(b"kern")
-    }
-
-    /// Access to `liga` and `clig` features.
+    /// This corresponds to OpenType `liga` and `clig` features.
+    ///
+    /// `Auto` always activates these ligatures.
     pub fn common_lig(&mut self) -> FontFeatureSet {
         self.feature_set([b"liga", b"clig"])
     }
+
+    /// Font capital glyph variants.
+    ///
+    /// See [`CapsVariant`] for more details.
+    #[inline]
+    pub fn caps(&mut self) -> CapsVariantFeatures {
+        CapsVariantFeatures { features: &mut self.0 }
+    }
+}
+impl fmt::Debug for FontFeatures {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut map = f.debug_map();
+        for (name, state) in self.0.iter() {
+            map.entry(&name_to_str(name), state);
+        }
+        map.finish()
+    }
+}
+
+fn name_to_str(name: FontFeatureName) -> &'static str {
+    std::str::from_utf8(name).unwrap_or_default()
 }
 
 /// A builder for [`FontFeatures`].
@@ -970,65 +732,121 @@ impl FontFeatures2 {
 /// # Example
 ///
 /// ```
-/// let features = FontFeatures::builder().no_kerning().build();
+/// let features = FontFeatures::builder().kerning(false).build();
 /// ```
 #[derive(Default)]
-pub struct FontFeaturesBuilder(FontFeatures2);
+pub struct FontFeaturesBuilder(FontFeatures);
 impl FontFeaturesBuilder {
     /// Finish building.
     #[inline]
-    pub fn build(self) -> FontFeatures2 {
+    pub fn build(self) -> FontFeatures {
         self.0
     }
 
-    /// Enable the named feature.
+    /// Set the named feature.
     #[inline]
-    pub fn feature(mut self, name: FontFeatureName) -> Self {
-        self.0.feature(name).enable();
-        self
-    }
-    /// Disable the named feature.
-    #[inline]
-    pub fn no_feature(mut self, name: FontFeatureName) -> Self {
-        self.0.feature(name).disable();
-        self
-    }
-    /// Default the named feature.
-    #[inline]
-    pub fn auto_feature(mut self, name: FontFeatureName) -> Self {
-        self.0.feature(name).auto();
+    pub fn feature(mut self, name: FontFeatureName, state: impl Into<FontFeatureState>) -> Self {
+        self.0.feature(name).set(state);
         self
     }
 
-    /// Enable [kerning](FontFeatures::kerning).
-    #[inline]
-    pub fn kerning(mut self) -> Self {
-        self.0.kerning().enable();
+    /// The most common ligatures, like for `fi`, `ffi`, `th` or similar.
+    ///
+    /// This corresponds to OpenType `liga` and `clig` features.
+    ///
+    /// `Auto` always activates these ligatures.
+    pub fn common_lig(mut self, state: impl Into<FontFeatureState>) -> Self {
+        self.0.common_lig().set(state);
         self
     }
-    /// Disable kerning.
+
+    /// Font capital glyph variants.
+    ///
+    /// See [`CapsVariant`] for more details.
     #[inline]
-    pub fn no_kerning(mut self) -> Self {
-        self.0.kerning().disable();
-        self
-    }
-    /// Default kerning.
-    #[inline]
-    pub fn auto_kerning(mut self) -> Self {
-        self.0.kerning().auto();
+    pub fn caps(mut self, state: impl Into<CapsVariant>) -> Self {
+        self.0.caps().set(state);
         self
     }
 }
 
-/// Represents a feature in a [`FontFeatures`] collection.
+/// Generate `FontFeature` methods in `FontFeatures` and builder methods in `FontFeaturesBuilder`
+/// that set the feature.
+macro_rules! font_features {
+    ($(
+        $(#[$docs:meta])*
+        fn $name:ident($o_name:tt);
+    )+) => {
+        impl FontFeatures {$(
+            $(#[$docs])*
+            #[inline]
+            pub fn $name(&mut self) -> FontFeature {
+                self.feature($o_name)
+            }
+        )+}
+
+        impl FontFeaturesBuilder {$(
+            $(#[$docs])*
+            #[inline]
+            pub fn $name(mut self, state: impl Into<FontFeatureState>) -> Self {
+                self.0.$name().set(state);
+                self
+            }
+        )+}
+    }
+}
+
+font_features! {
+    /// Allow glyphs boundaries to overlap for a more pleasant reading.
+    ///
+    /// This corresponds to the `kern` feature.
+    ///
+    /// `Auto` always activates these kerning.
+    fn kerning(b"kern");
+
+    /// Ligatures specific to the font, usually decorative.
+    ///
+    /// This corresponds to OpenType `dlig` feature.
+    ///
+    /// `Auto` usually disables these ligatures.
+    fn discretionary_lig(b"dlig");
+
+    /// Ligatures used historically, in old books, like the German tz digraph being displayed ß.
+    ///
+    /// This corresponds to OpenType `hlig` feature.
+    ///
+    /// `Auto` usually disables these ligatures.
+    fn historical_lig(b"hlig");
+
+    /// Alternative letters that adapt to their surrounding letters.
+    ///
+    /// This corresponds to OpenType `calt` feature.
+    ///
+    /// `Auto` usually activates this feature.
+    fn contextual_alt(b"calt");
+
+    /// Force usage of ordinal special glyphs, 1a becomes 1ª.
+    ///
+    /// This corresponds to OpenType `ordn` feature.
+    ///
+    /// `Auto` deactivates this feature.
+    fn ordinal(b"ordn");
+
+    /// Force use of a slashed zero for `0`.
+    ///
+    /// This corresponds to OpenType `zero` feature.
+    ///
+    /// `Auto` deactivates this feature.
+    fn slashed_zero(b"zero");
+}
+
+/// Represents a feature in a [`FontFeatures`] configuration.
 pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, bool>);
 impl<'a> FontFeature<'a> {
     /// Gets the OpenType name of the feature.
     #[inline]
-    pub fn name(&self) -> &str {
-        let name = *self.0.key();
-        // SAFETY: We control the creation of entries.
-        unsafe { std::str::from_utf8_unchecked(name) }
+    pub fn name(&self) -> FontFeatureName {
+        self.0.key()
     }
 
     /// Gets the current state of the feature.
@@ -1063,13 +881,17 @@ impl<'a> FontFeature<'a> {
     }
 
     /// Set the feature state.
+    ///
+    /// Returns the previous state.
     #[inline]
-    pub fn set(self, state: FontFeatureState) {
-        match state {
+    pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
+        let prev = self.state();
+        match state.into() {
             FontFeatureState::Auto => self.auto(),
             FontFeatureState::Enabled => self.enable(),
             FontFeatureState::Disabled => self.disable(),
         }
+        prev
     }
 
     fn set_explicit(self, state: bool) {
@@ -1105,11 +927,11 @@ impl<'a> FontFeature<'a> {
 }
 impl<'a> fmt::Debug for FontFeature<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "b\"{}\": {:?}", self.name(), self.state())
+        write!(f, "b\"{}\": {:?}", name_to_str(self.name()), self.state())
     }
 }
 
-/// Represents a set of features in a [`FontFeatures`] collection, the features state is managed together.
+/// Represents a set of features in a [`FontFeatures`] configuration, the features state is managed together.
 pub struct FontFeatureSet<'a> {
     features: &'a mut FnvHashMap<FontFeatureName, bool>,
     names: [FontFeatureName; 2],
@@ -1156,13 +978,17 @@ impl<'a> FontFeatureSet<'a> {
     }
 
     /// Set the feature state.
+    ///
+    /// Returns the previous state.
     #[inline]
-    pub fn set(self, state: FontFeatureState) {
-        match state {
+    pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
+        let prev = self.state();
+        match state.into() {
             FontFeatureState::Auto => self.auto(),
             FontFeatureState::Enabled => self.enable(),
             FontFeatureState::Disabled => self.disable(),
         }
+        prev
     }
 
     fn set_explicit(self, state: bool) {
@@ -1197,7 +1023,7 @@ impl<'a> fmt::Debug for FontFeatureSet<'a> {
     }
 }
 
-/// Represents the [capitalization variant](CapsVariant) features. At any time only one of
+/// Represents the [capitalization variant](FontFeatures::caps) features. At any time only one of
 /// these features are be enabled.
 pub struct CapsVariantFeatures<'a> {
     features: &'a mut FnvHashMap<FontFeatureName, bool>,
@@ -1206,26 +1032,64 @@ impl<'a> CapsVariantFeatures<'a> {
     /// Gets the OpenType names of all the features affected.
     #[inline]
     pub fn names(&self) -> [FontFeatureName; 6] {
-        [b"smcp", b"c2sc", b"pcap", b"c2pc", b"unic", b"titl"]
+        // the order of names if required by `take_state`.
+        [b"c2sc", b"smcp", b"c2pc", b"pcap", b"unic", b"titl"]
     }
 
     /// Gets the current state of the features.
     pub fn state(&self) -> CapsVariant {
-        // FIXME
-        if self.features.contains_key(b"c2sc") {
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+
+        if enabled(b"c2sc") {
             CapsVariant::AllSmallCaps
-        } else if self.features.contains_key(b"smcp") {
+        } else if enabled(b"smcp") {
             CapsVariant::SmallCaps
-        } else if self.features.contains_key(b"c2pc") {
+        } else if enabled(b"c2pc") {
             CapsVariant::AllPetite
-        } else if self.features.contains_key(b"pcap") {
+        } else if enabled(b"pcap") {
             CapsVariant::Petite
-        } else if self.features.contains_key(b"unic") {
+        } else if enabled(b"unic") {
             CapsVariant::Unicase
-        } else if self.features.contains_key(b"titl") {
-            CapsVariant::TitlingCaps
         } else {
-            CapsVariant::Auto
+            match self.features.get(b"titl") {
+                Some(&true) => CapsVariant::TitlingCaps,
+                Some(&false) => CapsVariant::None,
+                None => CapsVariant::Auto,
+            }
+        }
+    }
+    fn take_state(&mut self) -> CapsVariant {
+        let names = self.names();
+        // Returns if the feature is enabled and removes all tailing features.
+        let mut enabled = |i, expected| {
+            let name = names[i];
+            debug_assert_eq!(name, expected);
+            if self.features.remove(name).unwrap_or_default() {
+                for name in &names[(i + 1)..] {
+                    self.features.remove(name);
+                }
+                true
+            } else {
+                false
+            }
+        };
+
+        if enabled(0, b"c2sc") {
+            CapsVariant::AllSmallCaps
+        } else if enabled(1, b"smcp") {
+            CapsVariant::SmallCaps
+        } else if enabled(2, b"c2pc") {
+            CapsVariant::AllPetite
+        } else if enabled(3, b"pcap") {
+            CapsVariant::Petite
+        } else if enabled(4, b"unic") {
+            CapsVariant::Unicase
+        } else {
+            match self.features.remove(b"titl") {
+                Some(true) => CapsVariant::TitlingCaps,
+                Some(false) => CapsVariant::None,
+                None => CapsVariant::Auto,
+            }
         }
     }
 
@@ -1236,16 +1100,16 @@ impl<'a> CapsVariantFeatures<'a> {
     }
 
     /// Sets the features.
-    pub fn set(self, state: CapsVariant) {
-        for name in &self.names() {
-            self.features.remove(name);
-        }
+    ///
+    /// Returns the previous state.
+    pub fn set(mut self, state: impl Into<CapsVariant>) -> CapsVariant {
+        let prev = self.take_state();
 
-        let mut enable = move |n| {
+        let mut enable = |n| {
             self.features.insert(n, true);
         };
 
-        match state {
+        match state.into() {
             CapsVariant::SmallCaps => enable(b"smcp"),
             CapsVariant::AllSmallCaps => {
                 enable(b"smcp");
@@ -1258,8 +1122,13 @@ impl<'a> CapsVariantFeatures<'a> {
             }
             CapsVariant::Unicase => enable(b"unic"),
             CapsVariant::TitlingCaps => enable(b"titl"),
+            CapsVariant::None => {
+                self.features.insert(b"titl", false);
+            }
             CapsVariant::Auto => {}
         }
+
+        prev
     }
 }
 impl<'a> fmt::Debug for CapsVariantFeatures<'a> {
@@ -1271,20 +1140,29 @@ impl<'a> fmt::Debug for CapsVariantFeatures<'a> {
 /// State of a [font feature](FontFeatures).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum FontFeatureState {
+    /// Font layout and render decide if the feature is used.
     Auto,
+    /// Use the feature if implemented by the font.
     Enabled,
+    /// Don't use the feature.
     Disabled,
 }
+impl_from_and_into_var! {
+    fn from(enabled: bool) -> FontFeatureState {
+        if enabled {
+            FontFeatureState::Enabled
+        } else {
+            FontFeatureState::Disabled
+        }
+    }
+}
 
-/// State of the [kerning](FontFeatures::kerning) font feature.
-pub type KerningState = FontFeatureState;
-
-/// State of a ligature set font feature.
-pub type LigatureState = FontFeatureState;
-
-/// Font variant features
+/// Font caps variant features.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CapsVariant {
+    /// Disable all caps variant.
+    None,
+
     /// No caps variant, for most text. `TitlingCaps` if the text is all in uppercase.
     Auto,
 

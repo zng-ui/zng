@@ -1,11 +1,16 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::types::*;
-use crate::core::var::{context_var, IntoVar};
+use std::marker::PhantomData;
+
 use crate::core::{color::web_colors, units::*};
 use crate::core::{color::Rgba, text::*, units::TabLength};
+use crate::core::{
+    context::WidgetContext,
+    var::{context_var, IntoVar},
+};
 use crate::core::{impl_ui_node, UiNode};
 use crate::core::{property, var::Var};
+use crate::core::{types::*, var::VarValue};
 use crate::properties::with_context_var;
 
 context_var! {
@@ -154,13 +159,45 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
     with_context_var(child, WhiteSpaceVar, transform)
 }
 
-struct FontFeaturesNode<C: UiNode, F: Var<FontFeatures>> {
+struct WithFontFeatureNode<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> {
     child: C,
-    features: F,
+    _s: PhantomData<S>,
+    var: V,
+    delegate: D,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> UiNode for WithFontFeatureNode<C, S, V, D> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        // TODO
+    }
 }
 
+/// Include the font feature config in the widget context.
+pub fn with_font_feature<C: UiNode, S: VarValue, V: IntoVar<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static>(
+    child: C,
+    state: V,
+    set_feature: D,
+) -> impl UiNode {
+    WithFontFeatureNode {
+        child,
+        _s: PhantomData,
+        var: state.into_var(),
+        delegate: set_feature,
+    }
+}
+
+struct FontFeaturesNode<C: UiNode, V: Var<FontFeatures>> {
+    child: C,
+    features: V,
+}
 #[impl_ui_node(child)]
-impl<C: UiNode, F: Var<FontFeatures>> UiNode for FontFeaturesNode<C, F> {}
+impl<C: UiNode, V: Var<FontFeatures>> UiNode for FontFeaturesNode<C, V> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        //TODO
+    }
+}
 
 /// Sets/overrides font features.
 #[property(context)]
@@ -173,36 +210,36 @@ pub fn font_features(child: impl UiNode, features: impl IntoVar<FontFeatures>) -
 
 /// Sets the font kerning feature.
 #[property(context)]
-pub fn font_kerning(child: impl UiNode, kerning: impl IntoVar<KerningState>) -> impl UiNode {
-    font_features::set(child, kerning.into_var().map(|&k| FontFeatures::new().set_kerning(k)))
+pub fn font_kerning(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.kerning().set(s))
 }
 
 /// Sets the font common ligatures features.
 #[property(context)]
-pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
-    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_common_lig(k)))
+pub fn font_common_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.common_lig().set(s))
 }
 
 /// Sets the font discretionary ligatures feature.
 #[property(context)]
-pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
-    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_discretionary_lig(k)))
+pub fn font_discretionary_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.discretionary_lig().set(s))
 }
 
 /// Sets the font historical ligatures feature.
 #[property(context)]
-pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
-    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_historical_lig(k)))
+pub fn font_historical_lig(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.historical_lig().set(s))
 }
 
 /// Sets the font contextual alternatives feature.
 #[property(context)]
-pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<LigatureState>) -> impl UiNode {
-    font_features::set(child, state.into_var().map(|&k| FontFeatures::new().set_contextual_alt(k)))
+pub fn font_contextual_alt(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.contextual_alt().set(s))
 }
 
 /// Sets the font capital variant features.
 #[property(context)]
-pub fn font_caps_alt(child: impl UiNode, variant: impl IntoVar<CapsVariant>) -> impl UiNode {
-    font_features::set(child, variant.into_var().map(|&k| FontFeatures::new().caps(k)))
+pub fn font_caps(child: impl UiNode, state: impl IntoVar<CapsVariant>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.caps().set(s))
 }
