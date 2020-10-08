@@ -7,6 +7,7 @@ use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
 use crate::core::var::ContextVar;
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
+use std::collections::hash_map::Entry as HEntry;
 use std::{borrow::Cow, fmt, rc::Rc};
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
@@ -884,8 +885,6 @@ impl FontFeatures {
         self.set_feature(b"zero", state)
     }
 
-
-
     /// Gets the caps variant feature enabled.
     pub fn get_caps(&self) -> CapsVariant {
         if self.features.contains_key(b"c2sc") {
@@ -919,6 +918,353 @@ impl fmt::Debug for FontFeatures {
             r.entry(&std::str::from_utf8(*name).unwrap(), enabled);
         }
         r.finish()
+    }
+}
+
+#[derive(Default)]
+pub struct FontFeatures2(FnvHashMap<FontFeatureName, bool>);
+impl FontFeatures2 {
+    /// New default.
+    #[inline]
+    pub fn new() -> FontFeatures2 {
+        FontFeatures2::default()
+    }
+
+    /// New builder.
+    #[inline]
+    pub fn builder() -> FontFeaturesBuilder {
+        FontFeaturesBuilder::default()
+    }
+
+    /// Access to the named feature.
+    #[inline]
+    pub fn feature(&mut self, name: FontFeatureName) -> FontFeature {
+        FontFeature(self.0.entry(name))
+    }
+
+    /// Access to a set of named features that are managed together.
+    #[inline]
+    pub fn feature_set(&mut self, names: [FontFeatureName; 2]) -> FontFeatureSet {
+        FontFeatureSet {
+            features: &mut self.0,
+            names,
+        }
+    }
+
+    /// Access to the `kern` feature.
+    ///
+    /// About TODO
+    #[inline]
+    pub fn kerning(&mut self) -> FontFeature {
+        self.feature(b"kern")
+    }
+
+    /// Access to `liga` and `clig` features.
+    pub fn common_lig(&mut self) -> FontFeatureSet {
+        self.feature_set([b"liga", b"clig"])
+    }
+}
+
+/// A builder for [`FontFeatures`].
+///
+/// # Example
+///
+/// ```
+/// let features = FontFeatures::builder().no_kerning().build();
+/// ```
+#[derive(Default)]
+pub struct FontFeaturesBuilder(FontFeatures2);
+impl FontFeaturesBuilder {
+    /// Finish building.
+    #[inline]
+    pub fn build(self) -> FontFeatures2 {
+        self.0
+    }
+
+    /// Enable the named feature.
+    #[inline]
+    pub fn feature(mut self, name: FontFeatureName) -> Self {
+        self.0.feature(name).enable();
+        self
+    }
+    /// Disable the named feature.
+    #[inline]
+    pub fn no_feature(mut self, name: FontFeatureName) -> Self {
+        self.0.feature(name).disable();
+        self
+    }
+    /// Default the named feature.
+    #[inline]
+    pub fn auto_feature(mut self, name: FontFeatureName) -> Self {
+        self.0.feature(name).auto();
+        self
+    }
+
+    /// Enable [kerning](FontFeatures::kerning).
+    #[inline]
+    pub fn kerning(mut self) -> Self {
+        self.0.kerning().enable();
+        self
+    }
+    /// Disable kerning.
+    #[inline]
+    pub fn no_kerning(mut self) -> Self {
+        self.0.kerning().disable();
+        self
+    }
+    /// Default kerning.
+    #[inline]
+    pub fn auto_kerning(mut self) -> Self {
+        self.0.kerning().auto();
+        self
+    }
+}
+
+/// Represents a feature in a [`FontFeatures`] collection.
+pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, bool>);
+impl<'a> FontFeature<'a> {
+    /// Gets the OpenType name of the feature.
+    #[inline]
+    pub fn name(&self) -> &str {
+        let name = *self.0.key();
+        // SAFETY: We control the creation of entries.
+        unsafe { std::str::from_utf8_unchecked(name) }
+    }
+
+    /// Gets the current state of the feature.
+    pub fn state(&self) -> FontFeatureState {
+        match &self.0 {
+            HEntry::Occupied(e) => {
+                if *e.get() {
+                    FontFeatureState::Enabled
+                } else {
+                    FontFeatureState::Disabled
+                }
+            }
+            HEntry::Vacant(_) => FontFeatureState::Auto,
+        }
+    }
+
+    /// If the feature is explicitly enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.state() == FontFeatureState::Enabled
+    }
+
+    /// If the feature is explicitly disabled.
+    #[inline]
+    pub fn is_disabled(&self) -> bool {
+        self.state() == FontFeatureState::Disabled
+    }
+
+    /// If the feature is auto enabled zero-ui.
+    #[inline]
+    pub fn is_auto(&self) -> bool {
+        self.state() == FontFeatureState::Auto
+    }
+
+    /// Set the feature state.
+    #[inline]
+    pub fn set(self, state: FontFeatureState) {
+        match state {
+            FontFeatureState::Auto => self.auto(),
+            FontFeatureState::Enabled => self.enable(),
+            FontFeatureState::Disabled => self.disable(),
+        }
+    }
+
+    fn set_explicit(self, state: bool) {
+        match self.0 {
+            HEntry::Occupied(mut e) => {
+                e.insert(state);
+            }
+            HEntry::Vacant(e) => {
+                e.insert(state);
+            }
+        }
+    }
+
+    /// Enable the feature.
+    #[inline]
+    pub fn enable(self) {
+        self.set_explicit(true);
+    }
+
+    /// Disable the feature.
+    #[inline]
+    pub fn disable(self) {
+        self.set_explicit(false);
+    }
+
+    /// Set the feature to auto.
+    #[inline]
+    pub fn auto(self) {
+        if let HEntry::Occupied(e) = self.0 {
+            e.remove();
+        }
+    }
+}
+impl<'a> fmt::Debug for FontFeature<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "b\"{}\": {:?}", self.name(), self.state())
+    }
+}
+
+/// Represents a set of features in a [`FontFeatures`] collection, the features state is managed together.
+pub struct FontFeatureSet<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    names: [FontFeatureName; 2],
+}
+impl<'a> FontFeatureSet<'a> {
+    /// Gets the OpenType name of the features.
+    #[inline]
+    pub fn names(&self) -> &[FontFeatureName] {
+        &self.names
+    }
+
+    /// Gets the current state of the features.
+    ///
+    /// Returns `Auto` if the features are mixed.
+    #[inline]
+    pub fn state(&self) -> FontFeatureState {
+        match (self.features.get(self.names[0]), self.features.get(self.names[1])) {
+            (Some(&a), Some(&b)) if a == b => {
+                if a {
+                    FontFeatureState::Enabled
+                } else {
+                    FontFeatureState::Disabled
+                }
+            }
+            _ => FontFeatureState::Auto,
+        }
+    }
+
+    /// If the features are explicitly enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.state() == FontFeatureState::Enabled
+    }
+
+    /// If the features are explicitly disabled.
+    #[inline]
+    pub fn is_disabled(&self) -> bool {
+        self.state() == FontFeatureState::Disabled
+    }
+
+    /// If the features are auto enabled zero-ui, or in a mixed state.
+    #[inline]
+    pub fn is_auto(&self) -> bool {
+        self.state() == FontFeatureState::Auto
+    }
+
+    /// Set the feature state.
+    #[inline]
+    pub fn set(self, state: FontFeatureState) {
+        match state {
+            FontFeatureState::Auto => self.auto(),
+            FontFeatureState::Enabled => self.enable(),
+            FontFeatureState::Disabled => self.disable(),
+        }
+    }
+
+    fn set_explicit(self, state: bool) {
+        for name in &self.names {
+            self.features.insert(name, state);
+        }
+    }
+
+    /// Enable the feature.
+    #[inline]
+    pub fn enable(self) {
+        self.set_explicit(true);
+    }
+
+    /// Disable the feature.
+    #[inline]
+    pub fn disable(self) {
+        self.set_explicit(false);
+    }
+
+    /// Set the feature to auto.
+    #[inline]
+    pub fn auto(self) {
+        for name in &self.names {
+            self.features.remove(name);
+        }
+    }
+}
+impl<'a> fmt::Debug for FontFeatureSet<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "b\"{:?}\": {:?}", self.names(), self.state())
+    }
+}
+
+/// Represents the [capitalization variant](CapsVariant) features. At any time only one of
+/// these features are be enabled.
+pub struct CapsVariantFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+}
+impl<'a> CapsVariantFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 6] {
+        [b"smcp", b"c2sc", b"pcap", b"c2pc", b"unic", b"titl"]
+    }
+
+    /// Gets the current state of the features.
+    pub fn state(&self) -> CapsVariant {
+        // FIXME
+        if self.features.contains_key(b"c2sc") {
+            CapsVariant::AllSmallCaps
+        } else if self.features.contains_key(b"smcp") {
+            CapsVariant::SmallCaps
+        } else if self.features.contains_key(b"c2pc") {
+            CapsVariant::AllPetite
+        } else if self.features.contains_key(b"pcap") {
+            CapsVariant::Petite
+        } else if self.features.contains_key(b"unic") {
+            CapsVariant::Unicase
+        } else if self.features.contains_key(b"titl") {
+            CapsVariant::TitlingCaps
+        } else {
+            CapsVariant::Auto
+        }
+    }
+
+    /// If no feature is explicitly enabled/disabled.
+    #[inline]
+    pub fn is_auto(&self) -> bool {
+        self.state() == CapsVariant::Auto
+    }
+
+    /// Sets the features.
+    pub fn set(self, state: CapsVariant) {
+        for name in &self.names() {
+            self.features.remove(name);
+        }
+
+        let mut enable = move |n| {
+            self.features.insert(n, true);
+        };
+
+        match state {
+            CapsVariant::SmallCaps => enable(b"smcp"),
+            CapsVariant::AllSmallCaps => {
+                enable(b"smcp");
+                enable(b"c2sc");
+            }
+            CapsVariant::Petite => enable(b"pcap"),
+            CapsVariant::AllPetite => {
+                enable(b"pcap");
+                enable(b"c2pc");
+            }
+            CapsVariant::Unicase => enable(b"unic"),
+            CapsVariant::TitlingCaps => enable(b"titl"),
+            CapsVariant::Auto => {}
+        }
+    }
+}
+impl<'a> fmt::Debug for CapsVariantFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
     }
 }
 
