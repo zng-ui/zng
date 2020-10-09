@@ -3,7 +3,11 @@
 use std::marker::PhantomData;
 
 use crate::core::{color::web_colors, units::*};
-use crate::core::{color::Rgba, text::*, units::TabLength};
+use crate::core::{
+    color::Rgba,
+    text::{font_features::*, *},
+    units::TabLength,
+};
 use crate::core::{
     context::WidgetContext,
     var::{context_var, IntoVar},
