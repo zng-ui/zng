@@ -300,3 +300,9 @@ pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>
 pub fn font_style_set(child: impl UiNode, state: impl IntoVar<StyleSet>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.style_set().set(s))
 }
+
+/// Sets the font character variant alternative feature.
+#[property(context)]
+pub fn font_char_variant(child: impl UiNode, state: impl IntoVar<CharVariant>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.char_variant().set(s))
+}

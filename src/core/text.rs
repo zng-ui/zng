@@ -732,12 +732,20 @@ impl FontFeatures {
         NumFractionFeatures { features: &mut self.0 }
     }
 
-    /// Enables stylistic alternatives for sets of character
+    /// Enables stylistic alternatives for sets of characters.
     ///
     /// See [`StyleSet`] for more details.
     #[inline]
     pub fn style_set(&mut self) -> StyleSetFeatures {
         StyleSetFeatures { features: &mut self.0 }
+    }
+
+    /// Enables stylistic alternatives for individual characters.
+    ///
+    /// See [`StyleSet`] for more details.
+    #[inline]
+    pub fn char_variant(&mut self) -> CharVariantFeatures {
+        CharVariantFeatures { features: &mut self.0 }
     }
 }
 impl fmt::Debug for FontFeatures {
@@ -1511,6 +1519,56 @@ impl<'a> fmt::Debug for StyleSetFeatures<'a> {
     }
 }
 
+/// Represents the [char_variant](FontFeatures::char_variant) features. At any time only one of
+/// these features are be enabled.
+pub struct CharVariantFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+}
+impl<'a> CharVariantFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 100] {
+        CharVariant::NAMES
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> CharVariant {
+        for (i, name) in self.names().iter().enumerate() {
+            if self.features.get(name) == Some(&FEATURE_ENABLED) {
+                return (i as u8 + 1).into();
+            }
+        }
+        CharVariant::auto()
+    }
+    fn take_state(&mut self) -> CharVariant {
+        let mut state = CharVariant::auto();
+        for (i, name) in self.names().iter().enumerate() {
+            if self.features.get(name) == Some(&FEATURE_ENABLED) {
+                state = (i as u8 + 1).into()
+            }
+        }
+        state
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<CharVariant>) -> CharVariant {
+        let prev = self.take_state();
+        if let Some(name) = state.into().name() {
+            self.features.insert(name, FEATURE_ENABLED);
+        }
+        prev
+    }
+}
+impl<'a> fmt::Debug for CharVariantFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
+
 /// State of a [font feature](FontFeatures).
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct FontFeatureState(Option<u32>);
@@ -1733,11 +1791,19 @@ impl_from_and_into_var! {
     }
 }
 impl StyleSet {
+    /// Gets the feature name if it is not auto.
+    ///
+    /// The name is `ss{:00}` with the variant number.
     pub fn name(self) -> Option<FontFeatureName> {
+        self.variant().map(|n| Self::NAMES[n as usize - 1])
+    }
+
+    /// Gets the variant index if it is not auto.
+    pub fn variant(self) -> Option<u8> {
         if self == StyleSet::Auto {
             None
         } else {
-            Some(Self::NAMES[self as usize - 1])
+            Some(self as u8)
         }
     }
 
@@ -1751,24 +1817,24 @@ impl StyleSet {
 ///
 /// The styles depend on the font, it is recommended you create `const`s with named variants to use with a specific font.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct CharacterVariant(u8);
-impl CharacterVariant {
+pub struct CharVariant(u8);
+impl CharVariant {
     /// New variant.
     ///
-    /// Returns auto if `v == 0 || v > 99`.
+    /// `v == 0 || v > 99` is Auto, `v >= 1 && v <= 99` maps to their variant.
     #[inline]
     pub const fn new(v: u8) -> Self {
         if v > 99 {
-            CharacterVariant(0)
+            CharVariant(0)
         } else {
-            CharacterVariant(v)
+            CharVariant(v)
         }
     }
 
     /// New auto.
     #[inline]
     pub const fn auto() -> Self {
-        CharacterVariant(0)
+        CharVariant(0)
     }
 
     /// Is auto.
@@ -1778,9 +1844,11 @@ impl CharacterVariant {
     }
 
     /// Gets the feature name if it is not auto.
+    ///
+    /// The name is `cv{:00}` with the variant number.
     #[inline]
     pub fn name(self) -> Option<FontFeatureName> {
-        todo!()
+        self.variant().map(|n| Self::NAMES[n as usize - 1])
     }
 
     /// Gets the variant number, if it is not auto.
@@ -1791,5 +1859,22 @@ impl CharacterVariant {
         } else {
             Some(self.0)
         }
+    }
+
+    const NAMES: [FontFeatureName; 100] = [
+        b"cv01", b"cv02", b"cv03", b"cv04", b"cv05", b"cv06", b"cv07", b"cv08", b"cv09", b"cv20", b"cv21", b"cv22", b"cv23", b"cv24",
+        b"cv25", b"cv26", b"cv27", b"cv28", b"cv29", b"cv30", b"cv31", b"cv32", b"cv33", b"cv34", b"cv35", b"cv36", b"cv37", b"cv38",
+        b"cv39", b"cv40", b"cv41", b"cv42", b"cv43", b"cv44", b"cv45", b"cv46", b"cv47", b"cv48", b"cv49", b"cv50", b"cv51", b"cv52",
+        b"cv53", b"cv54", b"cv55", b"cv56", b"cv57", b"cv58", b"cv59", b"cv60", b"cv61", b"cv62", b"cv63", b"cv64", b"cv65", b"cv66",
+        b"cv67", b"cv68", b"cv69", b"cv70", b"cv71", b"cv72", b"cv73", b"cv74", b"cv75", b"cv76", b"cv77", b"cv78", b"cv79", b"cv70",
+        b"cv71", b"cv72", b"cv73", b"cv74", b"cv75", b"cv76", b"cv77", b"cv78", b"cv79", b"cv80", b"cv81", b"cv82", b"cv83", b"cv84",
+        b"cv85", b"cv86", b"cv87", b"cv88", b"cv89", b"cv90", b"cv91", b"cv92", b"cv93", b"cv94", b"cv95", b"cv96", b"cv97", b"cv98",
+        b"cv99", b"cv99",
+    ];
+}
+impl_from_and_into_var! {
+    /// `v == 0 || v > 99` is Auto, `v >= 1 && v <= 99` maps to their variant.
+    fn from(v: u8) -> CharVariant {
+        CharVariant::new(v)
     }
 }
