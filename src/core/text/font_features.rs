@@ -77,8 +77,13 @@ impl FontFeatures {
     }
 
     /// Access to a set of named features that are managed together.
+    ///
+    /// # Panics
+    ///
+    /// If `names` has less then 2 names.
     #[inline]
-    pub fn feature_set(&mut self, names: [FontFeatureName; 2]) -> FontFeatureSet {
+    pub fn feature_set(&mut self, names: &'static [FontFeatureName]) -> FontFeatureSet {
+        assert!(names.len() >= 2);
         FontFeatureSet {
             features: &mut self.0,
             names,
@@ -122,6 +127,17 @@ impl FontFeaturesBuilder {
         self.0.feature(name).set(state);
         self
     }
+
+    /// Sets all the named features to the same value.
+    ///
+    /// # Panics
+    ///
+    /// If `names` has less then 2 names.
+    #[inline]
+    pub fn feature_set(mut self, names: &'static [FontFeatureName], state: impl Into<FontFeatureState>) -> Self {
+        self.0.feature_set(names).set(state);
+        self
+    }
 }
 
 /// Generate `FontFeature` methods in `FontFeatures` and builder methods in `FontFeaturesBuilder`
@@ -142,7 +158,7 @@ macro_rules! font_features {
             $(#[$docs])*
             #[inline]
             pub fn $name(&mut self) -> FontFeatureSet {
-                self.feature_set([$feat0, $feat1])
+                self.feature_set(&[$feat0, $feat1])
             }
         }
     };
@@ -407,13 +423,13 @@ impl<'a> fmt::Debug for FontFeature<'a> {
 /// Represents a set of boolean features in a [`FontFeatures`] configuration, the features state is managed together.
 pub struct FontFeatureSet<'a> {
     features: &'a mut FnvHashMap<FontFeatureName, u32>,
-    names: [FontFeatureName; 2],
+    names: &'static [FontFeatureName],
 }
 impl<'a> FontFeatureSet<'a> {
     /// Gets the OpenType name of the features.
     #[inline]
-    pub fn names(&self) -> &[FontFeatureName] {
-        &self.names
+    pub fn names(&self) -> &'static [FontFeatureName] {
+        self.names
     }
 
     /// Gets the current state of the features.
@@ -421,9 +437,15 @@ impl<'a> FontFeatureSet<'a> {
     /// Returns `Auto` if the features are mixed.
     #[inline]
     pub fn state(&self) -> FontFeatureState {
-        match (self.features.get(self.names[0]), self.features.get(self.names[1])) {
-            (Some(&a), Some(&b)) if a == b => FontFeatureState(Some(a)),
-            _ => FontFeatureState::auto(),
+        if let Some(&a) = self.features.get(self.names[0]) {
+            for name in &self.names[1..] {
+                if self.features.get(name) != Some(&a) {
+                    return FontFeatureState::auto();
+                }
+            }
+            FontFeatureState(Some(a))
+        } else {
+            FontFeatureState::auto()
         }
     }
 
@@ -458,7 +480,7 @@ impl<'a> FontFeatureSet<'a> {
     }
 
     fn set_explicit(self, state: u32) {
-        for name in &self.names {
+        for name in self.names {
             self.features.insert(name, state);
         }
     }
@@ -478,7 +500,7 @@ impl<'a> FontFeatureSet<'a> {
     /// Set the feature to auto.
     #[inline]
     pub fn auto(self) {
-        for name in &self.names {
+        for name in self.names {
             self.features.remove(name);
         }
     }
@@ -488,7 +510,7 @@ impl<'a> fmt::Debug for FontFeatureSet<'a> {
         write!(
             f,
             "{:?}: {:?}",
-            self.names().iter().map(|s| name_to_str(s)).collect::<Vec<_>>(),
+            self.names.iter().map(|s| name_to_str(s)).collect::<Vec<_>>(),
             self.state()
         )
     }
