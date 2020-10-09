@@ -7,8 +7,8 @@ use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
 use crate::core::var::ContextVar;
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
-use std::collections::hash_map::Entry as HEntry;
 use std::{borrow::Cow, fmt, rc::Rc};
+use std::{collections::hash_map::Entry as HEntry, num::NonZeroU32};
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
 use webrender::api::GlyphInstance;
@@ -639,9 +639,12 @@ impl Default for WhiteSpace {
 /// ```
 pub type FontFeatureName = &'static [u8; 4];
 
+const FEATURE_ENABLED: u32 = 1;
+const FEATURE_DISABLED: u32 = 0;
+
 /// Font features configuration.
 #[derive(Default, Clone)]
-pub struct FontFeatures(FnvHashMap<FontFeatureName, bool>);
+pub struct FontFeatures(FnvHashMap<FontFeatureName, u32>);
 impl FontFeatures {
     /// New default.
     #[inline]
@@ -659,7 +662,7 @@ impl FontFeatures {
     ///
     /// Returns the previous state of all affected names.
     #[inline]
-    pub fn set_all(&mut self, other: &FontFeatures) -> Vec<(FontFeatureName, Option<bool>)> {
+    pub fn set_all(&mut self, other: &FontFeatures) -> Vec<(FontFeatureName, Option<u32>)> {
         let mut prev = Vec::with_capacity(other.0.len());
         for (&name, &state) in other.0.iter() {
             prev.push((name, self.0.insert(name, state)));
@@ -669,7 +672,7 @@ impl FontFeatures {
 
     /// Restore feature states that where overridden in [`set_all`](Self::set_all).
     #[inline]
-    pub fn restore(&mut self, prev: Vec<(FontFeatureName, Option<bool>)>) {
+    pub fn restore(&mut self, prev: Vec<(FontFeatureName, Option<u32>)>) {
         for (name, state) in prev {
             match state {
                 Some(state) => {
@@ -898,9 +901,10 @@ font_features! {
 // 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
 // 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
 // 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
+// review - https://harfbuzz.github.io/shaping-opentype-features.html
 
 /// Represents a feature in a [`FontFeatures`] configuration.
-pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, bool>);
+pub struct FontFeature<'a>(HEntry<'a, FontFeatureName, u32>);
 impl<'a> FontFeature<'a> {
     /// Gets the OpenType name of the feature.
     #[inline]
@@ -911,32 +915,26 @@ impl<'a> FontFeature<'a> {
     /// Gets the current state of the feature.
     pub fn state(&self) -> FontFeatureState {
         match &self.0 {
-            HEntry::Occupied(e) => {
-                if *e.get() {
-                    FontFeatureState::Enabled
-                } else {
-                    FontFeatureState::Disabled
-                }
-            }
-            HEntry::Vacant(_) => FontFeatureState::Auto,
+            HEntry::Occupied(e) => FontFeatureState(Some(*e.get())),
+            HEntry::Vacant(_) => FontFeatureState::auto(),
         }
     }
 
     /// If the feature is explicitly enabled.
     pub fn is_enabled(&self) -> bool {
-        self.state() == FontFeatureState::Enabled
+        self.state().is_enabled()
     }
 
     /// If the feature is explicitly disabled.
     #[inline]
     pub fn is_disabled(&self) -> bool {
-        self.state() == FontFeatureState::Disabled
+        self.state().is_disabled()
     }
 
     /// If the feature is auto enabled zero-ui.
     #[inline]
     pub fn is_auto(&self) -> bool {
-        self.state() == FontFeatureState::Auto
+        self.state().is_auto()
     }
 
     /// Set the feature state.
@@ -945,15 +943,14 @@ impl<'a> FontFeature<'a> {
     #[inline]
     pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
         let prev = self.state();
-        match state.into() {
-            FontFeatureState::Auto => self.auto(),
-            FontFeatureState::Enabled => self.enable(),
-            FontFeatureState::Disabled => self.disable(),
+        match state.into().0 {
+            Some(n) => self.set_explicit(n),
+            None => self.auto(),
         }
         prev
     }
 
-    fn set_explicit(self, state: bool) {
+    fn set_explicit(self, state: u32) {
         match self.0 {
             HEntry::Occupied(mut e) => {
                 e.insert(state);
@@ -967,13 +964,19 @@ impl<'a> FontFeature<'a> {
     /// Enable the feature.
     #[inline]
     pub fn enable(self) {
-        self.set_explicit(true);
+        self.set_explicit(FEATURE_ENABLED);
+    }
+
+    /// Enable the feature with alternative selection.
+    #[inline]
+    pub fn enable_alt(self, alt: NonZeroU32) {
+        self.set_explicit(alt.get())
     }
 
     /// Disable the feature.
     #[inline]
     pub fn disable(self) {
-        self.set_explicit(false);
+        self.set_explicit(FEATURE_DISABLED);
     }
 
     /// Set the feature to auto.
@@ -990,9 +993,9 @@ impl<'a> fmt::Debug for FontFeature<'a> {
     }
 }
 
-/// Represents a set of features in a [`FontFeatures`] configuration, the features state is managed together.
+/// Represents a set of boolean features in a [`FontFeatures`] configuration, the features state is managed together.
 pub struct FontFeatureSet<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
     names: [FontFeatureName; 2],
 }
 impl<'a> FontFeatureSet<'a> {
@@ -1008,32 +1011,26 @@ impl<'a> FontFeatureSet<'a> {
     #[inline]
     pub fn state(&self) -> FontFeatureState {
         match (self.features.get(self.names[0]), self.features.get(self.names[1])) {
-            (Some(&a), Some(&b)) if a == b => {
-                if a {
-                    FontFeatureState::Enabled
-                } else {
-                    FontFeatureState::Disabled
-                }
-            }
-            _ => FontFeatureState::Auto,
+            (Some(&a), Some(&b)) if a == b => FontFeatureState(Some(a)),
+            _ => FontFeatureState::auto(),
         }
     }
 
     /// If the features are explicitly enabled.
     pub fn is_enabled(&self) -> bool {
-        self.state() == FontFeatureState::Enabled
+        self.state().is_enabled()
     }
 
     /// If the features are explicitly disabled.
     #[inline]
     pub fn is_disabled(&self) -> bool {
-        self.state() == FontFeatureState::Disabled
+        self.state().is_disabled()
     }
 
     /// If the features are auto enabled zero-ui, or in a mixed state.
     #[inline]
     pub fn is_auto(&self) -> bool {
-        self.state() == FontFeatureState::Auto
+        self.state().is_auto()
     }
 
     /// Set the feature state.
@@ -1042,15 +1039,14 @@ impl<'a> FontFeatureSet<'a> {
     #[inline]
     pub fn set(self, state: impl Into<FontFeatureState>) -> FontFeatureState {
         let prev = self.state();
-        match state.into() {
-            FontFeatureState::Auto => self.auto(),
-            FontFeatureState::Enabled => self.enable(),
-            FontFeatureState::Disabled => self.disable(),
+        match state.into().0 {
+            Some(n) => self.set_explicit(n),
+            None => self.auto(),
         }
         prev
     }
 
-    fn set_explicit(self, state: bool) {
+    fn set_explicit(self, state: u32) {
         for name in &self.names {
             self.features.insert(name, state);
         }
@@ -1059,13 +1055,13 @@ impl<'a> FontFeatureSet<'a> {
     /// Enable the feature.
     #[inline]
     pub fn enable(self) {
-        self.set_explicit(true);
+        self.set_explicit(FEATURE_ENABLED);
     }
 
     /// Disable the feature.
     #[inline]
     pub fn disable(self) {
-        self.set_explicit(false);
+        self.set_explicit(FEATURE_DISABLED);
     }
 
     /// Set the feature to auto.
@@ -1090,7 +1086,7 @@ impl<'a> fmt::Debug for FontFeatureSet<'a> {
 /// Represents the [capitalization variant](FontFeatures::caps) features. At any time only one of
 /// these features are be enabled.
 pub struct CapsVariantFeatures<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
 }
 impl<'a> CapsVariantFeatures<'a> {
     /// Gets the OpenType names of all the features affected.
@@ -1102,7 +1098,7 @@ impl<'a> CapsVariantFeatures<'a> {
 
     /// Gets the current state of the features.
     pub fn state(&self) -> CapsVariant {
-        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default() == FEATURE_ENABLED;
 
         if enabled(b"c2sc") {
             CapsVariant::AllSmallCaps
@@ -1116,9 +1112,9 @@ impl<'a> CapsVariantFeatures<'a> {
             CapsVariant::Unicase
         } else {
             match self.features.get(b"titl") {
-                Some(&true) => CapsVariant::TitlingCaps,
-                Some(&false) => CapsVariant::None,
-                None => CapsVariant::Auto,
+                Some(&FEATURE_ENABLED) => CapsVariant::TitlingCaps,
+                Some(&FEATURE_DISABLED) => CapsVariant::None,
+                _ => CapsVariant::Auto,
             }
         }
     }
@@ -1128,7 +1124,7 @@ impl<'a> CapsVariantFeatures<'a> {
         let mut enabled = |i, expected| {
             let name = names[i];
             debug_assert_eq!(name, expected);
-            if self.features.remove(name).unwrap_or_default() {
+            if self.features.remove(name).unwrap_or_default() == FEATURE_ENABLED {
                 for name in &names[(i + 1)..] {
                     self.features.remove(name);
                 }
@@ -1150,9 +1146,9 @@ impl<'a> CapsVariantFeatures<'a> {
             CapsVariant::Unicase
         } else {
             match self.features.remove(b"titl") {
-                Some(true) => CapsVariant::TitlingCaps,
-                Some(false) => CapsVariant::None,
-                None => CapsVariant::Auto,
+                Some(FEATURE_ENABLED) => CapsVariant::TitlingCaps,
+                Some(FEATURE_DISABLED) => CapsVariant::None,
+                _ => CapsVariant::Auto,
             }
         }
     }
@@ -1170,7 +1166,7 @@ impl<'a> CapsVariantFeatures<'a> {
         let prev = self.take_state();
 
         let mut enable = |n| {
-            self.features.insert(n, true);
+            self.features.insert(n, FEATURE_ENABLED);
         };
 
         match state.into() {
@@ -1187,7 +1183,7 @@ impl<'a> CapsVariantFeatures<'a> {
             CapsVariant::Unicase => enable(b"unic"),
             CapsVariant::TitlingCaps => enable(b"titl"),
             CapsVariant::None => {
-                self.features.insert(b"titl", false);
+                self.features.insert(b"titl", FEATURE_DISABLED);
             }
             CapsVariant::Auto => {}
         }
@@ -1204,7 +1200,7 @@ impl<'a> fmt::Debug for CapsVariantFeatures<'a> {
 /// Represents the [numeric variant](FontFeatures::numeric) features. At any time only one of
 /// these features are be enabled.
 pub struct NumVariantFeatures<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
 }
 impl<'a> NumVariantFeatures<'a> {
     /// Gets the OpenType names of all the features affected.
@@ -1216,7 +1212,7 @@ impl<'a> NumVariantFeatures<'a> {
     /// Gets the current state of the features.
     #[inline]
     pub fn state(&self) -> NumVariant {
-        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default() == FEATURE_ENABLED;
 
         if enabled(b"lnum") {
             NumVariant::Lining
@@ -1231,9 +1227,9 @@ impl<'a> NumVariantFeatures<'a> {
         let lnum = self.features.remove(b"lnum");
         let onum = self.features.remove(b"onum");
 
-        if lnum.unwrap_or_default() {
+        if lnum.unwrap_or_default() == FEATURE_ENABLED {
             NumVariant::Lining
-        } else if onum.unwrap_or_default() {
+        } else if onum.unwrap_or_default() == FEATURE_ENABLED {
             NumVariant::OldStyle
         } else {
             NumVariant::Auto
@@ -1255,10 +1251,10 @@ impl<'a> NumVariantFeatures<'a> {
 
         match state.into() {
             NumVariant::OldStyle => {
-                self.features.insert(b"onum", true);
+                self.features.insert(b"onum", FEATURE_ENABLED);
             }
             NumVariant::Lining => {
-                self.features.insert(b"lnum", true);
+                self.features.insert(b"lnum", FEATURE_ENABLED);
             }
             NumVariant::Auto => {}
         }
@@ -1275,7 +1271,7 @@ impl<'a> fmt::Debug for NumVariantFeatures<'a> {
 /// Represents the [numeric spacing](FontFeatures::num_spacing) features. At any time only one of
 /// these features are be enabled.
 pub struct NumSpacingFeatures<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
 }
 impl<'a> NumSpacingFeatures<'a> {
     /// Gets the OpenType names of all the features affected.
@@ -1287,7 +1283,7 @@ impl<'a> NumSpacingFeatures<'a> {
     /// Gets the current state of the features.
     #[inline]
     pub fn state(&self) -> NumSpacing {
-        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default() == FEATURE_ENABLED;
 
         if enabled(b"pnum") {
             NumSpacing::Proportional
@@ -1302,9 +1298,9 @@ impl<'a> NumSpacingFeatures<'a> {
         let pnum = self.features.remove(b"pnum");
         let tnum = self.features.remove(b"tnum");
 
-        if pnum.unwrap_or_default() {
+        if pnum.unwrap_or_default() == FEATURE_ENABLED {
             NumSpacing::Proportional
-        } else if tnum.unwrap_or_default() {
+        } else if tnum.unwrap_or_default() == FEATURE_ENABLED {
             NumSpacing::Tabular
         } else {
             NumSpacing::Auto
@@ -1319,10 +1315,10 @@ impl<'a> NumSpacingFeatures<'a> {
         let prev = self.take_state();
         match state.into() {
             NumSpacing::Tabular => {
-                self.features.insert(b"tnum", true);
+                self.features.insert(b"tnum", FEATURE_ENABLED);
             }
             NumSpacing::Proportional => {
-                self.features.insert(b"pnum", true);
+                self.features.insert(b"pnum", FEATURE_ENABLED);
             }
             NumSpacing::Auto => {}
         }
@@ -1338,7 +1334,7 @@ impl<'a> fmt::Debug for NumSpacingFeatures<'a> {
 /// Represents the [numeric fraction](FontFeatures::num_fraction) features. At any time only one of
 /// these features are be enabled.
 pub struct NumFractionFeatures<'a> {
-    features: &'a mut FnvHashMap<FontFeatureName, bool>,
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
 }
 impl<'a> NumFractionFeatures<'a> {
     /// Gets the OpenType names of all the features affected.
@@ -1350,7 +1346,7 @@ impl<'a> NumFractionFeatures<'a> {
     /// Gets the current state of the features.
     #[inline]
     pub fn state(&self) -> NumFraction {
-        let enabled = |n| self.features.get(n).copied().unwrap_or_default();
+        let enabled = |n| self.features.get(n).copied().unwrap_or_default() == FEATURE_ENABLED;
 
         if enabled(b"frac") {
             NumFraction::Diagonal
@@ -1365,9 +1361,9 @@ impl<'a> NumFractionFeatures<'a> {
         let frac = self.features.remove(b"frac");
         let afrc = self.features.remove(b"afrc");
 
-        if frac.unwrap_or_default() {
+        if frac.unwrap_or_default() == FEATURE_ENABLED {
             NumFraction::Diagonal
-        } else if afrc.unwrap_or_default() {
+        } else if afrc.unwrap_or_default() == FEATURE_ENABLED {
             NumFraction::Stacked
         } else {
             NumFraction::Auto
@@ -1382,10 +1378,10 @@ impl<'a> NumFractionFeatures<'a> {
         let prev = self.take_state();
         match state.into() {
             NumFraction::Diagonal => {
-                self.features.insert(b"frac", true);
+                self.features.insert(b"frac", FEATURE_ENABLED);
             }
             NumFraction::Stacked => {
-                self.features.insert(b"afrc", true);
+                self.features.insert(b"afrc", FEATURE_ENABLED);
             }
             NumFraction::Auto => {}
         }
@@ -1399,22 +1395,95 @@ impl<'a> fmt::Debug for NumFractionFeatures<'a> {
 }
 
 /// State of a [font feature](FontFeatures).
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum FontFeatureState {
-    /// Font layout and render decide if the feature is used.
-    Auto,
-    /// Use the feature if implemented by the font.
-    Enabled,
-    /// Don't use the feature.
-    Disabled,
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct FontFeatureState(Option<u32>);
+impl FontFeatureState {
+    /// Automatic state.
+    #[inline]
+    pub const fn auto() -> Self {
+        FontFeatureState(None)
+    }
+
+    /// Enabled state.
+    #[inline]
+    pub const fn enabled() -> Self {
+        FontFeatureState(Some(1))
+    }
+
+    /// Enabled state with alternative selected.
+    #[inline]
+    pub const fn enabled_alt(alt: NonZeroU32) -> Self {
+        FontFeatureState(Some(alt.get()))
+    }
+
+    /// Disabled state.
+    #[inline]
+    pub const fn disabled() -> Self {
+        FontFeatureState(Some(0))
+    }
+
+    /// Is [`auto`](Self::auto).
+    #[inline]
+    pub fn is_auto(self) -> bool {
+        self == Self::auto()
+    }
+
+    /// Is [`enabled`](Self::enabled) or [`enabled_alt`](Self::enabled_alt).
+    #[inline]
+    pub fn is_enabled(self) -> bool {
+        if let Some(n) = self.0 {
+            if n >= 1 {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Is [`disabled`](Self::disabled).
+    #[inline]
+    pub fn is_disabled(self) -> bool {
+        self == Self::disabled()
+    }
+
+    /// Gets the enabled alternative.
+    #[inline]
+    pub fn alt(self) -> Option<u32> {
+        if let Some(n) = self.0 {
+            if n >= 1 {
+                return Some(n);
+            }
+        }
+        None
+    }
+}
+impl fmt::Debug for FontFeatureState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            Some(n) => {
+                if n == FEATURE_DISABLED {
+                    write!(f, "FontFeatureState::disabled()")
+                } else if n == FEATURE_ENABLED {
+                    write!(f, "FontFeatureState::enabled()")
+                } else {
+                    write!(f, "FontFeatureState::enabled_alt({})", n)
+                }
+            }
+            None => write!(f, "FontFeatureState::auto()"),
+        }
+    }
 }
 impl_from_and_into_var! {
     fn from(enabled: bool) -> FontFeatureState {
         if enabled {
-            FontFeatureState::Enabled
+            FontFeatureState::enabled()
         } else {
-            FontFeatureState::Disabled
+            FontFeatureState::disabled()
         }
+    }
+
+    /// `0` is disabled, `>=1` is enabled with the alt value.
+    fn from(alt: u32) -> FontFeatureState {
+        FontFeatureState(Some(alt))
     }
 }
 
