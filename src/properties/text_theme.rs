@@ -264,3 +264,39 @@ pub fn font_num_spacing(child: impl UiNode, state: impl IntoVar<NumSpacing>) -> 
 pub fn font_num_fraction(child: impl UiNode, state: impl IntoVar<NumFraction>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.num_fraction().set(s))
 }
+
+/// Sets the font swash features.
+#[property(context)]
+pub fn font_swash(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.swash().set(s))
+}
+
+/// Sets the font stylistic alternative feature.
+#[property(context)]
+pub fn font_stylistic(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.stylistic().set(s))
+}
+
+/// Sets the font historical forms alternative feature.
+#[property(context)]
+pub fn font_historical_forms(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.historical_forms().set(s))
+}
+
+/// Sets the font ornaments alternative feature.
+#[property(context)]
+pub fn font_ornaments(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.ornaments().set(s))
+}
+
+/// Sets the font annotation alternative feature.
+#[property(context)]
+pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.annotation().set(s))
+}
+
+/// Sets the font stylistic set alternative feature.
+#[property(context)]
+pub fn font_style_set(child: impl UiNode, state: impl IntoVar<StyleSet>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.style_set().set(s))
+}

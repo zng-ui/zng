@@ -7,7 +7,7 @@ use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
 use crate::core::var::ContextVar;
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
-use std::{borrow::Cow, fmt, rc::Rc};
+use std::{borrow::Cow, fmt, mem, rc::Rc};
 use std::{collections::hash_map::Entry as HEntry, num::NonZeroU32};
 use std::{collections::HashMap, sync::Arc};
 use webrender::api::units::Au;
@@ -700,15 +700,6 @@ impl FontFeatures {
         }
     }
 
-    /// The most common ligatures, like for `fi`, `ffi`, `th` or similar.
-    ///
-    /// This corresponds to OpenType `liga` and `clig` features.
-    ///
-    /// `Auto` always activates these ligatures.
-    pub fn common_lig(&mut self) -> FontFeatureSet {
-        self.feature_set([b"liga", b"clig"])
-    }
-
     /// Font capital glyph variants.
     ///
     /// See [`CapsVariant`] for more details.
@@ -736,8 +727,17 @@ impl FontFeatures {
     /// Font numeric spacing variants.
     ///
     /// See [`NumSpacing`] for more details.
+    #[inline]
     pub fn num_fraction(&mut self) -> NumFractionFeatures {
         NumFractionFeatures { features: &mut self.0 }
+    }
+
+    /// Enables stylistic alternatives for sets of character
+    ///
+    /// See [`StyleSet`] for more details.
+    #[inline]
+    pub fn style_set(&mut self) -> StyleSetFeatures {
+        StyleSetFeatures { features: &mut self.0 }
     }
 }
 impl fmt::Debug for FontFeatures {
@@ -778,16 +778,6 @@ impl FontFeaturesBuilder {
         self
     }
 
-    /// The most common ligatures, like for `fi`, `ffi`, `th` or similar.
-    ///
-    /// This corresponds to OpenType `liga` and `clig` features.
-    ///
-    /// `Auto` always activates these ligatures.
-    pub fn common_lig(mut self, state: impl Into<FontFeatureState>) -> Self {
-        self.0.common_lig().set(state);
-        self
-    }
-
     /// Font capital glyph variants.
     ///
     /// See [`CapsVariant`] for more details.
@@ -823,6 +813,15 @@ impl FontFeaturesBuilder {
         self.0.num_fraction().set(state);
         self
     }
+
+    /// Enables stylistic alternatives for sets of character
+    ///
+    /// See [`StyleSet`] for more details.
+    #[inline]
+    pub fn style_set(mut self, state: impl Into<StyleSet>) -> Self {
+        self.0.style_set().set(state);
+        self
+    }
 }
 
 /// Generate `FontFeature` methods in `FontFeatures` and builder methods in `FontFeaturesBuilder`
@@ -830,25 +829,44 @@ impl FontFeaturesBuilder {
 macro_rules! font_features {
     ($(
         $(#[$docs:meta])*
-        fn $name:ident($o_name:tt);
+        fn $name:ident($feat0:tt $(, $feat1:tt)?);
     )+) => {
-        impl FontFeatures {$(
+        $(
+            font_features!{feature $(#[$docs])* fn $name($feat0 $(, $feat1)?); }
+            font_features!{builder $(#[$docs])* fn $name(); }
+        )+
+    };
+
+    (feature $(#[$docs:meta])* fn $name:ident($feat0:tt, $feat1:tt); ) => {
+        impl FontFeatures {
+            $(#[$docs])*
+            #[inline]
+            pub fn $name(&mut self) -> FontFeatureSet {
+                self.feature_set([$feat0, $feat1])
+            }
+        }
+    };
+
+    (feature $(#[$docs:meta])* fn $name:ident($feat0:tt);) => {
+        impl FontFeatures {
             $(#[$docs])*
             #[inline]
             pub fn $name(&mut self) -> FontFeature {
-                self.feature($o_name)
+                self.feature($feat0)
             }
-        )+}
+        }
+    };
 
-        impl FontFeaturesBuilder {$(
+    (builder $(#[$docs:meta])* fn $name:ident();) => {
+        impl FontFeaturesBuilder {
             $(#[$docs])*
             #[inline]
             pub fn $name(mut self, state: impl Into<FontFeatureState>) -> Self {
                 self.0.$name().set(state);
                 self
             }
-        )+}
-    }
+        }
+    };
 }
 
 font_features! {
@@ -858,6 +876,13 @@ font_features! {
     ///
     /// `Auto` always activates these kerning.
     fn kerning(b"kern");
+
+    /// The most common ligatures, like for `fi`, `ffi`, `th` or similar.
+    ///
+    /// This corresponds to OpenType `liga` and `clig` features.
+    ///
+    /// `Auto` always activates these ligatures.
+    fn common_lig(b"liga", b"clig");
 
     /// Ligatures specific to the font, usually decorative.
     ///
@@ -893,6 +918,49 @@ font_features! {
     ///
     /// `Auto` deactivates this feature.
     fn slashed_zero(b"zero");
+
+    /// Use swashes flourish style.
+    ///
+    /// Fonts can have alternative swash styles, you can select then by enabling a number.
+    ///
+    /// This corresponds to OpenType `swsh` and `cswh` feature.
+    ///
+    /// `Auto` does not use swashes.
+    fn swash(b"swsh", b"cswh");
+
+    /// Use stylistic alternatives.
+    ///
+    /// Fonts can have multiple alternative styles, you can select then by enabling a number.
+    ///
+    /// This corresponds to OpenType `salt` feature.
+    ///
+    /// `Auto` does not use alternative styles.
+    fn stylistic(b"salt");
+
+    /// Use glyphs that were common in the past but not today.
+    ///
+    /// This corresponds to OpenType `hist` feature.
+    ///
+    /// `Auto` does not use alternative styles.
+    fn historical_forms(b"hist");
+
+    /// Replace letter with fleurons, dingbats and border elements.
+    ///
+    /// Fonts can have multiple alternative styles, you can select then by enabling a number.
+    ///
+    /// This corresponds to OpenType `ornm` feature.
+    ///
+    /// `Auto` does not enable this by default, but some fonts are purely dingbats glyphs.
+    fn ornaments(b"ornm");
+
+    /// Enables annotation alternatives, like circled digits or inverted characters.
+    ///
+    /// Fonts can have multiple alternative styles, you can select then by enabling a number.
+    ///
+    /// This corresponds to OpenType `nalt` feature.
+    ///
+    /// `Auto` does not use alternative styles.
+    fn annotation(b"nalt");
 }
 
 // TODO
@@ -1393,6 +1461,55 @@ impl<'a> fmt::Debug for NumFractionFeatures<'a> {
         fmt::Debug::fmt(&self.state(), f)
     }
 }
+/// Represents the [style_set](FontFeatures::style_set) features. At any time only one of
+/// these features are be enabled.
+pub struct StyleSetFeatures<'a> {
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+}
+impl<'a> StyleSetFeatures<'a> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> [FontFeatureName; 20] {
+        StyleSet::NAMES
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> StyleSet {
+        for (i, name) in self.names().iter().enumerate() {
+            if self.features.get(name) == Some(&FEATURE_ENABLED) {
+                return (i as u8 + 1).into();
+            }
+        }
+        StyleSet::Auto
+    }
+    fn take_state(&mut self) -> StyleSet {
+        let mut state = StyleSet::Auto;
+        for (i, name) in self.names().iter().enumerate() {
+            if self.features.get(name) == Some(&FEATURE_ENABLED) {
+                state = (i as u8 + 1).into()
+            }
+        }
+        state
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<StyleSet>) -> StyleSet {
+        let prev = self.take_state();
+        if let Some(name) = state.into().name() {
+            self.features.insert(name, FEATURE_ENABLED);
+        }
+        prev
+    }
+}
+impl<'a> fmt::Debug for StyleSetFeatures<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
 
 /// State of a [font feature](FontFeatures).
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -1570,4 +1687,109 @@ pub enum NumFraction {
     ///
     /// This corresponds to OpenType `afrc` feature.
     Stacked,
+}
+
+/// All possible [style_set](FontFeatures::style_set) features.
+///
+/// The styles depend on the font, it is recommended you create an `enum` with named sets that
+/// converts into this one for each font you wish to use.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[repr(u8)]
+pub enum StyleSet {
+    /// Don't use alternative style set.
+    Auto = 0,
+
+    S01,
+    S02,
+    S03,
+    S04,
+    S05,
+    S06,
+    S07,
+    S08,
+    S09,
+    S10,
+
+    S11,
+    S12,
+    S13,
+    S14,
+    S15,
+    S16,
+    S17,
+    S18,
+    S19,
+    S20,
+}
+impl_from_and_into_var! {
+    /// `set == 0 || set > 20` is Auto, `set >= 1 && set <= 20` maps to their variant.
+    fn from(set: u8) -> StyleSet {
+        if set > 20 {
+            StyleSet::Auto
+        } else {
+            // SAFETY: We eliminated the bad values in the `if`.
+            unsafe { mem::transmute(set) }
+        }
+    }
+}
+impl StyleSet {
+    pub fn name(self) -> Option<FontFeatureName> {
+        if self == StyleSet::Auto {
+            None
+        } else {
+            Some(Self::NAMES[self as usize - 1])
+        }
+    }
+
+    const NAMES: [FontFeatureName; 20] = [
+        b"ss01", b"ss02", b"ss03", b"ss04", b"ss05", b"ss06", b"ss07", b"ss08", b"ss09", b"ss10", b"ss11", b"ss12", b"ss13", b"ss14",
+        b"ss15", b"ss16", b"ss17", b"ss18", b"ss19", b"ss20",
+    ];
+}
+
+/// All possible [character_variant](FontFeatures::character_variant) features (`cv00..=cv99`).
+///
+/// The styles depend on the font, it is recommended you create `const`s with named variants to use with a specific font.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct CharacterVariant(u8);
+impl CharacterVariant {
+    /// New variant.
+    ///
+    /// Returns auto if `v == 0 || v > 99`.
+    #[inline]
+    pub const fn new(v: u8) -> Self {
+        if v > 99 {
+            CharacterVariant(0)
+        } else {
+            CharacterVariant(v)
+        }
+    }
+
+    /// New auto.
+    #[inline]
+    pub const fn auto() -> Self {
+        CharacterVariant(0)
+    }
+
+    /// Is auto.
+    #[inline]
+    pub const fn is_auto(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Gets the feature name if it is not auto.
+    #[inline]
+    pub fn name(self) -> Option<FontFeatureName> {
+        todo!()
+    }
+
+    /// Gets the variant number, if it is not auto.
+    #[inline]
+    pub const fn variant(self) -> Option<u8> {
+        if self.0 == 0 {
+            None
+        } else {
+            Some(self.0)
+        }
+    }
 }
