@@ -6,7 +6,6 @@ use std::{fmt, mem};
 
 // TODO
 // main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
-// 1 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-east-asian
 // 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
 // review - https://harfbuzz.github.io/shaping-opentype-features.html
 
@@ -378,6 +377,23 @@ font_features! {
     ///
     /// See [`FontPosition`] for more details.
     fn position(FontPosition) -> FontFeatureExclusiveSet;
+
+    /// Force the use of ruby (rubi) glyph variants.
+    ///
+    /// This corresponds to OpenType `ruby` feature.
+    ///
+    /// `Auto` does not force the use of ruby variants.
+    fn ruby(b"ruby");
+
+    /// East Asian logographic set selection.
+    ///
+    /// See [`EastAsianVariant`] for more details.
+    fn east_asian_variant(EastAsianVariant) -> FontFeatureExclusiveSet;
+
+    /// East Asian figure width control
+    ///
+    /// See [`EastAsianWidth`] for more details.
+    fn east_asian_width(EastAsianWidth) -> FontFeatureExclusiveSet;
 }
 
 /// Represents a feature in a [`FontFeatures`] configuration.
@@ -1271,5 +1287,108 @@ impl FontFeatureExclusiveSetState for FontPosition {
     #[inline]
     fn auto() -> Self {
         FontPosition::Auto
+    }
+}
+
+/// Logographic glyph variants for East Asian scripts.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum EastAsianVariant {
+    /// Used the font default glyphs.
+    Auto,
+    /// JIS X 0208-1978 (first standard)
+    ///
+    /// This corresponds to OpenType `jp78` feature.
+    Jis78,
+    /// JIS X 0208-1983 (second standard)
+    ///
+    /// This corresponds to OpenType `jp83` feature.
+    Jis83,
+    /// JIS X 0208-1990 (third standard)
+    ///
+    /// This corresponds to OpenType `jp90` feature.
+    Jis90,
+
+    /// JIS X 0213 (2004)
+    ///
+    /// This corresponds to OpenType `jp04` feature.
+    Jis04,
+
+    /// Simplified Chinese glyphs.
+    ///
+    /// This corresponds to OpenType `smpl` feature.
+    Simplified,
+    /// Traditional Chinese glyphs.
+    ///
+    /// This corresponds to OpenType `trad` feature.
+    Tradicional
+}
+impl FontFeatureExclusiveSetState for EastAsianVariant {
+    fn names() -> &'static [FontFeatureName] {
+        &[b"jp78", b"jp83", b"jp90", b"jp04", b"smpl", b"trad"]
+    }
+
+    fn variant(self) -> Option<u32> {
+        if self == EastAsianVariant::Auto {
+            None
+        } else {
+            Some(self as u32)
+        }
+    }
+
+    fn from_variant(v: u32) -> Self {
+        if v > 6 {
+            EastAsianVariant::Auto
+        } else {
+            // SAFETY: we validated the input in the `if`.
+            unsafe { mem::transmute(v as u8) }
+        }
+    }
+
+    fn auto() -> Self {
+        todo!()
+    }
+}
+
+/// The sizing of figures used for East Asian characters
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum EastAsianWidth {
+    /// Uses the font default size.
+    Auto,
+    /// The set of characters which vary in width.
+    ///
+    /// This corresponds to OpenType `pwid` feature.
+    Proportional,
+    /// The set of that are all the same width, roughly square.
+    ///
+    /// This corresponds to OpenType `fwid` feature.
+    Full
+}
+impl FontFeatureExclusiveSetState for EastAsianWidth {
+    #[inline]
+    fn names() -> &'static [FontFeatureName] {
+        &[b"pwid", b"fwid"]
+    }
+
+    #[inline]
+    fn variant(self) -> Option<u32> {
+        match self {
+            EastAsianWidth::Auto => None,
+            EastAsianWidth::Proportional => Some(1),
+            EastAsianWidth::Full => Some(2),
+        }
+    }
+
+    #[inline]
+    fn from_variant(v: u32) -> Self {
+        match v {
+            1 => EastAsianWidth::Proportional,
+            2 => EastAsianWidth::Full,
+            _ => EastAsianWidth::Auto
+        }
+    }
+
+    #[inline]
+    fn auto() -> Self {
+        EastAsianWidth::Auto
     }
 }
