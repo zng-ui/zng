@@ -1320,7 +1320,7 @@ pub enum EastAsianVariant {
     /// Traditional Chinese glyphs.
     ///
     /// This corresponds to OpenType `trad` feature.
-    Tradicional
+    Tradicional,
 }
 impl FontFeatureExclusiveSetState for EastAsianVariant {
     fn names() -> &'static [FontFeatureName] {
@@ -1361,7 +1361,7 @@ pub enum EastAsianWidth {
     /// The set of that are all the same width, roughly square.
     ///
     /// This corresponds to OpenType `fwid` feature.
-    Full
+    Full,
 }
 impl FontFeatureExclusiveSetState for EastAsianWidth {
     #[inline]
@@ -1383,7 +1383,7 @@ impl FontFeatureExclusiveSetState for EastAsianWidth {
         match v {
             1 => EastAsianWidth::Proportional,
             2 => EastAsianWidth::Full,
-            _ => EastAsianWidth::Auto
+            _ => EastAsianWidth::Auto,
         }
     }
 

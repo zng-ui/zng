@@ -326,5 +326,5 @@ pub fn font_ea_variant(child: impl UiNode, state: impl IntoVar<EastAsianVariant>
 /// Sets the East Asian figure width.
 #[property(context)]
 pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
-    with_font_feature(child, state, |f, s|f.east_asian_width().set(s))
+    with_font_feature(child, state, |f, s| f.east_asian_width().set(s))
 }
