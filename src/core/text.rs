@@ -615,7 +615,7 @@ impl fmt::Debug for TextTransformFn {
 }
 
 /// Text white space transform.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum WhiteSpace {
     /// Text is not changed, all white spaces and line breaks are preserved.
     Preserve,

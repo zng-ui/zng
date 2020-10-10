@@ -310,3 +310,9 @@ pub fn font_style_set(child: impl UiNode, state: impl IntoVar<StyleSet>) -> impl
 pub fn font_char_variant(child: impl UiNode, state: impl IntoVar<CharVariant>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.char_variant().set(s))
 }
+
+/// Sets the [`FontPositionVar`] context var.
+#[property(context)]
+pub fn font_position(child: impl UiNode, state: impl IntoVar<FontPosition>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.position().set(s))
+}

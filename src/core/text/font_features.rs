@@ -7,8 +7,6 @@ use std::{fmt, mem};
 // TODO
 // main: https://developer.mozilla.org/en-US/docs/Web/CSS/font-feature-settings
 // 1 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-east-asian
-// 2 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-alternates
-// 4 - https://developer.mozilla.org/en-US/docs/Web/CSS/font-variant-position
 // 5 - https://helpx.adobe.com/pt/fonts/user-guide.html/pt/fonts/using/open-type-syntax.ug.html#calt
 // review - https://harfbuzz.github.io/shaping-opentype-features.html
 
@@ -342,7 +340,7 @@ font_features! {
     /// `Auto` does not enable this by default, but some fonts are purely dingbats glyphs.
     fn ornaments(b"ornm");
 
-    /// Enables annotation alternatives, like circled digits or inverted characters.
+    /// Font annotation alternatives, like circled digits or inverted characters.
     ///
     /// Fonts can have multiple alternative styles, you can select then by enabling a number.
     ///
@@ -366,15 +364,20 @@ font_features! {
     /// See [`NumSpacing`] for more details.
     fn num_fraction(NumFraction) -> FontFeatureExclusiveSet;
 
-    /// Enables stylistic alternatives for sets of characters.
+    /// Font stylistic alternatives for sets of characters.
     ///
     /// See [`StyleSet`] for more details.
     fn style_set(StyleSet) -> FontFeatureExclusiveSet;
 
-    /// Enables stylistic alternatives for individual characters.
+    /// Font stylistic alternatives for individual characters.
     ///
     /// See [`StyleSet`] for more details.
     fn char_variant(CharVariant) -> FontFeatureExclusiveSet;
+
+    /// Font sub/super script alternatives.
+    ///
+    /// See [`FontPosition`] for more details.
+    fn position(FontPosition) -> FontFeatureExclusiveSet;
 }
 
 /// Represents a feature in a [`FontFeatures`] configuration.
@@ -1224,5 +1227,49 @@ impl FontFeatureExclusiveSetState for CharVariant {
     #[inline]
     fn auto() -> Self {
         CharVariant::auto()
+    }
+}
+
+/// Sub-script and super-script variants.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum FontPosition {
+    /// Don't use sub/super script positions.
+    Auto,
+    /// Uses sub-script position and alternative glyphs.
+    ///
+    /// This corresponds to OpenType `subs` feature.
+    Sub,
+    /// Uses super-script position and alternative glyphs.
+    ///
+    /// This corresponds to OpenType `sups` feature.
+    Super,
+}
+impl FontFeatureExclusiveSetState for FontPosition {
+    #[inline]
+    fn names() -> &'static [FontFeatureName] {
+        &[b"subs", b"sups"]
+    }
+
+    #[inline]
+    fn variant(self) -> Option<u32> {
+        match self {
+            FontPosition::Auto => None,
+            FontPosition::Sub => Some(1),
+            FontPosition::Super => Some(2),
+        }
+    }
+
+    #[inline]
+    fn from_variant(v: u32) -> Self {
+        match v {
+            1 => FontPosition::Sub,
+            2 => FontPosition::Super,
+            _ => FontPosition::Auto,
+        }
+    }
+
+    #[inline]
+    fn auto() -> Self {
+        FontPosition::Auto
     }
 }
