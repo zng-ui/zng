@@ -14,7 +14,7 @@ use std::{fmt, mem};
 /// # Example
 ///
 /// ```
-/// # use zero_ui::core::text::FontFeatureName;
+/// # use zero_ui::core::text::font_features::FontFeatureName;
 /// let historical_lig: FontFeatureName = b"hlig";
 /// ```
 pub type FontFeatureName = &'static [u8; 4];
