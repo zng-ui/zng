@@ -317,14 +317,20 @@ pub fn font_position(child: impl UiNode, state: impl IntoVar<FontPosition>) -> i
     with_font_feature(child, state, |f, s| f.position().set(s))
 }
 
-/// Sets the East Asian logographic set.
+/// Sets the Japanese logographic set.
 #[property(context)]
-pub fn font_ea_variant(child: impl UiNode, state: impl IntoVar<EastAsianVariant>) -> impl UiNode {
-    with_font_feature(child, state, |f, s| f.east_asian_variant().set(s))
+pub fn font_jp_variant(child: impl UiNode, state: impl IntoVar<JpVariant>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.jp_variant().set(s))
+}
+
+/// Sets the Chinese logographic set.
+#[property(context)]
+pub fn font_cn_variant(child: impl UiNode, state: impl IntoVar<CnVariant>) -> impl UiNode {
+    with_font_feature(child, state, |f, s| f.cn_variant().set(s))
 }
 
 /// Sets the East Asian figure width.
 #[property(context)]
 pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
-    with_font_feature(child, state, |f, s| f.east_asian_width().set(s))
+    with_font_feature(child, state, |f, s| f.ea_width().set(s))
 }

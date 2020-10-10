@@ -385,15 +385,25 @@ font_features! {
     /// `Auto` does not force the use of ruby variants.
     fn ruby(b"ruby");
 
-    /// East Asian logographic set selection.
+    /// Japanese logographic set selection.
     ///
-    /// See [`EastAsianVariant`] for more details.
-    fn east_asian_variant(EastAsianVariant) -> FontFeatureExclusiveSet;
+    /// See [`JpVariant`] for more details.
+    fn jp_variant(JpVariant) -> FontFeatureExclusiveSet;
+
+    /// Use kana glyphs optimized for horizontal writing.
+    ///
+    /// This corresponds to OpenType `hkna` feature.
+    fn horizontal_kana(b"hkna");
+
+    /// Chinese logographic set selection.
+    ///
+    /// See [`CnVariant`] for more details.
+    fn cn_variant(CnVariant) -> FontFeatureExclusiveSet;
 
     /// East Asian figure width control
     ///
     /// See [`EastAsianWidth`] for more details.
-    fn east_asian_width(EastAsianWidth) -> FontFeatureExclusiveSet;
+    fn ea_width(EastAsianWidth) -> FontFeatureExclusiveSet;
 }
 
 /// Represents a feature in a [`FontFeatures`] configuration.
@@ -1290,11 +1300,12 @@ impl FontFeatureExclusiveSetState for FontPosition {
     }
 }
 
-/// Logographic glyph variants for East Asian scripts.
+/// Logographic glyph variants for Japanese fonts.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum EastAsianVariant {
-    /// Used the font default glyphs.
+pub enum JpVariant {
+    /// Uses the font default glyphs.
     Auto,
+
     /// JIS X 0208-1978 (first standard)
     ///
     /// This corresponds to OpenType `jp78` feature.
@@ -1312,7 +1323,46 @@ pub enum EastAsianVariant {
     ///
     /// This corresponds to OpenType `jp04` feature.
     Jis04,
+    /// NLC new shapes for JIS (2000).
+    ///
+    /// This corresponds to OpenType `nlck` feature.
+    NlcKanji,
+}
+impl FontFeatureExclusiveSetState for JpVariant {
+    #[inline]
+    fn names() -> &'static [FontFeatureName] {
+        &[b"jp78", b"jp83", b"jp90", b"jp04", b"nlck"]
+    }
 
+    #[inline]
+    fn variant(self) -> Option<u32> {
+        if self == JpVariant::Auto {
+            None
+        } else {
+            Some(self as u32)
+        }
+    }
+
+    #[inline]
+    fn from_variant(v: u32) -> Self {
+        if v > Self::names().len() as u32 {
+            JpVariant::Auto
+        } else {
+            // SAFETY: we validated the input in the `if`.
+            unsafe { mem::transmute(v as u8) }
+        }
+    }
+
+    #[inline]
+    fn auto() -> Self {
+        JpVariant::Auto
+    }
+}
+/// Logographic glyph variants for Chinese fonts.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum CnVariant {
+    /// Uses the font default glyphs.
+    Auto,
     /// Simplified Chinese glyphs.
     ///
     /// This corresponds to OpenType `smpl` feature.
@@ -1322,30 +1372,33 @@ pub enum EastAsianVariant {
     /// This corresponds to OpenType `trad` feature.
     Tradicional,
 }
-impl FontFeatureExclusiveSetState for EastAsianVariant {
+impl FontFeatureExclusiveSetState for CnVariant {
+    #[inline]
     fn names() -> &'static [FontFeatureName] {
-        &[b"jp78", b"jp83", b"jp90", b"jp04", b"smpl", b"trad"]
+        &[b"smpl", b"trad"]
     }
 
+    #[inline]
     fn variant(self) -> Option<u32> {
-        if self == EastAsianVariant::Auto {
-            None
-        } else {
-            Some(self as u32)
+        match self {
+            CnVariant::Auto => None,
+            CnVariant::Simplified => Some(1),
+            CnVariant::Tradicional => Some(2),
         }
     }
 
+    #[inline]
     fn from_variant(v: u32) -> Self {
-        if v > 6 {
-            EastAsianVariant::Auto
-        } else {
-            // SAFETY: we validated the input in the `if`.
-            unsafe { mem::transmute(v as u8) }
+        match v {
+            1 => CnVariant::Simplified,
+            2 => CnVariant::Tradicional,
+            _ => CnVariant::Auto,
         }
     }
 
+    #[inline]
     fn auto() -> Self {
-        todo!()
+        CnVariant::Auto
     }
 }
 
