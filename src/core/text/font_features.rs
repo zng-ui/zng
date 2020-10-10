@@ -1349,41 +1349,73 @@ impl FontFeatureExclusiveSetState for EastAsianVariant {
     }
 }
 
-/// The sizing of figures used for East Asian characters
+/// The sizing and spacing of figures used for East Asian characters.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum EastAsianWidth {
-    /// Uses the font default size.
+    /// Uses the font default glyphs and spacing.
     Auto,
-    /// The set of characters which vary in width.
+    /// Uses the set of glyphs designed for proportional spacing.
     ///
     /// This corresponds to OpenType `pwid` feature.
     Proportional,
-    /// The set of that are all the same width, roughly square.
+
+    /// Uses the set of glyphs designed for full-width but re-spaced to take proportional space.
+    ///
+    /// This corresponds to OpenType `palt` feature.
+    ProportionalAlt,
+
+    /// Like [`Proportional`] but only affects kana and kana related glyphs.
+    ///
+    /// This corresponds to OpenType `pkna` feature.
+    ProportionalKana,
+
+    /// Uses the set of glyphs designed for full-width monospace.
     ///
     /// This corresponds to OpenType `fwid` feature.
     Full,
+
+    /// Uses the set of glyphs designed for half-width monospace.
+    ///
+    /// This corresponds to OpenType `hwid` feature.
+    Half,
+
+    /// Uses the set of glyphs designed for full-width but re-spaced to take half-width monospace.
+    ///
+    /// This corresponds to OpenType `halt` feature.
+    HalfAlt,
+
+    /// Uses the set of glyphs designed for a third-width monospace.
+    ///
+    /// This corresponds to OpenType `twid` feature.
+    Third,
+
+    /// Uses the set of glyphs designed for a quarter-width monospace.
+    ///
+    /// This corresponds to OpenType `qwid` feature.
+    Quarter,
 }
 impl FontFeatureExclusiveSetState for EastAsianWidth {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
-        &[b"pwid", b"fwid"]
+        &[b"pwid", b"palt", b"pkna", b"fwid", b"hwid", b"halt", b"twid", b"qwid"]
     }
 
     #[inline]
     fn variant(self) -> Option<u32> {
-        match self {
-            EastAsianWidth::Auto => None,
-            EastAsianWidth::Proportional => Some(1),
-            EastAsianWidth::Full => Some(2),
+        if self == EastAsianWidth::Auto {
+            None
+        } else {
+            Some(self as u32)
         }
     }
 
     #[inline]
     fn from_variant(v: u32) -> Self {
-        match v {
-            1 => EastAsianWidth::Proportional,
-            2 => EastAsianWidth::Full,
-            _ => EastAsianWidth::Auto,
+        if v > Self::names().len() as u32 {
+            EastAsianWidth::Auto
+        } else {
+            // SAFETY: we validated the input in the `if`.
+            unsafe { mem::transmute(v as u8) }
         }
     }
 
