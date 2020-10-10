@@ -89,6 +89,33 @@ impl FontFeatures {
             names,
         }
     }
+
+    /// Access to a set of named features where only one of the features can be enabled at a time.
+    ///
+    /// # Panics
+    ///
+    /// If `S::names()` has less then 2 names.
+    pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(&mut self) -> FontFeatureExclusiveSet<S> {
+        assert!(S::names().len() >= 2);
+        FontFeatureExclusiveSet {
+            features: &mut self.0,
+            _t: PhantomData,
+        }
+    }
+
+    /// Access to a set of named features where only one or more features can be enabled but each combination
+    /// represents a single distinct *state*.
+    ///
+    /// # Panics
+    ///
+    /// If `S::names()` has less then 2 entries.
+    pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(&mut self) -> FontFeatureExclusiveSets<S> {
+        assert!(S::names().len() >= 2);
+        FontFeatureExclusiveSets {
+            features: &mut self.0,
+            _t: PhantomData,
+        }
+    }
 }
 impl fmt::Debug for FontFeatures {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -136,6 +163,26 @@ impl FontFeaturesBuilder {
     #[inline]
     pub fn feature_set(mut self, names: &'static [FontFeatureName], state: impl Into<FontFeatureState>) -> Self {
         self.0.feature_set(names).set(state);
+        self
+    }
+
+    /// Sets a single feature of a set of features.
+    ///
+    /// # Panics
+    ///
+    /// If `S::names()` has less then 2 names.
+    pub fn feature_exclusive_set<S: FontFeatureExclusiveSetState>(mut self, state: impl Into<S>) -> Self {
+        self.0.feature_exclusive_set::<S>().set(state);
+        self
+    }
+
+    /// Sets the features that represent the `state`.
+    ///
+    /// # Panics
+    ///
+    /// If `S::names()` has less then 2 entries.
+    pub fn feature_exclusive_sets<S: FontFeatureExclusiveSetsState>(mut self, state: impl Into<S>) -> Self {
+        self.0.feature_exclusive_sets::<S>().set(state);
         self
     }
 }
@@ -210,7 +257,7 @@ font_features! {
     /// Font capital glyph variants.
     ///
     /// See [`CapsVariant`] for more details.
-    fn caps(CapsVariant) -> FontFeatureExclusiveSet;
+    fn caps(CapsVariant) -> FontFeatureExclusiveSets;
 
     /// Allow glyphs boundaries to overlap for a more pleasant reading.
     ///
@@ -534,38 +581,38 @@ impl<'a, S: FontFeatureExclusiveSetState> FontFeatureExclusiveSet<'a, S> {
     pub fn state(&self) -> S {
         let mut state = 0;
 
-        for name in S::names() {
+        for (i, name) in S::names().iter().enumerate() {
             if let Some(&s) = self.features.get(name) {
                 if s == FEATURE_ENABLED && state == 0 {
-                    state = s; // found state.
+                    state = i + 1; // found state.
                     continue;
                 }
             }
             // found `auto`, a custom state set externally or a second feature activated externally.
             return S::auto();
         }
-        S::from_variant(state)
+        S::from_variant(state as u32)
     }
     fn take_state(&mut self) -> S {
         let mut state = 0;
-        let mut error = false;
+        let mut skip = false;
 
-        for name in S::names() {
+        for (i, name) in S::names().iter().enumerate() {
             if let Some(s) = self.features.remove(name) {
-                if error {
+                if skip {
                     continue;
                 }
 
                 if s == FEATURE_ENABLED && state == 0 {
-                    state = s; // found state.
+                    state = i + 1; // found state.
                     continue;
                 }
             }
             // found `auto`, a custom state set externally or a second feature activated externally.
-            error = true;
+            skip = true;
         }
 
-        S::from_variant(state)
+        S::from_variant(state as u32)
     }
 
     /// If state is `Auto`.
@@ -592,10 +639,133 @@ impl<'a, S: FontFeatureExclusiveSetState + fmt::Debug> fmt::Debug for FontFeatur
     }
 }
 
-/// An `enum` like type that represents a exclusive set of features +  `Auto`.
+/// Represents a set of exclusive boolean in a [`FontFeatures`] configuration, one or more
+/// of the features can be active at the same time but they always map to a single *state*.
+pub struct FontFeatureExclusiveSets<'a, S: FontFeatureExclusiveSetsState> {
+    features: &'a mut FnvHashMap<FontFeatureName, u32>,
+    _t: PhantomData<S>,
+}
+impl<'a, S: FontFeatureExclusiveSetsState> FontFeatureExclusiveSets<'a, S> {
+    /// Gets the OpenType names of all the features affected.
+    #[inline]
+    pub fn names(&self) -> &'static [&'static [FontFeatureName]] {
+        S::names()
+    }
+
+    /// Gets the current state of the features.
+    #[inline]
+    pub fn state(&self) -> S {
+        let mut active = fnv::FnvHashSet::default();
+        for &names in self.names() {
+            for &name in names {
+                if let Some(&s) = self.features.get(name) {
+                    if s != FEATURE_ENABLED {
+                        // custom external state, we only set to FEATURE_ENABLED.
+                        return S::auto();
+                    } else {
+                        active.insert(name);
+                    }
+                }
+            }
+        }
+
+        if !active.is_empty() {
+            'names: for (i, &names) in self.names().iter().enumerate() {
+                if names.len() == active.len() {
+                    for name in names {
+                        if !active.contains(name) {
+                            continue 'names;
+                        }
+                    }
+                    return S::from_variant(i as u32 + 1);
+                }
+            }
+        }
+
+        S::auto()
+    }
+    fn take_state(&mut self) -> S {
+        let mut active = fnv::FnvHashSet::default();
+        let mut force_auto = false;
+
+        for &names in self.names() {
+            for &name in names {
+                if let Some(s) = self.features.remove(name) {
+                    if force_auto {
+                        continue;
+                    }
+
+                    if s != FEATURE_ENABLED {
+                        // custom external state, we only set to FEATURE_ENABLED.
+                        force_auto = true;
+                    } else {
+                        active.insert(name);
+                    }
+                }
+            }
+        }
+
+        if !force_auto && !active.is_empty() {
+            'names: for (i, &names) in self.names().iter().enumerate() {
+                if names.len() == active.len() {
+                    for name in names {
+                        if !active.contains(name) {
+                            continue 'names;
+                        }
+                    }
+                    return S::from_variant(i as u32 + 1);
+                }
+            }
+        }
+
+        S::auto()
+    }
+
+    /// If state is `Auto`.
+    #[inline]
+    pub fn is_auto(&self) -> bool {
+        self.state() == S::auto()
+    }
+
+    /// Sets the features.
+    ///
+    /// Returns the previous state.
+    #[inline]
+    pub fn set(&mut self, state: impl Into<S>) -> S {
+        let prev = self.take_state();
+        if let Some(state) = state.into().variant() {
+            for name in self.names()[state as usize - 1] {
+                self.features.insert(name, FEATURE_ENABLED);
+            }
+        }
+        prev
+    }
+}
+impl<'a, S: FontFeatureExclusiveSetsState + fmt::Debug> fmt::Debug for FontFeatureExclusiveSets<'a, S> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.state(), f)
+    }
+}
+
+/// An `enum` like type that represents a exclusive set of features + `Auto`.
 pub trait FontFeatureExclusiveSetState: Copy + PartialEq + 'static {
-    /// All the names of features.
+    /// All the names of features, must have more then one name.
     fn names() -> &'static [FontFeatureName];
+    /// `None` if `Auto` or `Some(NonZeroUsize)` if is a feature.
+    fn variant(self) -> Option<u32>;
+    /// New from feature variant.
+    ///
+    /// Returns `Auto` if `v == 0 || v > Self::names().len()`.
+    fn from_variant(v: u32) -> Self;
+    /// New `Auto`.
+    fn auto() -> Self;
+}
+
+/// An `enum` like type that represents a exclusive set of features + `Auto`.
+/// Some variants can have multiple features.
+pub trait FontFeatureExclusiveSetsState: Copy + PartialEq + 'static {
+    /// All the names of features, must have more then one sub-set.
+    fn names() -> &'static [&'static [FontFeatureName]];
     /// `None` if `Auto` or `Some(NonZeroUsize)` if is a feature.
     fn variant(self) -> Option<u32>;
     /// New from feature variant.
@@ -702,10 +872,7 @@ impl_from_and_into_var! {
 /// Font capital letters variant features.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CapsVariant {
-    /// Disable all caps variant.
-    None,
-
-    /// No caps variant, for most text. `TitlingCaps` if the text is all in uppercase.
+    /// No caps variant.
     Auto,
 
     /// Enable small caps alternative for lowercase letters.
@@ -738,21 +905,41 @@ pub enum CapsVariant {
     /// This corresponds to OpenType `titl` feature.
     TitlingCaps,
 }
-impl FontFeatureExclusiveSetState for CapsVariant {
-    fn names() -> &'static [FontFeatureName] {
-        &[b"c2sc", b"smcp", b"c2pc", b"pcap", b"unic", b"titl"]
+impl FontFeatureExclusiveSetsState for CapsVariant {
+    #[inline]
+    fn names() -> &'static [&'static [FontFeatureName]] {
+        &[
+            &[b"smcp"],
+            &[b"c2sc", b"smcp"],
+            &[b"pcap"],
+            &[b"c2pc", b"pcap"],
+            &[b"unic"],
+            &[b"titl"],
+        ]
     }
 
+    #[inline]
     fn variant(self) -> Option<u32> {
-        todo!() // maps to pairs.
+        if self == CapsVariant::Auto {
+            None
+        } else {
+            Some(self as u32)
+        }
     }
 
+    #[inline]
     fn from_variant(v: u32) -> Self {
-        todo!()
+        if v as usize > Self::names().len() {
+            CapsVariant::Auto
+        } else {
+            // SAFETY:
+            unsafe { mem::transmute(v as u8) }
+        }
     }
 
+    #[inline]
     fn auto() -> Self {
-        todo!()
+        CapsVariant::Auto
     }
 }
 
