@@ -1,43 +1,26 @@
 //! Font resolving and text shaping.
 
-use super::units::{layout_length_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize};
-use crate::core::app::AppExtension;
-use crate::core::context::{AppInitContext, WindowService};
-use crate::core::types::{FontInstanceKey, FontName, FontProperties, FontStyle};
-use crate::core::var::ContextVar;
-use crate::properties::text_theme::FontFamilyVar;
-use fnv::FnvHashMap;
+use super::{
+    units::{layout_length_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize},
+    var::IntoVar,
+    var::OwnedVar,
+};
+use font_kit::family_name::FamilyName;
 use std::{borrow::Cow, fmt, rc::Rc};
-use std::{collections::HashMap, sync::Arc};
-use webrender::api::units::Au;
 use webrender::api::GlyphInstance;
-use webrender::api::{FontKey, RenderApi, Transaction};
 
 pub use unicode_script::{self, Script};
 
 pub mod font_features;
-
 pub use font_features::FontFeatures;
 
-/// Application extension that provides the [`Fonts`] window service.
-#[derive(Default)]
-pub struct FontManager;
+mod font_loading;
+pub use font_loading::*;
 
-impl AppExtension for FontManager {
-    fn init(&mut self, r: &mut AppInitContext) {
-        r.window_services.register(|ctx| Fonts {
-            api: Arc::clone(ctx.render_api),
-            fonts: HashMap::default(),
-        })
-    }
-}
+pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+pub use webrender::api::FontInstanceKey;
 
-/// Fonts cache service.
-pub struct Fonts {
-    api: Arc<RenderApi>,
-    fonts: HashMap<FontQueryKey, FontInstances>,
-}
-type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
+pub use zero_ui_macros::formatx;
 
 /// Font size in round points.
 pub type FontSizePt = u32;
@@ -48,178 +31,7 @@ pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
     layout_length_to_pt(length).round().max(0.0) as u32
 }
 
-impl Fonts {
-    /// Gets a cached font instance or loads a new instance.
-    pub fn get(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> Option<FontInstance> {
-        let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(*properties));
-        if let Some(font) = self.fonts.get_mut(&query_key) {
-            if let Some(instance) = font.instances.get(&font_size) {
-                Some(instance.clone())
-            } else {
-                Some(Self::load_font_size(&self.api, font, font_size))
-            }
-        } else if let Some(instance) = self.load_font(query_key, font_names, properties, font_size) {
-            Some(instance)
-        } else {
-            None
-        }
-    }
-
-    /// Gets a font using [`get`](Self::get) or fallback to the any of the default fonts.
-    pub fn get_or_default(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> FontInstance {
-        self.get(font_names, properties, font_size)
-            .or_else(|| {
-                warn_println!("did not found font: {:?}", font_names);
-                self.get(FontFamilyVar::default_value(), &FontProperties::default(), font_size)
-            })
-            .expect("did not find any default font")
-    }
-
-    fn load_font(
-        &mut self,
-        query_key: FontQueryKey,
-        font_names: &[FontName],
-        properties: &FontProperties,
-        size: FontSizePt,
-    ) -> Option<FontInstance> {
-        let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
-        match font_kit::source::SystemSource::new().select_best_match(&family_names, properties) {
-            Ok(handle) => {
-                let mut txn = Transaction::new();
-                let font_key = self.api.generate_font_key();
-
-                let metrics = {
-                    let loader = handle.load().expect("cannot load font [2]");
-                    loader.metrics()
-                };
-
-                let harfbuzz_face = match handle {
-                    font_kit::handle::Handle::Path { path, font_index } => {
-                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font [1]");
-                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
-                        r
-                    }
-                    font_kit::handle::Handle::Memory { bytes, font_index } => {
-                        let blob = harfbuzz_rs::Blob::with_bytes_owned(Arc::clone(&bytes), |a| &*a);
-                        let r = harfbuzz_rs::Face::new(blob, font_index);
-                        txn.add_raw_font(font_key, (&*bytes).clone(), font_index);
-                        r
-                    }
-                };
-
-                let mut font_instances = FontInstances {
-                    font_key,
-                    metrics,
-                    harfbuzz_face: harfbuzz_face.to_shared(),
-                    instances: FnvHashMap::default(),
-                };
-
-                self.api.update_resources(txn.resource_updates);
-                let instance = Self::load_font_size(&self.api, &mut font_instances, size);
-                self.fonts.insert(query_key, font_instances);
-                Some(instance)
-            }
-            Err(font_kit::error::SelectionError::NotFound) => None,
-            Err(font_kit::error::SelectionError::CannotAccessSource) => panic!("cannot access system font source"),
-        }
-    }
-
-    fn load_font_size(api: &RenderApi, font_instances: &mut FontInstances, size: FontSizePt) -> FontInstance {
-        let mut txn = Transaction::new();
-        let instance_key = api.generate_font_instance_key();
-
-        let size_px = size as f32 * 96.0 / 72.0;
-        txn.add_font_instance(
-            instance_key,
-            font_instances.font_key,
-            Au::from_f32_px(size_px),
-            None,
-            None,
-            Vec::new(),
-        );
-        api.update_resources(txn.resource_updates);
-
-        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
-
-        harfbuzz_font.set_ppem(size, size);
-        harfbuzz_font.set_scale(size as i32 * 64, size as i32 * 64);
-
-        let metrics = FontMetrics::new(size_px, &font_instances.metrics);
-
-        let instance = FontInstance::new(instance_key, size, metrics, harfbuzz_font.to_shared());
-        font_instances.instances.insert(size, instance.clone());
-
-        instance
-    }
-}
-
-impl WindowService for Fonts {}
-
-#[derive(Eq, PartialEq, Hash, Clone, Copy)]
-struct FontPropertiesKey(u8, u32, u32);
-impl FontPropertiesKey {
-    pub fn new(properties: FontProperties) -> Self {
-        Self(
-            match properties.style {
-                FontStyle::Normal => 0,
-                FontStyle::Italic => 1,
-                FontStyle::Oblique => 2,
-            },
-            (properties.weight.0 * 100.0) as u32,
-            (properties.stretch.0 * 100.0) as u32,
-        )
-    }
-}
-
-/// All instances of a font family.
-struct FontInstances {
-    pub font_key: FontKey,
-    pub metrics: font_kit::metrics::Metrics,
-    pub harfbuzz_face: HarfbuzzFace,
-    pub instances: FnvHashMap<FontSizePt, FontInstance>,
-}
-
-struct FontInstanceInner {
-    instance_key: FontInstanceKey,
-    font_size: FontSizePt,
-    harfbuzz_font: HarfbuzzFont,
-    metrics: FontMetrics,
-}
-
-type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
-
-type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
-
-/// Reference to a specific font instance (family and size).
-#[derive(Clone)]
-pub struct FontInstance {
-    inner: Arc<FontInstanceInner>,
-}
-
 impl FontInstance {
-    fn new(instance_key: FontInstanceKey, font_size: FontSizePt, metrics: FontMetrics, harfbuzz_font: HarfbuzzFont) -> Self {
-        FontInstance {
-            inner: Arc::new(FontInstanceInner {
-                instance_key,
-                font_size,
-                metrics,
-                harfbuzz_font,
-            }),
-        }
-    }
-
-    /// Size of this font instance.
-    #[inline]
-    pub fn size(&self) -> FontSizePt {
-        self.inner.font_size
-    }
-
-    /// Various metrics that apply to this font.
-    #[inline]
-    pub fn metrics(&self) -> &FontMetrics {
-        &self.inner.metrics
-    }
-
     /// Shapes the text line using the font.
     ///
     /// The `text` should not contain line breaks, if it does the line breaks are ignored.
@@ -281,11 +93,6 @@ impl FontInstance {
         // https://docs.rs/font-kit/0.10.0/font_kit/loaders/freetype/struct.Font.html#method.outline
         // Frame of reference: https://searchfox.org/mozilla-central/source/gfx/2d/ScaledFontDWrite.cpp#148
         // Text shaping: https://crates.io/crates/harfbuzz_rs
-    }
-
-    /// Gets the font instance key.
-    pub fn instance_key(&self) -> FontInstanceKey {
-        self.inner.instance_key
     }
 }
 
@@ -546,7 +353,6 @@ pub struct FontMetrics {
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
     pub bounding_box: LayoutRect,
 }
-
 impl FontMetrics {
     /// Calculate metrics from global.
     fn new(font_size_px: f32, metrics: &font_kit::metrics::Metrics) -> Self {
@@ -629,5 +435,170 @@ impl Default for WhiteSpace {
     #[inline]
     fn default() -> Self {
         WhiteSpace::Preserve
+    }
+}
+
+/// A possible value for the `font_family` property.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FontName(Text);
+
+impl FontName {
+    #[inline]
+    pub fn new(name: impl Into<Text>) -> Self {
+        FontName(name.into())
+    }
+
+    /// New "serif" font.
+    ///
+    /// Serif fonts represent the formal text style for a script.
+    #[inline]
+    pub fn serif() -> Self {
+        Self::new("serif")
+    }
+
+    /// New "sans-serif" font.
+    ///
+    /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
+    /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
+    #[inline]
+    pub fn sans_serif() -> Self {
+        Self::new("sans-serif")
+    }
+
+    /// New "monospace" font.
+    ///
+    /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
+    #[inline]
+    pub fn monospace() -> Self {
+        Self::new("monospace")
+    }
+
+    /// New "cursive" font.
+    ///
+    /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
+    /// like handwritten pen or brush writing than printed letter-work.
+    #[inline]
+    pub fn cursive() -> Self {
+        Self::new("cursive")
+    }
+
+    /// New "fantasy" font.
+    ///
+    /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
+    #[inline]
+    pub fn fantasy() -> Self {
+        Self::new("fantasy")
+    }
+
+    /// Reference the font name.
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+impl From<FamilyName> for FontName {
+    #[inline]
+    fn from(family_name: FamilyName) -> Self {
+        match family_name {
+            FamilyName::Title(title) => FontName::new(title),
+            FamilyName::Serif => FontName::serif(),
+            FamilyName::SansSerif => FontName::sans_serif(),
+            FamilyName::Monospace => FontName::monospace(),
+            FamilyName::Cursive => FontName::cursive(),
+            FamilyName::Fantasy => FontName::fantasy(),
+        }
+    }
+}
+impl From<FontName> for FamilyName {
+    fn from(font_name: FontName) -> Self {
+        match font_name.name() {
+            "serif" => FamilyName::Serif,
+            "sans-serif" => FamilyName::SansSerif,
+            "monospace" => FamilyName::Monospace,
+            "cursive" => FamilyName::Cursive,
+            "fantasy" => FamilyName::Fantasy,
+            _ => FamilyName::Title(font_name.0.into()),
+        }
+    }
+}
+impl fmt::Display for FontName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+impl IntoVar<Box<[FontName]>> for &'static str {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName::new(self)]))
+    }
+}
+impl IntoVar<Box<[FontName]>> for String {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName::new(self)]))
+    }
+}
+impl IntoVar<Box<[FontName]>> for Text {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Box::new([FontName(self)]))
+    }
+}
+impl IntoVar<Box<[FontName]>> for Vec<FontName> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_boxed_slice())
+    }
+}
+impl IntoVar<Box<[FontName]>> for Vec<&'static str> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
+    }
+}
+impl IntoVar<Box<[FontName]>> for Vec<String> {
+    type Var = OwnedVar<Box<[FontName]>>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
+    }
+}
+
+/// Text string type, can be either a `&'static str` or a `String`.
+pub type Text = Cow<'static, str>;
+
+/// A trait for converting a value to a [`Text`].
+///
+/// This trait is automatically implemented for any type which implements the [`ToString`] trait.
+///
+/// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
+pub trait ToText {
+    fn to_text(self) -> Text;
+}
+
+impl<T: ToString> ToText for T {
+    fn to_text(self) -> Text {
+        self.to_string().into()
+    }
+}
+
+impl IntoVar<Text> for &'static str {
+    type Var = OwnedVar<Text>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Cow::from(self))
+    }
+}
+impl IntoVar<Text> for String {
+    type Var = OwnedVar<Text>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(Cow::from(self))
     }
 }

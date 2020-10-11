@@ -11,6 +11,7 @@ use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
+use crate::core::window::WindowId;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{self, Display};
 use std::num::NonZeroU32;

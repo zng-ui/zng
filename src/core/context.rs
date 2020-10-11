@@ -3,8 +3,9 @@
 use super::units::{LayoutSize, PixelGrid};
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
-use crate::core::types::{WidgetId, WindowId};
 use crate::core::var::*;
+use crate::core::window::WindowId;
+use crate::core::WidgetId;
 use fnv::{FnvHashMap, FnvHashSet};
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;

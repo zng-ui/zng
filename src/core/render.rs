@@ -4,7 +4,10 @@ use super::color::{RenderColor, RenderFilter};
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
-use crate::core::UiNode;
+use crate::core::{
+    window::{CursorIcon, WindowId},
+    UiNode, WidgetId,
+};
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{marker::PhantomData, mem};

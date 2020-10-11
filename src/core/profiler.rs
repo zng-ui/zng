@@ -9,7 +9,7 @@ mod profiler_impl {
     use lazy_static::*;
     use serde_json::*;
 
-    use crate::core::types::Text;
+    use crate::core::text::Text;
     use std::borrow::Cow;
     use std::cell::RefCell;
     use std::fs::File;

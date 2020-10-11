@@ -168,17 +168,22 @@ pub mod prelude {
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
-        types::{
-            formatx, BorderRadius, CursorIcon, ElementState, FontName, FontStretch, FontStyle, FontWeight, ModifiersState, MouseButton,
-            Text, ToText, VirtualKeyCode, WidgetId,
+        text::{
+            font_features::{
+                CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
+                NumVariant,
+            },
+            formatx, FontFeatures, FontName, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
+            TextTransformFn, WhiteSpace, WordBreak,
         },
+        types::{BorderRadius, ElementState, ModifiersState, MouseButton, VirtualKeyCode},
         ui_vec,
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, switch_var, var, SharedVar, Var},
-        window::{AppRunWindow, Window, Windows},
-        UiNode, UiVec, Widget,
+        window::{AppRunWindow, CursorIcon, Window, Windows},
+        UiNode, UiVec, Widget, WidgetId,
     };
 
     pub use crate::properties::*;

@@ -12,7 +12,7 @@ use crate::core::{
     mouse::MouseManager,
     text::FontManager,
     types::*,
-    window::WindowManager,
+    window::{WindowId, WindowManager},
 };
 use glutin::event::Event as GEvent;
 use glutin::event_loop::{

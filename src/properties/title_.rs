@@ -1,6 +1,6 @@
 use crate::core::{
     context::WidgetContext,
-    types::Text,
+    text::Text,
     var::{IntoVar, Var},
     UiNode,
 };

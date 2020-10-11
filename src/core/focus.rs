@@ -46,9 +46,10 @@ use crate::core::event::*;
 use crate::core::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
 use crate::core::mouse::{MouseDownEvent, MouseInputArgs};
 use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::core::types::{DeviceEvent, DeviceId, WidgetId, WindowId};
+use crate::core::types::{DeviceEvent, DeviceId};
 use crate::core::units::LayoutPoint;
-use crate::core::window::{WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
+use crate::core::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
+use crate::core::WidgetId;
 use fnv::FnvHashMap;
 use std::time::{Duration, Instant};
 

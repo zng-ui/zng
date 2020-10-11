@@ -3,29 +3,15 @@
 pub use webrender::api::{BorderRadius, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
 
 use super::color::Rgba;
-use font_kit::family_name::FamilyName;
-pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+
 pub use glutin::event::{
     DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode, WindowEvent,
 };
-pub use glutin::window::{CursorIcon, WindowId};
 
 /// Id of a rendered or rendering window frame. Not unique across windows.
 pub type FrameId = webrender::api::Epoch;
 
-unique_id! {
-    /// Unique id of a widget.
-    ///
-    /// # Details
-    /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
-    /// so IDs are unique for the process duration, but order is not guaranteed.
-    ///
-    /// Panics if you somehow reach `u64::max_value()` calls to `new`.
-    pub struct WidgetId;
-}
-
 use crate::core::var::{IntoVar, OwnedVar};
-use std::{borrow::Cow, fmt};
 
 impl IntoVar<Vec<GradientStop>> for Vec<(f32, Rgba)> {
     type Var = OwnedVar<Vec<GradientStop>>;
@@ -56,42 +42,6 @@ impl IntoVar<Vec<GradientStop>> for Vec<Rgba> {
                 })
                 .collect(),
         )
-    }
-}
-
-/// Text string type, can be either a `&'static str` or a `String`.
-pub type Text = Cow<'static, str>;
-
-/// A trait for converting a value to a [`Text`].
-///
-/// This trait is automatically implemented for any type which implements the [`ToString`] trait.
-///
-/// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
-pub trait ToText {
-    fn to_text(self) -> Text;
-}
-
-impl<T: ToString> ToText for T {
-    fn to_text(self) -> Text {
-        self.to_string().into()
-    }
-}
-
-pub use zero_ui_macros::formatx;
-
-impl IntoVar<Text> for &'static str {
-    type Var = OwnedVar<Text>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Cow::from(self))
-    }
-}
-
-impl IntoVar<Text> for String {
-    type Var = OwnedVar<Text>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Cow::from(self))
     }
 }
 
@@ -225,137 +175,5 @@ mod bezier {
         fn approx_eq(self, value: f64, epsilon: f64) -> bool {
             (self - value).abs() < epsilon
         }
-    }
-}
-
-/// A possible value for the `font_family` property.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FontName(Text);
-
-impl FontName {
-    #[inline]
-    pub fn new(name: impl Into<Text>) -> Self {
-        FontName(name.into())
-    }
-
-    /// New "serif" font.
-    ///
-    /// Serif fonts represent the formal text style for a script.
-    #[inline]
-    pub fn serif() -> Self {
-        Self::new("serif")
-    }
-
-    /// New "sans-serif" font.
-    ///
-    /// Glyphs in sans-serif fonts, are generally low contrast (vertical and horizontal stems have the close to the same thickness)
-    /// and have stroke endings that are plain — without any flaring, cross stroke, or other ornamentation.
-    #[inline]
-    pub fn sans_serif() -> Self {
-        Self::new("sans-serif")
-    }
-
-    /// New "monospace" font.
-    ///
-    /// The sole criterion of a monospace font is that all glyphs have the same fixed width.
-    #[inline]
-    pub fn monospace() -> Self {
-        Self::new("monospace")
-    }
-
-    /// New "cursive" font.
-    ///
-    /// Glyphs in cursive fonts generally use a more informal script style, and the result looks more
-    /// like handwritten pen or brush writing than printed letter-work.
-    #[inline]
-    pub fn cursive() -> Self {
-        Self::new("cursive")
-    }
-
-    /// New "fantasy" font.
-    ///
-    /// Fantasy fonts are primarily decorative or expressive fonts that contain decorative or expressive representations of characters.
-    #[inline]
-    pub fn fantasy() -> Self {
-        Self::new("fantasy")
-    }
-
-    /// Reference the font name.
-    #[inline]
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-}
-impl From<FamilyName> for FontName {
-    #[inline]
-    fn from(family_name: FamilyName) -> Self {
-        match family_name {
-            FamilyName::Title(title) => FontName::new(title),
-            FamilyName::Serif => FontName::serif(),
-            FamilyName::SansSerif => FontName::sans_serif(),
-            FamilyName::Monospace => FontName::monospace(),
-            FamilyName::Cursive => FontName::cursive(),
-            FamilyName::Fantasy => FontName::fantasy(),
-        }
-    }
-}
-impl From<FontName> for FamilyName {
-    fn from(font_name: FontName) -> Self {
-        match font_name.name() {
-            "serif" => FamilyName::Serif,
-            "sans-serif" => FamilyName::SansSerif,
-            "monospace" => FamilyName::Monospace,
-            "cursive" => FamilyName::Cursive,
-            "fantasy" => FamilyName::Fantasy,
-            _ => FamilyName::Title(font_name.0.into()),
-        }
-    }
-}
-impl fmt::Display for FontName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.name())
-    }
-}
-
-impl IntoVar<Box<[FontName]>> for &'static str {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName::new(self)]))
-    }
-}
-impl IntoVar<Box<[FontName]>> for String {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName::new(self)]))
-    }
-}
-impl IntoVar<Box<[FontName]>> for Text {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName(self)]))
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<FontName> {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_boxed_slice())
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<&'static str> {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<String> {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
     }
 }

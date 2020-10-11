@@ -8,10 +8,11 @@ use super::{
         Vars, WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
-    types::{FrameId, Text, WidgetId, WindowEvent, WindowId},
+    text::Text,
+    types::{FrameId, WindowEvent},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
-    UiNode,
+    UiNode, WidgetId,
 };
 use super::{event::*, render::FrameUpdate};
 use super::{profiler::profile_scope, render::WidgetTransformKey};
@@ -27,6 +28,8 @@ use std::cell::RefCell;
 use std::num::NonZeroU16;
 use std::{mem, rc::Rc, sync::Arc};
 use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
+
+pub use glutin::window::{CursorIcon, WindowId};
 
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
 type CloseTogetherGroup = Option<NonZeroU16>;

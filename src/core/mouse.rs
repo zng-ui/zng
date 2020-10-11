@@ -5,7 +5,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::render::*;
 use crate::core::types::*;
-use crate::core::window::Windows;
+use crate::core::window::{WindowId, Windows};
 use std::num::NonZeroU8;
 use std::time::*;
 

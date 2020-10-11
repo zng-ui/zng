@@ -1,7 +1,7 @@
 use crate::core::context::*;
 use crate::core::render::*;
-use crate::core::types::*;
 use crate::core::var::*;
+use crate::core::window::CursorIcon;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 

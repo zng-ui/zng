@@ -1,18 +1,14 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::{color::web_colors, units::*};
 use crate::core::{
-    color::Rgba,
-    text::{font_features::*, *},
-    units::TabLength,
-};
-use crate::core::{
+    color::{web_colors, Rgba},
     context::{Vars, WidgetContext},
-    var::{context_var, IntoVar},
+    impl_ui_node, property,
+    text::{font_features::*, *},
+    units::*,
+    var::{context_var, IntoVar, Var, VarValue},
+    UiNode,
 };
-use crate::core::{impl_ui_node, UiNode};
-use crate::core::{property, var::Var};
-use crate::core::{types::*, var::VarValue};
 use crate::properties::with_context_var;
 use std::cell::RefCell;
 use std::marker::PhantomData;
@@ -342,7 +338,7 @@ pub fn font_annotation(child: impl UiNode, state: impl IntoVar<FontFeatureState>
 
 /// Sets the font stylistic set alternative feature.
 #[property(context)]
-pub fn font_style_set(child: impl UiNode, state: impl IntoVar<StyleSet>) -> impl UiNode {
+pub fn font_style_set(child: impl UiNode, state: impl IntoVar<FontStyleSet>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.style_set().set(s))
 }
 

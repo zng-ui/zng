@@ -10,7 +10,7 @@ use crate::core::event::*;
 use crate::core::focus::Focus;
 use crate::core::render::WidgetPath;
 use crate::core::types::*;
-use crate::core::window::Windows;
+use crate::core::window::{WindowId, Windows};
 
 event_args! {
     /// Keyboard event args.

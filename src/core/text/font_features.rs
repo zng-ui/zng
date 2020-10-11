@@ -365,12 +365,12 @@ font_features! {
 
     /// Font stylistic alternatives for sets of characters.
     ///
-    /// See [`StyleSet`] for more details.
-    fn style_set(StyleSet) -> FontFeatureExclusiveSet;
+    /// See [`FontStyleSet`] for more details.
+    fn style_set(FontStyleSet) -> FontFeatureExclusiveSet;
 
     /// Font stylistic alternatives for individual characters.
     ///
-    /// See [`StyleSet`] for more details.
+    /// See [`CharVariant`] for more details.
     fn char_variant(CharVariant) -> FontFeatureExclusiveSet;
 
     /// Font sub/super script alternatives.
@@ -1110,7 +1110,7 @@ impl FontFeatureExclusiveSetState for NumFraction {
 /// converts into this one for each font you wish to use.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(u8)]
-pub enum StyleSet {
+pub enum FontStyleSet {
     /// Don't use alternative style set.
     Auto = 0,
 
@@ -1138,16 +1138,16 @@ pub enum StyleSet {
 }
 impl_from_and_into_var! {
     /// `set == 0 || set > 20` is Auto, `set >= 1 && set <= 20` maps to their variant.
-    fn from(set: u8) -> StyleSet {
+    fn from(set: u8) -> FontStyleSet {
         if set > 20 {
-            StyleSet::Auto
+            FontStyleSet::Auto
         } else {
             // SAFETY: We eliminated the bad values in the `if`.
             unsafe { mem::transmute(set) }
         }
     }
 }
-impl FontFeatureExclusiveSetState for StyleSet {
+impl FontFeatureExclusiveSetState for FontStyleSet {
     #[inline]
     fn names() -> &'static [FontFeatureName] {
         &[
@@ -1158,7 +1158,7 @@ impl FontFeatureExclusiveSetState for StyleSet {
 
     #[inline]
     fn variant(self) -> Option<u32> {
-        if self == StyleSet::Auto {
+        if self == FontStyleSet::Auto {
             None
         } else {
             Some(self as u32)
@@ -1168,7 +1168,7 @@ impl FontFeatureExclusiveSetState for StyleSet {
     #[inline]
     fn from_variant(v: u32) -> Self {
         if v > 20 {
-            StyleSet::Auto
+            FontStyleSet::Auto
         } else {
             // SAFETY: we validated the input in the `if`.
             unsafe { mem::transmute(v as u8) }
@@ -1177,7 +1177,7 @@ impl FontFeatureExclusiveSetState for StyleSet {
 
     #[inline]
     fn auto() -> Self {
-        StyleSet::Auto
+        FontStyleSet::Auto
     }
 }
 
@@ -1417,7 +1417,7 @@ pub enum EastAsianWidth {
     /// This corresponds to OpenType `palt` feature.
     ProportionalAlt,
 
-    /// Like [`Proportional`] but only affects kana and kana related glyphs.
+    /// Like [`Proportional`](Self::Proportional) but only affects kana and kana related glyphs.
     ///
     /// This corresponds to OpenType `pkna` feature.
     ProportionalKana,

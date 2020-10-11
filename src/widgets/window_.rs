@@ -3,8 +3,8 @@ use crate::core::{
     color::rgb,
     focus::{DirectionalNav, FocusScopeOnFocus, TabNav},
     gesture::ShortcutArgs,
-    types::WidgetId,
     window::Window,
+    WidgetId,
 };
 use crate::properties::{background::*, events::on_shortcut, events::OnEventArgs, focus::*, position, size::size, title};
 use crate::widgets::container;

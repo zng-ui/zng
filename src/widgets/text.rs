@@ -6,7 +6,6 @@ use crate::core::impl_ui_node;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::text::*;
-use crate::core::types::Text;
 use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::var::{IntoVar, ObjVar, Var};
@@ -28,7 +27,7 @@ impl<T: Var<Text>> TextNode<T> {
         TextNode {
             text,
             glyphs: vec![],
-            font_size: 14, //TODO
+            font_size: 10, //TODO
             size: LayoutSize::zero(),
             font: None,
             color: web_colors::BLACK,
