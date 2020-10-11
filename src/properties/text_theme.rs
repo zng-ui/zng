@@ -1,7 +1,5 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use std::marker::PhantomData;
-
 use crate::core::{color::web_colors, units::*};
 use crate::core::{
     color::Rgba,
@@ -9,13 +7,15 @@ use crate::core::{
     units::TabLength,
 };
 use crate::core::{
-    context::WidgetContext,
+    context::{Vars, WidgetContext},
     var::{context_var, IntoVar},
 };
 use crate::core::{impl_ui_node, UiNode};
 use crate::core::{property, var::Var};
 use crate::core::{types::*, var::VarValue};
 use crate::properties::with_context_var;
+use std::cell::RefCell;
+use std::marker::PhantomData;
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
@@ -38,9 +38,6 @@ context_var! {
 
     /// Font size of [`text`](crate::widgets::text) spans.
     pub struct FontSizeVar: Length = once Length::pt(14.0);
-
-    /// Font features of [`text`](crate::widgets::text) spans.
-    pub struct FontFeaturesVar: FontFeatures = once FontFeatures::default();
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
@@ -71,6 +68,8 @@ context_var! {
 
     /// Text white space transform of [`text`](crate::widgets::text) spans.
     pub struct WhiteSpaceVar: WhiteSpace = return &WhiteSpace::Preserve;
+
+    struct FontFeaturesVar: Option<RefCell<FontFeatures>> = return &None;
 }
 
 /// Sets the [`FontFamilyVar`] context var.
@@ -163,6 +162,38 @@ pub fn white_space(child: impl UiNode, transform: impl IntoVar<WhiteSpace>) -> i
     with_context_var(child, WhiteSpaceVar, transform)
 }
 
+/// Access to a widget contextual [`FontFeatures`].
+///
+/// This type is a wrapper
+#[derive(Copy, Clone, Debug)]
+pub struct FontFeaturesContext;
+impl FontFeaturesContext {
+    /// Reference the contextual font features, if any is set.
+    #[inline]
+    pub fn get(vars: &Vars) -> Option<std::cell::Ref<FontFeatures>> {
+        vars.context::<FontFeaturesVar>().as_ref().map(RefCell::borrow)
+    }
+
+    /// Calls `action` with the contextual feature set to `new_state`.
+    pub fn with_feature<S, D, A>(set_feature_state: &mut D, new_state: S, vars: &Vars, action: A)
+    where
+        S: VarValue,
+        D: FnMut(&mut FontFeatures, S) -> S,
+        A: FnOnce(),
+    {
+        if let Some(cell) = vars.context::<FontFeaturesVar>() {
+            let prev_state = set_feature_state(&mut *cell.borrow_mut(), new_state);
+            action();
+            set_feature_state(&mut *cell.borrow_mut(), prev_state);
+        } else {
+            let mut features = FontFeatures::default();
+            set_feature_state(&mut features, new_state);
+            vars.with_context(FontFeaturesVar, &Some(RefCell::new(features)), false, 0, action);
+            //TODO version?
+        }
+    }
+}
+
 struct WithFontFeatureNode<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> {
     child: C,
     _s: PhantomData<S>,
@@ -172,11 +203,21 @@ struct WithFontFeatureNode<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut Font
 #[impl_ui_node(child)]
 impl<C: UiNode, S: VarValue, V: Var<S>, D: FnMut(&mut FontFeatures, S) -> S + 'static> UiNode for WithFontFeatureNode<C, S, V, D> {
     fn init(&mut self, ctx: &mut WidgetContext) {
-        let state = self.var.get(ctx.vars).clone();
-        let prev = (self.delegate)(&mut FontFeatures::new(), state);
-        println!("TODO {:?}", prev);
-        self.child.init(ctx);
+        let child = &mut self.child;
+        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.init(ctx));
     }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        let child = &mut self.child;
+        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.deinit(ctx));
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        let child = &mut self.child;
+        FontFeaturesContext::with_feature(&mut self.delegate, self.var.get(ctx.vars).clone(), ctx.vars, || child.update(ctx));
+    }
+
+    // TODO update_hp?
 }
 
 /// Include the font feature config in the widget context.
