@@ -49,6 +49,16 @@ impl Fonts {
             .expect("did not find any default font")
     }
 
+    /// Removes unused font instances and fonts from the cache.
+    pub fn drop_unused(&mut self) {
+        let mut txn = Transaction::new();
+        self.fonts.retain(|_, v| v.retain(&mut txn));
+
+        if !txn.is_empty() {
+            self.api.update_resources(txn.resource_updates);
+        }
+    }
+
     fn load_font(
         &mut self,
         query_key: FontQueryKey,
@@ -136,6 +146,27 @@ struct FontInstances {
     pub instances: FnvHashMap<FontSizePt, FontInstance>,
 }
 
+impl FontInstances {
+    /// Retain instances in use, register delete for instances and font if all instances removed.
+    fn retain(&mut self, txn: &mut Transaction) -> bool {
+        self.instances.retain(|_, v| {
+            let retain = v.in_use();
+            if !retain {
+                txn.delete_font_instance(v.instance_key());
+            }
+            retain
+        });
+
+        let remove_font = self.instances.is_empty();
+
+        if remove_font {
+            txn.delete_font(self.font_key);
+        }
+
+        !remove_font
+    }
+}
+
 pub(super) struct FontInstanceInner {
     instance_key: FontInstanceKey,
     pub(super) font_size: FontSizePt,
@@ -175,6 +206,10 @@ impl FontInstance {
     /// Gets the font instance key.
     pub fn instance_key(&self) -> FontInstanceKey {
         self.inner.instance_key
+    }
+
+    fn in_use(&self) -> bool {
+        Arc::strong_count(&self.inner) > 1
     }
 }
 
