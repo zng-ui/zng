@@ -478,15 +478,15 @@ pub struct TextLayoutData {
     pub color: RenderColor,
 }
 impl TextLayoutData {
-    pub fn update(&mut self, ctx: &mut WidgetContext) {
+    pub fn update(&mut self, _ctx: &mut WidgetContext) {
         todo!()
     }
 
-    pub fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+    pub fn measure(&mut self, _available_size: LayoutSize, _ctx: &mut LayoutContext) -> LayoutSize {
         todo!()
     }
 
-    pub fn render(&mut self, frame: &mut FrameBuilder) {
+    pub fn render(&mut self, _frame: &mut FrameBuilder) {
         todo!()
     }
 }

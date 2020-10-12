@@ -74,14 +74,11 @@ impl Fonts {
                 let mut txn = Transaction::new();
                 let font_key = api.generate_font_key();
 
-                let metrics = {
-                    let loader = handle.load().expect("cannot load font [2]");
-                    loader.metrics()
-                };
+                let font_kit_font = handle.load().expect("cannot load font [font_kit]");
 
                 let harfbuzz_face = match handle {
                     font_kit::handle::Handle::Path { path, font_index } => {
-                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font [1]");
+                        let r = harfbuzz_rs::Face::from_file(&path, font_index).expect("cannot load font [harfbuzz]");
                         txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
                         r
                     }
@@ -95,7 +92,7 @@ impl Fonts {
 
                 api.update_resources(txn.resource_updates);
 
-                Some(Font::new(api, font_key, properties, metrics, harfbuzz_face.into()))
+                Some(Font::new(api, font_key, font_kit_font, harfbuzz_face.into()))
             }
             Err(font_kit::error::SelectionError::NotFound) => None,
             Err(font_kit::error::SelectionError::CannotAccessSource) => panic!("cannot access system font source"),
@@ -109,6 +106,10 @@ struct FontInner {
     font_key: FontKey,
     properties: FontProperties,
     metrics: font_kit::metrics::Metrics,
+    display_name: FontName,
+    family_name: FontName,
+    postscript_name: Option<String>,
+    font_kit_font: font_kit::font::Font,
     harfbuzz_face: HarfbuzzFace,
     instances: RefCell<FnvHashMap<FontSizePt, FontInstance>>,
 }
@@ -119,19 +120,17 @@ pub struct Font {
     inner: Arc<FontInner>,
 }
 impl Font {
-    fn new(
-        api: Arc<RenderApi>,
-        font_key: FontKey,
-        properties: FontProperties,
-        metrics: font_kit::metrics::Metrics,
-        harfbuzz_face: HarfbuzzFace,
-    ) -> Self {
+    fn new(api: Arc<RenderApi>, font_key: FontKey, font_kit_font: font_kit::font::Font, harfbuzz_face: HarfbuzzFace) -> Self {
         Font {
             inner: Arc::new(FontInner {
                 api,
                 font_key,
-                metrics,
-                properties,
+                metrics: font_kit_font.metrics(),
+                display_name: FontName::new(font_kit_font.full_name()),
+                family_name: FontName::new(font_kit_font.family_name()),
+                postscript_name: font_kit_font.postscript_name(),
+                properties: font_kit_font.properties(),
+                font_kit_font,
                 harfbuzz_face,
                 instances: RefCell::default(),
             }),
@@ -165,22 +164,34 @@ impl Font {
         instance
     }
 
-    ///// Gets the font name.
-    //#[inline]
-    //pub fn font_name(&self) -> &FontName {
-    //    &self.inner.font_name
-    //}
-    //
-    ///// Gets the index of the font in the font file.
-    //#[inline]
-    //pub fn font_index(&self) -> u32 {
-    //    self.inner.font_index
-    //}
-
-    /// Gets the WebRender font key.
+    /// Font full name.
     #[inline]
-    pub fn font_key(&self) -> FontKey {
-        self.inner.font_key
+    pub fn display_name(&self) -> &FontName {
+        &self.inner.display_name
+    }
+
+    /// Font family name.
+    #[inline]
+    pub fn family_name(&self) -> &FontName {
+        &self.inner.family_name
+    }
+
+    /// Font globally unique name.
+    #[inline]
+    pub fn postscript_name(&self) -> Option<&str> {
+        self.inner.postscript_name.as_deref()
+    }
+
+    /// Index of the font in the font file.
+    #[inline]
+    pub fn index(&self) -> u32 {
+        self.inner.harfbuzz_face.index()
+    }
+
+    /// Number of glyphs in the font.
+    #[inline]
+    pub fn glyph_count(&self) -> u32 {
+        self.inner.harfbuzz_face.glyph_count()
     }
 
     /// Font weight.
@@ -193,6 +204,43 @@ impl Font {
     #[inline]
     pub fn style(&self) -> FontStyle {
         self.inner.properties.style
+    }
+
+    /// If the font is fixed-width.
+    #[inline]
+    pub fn is_monospace(&self) -> bool {
+        self.inner.font_kit_font.is_monospace()
+    }
+
+    /// The WebRender font key.
+    ///
+    /// # Careful
+    ///
+    /// The WebRender font resource is managed by this struct, don't manually request a font delete with this key.
+    ///
+    /// Keep a clone of the [`Font`] reference alive if you want to manually create font instances, otherwise the
+    /// font may be cleaned-up.
+    #[inline]
+    pub fn font_key(&self) -> webrender::api::FontKey {
+        self.inner.font_key
+    }
+
+    /// Reference the underlying [`font-kit`](font_kit) font handle.
+    #[inline]
+    pub fn font_kit_handle(&self) -> &font_kit::font::Font {
+        &self.inner.font_kit_font
+    }
+
+    /// Reference the cached [`font-kit`](font_kit) metrics.
+    #[inline]
+    pub fn font_kit_metrics(&self) -> &font_kit::metrics::Metrics {
+        &self.inner.metrics
+    }
+
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    #[inline]
+    pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face> {
+        &self.inner.harfbuzz_face
     }
 
     /// If the font is referenced outside of the cache.
@@ -263,8 +311,22 @@ impl FontInstance {
     }
 
     /// Gets the font instance key.
+    ///
+    /// # Careful
+    ///
+    /// The WebRender font instance resource is managed by this struct, don't manually request a delete with this key.
+    ///
+    /// Keep a clone of the [`FontInstance`] reference alive for the period you want to render using this font,
+    /// otherwise the font may be cleaned-up.
+    #[inline]
     pub fn instance_key(&self) -> FontInstanceKey {
         self.inner.instance_key
+    }
+
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    #[inline]
+    pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font> {
+        &self.inner.harfbuzz_font
     }
 
     /// If the font instance is referenced outside of the cache.
