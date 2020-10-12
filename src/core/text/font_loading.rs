@@ -147,7 +147,7 @@ struct FontInstances {
 }
 
 impl FontInstances {
-    /// Retain instances in use, register delete for instances and font if all instances removed.
+    /// Retain instances in use, register delete for instances removed. Register delete for font if all instances removed.
     fn retain(&mut self, txn: &mut Transaction) -> bool {
         self.instances.retain(|_, v| {
             let retain = v.in_use();
