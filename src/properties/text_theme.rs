@@ -1,9 +1,10 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
 use crate::core::{
-    color::{web_colors, Rgba},
-    context::{Vars, WidgetContext},
+    color::{web_colors, RenderColor, Rgba},
+    context::{LayoutContext, Vars, WidgetContext},
     impl_ui_node, property,
+    render::FrameBuilder,
     text::{font_features::*, *},
     units::*,
     var::{context_var, IntoVar, Var, VarValue},
@@ -370,4 +371,127 @@ pub fn font_cn_variant(child: impl UiNode, state: impl IntoVar<CnVariant>) -> im
 #[property(context)]
 pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) -> impl UiNode {
     with_font_feature(child, state, |f, s| f.ea_width().set(s))
+}
+
+/// All the text contextual values.
+#[derive(Debug)]
+pub struct TextContext<'a> {
+    pub font_family: &'a [FontName],
+    pub font_size: Length,
+    pub font_weight: FontWeight,
+    pub font_style: FontStyle,
+    pub font_strech: FontStretch,
+    pub text_color: Rgba,
+    pub text_transform: TextTransformFn,
+    pub line_height: LineHeight,
+    pub letter_spacing: LetterSpacing,
+    pub word_spacing: WordSpacing,
+    pub word_break: WordBreak,
+    pub line_break: LineBreak,
+    pub text_align: TextAlign,
+    pub tab_length: TabLength,
+    pub white_space: WhiteSpace,
+    pub font_features: Option<std::cell::Ref<'a, FontFeatures>>,
+}
+impl<'a> TextContext<'a> {
+    /// Borrow or copy all the text contextual values.
+    pub fn get(vars: &'a Vars) -> Self {
+        TextContext {
+            font_family: vars.context::<FontFamilyVar>(),
+            font_size: *vars.context::<FontSizeVar>(),
+            font_weight: *vars.context::<FontWeightVar>(),
+            font_style: *vars.context::<FontStyleVar>(),
+            font_strech: *vars.context::<FontStretchVar>(),
+            text_color: *vars.context::<TextColorVar>(),
+            text_transform: vars.context::<TextTransformVar>().clone(),
+            line_height: *vars.context::<LineHeightVar>(),
+            letter_spacing: *vars.context::<LetterSpacingVar>(),
+            word_spacing: *vars.context::<WordSpacingVar>(),
+            word_break: *vars.context::<WordBreakVar>(),
+            line_break: *vars.context::<LineBreakVar>(),
+            text_align: *vars.context::<TextAlignVar>(),
+            tab_length: *vars.context::<TabLengthVar>(),
+            white_space: *vars.context::<WhiteSpaceVar>(),
+            font_features: FontFeaturesContext::get(vars),
+        }
+    }
+
+    pub fn make_layout_data(&self, text: &Text, ctx: &mut WidgetContext) -> TextLayoutData {
+        let font = ctx.window_services.req::<Fonts>().get_or_default(
+            self.font_family,
+            &FontProperties {
+                style: self.font_style,
+                weight: self.font_weight,
+                stretch: self.font_strech,
+            },
+            10, //TODO font size, two pass layout?
+        );
+
+        let text = match &self.text_transform {
+            TextTransformFn::None => text.clone(),
+            TextTransformFn::Uppercase => text.to_uppercase().into(),
+            TextTransformFn::Lowercase => text.to_lowercase().into(),
+            TextTransformFn::Custom(f) => f(text.as_ref()),
+        };
+        let text = match self.white_space {
+            WhiteSpace::Preserve => text,
+            WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
+            WhiteSpace::MergeNoBreak => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
+        };
+
+        TextLayoutData {
+            font,
+            color: self.text_color.into(),
+            text,
+
+            shaped: vec![],
+            size: None,
+        }
+    }
+}
+impl<'a> Clone for TextContext<'a> {
+    fn clone(&self) -> Self {
+        TextContext {
+            font_features: self.font_features.as_ref().map(std::cell::Ref::clone),
+            text_transform: self.text_transform.clone(),
+
+            font_family: self.font_family,
+            font_size: self.font_size,
+            font_weight: self.font_weight,
+            font_style: self.font_style,
+            font_strech: self.font_strech,
+            text_color: self.text_color,
+            line_height: self.line_height,
+            letter_spacing: self.letter_spacing,
+            word_spacing: self.word_spacing,
+            word_break: self.word_break,
+            line_break: self.line_break,
+            text_align: self.text_align,
+            tab_length: self.tab_length,
+            white_space: self.white_space,
+        }
+    }
+}
+
+/// Text layout data.
+pub struct TextLayoutData {
+    pub font: FontInstance,
+    pub color: RenderColor,
+    pub text: Text,
+
+    pub shaped: Vec<ShapedLine>,
+    pub size: Option<LayoutSize>,
+}
+impl TextLayoutData {
+    pub fn update(&mut self, ctx: &mut WidgetContext) {
+        todo!()
+    }
+
+    pub fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        todo!()
+    }
+
+    pub fn render(&mut self, frame: &mut FrameBuilder) {
+        todo!()
+    }
 }

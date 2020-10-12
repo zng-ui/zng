@@ -393,7 +393,7 @@ pub enum TextTransformFn {
     /// to lowercase.
     Lowercase,
     /// Custom transform function.
-    Custom(Rc<dyn Fn(&str) -> Cow<str>>),
+    Custom(Rc<dyn Fn(&str) -> Text>),
 }
 impl TextTransformFn {
     pub fn transform<'a, 'b>(&'a self, text: &'b str) -> Cow<'b, str> {
@@ -405,7 +405,7 @@ impl TextTransformFn {
         }
     }
 
-    pub fn custom(fn_: impl Fn(&str) -> Cow<str> + 'static) -> Self {
+    pub fn custom(fn_: impl Fn(&str) -> Text + 'static) -> Self {
         TextTransformFn::Custom(Rc::new(fn_))
     }
 }
