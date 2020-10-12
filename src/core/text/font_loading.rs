@@ -1,8 +1,10 @@
-use super::{FontInstanceKey, FontMetrics, FontName, FontProperties, FontSizePt, FontStyle};
+use super::{FontInstanceKey, FontMetrics, FontName, FontSizePt, FontStretch, FontStyle, FontWeight};
 use crate::core::{app::AppExtension, context::AppInitContext, context::WindowService, var::ContextVar};
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
-use std::{collections::HashMap, sync::Arc};
+use font_kit::properties::Properties as FontProperties;
+use std::collections::hash_map::Entry as HEntry;
+use std::{cell::RefCell, collections::HashMap, sync::Arc};
 use webrender::api::{units::Au, FontKey, RenderApi, Transaction};
 
 /// Application extension that provides the [`Fonts`] window service.
@@ -20,31 +22,22 @@ impl AppExtension for FontManager {
 /// Fonts cache service.
 pub struct Fonts {
     api: Arc<RenderApi>,
-    fonts: HashMap<FontQueryKey, FontInstances>,
+    fonts: HashMap<FontQueryKey, Font>,
 }
 impl Fonts {
-    /// Gets a cached font instance or loads a new instance.
-    pub fn get(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> Option<FontInstance> {
-        let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(*properties));
-        if let Some(font) = self.fonts.get_mut(&query_key) {
-            if let Some(instance) = font.instances.get(&font_size) {
-                Some(instance.clone())
-            } else {
-                Some(Self::load_font_size(&self.api, font, font_size))
-            }
-        } else if let Some(instance) = self.load_font(query_key, font_names, properties, font_size) {
-            Some(instance)
-        } else {
-            None
-        }
+    /// Gets a cached font or loads a font.
+    #[inline]
+    pub fn get(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<Font> {
+        self.get_font(font_names, FontProperties { style, weight, stretch })
     }
 
     /// Gets a font using [`get`](Self::get) or fallback to the any of the default fonts.
-    pub fn get_or_default(&mut self, font_names: &[FontName], properties: &FontProperties, font_size: FontSizePt) -> FontInstance {
-        self.get(font_names, properties, font_size)
+    #[inline]
+    pub fn get_or_default(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Font {
+        self.get_font(font_names, FontProperties { style, weight, stretch })
             .or_else(|| {
                 warn_println!("did not found font: {:?}", font_names);
-                self.get(FontFamilyVar::default_value(), &FontProperties::default(), font_size)
+                self.get_font(FontFamilyVar::default_value(), FontProperties::default())
             })
             .expect("did not find any default font")
     }
@@ -59,18 +52,27 @@ impl Fonts {
         }
     }
 
-    fn load_font(
-        &mut self,
-        query_key: FontQueryKey,
-        font_names: &[FontName],
-        properties: &FontProperties,
-        size: FontSizePt,
-    ) -> Option<FontInstance> {
+    fn get_font(&mut self, font_names: &[FontName], properties: FontProperties) -> Option<Font> {
+        let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(properties));
+
+        match self.fonts.entry(query_key) {
+            HEntry::Occupied(e) => Some(e.get().clone()),
+            HEntry::Vacant(e) => {
+                if let Some(font) = Self::load_font(self.api.clone(), font_names, properties) {
+                    Some(e.insert(font).clone())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    fn load_font(api: Arc<RenderApi>, font_names: &[FontName], properties: FontProperties) -> Option<Font> {
         let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
-        match font_kit::source::SystemSource::new().select_best_match(&family_names, properties) {
+        match font_kit::source::SystemSource::new().select_best_match(&family_names, &properties) {
             Ok(handle) => {
                 let mut txn = Transaction::new();
-                let font_key = self.api.generate_font_key();
+                let font_key = api.generate_font_key();
 
                 let metrics = {
                     let loader = handle.load().expect("cannot load font [2]");
@@ -91,65 +93,116 @@ impl Fonts {
                     }
                 };
 
-                let mut font_instances = FontInstances {
-                    font_key,
-                    metrics,
-                    harfbuzz_face: harfbuzz_face.to_shared(),
-                    instances: FnvHashMap::default(),
-                };
+                api.update_resources(txn.resource_updates);
 
-                self.api.update_resources(txn.resource_updates);
-                let instance = Self::load_font_size(&self.api, &mut font_instances, size);
-                self.fonts.insert(query_key, font_instances);
-                Some(instance)
+                Some(Font::new(api, font_key, properties, metrics, harfbuzz_face.into()))
             }
             Err(font_kit::error::SelectionError::NotFound) => None,
             Err(font_kit::error::SelectionError::CannotAccessSource) => panic!("cannot access system font source"),
         }
     }
-
-    fn load_font_size(api: &RenderApi, font_instances: &mut FontInstances, size: FontSizePt) -> FontInstance {
-        let mut txn = Transaction::new();
-        let instance_key = api.generate_font_instance_key();
-
-        let size_px = size as f32 * 96.0 / 72.0;
-        txn.add_font_instance(
-            instance_key,
-            font_instances.font_key,
-            Au::from_f32_px(size_px),
-            None,
-            None,
-            Vec::new(),
-        );
-        api.update_resources(txn.resource_updates);
-
-        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&font_instances.harfbuzz_face));
-
-        harfbuzz_font.set_ppem(size, size);
-        harfbuzz_font.set_scale(size as i32 * 64, size as i32 * 64);
-
-        let metrics = FontMetrics::new(size_px, &font_instances.metrics);
-
-        let instance = FontInstance::new(instance_key, size, metrics, harfbuzz_font.to_shared());
-        font_instances.instances.insert(size, instance.clone());
-
-        instance
-    }
 }
 impl WindowService for Fonts {}
 
-/// All instances of a font family.
-struct FontInstances {
-    pub font_key: FontKey,
-    pub metrics: font_kit::metrics::Metrics,
-    pub harfbuzz_face: HarfbuzzFace,
-    pub instances: FnvHashMap<FontSizePt, FontInstance>,
+struct FontInner {
+    api: Arc<RenderApi>,
+    font_key: FontKey,
+    properties: FontProperties,
+    metrics: font_kit::metrics::Metrics,
+    harfbuzz_face: HarfbuzzFace,
+    instances: RefCell<FnvHashMap<FontSizePt, FontInstance>>,
 }
 
-impl FontInstances {
-    /// Retain instances in use, register delete for instances removed. Register delete for font if all instances removed.
+/// Reference to a specific font (family + style, weight and stretch).
+#[derive(Clone)]
+pub struct Font {
+    inner: Arc<FontInner>,
+}
+impl Font {
+    fn new(
+        api: Arc<RenderApi>,
+        font_key: FontKey,
+        properties: FontProperties,
+        metrics: font_kit::metrics::Metrics,
+        harfbuzz_face: HarfbuzzFace,
+    ) -> Self {
+        Font {
+            inner: Arc::new(FontInner {
+                api,
+                font_key,
+                metrics,
+                properties,
+                harfbuzz_face,
+                instances: RefCell::default(),
+            }),
+        }
+    }
+
+    /// Gets a cached instance of instantiate the font at the size.
+    pub fn instance(&self, font_size: FontSizePt) -> FontInstance {
+        if let Some(instance) = self.inner.instances.borrow().get(&font_size) {
+            return instance.clone();
+        }
+
+        let api = &self.inner.api;
+        let mut txn = Transaction::new();
+        let instance_key = api.generate_font_instance_key();
+
+        let size_px = font_size as f32 * 96.0 / 72.0;
+        txn.add_font_instance(instance_key, self.inner.font_key, Au::from_f32_px(size_px), None, None, Vec::new());
+        api.update_resources(txn.resource_updates);
+
+        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&self.inner.harfbuzz_face));
+
+        harfbuzz_font.set_ppem(font_size, font_size);
+        harfbuzz_font.set_scale(font_size as i32 * 64, font_size as i32 * 64);
+
+        let metrics = FontMetrics::new(size_px, &self.inner.metrics);
+
+        let instance = FontInstance::new(self.clone(), instance_key, font_size, metrics, harfbuzz_font.to_shared());
+        self.inner.instances.borrow_mut().insert(font_size, instance.clone());
+
+        instance
+    }
+
+    ///// Gets the font name.
+    //#[inline]
+    //pub fn font_name(&self) -> &FontName {
+    //    &self.inner.font_name
+    //}
+    //
+    ///// Gets the index of the font in the font file.
+    //#[inline]
+    //pub fn font_index(&self) -> u32 {
+    //    self.inner.font_index
+    //}
+
+    /// Gets the WebRender font key.
+    #[inline]
+    pub fn font_key(&self) -> FontKey {
+        self.inner.font_key
+    }
+
+    /// Font weight.
+    #[inline]
+    pub fn weight(&self) -> FontWeight {
+        self.inner.properties.weight
+    }
+
+    /// Font style.
+    #[inline]
+    pub fn style(&self) -> FontStyle {
+        self.inner.properties.style
+    }
+
+    /// If the font is referenced outside of the cache.
+    fn in_use(&self) -> bool {
+        Arc::strong_count(&self.inner) > 1
+    }
+
+    /// Retain instances in use, register delete for instances removed. Register delete for font if it is not in use also.
     fn retain(&mut self, txn: &mut Transaction) -> bool {
-        self.instances.retain(|_, v| {
+        self.inner.instances.borrow_mut().retain(|_, v| {
             let retain = v.in_use();
             if !retain {
                 txn.delete_font_instance(v.instance_key());
@@ -157,38 +210,44 @@ impl FontInstances {
             retain
         });
 
-        let remove_font = self.instances.is_empty();
-
-        if remove_font {
-            txn.delete_font(self.font_key);
+        let retain = self.in_use();
+        if !retain {
+            txn.delete_font(self.font_key());
         }
-
-        !remove_font
+        retain
     }
 }
 
 pub(super) struct FontInstanceInner {
     instance_key: FontInstanceKey,
+    font: Font,
     pub(super) font_size: FontSizePt,
     pub(super) harfbuzz_font: HarfbuzzFont,
     pub(super) metrics: FontMetrics,
 }
 
-/// Reference to a specific font instance (family and size).
+/// Reference to a specific font instance ([`Font`] + size).
 #[derive(Clone)]
 pub struct FontInstance {
     pub(super) inner: Arc<FontInstanceInner>,
 }
 impl FontInstance {
-    fn new(instance_key: FontInstanceKey, font_size: FontSizePt, metrics: FontMetrics, harfbuzz_font: HarfbuzzFont) -> Self {
+    fn new(font: Font, instance_key: FontInstanceKey, font_size: FontSizePt, metrics: FontMetrics, harfbuzz_font: HarfbuzzFont) -> Self {
         FontInstance {
             inner: Arc::new(FontInstanceInner {
+                font,
                 instance_key,
                 font_size,
                 metrics,
                 harfbuzz_font,
             }),
         }
+    }
+
+    /// Source font reference.
+    #[inline]
+    pub fn font(&self) -> &Font {
+        &self.inner.font
     }
 
     /// Size of this font instance.
@@ -208,6 +267,7 @@ impl FontInstance {
         self.inner.instance_key
     }
 
+    /// If the font instance is referenced outside of the cache.
     fn in_use(&self) -> bool {
         Arc::strong_count(&self.inner) > 1
     }

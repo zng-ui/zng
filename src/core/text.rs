@@ -17,7 +17,7 @@ pub use font_features::FontFeatures;
 mod font_loading;
 pub use font_loading::*;
 
-pub use font_kit::properties::{Properties as FontProperties, Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
+pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 pub use webrender::api::FontInstanceKey;
 
 pub use zero_ui_macros::formatx;
@@ -393,19 +393,21 @@ pub enum TextTransformFn {
     /// to lowercase.
     Lowercase,
     /// Custom transform function.
-    Custom(Rc<dyn Fn(&str) -> Text>),
+    Custom(Rc<dyn Fn(Text) -> Text>),
 }
 impl TextTransformFn {
-    pub fn transform<'a, 'b>(&'a self, text: &'b str) -> Cow<'b, str> {
+    /// Apply the text transform.
+    pub fn transform(&self, text: Text) -> Text {
         match self {
-            TextTransformFn::None => Cow::Borrowed(text),
+            TextTransformFn::None => text,
             TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
             TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
 
-    pub fn custom(fn_: impl Fn(&str) -> Text + 'static) -> Self {
+    /// New [`Custom`](Self::Custom).
+    pub fn custom(fn_: impl Fn(Text) -> Text + 'static) -> Self {
         TextTransformFn::Custom(Rc::new(fn_))
     }
 }
@@ -435,6 +437,17 @@ impl Default for WhiteSpace {
     #[inline]
     fn default() -> Self {
         WhiteSpace::Preserve
+    }
+}
+impl WhiteSpace {
+    /// Transform the white space of the text.
+    #[inline]
+    pub fn transform(self, text: Text) -> Text {
+        match self {
+            WhiteSpace::Preserve => text,
+            WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
+            WhiteSpace::MergeNoBreak => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
+        }
     }
 }
 

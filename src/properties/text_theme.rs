@@ -416,36 +416,24 @@ impl<'a> TextContext<'a> {
         }
     }
 
-    pub fn make_layout_data(&self, text: &Text, ctx: &mut WidgetContext) -> TextLayoutData {
-        let font = ctx.window_services.req::<Fonts>().get_or_default(
-            self.font_family,
-            &FontProperties {
-                style: self.font_style,
-                weight: self.font_weight,
-                stretch: self.font_strech,
-            },
-            10, //TODO font size, two pass layout?
-        );
+    pub fn make_layout_data(&self, text: Text, ctx: &mut WidgetContext) -> TextLayoutData {
+        let font = ctx
+            .window_services
+            .req::<Fonts>()
+            .get_or_default(self.font_family, self.font_style, self.font_weight, self.font_strech);
 
-        let text = match &self.text_transform {
-            TextTransformFn::None => text.clone(),
-            TextTransformFn::Uppercase => text.to_uppercase().into(),
-            TextTransformFn::Lowercase => text.to_lowercase().into(),
-            TextTransformFn::Custom(f) => f(text.as_ref()),
-        };
-        let text = match self.white_space {
-            WhiteSpace::Preserve => text,
-            WhiteSpace::Merge => text.split_ascii_whitespace().collect::<Vec<_>>().join(" ").into(),
-            WhiteSpace::MergeNoBreak => text.split_whitespace().collect::<Vec<_>>().join(" ").into(),
-        };
+        let text = self.text_transform.transform(text);
+        let text = self.white_space.transform(text);
 
         TextLayoutData {
-            font,
-            color: self.text_color.into(),
             text,
+            font,
+            font_size: self.font_size,
 
+            font_instance: None,
             shaped: vec![],
             size: None,
+            color: self.text_color.into(),
         }
     }
 }
@@ -475,12 +463,19 @@ impl<'a> Clone for TextContext<'a> {
 
 /// Text layout data.
 pub struct TextLayoutData {
-    pub font: FontInstance,
-    pub color: RenderColor,
+    /// Transformed text.
     pub text: Text,
 
+    /// Reference to font.
+    pub font: Font,
+    pub font_size: Length,
+
+    /// Reference to font instance at a size.
+    pub font_instance: Option<FontInstance>,
     pub shaped: Vec<ShapedLine>,
     pub size: Option<LayoutSize>,
+
+    pub color: RenderColor,
 }
 impl TextLayoutData {
     pub fn update(&mut self, ctx: &mut WidgetContext) {

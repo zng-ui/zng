@@ -44,22 +44,20 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         profile_scope!("text::init");
 
         self.color = *TextColorVar::var().get(ctx.vars);
-        //let font_size = *FontSizeVar::var().get(ctx.vars);
-        let font_size = self.font_size; //TODO
-        let font_properties = FontProperties {
-            style: *FontStyleVar::var().get(ctx.vars),
-            weight: *FontWeightVar::var().get(ctx.vars),
-            stretch: *FontStretchVar::var().get(ctx.vars),
-        };
+        let font_size = self.font_size; // TODO
+        let style = *FontStyleVar::var().get(ctx.vars);
+        let weight = *FontWeightVar::var().get(ctx.vars);
+        let stretch = *FontStretchVar::var().get(ctx.vars);
 
         let font_family = FontFamilyVar::var();
         let font_family = font_family.get(ctx.vars);
         let font = ctx
             .window_services
             .req::<Fonts>()
-            .get_or_default(font_family, &font_properties, font_size);
+            .get_or_default(font_family, style, weight, stretch)
+            .instance(font_size);
 
-        let text = self.text.get(ctx.vars);
+        let text = self.text.get(ctx.vars).clone();
         let text = TextTransformVar::var().get(ctx.vars).transform(text);
 
         let r = font.shape_line(text.lines().next().unwrap_or_default(), &Default::default());
