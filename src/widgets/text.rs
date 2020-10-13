@@ -1,6 +1,5 @@
 //! Text widgets.
 
-use crate::core::color::{web_colors, Rgba};
 use crate::core::context::*;
 use crate::core::impl_ui_node;
 use crate::core::profiler::profile_scope;
@@ -9,6 +8,10 @@ use crate::core::text::*;
 use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::var::{IntoVar, ObjVar, Var};
+use crate::core::{
+    color::{web_colors, RenderColor, Rgba},
+    is_layout_any_size,
+};
 use crate::core::{UiNode, Widget};
 use crate::properties::{capture_only::text_value, text_theme::*};
 use zero_ui_macros::widget;
@@ -228,4 +231,198 @@ widget! {
 /// Apart from the font style this widget can be configured with contextual properties like [`text`](function@text).
 pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
     em! { text; }
+}
+
+/// An UI node that renders a text using the [contextual text theme](TextContext).
+pub struct TextNode2<T: Var<Text>> {
+    text_var: T,
+
+    /* init, update data */
+    // Transformed and white space corrected, or empty before init.
+    text: Text,
+    // Copy for render, or black before init.
+    color: RenderColor,
+    // Loaded from [font query](Fonts::get_or_default) during init.
+    font: Option<Font>,
+    // Copy for layout, or zero before init.
+    font_size: Length,
+
+    /* measure, arrange data */
+    // Font instance using the actual font_size.
+    font_instance: Option<FontInstance>,
+    // Shaped and wrapped text.
+    shaped_text: Vec<ShapedLine>,
+    // Box size of the text block.
+    size: LayoutSize,
+}
+
+impl<T: Var<Text>> TextNode2<T> {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new<I: IntoVar<Text>>(text: I) -> TextNode2<I::Var> {
+        TextNode2 {
+            text_var: text.into_var(),
+            text: "".into(),
+            color: web_colors::BLACK.into(),
+            font: None,
+            font_size: 0.into(),
+            font_instance: None,
+            shaped_text: vec![],
+            size: LayoutSize::zero(),
+        }
+    }
+}
+
+#[impl_ui_node(none)]
+impl<T: Var<Text>> UiNode for TextNode2<T> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        let t_ctx = TextContext::get(ctx.vars);
+
+        self.font = Some(ctx.window_services.req::<Fonts>().get_or_default(
+            t_ctx.font_family,
+            t_ctx.font_style,
+            t_ctx.font_weight,
+            t_ctx.font_stretch,
+        ));
+
+        self.font_size = t_ctx.font_size;
+
+        self.color = t_ctx.text_color.into();
+
+        let text = self.text_var.get(ctx.vars).clone();
+        let text = t_ctx.text_transform.transform(text);
+        self.text = t_ctx.white_space.transform(text);
+    }
+
+    fn deinit(&mut self, _: &mut WidgetContext) {
+        self.font_instance = None;
+        self.font = None;
+        self.shaped_text.clear();
+        self.text = "".into();
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        // update `self.text`, affects shaping and layout
+        if let Some(text) = self.text_var.update(ctx.vars) {
+            let (text_transform, white_space) = TextContext::text(ctx.vars);
+            let text = text_transform.transform(text.clone());
+            let text = white_space.transform(text);
+            if self.text != text {
+                self.text = text;
+                self.shaped_text.clear();
+
+                ctx.updates.push_layout();
+            }
+        } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx.vars) {
+            let text = self.text_var.get(ctx.vars).clone();
+            let text = text_transform.transform(text);
+            let text = white_space.transform(text);
+            if self.text != text {
+                self.text = text;
+                self.shaped_text.clear();
+
+                ctx.updates.push_layout();
+            }
+        }
+
+        // update `self.font`, affects shaping and layout
+        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_update(ctx.vars) {
+            let font = Some(
+                ctx.window_services
+                    .req::<Fonts>()
+                    .get_or_default(font_family, font_style, font_weight, font_stretch),
+            );
+
+            if self.font != font {
+                self.font = font;
+                self.font_instance = None;
+                self.shaped_text.clear();
+
+                ctx.updates.push_layout();
+            }
+        }
+
+        // update `self.font_instance`, affects shaping and layout
+        if let Some(font_size) = TextContext::font_instance_update(ctx.vars) {
+            if font_size != self.font_size {
+                self.font_instance = None;
+                self.shaped_text.clear();
+
+                ctx.updates.push_layout();
+            }
+        }
+
+        // TODO features, spacing, breaking.
+
+        // update `self.color`, affects render
+        if let Some(color) = TextContext::render_update(ctx.vars) {
+            let color = RenderColor::from(color);
+            if self.color != color {
+                self.color = color;
+
+                ctx.updates.push_render();
+            }
+        }
+    }
+
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        if self.font_instance.is_none() {
+            let size = self.font_size.to_layout(LayoutLength::new(available_size.width), ctx);
+            let size = font_size_from_layout_length(size);
+            self.font_instance = Some(self.font.as_ref().expect("font not inited in measure").instance(size));
+        };
+
+        if self.shaped_text.is_empty() {
+            // TODO
+            let font = self.font_instance.as_ref().unwrap();
+            let mut size = LayoutSize::zero();
+
+            if is_layout_any_size(available_size.width) {
+                self.shaped_text = self
+                    .text
+                    .lines()
+                    .map(|l| {
+                        let l = font.shape_line(l, &ShapingConfig::default());
+                        size.width = l.bounds.width.max(size.width);
+                        size.height += l.bounds.height; //TODO + line spacing.
+                        l
+                    })
+                    .collect();
+            } else {
+                size.width = available_size.width;
+                self.shaped_text = self
+                    .text
+                    .lines()
+                    .map(|l| {
+                        let l = font.shape_line(l, &ShapingConfig::default());
+                        size.height += l.bounds.height; //TODO + line spacing.
+                        l
+                    })
+                    .collect();
+            }
+
+            self.size = size;
+        }
+
+        self.size
+    }
+
+    fn render(&self, frame: &mut FrameBuilder) {
+        let f_key = self
+            .font_instance
+            .as_ref()
+            .expect("font instanced not inited in render")
+            .instance_key();
+        todo!()
+    }
+}
+
+#[cfg(tests)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new() {
+        // because clippy complained about new
+        let _ = TextNode::new("foo");
+    }
 }

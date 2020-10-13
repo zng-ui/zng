@@ -125,11 +125,6 @@ pub struct ShapingConfig {
     /// Space to add between each line.
     pub line_spacing: f32,
 
-    /// Space to add between each paragraph.
-    ///
-    /// use [`paragraph_spacing(.).`](function@Self::paragraph_spacing) to compute the value.
-    pub paragraph_spacing: Option<f32>,
-
     /// Unicode script of the text.
     pub script: Script,
 

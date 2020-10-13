@@ -364,6 +364,12 @@ pub enum Length {
     /// Relative to 1% of the largest of the viewport's dimensions.
     ViewportMax(f32),
 }
+impl Default for Length {
+    /// Exact `0`.
+    fn default() -> Self {
+        Length::Exact(0.0)
+    }
+}
 impl fmt::Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

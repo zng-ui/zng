@@ -265,6 +265,14 @@ impl Font {
         retain
     }
 }
+impl PartialEq for Font {
+    /// If both point to the same font.
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+}
+impl Eq for Font {}
 
 pub(super) struct FontInstanceInner {
     instance_key: FontInstanceKey,

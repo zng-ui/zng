@@ -1,10 +1,9 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
 use crate::core::{
-    color::{web_colors, RenderColor, Rgba},
-    context::{LayoutContext, Vars, WidgetContext},
+    color::{web_colors, Rgba},
+    context::{Vars, WidgetContext},
     impl_ui_node, property,
-    render::FrameBuilder,
     text::{font_features::*, *},
     units::*,
     var::{context_var, IntoVar, Var, VarValue},
@@ -44,6 +43,9 @@ context_var! {
 
     /// Text line height of [`text`](crate::widgets::text) spans.
     pub struct LineHeightVar: LineHeight = return &LineHeight::Font;
+
+    /// Extra spacing in between lines of [`text`](crate::widgets::text) spans.
+    pub struct LineSpacingVar: Length = return &Length::Exact(0.0);
 
     /// Extra letter spacing of [`text`](crate::widgets::text) spans.
     pub struct LetterSpacingVar: LetterSpacing = return &LetterSpacing::Auto;
@@ -121,6 +123,12 @@ pub fn line_height(child: impl UiNode, height: impl IntoVar<LineHeight>) -> impl
 #[property(context)]
 pub fn letter_spacing(child: impl UiNode, extra: impl IntoVar<LetterSpacing>) -> impl UiNode {
     with_context_var(child, LetterSpacingVar, extra)
+}
+
+/// Sets the [`LineSpacingVar`] context var.
+#[property(context)]
+pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<Length>) -> impl UiNode {
+    with_context_var(child, LineSpacingVar, extra)
 }
 
 /// Sets the [`WordSpacingVar`] context var.
@@ -376,65 +384,120 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 /// All the text contextual values.
 #[derive(Debug)]
 pub struct TextContext<'a> {
+    /* Affects font */
     pub font_family: &'a [FontName],
-    pub font_size: Length,
-    pub font_weight: FontWeight,
     pub font_style: FontStyle,
-    pub font_strech: FontStretch,
-    pub text_color: Rgba,
+    pub font_weight: FontWeight,
+    pub font_stretch: FontStretch,
+
+    /* Affects text characters */
     pub text_transform: TextTransformFn,
+    pub white_space: WhiteSpace,
+
+    /* Affects font instance */
+    pub font_size: Length,
+
+    /* Affects measure */
     pub line_height: LineHeight,
     pub letter_spacing: LetterSpacing,
     pub word_spacing: WordSpacing,
+    pub line_spacing: Length,
     pub word_break: WordBreak,
     pub line_break: LineBreak,
-    pub text_align: TextAlign,
     pub tab_length: TabLength,
-    pub white_space: WhiteSpace,
     pub font_features: Option<std::cell::Ref<'a, FontFeatures>>,
+
+    /* Affects arrange */
+    pub text_align: TextAlign,
+
+    /* Affects render only */
+    pub text_color: Rgba,
 }
 impl<'a> TextContext<'a> {
     /// Borrow or copy all the text contextual values.
     pub fn get(vars: &'a Vars) -> Self {
         TextContext {
             font_family: vars.context::<FontFamilyVar>(),
-            font_size: *vars.context::<FontSizeVar>(),
-            font_weight: *vars.context::<FontWeightVar>(),
             font_style: *vars.context::<FontStyleVar>(),
-            font_strech: *vars.context::<FontStretchVar>(),
-            text_color: *vars.context::<TextColorVar>(),
+            font_weight: *vars.context::<FontWeightVar>(),
+            font_stretch: *vars.context::<FontStretchVar>(),
+
             text_transform: vars.context::<TextTransformVar>().clone(),
+            white_space: *vars.context::<WhiteSpaceVar>(),
+
+            font_size: *vars.context::<FontSizeVar>(),
+
             line_height: *vars.context::<LineHeightVar>(),
             letter_spacing: *vars.context::<LetterSpacingVar>(),
             word_spacing: *vars.context::<WordSpacingVar>(),
+            line_spacing: *vars.context::<LineSpacingVar>(),
             word_break: *vars.context::<WordBreakVar>(),
             line_break: *vars.context::<LineBreakVar>(),
-            text_align: *vars.context::<TextAlignVar>(),
             tab_length: *vars.context::<TabLengthVar>(),
-            white_space: *vars.context::<WhiteSpaceVar>(),
             font_features: FontFeaturesContext::get(vars),
+
+            text_align: *vars.context::<TextAlignVar>(),
+
+            text_color: *vars.context::<TextColorVar>(),
         }
     }
 
-    pub fn make_layout_data(&self, text: Text, ctx: &mut WidgetContext) -> TextLayoutData {
-        let font = ctx
-            .window_services
-            .req::<Fonts>()
-            .get_or_default(self.font_family, self.font_style, self.font_weight, self.font_strech);
-
-        let text = self.text_transform.transform(text);
-        let text = self.white_space.transform(text);
-
-        TextLayoutData {
-            text,
-            font,
-            font_size: self.font_size,
-
-            font_instance: None,
-            shaped: vec![],
-            size: None,
-            color: self.text_color.into(),
+    /// Gets the properties that affect the font.
+    pub fn font(vars: &'a Vars) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
+        (
+            vars.context::<FontFamilyVar>(),
+            *vars.context::<FontStyleVar>(),
+            *vars.context::<FontWeightVar>(),
+            *vars.context::<FontStretchVar>(),
+        )
+    }
+    /// Gets [`font`](Self::font) if any of the properties updated.
+    pub fn font_update(vars: &'a Vars) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
+        if vars.context_is_new::<FontFamilyVar>()
+            || vars.context_is_new::<FontStyleVar>()
+            || vars.context_is_new::<FontWeightVar>()
+            || vars.context_is_new::<FontStretchVar>()
+        {
+            Some(Self::font(vars))
+        } else {
+            None
         }
+    }
+
+    /// Gets the properties that affect the text characters.
+    #[inline]
+    pub fn text(vars: &'a Vars) -> (TextTransformFn, WhiteSpace) {
+        (vars.context::<TextTransformVar>().clone(), *vars.context::<WhiteSpaceVar>())
+    }
+    /// Gets [`text`](Self::text) if any of the properties updated.
+    pub fn text_update(vars: &'a Vars) -> Option<(TextTransformFn, WhiteSpace)> {
+        if vars.context_is_new::<TextTransformVar>() || vars.context_is_new::<WhiteSpaceVar>() {
+            Some(Self::text(vars))
+        } else {
+            None
+        }
+    }
+
+    /// Gets the property `font_size` that affects the font instance.
+    #[inline]
+    pub fn font_instance(vars: &'a Vars) -> Length {
+        *vars.context::<FontSizeVar>()
+    }
+    /// Gets [`font_instance`](Self::font_instance) if the property `font_size` updated.
+    #[inline]
+    pub fn font_instance_update(vars: &'a Vars) -> Option<Length> {
+        vars.context_update::<FontSizeVar>().copied()
+    }
+
+    /// Gets the property `text_color` that affects render.
+    #[inline]
+    pub fn render(vars: &'a Vars) -> Rgba {
+        *vars.context::<TextColorVar>()
+    }
+    /// Gets [`render`](Self::render) if the property `text_color` updated.
+    #[inline]
+    pub fn render_update(vars: &'a Vars) -> Option<Rgba> {
+        vars.context_update::<TextColorVar>().copied()
     }
 }
 impl<'a> Clone for TextContext<'a> {
@@ -447,46 +510,17 @@ impl<'a> Clone for TextContext<'a> {
             font_size: self.font_size,
             font_weight: self.font_weight,
             font_style: self.font_style,
-            font_strech: self.font_strech,
+            font_stretch: self.font_stretch,
             text_color: self.text_color,
             line_height: self.line_height,
             letter_spacing: self.letter_spacing,
             word_spacing: self.word_spacing,
+            line_spacing: self.line_spacing,
             word_break: self.word_break,
             line_break: self.line_break,
             text_align: self.text_align,
             tab_length: self.tab_length,
             white_space: self.white_space,
         }
-    }
-}
-
-/// Text layout data.
-pub struct TextLayoutData {
-    /// Transformed text.
-    pub text: Text,
-
-    /// Reference to font.
-    pub font: Font,
-    pub font_size: Length,
-
-    /// Reference to font instance at a size.
-    pub font_instance: Option<FontInstance>,
-    pub shaped: Vec<ShapedLine>,
-    pub size: Option<LayoutSize>,
-
-    pub color: RenderColor,
-}
-impl TextLayoutData {
-    pub fn update(&mut self, _ctx: &mut WidgetContext) {
-        todo!()
-    }
-
-    pub fn measure(&mut self, _available_size: LayoutSize, _ctx: &mut LayoutContext) -> LayoutSize {
-        todo!()
-    }
-
-    pub fn render(&mut self, _frame: &mut FrameBuilder) {
-        todo!()
     }
 }
