@@ -35,7 +35,7 @@ impl FontInstance {
     /// Shapes the text line using the font.
     ///
     /// The `text` should not contain line breaks, if it does the line breaks are ignored.
-    pub fn shape_line(&self, text: &str, config: &ShapingConfig) -> ShapedLine {
+    pub fn shape_line(&self, text: &str, config: &LineShapingArgs) -> ShapedLine {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
             harfbuzz_rs::Direction::Rtl
         } else {
@@ -108,7 +108,7 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
 
 /// Extra configuration for [`shape_line`](FontInstance::shape_line).
 #[derive(Debug, Clone, Default)]
-pub struct ShapingConfig {
+pub struct LineShapingArgs {
     /// Extra spacing to add between characters.
     pub letter_spacing: Option<f32>,
 
@@ -122,9 +122,6 @@ pub struct ShapingConfig {
     /// Use [`line_height(..)`](function@Self::line_height) to compute the value.
     pub line_height: Option<f32>,
 
-    /// Space to add between each line.
-    pub line_spacing: f32,
-
     /// Unicode script of the text.
     pub script: Script,
 
@@ -137,12 +134,6 @@ pub struct ShapingConfig {
     /// Text is right-to-left.
     pub right_to_left: bool,
 
-    pub word_break: WordBreak,
-
-    pub line_break: LineBreak,
-
-    pub text_align: TextAlign,
-
     /// Width of the TAB character.
     ///
     /// By default 3 x space.
@@ -151,11 +142,10 @@ pub struct ShapingConfig {
     /// Extra space before the start of the first line.
     pub text_indent: f32,
 
-    /// Collapse/preserve line-breaks/etc.
-    pub white_space: WhiteSpace,
+    // TODO
+    //pub font_features: &'a (),
 }
-
-impl ShapingConfig {
+impl LineShapingArgs {
     /// Gets the custom word spacing or 0.25em.
     #[inline]
     pub fn word_spacing(&self, font_size: f32) -> f32 {
@@ -167,12 +157,6 @@ impl ShapingConfig {
     pub fn line_height(&self, metrics: &FontMetrics) -> f32 {
         // servo uses the line-gap as default I think.
         self.line_height.unwrap_or_else(|| metrics.line_height())
-    }
-
-    /// Gets the custom paragraph spacing or one line height + two line spacing.
-    #[inline]
-    pub fn paragraph_spacing(&self, metrics: &FontMetrics) -> f32 {
-        self.line_height(metrics) + self.line_spacing * 2.0
     }
 }
 

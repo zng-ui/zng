@@ -381,7 +381,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
                     .text
                     .lines()
                     .map(|l| {
-                        let l = font.shape_line(l, &ShapingConfig::default());
+                        let l = font.shape_line(l, &LineShapingArgs::default());
                         size.width = l.bounds.width.max(size.width);
                         size.height += l.bounds.height; //TODO + line spacing.
                         l
@@ -393,7 +393,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
                     .text
                     .lines()
                     .map(|l| {
-                        let l = font.shape_line(l, &ShapingConfig::default());
+                        let l = font.shape_line(l, &LineShapingArgs::default());
                         size.height += l.bounds.height; //TODO + line spacing.
                         l
                     })

@@ -1083,7 +1083,7 @@ impl_from_and_into_var! {
 /// Word spacing is done using the space character "advance" as defined in the font,
 /// this unit represents extra spacing added to that default spacing.
 ///
-/// A "word" is the sequence of characters in between space characters. This extra
+/// A "word" is the sequence of characters in-between space characters. This extra
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
 /// see [`white_space`](crate::properties::text_theme::white_space) for more details.
@@ -1127,6 +1127,14 @@ impl_from_and_into_var! {
         WordSpacing::Length(i.into())
     }
 }
+
+/// Extra spacing in-between paragraphs.
+///
+/// The initial paragraph space is `line_height + line_spacing * 2`, this extra spacing is added to that.
+///
+/// A "paragraph" is a sequence of lines in-between blank lines (empty or spaces only). This extra space is applied per blank line
+/// not per paragraph, if there are three blank lines between paragraphs the extra spacing is applied trice.
+pub type ParagraphSpacing = Length;
 
 /// Length of a `TAB` space.
 ///

@@ -53,6 +53,9 @@ context_var! {
     /// Extra word spacing of [`text`](crate::widgets::text) spans.
     pub struct WordSpacingVar: WordSpacing = return &WordSpacing::Auto;
 
+    /// Extra paragraph spacing of text blocks.
+    pub struct ParagraphSpacingVar: ParagraphSpacing = return &Length::Exact(0.0);
+
     /// Configuration of line breaks inside words during text wrap.
     pub struct WordBreakVar: WordBreak = return &WordBreak::Normal;
 
@@ -135,6 +138,12 @@ pub fn line_spacing(child: impl UiNode, extra: impl IntoVar<Length>) -> impl UiN
 #[property(context)]
 pub fn word_spacing(child: impl UiNode, extra: impl IntoVar<WordSpacing>) -> impl UiNode {
     with_context_var(child, WordSpacingVar, extra)
+}
+
+/// Sets the [`ParagraphSpacingVar`] context var.
+#[property(context)]
+pub fn paragraph_spacing(child: impl UiNode, extra: impl IntoVar<ParagraphSpacing>) -> impl UiNode {
+    with_context_var(child, ParagraphSpacingVar, extra)
 }
 
 /// Sets the [`WordBreakVar`] context var.
