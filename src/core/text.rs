@@ -141,7 +141,6 @@ pub struct LineShapingArgs {
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
-
     // TODO
     //pub font_features: &'a (),
 }

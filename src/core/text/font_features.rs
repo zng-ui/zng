@@ -191,62 +191,60 @@ macro_rules! font_features {
         $(#[$docs:meta])*
         fn $name:ident($feat0_or_Enum:tt $(, $feat1:tt)?) $(-> $Helper:ident)?;
     )+) => {
-        $(
+        impl FontFeatures {$(
             font_features!{feature $(#[$docs])* fn $name($feat0_or_Enum $(, $feat1)?) $(-> $Helper)?; }
+        )+}
+
+        impl FontFeaturesBuilder {$(
             font_features!{builder $(#[$docs])* fn $name($($feat0_or_Enum -> $Helper)?); }
-        )+
+        )+}
     };
 
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt, $feat1:tt); ) => {
-        impl FontFeatures {
-            $(#[$docs])*
-            #[inline]
-            pub fn $name(&mut self) -> FontFeatureSet {
-                self.feature_set(&[$feat0, $feat1])
-            }
+        $(#[$docs])*
+        #[inline]
+        pub fn $name(&mut self) -> FontFeatureSet {
+            self.feature_set(&[$feat0, $feat1])
         }
+
     };
 
     (feature $(#[$docs:meta])* fn $name:ident($feat0:tt);) => {
-        impl FontFeatures {
-            $(#[$docs])*
-            #[inline]
-            pub fn $name(&mut self) -> FontFeature {
-                self.feature($feat0)
-            }
+        $(#[$docs])*
+        #[inline]
+        pub fn $name(&mut self) -> FontFeature {
+            self.feature($feat0)
         }
+
     };
 
     (feature $(#[$docs:meta])* fn $name:ident($Enum:ident) -> $Helper:ident;) => {
-        impl FontFeatures {
-            $(#[$docs])*
-            #[inline]
-            pub fn $name(&mut self) -> $Helper<$Enum> {
-                $Helper { features: &mut self.0, _t: PhantomData }
-            }
+        $(#[$docs])*
+        #[inline]
+        pub fn $name(&mut self) -> $Helper<$Enum> {
+            $Helper { features: &mut self.0, _t: PhantomData }
         }
+
     };
 
     (builder $(#[$docs:meta])* fn $name:ident();) => {
-        impl FontFeaturesBuilder {
-            $(#[$docs])*
-            #[inline]
-            pub fn $name(mut self, state: impl Into<FontFeatureState>) -> Self {
-                self.0.$name().set(state);
-                self
-            }
+        $(#[$docs])*
+        #[inline]
+        pub fn $name(mut self, state: impl Into<FontFeatureState>) -> Self {
+            self.0.$name().set(state);
+            self
         }
+
     };
 
     (builder $(#[$docs:meta])* fn $name:ident($Enum:ident -> $Helper:ident);) => {
-        impl FontFeaturesBuilder {
-            $(#[$docs])*
-            #[inline]
-            pub fn $name(mut self, state: impl Into<$Enum>) -> Self {
-                self.0.$name().set(state);
-                self
-            }
+        $(#[$docs])*
+        #[inline]
+        pub fn $name(mut self, state: impl Into<$Enum>) -> Self {
+            self.0.$name().set(state);
+            self
         }
+
     };
 }
 
