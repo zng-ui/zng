@@ -113,6 +113,15 @@ impl FontFeatures {
             _t: PhantomData,
         }
     }
+
+    /// Generate the harfbuzz font features.
+    #[inline]
+    pub fn finalize(&self) -> HFontFeatures {
+        self.0
+            .iter()
+            .map(|(&n, &s)| harfbuzz_rs::Feature::new(n, s, 0..usize::MAX))
+            .collect()
+    }
 }
 impl fmt::Debug for FontFeatures {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -123,6 +132,11 @@ impl fmt::Debug for FontFeatures {
         map.finish()
     }
 }
+
+/// Finalized [`FontFeatures`].
+///
+/// This is a vec of [harfbuzz features](harfbuzz_rs::Feature).
+pub type HFontFeatures = Vec<harfbuzz_rs::Feature>;
 
 fn name_to_str(name: FontFeatureName) -> &'static str {
     std::str::from_utf8(name).unwrap_or_default()

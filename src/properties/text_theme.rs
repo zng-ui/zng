@@ -32,6 +32,9 @@ context_var! {
     /// Font stretch of [`text`](crate::widgets::text) spans.
     pub struct FontStretchVar: FontStretch = const FontStretch::NORMAL;
 
+    /// Font synthesis of [`text`](crate::widgets::text) spans.
+    pub struct FontSynthesisVar: FontSynthesis = const FontSynthesis::ENABLED;
+
     /// Font size of [`text`](crate::widgets::text) spans.
     pub struct FontSizeVar: Length = once Length::pt(14.0);
 
@@ -96,6 +99,12 @@ pub fn font_weight(child: impl UiNode, weight: impl IntoVar<FontWeight>) -> impl
 #[property(context)]
 pub fn font_stretch(child: impl UiNode, stretch: impl IntoVar<FontStretch>) -> impl UiNode {
     with_context_var(child, FontStretchVar, stretch)
+}
+
+/// Sets the [`FontSynthesisVar`] context var.
+#[property(context)]
+pub fn font_synthesis(child: impl UiNode, enabled: impl IntoVar<FontSynthesis>) -> impl UiNode {
+    with_context_var(child, FontSynthesisVar, enabled)
 }
 
 /// Sets the [`FontSizeVar`] context var.
@@ -421,6 +430,7 @@ pub struct TextContext<'a> {
 
     /* Affects render only */
     pub text_color: Rgba,
+    pub font_synthesis: FontSynthesis,
 }
 impl<'a> TextContext<'a> {
     /// Borrow or copy all the text contextual values.
@@ -448,6 +458,7 @@ impl<'a> TextContext<'a> {
             text_align: *vars.context::<TextAlignVar>(),
 
             text_color: *vars.context::<TextColorVar>(),
+            font_synthesis: *vars.context::<FontSynthesisVar>(),
         }
     }
 
@@ -498,15 +509,19 @@ impl<'a> TextContext<'a> {
         vars.context_update::<FontSizeVar>().copied()
     }
 
-    /// Gets the property `text_color` that affects render.
+    /// Gets the properties that affect render.
     #[inline]
-    pub fn render(vars: &'a Vars) -> Rgba {
-        *vars.context::<TextColorVar>()
+    pub fn render(vars: &'a Vars) -> (Rgba, FontSynthesis) {
+        (*vars.context::<TextColorVar>(), *vars.context::<FontSynthesisVar>())
     }
     /// Gets [`render`](Self::render) if the property `text_color` updated.
     #[inline]
-    pub fn render_update(vars: &'a Vars) -> Option<Rgba> {
-        vars.context_update::<TextColorVar>().copied()
+    pub fn render_update(vars: &'a Vars) -> Option<(Rgba, FontSynthesis)> {
+        if vars.context_is_new::<TextColorVar>() || vars.context_is_new::<FontSynthesisVar>() {
+            Some(Self::render(vars))
+        } else {
+            None
+        }
     }
 }
 impl<'a> Clone for TextContext<'a> {
@@ -520,6 +535,7 @@ impl<'a> Clone for TextContext<'a> {
             font_weight: self.font_weight,
             font_style: self.font_style,
             font_stretch: self.font_stretch,
+            font_synthesis: self.font_synthesis,
             text_color: self.text_color,
             line_height: self.line_height,
             letter_spacing: self.letter_spacing,

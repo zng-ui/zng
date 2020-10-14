@@ -1,5 +1,7 @@
 //! Text widgets.
 
+use std::mem;
+
 use crate::core::context::*;
 use crate::core::impl_ui_node;
 use crate::core::profiler::profile_scope;
@@ -14,6 +16,7 @@ use crate::core::{
 };
 use crate::core::{UiNode, Widget};
 use crate::properties::{capture_only::text_value, text_theme::*};
+use webrender::api::FontInstanceFlags;
 use zero_ui_macros::widget;
 
 struct TextNode<T: Var<Text>> {
@@ -242,16 +245,23 @@ pub struct TextNode2<T: Var<Text>> {
     text: Text,
     // Copy for render, or black before init.
     color: RenderColor,
+    glyph_options: Option<GlyphOptions>,
     // Loaded from [font query](Fonts::get_or_default) during init.
     font: Option<Font>,
     // Copy for layout, or zero before init.
     font_size: Length,
+    line_spacing: Length,
 
     /* measure, arrange data */
+    //
+    line_shaping_args: LineShapingArgs,
+    layout_line_spacing: f32,
     // Font instance using the actual font_size.
     font_instance: Option<FontInstance>,
     // Shaped and wrapped text.
     shaped_text: Vec<ShapedLine>,
+    // All the lines as a single block of glyphs.
+    arranged_text: Vec<GlyphInstance>,
     // Box size of the text block.
     size: LayoutSize,
 }
@@ -261,12 +271,19 @@ impl<T: Var<Text>> TextNode2<T> {
     pub fn new<I: IntoVar<Text>>(text: I) -> TextNode2<I::Var> {
         TextNode2 {
             text_var: text.into_var(),
+
             text: "".into(),
             color: web_colors::BLACK.into(),
+            glyph_options: None,
             font: None,
             font_size: 0.into(),
+            line_spacing: 0.into(),
+
+            line_shaping_args: LineShapingArgs::default(),
+            layout_line_spacing: 0.0,
             font_instance: None,
             shaped_text: vec![],
+            arranged_text: vec![],
             size: LayoutSize::zero(),
         }
     }
@@ -353,14 +370,22 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
 
         // TODO features, spacing, breaking.
 
-        // update `self.color`, affects render
-        if let Some(color) = TextContext::render_update(ctx.vars) {
+        // update `self.color` and `self.glyph_options`, affects render
+        if let Some((color, synthesis)) = TextContext::render_update(ctx.vars) {
             let color = RenderColor::from(color);
             if self.color != color {
                 self.color = color;
 
                 ctx.updates.push_render();
             }
+            let glyph_options = if synthesis.contains(FontSynthesis::BOLD) {
+                Some(GlyphOptions {
+                    flags: FontInstanceFlags::SYNTHETIC_BOLD,
+                    ..Default::default()
+                })
+            } else {
+                None
+            };
         }
     }
 
@@ -381,7 +406,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
                     .text
                     .lines()
                     .map(|l| {
-                        let l = font.shape_line(l, &LineShapingArgs::default());
+                        let l = font.shape_line(l, &self.line_shaping_args);
                         size.width = l.bounds.width.max(size.width);
                         size.height += l.bounds.height; //TODO + line spacing.
                         l
@@ -393,7 +418,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
                     .text
                     .lines()
                     .map(|l| {
-                        let l = font.shape_line(l, &LineShapingArgs::default());
+                        let l = font.shape_line(l, &self.line_shaping_args);
                         size.height += l.bounds.height; //TODO + line spacing.
                         l
                     })
@@ -401,13 +426,28 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
             }
 
             self.size = size;
+            self.arranged_text.clear();
         }
 
         self.size
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        //TODO
+        // TODO use final size for wrapping?
+        if self.arranged_text.is_empty() && !self.text.is_empty() {
+            debug_assert!(!self.shaped_text.is_empty(), "expected at least one empty line in arrange");
+            self.arranged_text.extend(mem::take(&mut self.shaped_text[0].glyphs));
+
+            let mut y_offset = self.shaped_text[0].bounds.height + self.layout_line_spacing;
+            for line in &mut self.shaped_text[1..] {
+                let mut glyphs = mem::take(&mut line.glyphs);
+                for g in &mut glyphs {
+                    g.point.y += y_offset;
+                }
+                self.arranged_text.extend(glyphs);
+                y_offset += line.bounds.height + self.layout_line_spacing;
+            }
+        }
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -416,7 +456,14 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
             .as_ref()
             .expect("font instanced not inited in render")
             .instance_key();
-        todo!()
+        //TODO synthetic oblique.
+        frame.push_text(
+            LayoutRect::from_size(self.size),
+            &self.arranged_text,
+            f_key,
+            self.color,
+            self.glyph_options,
+        );
     }
 }
 

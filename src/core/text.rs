@@ -13,6 +13,7 @@ pub use unicode_script::{self, Script};
 
 pub mod font_features;
 pub use font_features::FontFeatures;
+use font_features::HFontFeatures;
 
 mod font_loading;
 pub use font_loading::*;
@@ -141,8 +142,8 @@ pub struct LineShapingArgs {
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
-    // TODO
-    //pub font_features: &'a (),
+    // Finalized font features.
+    pub font_features: HFontFeatures,
 }
 impl LineShapingArgs {
     /// Gets the custom word spacing or 0.25em.
@@ -591,5 +592,33 @@ impl IntoVar<Text> for String {
 
     fn into_var(self) -> Self::Var {
         OwnedVar(Cow::from(self))
+    }
+}
+
+bitflags! {
+    /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
+    pub struct FontSynthesis: u8 {
+        /// No synthetic font generated, if font resolution does not find a variant the matches the requested propertied
+        /// the properties are ignored and the normal font is returned.
+        const DISABLED = 0;
+        /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference added using extra stroke.
+        const BOLD = 1;
+        /// Enable synthetic oblique. If the font resolution does not find a oblique variant a skew transform is applied.
+        const STYLE = 2;
+        /// Enabled all synthetic font possibilities.
+        const ENABLED = Self::BOLD.bits | Self::STYLE.bits;
+    }
+}
+impl Default for FontSynthesis {
+    /// [`FontSynthesis::ENABLED`]
+    #[inline]
+    fn default() -> Self {
+        FontSynthesis::ENABLED
+    }
+}
+impl_from_and_into_var! {
+    /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
+    fn from(enabled: bool) -> FontSynthesis {
+        if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
     }
 }
