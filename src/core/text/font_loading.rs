@@ -137,7 +137,7 @@ impl Font {
         }
     }
 
-    /// Gets a cached instance of instantiate the font at the size.
+    /// Instantiate the font at the size.
     pub fn instance(&self, font_size: FontSizePt) -> FontInstance {
         if let Some(instance) = self.inner.instances.borrow().get(&font_size) {
             return instance.clone();
@@ -194,16 +194,22 @@ impl Font {
         self.inner.harfbuzz_face.glyph_count()
     }
 
+    /// Font style.
+    #[inline]
+    pub fn style(&self) -> FontStyle {
+        self.inner.properties.style
+    }
+
     /// Font weight.
     #[inline]
     pub fn weight(&self) -> FontWeight {
         self.inner.properties.weight
     }
 
-    /// Font style.
+    /// Font stretch.
     #[inline]
-    pub fn style(&self) -> FontStyle {
-        self.inner.properties.style
+    pub fn stretch(&self) -> FontStretch {
+        self.inner.properties.stretch
     }
 
     /// If the font is fixed-width.

@@ -406,6 +406,10 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
         self.size
     }
 
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        //TODO
+    }
+
     fn render(&self, frame: &mut FrameBuilder) {
         let f_key = self
             .font_instance
