@@ -19,95 +19,6 @@ use crate::properties::{capture_only::text_value, text_theme::*};
 use webrender::api::FontInstanceFlags;
 use zero_ui_macros::widget;
 
-struct TextNode<T: Var<Text>> {
-    text: T,
-
-    glyphs: Vec<GlyphInstance>,
-    font_size: FontSizePt,
-    size: LayoutSize,
-    font: Option<FontInstance>,
-    color: Rgba,
-}
-impl<T: Var<Text>> TextNode<T> {
-    fn new(text: T) -> TextNode<T> {
-        TextNode {
-            text,
-            glyphs: vec![],
-            font_size: 10, //TODO
-            size: LayoutSize::zero(),
-            font: None,
-            color: web_colors::BLACK,
-        }
-    }
-
-    fn aligned_size(&self, pixels: PixelGrid) -> LayoutSize {
-        self.size.snap_to(pixels)
-    }
-}
-#[impl_ui_node(none)]
-impl<T: Var<Text>> UiNode for TextNode<T> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        profile_scope!("text::init");
-
-        self.color = *TextColorVar::var().get(ctx.vars);
-        let font_size = self.font_size; // TODO
-        let style = *FontStyleVar::var().get(ctx.vars);
-        let weight = *FontWeightVar::var().get(ctx.vars);
-        let stretch = *FontStretchVar::var().get(ctx.vars);
-
-        let font_family = FontFamilyVar::var();
-        let font_family = font_family.get(ctx.vars);
-        let font = ctx
-            .window_services
-            .req::<Fonts>()
-            .get_or_default(font_family, style, weight, stretch)
-            .instance(font_size);
-
-        let text = self.text.get(ctx.vars).clone();
-        let text = TextTransformVar::var().get(ctx.vars).transform(text);
-
-        let r = font.shape_line(text.lines().next().unwrap_or_default(), &Default::default());
-        self.glyphs = r.glyphs;
-
-        self.size = r.bounds;
-        self.font = Some(font);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        profile_scope!("text::update");
-
-        if self.text.is_new(ctx.vars)
-            || FontFamilyVar::var().is_new(ctx.vars)
-            || FontSizeVar::var().is_new(ctx.vars)
-            || TextTransformVar::var().is_new(ctx.vars)
-        {
-            self.init(ctx);
-            ctx.updates.push_layout();
-        }
-
-        if let Some(&color) = TextColorVar::var().update(ctx.vars) {
-            self.color = color;
-            ctx.updates.push_render();
-        }
-    }
-
-    fn measure(&mut self, _: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        self.aligned_size(ctx.pixel_grid())
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        profile_scope!("text::render");
-        let size = self.aligned_size(frame.pixel_grid());
-        frame.push_text(
-            LayoutRect::from_size(size),
-            &self.glyphs,
-            self.font.as_ref().unwrap().instance_key(),
-            self.color.into(),
-            None,
-        )
-    }
-}
-
 widget! {
     /// A configured [`text`](../fn.text.html).
     ///
@@ -237,7 +148,7 @@ pub fn em(text: impl IntoVar<Text> + 'static) -> impl Widget {
 }
 
 /// An UI node that renders a text using the [contextual text theme](TextContext).
-pub struct TextNode2<T: Var<Text>> {
+pub struct TextNode<T: Var<Text>> {
     text_var: T,
 
     /* init, update data */
@@ -266,10 +177,9 @@ pub struct TextNode2<T: Var<Text>> {
     size: LayoutSize,
 }
 
-impl<T: Var<Text>> TextNode2<T> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new<I: IntoVar<Text>>(text: I) -> TextNode2<I::Var> {
-        TextNode2 {
+impl<T: Var<Text>> TextNode<T> {
+    pub fn new(text: T) -> TextNode<T> {
+        TextNode {
             text_var: text.into_var(),
 
             text: "".into(),
@@ -290,7 +200,7 @@ impl<T: Var<Text>> TextNode2<T> {
 }
 
 #[impl_ui_node(none)]
-impl<T: Var<Text>> UiNode for TextNode2<T> {
+impl<T: Var<Text>> UiNode for TextNode<T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let t_ctx = TextContext::get(ctx.vars);
 
@@ -425,7 +335,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
                     .collect();
             }
 
-            self.size = size;
+            self.size = size.snap_to(ctx.pixel_grid());
             self.arranged_text.clear();
         }
 
@@ -434,6 +344,7 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         // TODO use final size for wrapping?
+        // http://www.unicode.org/reports/tr14/tr14-45.html
         if self.arranged_text.is_empty() && !self.text.is_empty() {
             debug_assert!(!self.shaped_text.is_empty(), "expected at least one empty line in arrange");
             self.arranged_text.extend(mem::take(&mut self.shaped_text[0].glyphs));
@@ -464,16 +375,5 @@ impl<T: Var<Text>> UiNode for TextNode2<T> {
             self.color,
             self.glyph_options,
         );
-    }
-}
-
-#[cfg(tests)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn new() {
-        // because clippy complained about new
-        let _ = TextNode::new("foo");
     }
 }

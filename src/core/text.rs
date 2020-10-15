@@ -78,8 +78,9 @@ impl FontInstance {
                 let y_advance = to_layout(p.y_advance);
 
                 let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
-                origin.x += x_advance;
+                origin.x += x_advance + config.letter_spacing;
                 origin.y += y_advance;
+                // TODO https://harfbuzz.github.io/clusters.html
                 GlyphInstance { index: i.codepoint, point }
             })
             .collect();
@@ -110,13 +111,11 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
 /// Extra configuration for [`shape_line`](FontInstance::shape_line).
 #[derive(Debug, Clone, Default)]
 pub struct LineShapingArgs {
-    /// Extra spacing to add between characters.
-    pub letter_spacing: Option<f32>,
+    /// Extra spacing to add after each character.
+    pub letter_spacing: f32,
 
-    /// Spacing to add between each word.
-    ///
-    /// Use [`word_spacing(..)`](function@Self::word_spacing) to compute the value.
-    pub word_spacing: Option<f32>,
+    /// Extra spacing to add after each space (U+0020 SPACE).
+    pub word_spacing: f32,
 
     /// Height of each line.
     ///
@@ -146,12 +145,6 @@ pub struct LineShapingArgs {
     pub font_features: HFontFeatures,
 }
 impl LineShapingArgs {
-    /// Gets the custom word spacing or 0.25em.
-    #[inline]
-    pub fn word_spacing(&self, font_size: f32) -> f32 {
-        self.word_spacing.unwrap_or(font_size * 0.25)
-    }
-
     /// Gets the custom line height or the font line height.
     #[inline]
     pub fn line_height(&self, metrics: &FontMetrics) -> f32 {

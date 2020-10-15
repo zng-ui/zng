@@ -148,6 +148,7 @@ impl Font {
         let instance_key = api.generate_font_instance_key();
 
         let size_px = font_size as f32 * 96.0 / 72.0;
+        // TODO features and synthesis should be included here?
         txn.add_font_instance(instance_key, self.inner.font_key, Au::from_f32_px(size_px), None, None, Vec::new());
         api.update_resources(txn.resource_updates);
 

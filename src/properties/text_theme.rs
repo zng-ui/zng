@@ -36,7 +36,7 @@ context_var! {
     pub struct FontSynthesisVar: FontSynthesis = const FontSynthesis::ENABLED;
 
     /// Font size of [`text`](crate::widgets::text) spans.
-    pub struct FontSizeVar: Length = once Length::pt(14.0);
+    pub struct FontSizeVar: Length = once Length::pt(11.0);
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
