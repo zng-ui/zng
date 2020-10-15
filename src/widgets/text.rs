@@ -324,6 +324,10 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             self.arranged_text.clear();
         }
 
+        if !is_layout_any_size(available_size.width) && available_size.width < self.size.width {
+            //TODO wrap here? or estimate the height pos wrap?
+        }
+
         self.size
     }
 

@@ -6,7 +6,7 @@ use super::{
     var::OwnedVar,
 };
 use font_kit::family_name::FamilyName;
-use std::{borrow::Cow, fmt, rc::Rc};
+use std::{borrow::Cow, fmt, ops::Range, rc::Rc};
 use webrender::api::GlyphInstance;
 
 pub use unicode_script::{self, Script};
@@ -613,5 +613,88 @@ impl_from_and_into_var! {
     /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
     fn from(enabled: bool) -> FontSynthesis {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TextSegmentKind {
+    /// A sequence of characters that are not space.
+    Word,
+    /// A sequence of spaces.
+    Space,
+    /// A sequence of tabs.
+    Tab,
+    /// A sequence of line-breaks.
+    LineBreak,
+}
+pub struct TextSegment {
+    pub kind: TextSegmentKind,
+    /// Exclusive end index on the source text.
+    pub end: usize,
+}
+
+pub struct SegmentedText<'a> {
+    text: &'a str,
+    segs: Vec<TextSegment>,
+}
+impl<'a> SegmentedText<'a> {
+    pub fn new(text: &'a str) -> Self {
+        let mut segs = vec![];
+        let mut iter = text.char_indices();
+        let mut start = 0;
+        while let Some((i, c)) = iter.next() {
+            if c.is_whitespace() {
+                if i != start {
+                    segs.push(TextSegment {
+                        kind: TextSegmentKind::Word,
+                        end: i,
+                    });
+                    start = i;
+                }
+
+                // TODO
+                #[allow(clippy::while_let_on_iterator)] // clippy incorrect
+                'take_space: while let Some((i, c)) = iter.next() {
+                    if !c.is_whitespace() {
+                        if i != start {
+                            segs.push(TextSegment {
+                                kind: TextSegmentKind::Space,
+                                end: i,
+                            });
+                            start = i;
+                        }
+                        break 'take_space;
+                    }
+                }
+            }
+        }
+
+        SegmentedText { text, segs }
+    }
+
+    pub fn iter(&'a self) -> SegmentedTextIter<'a> {
+        SegmentedTextIter {
+            text: self.text,
+            start: 0,
+            segs_iter: self.segs.iter(),
+        }
+    }
+}
+pub struct SegmentedTextIter<'a> {
+    text: &'a str,
+    start: usize,
+    segs_iter: std::slice::Iter<'a, TextSegment>,
+}
+impl<'a> Iterator for SegmentedTextIter<'a> {
+    type Item = (&'a str, TextSegmentKind);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(seg) = self.segs_iter.next() {
+            let r = Some((&self.text[self.start..seg.end], seg.kind));
+            self.start = seg.end;
+            r
+        } else {
+            None
+        }
     }
 }
