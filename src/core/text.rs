@@ -627,6 +627,24 @@ pub enum TextSegmentKind {
     /// A sequence of line-breaks.
     LineBreak,
 }
+impl TextSegmentKind {
+    pub fn from_char(c: char) -> Self {
+        if c.is_whitespace() {
+            if c == ' ' {
+                TextSegmentKind::Space
+            } else if c == '\n' {
+                TextSegmentKind::LineBreak
+            } else if c == '\t' {
+                TextSegmentKind::Tab
+            } else {
+                TextSegmentKind::Space
+            }
+        } else {
+            TextSegmentKind::Word
+        }
+    }
+}
+
 pub struct TextSegment {
     pub kind: TextSegmentKind,
     /// Exclusive end index on the source text.
@@ -639,32 +657,24 @@ pub struct SegmentedText<'a> {
 }
 impl<'a> SegmentedText<'a> {
     pub fn new(text: &'a str) -> Self {
-        let mut segs = vec![];
-        let mut iter = text.char_indices();
-        let mut start = 0;
-        while let Some((i, c)) = iter.next() {
-            if c.is_whitespace() {
-                if i != start {
-                    segs.push(TextSegment {
-                        kind: TextSegmentKind::Word,
-                        end: i,
-                    });
-                    start = i;
-                }
+        let mut segs: Vec<TextSegment> = vec![];
 
-                // TODO
-                #[allow(clippy::while_let_on_iterator)] // clippy incorrect
-                'take_space: while let Some((i, c)) = iter.next() {
-                    if !c.is_whitespace() {
-                        if i != start {
-                            segs.push(TextSegment {
-                                kind: TextSegmentKind::Space,
-                                end: i,
-                            });
-                            start = i;
-                        }
-                        break 'take_space;
+        let mut iter = text.char_indices();        
+        if let Some((_, c)) = iter.next() {
+            let mut kind = TextSegmentKind::from_char(c);
+            for (i, c) in iter {
+                let c_kind = TextSegmentKind::from_char(c);
+                if c_kind != kind {
+                    // started new segment, complete previous.
+
+                    if c_kind == TextSegmentKind::LineBreak && i > 0 && text[(i - 1)..i].starts_with('\r') {
+                        // line-break was \r\n, so prev segment ended one char ago.
+                        segs.push(TextSegment { kind, end: i - 1 });
+                    } else {
+                        segs.push(TextSegment { kind, end: i });
                     }
+
+                    kind = c_kind;
                 }
             }
         }
@@ -672,6 +682,7 @@ impl<'a> SegmentedText<'a> {
         SegmentedText { text, segs }
     }
 
+    /// Iterate over segments.
     pub fn iter(&'a self) -> SegmentedTextIter<'a> {
         SegmentedTextIter {
             text: self.text,
