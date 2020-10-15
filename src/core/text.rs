@@ -32,7 +32,7 @@ pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
     layout_length_to_pt(length).round().max(0.0) as u32
 }
 
-impl FontInstance {
+impl FontInstanceRef {
     /// Shapes the text line using the font.
     ///
     /// The `text` should not contain line breaks, if it does the line breaks are ignored.
@@ -58,7 +58,7 @@ impl FontInstance {
 
         let metrics = self.metrics();
 
-        let r = harfbuzz_rs::shape(&self.inner.harfbuzz_font, buffer, &features);
+        let r = harfbuzz_rs::shape(&self.harfbuzz_handle(), buffer, &features);
 
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let mut origin = LayoutPoint::new(0.0, baseline);

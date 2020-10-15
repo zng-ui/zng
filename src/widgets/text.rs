@@ -4,19 +4,17 @@ use std::mem;
 
 use crate::core::context::*;
 use crate::core::impl_ui_node;
-use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::text::*;
 use crate::core::types::*;
 use crate::core::units::*;
-use crate::core::var::{IntoVar, ObjVar, Var};
+use crate::core::var::{IntoVar, Var};
 use crate::core::{
-    color::{web_colors, RenderColor, Rgba},
+    color::{web_colors, RenderColor},
     is_layout_any_size,
 };
 use crate::core::{UiNode, Widget};
 use crate::properties::{capture_only::text_value, text_theme::*};
-use webrender::api::FontInstanceFlags;
 use zero_ui_macros::widget;
 
 widget! {
@@ -156,11 +154,11 @@ pub struct TextNode<T: Var<Text>> {
     text: Text,
     // Copy for render, or black before init.
     color: RenderColor,
-    glyph_options: Option<GlyphOptions>,
     // Loaded from [font query](Fonts::get_or_default) during init.
-    font: Option<Font>,
+    font: Option<FontRef>,
     // Copy for layout, or zero before init.
     font_size: Length,
+    font_synthesis: FontSynthesis,
     line_spacing: Length,
 
     /* measure, arrange data */
@@ -168,7 +166,7 @@ pub struct TextNode<T: Var<Text>> {
     line_shaping_args: LineShapingArgs,
     layout_line_spacing: f32,
     // Font instance using the actual font_size.
-    font_instance: Option<FontInstance>,
+    font_instance: Option<FontInstanceRef>,
     // Shaped and wrapped text.
     shaped_text: Vec<ShapedLine>,
     // All the lines as a single block of glyphs.
@@ -184,9 +182,9 @@ impl<T: Var<Text>> TextNode<T> {
 
             text: "".into(),
             color: web_colors::BLACK.into(),
-            glyph_options: None,
             font: None,
             font_size: 0.into(),
+            font_synthesis: FontSynthesis::DISABLED,
             line_spacing: 0.into(),
 
             line_shaping_args: LineShapingArgs::default(),
@@ -269,8 +267,11 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_instance`, affects shaping and layout
-        if let Some(font_size) = TextContext::font_instance_update(ctx.vars) {
-            if font_size != self.font_size {
+        if let Some((font_size, font_synthesis)) = TextContext::font_instance_update(ctx.vars) {
+            if font_size != self.font_size || font_synthesis != self.font_synthesis {
+                self.font_size = font_size;
+                self.font_synthesis = font_synthesis;
+
                 self.font_instance = None;
                 self.shaped_text.clear();
 
@@ -281,21 +282,13 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         // TODO features, spacing, breaking.
 
         // update `self.color` and `self.glyph_options`, affects render
-        if let Some((color, synthesis)) = TextContext::render_update(ctx.vars) {
+        if let Some(color) = TextContext::render_update(ctx.vars) {
             let color = RenderColor::from(color);
             if self.color != color {
                 self.color = color;
 
                 ctx.updates.push_render();
             }
-            let glyph_options = if synthesis.contains(FontSynthesis::BOLD) {
-                Some(GlyphOptions {
-                    flags: FontInstanceFlags::SYNTHETIC_BOLD,
-                    ..Default::default()
-                })
-            } else {
-                None
-            };
         }
     }
 
@@ -303,7 +296,12 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         if self.font_instance.is_none() {
             let size = self.font_size.to_layout(LayoutLength::new(available_size.width), ctx);
             let size = font_size_from_layout_length(size);
-            self.font_instance = Some(self.font.as_ref().expect("font not inited in measure").instance(size));
+            self.font_instance = Some(
+                self.font
+                    .as_ref()
+                    .expect("font not inited in measure")
+                    .instance(size, self.font_synthesis),
+            );
         };
 
         if self.shaped_text.is_empty() {
@@ -311,29 +309,16 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             let font = self.font_instance.as_ref().unwrap();
             let mut size = LayoutSize::zero();
 
-            if is_layout_any_size(available_size.width) {
-                self.shaped_text = self
-                    .text
-                    .lines()
-                    .map(|l| {
-                        let l = font.shape_line(l, &self.line_shaping_args);
-                        size.width = l.bounds.width.max(size.width);
-                        size.height += l.bounds.height; //TODO + line spacing.
-                        l
-                    })
-                    .collect();
-            } else {
-                size.width = available_size.width;
-                self.shaped_text = self
-                    .text
-                    .lines()
-                    .map(|l| {
-                        let l = font.shape_line(l, &self.line_shaping_args);
-                        size.height += l.bounds.height; //TODO + line spacing.
-                        l
-                    })
-                    .collect();
-            }
+            self.shaped_text = self
+                .text
+                .lines()
+                .map(|l| {
+                    let l = font.shape_line(l, &self.line_shaping_args);
+                    size.width = l.bounds.width.max(size.width);
+                    size.height += l.bounds.height; //TODO + line spacing.
+                    l
+                })
+                .collect();
 
             self.size = size.snap_to(ctx.pixel_grid());
             self.arranged_text.clear();
@@ -368,12 +353,6 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             .expect("font instanced not inited in render")
             .instance_key();
         //TODO synthetic oblique.
-        frame.push_text(
-            LayoutRect::from_size(self.size),
-            &self.arranged_text,
-            f_key,
-            self.color,
-            self.glyph_options,
-        );
+        frame.push_text(LayoutRect::from_size(self.size), &self.arranged_text, f_key, self.color);
     }
 }

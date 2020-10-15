@@ -1,11 +1,11 @@
-use super::{FontInstanceKey, FontMetrics, FontName, FontSizePt, FontStretch, FontStyle, FontWeight};
+use super::{FontInstanceKey, FontMetrics, FontName, FontSizePt, FontStretch, FontStyle, FontSynthesis, FontWeight};
 use crate::core::{app::AppExtension, context::AppInitContext, context::WindowService, var::ContextVar};
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
 use font_kit::properties::Properties as FontProperties;
-use std::collections::hash_map::Entry as HEntry;
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
-use webrender::api::{units::Au, FontKey, RenderApi, Transaction};
+use std::{collections::hash_map::Entry as HEntry, rc::Rc};
+use webrender::api::{units::Au, FontInstanceFlags, FontInstanceOptions, FontKey, RenderApi, SyntheticItalics, Transaction};
 
 /// Application extension that provides the [`Fonts`] window service.
 #[derive(Default)]
@@ -22,18 +22,18 @@ impl AppExtension for FontManager {
 /// Fonts cache service.
 pub struct Fonts {
     api: Arc<RenderApi>,
-    fonts: HashMap<FontQueryKey, Font>,
+    fonts: HashMap<FontQueryKey, FontRef>,
 }
 impl Fonts {
     /// Gets a cached font or loads a font.
     #[inline]
-    pub fn get(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<Font> {
+    pub fn get(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontRef> {
         self.get_font(font_names, FontProperties { style, weight, stretch })
     }
 
     /// Gets a font using [`get`](Self::get) or fallback to the any of the default fonts.
     #[inline]
-    pub fn get_or_default(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Font {
+    pub fn get_or_default(&mut self, font_names: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontRef {
         self.get_font(font_names, FontProperties { style, weight, stretch })
             .or_else(|| {
                 warn_println!("did not found font: {:?}", font_names);
@@ -52,7 +52,7 @@ impl Fonts {
         }
     }
 
-    fn get_font(&mut self, font_names: &[FontName], properties: FontProperties) -> Option<Font> {
+    fn get_font(&mut self, font_names: &[FontName], properties: FontProperties) -> Option<FontRef> {
         let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(properties));
 
         match self.fonts.entry(query_key) {
@@ -67,7 +67,7 @@ impl Fonts {
         }
     }
 
-    fn load_font(api: Arc<RenderApi>, font_names: &[FontName], properties: FontProperties) -> Option<Font> {
+    fn load_font(api: Arc<RenderApi>, font_names: &[FontName], properties: FontProperties) -> Option<FontRef> {
         let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
         match font_kit::source::SystemSource::new().select_best_match(&family_names, &properties) {
             Ok(handle) => {
@@ -92,7 +92,7 @@ impl Fonts {
 
                 api.update_resources(txn.resource_updates);
 
-                Some(Font::new(api, font_key, font_kit_font, harfbuzz_face.into()))
+                Some(FontRef::new(api, font_key, font_kit_font, properties, harfbuzz_face.into()))
             }
             Err(font_kit::error::SelectionError::NotFound) => None,
             Err(font_kit::error::SelectionError::CannotAccessSource) => panic!("cannot access system font source"),
@@ -101,66 +101,86 @@ impl Fonts {
 }
 impl WindowService for Fonts {}
 
-struct FontInner {
+struct Font {
     api: Arc<RenderApi>,
     font_key: FontKey,
     properties: FontProperties,
+    req_properties: FontProperties,
     metrics: font_kit::metrics::Metrics,
     display_name: FontName,
     family_name: FontName,
     postscript_name: Option<String>,
     font_kit_font: font_kit::font::Font,
     harfbuzz_face: HarfbuzzFace,
-    instances: RefCell<FnvHashMap<FontSizePt, FontInstance>>,
+    instances: RefCell<FnvHashMap<(FontSizePt, FontSynthesis), FontInstanceRef>>,
 }
 
 /// Reference to a specific font (family + style, weight and stretch).
 #[derive(Clone)]
-pub struct Font {
-    inner: Arc<FontInner>,
-}
-impl Font {
-    fn new(api: Arc<RenderApi>, font_key: FontKey, font_kit_font: font_kit::font::Font, harfbuzz_face: HarfbuzzFace) -> Self {
-        Font {
-            inner: Arc::new(FontInner {
-                api,
-                font_key,
-                metrics: font_kit_font.metrics(),
-                display_name: FontName::new(font_kit_font.full_name()),
-                family_name: FontName::new(font_kit_font.family_name()),
-                postscript_name: font_kit_font.postscript_name(),
-                properties: font_kit_font.properties(),
-                font_kit_font,
-                harfbuzz_face,
-                instances: RefCell::default(),
-            }),
-        }
+pub struct FontRef(Rc<Font>);
+impl FontRef {
+    fn new(
+        api: Arc<RenderApi>,
+        font_key: FontKey,
+        font_kit_font: font_kit::font::Font,
+        requested_properties: FontProperties,
+        harfbuzz_face: HarfbuzzFace,
+    ) -> Self {
+        FontRef(Rc::new(Font {
+            api,
+            font_key,
+            metrics: font_kit_font.metrics(),
+            display_name: FontName::new(font_kit_font.full_name()),
+            family_name: FontName::new(font_kit_font.family_name()),
+            postscript_name: font_kit_font.postscript_name(),
+            properties: font_kit_font.properties(),
+            req_properties: requested_properties,
+            font_kit_font,
+            harfbuzz_face,
+            instances: RefCell::default(),
+        }))
     }
 
     /// Instantiate the font at the size.
-    pub fn instance(&self, font_size: FontSizePt) -> FontInstance {
-        if let Some(instance) = self.inner.instances.borrow().get(&font_size) {
+    pub fn instance(&self, font_size: FontSizePt, synthesis_allowed: FontSynthesis) -> FontInstanceRef {
+        let synthesis_used = self.synthesis_required() & synthesis_allowed;
+
+        if let Some(instance) = self.0.instances.borrow().get(&(font_size, synthesis_used)) {
             return instance.clone();
         }
 
-        let api = &self.inner.api;
+        let api = &self.0.api;
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
 
         let size_px = font_size as f32 * 96.0 / 72.0;
-        // TODO features and synthesis should be included here?
-        txn.add_font_instance(instance_key, self.inner.font_key, Au::from_f32_px(size_px), None, None, Vec::new());
+
+        let mut opt = FontInstanceOptions::default();
+        if synthesis_used.contains(FontSynthesis::STYLE) {
+            opt.synthetic_italics = SyntheticItalics::enabled();
+        }
+        if synthesis_used.contains(FontSynthesis::BOLD) {
+            opt.flags |= FontInstanceFlags::SYNTHETIC_BOLD;
+        }
+        txn.add_font_instance(instance_key, self.0.font_key, Au::from_f32_px(size_px), Some(opt), None, Vec::new());
         api.update_resources(txn.resource_updates);
 
-        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&self.inner.harfbuzz_face));
+        let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&self.0.harfbuzz_face));
 
         harfbuzz_font.set_ppem(font_size, font_size);
         harfbuzz_font.set_scale(font_size as i32 * 64, font_size as i32 * 64);
 
-        let metrics = FontMetrics::new(size_px, &self.inner.metrics);
+        let metrics = FontMetrics::new(size_px, &self.0.metrics);
 
-        let instance = FontInstance::new(self.clone(), instance_key, font_size, metrics, harfbuzz_font.to_shared());
-        self.inner.instances.borrow_mut().insert(font_size, instance.clone());
+        let instance = FontInstanceRef::new(
+            self.clone(),
+            instance_key,
+            font_size,
+            metrics,
+            synthesis_used,
+            harfbuzz_font.to_shared(),
+        );
+        self.0.instances.borrow_mut().insert((font_size, synthesis_used), instance.clone());
 
         instance
     }
@@ -168,55 +188,84 @@ impl Font {
     /// Font full name.
     #[inline]
     pub fn display_name(&self) -> &FontName {
-        &self.inner.display_name
+        &self.0.display_name
     }
 
     /// Font family name.
     #[inline]
     pub fn family_name(&self) -> &FontName {
-        &self.inner.family_name
+        &self.0.family_name
     }
 
     /// Font globally unique name.
     #[inline]
     pub fn postscript_name(&self) -> Option<&str> {
-        self.inner.postscript_name.as_deref()
+        self.0.postscript_name.as_deref()
     }
 
     /// Index of the font in the font file.
     #[inline]
     pub fn index(&self) -> u32 {
-        self.inner.harfbuzz_face.index()
+        self.0.harfbuzz_face.index()
     }
 
     /// Number of glyphs in the font.
     #[inline]
     pub fn glyph_count(&self) -> u32 {
-        self.inner.harfbuzz_face.glyph_count()
+        self.0.harfbuzz_face.glyph_count()
     }
 
     /// Font style.
     #[inline]
     pub fn style(&self) -> FontStyle {
-        self.inner.properties.style
+        self.0.properties.style
     }
 
     /// Font weight.
     #[inline]
     pub fn weight(&self) -> FontWeight {
-        self.inner.properties.weight
+        self.0.properties.weight
     }
 
     /// Font stretch.
     #[inline]
     pub fn stretch(&self) -> FontStretch {
-        self.inner.properties.stretch
+        self.0.properties.stretch
+    }
+
+    /// Font style that was requested.
+    ///
+    /// If it does not match [`style`](Self::style) synthetic styling may be used in instances.
+    #[inline]
+    pub fn requested_style(&self) -> FontStyle {
+        self.0.req_properties.style
+    }
+
+    /// Font style that was requested.
+    ///
+    /// If it does not match [`weight`](Self::weight) synthetic bolding may be used in instances.
+    #[inline]
+    pub fn requested_weight(&self) -> FontWeight {
+        self.0.req_properties.weight
+    }
+
+    /// Font synthesis required to fulfill the requested properties.
+    #[inline]
+    pub fn synthesis_required(&self) -> FontSynthesis {
+        let mut r = FontSynthesis::empty();
+        if self.requested_style() != self.style() {
+            r = FontSynthesis::STYLE;
+        }
+        if self.requested_weight() != self.weight() {
+            r |= FontSynthesis::BOLD;
+        }
+        r
     }
 
     /// If the font is fixed-width.
     #[inline]
     pub fn is_monospace(&self) -> bool {
-        self.inner.font_kit_font.is_monospace()
+        self.0.font_kit_font.is_monospace()
     }
 
     /// The WebRender font key.
@@ -229,35 +278,35 @@ impl Font {
     /// font may be cleaned-up.
     #[inline]
     pub fn font_key(&self) -> webrender::api::FontKey {
-        self.inner.font_key
+        self.0.font_key
     }
 
     /// Reference the underlying [`font-kit`](font_kit) font handle.
     #[inline]
     pub fn font_kit_handle(&self) -> &font_kit::font::Font {
-        &self.inner.font_kit_font
+        &self.0.font_kit_font
     }
 
     /// Reference the cached [`font-kit`](font_kit) metrics.
     #[inline]
     pub fn font_kit_metrics(&self) -> &font_kit::metrics::Metrics {
-        &self.inner.metrics
+        &self.0.metrics
     }
 
     /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
     #[inline]
     pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face> {
-        &self.inner.harfbuzz_face
+        &self.0.harfbuzz_face
     }
 
     /// If the font is referenced outside of the cache.
     fn in_use(&self) -> bool {
-        Arc::strong_count(&self.inner) > 1
+        Rc::strong_count(&self.0) > 1
     }
 
     /// Retain instances in use, register delete for instances removed. Register delete for font if it is not in use also.
     fn retain(&mut self, txn: &mut Transaction) -> bool {
-        self.inner.instances.borrow_mut().retain(|_, v| {
+        self.0.instances.borrow_mut().retain(|_, v| {
             let retain = v.in_use();
             if !retain {
                 txn.delete_font_instance(v.instance_key());
@@ -272,57 +321,68 @@ impl Font {
         retain
     }
 }
-impl PartialEq for Font {
+impl PartialEq for FontRef {
     /// If both point to the same font.
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.inner, &other.inner)
+        Rc::ptr_eq(&self.0, &other.0)
     }
 }
-impl Eq for Font {}
+impl Eq for FontRef {}
 
-pub(super) struct FontInstanceInner {
+pub(super) struct FontInstance {
     instance_key: FontInstanceKey,
-    font: Font,
-    pub(super) font_size: FontSizePt,
-    pub(super) harfbuzz_font: HarfbuzzFont,
-    pub(super) metrics: FontMetrics,
+    font: FontRef,
+    font_size: FontSizePt,
+    synthesis_used: FontSynthesis,
+    harfbuzz_font: HarfbuzzFont,
+    metrics: FontMetrics,
 }
 
 /// Reference to a specific font instance ([`Font`] + size).
 #[derive(Clone)]
-pub struct FontInstance {
-    pub(super) inner: Arc<FontInstanceInner>,
-}
-impl FontInstance {
-    fn new(font: Font, instance_key: FontInstanceKey, font_size: FontSizePt, metrics: FontMetrics, harfbuzz_font: HarfbuzzFont) -> Self {
-        FontInstance {
-            inner: Arc::new(FontInstanceInner {
-                font,
-                instance_key,
-                font_size,
-                metrics,
-                harfbuzz_font,
-            }),
-        }
+pub struct FontInstanceRef(Rc<FontInstance>);
+impl FontInstanceRef {
+    fn new(
+        font: FontRef,
+        instance_key: FontInstanceKey,
+        font_size: FontSizePt,
+        metrics: FontMetrics,
+        synthesis_used: FontSynthesis,
+        harfbuzz_font: HarfbuzzFont,
+    ) -> Self {
+        FontInstanceRef(Rc::new(FontInstance {
+            font,
+            instance_key,
+            font_size,
+            metrics,
+            synthesis_used,
+            harfbuzz_font,
+        }))
     }
 
     /// Source font reference.
     #[inline]
-    pub fn font(&self) -> &Font {
-        &self.inner.font
+    pub fn font(&self) -> &FontRef {
+        &self.0.font
     }
 
     /// Size of this font instance.
     #[inline]
     pub fn size(&self) -> FontSizePt {
-        self.inner.font_size
+        self.0.font_size
     }
 
     /// Various metrics that apply to this font.
     #[inline]
     pub fn metrics(&self) -> &FontMetrics {
-        &self.inner.metrics
+        &self.0.metrics
+    }
+
+    /// What synthetic properties are used in this instance.
+    #[inline]
+    pub fn synthesis_used(&self) -> FontSynthesis {
+        self.0.synthesis_used
     }
 
     /// Gets the font instance key.
@@ -335,20 +395,26 @@ impl FontInstance {
     /// otherwise the font may be cleaned-up.
     #[inline]
     pub fn instance_key(&self) -> FontInstanceKey {
-        self.inner.instance_key
+        self.0.instance_key
     }
 
     /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
     #[inline]
     pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font> {
-        &self.inner.harfbuzz_font
+        &self.0.harfbuzz_font
     }
 
     /// If the font instance is referenced outside of the cache.
     fn in_use(&self) -> bool {
-        Arc::strong_count(&self.inner) > 1
+        Rc::strong_count(&self.0) > 1
     }
 }
+impl PartialEq for FontInstanceRef {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+impl Eq for FontInstanceRef {}
 
 type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
 

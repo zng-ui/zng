@@ -498,30 +498,30 @@ impl<'a> TextContext<'a> {
         }
     }
 
-    /// Gets the property `font_size` that affects the font instance.
+    /// Gets the properties that affect the font instance. The [`Length`] is `font_size`.
     #[inline]
-    pub fn font_instance(vars: &'a Vars) -> Length {
-        *vars.context::<FontSizeVar>()
+    pub fn font_instance(vars: &'a Vars) -> (Length, FontSynthesis) {
+        (*vars.context::<FontSizeVar>(), *vars.context::<FontSynthesisVar>())
     }
-    /// Gets [`font_instance`](Self::font_instance) if the property `font_size` updated.
+    /// Gets [`font_instance`](Self::font_instance) if any of the properties updated.
     #[inline]
-    pub fn font_instance_update(vars: &'a Vars) -> Option<Length> {
-        vars.context_update::<FontSizeVar>().copied()
+    pub fn font_instance_update(vars: &'a Vars) -> Option<(Length, FontSynthesis)> {
+        if vars.context_is_new::<FontSizeVar>() || vars.context_is_new::<FontSynthesisVar>() {
+            Some(Self::font_instance(vars))
+        } else {
+            None
+        }
     }
 
     /// Gets the properties that affect render.
     #[inline]
-    pub fn render(vars: &'a Vars) -> (Rgba, FontSynthesis) {
-        (*vars.context::<TextColorVar>(), *vars.context::<FontSynthesisVar>())
+    pub fn render(vars: &'a Vars) -> Rgba {
+        *vars.context::<TextColorVar>()
     }
     /// Gets [`render`](Self::render) if the property `text_color` updated.
     #[inline]
-    pub fn render_update(vars: &'a Vars) -> Option<(Rgba, FontSynthesis)> {
-        if vars.context_is_new::<TextColorVar>() || vars.context_is_new::<FontSynthesisVar>() {
-            Some(Self::render(vars))
-        } else {
-            None
-        }
+    pub fn render_update(vars: &'a Vars) -> Option<Rgba> {
+        vars.context_update::<TextColorVar>().copied()
     }
 }
 impl<'a> Clone for TextContext<'a> {
