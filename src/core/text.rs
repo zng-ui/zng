@@ -6,7 +6,7 @@ use super::{
     var::OwnedVar,
 };
 use font_kit::family_name::FamilyName;
-use std::{borrow::Cow, fmt, ops::Range, rc::Rc};
+use std::{borrow::Cow, fmt, rc::Rc};
 use webrender::api::GlyphInstance;
 
 pub use unicode_script::{self, Script};
@@ -659,7 +659,7 @@ impl<'a> SegmentedText<'a> {
     pub fn new(text: &'a str) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
 
-        let mut iter = text.char_indices();        
+        let mut iter = text.char_indices();
         if let Some((_, c)) = iter.next() {
             let mut kind = TextSegmentKind::from_char(c);
             for (i, c) in iter {
@@ -708,4 +708,9 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
             None
         }
     }
+}
+
+/// Count line-breaks in a [`TextSegment`] of kind [`TextSegmentKind::lineBreak`].
+fn count_line_breaks(line_break_seg: &str) -> usize {
+    line_break_seg.bytes().filter(|&b| b == b"\n"[0]).count()
 }
