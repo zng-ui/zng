@@ -691,7 +691,7 @@ impl<'a> SegmentedText<'a> {
             .rev()
             .take_while(|&(_, c)| c.is_whitespace())
             .last()
-            .map(|(i, _)| i)
+            .map(|(i, _)| i + start)
             .unwrap_or(end);
 
         if w_end > start {
@@ -701,13 +701,19 @@ impl<'a> SegmentedText<'a> {
             });
         }
         if w_end < end {
+            // split space/tab
+            for (i, c) in text[w_end..end].char_indices() {
+                if c == '\t' {
+                    let t_start = i + start;
+                    todo!()
+                }
+            }
             segs.push(TextSegment {
                 kind: TextSegmentKind::Space,
                 end,
-            })
+            });
         }
     }
-
     /// The raw segments.
     #[inline]
     pub fn segs(&self) -> &[TextSegment] {
