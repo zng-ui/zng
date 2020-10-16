@@ -644,7 +644,7 @@ pub struct TextSegment {
 
 /// A string segmented in sequences of words, spaces, tabs and separated line breaks.
 ///
-/// Each segment is tagged with a [`TextSegmentKind`] and is represented as 
+/// Each segment is tagged with a [`TextSegmentKind`] and is represented as
 /// an offset from the last segment.
 ///
 /// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
@@ -666,28 +666,29 @@ impl<'a> SegmentedText<'a> {
                     offset - 1
                 };
                 if break_start > start {
-                    segs.push(TextSegment {
-                        kind: TextSegmentKind::Word,
-                        end: break_start,
-                    })
+                    Self::push_word(&mut segs, break_start);
                 }
                 segs.push(TextSegment {
                     kind: TextSegmentKind::LineBreak,
                     end: offset,
                 })
             } else {
-                segs.push(TextSegment {
-                    kind: TextSegmentKind::Word,
-                    end: offset,
-                })
+                Self::push_word(&mut segs, offset);
             }
         }
         if !text.ends_with('\n') {
-            if let Some(seg) = segs.last_mut() {
-                seg.kind = TextSegmentKind::Word;
+            if let Some(seg) = segs.pop() {
+                Self::push_word(&mut segs, seg.end);
             }
         }
         SegmentedText { text, segs }
+    }
+    fn push_word(segs: &mut Vec<TextSegment>, offset: usize) {
+        // TODO, split spaces, tabs
+        segs.push(TextSegment {
+            kind: TextSegmentKind::Word,
+            end: offset,
+        });
     }
 
     /// The raw segments.
