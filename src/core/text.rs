@@ -8,6 +8,7 @@ use super::{
 use font_kit::family_name::FamilyName;
 use std::{borrow::Cow, fmt, rc::Rc};
 use webrender::api::GlyphInstance;
+use xi_unicode::LineBreakIterator;
 
 pub use unicode_script::{self, Script};
 
@@ -616,7 +617,7 @@ impl_from_and_into_var! {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TextSegmentKind {
     /// A sequence of characters that are not space.
     Word,
@@ -625,7 +626,7 @@ pub enum TextSegmentKind {
     /// A sequence of tabs.
     Tab,
     /// A sequence of line-breaks.
-    LineBreak,
+    HardBreak,
 }
 impl TextSegmentKind {
     pub fn from_char(c: char) -> Self {
@@ -633,7 +634,7 @@ impl TextSegmentKind {
             if c == ' ' {
                 TextSegmentKind::Space
             } else if c == '\n' {
-                TextSegmentKind::LineBreak
+                TextSegmentKind::HardBreak
             } else if c == '\t' {
                 TextSegmentKind::Tab
             } else {
@@ -659,26 +660,36 @@ impl<'a> SegmentedText<'a> {
     pub fn new(text: &'a str) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
 
-        let mut iter = text.char_indices();
-        if let Some((_, c)) = iter.next() {
-            let mut kind = TextSegmentKind::from_char(c);
-            for (i, c) in iter {
-                let c_kind = TextSegmentKind::from_char(c);
-                if c_kind != kind {
-                    // started new segment, complete previous.
-
-                    if c_kind == TextSegmentKind::LineBreak && i > 0 && text[(i - 1)..i].starts_with('\r') {
-                        // line-break was \r\n, so prev segment ended one char ago.
-                        segs.push(TextSegment { kind, end: i - 1 });
-                    } else {
-                        segs.push(TextSegment { kind, end: i });
-                    }
-
-                    kind = c_kind;
+        for (offset, hard_break) in LineBreakIterator::new(text) {
+            if hard_break {
+                let start = if segs.is_empty() { 0 } else { segs[segs.len() - 1].end };
+                let break_start = if offset >= start + 2 && text[(offset - 2)..offset].starts_with('\r') {
+                    offset - 2
+                } else {
+                    offset - 1
+                };
+                if break_start > start {
+                    segs.push(TextSegment {
+                        kind: TextSegmentKind::Word,
+                        end: break_start,
+                    })
                 }
+                segs.push(TextSegment {
+                    kind: TextSegmentKind::HardBreak,
+                    end: offset,
+                })
+            } else {
+                segs.push(TextSegment {
+                    kind: TextSegmentKind::Word,
+                    end: offset,
+                })
             }
         }
-
+        if !text.ends_with('\n'){
+            if let Some(seg) = segs.last_mut() {
+                seg.kind = TextSegmentKind::Word;
+            }            
+        }
         SegmentedText { text, segs }
     }
 
@@ -691,6 +702,7 @@ impl<'a> SegmentedText<'a> {
         }
     }
 }
+
 pub struct SegmentedTextIter<'a> {
     text: &'a str,
     start: usize,
@@ -710,7 +722,24 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
     }
 }
 
-/// Count line-breaks in a [`TextSegment`] of kind [`TextSegmentKind::lineBreak`].
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test1() {
+        for seg in SegmentedText::new("a\n\nb").iter() {
+            println!("{:?}", seg)
+        }
+    }
+    #[test]
+    fn test2() {
+        for seg in SegmentedText::new("a\r\n\r\n").iter() {
+            println!("{:?}", seg)
+        }
+    }
+}
+
+/// Count line-breaks in a [`TextSegment`] of kind [`TextSegmentKind::LineBreak`].
 fn count_line_breaks(line_break_seg: &str) -> usize {
     line_break_seg.bytes().filter(|&b| b == b"\n"[0]).count()
 }
