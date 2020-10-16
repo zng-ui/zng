@@ -14,7 +14,7 @@ zero-ui-macros = { path = "zero-ui-macros" }
 # core
 raw-window-handle = "0.3.3"
 winapi = "0.3.9"
-glutin = "0.24.1"
+glutin = "0.25.1"
 gleam = "0.6.17" #version required by webrender
 webrender = "0.61.0"
 euclid = "0.20.7" #version required by webrender
