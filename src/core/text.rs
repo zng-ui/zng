@@ -666,29 +666,46 @@ impl<'a> SegmentedText<'a> {
                     offset - 1
                 };
                 if break_start > start {
-                    Self::push_word(&mut segs, break_start);
+                    Self::push_word(text, &mut segs, break_start);
                 }
                 segs.push(TextSegment {
                     kind: TextSegmentKind::LineBreak,
                     end: offset,
                 })
             } else {
-                Self::push_word(&mut segs, offset);
+                Self::push_word(text, &mut segs, offset);
             }
         }
         if !text.ends_with('\n') {
             if let Some(seg) = segs.pop() {
-                Self::push_word(&mut segs, seg.end);
+                println!("end: {}, len: {}", seg.end, text.len());
+                Self::push_word(text, &mut segs, seg.end);
             }
         }
         SegmentedText { text, segs }
     }
-    fn push_word(segs: &mut Vec<TextSegment>, offset: usize) {
-        // TODO, split spaces, tabs
-        segs.push(TextSegment {
-            kind: TextSegmentKind::Word,
-            end: offset,
-        });
+    fn push_word(text: &str, segs: &mut Vec<TextSegment>, end: usize) {
+        let start = segs.last().map(|s| s.end).unwrap_or(0);
+        let w_end = text[start..end]
+            .char_indices()
+            .rev()
+            .take_while(|&(_, c)| c.is_whitespace())
+            .last()
+            .map(|(i, _)| i)
+            .unwrap_or(end);
+
+        if w_end > start {
+            segs.push(TextSegment {
+                kind: TextSegmentKind::Word,
+                end: w_end,
+            });
+        }
+        if w_end < end {
+            segs.push(TextSegment {
+                kind: TextSegmentKind::Space,
+                end,
+            })
+        }
     }
 
     /// The raw segments.
@@ -718,7 +735,7 @@ impl<'a> SegmentedText<'a> {
     /// "Foo" is a `Word`
     /// " " is a `Space`
     /// "bar!" is a `Word`
-    /// "\n" is a `HardBreak`
+    /// "\n" is a `LineBreak`
     /// "Baz." is a `Word`
     /// ```
     #[inline]
@@ -758,13 +775,13 @@ mod tests {
     use super::*;
     #[test]
     fn test1() {
-        for seg in SegmentedText::new("a\n\nb").iter() {
+        for seg in SegmentedText::new("a \n\nb").iter() {
             println!("{:?}", seg)
         }
     }
     #[test]
     fn test2() {
-        for seg in SegmentedText::new("a\r\n\r\n").iter() {
+        for seg in SegmentedText::new("a  \r\n\r\n         ").iter() {
             println!("{:?}", seg)
         }
     }
