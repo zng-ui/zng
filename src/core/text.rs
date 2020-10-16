@@ -617,41 +617,38 @@ impl_from_and_into_var! {
     }
 }
 
+/// The type of a [text segment](SegmentedText).
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TextSegmentKind {
-    /// A sequence of characters that are not space.
+    /// A sequence of characters that cannot be separated by a line-break.
     Word,
-    /// A sequence of spaces.
+    /// A sequence of characters that all have the `White_Space` Unicode property, except the [`Tab`](Self::Tab) and
+    ///[`LineBreak`](Self::LineBreak) characters..
     Space,
-    /// A sequence of tabs.
+    /// A sequence of `U+0009 TABULAR` characters.
     Tab,
-    /// A sequence of line-breaks.
-    HardBreak,
-}
-impl TextSegmentKind {
-    pub fn from_char(c: char) -> Self {
-        if c.is_whitespace() {
-            if c == ' ' {
-                TextSegmentKind::Space
-            } else if c == '\n' {
-                TextSegmentKind::HardBreak
-            } else if c == '\t' {
-                TextSegmentKind::Tab
-            } else {
-                TextSegmentKind::Space
-            }
-        } else {
-            TextSegmentKind::Word
-        }
-    }
+    /// A single line-break, `\n` or `\r\n`.
+    LineBreak,
 }
 
+/// Represents a single text segment in a [`SegmentedText`].
+#[derive(Clone, Debug)]
 pub struct TextSegment {
+    /// Segment kind.
     pub kind: TextSegmentKind,
     /// Exclusive end index on the source text.
+    ///
+    /// The segment range starts from the `end` of the previous segment, or `0`, e.g: `prev_seg.end..self.end`.
     pub end: usize,
 }
 
+/// A string segmented in sequences of words, spaces, tabs and separated line breaks.
+///
+/// Each segment is tagged with a [`TextSegmentKind`] and is represented as 
+/// an offset from the last segment.
+///
+/// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
+/// for wrapping the text.
 pub struct SegmentedText<'a> {
     text: &'a str,
     segs: Vec<TextSegment>,
@@ -675,7 +672,7 @@ impl<'a> SegmentedText<'a> {
                     })
                 }
                 segs.push(TextSegment {
-                    kind: TextSegmentKind::HardBreak,
+                    kind: TextSegmentKind::LineBreak,
                     end: offset,
                 })
             } else {
@@ -685,15 +682,45 @@ impl<'a> SegmentedText<'a> {
                 })
             }
         }
-        if !text.ends_with('\n'){
+        if !text.ends_with('\n') {
             if let Some(seg) = segs.last_mut() {
                 seg.kind = TextSegmentKind::Word;
-            }            
+            }
         }
         SegmentedText { text, segs }
     }
 
-    /// Iterate over segments.
+    /// The raw segments.
+    #[inline]
+    pub fn segs(&self) -> &[TextSegment] {
+        &self.segs
+    }
+
+    /// Drops self taking the raw segments.
+    #[inline]
+    pub fn into_segs(self) -> Vec<TextSegment> {
+        self.segs
+    }
+
+    /// Segments iterator.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui::core::text::SegmentedText;
+    /// for (sub_str, segment_kind) in SegmentedText::new("Foo bar!\nBaz.").iter() {
+    ///     println!("s: {:?} is a `{:?}`", sub_str, segment_kind);
+    /// }
+    /// ```
+    /// Prints
+    /// ```text
+    /// "Foo" is a `Word`
+    /// " " is a `Space`
+    /// "bar!" is a `Word`
+    /// "\n" is a `HardBreak`
+    /// "Baz." is a `Word`
+    /// ```
+    #[inline]
     pub fn iter(&'a self) -> SegmentedTextIter<'a> {
         SegmentedTextIter {
             text: self.text,
@@ -703,6 +730,9 @@ impl<'a> SegmentedText<'a> {
     }
 }
 
+/// Segmented text iterator.
+///
+/// This `struct` is created by the [`SegmentedText::iter`] method.
 pub struct SegmentedTextIter<'a> {
     text: &'a str,
     start: usize,
@@ -737,9 +767,4 @@ mod tests {
             println!("{:?}", seg)
         }
     }
-}
-
-/// Count line-breaks in a [`TextSegment`] of kind [`TextSegmentKind::LineBreak`].
-fn count_line_breaks(line_break_seg: &str) -> usize {
-    line_break_seg.bytes().filter(|&b| b == b"\n"[0]).count()
 }

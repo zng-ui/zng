@@ -1079,7 +1079,12 @@ impl OpenWindow {
     }
 
     fn monitor_layout_ctx(&self) -> LayoutContext {
-        let monitor = self.gl_ctx.borrow().window().current_monitor().expect("did not find current monitor");
+        let monitor = self
+            .gl_ctx
+            .borrow()
+            .window()
+            .current_monitor()
+            .expect("did not find current monitor");
         let size = monitor.size();
         let scale = monitor.scale_factor() as f32;
         let size = LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale);

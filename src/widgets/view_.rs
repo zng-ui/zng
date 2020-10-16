@@ -60,7 +60,7 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 /// # Example
 /// ```
 /// use zero_ui::{
-///     core::{color::{rgb, rgba}, types::ToText, var::Var, UiNode},
+///     core::{color::{rgb, rgba}, text::ToText, var::Var, UiNode},
 ///     properties::text_theme::{text_color, font_size},
 ///     widgets::{text::text, view, View},
 /// };
