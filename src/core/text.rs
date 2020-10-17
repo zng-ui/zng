@@ -658,62 +658,68 @@ impl<'a> SegmentedText<'a> {
         let mut segs: Vec<TextSegment> = vec![];
 
         for (offset, hard_break) in LineBreakIterator::new(text) {
+            // a hard-break is a '\n', "\r\n" or end-of-text (`EOT`).
             if hard_break {
-                let start = if segs.is_empty() { 0 } else { segs[segs.len() - 1].end };
-                let break_start = if offset >= start + 2 && text[(offset - 2)..offset].starts_with('\r') {
+                // start of this segment.
+                let start = segs.last().map(|s| s.end).unwrap_or(0);
+
+                // The segment can have other characters before the line-break character(s).
+                // LineBreakIterator also returns a hard_break for the last segment even if it
+                // does not have line-break character(s).
+
+                let seg = &text[start..offset];
+                let break_start = if seg.ends_with("\r\n") {
+                    // the break was a "\r\n"
                     offset - 2
-                } else {
+                } else if seg.ends_with('\n') {
+                    // the break was a '\n'
                     offset - 1
+                } else {
+                    // the break was the `EOT`.
+                    offset
                 };
+
                 if break_start > start {
-                    Self::push_word(text, &mut segs, break_start);
+                    // the segment has more characters than the line-break character(s).
+                    Self::push_seg(text, &mut segs, break_start);
                 }
-                segs.push(TextSegment {
-                    kind: TextSegmentKind::LineBreak,
-                    end: offset,
-                })
+                if break_start < offset {
+                    // the line break character(s).
+                    segs.push(TextSegment {
+                        kind: TextSegmentKind::LineBreak,
+                        end: offset,
+                    })
+                }
             } else {
-                Self::push_word(text, &mut segs, offset);
-            }
-        }
-        if !text.ends_with('\n') {
-            if let Some(seg) = segs.pop() {
-                println!("end: {}, len: {}", seg.end, text.len());
-                Self::push_word(text, &mut segs, seg.end);
+                // is a soft-break, an opportunity to break the line if needed
+                Self::push_seg(text, &mut segs, offset);
             }
         }
         SegmentedText { text, segs }
     }
-    fn push_word(text: &str, segs: &mut Vec<TextSegment>, end: usize) {
+    fn push_seg(text: &str, segs: &mut Vec<TextSegment>, end: usize) {
         let start = segs.last().map(|s| s.end).unwrap_or(0);
-        let w_end = text[start..end]
-            .char_indices()
-            .rev()
-            .take_while(|&(_, c)| c.is_whitespace())
-            .last()
-            .map(|(i, _)| i + start)
-            .unwrap_or(end);
 
-        if w_end > start {
-            segs.push(TextSegment {
-                kind: TextSegmentKind::Word,
-                end: w_end,
-            });
-        }
-        if w_end < end {
-            // split space/tab
-            for (i, c) in text[w_end..end].char_indices() {
-                if c == '\t' {
-                    let t_start = i + start;
-                    todo!()
+        let mut kind = TextSegmentKind::Word;
+        for (i, c) in text[start..end].char_indices() {
+            let c_kind = if c == '\t' {
+                TextSegmentKind::Tab
+            } else if ['\u{0020}', '\u{000a}', '\u{000c}', '\u{000d}'].contains(&c) {
+                TextSegmentKind::Space
+            } else {
+                TextSegmentKind::Word
+            };
+
+            if c_kind != kind {
+                if i > 0 {
+                    segs.push(TextSegment { kind, end: i });
                 }
+                kind = c_kind;
             }
-            segs.push(TextSegment {
-                kind: TextSegmentKind::Space,
-                end,
-            });
         }
+        segs.push(TextSegment { kind, end });
     }
+
     /// The raw segments.
     #[inline]
     pub fn segs(&self) -> &[TextSegment] {
@@ -781,13 +787,19 @@ mod tests {
     use super::*;
     #[test]
     fn test1() {
-        for seg in SegmentedText::new("a \n\nb").iter() {
+        for seg in SegmentedText::new("foo \n\nbar\n").iter() {
             println!("{:?}", seg)
         }
     }
     #[test]
     fn test2() {
-        for seg in SegmentedText::new("a  \r\n\r\n         ").iter() {
+        for seg in SegmentedText::new("baz  \r\n\r\n  fa").iter() {
+            println!("{:?}", seg)
+        }
+    }
+    #[test]
+    fn test3() {
+        for seg in SegmentedText::new("\u{200B}	").iter() {
             println!("{:?}", seg)
         }
     }
