@@ -759,27 +759,55 @@ impl<'a> SegmentedText<'a> {
         }
     }
 }
-
-/// Segmented text iterator.
-///
-/// This `struct` is created by the [`SegmentedText::iter`] method.
-pub struct SegmentedTextIter<'a> {
-    text: &'a str,
-    start: usize,
-    segs_iter: std::slice::Iter<'a, TextSegment>,
-}
-impl<'a> Iterator for SegmentedTextIter<'a> {
+impl<'a> IntoIterator for SegmentedText<'a> {
     type Item = (&'a str, TextSegmentKind);
+    type IntoIter = SegmentedTextIntoIter<'a>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(seg) = self.segs_iter.next() {
-            let r = Some((&self.text[self.start..seg.end], seg.kind));
-            self.start = seg.end;
-            r
-        } else {
-            None
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        SegmentedTextIntoIter {
+            text: self.text,
+            start: 0,
+            segs_iter: self.segs.into_iter(),
         }
     }
+}
+macro_rules! impl_segmented_text_iter {
+    ($(
+        $(#[$iter_docs:meta])*
+        pub struct $Iter:ident<$a:lifetime>($SegsIter:ty);
+    )+) => {$(
+        $(#[$iter_docs])*
+        pub struct $Iter<$a> {
+            text: &$a str,
+            start: usize,
+            segs_iter: $SegsIter
+        }
+        impl<$a> Iterator for $Iter<$a> {
+            type Item = (&$a str, TextSegmentKind);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if let Some(seg) = self.segs_iter.next() {
+                    let r = Some((&self.text[self.start..seg.end], seg.kind));
+                    self.start = seg.end;
+                    r
+                } else {
+                    None
+                }
+            }
+        }
+    )+};
+}
+impl_segmented_text_iter! {
+    /// Segmented text iterator.
+    ///
+    /// This `struct` is created by the [`SegmentedText::iter`] method.
+    pub struct SegmentedTextIter<'a>(std::slice::Iter<'a, TextSegment>);
+
+    /// Segmented destructing iterator.
+    ///
+    /// This `struct` is created by the [`IntoIterator::into_iter`] method of [`SegmentedText`].
+    pub struct SegmentedTextIntoIter<'a>(std::vec::IntoIter<TextSegment>);
 }
 
 #[cfg(test)]
@@ -793,7 +821,7 @@ mod tests {
     }
     #[test]
     fn test2() {
-        for seg in SegmentedText::new("baz  \r\n\r\n  fa").iter() {
+        for seg in SegmentedText::new("baz  \r\n\r\n  fa") {
             println!("{:?}", seg)
         }
     }
