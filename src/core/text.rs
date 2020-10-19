@@ -649,15 +649,19 @@ pub struct TextSegment {
 ///
 /// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
 /// for wrapping the text.
-pub struct SegmentedText<'a> {
-    text: &'a str,
+pub struct SegmentedText {
+    text: Text,
     segs: Vec<TextSegment>,
 }
-impl<'a> SegmentedText<'a> {
-    pub fn new(text: &'a str) -> Self {
+impl SegmentedText {
+    pub fn new(text: impl Into<Text>) -> Self {
+        Self::new_text(text.into())
+    }
+    fn new_text(text: Text) -> Self {
         let mut segs: Vec<TextSegment> = vec![];
+        let text_str: &str = &text;
 
-        for (offset, hard_break) in LineBreakIterator::new(text) {
+        for (offset, hard_break) in LineBreakIterator::new(text_str) {
             // a hard-break is a '\n', "\r\n" or end-of-text (`EOT`).
             if hard_break {
                 // start of this segment.
@@ -667,7 +671,7 @@ impl<'a> SegmentedText<'a> {
                 // LineBreakIterator also returns a hard_break for the last segment even if it
                 // does not have line-break character(s).
 
-                let seg = &text[start..offset];
+                let seg = &text_str[start..offset];
                 let break_start = if seg.ends_with("\r\n") {
                     // the break was a "\r\n"
                     offset - 2
@@ -681,7 +685,7 @@ impl<'a> SegmentedText<'a> {
 
                 if break_start > start {
                     // the segment has more characters than the line-break character(s).
-                    Self::push_seg(text, &mut segs, break_start);
+                    Self::push_seg(text_str, &mut segs, break_start);
                 }
                 if break_start < offset {
                     // the line break character(s).
@@ -692,7 +696,7 @@ impl<'a> SegmentedText<'a> {
                 }
             } else {
                 // is a soft-break, an opportunity to break the line if needed
-                Self::push_seg(text, &mut segs, offset);
+                Self::push_seg(text_str, &mut segs, offset);
             }
         }
         SegmentedText { text, segs }
@@ -720,16 +724,40 @@ impl<'a> SegmentedText<'a> {
         segs.push(TextSegment { kind, end });
     }
 
-    /// The raw segments.
+    /// The text string.
+    #[inline]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The raw segment data.
     #[inline]
     pub fn segs(&self) -> &[TextSegment] {
         &self.segs
     }
 
-    /// Drops self taking the raw segments.
+    /// Destructs `self` into the text and segments.
     #[inline]
-    pub fn into_segs(self) -> Vec<TextSegment> {
-        self.segs
+    pub fn into_parts(self) -> (Text, Vec<TextSegment>) {
+        (self.text, self.segs)
+    }
+
+    /// New segmented text from [parts](Self::into_parts).
+    ///
+    /// # Panics
+    ///
+    /// Some basic validation is done on the input:
+    ///
+    /// * If one of the inputs is empty but the other is not.
+    /// * If text is not empty and the last segment ends after the last text byte.
+    #[inline]
+    pub fn from_parts(text: Text, segments: Vec<TextSegment>) -> Self {
+        assert_eq!(text.is_empty(), segments.is_empty());
+        if !text.is_empty() {
+            assert!(segments.last().unwrap().end < text.len());
+        }
+
+        SegmentedText { text, segs: segments }
     }
 
     /// Segments iterator.
@@ -751,84 +779,94 @@ impl<'a> SegmentedText<'a> {
     /// "Baz." is a `Word`
     /// ```
     #[inline]
-    pub fn iter(&'a self) -> SegmentedTextIter<'a> {
+    pub fn iter(&self) -> SegmentedTextIter {
         SegmentedTextIter {
-            text: self.text,
+            text: &self.text,
             start: 0,
             segs_iter: self.segs.iter(),
         }
     }
 }
-impl<'a> IntoIterator for SegmentedText<'a> {
-    type Item = (&'a str, TextSegmentKind);
-    type IntoIter = SegmentedTextIntoIter<'a>;
 
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        SegmentedTextIntoIter {
-            text: self.text,
-            start: 0,
-            segs_iter: self.segs.into_iter(),
+/// Segmented text iterator.
+///
+/// This `struct` is created by the [`SegmentedText::iter`] method.
+pub struct SegmentedTextIter<'a> {
+    text: &'a str,
+    start: usize,
+    segs_iter: std::slice::Iter<'a, TextSegment>,
+}
+impl<'a> Iterator for SegmentedTextIter<'a> {
+    type Item = (&'a str, TextSegmentKind);
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(seg) = self.segs_iter.next() {
+            let r = Some((&self.text[self.start..seg.end], seg.kind));
+            self.start = seg.end;
+            r
+        } else {
+            None
         }
     }
-}
-macro_rules! impl_segmented_text_iter {
-    ($(
-        $(#[$iter_docs:meta])*
-        pub struct $Iter:ident<$a:lifetime>($SegsIter:ty);
-    )+) => {$(
-        $(#[$iter_docs])*
-        pub struct $Iter<$a> {
-            text: &$a str,
-            start: usize,
-            segs_iter: $SegsIter
-        }
-        impl<$a> Iterator for $Iter<$a> {
-            type Item = (&$a str, TextSegmentKind);
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if let Some(seg) = self.segs_iter.next() {
-                    let r = Some((&self.text[self.start..seg.end], seg.kind));
-                    self.start = seg.end;
-                    r
-                } else {
-                    None
-                }
-            }
-        }
-    )+};
-}
-impl_segmented_text_iter! {
-    /// Segmented text iterator.
-    ///
-    /// This `struct` is created by the [`SegmentedText::iter`] method.
-    pub struct SegmentedTextIter<'a>(std::slice::Iter<'a, TextSegment>);
-
-    /// Segmented destructing iterator.
-    ///
-    /// This `struct` is created by the [`IntoIterator::into_iter`] method of [`SegmentedText`].
-    pub struct SegmentedTextIntoIter<'a>(std::vec::IntoIter<TextSegment>);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test1() {
-        for seg in SegmentedText::new("foo \n\nbar\n").iter() {
-            println!("{:?}", seg)
+    fn segmented_text1() {
+        let t = SegmentedText::new("foo \n\nbar\n");
+
+        use TextSegmentKind::*;
+        let expected = vec![
+            ("foo", Word),
+            (" ", Space),
+            ("\n", LineBreak),
+            ("\n", LineBreak),
+            ("bar", Word),
+            ("\n", LineBreak),
+        ];
+        let actual: Vec<_> = t.iter().collect();
+
+        assert_eq!(expected.len(), actual.len());
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            //println!("{:?}", actual);
+            assert_eq!(expected, actual);
         }
     }
     #[test]
-    fn test2() {
-        for seg in SegmentedText::new("baz  \r\n\r\n  fa") {
-            println!("{:?}", seg)
+    fn segmented_text2() {
+        let t = SegmentedText::new("baz  \r\n\r\n  fa".to_owned());
+
+        use TextSegmentKind::*;
+        let expected = vec![
+            ("baz", Word),
+            ("  ", Space),
+            ("\r\n", LineBreak),
+            ("\r\n", LineBreak),
+            ("  ", Space),
+            ("fa", Word),
+        ];
+        let actual: Vec<_> = t.iter().collect();
+
+        assert_eq!(expected.len(), actual.len());
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            //println!("{:?}", actual);
+            assert_eq!(expected, actual);
         }
     }
     #[test]
-    fn test3() {
-        for seg in SegmentedText::new("\u{200B}	").iter() {
-            println!("{:?}", seg)
+    fn segmented_text3() {
+        let t = SegmentedText::new("\u{200B}	");
+
+        use TextSegmentKind::*;
+        let expected = vec![("\u{200B}", Word), ("\t", Tab)];
+        let actual: Vec<_> = t.iter().collect();
+
+        assert_eq!(expected.len(), actual.len());
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            //println!("{:?}", actual);
+            assert_eq!(expected, actual);
         }
     }
 }
