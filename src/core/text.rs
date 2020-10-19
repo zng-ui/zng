@@ -809,6 +809,53 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
     }
 }
 
+/// An offset in a text.
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct TextPoint {
+    /// Line index, 0 based.
+    pub line: usize,
+    /// Byte index in the line text. The byte is in a [char boundary](String::is_char_boundary) and is 0 based.
+    pub index: usize,
+}
+impl TextPoint {
+    #[inline]
+    pub fn new(line: usize, index: usize) -> Self {
+        TextPoint { line, index }
+    }
+
+    /// *Ln 1, Col 1* display info.
+    ///
+    /// `line` if the pointed line.
+    #[inline]
+    pub fn display(self, line: &str) -> TextPointDisplay {
+        TextPointDisplay::new(line, self)
+    }
+}
+
+/// *Ln 1, Col 1* display info of a [`TextPoint`].
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+pub struct TextPointDisplay {
+    /// Line number, 1 based.
+    pub line: usize,
+    /// Character number, 1 based.
+    pub column: usize,
+}
+impl TextPointDisplay {
+    /// `line` is the pointed line.
+    #[inline]
+    pub fn new(line: &str, point: TextPoint) -> Self {
+        TextPointDisplay {
+            line: point.line + 1,
+            column: line[0..point.index].chars().count(),
+        }
+    }
+}
+impl fmt::Display for TextPointDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Ln {}, Col {}", self.line, self.column)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
