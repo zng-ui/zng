@@ -177,7 +177,7 @@ impl<T: 'static> EventEmitter<T> {
 
     /// New emitter for a service request response.
     ///
-    /// The emitter is expected to update at maximum only once so it is not high-pressure.
+    /// The emitter is expected to update only once so it is not high-pressure.
     pub fn response() -> Self {
         Self::new(false)
     }

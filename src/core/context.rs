@@ -1,6 +1,9 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::units::{LayoutSize, PixelGrid};
+use super::{
+    task::Tasks,
+    units::{LayoutSize, PixelGrid},
+};
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventEmitter, EventListener};
 use crate::core::var::*;
@@ -128,22 +131,15 @@ impl UpdateDisplayRequest {
 /// Use this to cause an update cycle without direct access to a context.
 #[derive(Clone)]
 pub struct UpdateNotifier {
-    r: Arc<UpdateNotifierInner>,
-}
-
-struct UpdateNotifierInner {
     event_loop: EventLoopProxy,
-    request: AtomicU8,
+    request: Arc<AtomicU8>,
 }
-
 impl UpdateNotifier {
     #[inline]
     fn new(event_loop: EventLoopProxy) -> Self {
         UpdateNotifier {
-            r: Arc::new(UpdateNotifierInner {
-                event_loop,
-                request: AtomicU8::new(0),
-            }),
+            event_loop,
+            request: Arc::new(AtomicU8::new(0)),
         }
     }
 
@@ -152,9 +148,9 @@ impl UpdateNotifier {
 
     #[inline]
     fn set(&self, update: u8) {
-        let old = self.r.request.fetch_or(update, atomic::Ordering::Relaxed);
+        let old = self.request.fetch_or(update, atomic::Ordering::Relaxed);
         if old == 0 {
-            self.r.event_loop.send_event(AppEvent::Update);
+            self.event_loop.send_event(AppEvent::Update);
         }
     }
 
@@ -834,7 +830,7 @@ impl OwnedUpdates {
     /// the last time it was taken.
     #[inline]
     pub fn take_request(&self) -> UpdateRequest {
-        let request = self.updates.notifier.r.request.swap(0, atomic::Ordering::Relaxed);
+        let request = self.updates.notifier.request.swap(0, atomic::Ordering::Relaxed);
 
         const UPDATE: u8 = UpdateNotifier::UPDATE;
         const UPDATE_HP: u8 = UpdateNotifier::UPDATE_HP;
@@ -974,12 +970,14 @@ pub struct OwnedAppContext {
     events: Events,
     services: AppServicesInit,
     window_services: WindowServicesInit,
+    tasks: Tasks,
     updates: OwnedUpdates,
 }
 
 impl OwnedAppContext {
     /// Produces the single instance of `AppContext` for a normal app run.
     pub fn instance(event_loop: EventLoopProxy) -> Self {
+        let updates = OwnedUpdates::new(event_loop.clone());
         OwnedAppContext {
             app_state: StateMap::default(),
             headless_state: None,
@@ -987,7 +985,8 @@ impl OwnedAppContext {
             events: Events::instance(),
             services: AppServicesInit::default(),
             window_services: WindowServicesInit::default(),
-            updates: OwnedUpdates::new(event_loop.clone()),
+            tasks: Tasks::new(updates.updates.notifier.clone()),
+            updates,
             event_loop,
         }
     }
@@ -1016,6 +1015,7 @@ impl OwnedAppContext {
             events: &mut self.events,
             services: &mut self.services,
             window_services: &mut self.window_services,
+            tasks: &mut self.tasks,
             updates: &mut self.updates.updates,
         }
     }
@@ -1028,6 +1028,7 @@ impl OwnedAppContext {
             events: &self.events,
             services: self.services.services(),
             window_services: &self.window_services,
+            tasks: &mut self.tasks,
             updates: &mut self.updates.updates,
             event_loop,
         }
@@ -1039,6 +1040,7 @@ impl OwnedAppContext {
     }
 
     pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
+        self.tasks.update(&mut self.updates.updates);
         self.updates.apply_updates(&mut self.vars, &mut self.events)
     }
 }
@@ -1108,6 +1110,12 @@ pub struct AppInitContext<'a> {
     /// be registered here.
     pub window_services: &'a mut WindowServicesInit,
 
+    /// Async tasks.
+    ///
+    /// ### Note
+    /// Tasks will not be completed during this initialization.
+    pub tasks: &'a mut Tasks,
+
     /// Changes to be applied after initialization.
     ///
     /// ### Note
@@ -1132,6 +1140,9 @@ pub struct AppContext<'a> {
 
     /// Window services registration.
     pub window_services: &'a WindowServicesInit,
+
+    /// Async tasks.
+    pub tasks: &'a mut Tasks,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -1160,6 +1171,7 @@ impl<'a> AppContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
+            tasks: self.tasks,
             updates: self.updates,
         };
 
@@ -1191,6 +1203,7 @@ impl<'a> AppContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
+            tasks: self.tasks,
             updates: self.updates,
         });
 
@@ -1221,6 +1234,9 @@ pub struct WindowContext<'a> {
     /// Access to window services.
     pub window_services: &'a mut WindowServices,
 
+    /// Async tasks.
+    pub tasks: &'a mut Tasks,
+
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -1250,6 +1266,8 @@ impl<'a> WindowContext<'a> {
             events: self.events,
             services: self.services,
             window_services: self.window_services,
+
+            tasks: self.tasks,
 
             updates: self.updates,
         });
@@ -1282,6 +1300,9 @@ pub struct WidgetContext<'a> {
     /// Access to window services.
     pub window_services: &'a mut WindowServices,
 
+    /// Async tasks.
+    pub tasks: &'a mut Tasks,
+
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
 }
@@ -1301,6 +1322,8 @@ impl<'a> WidgetContext<'a> {
             events: self.events,
             services: self.services,
             window_services: self.window_services,
+
+            tasks: self.tasks,
 
             updates: self.updates,
         });

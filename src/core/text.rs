@@ -127,7 +127,7 @@ impl FontInstanceRef {
 
                     out.glyphs.extend(glyphs);
                 }
-                TextSegmentKind::Space => {todo!()}
+                TextSegmentKind::Space => todo!(),
                 TextSegmentKind::Tab => {}
                 TextSegmentKind::LineBreak => {
                     origin.y += line_height;
