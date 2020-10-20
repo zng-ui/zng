@@ -151,7 +151,7 @@ pub struct TextNode<T: Var<Text>> {
 
     /* init, update data */
     // Transformed and white space corrected, or empty before init.
-    text: Text,
+    text: SegmentedText,
     // Copy for render, or black before init.
     color: RenderColor,
     // Loaded from [font query](Fonts::get_or_default) during init.
@@ -180,7 +180,7 @@ impl<T: Var<Text>> TextNode<T> {
         TextNode {
             text_var: text.into_var(),
 
-            text: "".into(),
+            text: SegmentedText::default(),
             color: web_colors::BLACK.into(),
             font: None,
             font_size: 0.into(),
@@ -215,14 +215,15 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
         let text = self.text_var.get(ctx.vars).clone();
         let text = t_ctx.text_transform.transform(text);
-        self.text = t_ctx.white_space.transform(text);
+        let text = t_ctx.white_space.transform(text);
+        self.text = SegmentedText::new(text)
     }
 
     fn deinit(&mut self, _: &mut WidgetContext) {
         self.font_instance = None;
         self.font = None;
         self.shaped_text.clear();
-        self.text = "".into();
+        self.text = SegmentedText::default();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -231,8 +232,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             let (text_transform, white_space) = TextContext::text(ctx.vars);
             let text = text_transform.transform(text.clone());
             let text = white_space.transform(text);
-            if self.text != text {
-                self.text = text;
+            if self.text.text() != text {
+                self.text = SegmentedText::new(text);
                 self.shaped_text.clear();
 
                 ctx.updates.push_layout();
@@ -241,8 +242,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             let text = self.text_var.get(ctx.vars).clone();
             let text = text_transform.transform(text);
             let text = white_space.transform(text);
-            if self.text != text {
-                self.text = text;
+            if self.text.text() != text {
+                self.text = SegmentedText::new(text);
                 self.shaped_text.clear();
 
                 ctx.updates.push_layout();
@@ -311,6 +312,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
             self.shaped_text = self
                 .text
+                .text()
                 .lines()
                 .map(|l| {
                     let l = font.shape_line(l, &self.line_shaping_args);

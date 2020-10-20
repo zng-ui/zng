@@ -34,20 +34,25 @@ pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
 }
 
 impl FontInstanceRef {
-    /// Shapes the text line using the font.
-    ///
-    /// The `text` should not contain line breaks, if it does the line breaks are ignored.
-    pub fn shape_line(&self, text: &str, config: &LineShapingArgs) -> ShapedLine {
+    fn buffer_segment(&self, segment: &str, config: &LineShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
             harfbuzz_rs::Direction::Rtl
         } else {
             harfbuzz_rs::Direction::Ltr
         });
         if config.script != Script::Unknown {
-            buffer = buffer.set_script(script_to_tag(config.script)).add_str(text);
+            buffer = buffer.set_script(script_to_tag(config.script)).add_str(segment);
         } else {
-            buffer = buffer.add_str(text).guess_segment_properties();
+            buffer = buffer.add_str(segment).guess_segment_properties();
         }
+
+        buffer
+    }
+    /// Shapes the text line using the font.
+    ///
+    /// The `text` should not contain line breaks, if it does the line breaks are ignored.
+    pub fn shape_line(&self, text: &str, config: &LineShapingArgs) -> ShapedLine {
+        let buffer = self.buffer_segment(text, config);
 
         let mut features = vec![];
         if config.ignore_ligatures {
@@ -59,15 +64,15 @@ impl FontInstanceRef {
 
         let metrics = self.metrics();
 
-        let r = harfbuzz_rs::shape(&self.harfbuzz_handle(), buffer, &features);
+        let buffer = harfbuzz_rs::shape(&self.harfbuzz_handle(), buffer, &features);
 
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let mut origin = LayoutPoint::new(0.0, baseline);
 
-        let glyphs: Vec<_> = r
+        let glyphs: Vec<_> = buffer
             .get_glyph_infos()
             .iter()
-            .zip(r.get_glyph_positions())
+            .zip(buffer.get_glyph_positions())
             .map(|(i, p)| {
                 fn to_layout(p: harfbuzz_rs::Position) -> f32 {
                     // remove our scale of 64 and convert to layout pixels
@@ -89,6 +94,52 @@ impl FontInstanceRef {
         let bounds = LayoutSize::new(origin.x, config.line_height(metrics));
 
         ShapedLine { glyphs, baseline, bounds }
+    }
+
+    pub fn shape_text(&self, text: &SegmentedText, config: &LineShapingArgs) -> ShapedText {
+        let mut out = ShapedText::default();
+        let metrics = self.metrics();
+        let line_height = config.line_height(metrics);
+        let baseline = metrics.ascent + metrics.line_gap / 2.0;
+        let mut origin = LayoutPoint::new(0.0, baseline);
+        for (seg, kind) in text.iter() {
+            match kind {
+                TextSegmentKind::Word => {
+                    let buffer = self.buffer_segment(seg, config);
+                    let buffer = harfbuzz_rs::shape(&self.harfbuzz_handle(), buffer, &config.font_features);
+
+                    let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
+                        fn to_layout(p: harfbuzz_rs::Position) -> f32 {
+                            // remove our scale of 64 and convert to layout pixels
+                            (p as f32 / 64.0) * 96.0 / 72.0
+                        }
+                        let x_offset = to_layout(p.x_offset);
+                        let y_offset = to_layout(p.y_offset);
+                        let x_advance = to_layout(p.x_advance);
+                        let y_advance = to_layout(p.y_advance);
+
+                        let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
+                        origin.x += x_advance + config.letter_spacing;
+                        origin.y += y_advance;
+                        // TODO https://harfbuzz.github.io/clusters.html
+                        GlyphInstance { index: i.codepoint, point }
+                    });
+
+                    out.glyphs.extend(glyphs);
+                }
+                TextSegmentKind::Space => {todo!()}
+                TextSegmentKind::Tab => {}
+                TextSegmentKind::LineBreak => {
+                    origin.y += line_height;
+                }
+            }
+            out.glyph_segs.push(TextSegment {
+                kind,
+                end: out.glyphs.len(),
+            })
+        }
+
+        out
     }
 
     pub fn glyph_outline(&self, _line: &ShapedLine) {
@@ -151,6 +202,20 @@ impl LineShapingArgs {
     pub fn line_height(&self, metrics: &FontMetrics) -> f32 {
         // servo uses the line-gap as default I think.
         self.line_height.unwrap_or_else(|| metrics.line_height())
+    }
+}
+
+#[derive(Default)]
+pub struct ShapedText {
+    /// Glyphs for the renderer.
+    glyphs: Vec<GlyphInstance>,
+
+    glyph_segs: Vec<TextSegment>,
+}
+
+impl ShapedText {
+    pub fn glyphs(&self) -> &[GlyphInstance] {
+        &self.glyphs
     }
 }
 
@@ -649,6 +714,7 @@ pub struct TextSegment {
 ///
 /// Line-break segments must be applied and a line-break can be inserted in between the other segment kinds
 /// for wrapping the text.
+#[derive(Default)]
 pub struct SegmentedText {
     text: Text,
     segs: Vec<TextSegment>,
@@ -734,6 +800,12 @@ impl SegmentedText {
     #[inline]
     pub fn segs(&self) -> &[TextSegment] {
         &self.segs
+    }
+
+    /// Returns `true` if text is empty.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.segs.is_empty()
     }
 
     /// Destructs `self` into the text and segments.
