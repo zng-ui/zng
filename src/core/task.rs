@@ -7,6 +7,7 @@ use super::{
 use std::{
     future::Future,
     sync::mpsc::{channel, Receiver, Sender, TryRecvError},
+    thread,
 };
 
 /// Asynchronous tasks controller.
@@ -51,13 +52,15 @@ impl Tasks {
 
     /// Run an IO bound task.
     ///
-    /// The task runs in a [`rayon`] thread-pool, this function is not blocking.
-    pub fn run_async<R: Send + 'static, FR: Future<Output = R>, T: FnOnce() -> FR + Send + 'static>(
-        &mut self,
-        _task: T,
-    ) -> EventListener<R> {
-        let (_event, listener) = self.response();
-        eprintln!("TODO");
+    /// The task runs in an [`async-global-executor`] thread-pool, this function is not blocking.
+    pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> EventListener<R> {
+        let (event, listener) = self.response();
+        // TODO run block-on?
+        async_global_executor::spawn(async move {
+            let r = task.await;
+            event.push_update(r);
+        })
+        .detach();
         listener
     }
 }

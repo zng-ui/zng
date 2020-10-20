@@ -23,6 +23,7 @@ harfbuzz_rs = "1.2.0"
 xi-unicode = "0.2.1"
 unicode-script = "0.5.2"
 rayon = "1.4.1"
+async-global-executor = "1.4.2"
 image = "0.23.10"
 
 # util
