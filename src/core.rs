@@ -12,7 +12,7 @@ pub mod keyboard;
 pub mod mouse;
 pub mod profiler;
 pub mod render;
-pub mod task;
+pub mod sync;
 pub mod text;
 pub mod types;
 pub mod units;

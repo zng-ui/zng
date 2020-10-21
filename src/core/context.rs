@@ -1,7 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
 use super::{
-    task::Tasks,
+    sync::Sync,
     units::{LayoutSize, PixelGrid},
 };
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
@@ -970,7 +970,7 @@ pub struct OwnedAppContext {
     events: Events,
     services: AppServicesInit,
     window_services: WindowServicesInit,
-    tasks: Tasks,
+    sync: Sync,
     updates: OwnedUpdates,
 }
 
@@ -985,7 +985,7 @@ impl OwnedAppContext {
             events: Events::instance(),
             services: AppServicesInit::default(),
             window_services: WindowServicesInit::default(),
-            tasks: Tasks::new(updates.updates.notifier.clone()),
+            sync: Sync::new(updates.updates.notifier.clone()),
             updates,
             event_loop,
         }
@@ -1015,7 +1015,7 @@ impl OwnedAppContext {
             events: &mut self.events,
             services: &mut self.services,
             window_services: &mut self.window_services,
-            tasks: &mut self.tasks,
+            tasks: &mut self.sync,
             updates: &mut self.updates.updates,
         }
     }
@@ -1028,7 +1028,7 @@ impl OwnedAppContext {
             events: &self.events,
             services: self.services.services(),
             window_services: &self.window_services,
-            tasks: &mut self.tasks,
+            tasks: &mut self.sync,
             updates: &mut self.updates.updates,
             event_loop,
         }
@@ -1040,7 +1040,7 @@ impl OwnedAppContext {
     }
 
     pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
-        self.tasks.update(&mut AppSyncContext {
+        self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.updates,
@@ -1118,7 +1118,7 @@ pub struct AppInitContext<'a> {
     ///
     /// ### Note
     /// Tasks will not be completed during this initialization.
-    pub tasks: &'a mut Tasks,
+    pub tasks: &'a mut Sync,
 
     /// Changes to be applied after initialization.
     ///
@@ -1146,7 +1146,7 @@ pub struct AppContext<'a> {
     pub window_services: &'a WindowServicesInit,
 
     /// Async tasks.
-    pub tasks: &'a mut Tasks,
+    pub tasks: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -1250,7 +1250,7 @@ pub struct WindowContext<'a> {
     pub window_services: &'a mut WindowServices,
 
     /// Async tasks.
-    pub tasks: &'a mut Tasks,
+    pub tasks: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -1316,7 +1316,7 @@ pub struct WidgetContext<'a> {
     pub window_services: &'a mut WindowServices,
 
     /// Async tasks.
-    pub tasks: &'a mut Tasks,
+    pub tasks: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,

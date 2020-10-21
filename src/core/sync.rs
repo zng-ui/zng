@@ -9,13 +9,13 @@ use flume::{self, Receiver, Sender, TryRecvError};
 use std::{future::Future, time::Duration};
 
 /// Asynchronous tasks controller.
-pub struct Tasks {
+pub struct Sync {
     notifier: UpdateNotifier,
     channels: Vec<Box<dyn SyncChannel>>,
 }
-impl Tasks {
+impl Sync {
     pub(super) fn new(notifier: UpdateNotifier) -> Self {
-        Tasks {
+        Sync {
             notifier,
             channels: vec![],
         }
