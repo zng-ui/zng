@@ -1040,7 +1040,10 @@ impl OwnedAppContext {
     }
 
     pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
-        self.tasks.update(&mut self.updates.updates);
+        self.tasks.update(&mut AppSyncContext {
+            vars: &mut self.vars,
+            updates: &mut self.updates.updates,
+        });
         self.updates.apply_updates(&mut self.vars, &mut self.events)
     }
 }
@@ -1149,6 +1152,15 @@ pub struct AppContext<'a> {
 
     /// Reference to raw event loop.
     pub event_loop: EventLoopWindowTarget<'a>,
+}
+
+/// App context view for tasks synchronization.
+pub(super) struct AppSyncContext<'a> {
+    /// Access to application variables.
+    pub vars: &'a Vars,
+
+    /// Schedule of actions to apply after this update.
+    pub updates: &'a mut Updates,
 }
 
 /// Custom state associated with a window.
