@@ -164,10 +164,18 @@ trait SyncChannel {
 /// Represents an [`EventEmitter`] that can be updated from other threads.
 ///
 /// See [`Tasks::event_sender`] for more details.
-#[derive(Clone)]
+
 pub struct EventSender<T: Send + 'static> {
     notifier: UpdateNotifier,
     sender: Sender<T>,
+}
+impl<T: Send + 'static> Clone for EventSender<T> {
+    fn clone(&self) -> Self {
+        EventSender {
+            notifier: self.notifier.clone(),
+            sender: self.sender.clone(),
+        }
+    }
 }
 impl<T: Send + 'static> EventSender<T> {
     /// Pushes an update notification.
@@ -239,10 +247,18 @@ impl<T: Clone + Send + 'static> SyncChannel for EventReceiverSync<T> {
     }
 }
 
-#[derive(Clone)]
+/// See [`Tasks::var_sender`] for more details.
 pub struct VarSender<T: VarValue + Send> {
     notifier: UpdateNotifier,
     sender: Sender<T>,
+}
+impl<T: VarValue + Send> Clone for VarSender<T> {
+    fn clone(&self) -> Self {
+        VarSender {
+            notifier: self.notifier.clone(),
+            sender: self.sender.clone(),
+        }
+    }
 }
 impl<T: VarValue + Send> VarSender<T> {
     /// Send the variable a new value.
@@ -271,10 +287,18 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
     }
 }
 
-#[derive(Clone)]
+/// See [`Tasks::var_modifier_sender`] for more details.
 pub struct VarModifySender<T: VarValue> {
     notifier: UpdateNotifier,
     sender: Sender<Box<dyn FnOnce(&mut T) + Send>>,
+}
+impl<T: VarValue + Send> Clone for VarModifySender<T> {
+    fn clone(&self) -> Self {
+        VarModifySender {
+            notifier: self.notifier.clone(),
+            sender: self.sender.clone(),
+        }
+    }
 }
 impl<T: VarValue> VarModifySender<T> {
     /// Send the variable an update.
@@ -305,10 +329,16 @@ impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
     }
 }
 
-///
-#[derive(Clone)]
+/// See [`Tasks::var_receiver`] for more details.
 pub struct VarReceiver<T: VarValue + Send> {
     receiver: Receiver<T>,
+}
+impl<T: VarValue + Send> Clone for VarReceiver<T> {
+    fn clone(&self) -> Self {
+        VarReceiver {
+            receiver: self.receiver.clone(),
+        }
+    }
 }
 impl<T: VarValue + Send> VarReceiver<T> {
     /// Wait for a value update.
@@ -362,11 +392,20 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
 ///
 /// The first value in the channel is the variable value when the channel was created, so this
 /// method returns immediately on the first call.
-#[derive(Clone)]
+
 pub struct VarChannel<T: VarValue + Send> {
     notifier: UpdateNotifier,
     sender: Sender<T>,
     receiver: Receiver<T>,
+}
+impl<T: VarValue + Send> Clone for VarChannel<T> {
+    fn clone(&self) -> Self {
+        VarChannel {
+            notifier: self.notifier.clone(),
+            sender: self.sender.clone(),
+            receiver: self.receiver.clone(),
+        }
+    }
 }
 impl<T: VarValue + Send> VarChannel<T> {
     /// Send the variable a new value.
