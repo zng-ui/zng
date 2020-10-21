@@ -34,7 +34,7 @@ pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
 }
 
 impl FontInstanceRef {
-    fn buffer_segment(&self, segment: &str, config: &LineShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
+    fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
             harfbuzz_rs::Direction::Rtl
         } else {
@@ -51,7 +51,7 @@ impl FontInstanceRef {
     /// Shapes the text line using the font.
     ///
     /// The `text` should not contain line breaks, if it does the line breaks are ignored.
-    pub fn shape_line(&self, text: &str, config: &LineShapingArgs) -> ShapedLine {
+    pub fn shape_line_deprecated(&self, text: &str, config: &TextShapingArgs) -> ShapedLine {
         let buffer = self.buffer_segment(text, config);
 
         let mut features = vec![];
@@ -87,7 +87,10 @@ impl FontInstanceRef {
                 origin.x += x_advance + config.letter_spacing;
                 origin.y += y_advance;
                 // TODO https://harfbuzz.github.io/clusters.html
-                GlyphInstance { index: i.codepoint, point }
+                GlyphInstance {
+                    index: dbg!(i.codepoint),
+                    point,
+                }
             })
             .collect();
 
@@ -96,48 +99,76 @@ impl FontInstanceRef {
         ShapedLine { glyphs, baseline, bounds }
     }
 
-    pub fn shape_text(&self, text: &SegmentedText, config: &LineShapingArgs) -> ShapedText {
+    pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut out = ShapedText::default();
         let metrics = self.metrics();
         let line_height = config.line_height(metrics);
         let baseline = metrics.ascent + metrics.line_gap / 2.0;
         let mut origin = LayoutPoint::new(0.0, baseline);
+        let mut max_line_x = 0.0;
+
         for (seg, kind) in text.iter() {
+            let mut shape_seg = |cluster_spacing: f32| {
+                let buffer = self.buffer_segment(seg, config);
+                let buffer = harfbuzz_rs::shape(self.harfbuzz_handle(), buffer, &config.font_features);
+
+                let mut prev_cluster = u32::MAX;
+                let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
+                    fn to_layout(p: harfbuzz_rs::Position) -> f32 {
+                        // remove our scale of 64 and convert to layout pixels
+                        (p as f32 / 64.0) * 96.0 / 72.0
+                    }
+                    let x_offset = to_layout(p.x_offset);
+                    let y_offset = to_layout(p.y_offset);
+                    let x_advance = to_layout(p.x_advance);
+                    let y_advance = to_layout(p.y_advance);
+
+                    let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
+                    origin.x += x_advance + config.letter_spacing;
+                    origin.y += y_advance;
+
+                    if prev_cluster != i.cluster {
+                        origin.x += cluster_spacing;
+                        prev_cluster = i.cluster;
+                    }
+
+                    GlyphInstance { index: i.codepoint, point }
+                });
+
+                out.glyphs.extend(glyphs);
+            };
+
             match kind {
                 TextSegmentKind::Word => {
-                    let buffer = self.buffer_segment(seg, config);
-                    let buffer = harfbuzz_rs::shape(&self.harfbuzz_handle(), buffer, &config.font_features);
-
-                    let glyphs = buffer.get_glyph_infos().iter().zip(buffer.get_glyph_positions()).map(|(i, p)| {
-                        fn to_layout(p: harfbuzz_rs::Position) -> f32 {
-                            // remove our scale of 64 and convert to layout pixels
-                            (p as f32 / 64.0) * 96.0 / 72.0
-                        }
-                        let x_offset = to_layout(p.x_offset);
-                        let y_offset = to_layout(p.y_offset);
-                        let x_advance = to_layout(p.x_advance);
-                        let y_advance = to_layout(p.y_advance);
-
-                        let point = LayoutPoint::new(origin.x + x_offset, origin.y + y_offset);
-                        origin.x += x_advance + config.letter_spacing;
-                        origin.y += y_advance;
-                        // TODO https://harfbuzz.github.io/clusters.html
-                        GlyphInstance { index: i.codepoint, point }
-                    });
-
-                    out.glyphs.extend(glyphs);
+                    shape_seg(config.letter_spacing);
                 }
-                TextSegmentKind::Space => todo!(),
-                TextSegmentKind::Tab => {}
+                TextSegmentKind::Space => {
+                    shape_seg(config.word_spacing);
+                }
+                TextSegmentKind::Tab => {
+                    let space_idx = self.harfbuzz_handle().get_nominal_glyph(' ').expect("no U+20 SPACE glyph");
+                    let space_advance = self.harfbuzz_handle().get_glyph_h_advance(space_idx) as f32;
+                    let point = LayoutPoint::new(origin.x, origin.y);
+
+                    origin.x += config.tab_size(space_advance);
+
+                    out.glyphs.push(GlyphInstance { index: space_idx, point });
+                }
                 TextSegmentKind::LineBreak => {
+                    max_line_x = origin.x.max(max_line_x);
+                    origin.x = 0.0;
                     origin.y += line_height;
                 }
             }
+
             out.glyph_segs.push(TextSegment {
                 kind,
                 end: out.glyphs.len(),
-            })
+            });
         }
+
+        // longest line width X line heights.
+        out.size = LayoutSize::new(origin.x.max(max_line_x), origin.y); // TODO, add descend?
 
         out
     }
@@ -161,8 +192,8 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
 }
 
 /// Extra configuration for [`shape_line`](FontInstance::shape_line).
-#[derive(Debug, Clone, Default)]
-pub struct LineShapingArgs {
+#[derive(Debug, Clone)]
+pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
     pub letter_spacing: f32,
 
@@ -189,33 +220,80 @@ pub struct LineShapingArgs {
     /// Width of the TAB character.
     ///
     /// By default 3 x space.
-    pub tab_size: Option<f32>,
+    pub tab_size: TextShapingUnit,
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
     // Finalized font features.
     pub font_features: HFontFeatures,
 }
-impl LineShapingArgs {
+impl Default for TextShapingArgs {
+    fn default() -> Self {
+        TextShapingArgs {
+            letter_spacing: 0.0,
+            word_spacing: 0.0,
+            line_height: None,
+            script: Script::Unknown,
+            ignore_ligatures: false,
+            disable_kerning: false,
+            right_to_left: false,
+            tab_size: TextShapingUnit::Relative(3.0),
+            text_indent: 0.0,
+            font_features: HFontFeatures::default(),
+        }
+    }
+}
+impl TextShapingArgs {
     /// Gets the custom line height or the font line height.
     #[inline]
     pub fn line_height(&self, metrics: &FontMetrics) -> f32 {
         // servo uses the line-gap as default I think.
         self.line_height.unwrap_or_else(|| metrics.line_height())
     }
+
+    #[inline]
+    pub fn tab_size(&self, space_advance: f32) -> f32 {
+        match self.tab_size {
+            TextShapingUnit::Exact(l) => l,
+            TextShapingUnit::Relative(r) => space_advance * r,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum TextShapingUnit {
+    Exact(f32),
+    Relative(f32),
+}
+impl Default for TextShapingUnit {
+    fn default() -> Self {
+        TextShapingUnit::Exact(0.0)
+    }
 }
 
 #[derive(Default)]
 pub struct ShapedText {
-    /// Glyphs for the renderer.
     glyphs: Vec<GlyphInstance>,
-
     glyph_segs: Vec<TextSegment>,
+    size: LayoutSize,
 }
 
 impl ShapedText {
+    /// Glyphs for the renderer.
+    #[inline]
     pub fn glyphs(&self) -> &[GlyphInstance] {
         &self.glyphs
+    }
+
+    /// Bounding box size.
+    #[inline]
+    pub fn size(&self) -> LayoutSize {
+        self.size
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.glyphs.is_empty()
     }
 }
 
@@ -782,7 +860,7 @@ impl SegmentedText {
 
             if c_kind != kind {
                 if i > 0 {
-                    segs.push(TextSegment { kind, end: i });
+                    segs.push(TextSegment { kind, end: i + start });
                 }
                 kind = c_kind;
             }
@@ -985,6 +1063,21 @@ mod tests {
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
             //println!("{:?}", actual);
+            assert_eq!(expected, actual);
+        }
+    }
+
+    #[test]
+    fn segmented_text4() {
+        let t = SegmentedText::new("move to 0x0");
+
+        use TextSegmentKind::*;
+        let expected = vec![("move", Word), (" ", Space), ("to", Word), (" ", Space), ("0x0", Word)];
+        let actual: Vec<_> = t.iter().collect();
+
+        assert_eq!(expected.len(), actual.len());
+        for (expected, actual) in expected.into_iter().zip(actual) {
+            println!("{:?}", actual);
             assert_eq!(expected, actual);
         }
     }

@@ -163,14 +163,12 @@ pub struct TextNode<T: Var<Text>> {
 
     /* measure, arrange data */
     //
-    line_shaping_args: LineShapingArgs,
+    line_shaping_args: TextShapingArgs,
     layout_line_spacing: f32,
     // Font instance using the actual font_size.
     font_instance: Option<FontInstanceRef>,
     // Shaped and wrapped text.
-    shaped_text: Vec<ShapedLine>,
-    // All the lines as a single block of glyphs.
-    arranged_text: Vec<GlyphInstance>,
+    shaped_text: ShapedText,
     // Box size of the text block.
     size: LayoutSize,
 }
@@ -187,11 +185,10 @@ impl<T: Var<Text>> TextNode<T> {
             font_synthesis: FontSynthesis::DISABLED,
             line_spacing: 0.into(),
 
-            line_shaping_args: LineShapingArgs::default(),
+            line_shaping_args: TextShapingArgs::default(),
             layout_line_spacing: 0.0,
             font_instance: None,
-            shaped_text: vec![],
-            arranged_text: vec![],
+            shaped_text: ShapedText::default(),
             size: LayoutSize::zero(),
         }
     }
@@ -222,7 +219,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     fn deinit(&mut self, _: &mut WidgetContext) {
         self.font_instance = None;
         self.font = None;
-        self.shaped_text.clear();
+        self.shaped_text = ShapedText::default();
         self.text = SegmentedText::default();
     }
 
@@ -234,7 +231,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             let text = white_space.transform(text);
             if self.text.text() != text {
                 self.text = SegmentedText::new(text);
-                self.shaped_text.clear();
+                self.shaped_text = ShapedText::default();
 
                 ctx.updates.push_layout();
             }
@@ -244,7 +241,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             let text = white_space.transform(text);
             if self.text.text() != text {
                 self.text = SegmentedText::new(text);
-                self.shaped_text.clear();
+                self.shaped_text = ShapedText::default();
 
                 ctx.updates.push_layout();
             }
@@ -261,7 +258,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             if self.font != font {
                 self.font = font;
                 self.font_instance = None;
-                self.shaped_text.clear();
+                self.shaped_text = ShapedText::default();
 
                 ctx.updates.push_layout();
             }
@@ -274,7 +271,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 self.font_synthesis = font_synthesis;
 
                 self.font_instance = None;
-                self.shaped_text.clear();
+                self.shaped_text = ShapedText::default();
 
                 ctx.updates.push_layout();
             }
@@ -308,22 +305,8 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         if self.shaped_text.is_empty() {
             // TODO
             let font = self.font_instance.as_ref().unwrap();
-            let mut size = LayoutSize::zero();
-
-            self.shaped_text = self
-                .text
-                .text()
-                .lines()
-                .map(|l| {
-                    let l = font.shape_line(l, &self.line_shaping_args);
-                    size.width = l.bounds.width.max(size.width);
-                    size.height += l.bounds.height; //TODO + line spacing.
-                    l
-                })
-                .collect();
-
-            self.size = size.snap_to(ctx.pixel_grid());
-            self.arranged_text.clear();
+            self.shaped_text = font.shape_text(&self.text, &self.line_shaping_args);
+            self.size = self.shaped_text.size().snap_to(ctx.pixel_grid());
         }
 
         if !is_layout_any_size(available_size.width) && available_size.width < self.size.width {
@@ -336,29 +319,15 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         // TODO use final size for wrapping?
         // http://www.unicode.org/reports/tr14/tr14-45.html
-        if self.arranged_text.is_empty() && !self.text.is_empty() {
-            debug_assert!(!self.shaped_text.is_empty(), "expected at least one empty line in arrange");
-            self.arranged_text.extend(mem::take(&mut self.shaped_text[0].glyphs));
-
-            let mut y_offset = self.shaped_text[0].bounds.height + self.layout_line_spacing;
-            for line in &mut self.shaped_text[1..] {
-                let mut glyphs = mem::take(&mut line.glyphs);
-                for g in &mut glyphs {
-                    g.point.y += y_offset;
-                }
-                self.arranged_text.extend(glyphs);
-                y_offset += line.bounds.height + self.layout_line_spacing;
-            }
-        }
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
         let f_key = self
             .font_instance
             .as_ref()
-            .expect("font instanced not inited in render")
+            .expect("font instance not inited in render")
             .instance_key();
-        //TODO synthetic oblique.
-        frame.push_text(LayoutRect::from_size(self.size), &self.arranged_text, f_key, self.color);
+
+        frame.push_text(LayoutRect::from_size(self.size), self.shaped_text.glyphs(), f_key, self.color);
     }
 }
