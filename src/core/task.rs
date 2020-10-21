@@ -7,7 +7,6 @@ use super::{
 use std::{
     future::Future,
     sync::mpsc::{channel, Receiver, Sender, TryRecvError},
-    thread,
 };
 
 /// Asynchronous tasks controller.
@@ -73,12 +72,10 @@ trait EventChannelAny {
     /// Returns if the channel should be retained.
     fn try_recv(&self, updates: &mut Updates) -> Retain;
 }
-
 struct EventChannel<T: Send + 'static> {
     event: EventEmitter<T>,
     receiver: Receiver<T>,
 }
-
 impl<T: Send + 'static> EventChannel<T> {
     fn new(event: EventEmitter<T>, notifier: UpdateNotifier) -> (Self, AsyncEventEmitter<T>) {
         let (sender, receiver) = channel();
@@ -114,7 +111,7 @@ impl<T: Send + 'static> AsyncEventEmitter<T> {
     ///
     /// This will generate an event update
     pub fn push_update(&self, args: T) {
-        self.sender.send(args).expect("TODO");
+        self.sender.send(args).expect("TODO can this fail?");
         self.notifier.push_update(); // TODO high-pressure?
     }
 }
