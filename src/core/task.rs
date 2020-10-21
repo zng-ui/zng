@@ -71,6 +71,13 @@ impl Tasks {
         sender
     }
 
+    /// Creates an event listener that can be used from other threads.
+    pub fn event_receiver<T: Clone + Send + 'static>(&mut self, event: EventListener<T>) -> EventReceiver<T> {
+        let (sync, receiver) = EventReceiverSync::new(event);
+        self.channels.push(Box::new(sync));
+        receiver
+    }
+
     fn response<T: Send + 'static>(&mut self) -> (EventSender<T>, EventListener<T>) {
         let event = EventEmitter::response();
         let listener = event.listener();
@@ -156,7 +163,7 @@ trait SyncChannel {
 
 /// Represents an [`EventEmitter`] that can be updated from other threads.
 ///
-/// See [`Tasks::event`] for more details.
+/// See [`Tasks::event_sender`] for more details.
 #[derive(Clone)]
 pub struct EventSender<T: Send + 'static> {
     notifier: UpdateNotifier,
@@ -187,6 +194,48 @@ impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
             ctx.updates.push_notify(self.event.clone(), args);
         }
         !self.receiver.is_disconnected()
+    }
+}
+
+/// Represents an [`EventListener`] that can receive updates from other threads.
+///
+/// See [`Tasks::event_listener`] for more details.
+#[derive(Clone)]
+pub struct EventReceiver<T: Clone + Send + 'static> {
+    receiver: Receiver<T>,
+}
+impl<T: Clone + Send + 'static> EventReceiver<T> {
+    pub fn updates(&self) -> flume::Iter<T> {
+        self.receiver.iter()
+    }
+
+    /// A non-blocking iterator over the updates received
+    #[inline]
+    pub fn try_updates(&self) -> flume::TryIter<T> {
+        self.receiver.try_iter()
+    }
+
+    /// Reference the underlying update receiver.
+    pub fn receiver(&self) -> &Receiver<T> {
+        &self.receiver
+    }
+}
+struct EventReceiverSync<T: Clone + Send + 'static> {
+    listener: EventListener<T>,
+    sender: Sender<T>,
+}
+impl<T: Clone + Send + 'static> EventReceiverSync<T> {
+    fn new(listener: EventListener<T>) -> (Self, EventReceiver<T>) {
+        let (sender, receiver) = flume::unbounded();
+        (EventReceiverSync { listener, sender }, EventReceiver { receiver })
+    }
+}
+impl<T: Clone + Send + 'static> SyncChannel for EventReceiverSync<T> {
+    fn update(&self, ctx: &mut AppSyncContext) -> Retain {
+        for update in self.listener.updates(ctx.events) {
+            self.sender.send(update.clone()).expect("TODO");
+        }
+        !self.sender.is_disconnected()
     }
 }
 

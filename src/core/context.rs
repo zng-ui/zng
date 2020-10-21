@@ -1042,6 +1042,7 @@ impl OwnedAppContext {
     pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
         self.tasks.update(&mut AppSyncContext {
             vars: &mut self.vars,
+            events: &mut self.events,
             updates: &mut self.updates.updates,
         });
         self.updates.apply_updates(&mut self.vars, &mut self.events)
@@ -1158,6 +1159,8 @@ pub struct AppContext<'a> {
 pub(super) struct AppSyncContext<'a> {
     /// Access to application variables.
     pub vars: &'a Vars,
+    /// Access to application events.
+    pub events: &'a Events,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
