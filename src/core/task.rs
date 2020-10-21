@@ -40,6 +40,26 @@ impl Tasks {
     /// Run a CPU bound task.
     ///
     /// The task runs in a [`rayon`] thread-pool, this function is not blocking.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui::core::{context::WidgetContext, event::EventListener};
+    /// # struct SomeStruct { sum_listener: EventListener<usize> }
+    /// # impl SomeStruct {
+    /// fn on_event(&mut self, ctx: &mut WidgetContext) {
+    ///     self.sum_listener = ctx.tasks.run(||{
+    ///         (0..1000).sum()
+    ///     });
+    /// }
+    ///
+    /// fn on_update(&mut self, ctx: &mut WidgetContext) {
+    ///     if let Some(result) = self.sum_listener.updates(ctx.events).last() {
+    ///         println!("sum of 0..1000: {}", result);   
+    ///     }
+    /// }
+    /// # }
+    /// ```
     pub fn run<R: Send + 'static, T: FnOnce() -> R + Send + 'static>(&mut self, task: T) -> EventListener<R> {
         let (event, listener) = self.response();
         rayon::spawn(move || {
@@ -52,6 +72,26 @@ impl Tasks {
     /// Run an IO bound task.
     ///
     /// The task runs in an [`async-global-executor`] thread-pool, this function is not blocking.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui::core::{context::WidgetContext, event::EventListener};
+    /// # struct SomeStruct { file_listener: EventListener<Vec<u8>> }
+    /// # impl SomeStruct {
+    /// fn on_event(&mut self, ctx: &mut WidgetContext) {
+    ///     self.file_listener = ctx.tasks.run_async(async {
+    ///         todo!("use async_std to read a file")     
+    ///     });
+    /// }
+    ///
+    /// fn on_update(&mut self, ctx: &mut WidgetContext) {
+    ///     if let Some(result) = self.file_listener.updates(ctx.events).last() {
+    ///         println!("file loaded: {} bytes", result.len());   
+    ///     }
+    /// }
+    /// # }
+    /// ```
     pub fn run_async<R: Send + 'static, T: Future<Output = R> + Send + 'static>(&mut self, task: T) -> EventListener<R> {
         let (event, listener) = self.response();
         // TODO run block-on?
