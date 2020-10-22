@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use enclose::enclose;
-use zero_ui::{prelude::*, core::units::pt_to_layout};
+use zero_ui::{core::units::pt_to_layout, prelude::*};
 
 fn main() {
     App::default().run_window(|_| {
@@ -22,10 +22,10 @@ fn main() {
 }
 
 fn font_size(font_size: SharedVar<Length>) -> impl Widget {
-    fn change_size(font_size: &SharedVar<Length>, change: f32, ctx: &mut WidgetContext){
-        let mut size = match font_size.get(ctx.vars){
-            Length::Exact(s) => {*s}
-            _ => {todo!()}
+    fn change_size(font_size: &SharedVar<Length>, change: f32, ctx: &mut WidgetContext) {
+        let mut size = match font_size.get(ctx.vars) {
+            Length::Exact(s) => *s,
+            _ => todo!(),
         };
         size += pt_to_layout(change).get();
         font_size.push_set(size.into(), ctx.vars, ctx.updates).unwrap();
@@ -33,13 +33,13 @@ fn font_size(font_size: SharedVar<Length>) -> impl Widget {
     section(
         "font_size",
         ui_vec![
-            button!{
+            button! {
                 content: text("Increase Size");
                 on_click: enclose!{ (font_size) move |args| {
                     change_size(&font_size, 1.0, args.ctx())
                 }};
             },
-            button!{
+            button! {
                 content: text("Decrease Size");
                 on_click: enclose!{ (font_size) move |args| {
                     change_size(&font_size, -1.0, args.ctx())

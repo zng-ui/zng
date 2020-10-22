@@ -1,5 +1,7 @@
 use super::{FontInstanceKey, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight};
-use crate::core::{app::AppExtension, context::AppInitContext, context::WindowService, units::LayoutLength, var::ContextVar, units::layout_to_pt};
+use crate::core::{
+    app::AppExtension, context::AppInitContext, context::WindowService, units::layout_to_pt, units::LayoutLength, var::ContextVar,
+};
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
 use font_kit::properties::Properties as FontProperties;
@@ -146,15 +148,15 @@ impl FontRef {
         let font_size = (font_size.get() * 10.0).round();
         let font_size_key = font_size as u32;
         let synthesis_used = self.synthesis_required() & synthesis_allowed;
-        
+
         if let Some(instance) = self.0.instances.borrow().get(&(font_size_key, synthesis_used)) {
             return instance.clone();
         }
-        
+
         let api = &self.0.api;
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
-        
+
         let size_px = font_size / 10.0;
 
         let mut opt = FontInstanceOptions::default();
@@ -183,7 +185,10 @@ impl FontRef {
             synthesis_used,
             harfbuzz_font.to_shared(),
         );
-        self.0.instances.borrow_mut().insert((font_size_key, synthesis_used), instance.clone());
+        self.0
+            .instances
+            .borrow_mut()
+            .insert((font_size_key, synthesis_used), instance.clone());
 
         instance
     }

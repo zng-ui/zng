@@ -24,7 +24,6 @@ pub use webrender::api::FontInstanceKey;
 
 pub use zero_ui_macros::formatx;
 
-
 impl FontInstanceRef {
     fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
