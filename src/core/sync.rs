@@ -163,7 +163,7 @@ trait SyncChannel {
 
 /// Represents an [`EventEmitter`] that can be updated from other threads.
 ///
-/// See [`Tasks::event_sender`] for more details.
+/// See [`Sync::event_sender`] for more details.
 
 pub struct EventSender<T: Send + 'static> {
     notifier: UpdateNotifier,
@@ -207,7 +207,7 @@ impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
 
 /// Represents an [`EventListener`] that can receive updates from other threads.
 ///
-/// See [`Tasks::event_listener`] for more details.
+/// See [`Sync::event_receiver`] for more details.
 #[derive(Clone)]
 pub struct EventReceiver<T: Clone + Send + 'static> {
     receiver: Receiver<T>,
@@ -247,7 +247,7 @@ impl<T: Clone + Send + 'static> SyncChannel for EventReceiverSync<T> {
     }
 }
 
-/// See [`Tasks::var_sender`] for more details.
+/// See [`Sync::var_sender`] for more details.
 pub struct VarSender<T: VarValue + Send> {
     notifier: UpdateNotifier,
     sender: Sender<T>,
@@ -287,7 +287,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
     }
 }
 
-/// See [`Tasks::var_modifier_sender`] for more details.
+/// See [`Sync::var_modify_sender`] for more details.
 pub struct VarModifySender<T: VarValue> {
     notifier: UpdateNotifier,
     sender: Sender<Box<dyn FnOnce(&mut T) + Send>>,
@@ -329,7 +329,7 @@ impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
     }
 }
 
-/// See [`Tasks::var_receiver`] for more details.
+/// See [`Sync::var_receiver`] for more details.
 pub struct VarReceiver<T: VarValue + Send> {
     receiver: Receiver<T>,
 }
@@ -386,7 +386,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
 
 /// Represents a [`Var`](crate::core::var::Var) that can be read and updated from other threads.
 ///
-/// See [`Tasks::var_channel`] for more details.
+/// See [`Sync::var_channel`] for more details.
 ///
 /// ### Initial Value
 ///

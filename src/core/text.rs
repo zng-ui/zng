@@ -191,7 +191,7 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
     )
 }
 
-/// Extra configuration for [`shape_line`](FontInstance::shape_line).
+/// Extra configuration for [`shape_text`](FontInstanceRef::shape_text).
 #[derive(Debug, Clone)]
 pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
@@ -297,7 +297,7 @@ impl ShapedText {
     }
 }
 
-/// Result of [`shape_line`](FontInstance::shape_line).
+/// Result of [`shape_text`](FontInstanceRef::shape_text).
 #[derive(Debug, Clone)]
 pub struct ShapedLine {
     /// Glyphs for the renderer.
@@ -429,7 +429,7 @@ impl Default for Justify {
     }
 }
 
-/// Various metrics about a [`FontInstance`].
+/// Various metrics about a [`FontInstanceRef`].
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
     /// The number of font units per em.
@@ -964,7 +964,7 @@ impl<'a> Iterator for SegmentedTextIter<'a> {
 pub struct TextPoint {
     /// Line index, 0 based.
     pub line: usize,
-    /// Byte index in the line text. The byte is in a [char boundary](String::is_char_boundary) and is 0 based.
+    /// Byte index in the line text. The byte is in a [char boundary](str::is_char_boundary) and is 0 based.
     pub index: usize,
 }
 impl TextPoint {

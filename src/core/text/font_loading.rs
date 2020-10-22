@@ -274,7 +274,7 @@ impl FontRef {
     ///
     /// The WebRender font resource is managed by this struct, don't manually request a font delete with this key.
     ///
-    /// Keep a clone of the [`Font`] reference alive if you want to manually create font instances, otherwise the
+    /// Keep a clone of the [`FontRef`] reference alive if you want to manually create font instances, otherwise the
     /// font may be cleaned-up.
     #[inline]
     pub fn font_key(&self) -> webrender::api::FontKey {
@@ -339,7 +339,7 @@ pub(super) struct FontInstance {
     metrics: FontMetrics,
 }
 
-/// Reference to a specific font instance ([`Font`] + size).
+/// Reference to a specific font instance ([`FontRef`] + size).
 #[derive(Clone)]
 pub struct FontInstanceRef(Rc<FontInstance>);
 impl FontInstanceRef {
@@ -391,7 +391,7 @@ impl FontInstanceRef {
     ///
     /// The WebRender font instance resource is managed by this struct, don't manually request a delete with this key.
     ///
-    /// Keep a clone of the [`FontInstance`] reference alive for the period you want to render using this font,
+    /// Keep a clone of the [`FontInstanceRef`] reference alive for the period you want to render using this font,
     /// otherwise the font may be cleaned-up.
     #[inline]
     pub fn instance_key(&self) -> FontInstanceKey {
