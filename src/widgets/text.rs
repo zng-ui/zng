@@ -293,7 +293,6 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         if self.font_instance.is_none() {
             let size = self.font_size.to_layout(LayoutLength::new(available_size.width), ctx);
-            let size = font_size_from_layout_length(size);
             self.font_instance = Some(
                 self.font
                     .as_ref()

@@ -1,7 +1,7 @@
 //! Font resolving and text shaping.
 
 use super::{
-    units::{layout_length_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize},
+    units::{layout_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize},
     var::IntoVar,
     var::OwnedVar,
 };
@@ -24,14 +24,6 @@ pub use webrender::api::FontInstanceKey;
 
 pub use zero_ui_macros::formatx;
 
-/// Font size in round points.
-pub type FontSizePt = u32;
-
-/// Convert a [`LayoutLength`] to [`FontSizePt`].
-#[inline]
-pub fn font_size_from_layout_length(length: LayoutLength) -> FontSizePt {
-    layout_length_to_pt(length).round().max(0.0) as u32
-}
 
 impl FontInstanceRef {
     fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
@@ -168,7 +160,7 @@ impl FontInstanceRef {
         }
 
         // longest line width X line heights.
-        out.size = LayoutSize::new(origin.x.max(max_line_x), origin.y); // TODO, add descend?
+        out.size = LayoutSize::new(origin.x.max(max_line_x), origin.y - metrics.descent); // TODO, add descend?
 
         out
     }

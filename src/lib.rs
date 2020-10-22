@@ -165,6 +165,7 @@ pub mod prelude {
     pub use crate::core::{
         app::App,
         color::{self, blur, drop_shadow, grayscale, hex, hsl, hsla, opacity, rgb, rgba, sepia, web_colors, Rgba},
+        context::WidgetContext,
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
@@ -179,9 +180,9 @@ pub mod prelude {
         types::{BorderRadius, ElementState, ModifiersState, MouseButton, VirtualKeyCode},
         ui_vec,
         units::{
-            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size, TimeUnits,
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size, TimeUnits,
         },
-        var::{merge_var, switch_var, var, SharedVar, Var},
+        var::{merge_var, switch_var, var, ObjVar, SharedVar, Var},
         window::{AppRunWindow, CursorIcon, Window, Windows},
         UiNode, UiVec, Widget, WidgetId,
     };

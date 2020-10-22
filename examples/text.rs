@@ -1,20 +1,52 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use zero_ui::prelude::*;
+use enclose::enclose;
+use zero_ui::{prelude::*, core::units::pt_to_layout};
 
 fn main() {
     App::default().run_window(|_| {
+        let fs = var(Length::pt(11.0));
         window! {
-            title: "Text Example";
+            title: fs.map(|s| formatx!("Text Example - font_size: {}", s));
+            font_size: fs.clone();
             content: h_stack! {
                 spacing: 40.0;
                 items: ui_vec![
                     basic(),
                     line_height(),
                     pre_line_break(),
+                    font_size(fs),
                 ];
             };
         }
     })
+}
+
+fn font_size(font_size: SharedVar<Length>) -> impl Widget {
+    fn change_size(font_size: &SharedVar<Length>, change: f32, ctx: &mut WidgetContext){
+        let mut size = match font_size.get(ctx.vars){
+            Length::Exact(s) => {*s}
+            _ => {todo!()}
+        };
+        size += pt_to_layout(change).get();
+        font_size.push_set(size.into(), ctx.vars, ctx.updates).unwrap();
+    }
+    section(
+        "font_size",
+        ui_vec![
+            button!{
+                content: text("Increase Size");
+                on_click: enclose!{ (font_size) move |args| {
+                    change_size(&font_size, 1.0, args.ctx())
+                }};
+            },
+            button!{
+                content: text("Decrease Size");
+                on_click: enclose!{ (font_size) move |args| {
+                    change_size(&font_size, -1.0, args.ctx())
+                }};
+            },
+        ],
+    )
 }
 
 fn basic() -> impl Widget {

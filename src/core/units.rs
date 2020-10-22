@@ -445,8 +445,14 @@ pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
 
 /// Convert a [`LayoutLength`] to font units.
 #[inline]
-pub fn layout_length_to_pt(length: LayoutLength) -> f32 {
+pub fn layout_to_pt(length: LayoutLength) -> f32 {
     length.get() * 72.0 / 96.0
+}
+
+/// Convert font units to a [`LayoutLength`].
+#[inline]
+pub fn pt_to_layout(pt: f32) -> LayoutLength {
+    LayoutLength::new(pt * 96.0 / 72.0) // TODO verify this formula
 }
 
 /// Extension methods for initializing [`Length`] units.

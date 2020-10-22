@@ -1,5 +1,5 @@
-use super::{FontInstanceKey, FontMetrics, FontName, FontSizePt, FontStretch, FontStyle, FontSynthesis, FontWeight};
-use crate::core::{app::AppExtension, context::AppInitContext, context::WindowService, var::ContextVar};
+use super::{FontInstanceKey, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight};
+use crate::core::{app::AppExtension, context::AppInitContext, context::WindowService, units::LayoutLength, var::ContextVar, units::layout_to_pt};
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
 use font_kit::properties::Properties as FontProperties;
@@ -112,7 +112,7 @@ struct Font {
     postscript_name: Option<String>,
     font_kit_font: font_kit::font::Font,
     harfbuzz_face: HarfbuzzFace,
-    instances: RefCell<FnvHashMap<(FontSizePt, FontSynthesis), FontInstanceRef>>,
+    instances: RefCell<FnvHashMap<(u32, FontSynthesis), FontInstanceRef>>,
 }
 
 /// Reference to a specific font (family + style, weight and stretch).
@@ -142,18 +142,20 @@ impl FontRef {
     }
 
     /// Instantiate the font at the size.
-    pub fn instance(&self, font_size: FontSizePt, synthesis_allowed: FontSynthesis) -> FontInstanceRef {
+    pub fn instance(&self, font_size: LayoutLength, synthesis_allowed: FontSynthesis) -> FontInstanceRef {
+        let font_size = (font_size.get() * 10.0).round();
+        let font_size_key = font_size as u32;
         let synthesis_used = self.synthesis_required() & synthesis_allowed;
-
-        if let Some(instance) = self.0.instances.borrow().get(&(font_size, synthesis_used)) {
+        
+        if let Some(instance) = self.0.instances.borrow().get(&(font_size_key, synthesis_used)) {
             return instance.clone();
         }
-
+        
         let api = &self.0.api;
         let mut txn = Transaction::new();
         let instance_key = api.generate_font_instance_key();
-
-        let size_px = font_size as f32 * 96.0 / 72.0;
+        
+        let size_px = font_size / 10.0;
 
         let mut opt = FontInstanceOptions::default();
         if synthesis_used.contains(FontSynthesis::STYLE) {
@@ -167,20 +169,21 @@ impl FontRef {
 
         let mut harfbuzz_font = harfbuzz_rs::Font::new(harfbuzz_rs::Shared::clone(&self.0.harfbuzz_face));
 
-        harfbuzz_font.set_ppem(font_size, font_size);
-        harfbuzz_font.set_scale(font_size as i32 * 64, font_size as i32 * 64);
+        let font_size_pt = layout_to_pt(LayoutLength::new(size_px)) as u32;
+        harfbuzz_font.set_ppem(font_size_pt, font_size_pt);
+        harfbuzz_font.set_scale(font_size_pt as i32 * 64, font_size_pt as i32 * 64);
 
         let metrics = FontMetrics::new(size_px, &self.0.metrics);
 
         let instance = FontInstanceRef::new(
             self.clone(),
             instance_key,
-            font_size,
+            LayoutLength::new(size_px),
             metrics,
             synthesis_used,
             harfbuzz_font.to_shared(),
         );
-        self.0.instances.borrow_mut().insert((font_size, synthesis_used), instance.clone());
+        self.0.instances.borrow_mut().insert((font_size_key, synthesis_used), instance.clone());
 
         instance
     }
@@ -333,7 +336,7 @@ impl Eq for FontRef {}
 pub(super) struct FontInstance {
     instance_key: FontInstanceKey,
     font: FontRef,
-    font_size: FontSizePt,
+    font_size: LayoutLength,
     synthesis_used: FontSynthesis,
     harfbuzz_font: HarfbuzzFont,
     metrics: FontMetrics,
@@ -346,7 +349,7 @@ impl FontInstanceRef {
     fn new(
         font: FontRef,
         instance_key: FontInstanceKey,
-        font_size: FontSizePt,
+        font_size: LayoutLength,
         metrics: FontMetrics,
         synthesis_used: FontSynthesis,
         harfbuzz_font: HarfbuzzFont,
@@ -369,7 +372,7 @@ impl FontInstanceRef {
 
     /// Size of this font instance.
     #[inline]
-    pub fn size(&self) -> FontSizePt {
+    pub fn size(&self) -> LayoutLength {
         self.0.font_size
     }
 
