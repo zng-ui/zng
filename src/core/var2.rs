@@ -121,7 +121,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// Boxes `self`.
     ///
     /// A boxed var is also a var, that implementation just returns `self`.
-    fn boxed(self) -> Box<dyn VarObj<T>>
+    fn boxed(self) -> BoxedVar<T>
     where
         Self: Sized,
     {
@@ -156,7 +156,7 @@ pub trait VarLocal<T: VarValue>: VarObj<T> {
     fn update_local(&mut self, vars: &Vars) -> Option<&T>;
 
     /// Boxes `self`.
-    fn boxed_local(self) -> Box<dyn VarLocal<T>>
+    fn boxed_local(self) -> BoxedLocalVar<T>
     where
         Self: Sized,
     {
@@ -179,7 +179,7 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     /// an entire new value to be instantiated.
     fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly>;
 
-    /// Returns the variable as a type that is [`always_read_only`](ObjVar::always_read_only).
+    /// Returns the variable as a type that is [`always_read_only`](VarObj::always_read_only).
     fn as_read_only(self) -> Self::AsReadOnly;
 
     /// Returns the variable as a type that implements [`VarLocal`].
