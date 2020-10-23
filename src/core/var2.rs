@@ -1,3 +1,4 @@
+use fnv::FnvHashMap;
 use std::{
     any::TypeId,
     cell::RefCell,
@@ -8,8 +9,6 @@ use std::{
     rc::Rc,
 };
 
-use fnv::FnvHashMap;
-
 /// A type that can be a [`Var`](crate::core::var::Var) value.
 ///
 /// # Trait Alias
@@ -19,7 +18,7 @@ use fnv::FnvHashMap;
 pub trait VarValue: Debug + Clone + 'static {}
 impl<T: Debug + Clone + 'static> VarValue for T {}
 
-/// A variable value that is set by the ancestors of an UiNode.
+/// Type Id if a contextual variable.
 pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: VarValue;
@@ -267,13 +266,13 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 }
 
+/// A reference counted [`Var`].
+pub struct RcVar<T: VarValue>(Rc<RcVarData<T>>);
 struct RcVarData<T> {
     data: UnsafeCell<T>,
     last_updated: Cell<u32>,
     version: Cell<u32>,
 }
-/// A reference counted [`Var`].
-pub struct RcVar<T: VarValue>(Rc<RcVarData<T>>);
 impl<T: VarValue> protected::Var for RcVar<T> {}
 impl<T: VarValue> RcVar<T> {
     pub fn new(value: T) -> Self {
@@ -385,6 +384,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 }
 
+/// A [`Var`] wrapper that forces read-only.
 #[doc(hidden)]
 pub struct ForceReadOnlyVar<T: VarValue, V: Var<T>>(V, PhantomData<T>);
 impl<T: VarValue, V: Var<T>> protected::Var for ForceReadOnlyVar<T, V> {}
@@ -464,6 +464,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
     }
 }
 
+/// A [`VarLocal`] that keeps a cloned copy of the value locally.
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct CloningLocalVar<T: VarValue, V: Var<T>> {
@@ -569,6 +570,9 @@ impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
     }
 }
 
+/// A reference counted mapping variable.
+#[doc(hidden)]
+pub struct RcMapVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static>(Rc<RcMapVarData<I, O, V, F>>);
 struct RcMapVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static> {
     _i: PhantomData<I>,
     var: V,
@@ -576,8 +580,6 @@ struct RcMapVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'st
     version: Cell<Option<u32>>,
     output: UnsafeCell<MaybeUninit<O>>,
 }
-#[doc(hidden)]
-pub struct RcMapVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static>(Rc<RcMapVarData<I, O, V, F>>);
 impl<I, O, V, F> protected::Var for RcMapVar<I, O, V, F>
 where
     I: VarValue,
@@ -716,6 +718,9 @@ where
     }
 }
 
+/// A reference counted bidirectional mapping variable.
+#[doc(hidden)]
+pub struct RcMapBidiVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, G: FnMut(O) -> I>(Rc<RcMapBidiVarData<I, O, V, F, G>>);
 struct RcMapBidiVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, G: FnMut(O) -> I> {
     _i: PhantomData<I>,
     var: V,
@@ -724,8 +729,6 @@ struct RcMapBidiVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, 
     version: Cell<Option<u32>>,
     output: UnsafeCell<MaybeUninit<O>>,
 }
-#[doc(hidden)]
-pub struct RcMapBidiVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, G: FnMut(O) -> I>(Rc<RcMapBidiVarData<I, O, V, F, G>>);
 impl<I, O, V, F, G> protected::Var for RcMapBidiVar<I, O, V, F, G>
 where
     I: VarValue,
@@ -875,6 +878,7 @@ where
     }
 }
 
+/// A [`Var`] that represents a [`ContextVar`].
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
@@ -956,6 +960,9 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 }
 
+/// Access to application variables.
+///
+/// Only a single instance of this type exists at a time.
 pub struct Vars {
     update_id: u32,
     #[allow(clippy::type_complexity)]
