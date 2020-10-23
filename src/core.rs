@@ -17,6 +17,7 @@ pub mod text;
 pub mod types;
 pub mod units;
 pub mod var;
+pub mod var2;
 pub mod window;
 
 pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
