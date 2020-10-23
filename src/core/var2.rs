@@ -9,6 +9,9 @@ use std::{
     rc::Rc,
 };
 
+mod boxed_var;
+pub use boxed_var::*;
+
 mod owned_var;
 pub use owned_var::*;
 
