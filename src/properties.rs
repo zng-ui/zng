@@ -103,7 +103,7 @@ mod build_tests {
     #[property(context, allowed_in_when: false)]
     fn no_bounds_not_arg<A: UiNode, B>(_child: A, b: B) -> impl UiNode {
         let _b = no_bounds_not_arg::args(b);
-        crate::widgets::text("")
+        crate::widgets::text::text("")
     }
 
     #[property(context)]

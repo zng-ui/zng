@@ -7,23 +7,35 @@ pub mod context;
 pub mod debug;
 pub mod event;
 pub mod focus;
-pub mod font;
 pub mod gesture;
 pub mod keyboard;
 pub mod mouse;
 pub mod profiler;
 pub mod render;
+pub mod sync;
+pub mod text;
 pub mod types;
 pub mod units;
 pub mod var;
+pub mod var2;
 pub mod window;
 
 pub use zero_ui_macros::{impl_ui_node, property, ui_vec, widget, widget_mixin};
 
 use context::{LayoutContext, LazyStateMap, WidgetContext};
 use render::{FrameBuilder, FrameUpdate, WidgetTransformKey};
-use types::WidgetId;
 use units::LayoutSize;
+
+unique_id! {
+    /// Unique id of a widget.
+    ///
+    /// # Details
+    /// Underlying value is a `NonZeroU64` generated using a relaxed global atomic `fetch_add`,
+    /// so IDs are unique for the process duration, but order is not guaranteed.
+    ///
+    /// Panics if you somehow reach `u64::max_value()` calls to `new`.
+    pub struct WidgetId;
+}
 
 /// An Ui tree node.
 pub trait UiNode: 'static {

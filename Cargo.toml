@@ -14,13 +14,17 @@ zero-ui-macros = { path = "zero-ui-macros" }
 # core
 raw-window-handle = "0.3.3"
 winapi = "0.3.9"
-glutin = "0.24.1"
+glutin = "0.25.1"
 gleam = "0.6.17" #version required by webrender
 webrender = "0.61.0"
 euclid = "0.20.7" #version required by webrender
 font-kit = "0.10.0"
 harfbuzz_rs = "1.2.0"
-rayon = "1.4.1"
+xi-unicode = "0.2.1"
+unicode-script = "0.5.2"
+rayon = "1.5.0"
+async-global-executor = "1.4.2"
+flume = "0.9.1"
 image = "0.23.10"
 
 # util

@@ -1,4 +1,4 @@
-use crate::core::{types::WidgetId, widget_mixin};
+use crate::core::{widget_mixin, WidgetId};
 use crate::properties::capture_only::widget_id;
 
 widget_mixin! {

@@ -1,11 +1,15 @@
-//! Generate profiles compatible with `chrome://tracing`.
+//! Performance profiling.
+//!
+//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`] and [`write_profile`] for more details.
+//!
+//! Profiler can be viewed using the `chrome://tracing` app.
 
 #[cfg(feature = "app_profiler")]
 mod profiler_impl {
     use lazy_static::*;
     use serde_json::*;
 
-    use crate::core::types::Text;
+    use crate::core::text::Text;
     use std::borrow::Cow;
     use std::cell::RefCell;
     use std::fs::File;

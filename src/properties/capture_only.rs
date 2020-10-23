@@ -3,7 +3,9 @@
 //! Setting this properties in a widget that does not reexports then is an error.
 
 use crate::{
-    core::{color::Rgba, gesture::Shortcut, property, types::*, units::Length, var::IntoVar, UiNode, UiVec},
+    core::{
+        color::Rgba, gesture::Shortcut, property, text::Text, types::LineOrientation, units::Length, var::IntoVar, UiNode, UiVec, WidgetId,
+    },
     widgets::LineStyle,
 };
 

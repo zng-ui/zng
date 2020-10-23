@@ -168,20 +168,31 @@ pub mod prelude {
             self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
             web_colors, Rgba,
         },
+        context::WidgetContext,
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
-        types::{
-            formatx, BorderRadius, CursorIcon, ElementState, FontName, FontSize, FontStretch, FontStyle, FontWeight, ModifiersState,
-            MouseButton, Text, ToText, VirtualKeyCode, WidgetId,
+        text::{
+            font_features::{
+                CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
+                NumVariant,
+            },
+            formatx, FontFeatures, FontName, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
+            TextTransformFn, WhiteSpace, WordBreak,
         },
+        types::{BorderRadius, ElementState, ModifiersState, MouseButton, VirtualKeyCode},
         ui_vec,
-        units::{rotate, skew, translate, Alignment, AngleUnits, FactorUnits, LengthUnits, Point, Rect, SideOffsets, Size, TimeUnits},
-        var::{merge_var, switch_var, var, SharedVar, Var},
-        window::{AppRunWindow, Window, Windows},
-        UiNode, UiVec, Widget,
+        units::{
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
+            TimeUnits,
+        },
+        var::{merge_var, switch_var, var, ObjVar, SharedVar, Var},
+        window::{AppRunWindow, CursorIcon, Window, Windows},
+        UiNode, UiVec, Widget, WidgetId,
     };
+
     pub use crate::properties::*;
+    pub use crate::widgets::*;
 
     pub use crate::properties::background::{background, *};
     pub use crate::properties::events::*;
@@ -190,9 +201,11 @@ pub mod prelude {
     pub use crate::properties::foreground::{foreground, *};
     pub use crate::properties::size::{size, *};
     pub use crate::properties::states::*;
-    pub use crate::properties::text_theme::{font_family, font_size, font_stretch, font_style, font_weight};
+    pub use crate::properties::text_theme::{
+        font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, word_spacing,
+    };
     pub use crate::properties::transform::{transform, *};
 
     pub use crate::widgets::layouts::*;
-    pub use crate::widgets::*;
+    pub use crate::widgets::text::{text, *};
 }

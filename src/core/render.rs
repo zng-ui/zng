@@ -4,7 +4,10 @@ use super::color::{RenderColor, RenderFilter};
 use crate::core::context::LazyStateMap;
 use crate::core::types::*;
 use crate::core::units::*;
-use crate::core::UiNode;
+use crate::core::{
+    window::{CursorIcon, WindowId},
+    UiNode, WidgetId,
+};
 use derive_more as dm;
 use ego_tree::Tree;
 use std::{marker::PhantomData, mem};
@@ -463,26 +466,13 @@ impl FrameBuilder {
 
     /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_text(
-        &mut self,
-        rect: LayoutRect,
-        glyphs: &[GlyphInstance],
-        font_instance_key: FontInstanceKey,
-        color: ColorF,
-        glyph_options: Option<GlyphOptions>,
-    ) {
+    pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font_instance_key: FontInstanceKey, color: ColorF) {
         debug_assert_aligned!(rect, self.pixel_grid());
 
         self.open_widget_display();
 
-        self.display_list.push_text(
-            &self.common_item_properties(rect),
-            rect,
-            glyphs,
-            font_instance_key,
-            color,
-            glyph_options,
-        );
+        self.display_list
+            .push_text(&self.common_item_properties(rect), rect, glyphs, font_instance_key, color, None);
     }
 
     /// Calls `f` while [`item_tag`](FrameBuilder::item_tag) indicates the `cursor`.

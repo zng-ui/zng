@@ -8,10 +8,11 @@ use super::{
         Vars, WidgetContext, WindowServices, WindowState,
     },
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
-    types::{FrameId, Text, WidgetId, WindowEvent, WindowId},
+    text::Text,
+    types::{FrameId, WindowEvent},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
-    UiNode,
+    UiNode, WidgetId,
 };
 use super::{event::*, render::FrameUpdate};
 use super::{profiler::profile_scope, render::WidgetTransformKey};
@@ -27,6 +28,8 @@ use std::cell::RefCell;
 use std::num::NonZeroU16;
 use std::{mem, rc::Rc, sync::Arc};
 use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
+
+pub use glutin::window::{CursorIcon, WindowId};
 
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
 type CloseTogetherGroup = Option<NonZeroU16>;
@@ -748,7 +751,7 @@ impl OpenWindow {
         // set the user initial position.
 
         let (available_size, dpi_factor) = {
-            let monitor = gl_ctx.window().current_monitor();
+            let monitor = gl_ctx.window().current_monitor().expect("did not find current monitor");
             let size = monitor.size();
             let scale = monitor.scale_factor() as f32;
             (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
@@ -1076,7 +1079,12 @@ impl OpenWindow {
     }
 
     fn monitor_layout_ctx(&self) -> LayoutContext {
-        let monitor = self.gl_ctx.borrow().window().current_monitor();
+        let monitor = self
+            .gl_ctx
+            .borrow()
+            .window()
+            .current_monitor()
+            .expect("did not find current monitor");
         let size = monitor.size();
         let scale = monitor.scale_factor() as f32;
         let size = LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale);
@@ -1358,10 +1366,7 @@ impl RendererState {
     }
 
     fn deinited(&self) -> bool {
-        match self {
-            RendererState::Deinited => true,
-            _ => false,
-        }
+        matches!(self, RendererState::Deinited)
     }
 }
 

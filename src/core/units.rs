@@ -7,8 +7,6 @@ use webrender::api::units as wr;
 use super::context::LayoutContext;
 use crate::core::var::{IntoVar, OwnedVar};
 
-const TAU: f32 = 2.0 * PI;
-
 /// Angle in radians.
 ///
 /// See [`AngleUnits`] for more details.
@@ -366,6 +364,12 @@ pub enum Length {
     /// Relative to 1% of the largest of the viewport's dimensions.
     ViewportMax(f32),
 }
+impl Default for Length {
+    /// Exact `0`.
+    fn default() -> Self {
+        Length::Exact(0.0)
+    }
+}
 impl fmt::Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -413,6 +417,13 @@ impl Length {
         Length::Relative(FactorNormal(1.0))
     }
 
+    /// Exact length in font units.
+    #[inline]
+    pub fn pt(font_pt: f32) -> Length {
+        // make this const when https://github.com/rust-lang/rust/issues/57241
+        Length::Exact(font_pt * 96.0 / 72.0)
+    }
+
     /// Compute the length at a context.
     pub fn to_layout(self, available_size: LayoutLength, ctx: &LayoutContext) -> LayoutLength {
         let l = match self {
@@ -431,6 +442,18 @@ impl Length {
 
 /// Computed [`Length`].
 pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
+
+/// Convert a [`LayoutLength`] to font units.
+#[inline]
+pub fn layout_to_pt(length: LayoutLength) -> f32 {
+    length.get() * 72.0 / 96.0
+}
+
+/// Convert font units to a [`LayoutLength`].
+#[inline]
+pub fn pt_to_layout(pt: f32) -> LayoutLength {
+    LayoutLength::new(pt * 96.0 / 72.0) // TODO verify this formula
+}
 
 /// Extension methods for initializing [`Length`] units.
 ///
@@ -454,6 +477,11 @@ pub type LayoutLength = euclid::Length<f32, wr::LayoutPixel>;
 /// let available_size: Length = 1.0.normal().into();// FactorUnits
 /// ```
 pub trait LengthUnits {
+    /// Exact size in font units.
+    ///
+    /// Returns [`Length::Exact`].
+    fn pt(self) -> Length;
+
     /// Relative to the font-size of the widget.
     ///
     /// Returns [`Length::Em`].
@@ -483,6 +511,10 @@ pub trait LengthUnits {
 }
 impl LengthUnits for f32 {
     #[inline]
+    fn pt(self) -> Length {
+        Length::pt(self)
+    }
+    #[inline]
     fn em(self) -> Length {
         Length::Em(self.into())
     }
@@ -508,6 +540,10 @@ impl LengthUnits for f32 {
     }
 }
 impl LengthUnits for i32 {
+    #[inline]
+    fn pt(self) -> Length {
+        Length::pt(self as f32)
+    }
     #[inline]
     fn em(self) -> Length {
         Length::Em(self.normal())
@@ -956,6 +992,161 @@ impl IntoVar<Point> for Alignment {
         OwnedVar(self.into())
     }
 }
+
+/// Text line height.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum LineHeight {
+    /// Default height from the font data.
+    ///
+    /// The final value is computed from the font metrics: `ascent - descent + line_gap`. This
+    /// is usually similar to `1.2.em()`.
+    Font,
+    /// Height in [`Length`] units.
+    ///
+    /// Relative lengths are computed to the font size.
+    Length(Length),
+}
+impl Default for LineHeight {
+    /// [`LineHeight::Font`]
+    fn default() -> Self {
+        LineHeight::Font
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> LineHeight {
+        LineHeight::Length(length)
+    }
+
+    /// Percentage of font size.
+    fn from(percent: FactorPercent) -> LineHeight {
+        LineHeight::Length(percent.into())
+    }
+    /// Relative to font size.
+    fn from(norm: FactorNormal) -> LineHeight {
+        LineHeight::Length(norm.into())
+    }
+
+    /// Exact size in layout pixels.
+    fn from(f: f32) -> LineHeight {
+        LineHeight::Length(f.into())
+    }
+    /// Exact size in layout pixels.
+    fn from(i: i32) -> LineHeight {
+        LineHeight::Length(i.into())
+    }
+}
+
+/// Extra spacing added in between text letters.
+///
+/// Letter spacing is computed using the font data, this unit represents
+/// extra space added to the computed spacing.
+///
+/// A "letter" is a character glyph cluster, e.g.: `a`, `â`, `1`, `-`, `漢`.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum LetterSpacing {
+    /// Letter spacing can be tweaked when justification is enabled.
+    Auto,
+    /// Extra space in [`Length`] units.
+    ///
+    /// Relative lengths are computed from the affected glyph "advance",
+    /// that is, how much "width" the next letter will take.
+    ///
+    /// This variant disables automatic adjustments for justification.
+    Length(Length),
+}
+impl Default for LetterSpacing {
+    /// [`LetterSpacing::Auto`]
+    fn default() -> Self {
+        LetterSpacing::Auto
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> LetterSpacing {
+        LetterSpacing::Length(length)
+    }
+
+    /// Percentage of font size.
+    fn from(percent: FactorPercent) -> LetterSpacing {
+        LetterSpacing::Length(percent.into())
+    }
+    /// Relative to font size.
+    fn from(norm: FactorNormal) -> LetterSpacing {
+        LetterSpacing::Length(norm.into())
+    }
+
+    /// Exact size in layout pixels.
+    fn from(f: f32) -> LetterSpacing {
+        LetterSpacing::Length(f.into())
+    }
+    /// Exact size in layout pixels.
+    fn from(i: i32) -> LetterSpacing {
+        LetterSpacing::Length(i.into())
+    }
+}
+
+/// Extra spacing added to the Unicode `U+0020 SPACE` character.
+///
+/// Word spacing is done using the space character "advance" as defined in the font,
+/// this unit represents extra spacing added to that default spacing.
+///
+/// A "word" is the sequence of characters in-between space characters. This extra
+/// spacing is applied per space character not per word, if there are three spaces between words
+/// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
+/// see [`white_space`](crate::properties::text_theme::white_space) for more details.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum WordSpacing {
+    /// Word spacing can be tweaked when justification is enabled.
+    Auto,
+    /// Extra space in [`Length`] units.
+    ///
+    /// Relative lengths are computed from the default space advance.
+    ///
+    /// This variant disables automatic adjustments for justification.
+    Length(Length),
+}
+impl Default for WordSpacing {
+    /// [`WordSpacing::Auto`]
+    fn default() -> Self {
+        WordSpacing::Auto
+    }
+}
+impl_from_and_into_var! {
+    fn from(length: Length) -> WordSpacing {
+        WordSpacing::Length(length)
+    }
+
+    /// Percentage of space advance (width).
+    fn from(percent: FactorPercent) -> WordSpacing {
+        WordSpacing::Length(percent.into())
+    }
+    /// Relative to the space advance (width).
+    fn from(norm: FactorNormal) -> WordSpacing {
+        WordSpacing::Length(norm.into())
+    }
+
+    /// Exact space in layout pixels.
+    fn from(f: f32) -> WordSpacing {
+        WordSpacing::Length(f.into())
+    }
+    /// Exact space in layout pixels.
+    fn from(i: i32) -> WordSpacing {
+        WordSpacing::Length(i.into())
+    }
+}
+
+/// Extra spacing in-between paragraphs.
+///
+/// The initial paragraph space is `line_height + line_spacing * 2`, this extra spacing is added to that.
+///
+/// A "paragraph" is a sequence of lines in-between blank lines (empty or spaces only). This extra space is applied per blank line
+/// not per paragraph, if there are three blank lines between paragraphs the extra spacing is applied trice.
+pub type ParagraphSpacing = Length;
+
+/// Length of a `TAB` space.
+///
+/// Relative lengths are computed from the normal space character "advance" plus the [`WordSpacing`].
+/// So a `400%` length is 4 spaces.
+pub type TabLength = Length;
 
 /// A device pixel scale factor used for pixel alignment.
 ///
