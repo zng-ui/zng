@@ -105,3 +105,11 @@ impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
         }
     }
 }
+
+impl<T: VarValue, V: Var<T>> IntoVar<T> for CloningLocalVar<T, V> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}

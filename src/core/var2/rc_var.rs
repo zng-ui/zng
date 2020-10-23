@@ -117,3 +117,24 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
+
+impl<T: VarValue> IntoVar<T> for RcVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
+
+/// New [`RcVar`].
+pub fn var<V: VarValue, I: Into<V>>(value: I) -> RcVar<V> {
+    RcVar::new(value.into())
+}
+
+/// Initializes a new [`StateVar`].
+pub fn state_var() -> StateVar {
+    var(false)
+}
+
+/// State properties (`is_*`) variable type.
+pub type StateVar = RcVar<bool>;

@@ -79,3 +79,11 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
+
+impl<T: VarValue, V: Var<T>> IntoVar<T> for ForceReadOnlyVar<T, V> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}

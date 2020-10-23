@@ -202,6 +202,22 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     ) -> RcMapBidiVar<T, O, Self, F, G>;
 }
 
+/// A value-to-[var](Var) conversion that consumes the value.
+pub trait IntoVar<T: VarValue>: Clone {
+    type Var: Var<T>;
+
+    /// Converts the source value into a var.
+    fn into_var(self) -> Self::Var;
+
+    /// Shortcut call `self.into_var().as_local()`.
+    fn into_local(self) -> <<Self as IntoVar<T>>::Var as Var<T>>::AsLocal
+    where
+        Self: Sized,
+    {
+        self.into_var().as_local()
+    }
+}
+
 /// Access to application variables.
 ///
 /// Only a single instance of this type exists at a time.

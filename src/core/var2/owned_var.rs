@@ -84,3 +84,20 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
+
+/// Wraps the value in an [`OwnedVar`] value.
+impl<T: VarValue> IntoVar<T> for T {
+    type Var = OwnedVar<T>;
+
+    fn into_var(self) -> OwnedVar<T> {
+        OwnedVar(self)
+    }
+}
+
+impl<T: VarValue> IntoVar<T> for OwnedVar<T> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}

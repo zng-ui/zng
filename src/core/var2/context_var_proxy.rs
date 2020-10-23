@@ -81,3 +81,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
+
+impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}

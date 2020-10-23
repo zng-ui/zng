@@ -159,3 +159,18 @@ where
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
+
+impl<I, O, V, F, G> IntoVar<O> for RcMapBidiVar<I, O, V, F, G>
+where
+    I: VarValue,
+    O: VarValue,
+    V: Var<I>,
+    F: FnMut(&I) -> O + 'static,
+    G: FnMut(O) -> I + 'static,
+{
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}
