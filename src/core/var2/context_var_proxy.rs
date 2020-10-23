@@ -1,9 +1,29 @@
 use super::*;
 
 /// A [`Var`] that represents a [`ContextVar`].
-#[doc(hidden)]
 #[derive(Clone)]
 pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
+impl<C: ContextVar> ContextVarProxy<C> {
+    /// References the value in the current `vars` context.
+    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a C::Type {
+        <Self as VarObj<C::Type>>::get(self, vars)
+    }
+
+    /// References the value in the current `vars` context if it is marked as new.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a C::Type> {
+        <Self as VarObj<C::Type>>::get_new(self, vars)
+    }
+
+    /// If the value in the current `vars` context is marked as new.
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        <Self as VarObj<C::Type>>::is_new(self, vars)
+    }
+
+    /// Gets the version of the value in the current `vars` context.
+    pub fn version(&self, vars: &Vars) -> u32 {
+        <Self as VarObj<C::Type>>::version(self, vars)
+    }
+}
 impl<C: ContextVar> protected::Var for ContextVarProxy<C> {}
 impl<C: ContextVar> Default for ContextVarProxy<C> {
     fn default() -> Self {

@@ -16,6 +16,45 @@ impl<T: VarValue> RcVar<T> {
             version: Cell::new(0),
         }))
     }
+
+    /// References the current value.
+    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+        <Self as VarObj<T>>::get(self, vars)
+    }
+
+    /// References the current value if it is new.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T> {
+        <Self as VarObj<T>>::get_new(self, vars)
+    }
+
+    /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        <Self as VarObj<T>>::is_new(self, vars)
+    }
+
+    /// Version of the current value. 
+    ///
+    /// The version is incremented every update
+    /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
+    pub fn version(&self, vars: &Vars) -> u32 {
+        <Self as VarObj<T>>::version(self, vars)
+    }
+
+    /// Schedules an assign for after the current update.
+    ///
+    /// The value is not changed immediately, the full UI tree gets a chance to see the current value,
+    /// after the current UI update, the value is updated.
+    pub fn set(&self, vars: &Vars, new_value: T) {
+        let _ = <Self as VarObj<T>>::set(self, vars, new_value);
+    }
+
+    /// Schedules a closure to modify the value after the current update.
+    ///
+    /// This is a variation of the [`set`](Self::set) method that does not require
+    /// an entire new value to be instantiated.
+    pub fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) {
+        let _ = <Self as Var<T>>::modify(self, vars, change);
+    }
 }
 impl<T: VarValue> Clone for RcVar<T> {
     fn clone(&self) -> Self {
