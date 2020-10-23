@@ -58,7 +58,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
     ///
     /// When you set the variable, the new value is only applied after the UI tree finishes
-    /// the current update. The value is then applied causing a new update to happen, in the new 
+    /// the current update. The value is then applied causing a new update to happen, in the new
     /// update this method returns `true`. After the new update it returns `false` again.
     fn is_new(&self, vars: &Vars) -> bool;
 
@@ -95,7 +95,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// Boxed version of the [`modify`](Var::modify) method.
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly>;
 
-    /// Boxes `self`. 
+    /// Boxes `self`.
     ///
     /// A boxed var is also a var, that implementation just returns `self`.
     fn boxed(self) -> Box<dyn VarObj<T>>
@@ -110,7 +110,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
 ///
 /// For the normal variables you need a reference to [`Vars`] to access the value,
 /// this reference is not available in all [`UiNode`](crate::core::UiNode) methods.
-/// 
+///
 /// Some variable types are safe to reference the inner value at any moment, other variables
 /// can be wrapped in a type that makes a local clone of the current value. You can get any
 /// variable as a local variable by calling [`Var::as_local`].
@@ -167,7 +167,7 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     /// The value is new when the `self` value is new, `map` is only called once per new value.
     ///
     /// The variable is read-only, use [`map_bidi`](Self::map_bidi) to propagate changes back to `self`.
-    fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F>;
+    fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F>;
 
     /// Returns a variable whos value is mapped to and from `self`.
     ///
@@ -175,7 +175,11 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     ///
     /// The variable can be set if `self` is not read-only, when set `map_back` is called to generate
     /// a value
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O, G: FnMut(O) -> T>(&self, map: F, map_back: G) -> RcMapBidiVar<T, O, Self, F, G>;
+    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G>;
 }
 
 /// A [`Var`] that locally owns the value.
@@ -250,11 +254,15 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         Err(VarIsReadOnly)
     }
 
-    fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
+    fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
         RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O, G: FnMut(O) -> T>(&self, map: F, map_back: G) -> RcMapBidiVar<T, O, Self, F, G> {
+    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
@@ -298,7 +306,7 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
     }
 
     fn is_new(&self, vars: &Vars) -> bool {
-        self.0.last_updated.get() == vars.update_id() 
+        self.0.last_updated.get() == vars.update_id()
     }
 
     fn version(&self, _: &Vars) -> u32 {
@@ -332,10 +340,10 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
 
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut T)>) -> Result<(), VarIsReadOnly> {
         let self2 = self.clone();
-        vars.push_change(Box::new(move || {
+        vars.push_change(Box::new(move |update_id| {
             // SAFETY: this is safe because Vars requires a mutable reference to apply changes.
             change(unsafe { &mut *self2.0.data.get() });
-            self2.0.is_new.set(true);
+            self2.0.last_updated.set(update_id);
             self2.0.version.set(self2.0.version.get().wrapping_add(1));
         }));
         Ok(())
@@ -365,11 +373,15 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self.clone(), Box::new(map))
+        RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O, G: FnMut(O) -> T>(&self, map: F, map_back: G) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self.clone(), Box::new(map), Box::new(map_back))
+    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
 
@@ -439,11 +451,15 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
         Err(VarIsReadOnly)
     }
 
-    fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
+    fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
         RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O, G: FnMut(O) -> T>(&self, map: F, map_back: G) -> RcMapBidiVar<T, O, Self, F, G> {
+    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
@@ -519,11 +535,15 @@ impl<T: VarValue, V: Var<T>> Var<T> for CloningLocalVar<T, V> {
     }
 
     fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self.var.clone(), map)
+        RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<O: VarValue, F: FnMut(&T) -> O, G: FnMut(O) -> T>(&self, map: F, map_back: G) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self.var.clone(), map, map_back)
+    fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
 impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
@@ -549,16 +569,15 @@ impl<T: VarValue, V: Var<T>> VarLocal<T> for CloningLocalVar<T, V> {
     }
 }
 
-struct RcMapVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O> {
+struct RcMapVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static> {
     _i: PhantomData<I>,
     var: V,
     f: RefCell<F>,
     version: Cell<Option<u32>>,
-    //TODO do I need UnsafeCell here?
     output: UnsafeCell<MaybeUninit<O>>,
 }
 #[doc(hidden)]
-pub struct RcMapVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O>(Rc<RcMapVarData<I, O, V, F>>);
+pub struct RcMapVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static>(Rc<RcMapVarData<I, O, V, F>>);
 impl<I, O, V, F> protected::Var for RcMapVar<I, O, V, F>
 where
     I: VarValue,
@@ -684,11 +703,15 @@ where
         CloningLocalVar::new(self)
     }
 
-    fn map<O2: VarValue, F2: FnMut(&O) -> O2>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
+    fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
         RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2, G: FnMut(O2) -> O>(&self, map: F2, map_back: G) -> RcMapBidiVar<O, O2, Self, F2, G> {
+    fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
+        &self,
+        map: F2,
+        map_back: G,
+    ) -> RcMapBidiVar<O, O2, Self, F2, G> {
         RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
@@ -838,41 +861,24 @@ where
     fn as_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
-}
-impl<I, O, V, F, G, O2> VarMap<O, O2> for RcMapBidiVar<I, O, V, F, G>
-where
-    I: VarValue,
-    O: VarValue,
-    V: Var<I>,
-    F: FnMut(&I) -> O + 'static,
-    G: FnMut(O) -> I + 'static,
-    O2: VarValue,
-{
-    #[allow(clippy::type_complexity)]
-    type MapVar = RcMapVar<O, O2, Self, Box<dyn FnMut(&O) -> O2>>;
-    #[allow(clippy::type_complexity)]
-    type MapBidiVar = RcMapBidiVar<O, O2, Self, Box<dyn FnMut(&O) -> O2>, Box<dyn FnMut(O2) -> O>>;
 
-    fn map<F2>(&self, f: F2) -> Self::MapVar
-    where
-        F2: FnMut(&O) -> O2 + 'static,
-    {
-        RcMapVar::new(self.clone(), Box::new(f))
+    fn map<O2: VarValue, F2: FnMut(&O) -> O2>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
+        RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<F2, G2>(&self, map: F2, map_back: G2) -> Self::MapBidiVar
-    where
-        F2: FnMut(&O) -> O2 + 'static,
-        G2: FnMut(O2) -> O + 'static,
-    {
-        RcMapBidiVar::new(self.clone(), Box::new(map), Box::new(map_back))
+    fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G2: FnMut(O2) -> O + 'static>(
+        &self,
+        map: F2,
+        map_back: G2,
+    ) -> RcMapBidiVar<O, O2, Self, F2, G2> {
+        RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
 
 #[doc(hidden)]
 #[derive(Clone)]
 pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
-impl<C: ContextVar> protected::Var for ContextVarProxy<C> { }
+impl<C: ContextVar> protected::Var for ContextVarProxy<C> {}
 impl<C: ContextVar> Default for ContextVarProxy<C> {
     fn default() -> Self {
         ContextVarProxy(PhantomData)
@@ -936,26 +942,24 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     fn modify<F: FnOnce(&mut C::Type) + 'static>(&self, _: &Vars, _: F) -> Result<(), VarIsReadOnly> {
         Err(VarIsReadOnly)
     }
-}
-impl<C: ContextVar, O: VarValue> VarMap<C::Type, O> for ContextVarProxy<C> {
-    // TODO, stop boxing when generic associated types is stable.
-    #[allow(clippy::type_complexity)]
-    type MapVar = RcMapVar<C::Type, O, Self, Box<dyn FnMut(&C::Type) -> O>>;
-    #[allow(clippy::type_complexity)]
-    type MapBidiVar = RcMapVar<C::Type, O, Self, Box<dyn FnMut(&C::Type) -> O>>;
 
-    fn map<F: FnMut(&C::Type) -> O + 'static>(&self, f: F) -> Self::MapVar {
-        RcMapVar::new(self.clone(), Box::new(f))
+    fn map<O: VarValue, F: FnMut(&C::Type) -> O>(&self, map: F) -> RcMapVar<C::Type, O, Self, F> {
+        RcMapVar::new(self.clone(), map)
     }
 
-    fn map_bidi<F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(&self, map: F, _: G) -> Self::MapBidiVar {
-        RcMapVar::new(self.clone(), Box::new(map))
+    fn map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
+        RcMapBidiVar::new(self.clone(), map, map_back)
     }
 }
 
 pub struct Vars {
     update_id: u32,
-    pending: RefCell<Vec<Box<dyn FnOnce()>>>,
+    #[allow(clippy::type_complexity)]
+    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
     context_vars: RefCell<FnvHashMap<TypeId, (*const AnyRef, bool, u32)>>,
 }
 impl Vars {
