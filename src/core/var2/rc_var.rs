@@ -32,7 +32,7 @@ impl<T: VarValue> RcVar<T> {
         <Self as VarObj<T>>::is_new(self, vars)
     }
 
-    /// Version of the current value. 
+    /// Version of the current value.
     ///
     /// The version is incremented every update
     /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
