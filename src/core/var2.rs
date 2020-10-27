@@ -33,11 +33,11 @@ pub use rc_map_bidi_var::*;
 mod context_var_proxy;
 pub use context_var_proxy::*;
 
-mod merge_var;
-pub use merge_var::*;
+mod rc_merge_var;
+pub use rc_merge_var::*;
 
-mod switch_var;
-pub use switch_var::*;
+mod rc_switch_var;
+pub use rc_switch_var::*;
 
 /// A type that can be a [`Var`](crate::core::var::Var) value.
 ///

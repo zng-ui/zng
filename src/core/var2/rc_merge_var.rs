@@ -1,11 +1,10 @@
 use super::*;
-use paste::paste;
 
 macro_rules! impl_rc_merge_var {
     ($(
         $len:tt => $($n:tt),+;
     )+) => {$(
-        paste!{
+        paste::paste!{
             impl_rc_merge_var!{
                 Var: [<RcMerge $len Var>];// RcMerge2Var
                 Data: [<RcMerge $len VarData>];// RcMerge2VarData
