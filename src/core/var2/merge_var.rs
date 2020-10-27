@@ -1,4 +1,63 @@
 use super::*;
+use paste::paste;
+
+macro_rules! impl_rc_merge_var {
+    ($(
+        pub struct $RcMergeVar:ident($($n:tt),+);
+    )+) => {$(
+        paste!{
+            impl_rc_merge_var!{
+                var: $RcMergeVar;// RcMerge2Var
+                data: [<$RcMergeVar Data>];// RcMerge2VarData
+                I: $([<I $n>]),+;// I0, I1, ..
+                V: $([<V $n>]),+;// V0, V1, ..
+                n: $($n),+; // 0, 1, ..
+            }
+        }
+    )+};
+
+    (
+        var: $RcMergeVar:ident;
+        data: $RcMergeVarData:ident;
+        I: $($I:ident),+;
+        V: $($V:ident),+;
+        n: $($n:tt),+;
+    ) => {
+        pub struct $RcMergeVar<$($I: VarValue,)+ O, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
+            Rc<$RcMergeVarData<$($I,)+ O, $($V,)+ F>>,
+        );
+
+        struct $RcMergeVarData<$($I: VarValue,)+ O, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
+            _i: PhantomData<($($I),+)>,
+            vars: ($($V),+),
+            f: RefCell<F>,
+            versions: ($(Version<$I>),+),
+            output_version: Cell<u32>,
+            output: UnsafeCell<MaybeUninit<O>>, // TODO: Need to manually drop?
+            last_update_id: Cell<Option<u32>>,
+        }
+
+        // TODO
+    };
+}
+
+impl_rc_merge_var! {
+    pub struct RcMerge3Var(0, 1, 2);
+    pub struct RcMerge4Var(0, 1, 2, 3);
+}
+
+struct Version<I>(Cell<u32>, PhantomData<I>);
+impl<I> Version<I> {
+    fn new(val: u32) -> Self {
+        Version(Cell::new(val), PhantomData)
+    }
+    fn get(&self) -> u32 {
+        self.0.get()
+    }
+    fn set(&self, val: u32) {
+        self.0.set(val)
+    }
+}
 
 pub struct RcMerge2Var<I0: VarValue, I1: VarValue, O: VarValue, V0: Var<I0>, V1: Var<I1>, F: FnMut(&I0, &I1) -> O + 'static>(
     Rc<RcMerge2VarData<I0, I1, O, V0, V1, F>>,
@@ -42,7 +101,6 @@ where
     fn update_output(&self, vars: &Vars) {
         let last_update_id = Some(vars.update_id());
         if self.0.last_update_id.get() != last_update_id {
-
             let versions = (self.0.vars.0.version(vars), self.0.vars.1.version(vars));
             if self.0.versions.0.get() != versions.0 || self.0.versions.1.get() != versions.1 || self.output_uninit() {
                 let value = (&mut *self.0.f.borrow_mut())(self.0.vars.0.get(vars), self.0.vars.1.get(vars));
