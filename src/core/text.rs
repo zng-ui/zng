@@ -90,6 +90,7 @@ impl FontInstanceRef {
         ShapedLine { glyphs, baseline, bounds }
     }
 
+    // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut out = ShapedText::default();
         let metrics = self.metrics();
