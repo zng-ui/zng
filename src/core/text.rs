@@ -797,25 +797,21 @@ impl SegmentedText {
         let text_str: &str = &text;
 
         for (offset, hard_break) in LineBreakIterator::new(text_str) {
-            // a hard-break is a '\n', "\r\n" or end-of-text (`EOT`).
+            // a hard-break is a '\n', "\r\n".
             if hard_break {
                 // start of this segment.
                 let start = segs.last().map(|s| s.end).unwrap_or(0);
 
                 // The segment can have other characters before the line-break character(s).
-                // LineBreakIterator also returns a hard_break for the last segment even if it
-                // does not have line-break character(s).
 
                 let seg = &text_str[start..offset];
                 let break_start = if seg.ends_with("\r\n") {
                     // the break was a "\r\n"
                     offset - 2
-                } else if seg.ends_with('\n') {
+                } else {
+                    debug_assert!(seg.ends_with('\n'));
                     // the break was a '\n'
                     offset - 1
-                } else {
-                    // the break was the `EOT`.
-                    offset
                 };
 
                 if break_start > start {
@@ -1068,7 +1064,7 @@ mod tests {
 
         assert_eq!(expected.len(), actual.len());
         for (expected, actual) in expected.into_iter().zip(actual) {
-            println!("{:?}", actual);
+            //println!("{:?}", actual);
             assert_eq!(expected, actual);
         }
     }
