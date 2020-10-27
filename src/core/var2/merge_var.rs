@@ -11,7 +11,7 @@ struct RcMerge2VarData<I0: VarValue, I1: VarValue, O: VarValue, V0: Var<I0>, V1:
     versions: (Cell<u32>, Cell<u32>),
     output_version: Cell<u32>,
     output: UnsafeCell<MaybeUninit<O>>, // TODO: Need to manually drop?
-    last_updated: Cell<Option<u32>>,
+    last_update_id: Cell<Option<u32>>,
 }
 
 impl<I0, I1, O, V0, V1, F> RcMerge2Var<I0, I1, O, V0, V1, F>
@@ -31,8 +31,36 @@ where
             versions: (Cell::new(0), Cell::new(0)),
             output_version: Cell::new(0),
             output: UnsafeCell::new(MaybeUninit::uninit()),
-            last_updated: Cell::new(None),
+            last_update_id: Cell::new(None),
         }))
+    }
+
+    fn output_uninit(&self) -> bool {
+        self.0.last_update_id.get().is_none()
+    }
+
+    fn update_output(&self, vars: &Vars) {
+        let last_update_id = Some(vars.update_id());
+        if self.0.last_update_id.get() != last_update_id {
+
+            let versions = (self.0.vars.0.version(vars), self.0.vars.1.version(vars));
+            if self.0.versions.0.get() != versions.0 || self.0.versions.1.get() != versions.1 || self.output_uninit() {
+                let value = (&mut *self.0.f.borrow_mut())(self.0.vars.0.get(vars), self.0.vars.1.get(vars));
+                // SAFETY: This is safe because it only happens before the first borrow
+                // of this update, and borrows cannot exist across updates because source
+                // vars require a &mut Vars for changing version.
+                unsafe {
+                    let m_uninit = &mut *self.0.output.get();
+                    m_uninit.as_mut_ptr().write(value);
+                }
+
+                self.0.output_version.set(self.0.output_version.get().wrapping_add(1));
+                self.0.versions.0.set(versions.0);
+                self.0.versions.1.set(versions.1);
+            }
+
+            self.0.last_update_id.set(last_update_id);
+        }
     }
 }
 
@@ -71,29 +99,7 @@ where
     F: FnMut(&I0, &I1) -> O + 'static,
 {
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
-        let self_last_updated = self.0.last_updated.get();
-        let last_updated = Some(vars.update_id());
-        if self_last_updated != last_updated {
-            // TODO: This implementation is breaking with [is_new].
-            self.0.last_updated.set(last_updated);
-
-            let versions = (self.0.vars.0.version(vars), self.0.vars.1.version(vars));
-            if versions.0 != self.0.versions.0.get() || versions.1 != self.0.versions.1.get() || self_last_updated.is_none() {
-                let value = (&mut *self.0.f.borrow_mut())(self.0.vars.0.get(vars), self.0.vars.1.get(vars));
-
-                // SAFETY: This is safe because it only happens before the first borrow
-                // of this update, and borrows cannot exist across updates because source
-                // vars require a &mut Vars for changing version.
-                unsafe {
-                    let m_uninit = &mut *self.0.output.get();
-                    m_uninit.as_mut_ptr().write(value);
-                }
-
-                self.0.output_version.set(self.0.output_version.get().wrapping_add(1));
-                self.0.versions.0.set(versions.0);
-                self.0.versions.1.set(versions.1);
-            }
-        }
+        self.update_output(vars);
 
         // SAFETY:
         // This is safe because source require &mut Vars for updating.
@@ -112,10 +118,11 @@ where
     }
 
     fn is_new(&self, vars: &Vars) -> bool {
-        self.0.last_updated.get() == Some(vars.update_id())
+        self.0.vars.0.is_new(vars) || self.0.vars.1.is_new(vars)
     }
 
-    fn version(&self, _: &Vars) -> u32 {
+    fn version(&self, vars: &Vars) -> u32 {
+        self.update_output(vars);
         self.0.output_version.get()
     }
 
