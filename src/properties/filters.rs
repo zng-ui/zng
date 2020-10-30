@@ -6,17 +6,17 @@ use crate::core::{
     context::WidgetContext,
     render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
     units::{AngleDegree, LayoutSize, Length, Point},
-    var::{merge_var, IntoVar, LocalVar, ObjVar, Var},
+    var::{merge_var, IntoVar, Var, VarLocal, VarObj},
 };
 use crate::core::{impl_ui_node, property, units::FactorNormal, UiNode};
 
-struct FilterNode<C: UiNode, F: LocalVar<Filter>> {
+struct FilterNode<C: UiNode, F: VarLocal<Filter>> {
     child: C,
     filter: F,
     render_filter: RenderFilter,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, F: LocalVar<Filter>> UiNode for FilterNode<C, F> {
+impl<C: UiNode, F: VarLocal<Filter>> UiNode for FilterNode<C, F> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.filter.init_local(ctx.vars);
         self.child.init(ctx)
@@ -115,14 +115,14 @@ pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl 
     filter::set(child, angle.into_var().map(|&a| color::hue_rotate(a)))
 }
 
-struct OpacityNode<C: UiNode, A: LocalVar<FactorNormal>> {
+struct OpacityNode<C: UiNode, A: VarLocal<FactorNormal>> {
     child: C,
     alpha_value: A,
     frame_key: Option<FrameBindingKey<f32>>,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, A: LocalVar<FactorNormal>> UiNode for OpacityNode<C, A> {
+impl<C: UiNode, A: VarLocal<FactorNormal>> UiNode for OpacityNode<C, A> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.alpha_value.init_local(ctx.vars);
         self.child.init(ctx);

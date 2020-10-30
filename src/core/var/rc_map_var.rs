@@ -1,6 +1,9 @@
 use super::*;
 
 /// A reference counted mapping variable.
+///
+/// The variable is read-only, the value is generated from another value and updates with
+/// the other variable.
 #[doc(hidden)]
 pub struct RcMapVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static>(Rc<RcMapVarData<I, O, V, F>>);
 struct RcMapVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O + 'static> {
@@ -44,6 +47,34 @@ where
             version: Cell::new(None),
             output: UnsafeCell::new(MaybeUninit::uninit()),
         }))
+    }
+
+    /// References the current value.
+    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+        <Self as VarObj<O>>::get(self, vars)
+    }
+
+    /// References the current value if it is new.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+        <Self as VarObj<O>>::get_new(self, vars)
+    }
+
+    /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        <Self as VarObj<O>>::is_new(self, vars)
+    }
+
+    /// Version of the current value.
+    ///
+    /// The version is incremented every update
+    /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
+    pub fn version(&self, vars: &Vars) -> u32 {
+        <Self as VarObj<O>>::version(self, vars)
+    }
+
+    /// If the source variable can update.
+    pub fn can_update(&self) -> bool {
+        <Self as VarObj<O>>::can_update(self)
     }
 }
 impl<I, O, V, F> VarObj<O> for RcMapVar<I, O, V, F>
@@ -136,7 +167,7 @@ where
     }
 
     fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
@@ -144,7 +175,19 @@ where
         map: F2,
         map_back: G,
     ) -> RcMapBidiVar<O, O2, Self, F2, G> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(self, map: F2) -> RcMapVar<O, O2, Self, F2> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
+        self,
+        map: F2,
+        map_back: G,
+    ) -> RcMapBidiVar<O, O2, Self, F2, G> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 

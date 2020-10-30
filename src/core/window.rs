@@ -11,7 +11,7 @@ use super::{
     text::Text,
     types::{FrameId, WindowEvent},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
-    var::{BoxLocalVar, BoxVar, IntoVar, ObjVar},
+    var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj},
     UiNode, WidgetId,
 };
 use super::{event::*, render::FrameUpdate};
@@ -296,12 +296,12 @@ impl AppExtension for WindowManager {
 
                     // set the window size variable if it is not read-only.
                     let wn_ctx = window.wn_ctx.borrow();
-                    if !wn_ctx.root.size.read_only(ctx.vars) {
+                    if !wn_ctx.root.size.is_read_only(ctx.vars) {
                         let new_size = Size::from((new_size.width, new_size.height));
                         let current_size = *wn_ctx.root.size.get(ctx.vars);
                         // the var can already be set if the user modified it to resize the window.
                         if current_size != new_size {
-                            ctx.updates.push_set(&wn_ctx.root.size, new_size, ctx.vars).unwrap();
+                            wn_ctx.root.size.set(ctx.vars, new_size).unwrap();
                         }
                     }
 
@@ -316,11 +316,11 @@ impl AppExtension for WindowManager {
 
                     // set the window position variable if it is not read-only.
                     let wn_ctx = window.wn_ctx.borrow();
-                    if !wn_ctx.root.position.read_only(ctx.vars) {
+                    if !wn_ctx.root.position.is_read_only(ctx.vars) {
                         let new_position = Point::from((new_position.x, new_position.y));
                         let var = *wn_ctx.root.position.get(ctx.vars);
                         if new_position != var {
-                            ctx.updates.push_set(&wn_ctx.root.position, new_position, ctx.vars).unwrap();
+                            wn_ctx.root.position.set(ctx.vars, new_position);
                         }
                     }
 
@@ -684,10 +684,10 @@ impl std::error::Error for WindowNotFound {}
 pub struct Window {
     meta: LazyStateMap,
     id: WidgetId,
-    title: BoxLocalVar<Text>,
-    position: BoxVar<Point>,
-    size: BoxVar<Size>,
-    clear_color: BoxLocalVar<Rgba>,
+    title: BoxedLocalVar<Text>,
+    position: BoxedVar<Point>,
+    size: BoxedVar<Size>,
+    clear_color: BoxedLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
 
@@ -703,10 +703,10 @@ impl Window {
         Window {
             meta: LazyStateMap::default(),
             id: root_id,
-            title: Box::new(title.into_local()),
+            title: title.into_local().boxed_local(),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
-            clear_color: Box::new(clear_color.into_local()),
+            clear_color: clear_color.into_local().boxed_local(),
             child: child.boxed(),
         }
     }
@@ -794,12 +794,12 @@ impl OpenWindow {
         if valid_init_pos != system_init_pos {
             gl_ctx.window().set_outer_position(valid_init_pos);
         } else {
-            set_position_var = !root.position.read_only(ctx.vars);
+            set_position_var = !root.position.is_read_only(ctx.vars);
         }
         if valid_init_size != system_init_size {
             gl_ctx.window().set_inner_size(valid_init_size);
         } else {
-            set_size_var = !root.position.read_only(ctx.vars);
+            set_size_var = !root.position.is_read_only(ctx.vars);
         }
 
         let clear_color = *root.clear_color.get(ctx.vars);
@@ -854,17 +854,13 @@ impl OpenWindow {
             // user did not set position, but variable is read-write,
             // so we update with the OS provided initial position.
             let LayoutPoint { x, y, .. } = w.position();
-            ctx.updates
-                .push_set(&w.wn_ctx.borrow().root.position, (x, y).into(), ctx.vars)
-                .unwrap();
+            w.wn_ctx.borrow().root.position.set(ctx.vars, (x, y).into()).unwrap();
         }
         if set_size_var {
             // user did not set size, but variable is read-write,
             // so we update with the OS provided initial size.
             let LayoutSize { width, height, .. } = w.size();
-            ctx.updates
-                .push_set(&w.wn_ctx.borrow().root.size, (width, height).into(), ctx.vars)
-                .unwrap();
+            w.wn_ctx.borrow().root.size.set(ctx.vars, (width, height).into()).unwrap();
         }
 
         w
@@ -1018,7 +1014,7 @@ impl OpenWindow {
         }
 
         // position
-        if let Some(&new_pos) = wn_ctx.root.position.update(vars) {
+        if let Some(&new_pos) = wn_ctx.root.position.get_new(vars) {
             let current_pos = window.outer_position().expect("only desktop windows are supported");
 
             let layout_ctx = self.monitor_layout_ctx();
@@ -1045,7 +1041,7 @@ impl OpenWindow {
         }
 
         // size
-        if let Some(&new_size) = wn_ctx.root.size.update(vars) {
+        if let Some(&new_size) = wn_ctx.root.size.get_new(vars) {
             let current_size = window.inner_size();
 
             let layout_ctx = self.monitor_layout_ctx();

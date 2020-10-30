@@ -66,25 +66,24 @@ fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
     }
 }
 
-fn set_position(x: f32, y: f32, window_position: &SharedVar<Point>) -> impl Widget {
+fn set_position(x: f32, y: f32, window_position: &RcVar<Point>) -> impl Widget {
     set_var_btn(window_position, (x, y).into(), formatx!("move to {}x{}", x, y))
 }
 
-fn set_size(width: f32, height: f32, window_size: &SharedVar<Size>) -> impl Widget {
+fn set_size(width: f32, height: f32, window_size: &RcVar<Size>) -> impl Widget {
     set_var_btn(window_size, (width, height).into(), formatx!("resize to {}x{}", width, height))
 }
 
-fn set_background(color: Rgba, color_name: &str, background_color: &SharedVar<Rgba>) -> impl Widget {
+fn set_background(color: Rgba, color_name: &str, background_color: &RcVar<Rgba>) -> impl Widget {
     set_var_btn(background_color, color, formatx!("{} background", color_name))
 }
 
-fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &SharedVar<T>, new_value: T, content_txt: Text) -> impl Widget {
+fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, content_txt: Text) -> impl Widget {
     let var = var.clone();
     button! {
         content: text(content_txt);
         on_click: move |a| {
-            let ctx = a.ctx();
-            ctx.updates.push_set(&var, new_value.clone(), ctx.vars).unwrap();
+            var.set(a.ctx().vars,  new_value.clone());
         };
     }
 }

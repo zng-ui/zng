@@ -1,6 +1,9 @@
 use super::*;
 
 /// A reference counted bidirectional mapping variable.
+///
+/// The variable is read-write, the value is generated from another value and updates with
+/// the other variable. If set the source value is updated with a revere mapping.
 #[doc(hidden)]
 pub struct RcMapBidiVar<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, G: FnMut(O) -> I>(Rc<RcMapBidiVarData<I, O, V, F, G>>);
 struct RcMapBidiVarData<I: VarValue, O: VarValue, V: Var<I>, F: FnMut(&I) -> O, G: FnMut(O) -> I> {
@@ -49,6 +52,60 @@ where
             version: Cell::new(None),
             output: UnsafeCell::new(MaybeUninit::uninit()),
         }))
+    }
+
+    /// References the current value.
+    pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+        <Self as VarObj<O>>::get(self, vars)
+    }
+
+    /// References the current value if it is new.
+    pub fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+        <Self as VarObj<O>>::get_new(self, vars)
+    }
+
+    /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
+    pub fn is_new(&self, vars: &Vars) -> bool {
+        <Self as VarObj<O>>::is_new(self, vars)
+    }
+
+    /// Version of the current value.
+    ///
+    /// The version is incremented every update
+    /// that [`set`](Self::set) or [`modify`](Var::modify) are called.
+    pub fn version(&self, vars: &Vars) -> u32 {
+        <Self as VarObj<O>>::version(self, vars)
+    }
+
+    /// If the source variable can update.
+    pub fn can_update(&self) -> bool {
+        <Self as VarObj<O>>::can_update(self)
+    }
+
+    /// If the source variable is currently read-only.
+    pub fn is_read_only(&self, vars: &Vars) -> bool {
+        <Self as VarObj<O>>::is_read_only(self, vars)
+    }
+
+    /// If the source variable is always read-only.
+    pub fn always_read_only(&self) -> bool {
+        <Self as VarObj<O>>::always_read_only(self)
+    }
+
+    /// Schedules an assign for after the current update.
+    ///
+    /// The value is not changed immediately, the full UI tree gets a chance to see the current value,
+    /// after the current UI update, the value is mapped back to source and the source is updated.
+    pub fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
+        <Self as VarObj<O>>::set(self, vars, new_value)
+    }
+
+    /// Schedules a closure to modify the value after the current update.
+    ///
+    /// This is a variation of the [`set`](Self::set) method that does not require
+    /// an entire new value to be instantiated.
+    pub fn modify<F2: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F2) -> Result<(), VarIsReadOnly> {
+        <Self as Var<O>>::modify(self, vars, change)
     }
 }
 impl<I, O, V, F, G> VarObj<O> for RcMapBidiVar<I, O, V, F, G>
@@ -148,7 +205,7 @@ where
     }
 
     fn map<O2: VarValue, F2: FnMut(&O) -> O2>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G2: FnMut(O2) -> O + 'static>(
@@ -156,7 +213,19 @@ where
         map: F2,
         map_back: G2,
     ) -> RcMapBidiVar<O, O2, Self, F2, G2> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O2: VarValue, F2: FnMut(&O) -> O2>(self, map: F2) -> RcMapVar<O, O2, Self, F2> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G2: FnMut(O2) -> O + 'static>(
+        self,
+        map: F2,
+        map_back: G2,
+    ) -> RcMapBidiVar<O, O2, Self, F2, G2> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 

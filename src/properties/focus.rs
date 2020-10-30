@@ -102,12 +102,12 @@ pub fn skip_directional(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl
     }
 }
 
-struct FocusableNode<C: UiNode, E: LocalVar<bool>> {
+struct FocusableNode<C: UiNode, E: VarLocal<bool>> {
     child: C,
     is_focusable: E,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusableNode<C, E> {
+impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusableNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.is_focusable.init_local(ctx.vars);
         self.child.init(ctx);
@@ -126,7 +126,7 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusableNode<C, E> {
     }
 }
 
-struct TabIndexNode<C: UiNode, T: LocalVar<TabIndex>> {
+struct TabIndexNode<C: UiNode, T: VarLocal<TabIndex>> {
     child: C,
     tab_index: T,
 }
@@ -134,7 +134,7 @@ struct TabIndexNode<C: UiNode, T: LocalVar<TabIndex>> {
 impl<C, T> UiNode for TabIndexNode<C, T>
 where
     C: UiNode,
-    T: LocalVar<TabIndex>,
+    T: VarLocal<TabIndex>,
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.tab_index.init_local(ctx.vars);
@@ -154,7 +154,7 @@ where
     }
 }
 
-struct SkipDirectionalNode<C: UiNode, E: LocalVar<bool>> {
+struct SkipDirectionalNode<C: UiNode, E: VarLocal<bool>> {
     child: C,
     enabled: E,
 }
@@ -162,7 +162,7 @@ struct SkipDirectionalNode<C: UiNode, E: LocalVar<bool>> {
 impl<C, E> UiNode for SkipDirectionalNode<C, E>
 where
     C: UiNode,
-    E: LocalVar<bool>,
+    E: VarLocal<bool>,
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.enabled.init_local(ctx.vars);
@@ -182,13 +182,13 @@ where
     }
 }
 
-struct FocusScopeNode<C: UiNode, E: LocalVar<bool>> {
+struct FocusScopeNode<C: UiNode, E: VarLocal<bool>> {
     child: C,
     is_focus_scope: E,
     is_alt: bool,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
+impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.is_focus_scope.init_local(ctx.vars);
         self.child.init(ctx);
@@ -224,12 +224,12 @@ impl<C: UiNode, E: LocalVar<bool>> UiNode for FocusScopeNode<C, E> {
     }
 }
 
-struct TabNavNode<C: UiNode, E: LocalVar<TabNav>> {
+struct TabNavNode<C: UiNode, E: VarLocal<TabNav>> {
     child: C,
     tab_nav: E,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<TabNav>> UiNode for TabNavNode<C, E> {
+impl<C: UiNode, E: VarLocal<TabNav>> UiNode for TabNavNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.tab_nav.init_local(ctx.vars);
         self.child.init(ctx);
@@ -248,12 +248,12 @@ impl<C: UiNode, E: LocalVar<TabNav>> UiNode for TabNavNode<C, E> {
     }
 }
 
-struct DirectionalNavNode<C: UiNode, E: LocalVar<DirectionalNav>> {
+struct DirectionalNavNode<C: UiNode, E: VarLocal<DirectionalNav>> {
     child: C,
     directional_nav: E,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, E: LocalVar<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
+impl<C: UiNode, E: VarLocal<DirectionalNav>> UiNode for DirectionalNavNode<C, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.directional_nav.init_local(ctx.vars);
         self.child.init(ctx);
@@ -315,12 +315,12 @@ impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
     }
 }
 
-struct FocusScopeBehaviorNode<C: UiNode, B: LocalVar<FocusScopeOnFocus>> {
+struct FocusScopeBehaviorNode<C: UiNode, B: VarLocal<FocusScopeOnFocus>> {
     child: C,
     behavior: B,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, B: LocalVar<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNode<C, B> {
+impl<C: UiNode, B: VarLocal<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNode<C, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.behavior.init_local(ctx.vars);
         self.child.init(ctx);

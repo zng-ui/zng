@@ -68,7 +68,7 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
     }
 
     fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
@@ -76,7 +76,19 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 

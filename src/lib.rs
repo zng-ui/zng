@@ -186,7 +186,7 @@ pub mod prelude {
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
             TimeUnits,
         },
-        var::{merge_var, switch_var, var, ObjVar, SharedVar, Var},
+        var::{merge_var, switch_var, var, RcVar, Var, VarObj},
         window::{AppRunWindow, CursorIcon, Window, Windows},
         UiNode, UiVec, Widget, WidgetId,
     };

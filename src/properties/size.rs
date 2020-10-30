@@ -4,17 +4,17 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     is_layout_any_size,
     units::*,
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, VarLocal},
     UiNode,
 };
 use crate::core::{impl_ui_node, property};
 
-struct MinSizeNode<T: UiNode, S: LocalVar<Size>> {
+struct MinSizeNode<T: UiNode, S: VarLocal<Size>> {
     child: T,
     min_size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<Size>> UiNode for MinSizeNode<T, S> {
+impl<T: UiNode, S: VarLocal<Size>> UiNode for MinSizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -50,12 +50,12 @@ pub fn min_size(child: impl UiNode, min_size: impl IntoVar<Size>) -> impl UiNode
     }
 }
 
-struct MinWidthNode<T: UiNode, W: LocalVar<Length>> {
+struct MinWidthNode<T: UiNode, W: VarLocal<Length>> {
     child: T,
     min_width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<Length>> UiNode for MinWidthNode<T, W> {
+impl<T: UiNode, W: VarLocal<Length>> UiNode for MinWidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -101,12 +101,12 @@ pub fn min_width(child: impl UiNode, min_width: impl IntoVar<Length>) -> impl Ui
     }
 }
 
-struct MinHeightNode<T: UiNode, H: LocalVar<Length>> {
+struct MinHeightNode<T: UiNode, H: VarLocal<Length>> {
     child: T,
     min_height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<Length>> UiNode for MinHeightNode<T, H> {
+impl<T: UiNode, H: VarLocal<Length>> UiNode for MinHeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.min_height.init_local(ctx.vars);
         self.child.init(ctx);
@@ -156,12 +156,12 @@ pub fn min_height(child: impl UiNode, min_height: impl IntoVar<Length>) -> impl 
     }
 }
 
-struct MaxSizeNode<T: UiNode, S: LocalVar<Size>> {
+struct MaxSizeNode<T: UiNode, S: VarLocal<Size>> {
     child: T,
     max_size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<Size>> UiNode for MaxSizeNode<T, S> {
+impl<T: UiNode, S: VarLocal<Size>> UiNode for MaxSizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -197,12 +197,12 @@ pub fn max_size(child: impl UiNode, max_size: impl IntoVar<Size>) -> impl UiNode
     }
 }
 
-struct MaxWidthNode<T: UiNode, W: LocalVar<Length>> {
+struct MaxWidthNode<T: UiNode, W: VarLocal<Length>> {
     child: T,
     max_width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<Length>> UiNode for MaxWidthNode<T, W> {
+impl<T: UiNode, W: VarLocal<Length>> UiNode for MaxWidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -248,12 +248,12 @@ pub fn max_width(child: impl UiNode, max_width: impl IntoVar<Length>) -> impl Ui
     }
 }
 
-struct MaxHeightNode<T: UiNode, H: LocalVar<Length>> {
+struct MaxHeightNode<T: UiNode, H: VarLocal<Length>> {
     child: T,
     max_height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<Length>> UiNode for MaxHeightNode<T, H> {
+impl<T: UiNode, H: VarLocal<Length>> UiNode for MaxHeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.max_height.init_local(ctx.vars);
         self.child.init(ctx);
@@ -299,12 +299,12 @@ pub fn max_height(child: impl UiNode, max_height: impl IntoVar<Length>) -> impl 
     }
 }
 
-struct SizeNode<T: UiNode, S: LocalVar<Size>> {
+struct SizeNode<T: UiNode, S: VarLocal<Size>> {
     child: T,
     size: S,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<Size>> UiNode for SizeNode<T, S> {
+impl<T: UiNode, S: VarLocal<Size>> UiNode for SizeNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.size.init_local(ctx.vars);
         self.child.init(ctx);
@@ -353,12 +353,12 @@ pub fn size(child: impl UiNode, size: impl IntoVar<Size>) -> impl UiNode {
     }
 }
 
-struct WidthNode<T: UiNode, W: LocalVar<Length>> {
+struct WidthNode<T: UiNode, W: VarLocal<Length>> {
     child: T,
     width: W,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, W: LocalVar<Length>> UiNode for WidthNode<T, W> {
+impl<T: UiNode, W: VarLocal<Length>> UiNode for WidthNode<T, W> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.width.init_local(ctx.vars);
         self.child.init(ctx);
@@ -398,12 +398,12 @@ pub fn width(child: impl UiNode, width: impl IntoVar<Length>) -> impl UiNode {
     }
 }
 
-struct HeightNode<T: UiNode, H: LocalVar<Length>> {
+struct HeightNode<T: UiNode, H: VarLocal<Length>> {
     child: T,
     height: H,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, H: LocalVar<Length>> UiNode for HeightNode<T, H> {
+impl<T: UiNode, H: VarLocal<Length>> UiNode for HeightNode<T, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.height.init_local(ctx.vars);
         self.child.init(ctx);

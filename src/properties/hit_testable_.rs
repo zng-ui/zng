@@ -4,12 +4,12 @@ use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
-struct HitTestableNode<U: UiNode, H: LocalVar<bool>> {
+struct HitTestableNode<U: UiNode, H: VarLocal<bool>> {
     child: U,
     hit_testable: H,
 }
 #[impl_ui_node(child)]
-impl<U: UiNode, H: LocalVar<bool>> UiNode for HitTestableNode<U, H> {
+impl<U: UiNode, H: VarLocal<bool>> UiNode for HitTestableNode<U, H> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.hit_testable.init_local(ctx.vars);

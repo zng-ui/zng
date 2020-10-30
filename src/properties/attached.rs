@@ -82,7 +82,7 @@ where
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(new) = self.var.update(ctx.vars) {
+        if let Some(new) = self.var.get_new(ctx.vars) {
             ctx.widget_state.set(self.key, new.clone());
         }
         self.child.update(ctx);

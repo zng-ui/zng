@@ -1940,7 +1940,7 @@ pub mod output {
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
                     pub fn #fn_info_ident(
-                        condition_var: #crate_::core::var::BoxVar<bool>,
+                        condition_var: #crate_::core::var::BoxedVar<bool>,
                         instance_location: #crate_::core::debug::SourceLocation)
                     -> #crate_::core::debug::WhenInfoV1 {
                         #info

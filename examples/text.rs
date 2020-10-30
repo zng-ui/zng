@@ -21,14 +21,14 @@ fn main() {
     })
 }
 
-fn font_size(font_size: SharedVar<Length>) -> impl Widget {
-    fn change_size(font_size: &SharedVar<Length>, change: f32, ctx: &mut WidgetContext) {
+fn font_size(font_size: RcVar<Length>) -> impl Widget {
+    fn change_size(font_size: &RcVar<Length>, change: f32, ctx: &mut WidgetContext) {
         let mut size = match font_size.get(ctx.vars) {
             Length::Exact(s) => *s,
             _ => todo!(),
         };
         size += pt_to_layout(change).get();
-        font_size.push_set(size.into(), ctx.vars, ctx.updates).unwrap();
+        font_size.set(ctx.vars, size.into());
     }
     section(
         "font_size",

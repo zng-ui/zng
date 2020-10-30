@@ -2,19 +2,19 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::FrameBuilder,
     units::*,
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, VarLocal},
     UiNode,
 };
 use crate::core::{impl_ui_node, property};
 
-struct ClipToBoundsNode<T: UiNode, S: LocalVar<bool>> {
+struct ClipToBoundsNode<T: UiNode, S: VarLocal<bool>> {
     child: T,
     clip: S,
     bounds: LayoutSize,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, S: LocalVar<bool>> UiNode for ClipToBoundsNode<T, S> {
+impl<T: UiNode, S: VarLocal<bool>> UiNode for ClipToBoundsNode<T, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.clip.init_local(ctx.vars);
         self.child.init(ctx);

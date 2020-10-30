@@ -30,12 +30,7 @@ impl AnyRef {
     }
 }
 
-enum ContextVarEntry {
-    Value(*const AnyRef, bool, u32),
-    ContextVar(TypeId, *const AnyRef, Option<(bool, u32)>),
-}
-
-type UpdateOnce = Box<dyn FnOnce(&mut Vars, &mut Events, &mut Vec<CleanupOnce>)>;
+type UpdateOnce = Box<dyn FnOnce(&mut Events, &mut Vec<CleanupOnce>)>;
 
 type CleanupOnce = Box<dyn FnOnce()>;
 
@@ -205,8 +200,11 @@ singleton_assert!(SingletonVars);
 ///
 /// Only a single instance of this type exists at a time.
 pub struct Vars {
-    context_vars: RefCell<FnvHashMap<TypeId, ContextVarEntry>>,
     _singleton: SingletonVars,
+    update_id: u32,
+    #[allow(clippy::type_complexity)]
+    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
+    context_vars: RefCell<FnvHashMap<TypeId, (*const AnyRef, bool, u32)>>,
 }
 
 pub type ContextVarStageId = (Option<WidgetId>, u32);
@@ -217,117 +215,69 @@ impl Vars {
     /// again before dropping the previous instance.
     pub fn instance() -> Self {
         Vars {
-            context_vars: RefCell::default(),
             _singleton: SingletonVars::assert_new(),
+            update_id: 0,
+            pending: Default::default(),
+            context_vars: Default::default(),
         }
     }
 
-    /// Unique id of the context var stage.
-    pub fn context_id(&self) -> ContextVarStageId {
-        // TODO
-        (None, 0)
+    pub(super) fn update_id(&self) -> u32 {
+        self.update_id
     }
 
-    /// Runs a function with the context var.
-    pub fn with_context<V: ContextVar>(&self, _context_var: V, value: &V::Type, is_new: bool, version: u32, f: impl FnOnce()) {
-        self.with_context_impl(TypeId::of::<V>(), ContextVarEntry::Value(AnyRef::pack(value), is_new, version), f)
-    }
-
-    /// Runs a function with the context var set from another var.
-    pub fn with_context_bind<V: ContextVar, O: ObjVar<V::Type>>(&self, context_var: V, var: &O, f: impl FnOnce()) {
-        use crate::core::var::protected::BindInfo;
-
-        match var.bind_info(self) {
-            BindInfo::Var(value, is_new, version) => self.with_context(context_var, value, is_new, version, f),
-            BindInfo::ContextVar(var, default, meta) => {
-                let type_id = TypeId::of::<V>();
-                let mut bind_to = var;
-
-                let context_vars = self.context_vars.borrow();
-                let circular_binding = loop {
-                    if let Some(ContextVarEntry::ContextVar(var, _, _)) = context_vars.get(&bind_to) {
-                        bind_to = *var;
-                        if bind_to == type_id {
-                            break true;
-                        }
-                    } else {
-                        break false;
-                    }
-                };
-                drop(context_vars);
-
-                if circular_binding {
-                    error_println!("circular context var binding `{}`=`{}` ignored", type_name::<V>(), type_name::<O>());
-                } else {
-                    self.with_context_impl(type_id, ContextVarEntry::ContextVar(var, AnyRef::pack(default), meta), f)
-                }
-            }
-        }
-    }
-
-    /// Get the context var value or default.
-    pub fn context<V: ContextVar>(&self) -> &V::Type {
-        self.context_impl(TypeId::of::<V>(), V::default_value()).0
-    }
-
-    /// Gets if the context var value is new.
-    pub fn context_is_new<V: ContextVar>(&self) -> bool {
-        self.context_impl(TypeId::of::<V>(), V::default_value()).1
-    }
-
-    /// Gets the context var value version.
-    pub fn context_version<V: ContextVar>(&self) -> u32 {
-        self.context_impl(TypeId::of::<V>(), V::default_value()).2
-    }
-
-    /// Gets the context var value if it is new.
-    pub fn context_update<V: ContextVar>(&self) -> Option<&V::Type> {
-        let (value, is_new, _) = self.context_impl(TypeId::of::<V>(), V::default_value());
-
-        if is_new {
-            Some(value)
+    /// Gets a var at the context level.
+    pub(super) fn context_var<C: ContextVar>(&self) -> (&C::Type, bool, u32) {
+        let vars = self.context_vars.borrow();
+        if let Some((any_ref, is_new, version)) = vars.get(&TypeId::of::<C>()) {
+            // SAFETY: This is safe because `TypeId` keys are always associated
+            // with the same type of reference. Also we are not leaking because the
+            // source reference is borrowed in a [`with_context_var`] call.
+            let value = unsafe { AnyRef::unpack(*any_ref) };
+            (value, *is_new, *version)
         } else {
-            None
+            (C::default_value(), false, 0)
         }
     }
 
-    #[inline]
-    fn with_context_impl(&self, type_id: TypeId, value: ContextVarEntry, f: impl FnOnce()) {
-        let prev = self.context_vars.borrow_mut().insert(type_id, value);
+    /// Calls `f` with the context var value.
+    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, _: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+        let var_id = TypeId::of::<C>();
+
+        let prev = self
+            .context_vars
+            .borrow_mut()
+            .insert(var_id, (AnyRef::pack(value), is_new, version));
 
         f();
 
-        let mut ctxs = self.context_vars.borrow_mut();
+        let mut vars = self.context_vars.borrow_mut();
         if let Some(prev) = prev {
-            ctxs.insert(type_id, prev);
+            vars.insert(var_id, prev);
         } else {
-            ctxs.remove(&type_id);
+            vars.remove(&var_id);
         }
     }
 
-    fn context_impl<T>(&self, var: TypeId, default: &'static T) -> (&T, bool, u32) {
-        let ctxs = self.context_vars.borrow();
+    /// Calls `f` with the `context_var` set from the `other_var`.
+    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+        self.with_context_var(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+    }
 
-        if let Some(ctx_var) = ctxs.get(&var) {
-            match ctx_var {
-                ContextVarEntry::Value(pointer, is_new, version) => {
-                    // SAFETY: This is safe because `TypeId` keys are always associated
-                    // with the same type of reference.
-                    let value = unsafe { AnyRef::unpack(*pointer) };
-                    (value, *is_new, *version)
-                }
-                ContextVarEntry::ContextVar(var, default, meta_override) => {
-                    // SAFETY: This is safe because default is a &'static T.
-                    let r = self.context_impl(*var, unsafe { AnyRef::unpack(*default) });
-                    if let Some((is_new, version)) = *meta_override {
-                        (r.0, is_new, version)
-                    } else {
-                        r
-                    }
-                }
-            }
-        } else {
-            (default, false, 0)
+    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32)>) {
+        self.pending.borrow_mut().push(change);
+    }
+
+    pub(super) fn apply(&mut self, updates: &mut Updates) {
+        self.update_id = self.update_id.wrapping_add(1);
+
+        let pending = self.pending.get_mut();
+        if !pending.is_empty() {
+            updates.push_update()
+        }
+
+        for f in pending.drain(..) {
+            f(self.update_id);
         }
     }
 }
@@ -850,17 +800,13 @@ impl OwnedUpdates {
     /// When variable and event values are borrowed the instance of `Vars`/`Events` is
     /// immutable borrowed, so the requirement of borrowing both mutable here is an assert
     /// that all variable and event borrows have been dropped.
-    pub fn apply_updates(
-        &mut self,
-        assert_vars_not_borrowed: &mut Vars,
-        assert_events_not_borrowed: &mut Events,
-    ) -> (UpdateRequest, UpdateDisplayRequest) {
+    pub fn apply_updates(&mut self, assert_events_not_borrowed: &mut Events) -> (UpdateRequest, UpdateDisplayRequest) {
         for cleanup in self.updates.cleanup.drain(..) {
             cleanup();
         }
 
         for update in self.updates.updates.drain(..) {
-            update(assert_vars_not_borrowed, assert_events_not_borrowed, &mut self.updates.cleanup);
+            update(assert_events_not_borrowed, &mut self.updates.cleanup);
         }
 
         (mem::take(&mut self.updates.update), mem::take(&mut self.updates.display_update))
@@ -896,26 +842,6 @@ impl Updates {
         &self.notifier
     }
 
-    /// Schedules a variable change for the next update.
-    pub fn push_set<T: VarValue>(&mut self, var: &impl ObjVar<T>, new_value: T, vars: &Vars) -> Result<(), VarIsReadOnly> {
-        var.push_set(new_value, vars, self)
-    }
-
-    /// Schedules a variable modification for the next update.
-    pub fn push_modify<T: VarValue>(
-        &mut self,
-        var: impl Var<T>,
-        modify: impl FnOnce(&mut T) + 'static,
-        vars: &Vars,
-    ) -> Result<(), VarIsReadOnly> {
-        var.push_modify(modify, vars, self)
-    }
-
-    pub(crate) fn push_modify_impl(&mut self, modify: impl FnOnce(&mut Vars, &mut Vec<CleanupOnce>) + 'static) {
-        self.update.update = true;
-        self.updates.push(Box::new(move |assert, _, cleanup| modify(assert, cleanup)));
-    }
-
     /// Schedules an update notification.
     pub fn push_notify<T: 'static>(&mut self, sender: EventEmitter<T>, args: T) {
         if sender.is_high_pressure() {
@@ -925,7 +851,7 @@ impl Updates {
         }
 
         self.updates
-            .push(Box::new(move |_, assert, cleanup| sender.notify(args, assert, cleanup)));
+            .push(Box::new(move |assert, cleanup| sender.notify(args, assert, cleanup)));
     }
 
     /// Schedules a low-pressure update.
@@ -1045,7 +971,10 @@ impl OwnedAppContext {
             events: &mut self.events,
             updates: &mut self.updates.updates,
         });
-        self.updates.apply_updates(&mut self.vars, &mut self.events)
+        self.vars.apply(&mut self.updates.updates);
+        // TODO 1: Remove vars from updates
+        // TODO 2: Remove events from updates
+        self.updates.apply_updates(&mut self.events)
     }
 }
 

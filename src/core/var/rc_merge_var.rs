@@ -1,4 +1,5 @@
 use super::*;
+pub use zero_ui_macros::merge_var;
 
 macro_rules! impl_rc_merge_var {
     ($(
@@ -25,11 +26,11 @@ macro_rules! impl_rc_merge_var {
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
-        pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
+        pub struct $RcMergeVar<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>(
             Rc<$RcMergeVarData<$($I,)+ O, $($V,)+ F>>,
         );
 
-        struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
+        struct $RcMergeVarData<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> {
             _i: PhantomData<($($I),+)>,
             vars: ($($V),+),
             f: RefCell<F>,
@@ -39,7 +40,7 @@ macro_rules! impl_rc_merge_var {
             last_update_id: Cell<Option<u32>>,
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> $RcMergeVar<$($I,)+ O, $($V,)+ F> {
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             pub fn new(vars: ($($V),+), f: F) -> Self {
                 Self(Rc::new($RcMergeVarData {
                     _i: PhantomData,
@@ -99,17 +100,17 @@ macro_rules! impl_rc_merge_var {
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Clone for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             fn clone(&self) -> Self {
                 $RcMergeVar(Rc::clone(&self.0))
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         protected::Var for $RcMergeVar<$($I,)+ O, $($V,)+ F> { }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         VarObj<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
                 self.update_output(vars);
@@ -160,7 +161,7 @@ macro_rules! impl_rc_merge_var {
             }
         }
 
-        impl<$($I: VarValue,)+ O: VarValue, $($V: Var<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         Var<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             type AsReadOnly = ForceReadOnlyVar<O, Self>;
 
@@ -179,7 +180,7 @@ macro_rules! impl_rc_merge_var {
             }
 
             fn map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(&self, map: F2) -> RcMapVar<O, O2, Self, F2> {
-                RcMapVar::new(self.clone(), map)
+                self.clone().into_map(map)
             }
 
             fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
@@ -187,7 +188,27 @@ macro_rules! impl_rc_merge_var {
                 map: F2,
                 map_back: G,
             ) -> RcMapBidiVar<O, O2, Self, F2, G> {
-                RcMapBidiVar::new(self.clone(), map, map_back)
+                self.clone().into_map_bidi(map, map_back)
+            }
+
+            fn into_map<O2: VarValue, F2: FnMut(&O) -> O2 + 'static>(self, map: F2) -> RcMapVar<O, O2, Self, F2> {
+                RcMapVar::new(self, map)
+            }
+
+            fn into_map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
+                self,
+                map: F2,
+                map_back: G,
+            ) -> RcMapBidiVar<O, O2, Self, F2, G> {
+                RcMapBidiVar::new(self, map, map_back)
+            }
+        }
+
+        impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
+        IntoVar<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
+            type Var = Self;
+            fn into_var(self) -> Self {
+                self
             }
         }
     };

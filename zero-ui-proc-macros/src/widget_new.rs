@@ -800,7 +800,7 @@ mod output {
         fn debug_info_tokens(&self) -> TokenStream {
             let crate_ = zero_ui_crate_ident();
             let var_name = self.var_name();
-            let var_clone = quote! { #crate_::core::var::ObjVar::boxed(std::clone::Clone::clone(&#var_name)) };
+            let var_clone = quote! { #crate_::core::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
 
             match &self.condition {
                 WhenCondition::Inherited { widget, index, .. } => {

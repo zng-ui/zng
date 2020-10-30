@@ -281,7 +281,7 @@ impl<T: VarValue + Send, V: Var<T>> VarSenderSync<T, V> {
 impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarSenderSync<T, V> {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
         if let Some(new_value) = self.receiver.try_iter().last() {
-            let _ = self.var.push_set(new_value, ctx.vars, ctx.updates);
+            let _ = self.var.set(ctx.vars, new_value);
         }
         !self.receiver.is_disconnected()
     }
@@ -323,7 +323,7 @@ impl<T: VarValue, V: Var<T>> VarModifySenderSync<T, V> {
 impl<T: VarValue, V: Var<T>> SyncChannel for VarModifySenderSync<T, V> {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
         for change in self.receiver.try_iter() {
-            let _ = self.var.push_modify_boxed(change, ctx.vars, ctx.updates);
+            let _ = self.var.modify_boxed(ctx.vars, change);
         }
         !self.receiver.is_disconnected()
     }
@@ -377,7 +377,7 @@ impl<T: VarValue + Send, V: Var<T>> VarReceiverSync<T, V> {
 }
 impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        if let Some(update) = self.var.update(ctx.vars) {
+        if let Some(update) = self.var.get_new(ctx.vars) {
             let _ = self.sender.send(update.clone());
         }
         !self.sender.is_disconnected()
@@ -463,11 +463,11 @@ impl<T: VarValue + Send, V: Var<T>> VarChannelSync<T, V> {
 }
 impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarChannelSync<T, V> {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
-        if let Some(new_value) = self.var.update(ctx.vars) {
+        if let Some(new_value) = self.var.get_new(ctx.vars) {
             let _ = self.out_sender.send(new_value.clone());
         }
         if let Some(new_value) = self.in_receiver.try_iter().last() {
-            let _ = self.var.push_set(new_value, ctx.vars, ctx.updates);
+            let _ = self.var.set(ctx.vars, new_value);
         }
         !self.out_sender.is_disconnected()
     }

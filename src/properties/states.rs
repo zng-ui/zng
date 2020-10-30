@@ -4,7 +4,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::focus::*;
 use crate::core::mouse::*;
-use crate::core::var::{ObjVar, StateVar};
+use crate::core::var::StateVar;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
@@ -34,13 +34,13 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
         }
 
         if new_state != *self.state.get(ctx.vars) {
-            ctx.updates.push_set(&self.state, new_state, ctx.vars).expect("is_hovered");
+            self.state.set(ctx.vars, new_state);
         }
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_hovered");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -77,17 +77,17 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         if *self.state.get(ctx.vars) {
             if self.mouse_up.has_updates(ctx.events) {
                 // if mouse_up in any place.
-                ctx.updates.push_set(&self.state, false, ctx.vars).expect("is_pressed");
+                self.state.set(ctx.vars, false);
             }
         } else if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             // if not pressed and mouse down inside.
-            ctx.updates.push_set(&self.state, true, ctx.vars).expect("is_pressed");
+            self.state.set(ctx.vars, true);
         }
     }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_pressed");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -125,7 +125,7 @@ impl<C: UiNode> UiNode for IsFocusedNode<C> {
                 .map(|p| p.widget_id() == ctx.path.widget_id())
                 .unwrap_or_default();
             if was_focused != is_focused {
-                self.state.push_set(is_focused, ctx.vars, ctx.updates).expect("is_focused");
+                self.state.set(ctx.vars, is_focused);
             }
         }
         self.child.update(ctx);
@@ -133,7 +133,7 @@ impl<C: UiNode> UiNode for IsFocusedNode<C> {
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focused");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -174,7 +174,7 @@ impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
             let is_focused = u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
 
             if was_focused != is_focused {
-                self.state.push_set(is_focused, ctx.vars, ctx.updates).expect("is_focus_within");
+                self.state.set(ctx.vars, is_focused);
             }
         }
         self.child.update(ctx);
@@ -182,7 +182,7 @@ impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -221,7 +221,7 @@ impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
                     .map(|p| p.widget_id() == ctx.path.widget_id())
                     .unwrap_or_default();
             if was_focused_hgl != is_focused_hgl {
-                self.state.push_set(is_focused_hgl, ctx.vars, ctx.updates).expect("is_focused_hgl");
+                self.state.set(ctx.vars, is_focused_hgl);
             }
         }
         self.child.update(ctx);
@@ -229,7 +229,7 @@ impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focused_hgl");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -268,9 +268,7 @@ impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
             let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
 
             if was_focused_hgl != is_focused_hgl {
-                self.state
-                    .push_set(is_focused_hgl, ctx.vars, ctx.updates)
-                    .expect("is_focus_within_hgl");
+                self.state.set(ctx.vars, is_focused_hgl);
             }
         }
         self.child.update(ctx);
@@ -278,7 +276,7 @@ impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_focus_within_hgl");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -312,7 +310,7 @@ impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
-            self.state.push_set(false, ctx.vars, ctx.updates).expect("is_return_focus");
+            self.state.set(ctx.vars, false);
         }
         self.child.deinit(ctx);
     }
@@ -342,7 +340,7 @@ impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
         }
 
         if new_state != state {
-            self.state.push_set(new_state, ctx.vars, ctx.updates).expect("is_return_focus");
+            self.state.set(ctx.vars, new_state);
         }
     }
 }

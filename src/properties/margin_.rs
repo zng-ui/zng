@@ -3,19 +3,19 @@ use crate::core::{
     context::WidgetContext,
     render::FrameBuilder,
     units::*,
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, VarLocal},
     UiNode,
 };
 use crate::core::{impl_ui_node, property};
 
-struct MarginNode<T: UiNode, M: LocalVar<SideOffsets>> {
+struct MarginNode<T: UiNode, M: VarLocal<SideOffsets>> {
     child: T,
     margin: M,
     size_increment: LayoutSize,
     child_rect: LayoutRect,
 }
 #[impl_ui_node(child)]
-impl<T: UiNode, M: LocalVar<SideOffsets>> UiNode for MarginNode<T, M> {
+impl<T: UiNode, M: VarLocal<SideOffsets>> UiNode for MarginNode<T, M> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.margin.init_local(ctx.vars);
         self.child.init(ctx);

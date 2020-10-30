@@ -3,7 +3,7 @@ use crate::core::{
     render::FrameBuilder,
     ui_vec,
     units::{LayoutLength, LayoutPoint, LayoutRect, LayoutSize, Length},
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, VarLocal},
     UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
 };
 use crate::core::{impl_ui_node, widget};
@@ -22,14 +22,14 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct StackNode<S: LocalVar<Length>, D: StackDimension> {
+struct StackNode<S: VarLocal<Length>, D: StackDimension> {
     children: Box<[Box<dyn UiNode>]>,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
 #[impl_ui_node(children)]
-impl<S: LocalVar<Length>, D: StackDimension> StackNode<S, D> {
+impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
     fn new(children: UiVec, spacing: S, _dimension: D) -> Self {
         StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),

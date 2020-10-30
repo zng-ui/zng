@@ -463,16 +463,10 @@ macro_rules! __context_var_inner {
         $vis struct $ident;
 
         impl $ident {
-            /// Context var as [`Var`](zero_ui::core::var::Var).
-            #[inline]
-            pub fn as_var(self) -> zero_ui::core::var::ContextVarImpl<Self> {
-                zero_ui::core::var::ContextVarImpl::<Self>::default()
-            }
-
             /// [`Var`](zero_ui::core::var::Var) that represents this context var.
             #[inline]
-            pub fn var() -> zero_ui::core::var::ContextVarImpl<Self> {
-                Self.as_var()
+            pub fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
+                <Self as zero_ui::core::var::ContextVar>::var()
             }
         }
 
@@ -482,13 +476,18 @@ macro_rules! __context_var_inner {
             fn default_value() -> &'static Self::Type {
                $DEFAULT
             }
+
+            fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
+                const VAR: zero_ui::core::var::ContextVarProxy<$ident> = zero_ui::core::var::ContextVarProxy(std::marker::PhantomData);
+                &VAR
+            }
         }
 
         impl zero_ui::core::var::IntoVar<$type> for $ident {
-            type Var = zero_ui::core::var::ContextVarImpl<Self>;
+            type Var = zero_ui::core::var::ContextVarProxy<Self>;
             #[inline]
             fn into_var(self) -> Self::Var {
-                self.as_var()
+                zero_ui::core::var::ContextVarProxy::default()
             }
         }
     };
@@ -574,25 +573,25 @@ macro_rules! context_var {
 #[macro_export]
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar2::new($v0, $v1, $merge)
+        zero_ui::core::var::RcMerge2Var::new(($v0, $v1), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar3::new($v0, $v1, $v2, $merge)
+        zero_ui::core::var::RcMerge3Var::new(($v0, $v1, $v2), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar4::new($v0, $v1, $v2, $v3, $merge)
+        zero_ui::core::var::RcMerge4Var::new(($v0, $v1, $v2, $v3), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar5::new($v0, $v1, $v2, $v3, $v4, $merge)
+        zero_ui::core::var::RcMerge5Var::new(($v0, $v1, $v2, $v3, $v4), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar6::new($v0, $v1, $v2, $v3, $v4, $v5, $merge)
+        zero_ui::core::var::RcMerge6Var::new(($v0, $v1, $v2, $v3, $v4, $v5), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar7::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $merge)
+        zero_ui::core::var::RcMerge7Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
-        zero_ui::core::var::MergeVar8::new($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7, $merge)
+        zero_ui::core::var::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:tt)+) => {
         compile_error!("merge_var is only implemented to a maximum of 8 variables")
@@ -609,8 +608,11 @@ macro_rules! merge_var {
 /// All arguments are separated by comma like a function call.
 ///
 /// * `$index`: A positive integer that is the initial switch index.
-/// * `$v0..$vn`: A list of [vars](crate::core::var::ObjVar), minimal 2,
-/// [`SwitchVarDyn`](crate::core::var::SwitchVarDyn) is used for more then 8 variables.
+/// * `$v0..$vn`: A list of [vars](crate::core::var::VarObj), minimal 2.
+///
+/// [`RcSwitchVar`](crate::core::var::RcSwitchVar) is used for more then 8 variables.
+///
+/// All arguments are [`IntoVar`](crate::core::var::RcSwitchVar).
 ///
 /// # Example
 /// ```
@@ -625,28 +627,31 @@ macro_rules! merge_var {
 #[macro_export]
 macro_rules! switch_var {
     ($index: expr, $v0: expr, $v1: expr) => {
-        zero_ui::core::var::SwitchVar2::new($index, $v0, $v1)
+        zero_ui::core::var::RcSwitch2Var::new($index, ($v0, $v1))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
-        zero_ui::core::var::SwitchVar3::new($index, $v0, $v1, $v2)
+        zero_ui::core::var::RcSwitch3Var::new($index, ($v0, $v1, $v2))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
-        zero_ui::core::var::SwitchVar4::new($index, $v0, $v1, $v2, $v3)
+        zero_ui::core::var::RcSwitch4Var::new($index, ($v0, $v1, $v2, $v3))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
-        zero_ui::core::var::SwitchVar5::new($index, $v0, $v1, $v2, $v3, $v4)
+        zero_ui::core::var::RcSwitch5Var::new($index, ($v0, $v1, $v2, $v3, $v4))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
-        zero_ui::core::var::SwitchVar6::new($index, $v0, $v1, $v2, $v3, $v4, $v5)
+        zero_ui::core::var::RcSwitch6Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
-        zero_ui::core::var::SwitchVar7::new($index, $v0, $v1, $v2, $v3, $v4, $v5, $v6)
+        zero_ui::core::var::RcSwitch7Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6))
     };
     ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
-        zero_ui::core::var::SwitchVar8::new($index, $v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7)
+        zero_ui::core::var::RcSwitch8Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7))
     };
     ($index: expr, $($v:expr),+) => {
-        zero_ui::core::var::SwitchVarDyn::new($index, vec![$($v.boxed()),+])
+        // we need a builder to have $v be IntoVar and work like the others.
+        zero_ui::core::var::RcSwitchVarBuilder::new($index)
+        $(.push($v))+
+        .build()
     };
     ($($_:tt)*) => {
         compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")

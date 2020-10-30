@@ -4,18 +4,18 @@ use crate::core::{
     context::{LayoutContext, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
     units::{self, *},
-    var::{merge_var, IntoVar, LocalVar, Var},
+    var::{merge_var, IntoVar, Var, VarLocal},
 };
 use crate::core::{impl_ui_node, property, UiNode};
 
-struct TransformNode<C: UiNode, T: LocalVar<Transform>> {
+struct TransformNode<C: UiNode, T: VarLocal<Transform>> {
     child: C,
     transform: T,
     layout_transform: LayoutTransform,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, T: LocalVar<Transform>> UiNode for TransformNode<C, T> {
+impl<C: UiNode, T: VarLocal<Transform>> UiNode for TransformNode<C, T> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.transform.init_local(ctx.vars);
@@ -166,14 +166,14 @@ pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
     transform::set(child, y.into_var().map(|&y| units::translate_y(y)))
 }
 
-struct TransformOriginNode<C: UiNode, O: LocalVar<Point>> {
+struct TransformOriginNode<C: UiNode, O: VarLocal<Point>> {
     child: C,
     origin: O,
     layout_origin: LayoutPoint,
 }
 
 #[impl_ui_node(child)]
-impl<C: UiNode, O: LocalVar<Point>> UiNode for TransformOriginNode<C, O> {
+impl<C: UiNode, O: VarLocal<Point>> UiNode for TransformOriginNode<C, O> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.origin.init_local(ctx.vars);
         self.child.init(ctx);

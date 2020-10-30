@@ -176,7 +176,7 @@ pub struct TextNode<T: Var<Text>> {
 impl<T: Var<Text>> TextNode<T> {
     pub fn new(text: T) -> TextNode<T> {
         TextNode {
-            text_var: text.into_var(),
+            text_var: text,
 
             text: SegmentedText::default(),
             color: web_colors::BLACK.into(),
@@ -225,7 +225,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         // update `self.text`, affects shaping and layout
-        if let Some(text) = self.text_var.update(ctx.vars) {
+        if let Some(text) = self.text_var.get_new(ctx.vars) {
             let (text_transform, white_space) = TextContext::text(ctx.vars);
             let text = text_transform.transform(text.clone());
             let text = white_space.transform(text);

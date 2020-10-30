@@ -1,6 +1,19 @@
 use super::*;
 
-/// A reference counted [`Var`].
+/// A [`Var`] that can be shared.
+///
+/// This type is a reference-counted pointer ([`Rc`]),
+/// it implements the full [`Var`] read and write methods.
+///
+/// This is the variable type to use for binding two properties to the same value,
+/// or changing a property value during runtime.
+///
+/// # New and Share
+///
+/// Use [`var`] or [`RcVar::new`] to create a new variable, use [`RcVar::clone`] to create another reference
+/// to the same variable.
+///
+/// Use the [`Sync`](crate::core::sync::Sync) variable methods to access the variable from other threads.
 pub struct RcVar<T: VarValue>(Rc<RcVarData<T>>);
 struct RcVarData<T> {
     data: UnsafeCell<T>,
@@ -55,8 +68,14 @@ impl<T: VarValue> RcVar<T> {
     pub fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) {
         let _ = <Self as Var<T>>::modify(self, vars, change);
     }
+
+    /// Returns `true` if both are the same variable.
+    pub fn ptr_eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
 }
 impl<T: VarValue> Clone for RcVar<T> {
+    /// Clone the variable reference.
     fn clone(&self) -> Self {
         RcVar(Rc::clone(&self.0))
     }
@@ -145,7 +164,7 @@ impl<T: VarValue> Var<T> for RcVar<T> {
     }
 
     fn map<O: VarValue, F: FnMut(&T) -> O>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
@@ -153,7 +172,19 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O: VarValue, F: FnMut(&T) -> O>(self, map: F) -> RcMapVar<T, O, Self, F> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 
@@ -175,5 +206,7 @@ pub fn state_var() -> StateVar {
     var(false)
 }
 
-/// State properties (`is_*`) variable type.
+/// Variable type of state properties (`is_*`).
+///
+/// State variables are `bool` probes that are set by the property.
 pub type StateVar = RcVar<bool>;

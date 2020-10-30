@@ -10,7 +10,7 @@ use crate::{
 };
 use webrender::api as w_api;
 
-struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Rgba>, S: Var<LineStyle>> {
+struct LineNode<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> {
     width: W,
     length: L,
     orientation: O,
@@ -20,7 +20,7 @@ struct LineNode<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: 
     bounds: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Rgba>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
+impl<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
     fn refresh(&mut self, ctx: &mut WidgetContext) {
         let length = *self.length.get(ctx.vars);
         let width = *self.width.get(ctx.vars);
@@ -41,13 +41,11 @@ impl<W: Var<f32>, L: LocalVar<f32>, O: LocalVar<LineOrientation>, C: LocalVar<Rg
 
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.width.update(ctx.vars).is_some()
-            || self.length.update_local(ctx.vars).is_some()
-            || self.orientation.update_local(ctx.vars).is_some()
+        if self.width.is_new(ctx.vars) || self.length.update_local(ctx.vars).is_some() || self.orientation.update_local(ctx.vars).is_some()
         {
             self.refresh(ctx);
             ctx.updates.push_layout();
-        } else if self.color.update_local(ctx.vars).is_some() || self.style.update(ctx.vars).is_some() {
+        } else if self.color.update_local(ctx.vars).is_some() || self.style.is_new(ctx.vars) {
             self.refresh(ctx);
             ctx.updates.push_render();
         }

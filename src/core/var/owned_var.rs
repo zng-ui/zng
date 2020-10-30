@@ -4,6 +4,10 @@ use super::*;
 ///
 /// This is [`always read-only`](VarObj::always_read_only), [cannot update](VarObj::can_update) and
 /// is a [`VarLocal`].
+///
+/// This is the variable type used when a property is set to a fixed value.
+/// All types that are [`VarValue`] implement [`IntoVar`] to this var type so you
+/// rarely need to manually construct this variable.
 #[derive(Clone, Default)]
 pub struct OwnedVar<T: VarValue>(pub T);
 impl<T: VarValue> protected::Var for OwnedVar<T> {}
@@ -73,7 +77,7 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     }
 
     fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
@@ -81,7 +85,19 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 

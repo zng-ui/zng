@@ -7,7 +7,7 @@ use super::{
     impl_ui_node,
     render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
     units::LayoutSize,
-    var::{context_var, BoxVar, ObjVar, Var, VarValue},
+    var::{context_var, BoxedVar, Var, VarObj, VarValue},
     UiNode,
 };
 use std::{
@@ -88,7 +88,7 @@ pub struct PropertyArgInfo {
     pub value: String,
     /// Value version from the source variable.
     pub value_version: u32,
-    /// If the arg is a [`can_update` var](crate::core::var::ObjVar::can_update).
+    /// If the arg is a [`can_update` var](crate::core::var::VarObj::can_update).
     pub can_update: bool,
 }
 
@@ -246,9 +246,9 @@ pub struct WidgetInstanceInfoNode {
     child: Box<dyn UiNode>,
     info: WidgetInstance,
     // debug vars per property.
-    debug_vars: Box<[Box<[BoxVar<String>]>]>,
+    debug_vars: Box<[Box<[BoxedVar<String>]>]>,
     // when condition result variables.
-    when_vars: Box<[BoxVar<bool>]>,
+    when_vars: Box<[BoxedVar<bool>]>,
 }
 #[doc(hidden)]
 pub struct CapturedPropertyV1 {
@@ -261,7 +261,7 @@ pub struct CapturedPropertyV1 {
 #[doc(hidden)]
 pub struct WhenInfoV1 {
     pub condition_expr: &'static str,
-    pub condition_var: Option<BoxVar<bool>>,
+    pub condition_var: Option<BoxedVar<bool>>,
     pub properties: Vec<&'static str>,
     pub decl_location: SourceLocation,
     pub instance_location: SourceLocation,
@@ -355,7 +355,7 @@ impl UiNode for WidgetInstanceInfoNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         {
             let child = &mut self.child;
-            ctx.vars.with_context(ParentPropertyName, &"new(..)", false, 0, || {
+            ctx.vars.with_context_var(ParentPropertyName, &"new(..)", false, 0, || {
                 child.init(ctx);
             });
         }
@@ -396,14 +396,14 @@ impl UiNode for WidgetInstanceInfoNode {
             .zip(self.debug_vars.iter())
         {
             for (arg, var) in property.args.iter_mut().zip(vars.iter()) {
-                if let Some(update) = var.update(ctx.vars) {
+                if let Some(update) = var.get_new(ctx.vars) {
                     arg.value = update.clone();
                     arg.value_version = var.version(ctx.vars);
                 }
             }
         }
         for (when, var) in info.whens.iter_mut().zip(self.when_vars.iter()) {
-            if let Some(update) = var.update(ctx.vars) {
+            if let Some(update) = var.get_new(ctx.vars) {
                 when.condition = *update;
                 when.condition_version = var.version(ctx.vars);
             }
@@ -423,7 +423,7 @@ impl UiNode for WidgetInstanceInfoNode {
 #[doc(hidden)]
 pub struct PropertyInfoNode {
     child: Box<dyn UiNode>,
-    arg_debug_vars: Box<[BoxVar<String>]>,
+    arg_debug_vars: Box<[BoxedVar<String>]>,
     info: PropertyInstance,
 }
 impl PropertyInfoNode {
@@ -439,7 +439,7 @@ impl PropertyInfoNode {
         instance_location: SourceLocation,
 
         arg_names: &[&'static str],
-        arg_debug_vars: Box<[BoxVar<String>]>,
+        arg_debug_vars: Box<[BoxedVar<String>]>,
 
         user_assigned: bool,
     ) -> Self {
@@ -488,7 +488,7 @@ impl UiNode for PropertyInfoNode {
         let child = &mut self.child;
         let property_name = info.property_name;
 
-        ctx.vars.with_context(ParentPropertyName, &property_name, false, 0, || {
+        ctx.vars.with_context_var(ParentPropertyName, &property_name, false, 0, || {
             let t = Instant::now();
             child.init(ctx);
             let d = t.elapsed();
@@ -510,7 +510,7 @@ impl UiNode for PropertyInfoNode {
         ctx_mtd!(self.update, ctx, mut info);
 
         for (var, arg) in self.arg_debug_vars.iter_mut().zip(info.args.iter_mut()) {
-            if let Some(new) = var.update(ctx.vars) {
+            if let Some(new) = var.get_new(ctx.vars) {
                 arg.value = new.clone();
                 arg.value_version = var.version(ctx.vars);
             }
@@ -573,19 +573,19 @@ impl NewChildMarkerNode {
 impl UiNode for NewChildMarkerNode {
     fn init(&mut self, ctx: &mut WidgetContext) {
         let child = &mut self.child;
-        ctx.vars.with_context(ParentPropertyName, &"new_child(..)", false, 0, || {
+        ctx.vars.with_context_var(ParentPropertyName, &"new_child(..)", false, 0, || {
             child.init(ctx);
         });
     }
 }
 
 #[doc(hidden)]
-pub fn debug_var<T: VarValue, V: Var<T>>(var: V) -> BoxVar<String> {
+pub fn debug_var<T: VarValue, V: Var<T>>(var: V) -> BoxedVar<String> {
     var.into_map(|t| format!("{:?}", t)).boxed()
 }
 
 #[doc(hidden)]
-pub type DebugArgs = Box<[BoxVar<String>]>;
+pub type DebugArgs = Box<[BoxedVar<String>]>;
 
 /// Adds debug information to [`WidgetInfo`].
 pub trait WidgetDebugInfo<'a> {

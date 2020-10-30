@@ -194,7 +194,7 @@ impl FontFeaturesContext {
     /// Reference the contextual font features, if any is set.
     #[inline]
     pub fn get(vars: &Vars) -> Option<std::cell::Ref<FontFeatures>> {
-        vars.context::<FontFeaturesVar>().as_ref().map(RefCell::borrow)
+        FontFeaturesVar::var().get(vars).as_ref().map(RefCell::borrow)
     }
 
     /// Calls `action` with the contextual feature set to `new_state`.
@@ -204,14 +204,14 @@ impl FontFeaturesContext {
         D: FnMut(&mut FontFeatures, S) -> S,
         A: FnOnce(),
     {
-        if let Some(cell) = vars.context::<FontFeaturesVar>() {
+        if let Some(cell) = FontFeaturesVar::var().get(vars) {
             let prev_state = set_feature_state(&mut *cell.borrow_mut(), new_state);
             action();
             set_feature_state(&mut *cell.borrow_mut(), prev_state);
         } else {
             let mut features = FontFeatures::default();
             set_feature_state(&mut features, new_state);
-            vars.with_context(FontFeaturesVar, &Some(RefCell::new(features)), false, 0, action);
+            vars.with_context_var(FontFeaturesVar, &Some(RefCell::new(features)), false, 0, action);
             //TODO version?
         }
     }
@@ -436,47 +436,47 @@ impl<'a> TextContext<'a> {
     /// Borrow or copy all the text contextual values.
     pub fn get(vars: &'a Vars) -> Self {
         TextContext {
-            font_family: vars.context::<FontFamilyVar>(),
-            font_style: *vars.context::<FontStyleVar>(),
-            font_weight: *vars.context::<FontWeightVar>(),
-            font_stretch: *vars.context::<FontStretchVar>(),
+            font_family: FontFamilyVar::var().get(vars),
+            font_style: *FontStyleVar::var().get(vars),
+            font_weight: *FontWeightVar::var().get(vars),
+            font_stretch: *FontStretchVar::var().get(vars),
 
-            text_transform: vars.context::<TextTransformVar>().clone(),
-            white_space: *vars.context::<WhiteSpaceVar>(),
+            text_transform: TextTransformVar::var().get(vars).clone(),
+            white_space: *WhiteSpaceVar::var().get(vars),
 
-            font_size: *vars.context::<FontSizeVar>(),
+            font_size: *FontSizeVar::var().get(vars),
 
-            line_height: *vars.context::<LineHeightVar>(),
-            letter_spacing: *vars.context::<LetterSpacingVar>(),
-            word_spacing: *vars.context::<WordSpacingVar>(),
-            line_spacing: *vars.context::<LineSpacingVar>(),
-            word_break: *vars.context::<WordBreakVar>(),
-            line_break: *vars.context::<LineBreakVar>(),
-            tab_length: *vars.context::<TabLengthVar>(),
+            line_height: *LineHeightVar::var().get(vars),
+            letter_spacing: *LetterSpacingVar::var().get(vars),
+            word_spacing: *WordSpacingVar::var().get(vars),
+            line_spacing: *LineSpacingVar::var().get(vars),
+            word_break: *WordBreakVar::var().get(vars),
+            line_break: *LineBreakVar::var().get(vars),
+            tab_length: *TabLengthVar::var().get(vars),
             font_features: FontFeaturesContext::get(vars),
 
-            text_align: *vars.context::<TextAlignVar>(),
+            text_align: *TextAlignVar::var().get(vars),
 
-            text_color: *vars.context::<TextColorVar>(),
-            font_synthesis: *vars.context::<FontSynthesisVar>(),
+            text_color: *TextColorVar::var().get(vars),
+            font_synthesis: *FontSynthesisVar::var().get(vars),
         }
     }
 
     /// Gets the properties that affect the font.
     pub fn font(vars: &'a Vars) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
         (
-            vars.context::<FontFamilyVar>(),
-            *vars.context::<FontStyleVar>(),
-            *vars.context::<FontWeightVar>(),
-            *vars.context::<FontStretchVar>(),
+            FontFamilyVar::var().get(vars),
+            *FontStyleVar::var().get(vars),
+            *FontWeightVar::var().get(vars),
+            *FontStretchVar::var().get(vars),
         )
     }
     /// Gets [`font`](Self::font) if any of the properties updated.
     pub fn font_update(vars: &'a Vars) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
-        if vars.context_is_new::<FontFamilyVar>()
-            || vars.context_is_new::<FontStyleVar>()
-            || vars.context_is_new::<FontWeightVar>()
-            || vars.context_is_new::<FontStretchVar>()
+        if FontFamilyVar::var().is_new(vars)
+            || FontStyleVar::var().is_new(vars)
+            || FontWeightVar::var().is_new(vars)
+            || FontStretchVar::var().is_new(vars)
         {
             Some(Self::font(vars))
         } else {
@@ -487,11 +487,11 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect the text characters.
     #[inline]
     pub fn text(vars: &'a Vars) -> (TextTransformFn, WhiteSpace) {
-        (vars.context::<TextTransformVar>().clone(), *vars.context::<WhiteSpaceVar>())
+        (TextTransformVar::var().get(vars).clone(), *WhiteSpaceVar::var().get(vars))
     }
     /// Gets [`text`](Self::text) if any of the properties updated.
     pub fn text_update(vars: &'a Vars) -> Option<(TextTransformFn, WhiteSpace)> {
-        if vars.context_is_new::<TextTransformVar>() || vars.context_is_new::<WhiteSpaceVar>() {
+        if TextTransformVar::var().is_new(vars) || WhiteSpaceVar::var().is_new(vars) {
             Some(Self::text(vars))
         } else {
             None
@@ -501,12 +501,12 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect the font instance. The [`Length`] is `font_size`.
     #[inline]
     pub fn font_instance(vars: &'a Vars) -> (Length, FontSynthesis) {
-        (*vars.context::<FontSizeVar>(), *vars.context::<FontSynthesisVar>())
+        (*FontSizeVar::var().get(vars), *FontSynthesisVar::var().get(vars))
     }
     /// Gets [`font_instance`](Self::font_instance) if any of the properties updated.
     #[inline]
     pub fn font_instance_update(vars: &'a Vars) -> Option<(Length, FontSynthesis)> {
-        if vars.context_is_new::<FontSizeVar>() || vars.context_is_new::<FontSynthesisVar>() {
+        if FontSizeVar::var().is_new(vars) || FontSynthesisVar::var().is_new(vars) {
             Some(Self::font_instance(vars))
         } else {
             None
@@ -516,12 +516,12 @@ impl<'a> TextContext<'a> {
     /// Gets the properties that affect render.
     #[inline]
     pub fn render(vars: &'a Vars) -> Rgba {
-        *vars.context::<TextColorVar>()
+        *TextColorVar::var().get(vars)
     }
     /// Gets [`render`](Self::render) if the property `text_color` updated.
     #[inline]
     pub fn render_update(vars: &'a Vars) -> Option<Rgba> {
-        vars.context_update::<TextColorVar>().copied()
+        TextColorVar::var().get_new(vars).copied()
     }
 }
 impl<'a> Clone for TextContext<'a> {

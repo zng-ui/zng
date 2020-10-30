@@ -5,13 +5,13 @@ use crate::core::window::CursorIcon;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
-struct CursorNode<T: UiNode, C: LocalVar<CursorIcon>> {
+struct CursorNode<T: UiNode, C: VarLocal<CursorIcon>> {
     cursor: C,
     child: T,
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, C: LocalVar<CursorIcon>> UiNode for CursorNode<T, C> {
+impl<T: UiNode, C: VarLocal<CursorIcon>> UiNode for CursorNode<T, C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.cursor.init_local(ctx.vars);
         self.child.init(ctx);

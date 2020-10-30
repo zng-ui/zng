@@ -1,8 +1,11 @@
 use super::*;
 
 /// A [`Var`] that represents a [`ContextVar`].
+///
+/// `PhantomData` is public here because we can't implement a `const fn new()` on stable.
+/// We need to generate a const value to implement `ContextVar::var()`.
 #[derive(Clone)]
-pub struct ContextVarProxy<C: ContextVar>(PhantomData<C>);
+pub struct ContextVarProxy<C: ContextVar>(pub PhantomData<C>);
 impl<C: ContextVar> ContextVarProxy<C> {
     /// References the value in the current `vars` context.
     pub fn get<'a>(&'a self, vars: &'a Vars) -> &'a C::Type {
@@ -90,7 +93,7 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
     }
 
     fn map<O: VarValue, F: FnMut(&C::Type) -> O>(&self, map: F) -> RcMapVar<C::Type, O, Self, F> {
-        RcMapVar::new(self.clone(), map)
+        self.clone().into_map(map)
     }
 
     fn map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
@@ -98,7 +101,19 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
-        RcMapBidiVar::new(self.clone(), map, map_back)
+        self.clone().into_map_bidi(map, map_back)
+    }
+
+    fn into_map<O: VarValue, F: FnMut(&C::Type) -> O>(self, map: F) -> RcMapVar<C::Type, O, Self, F> {
+        RcMapVar::new(self, map)
+    }
+
+    fn into_map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
+        self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
+        RcMapBidiVar::new(self, map, map_back)
     }
 }
 

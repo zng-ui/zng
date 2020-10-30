@@ -3,12 +3,12 @@ use crate::core::{
     context::WidgetContext,
     render::FrameBuilder,
     units::*,
-    var::{IntoVar, LocalVar},
+    var::{IntoVar, VarLocal},
     UiNode,
 };
 use crate::core::{impl_ui_node, property};
 
-struct AlignNode<T: UiNode, A: LocalVar<Alignment>> {
+struct AlignNode<T: UiNode, A: VarLocal<Alignment>> {
     child: T,
     alignment: A,
 
@@ -17,7 +17,7 @@ struct AlignNode<T: UiNode, A: LocalVar<Alignment>> {
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, A: LocalVar<Alignment>> UiNode for AlignNode<T, A> {
+impl<T: UiNode, A: VarLocal<Alignment>> UiNode for AlignNode<T, A> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.alignment.init_local(ctx.vars);
         self.child.init(ctx);

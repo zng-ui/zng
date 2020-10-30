@@ -46,7 +46,7 @@ impl IntoVar<BorderDetails> for (Rgba, BorderStyle) {
 
 impl<V: Var<Rgba>> IntoVar<BorderDetails> for (V, BorderStyle) {
     #[allow(clippy::type_complexity)]
-    type Var = MapVar<Rgba, V, BorderDetails, Box<dyn FnMut(&Rgba) -> BorderDetails>>;
+    type Var = RcMapVar<Rgba, BorderDetails, V, Box<dyn FnMut(&Rgba) -> BorderDetails>>;
 
     fn into_var(self) -> Self::Var {
         let style = self.1;
@@ -214,7 +214,7 @@ impl From<BorderDetails> for w_api::BorderDetails {
     }
 }
 
-struct BorderNode<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> {
+struct BorderNode<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> {
     child: T,
 
     widths: L,
@@ -229,7 +229,7 @@ struct BorderNode<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> {
 }
 
 #[impl_ui_node(child)]
-impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
+impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
 
@@ -245,7 +245,7 @@ impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> UiNode for Bord
             ctx.updates.push_layout()
         }
 
-        if let Some(&details) = self.details.update(ctx.vars) {
+        if let Some(&details) = self.details.get_new(ctx.vars) {
             self.final_details = details.into();
             ctx.updates.push_render()
         }
@@ -275,7 +275,7 @@ impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> UiNode for Bord
     }
 }
 
-impl<T: UiNode, L: LocalVar<SideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
+impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
     fn size_increment(&self) -> LayoutSize {
         let rw = self.final_widths;
         LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
