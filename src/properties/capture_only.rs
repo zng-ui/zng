@@ -4,7 +4,14 @@
 
 use crate::{
     core::{
-        color::Rgba, gesture::Shortcut, property, text::Text, types::LineOrientation, units::Length, var::IntoVar, UiNode, UiVec, WidgetId,
+        color::Rgba,
+        gesture::Shortcut,
+        property,
+        text::Text,
+        types::LineOrientation,
+        units::{GridSpacing, Length},
+        var::IntoVar,
+        UiNode, UiVec, WidgetId,
     },
     widgets::LineStyle,
 };
@@ -41,6 +48,10 @@ pub fn widget_children(children: UiVec) -> ! {}
 #[property(capture_only)]
 pub fn spacing(spacing: impl IntoVar<Length>) -> ! {}
 
+/// A [`GridSpacing`] spacing.
+#[property(capture_only)]
+pub fn grid_spacing(spacing: impl IntoVar<GridSpacing>) -> ! {}
+
 /// A [`text!`](crate::widgets::text) value.
 #[property(capture_only)]
 pub fn text_value(text: impl IntoVar<Text>) -> ! {}
@@ -68,3 +79,11 @@ pub fn length(length: impl IntoVar<f32>) -> ! {}
 /// A [`line!`](crate::widgets::line) style.
 #[property(capture_only)]
 pub fn line_style(style: impl IntoVar<LineStyle>) -> ! {}
+
+/// An [`usize`] that represents a zero-based index.
+#[property(capture_only)]
+pub fn index(index: impl IntoVar<usize>) -> ! {}
+
+/// An [`usize`] that represents a list length.
+#[property(capture_only)]
+pub fn len(len: impl IntoVar<usize>) -> ! {}

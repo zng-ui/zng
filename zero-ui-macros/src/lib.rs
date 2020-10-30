@@ -674,7 +674,7 @@ macro_rules! ui_vec {
     () => { zero_ui::core::UiVec::new() };
     ($($node:expr),+ $(,)?) => {
         vec![
-            $(zero_ui::core::UiNode::boxed($node)),*
+            $(zero_ui::core::Widget::boxed_widget($node)),*
         ]
     };
 }

@@ -23,7 +23,7 @@ trait StackDimension: 'static {
 }
 
 struct StackNode<S: VarLocal<Length>, D: StackDimension> {
-    children: Box<[Box<dyn UiNode>]>,
+    children: Box<[Box<dyn Widget>]>,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
@@ -255,7 +255,7 @@ pub fn v_stack(items: UiVec) -> impl Widget {
 }
 
 struct ZStackNode {
-    children: Box<[Box<dyn UiNode>]>,
+    children: Box<[Box<dyn Widget>]>,
 }
 #[impl_ui_node(children)]
 impl UiNode for ZStackNode {}

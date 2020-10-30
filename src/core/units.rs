@@ -714,6 +714,73 @@ impl_length_comp_conversions! {
 /// Computed [`Size`].
 pub type LayoutSize = wr::LayoutSize;
 
+/// Spacing in-between grid cells.
+#[derive(Debug, Clone)]
+pub struct GridSpacing {
+    /// Spacing in-between columns.
+    pub column: Length,
+    /// Spacing in-between rows.
+    pub row: Length,
+}
+impl GridSpacing {
+    pub fn new<C: Into<Length>, R: Into<Length>>(column: C, row: R) -> Self {
+        GridSpacing {
+            column: column.into(),
+            row: row.into(),
+        }
+    }
+
+    /// Same spacing for both columns and rows.
+    pub fn new_all<S: Into<Length>>(same: S) -> Self {
+        let same = same.into();
+        GridSpacing { column: same, row: same }
+    }
+
+    /// Compute the spacing in a context.
+    #[inline]
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutGridSpacing {
+        LayoutGridSpacing {
+            column: self.column.to_layout(LayoutLength::new(available_size.width), ctx).get(),
+            row: self.row.to_layout(LayoutLength::new(available_size.height), ctx).get(),
+        }
+    }
+}
+impl_length_comp_conversions! {
+    fn from(column: C, row: R) -> GridSpacing {
+        GridSpacing::new(column, row)
+    }
+}
+impl_from_and_into_var! {
+    /// Same spacing for both columns and rows.
+    fn from(all: Length) -> GridSpacing {
+        GridSpacing::new_all(all)
+    }
+
+    /// Column and row equal relative length.
+    fn from(percent: FactorPercent) -> GridSpacing {
+        GridSpacing::new_all(percent)
+    }
+    /// Column and row equal relative length.
+    fn from(norm: FactorNormal) -> GridSpacing {
+        GridSpacing::new_all(norm)
+    }
+
+    /// Column and row equal exact length.
+    fn from(f: f32) -> GridSpacing {
+        GridSpacing::new_all(f)
+    }
+    /// Column and row equal exact length.
+    fn from(i: i32) -> GridSpacing {
+        GridSpacing::new_all(i)
+    }
+}
+
+/// Computed [`GridSpacing`].
+pub struct LayoutGridSpacing {
+    pub column: f32,
+    pub row: f32,
+}
+
 /// 2D rect in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect {

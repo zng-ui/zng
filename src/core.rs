@@ -290,5 +290,5 @@ pub fn is_layout_any_size(f: f32) -> bool {
 /// Value that indicates that any size is available during layout.
 pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
-/// A mixed vector of [`UiNode`] types.
-pub type UiVec = Vec<Box<dyn UiNode>>;
+/// A mixed vector of [`Widget`] types.
+pub type UiVec = Vec<Box<dyn Widget>>;
