@@ -25,6 +25,8 @@ use context::{LayoutContext, LazyStateMap, WidgetContext};
 use render::{FrameBuilder, FrameUpdate, WidgetTransformKey};
 use units::LayoutSize;
 
+use self::units::PixelGridExt;
+
 unique_id! {
     /// Unique id of a widget.
     ///
@@ -136,7 +138,35 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
         ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
     }
 
+    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let child_size = self.child.measure(available_size, ctx);
+        #[cfg(debug_assertions)]
+        {
+            if !child_size.is_aligned_to(ctx.pixel_grid()) {
+                panic!(
+                    "child of {:?} measure not aligned, was: {:?}, expected: {:?}",
+                    self.id,
+                    child_size,
+                    child_size.snap_to(ctx.pixel_grid())
+                );
+            }
+        }
+        child_size
+    }
+
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        #[cfg(debug_assertions)]
+        {
+            if !final_size.is_aligned_to(ctx.pixel_grid()) {
+                panic!(
+                    "arrange final_size for {:?} is not aligned, was: {:?}, expected: {:?}",
+                    self.id,
+                    final_size,
+                    final_size.snap_to(ctx.pixel_grid())
+                );
+            }
+        }
+
         self.size = final_size;
         self.child.arrange(final_size, ctx);
     }

@@ -1192,8 +1192,8 @@ impl PixelGrid {
     /// Checks if the layout value is aligned with this grid.
     #[inline]
     pub fn is_aligned(self, layout_value: f32) -> bool {
-        let scaled = layout_value * self.scale_factor;
-        (scaled - scaled.round()).abs() < 0.0001
+        let aligned = self.snap(layout_value);
+        (aligned - layout_value).abs() < 0.0001
     }
 }
 impl Default for PixelGrid {

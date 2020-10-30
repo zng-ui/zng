@@ -17,8 +17,8 @@ macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
         #[cfg(debug_assertions)]
         {
-            let grid = $grid;
             let value = $value;
+            let grid = $grid;
             if !value.is_aligned_to(grid) {
                 panic!(
                     "{}: `{:?}` is not aligned, expected `{:?}`",
