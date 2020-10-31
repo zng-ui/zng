@@ -9,7 +9,7 @@ fn main() {
             title: fs.map(|s| formatx!("Text Example - font_size: {}", s));
             font_size: fs.clone();
             content: h_stack! {
-                spacing: 40.0;
+                spacing: 40;
                 items: ui_vec![
                     basic(),
                     line_height(),
@@ -99,12 +99,12 @@ fn section(header: &'static str, mut items: UiVec) -> impl Widget {
         text! {
             text: header;
             font_weight: FontWeight::BOLD;
-            margin: (0.0, 4.0);
+            margin: (0, 4);
         }
-        .boxed(),
+        .boxed_widget(),
     );
     v_stack! {
-        spacing: 5.0;
+        spacing: 5;
         items;
     }
 }

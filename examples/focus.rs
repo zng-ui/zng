@@ -32,8 +32,8 @@ fn main() {
 fn alt_scope() -> impl Widget {
     h_stack! {
         alt_focus_scope: true;
-        spacing: 5.0;
-        margin: 5.0;
+        spacing: 5;
+        margin: 5;
         items: ui_vec![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
@@ -45,9 +45,9 @@ fn normal_scope() -> impl Widget {
     v_stack! {
         focus_scope: true;
         focus_shortcut: shortcut!(T);
-        margin: (50.0, 0.0, 0.0, 0.0);
+        margin: (50, 0, 0, 0);
         align: Alignment::CENTER;
-        spacing: 5.0;
+        spacing: 5;
         items: ui_vec![
             text! { text: "TabIndex (T)"; font_weight: FontWeight::BOLD; align: Alignment::CENTER; },
             button("Button 5", TabIndex(5)),

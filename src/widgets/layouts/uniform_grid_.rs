@@ -210,17 +210,17 @@ widget! {
         ///     rows: 2;
         ///     first_column: 1;
         ///     items: ui_vec![
-        ///                      text("0,1"), text("0,2"),
-        ///         text("1,0"), text("1,1"), text("1,2")
+        ///                      text("1,0"), text("2,0"),
+        ///         text("0,1"), text("1,1"), text("2,1")
         ///     ];
         /// };
         /// ```
         /// Produces a 3x2 grid with an empty first cell:
         ///
         /// ```text
-        ///     | 0,1 | 0,2
+        ///     | 1,0 | 2,0
         /// ----|-----|----
-        /// 1,0 | 1,1 | 1,2
+        /// 0,1 | 1,1 | 2,1
         /// ```
         first_column -> index: 0;
 

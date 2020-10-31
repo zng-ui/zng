@@ -4,7 +4,7 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|_| {
         let position = var((f32::NAN, f32::NAN));
-        let size = var((800., 600.));
+        let size = var((800, 600));
 
         let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &Size| {
             formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
@@ -17,10 +17,10 @@ fn main() {
             background_color: background_color.clone();
             title;
             content: h_stack! {
-                spacing: 40.0;
+                spacing: 40;
                 items: ui_vec![
                     v_stack! {
-                        spacing: 20.0;
+                        spacing: 20;
                         items: ui_vec![
                             property_stack("position", ui_vec![
                                 set_position(0.0, 0.0, &position),
@@ -56,12 +56,12 @@ fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
         text! {
             text: header;
             font_weight: FontWeight::BOLD;
-            margin: (0.0, 4.0);
+            margin: (0, 4);
         }
-        .boxed(),
+        .boxed_widget(),
     );
     v_stack! {
-        spacing: 5.0;
+        spacing: 5;
         items;
     }
 }

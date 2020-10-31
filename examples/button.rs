@@ -7,7 +7,7 @@ fn main() {
         window! {
             title: "Button Example";
             content: v_stack! {
-                spacing: 5.0;
+                spacing: 5;
                 items: ui_vec![example(), example()];
             };
         }
