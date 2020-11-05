@@ -28,6 +28,12 @@ pub use cloning_local_var::*;
 mod rc_map_var;
 pub use rc_map_var::*;
 
+mod map_ref_var;
+pub use map_ref_var::*;
+
+mod map_bidi_ref_var;
+pub use map_bidi_ref_var::*;
+
 mod rc_map_bidi_var;
 pub use rc_map_bidi_var::*;
 
@@ -191,37 +197,59 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     /// Returns the variable as a type that implements [`VarLocal`].
     fn as_local(self) -> Self::AsLocal;
 
-    /// Returns a variable whos value is mapped from `self`.
+    /// Returns a variable with value generated from `self`.
     ///
     /// The value is new when the `self` value is new, `map` is only called once per new value.
     ///
     /// The variable is read-only, use [`map_bidi`](Self::map_bidi) to propagate changes back to `self`.
     ///
-    /// ### Note
+    /// Use [`map_ref`](Self::map_ref) if you don't need to generate a new value.
     ///
-    /// Prefer calling [`into_map`](Self::into_map) you will not use `self` anymore,
-    /// most mapping implementations clone self.
+    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
     fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F>;
+
+    /// Returns a variable with value referenced from `self`.
+    ///
+    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called.
+    ///
+    /// The variable is read-only.
+    ///
+    /// Use [`into_map_ref`](Self::into_map_ref) if you will not use this copy of `self` anymore.
+    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F>;
 
     /// Returns a variable whos value is mapped to and from `self`.
     ///
     /// The value is new when the `self` value is new, `map` is only called once per new value.
     ///
     /// The variable can be set if `self` is not read-only, when set `map_back` is called to generate
-    /// a value.
+    /// a new value for `self`.
     ///
-    /// ### Note
+    /// Use [`map_bidi_ref`](Self::map_bidi_ref) if you don't need to generate a new value.
     ///
-    /// Prefer calling [`into_map_bidi`](Self::into_map_bidi) you will not use `self` anymore,
-    /// most mapping implementations clone self.
+    /// Use [`into_map_bidi`](Self::into_map_bidi) if you will not use this copy of `self` anymore.
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
         &self,
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G>;
 
+    /// Returns a variable with value mapped to and from `self` using references.
+    ///
+    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called,
+    /// `map_mut` is called every time the value is set or modified.
+    ///
+    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
+    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        &self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G>;
+
     /// Taking variant of [`map`](Self::map).
     fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F>;
+
+    /// Taking variant of [`map_ref`](Self::map_ref).
+    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F>;
 
     /// Taking variant of [`map_bidi`](Self::map_bidi).
     fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
@@ -229,6 +257,13 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
         map: F,
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G>;
+
+    /// Taking variant of [`map_bidi_ref`](Self::map_bidi_ref).
+    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G>;
 }
 
 /// A value-to-[var](Var) conversion that consumes the value.

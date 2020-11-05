@@ -170,6 +170,10 @@ where
         self.clone().into_map(map)
     }
 
+    fn map_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F2) -> MapRefVar<O, O2, Self, F2> {
+        self.clone().into_map_ref(map)
+    }
+
     fn map_bidi<O2: VarValue, F2: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
         &self,
         map: F2,
@@ -188,6 +192,26 @@ where
         map_back: G,
     ) -> RcMapBidiVar<O, O2, Self, F2, G> {
         RcMapBidiVar::new(self, map, map_back)
+    }
+
+    fn into_map_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static>(self, map: F2) -> MapRefVar<O, O2, Self, F2> {
+        MapRefVar::new(self, map)
+    }
+
+    fn map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
+        &self,
+        map: F2,
+        map_mut: G2,
+    ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
+        self.clone().into_map_bidi_ref(map, map_mut)
+    }
+
+    fn into_map_bidi_ref<O2: VarValue, F2: Fn(&O) -> &O2 + Clone + 'static, G2: Fn(&mut O) -> &mut O2 + Clone + 'static>(
+        self,
+        map: F2,
+        map_mut: G2,
+    ) -> MapBidiRefVar<O, O2, Self, F2, G2> {
+        MapBidiRefVar::new(self, map, map_mut)
     }
 }
 

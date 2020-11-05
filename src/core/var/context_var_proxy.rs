@@ -96,6 +96,10 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         self.clone().into_map(map)
     }
 
+    fn map_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<C::Type, O, Self, F> {
+        self.clone().into_map_ref(map)
+    }
+
     fn map_bidi<O: VarValue, F: FnMut(&C::Type) -> O + 'static, G: FnMut(O) -> C::Type + 'static>(
         &self,
         map: F,
@@ -114,6 +118,26 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
         map_back: G,
     ) -> RcMapBidiVar<C::Type, O, Self, F, G> {
         RcMapBidiVar::new(self, map, map_back)
+    }
+
+    fn into_map_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<C::Type, O, Self, F> {
+        MapRefVar::new(self, map)
+    }
+
+    fn map_bidi_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static, G: Fn(&mut C::Type) -> &mut O + Clone + 'static>(
+        &self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<C::Type, O, Self, F, G> {
+        self.clone().into_map_bidi_ref(map, map_mut)
+    }
+
+    fn into_map_bidi_ref<O: VarValue, F: Fn(&C::Type) -> &O + Clone + 'static, G: Fn(&mut C::Type) -> &mut O + Clone + 'static>(
+        self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<C::Type, O, Self, F, G> {
+        MapBidiRefVar::new(self, map, map_mut)
     }
 }
 

@@ -73,6 +73,90 @@ impl<T: VarValue> RcVar<T> {
     pub fn ptr_eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
+
+    /// Returns a variable with value generated from `self`.
+    ///
+    /// The value is new when the `self` value is new, `map` is only called once per new value.
+    ///
+    /// The variable is read-only, use [`map_bidi`](Self::map_bidi) to propagate changes back to `self`.
+    ///
+    /// Use [`map_ref`](Self::map_ref) if you don't need to generate a new value.
+    ///
+    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
+    pub fn map<O: VarValue, F: FnMut(&T) -> O + 'static>(&self, map: F) -> RcMapVar<T, O, Self, F> {
+        <Self as Var<T>>::map(self, map)
+    }
+
+    /// Returns a variable with value referenced from `self`.
+    ///
+    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called.
+    ///
+    /// The variable is read-only.
+    ///
+    /// Use [`into_map_ref`](Self::into_map_ref) if you will not use this copy of `self` anymore.
+    pub fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
+        <Self as Var<T>>::map_ref(self, map)
+    }
+
+    /// Returns a variable whos value is mapped to and from `self`.
+    ///
+    /// The value is new when the `self` value is new, `map` is only called once per new value.
+    ///
+    /// The variable can be set if `self` is not read-only, when set `map_back` is called to generate
+    /// a new value for `self`.
+    ///
+    /// Use [`map_bidi_ref`](Self::map_bidi_ref) if you don't need to generate a new value.
+    ///
+    /// Use [`into_map_bidi`](Self::into_map_bidi) if you will not use this copy of `self` anymore.
+    pub fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        &self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        <Self as Var<T>>::map_bidi(self, map, map_back)
+    }
+
+    /// Returns a variable with value mapped to and from `self` using references.
+    ///
+    /// The value is new when the `self` value is new, `map` is called every time [`get`](VarObj::get) is called,
+    /// `map_mut` is called every time the value is set or modified.
+    ///
+    /// Use [`into_map`](Self::into_map) if you will not use this copy of `self` anymore.
+    pub fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        &self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        <Self as Var<T>>::map_bidi_ref(self, map, map_mut)
+    }
+
+    /// Taking variant of [`map`](Self::map).
+    pub fn into_map<O: VarValue, F: FnMut(&T) -> O + 'static>(self, map: F) -> RcMapVar<T, O, Self, F> {
+        <Self as Var<T>>::into_map(self, map)
+    }
+
+    /// Taking variant of [`map_ref`](Self::map_ref).
+    pub fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
+        <Self as Var<T>>::into_map_ref(self, map)
+    }
+
+    /// Taking variant of [`map_bidi`](Self::map_bidi).
+    pub fn into_map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
+        self,
+        map: F,
+        map_back: G,
+    ) -> RcMapBidiVar<T, O, Self, F, G> {
+        <Self as Var<T>>::into_map_bidi(self, map, map_back)
+    }
+
+    /// Taking variant of [`map_bidi_ref`](Self::map_bidi_ref).
+    pub fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        <Self as Var<T>>::into_map_bidi_ref(self, map, map_mut)
+    }
 }
 impl<T: VarValue> Clone for RcVar<T> {
     /// Clone the variable reference.
@@ -167,6 +251,10 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         self.clone().into_map(map)
     }
 
+    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
+        self.clone().into_map_ref(map)
+    }
+
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
         &self,
         map: F,
@@ -185,6 +273,26 @@ impl<T: VarValue> Var<T> for RcVar<T> {
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G> {
         RcMapBidiVar::new(self, map, map_back)
+    }
+
+    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
+        MapRefVar::new(self, map)
+    }
+
+    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        &self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        self.clone().into_map_bidi_ref(map, map_mut)
+    }
+
+    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        MapBidiRefVar::new(self, map, map_mut)
     }
 }
 

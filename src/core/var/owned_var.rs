@@ -80,6 +80,10 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         self.clone().into_map(map)
     }
 
+    fn map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(&self, map: F) -> MapRefVar<T, O, Self, F> {
+        self.clone().into_map_ref(map)
+    }
+
     fn map_bidi<O: VarValue, F: FnMut(&T) -> O + 'static, G: FnMut(O) -> T + 'static>(
         &self,
         map: F,
@@ -98,6 +102,26 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
         map_back: G,
     ) -> RcMapBidiVar<T, O, Self, F, G> {
         RcMapBidiVar::new(self, map, map_back)
+    }
+
+    fn into_map_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static>(self, map: F) -> MapRefVar<T, O, Self, F> {
+        MapRefVar::new(self, map)
+    }
+
+    fn map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        &self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        self.clone().into_map_bidi_ref(map, map_mut)
+    }
+
+    fn into_map_bidi_ref<O: VarValue, F: Fn(&T) -> &O + Clone + 'static, G: Fn(&mut T) -> &mut O + Clone + 'static>(
+        self,
+        map: F,
+        map_mut: G,
+    ) -> MapBidiRefVar<T, O, Self, F, G> {
+        MapBidiRefVar::new(self, map, map_mut)
     }
 }
 
