@@ -146,7 +146,6 @@
 //!
 //! # Lifecycle Overview
 //!
-//! TODO diagrams.
 //!
 //! ```text
 //! +------------------------------------+
@@ -185,6 +184,9 @@
 //! | | |   ↓↑ events - setup update arguments          |
 //! | | |   ↓                                           |
 //! | | |   if any -> AppExtension::update(..) ↑        |
+//! | | |   |            UiNode::update(..)             |
+//! | | |   |            UiNode::update_hp(..)          |
+//! | | |   |               event handlers              |
 //! | | |   ↓                                           |
 //! | | +-----------------------------------------------+
 //! | |     ↓                                        |
@@ -192,11 +194,13 @@
 //! | | | # Layout/Render                               |
 //! | | |                                               |
 //! | | | AppExtension::update_display(..)              |
-//! | | |                                               |
-//! | | |  TODO                                         |
+//! | | |           UiNode::measure(..)                 |
+//! | | |           UiNode::arrange(..)                 |
+//! | | |           UiNode::render(..)                  |
+//! | | |           UiNode::render_update(..)           |
 //! | | +-----------------------------------------------+
-//! | |                                             |
-//! | |                                             |
+//! | |     ↓                                       |
+//! | |   EventLoop                                 |
 //! | +---------------------------------------------+
 //! |   | AppProcess::shutdown()            |
 //! |   ↓                                   |
