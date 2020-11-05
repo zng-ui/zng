@@ -20,7 +20,7 @@ macro_rules! debug_assert_aligned {
             let value = $value;
             let grid = $grid;
             if !value.is_aligned_to(grid) {
-                panic!(
+                error_println!(
                     "{}: `{:?}` is not aligned, expected `{:?}`",
                     stringify!($value),
                     value,

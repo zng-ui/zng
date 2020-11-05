@@ -1,7 +1,10 @@
-use crate::core::context::{LayoutContext, WidgetContext};
 use crate::core::render::FrameBuilder;
 use crate::core::units::{GridSpacing, LayoutGridSpacing, LayoutPoint, LayoutRect, LayoutSize};
 use crate::core::var::{IntoVar, VarLocal};
+use crate::core::{
+    context::{LayoutContext, WidgetContext},
+    units::PixelGridExt,
+};
 use crate::core::{impl_ui_node, ui_vec, widget, UiNode, UiVec, Widget};
 use crate::properties::{
     capture_only::{grid_spacing, index, len, widget_children},
@@ -10,7 +13,7 @@ use crate::properties::{
 
 #[derive(Clone, Default)]
 struct CellsIter {
-    r: LayoutRect,
+    r: LayoutPoint,
     advance: LayoutPoint,
     max_width: f32,
 }
@@ -18,20 +21,20 @@ impl CellsIter {
     pub fn new(cell_size: LayoutSize, columns: f32, first_column: f32, spacing: LayoutGridSpacing) -> Self {
         let advance = LayoutPoint::new(cell_size.width + spacing.column, cell_size.height + spacing.row);
         CellsIter {
-            r: LayoutRect::new(LayoutPoint::new(advance.x * first_column - 1.0, 0.0), cell_size),
+            r: LayoutPoint::new(advance.x * (first_column - 1.0), 0.0),
             max_width: advance.x * columns,
             advance,
         }
     }
 }
 impl Iterator for CellsIter {
-    type Item = LayoutRect;
+    type Item = LayoutPoint;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.r.origin.x += self.advance.x;
-        if self.r.origin.x > self.max_width {
-            self.r.origin.x = 0.0;
-            self.r.origin.y += self.advance.y;
+        self.r.x += self.advance.x;
+        if self.r.x >= self.max_width {
+            self.r.x = 0.0;
+            self.r.y += self.advance.y;
         }
         Some(self.r)
     }
@@ -49,7 +52,10 @@ struct UniformGridNode<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usiz
 impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<C, R, FC, S> {
     /// cells count for `grid_len`.
     fn cells_count(&self) -> f32 {
-        self.children.iter().filter(|c| !c.size().is_empty_or_negative()).count() as f32
+        match self.children.len() {
+            0 => 1.0,
+            n => n as f32,
+        }
     }
 
     /// (columns, rows)
@@ -64,10 +70,14 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
                 columns = rows;
             } else {
                 // only columns is 0=AUTO
+                columns = (self.cells_count() / rows).ceil();
             }
         } else if rows < 1.0 {
             // only rows is 0=AUTO
+            rows = (self.cells_count() / columns).ceil();
         }
+
+        debug_assert!(columns > 0.0 && rows > 0.0);
 
         (columns, rows)
     }
@@ -101,16 +111,14 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
         let (columns, rows) = self.grid_len();
-        if columns < 1.0 {
-            return LayoutSize::zero();
-        }
 
         let layout_spacing = self.spacing.get_local().to_layout(available_size, ctx);
 
         let available_size = LayoutSize::new(
             (available_size.width - layout_spacing.column / 2.0) / columns,
             (available_size.height - layout_spacing.row / 2.0) / rows,
-        );
+        )
+        .snap_to(ctx.pixel_grid());
 
         let mut cell_size = LayoutSize::zero();
         for child in self.children.iter_mut() {
@@ -121,21 +129,19 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
             cell_size.width * columns + layout_spacing.column * (columns - 1.0),
             cell_size.height * rows + layout_spacing.row * (rows - 1.0),
         )
+        .snap_to(ctx.pixel_grid())
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         let (columns, rows) = self.grid_len();
-        if columns < 1.0 {
-            self.cells_iter = CellsIter::default();
-            return;
-        }
 
         let layout_spacing = self.spacing.get_local().to_layout(final_size, ctx);
 
         let cell_size = LayoutSize::new(
-            (final_size.width - layout_spacing.column / 2.0) / columns,
-            (final_size.height - layout_spacing.row / 2.0) / rows,
-        );
+            (final_size.width - layout_spacing.column * (columns - 1.0)) / columns,
+            (final_size.height - layout_spacing.row * (rows - 1.0)) / rows,
+        )
+        .snap_to(ctx.pixel_grid());
 
         for child in self.children.iter_mut() {
             child.arrange(cell_size, ctx);
@@ -151,13 +157,13 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
 
     fn render(&self, frame: &mut FrameBuilder) {
         // only non collapsed children are rendered.
-        for (child, rect) in self
+        for (child, offset) in self
             .children
             .iter()
             .filter(|c| !c.size().is_empty_or_negative())
             .zip(self.cells_iter.clone())
         {
-            frame.push_reference_frame(rect.origin, |frame| child.render(frame));
+            frame.push_reference_frame(offset.snap_to(frame.pixel_grid()), |frame| child.render(frame));
         }
     }
 }

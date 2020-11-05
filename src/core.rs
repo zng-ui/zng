@@ -139,36 +139,64 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let child_size = self.child.measure(available_size, ctx);
         #[cfg(debug_assertions)]
         {
-            if !child_size.is_aligned_to(ctx.pixel_grid()) {
-                panic!(
-                    "child of {:?} measure not aligned, was: {:?}, expected: {:?}",
+            fn valid_measure(f: f32) -> bool {
+                f.is_finite() || is_layout_any_size(f)
+            }
+
+            if !valid_measure(available_size.width) || !valid_measure(available_size.height) {
+                error_println!(
+                    "{:?} `UiNode::measure` called with invalid `available_size: {:?}`, must be finite or `LAYOUT_ANY_SIZE`",
+                    self.id,
+                    available_size
+                );
+            }
+        }
+
+        let child_size = self.child.measure(available_size, ctx);
+
+        #[cfg(debug_assertions)]
+        {
+            if !child_size.width.is_finite() || !child_size.height.is_finite() {
+                error_println!("{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
+            } else if !child_size.is_aligned_to(ctx.pixel_grid()) {
+                let snapped = child_size.snap_to(ctx.pixel_grid());
+                error_println!(
+                    "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
                     self.id,
                     child_size,
-                    child_size.snap_to(ctx.pixel_grid())
+                    snapped
                 );
+                return snapped;
             }
         }
         child_size
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.size = final_size;
+
         #[cfg(debug_assertions)]
         {
-            if !final_size.is_aligned_to(ctx.pixel_grid()) {
-                panic!(
-                    "arrange final_size for {:?} is not aligned, was: {:?}, expected: {:?}",
+            if !final_size.width.is_finite() || !final_size.height.is_finite() {
+                error_println!(
+                    "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
+                    self.id,
+                    final_size
+                );
+            } else if !final_size.is_aligned_to(ctx.pixel_grid()) {
+                self.size = final_size.snap_to(ctx.pixel_grid());
+                error_println!(
+                    "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
                     self.id,
                     final_size,
-                    final_size.snap_to(ctx.pixel_grid())
+                    self.size
                 );
             }
         }
 
-        self.size = final_size;
-        self.child.arrange(final_size, ctx);
+        self.child.arrange(self.size, ctx);
     }
 
     fn render(&self, frame: &mut FrameBuilder) {

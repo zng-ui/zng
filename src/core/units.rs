@@ -776,6 +776,7 @@ impl_from_and_into_var! {
 }
 
 /// Computed [`GridSpacing`].
+#[derive(Clone, Copy, Debug)]
 pub struct LayoutGridSpacing {
     pub column: f32,
     pub row: f32,

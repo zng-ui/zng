@@ -320,7 +320,7 @@ impl AppExtension for WindowManager {
                         let new_position = Point::from((new_position.x, new_position.y));
                         let var = *wn_ctx.root.position.get(ctx.vars);
                         if new_position != var {
-                            wn_ctx.root.position.set(ctx.vars, new_position);
+                            let _ = wn_ctx.root.position.set(ctx.vars, new_position);
                         }
                     }
 
