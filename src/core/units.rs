@@ -996,8 +996,8 @@ macro_rules! named_aligns {
 impl Alignment {
     named_aligns! {
         TOP_LEFT = (0.0, 0.0);
-        TOP = (0.0, 0.5);
-        TOP_RIGHT = (0.0, 1.0);
+        TOP = (0.5, 0.0);
+        TOP_RIGHT = (1.0, 0.0);
 
         LEFT = (0.0, 0.5);
         CENTER = (0.5, 0.5);
