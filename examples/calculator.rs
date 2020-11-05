@@ -7,10 +7,10 @@ fn main() {
         let buffer = var("");
         window! {
             title: "Calculator";
-            content: v_stack!{
+            content: v_stack! {
                 spacing: 5;
                 items: ui_vec![
-                    text!{
+                    text! {
                         text: buffer.clone();
                         font_size: 32.pt();
                     },

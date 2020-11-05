@@ -996,15 +996,15 @@ macro_rules! named_aligns {
 impl Alignment {
     named_aligns! {
         TOP_LEFT = (0.0, 0.0);
-        TOP_CENTER = (0.0, 0.5);
+        TOP = (0.0, 0.5);
         TOP_RIGHT = (0.0, 1.0);
 
-        CENTER_LEFT = (0.0, 0.5);
+        LEFT = (0.0, 0.5);
         CENTER = (0.5, 0.5);
-        CENTER_RIGHT = (1.0, 0.5);
+        RIGHT = (1.0, 0.5);
 
         BOTTOM_LEFT = (0.0, 1.0);
-        BOTTOM_CENTER = (0.5, 1.0);
+        BOTTOM = (0.5, 1.0);
         BOTTOM_RIGHT = (1.0, 1.0);
     }
 }
@@ -1032,15 +1032,15 @@ macro_rules! debug_display_align {
 }
 debug_display_align! {
    TOP_LEFT,
-   TOP_CENTER,
+   TOP,
    TOP_RIGHT,
 
-   CENTER_LEFT,
+   LEFT,
    CENTER,
-   CENTER_RIGHT,
+   RIGHT,
 
    BOTTOM_LEFT,
-   BOTTOM_CENTER,
+   BOTTOM,
    BOTTOM_RIGHT,
 }
 impl From<Alignment> for Point {
