@@ -63,11 +63,11 @@
 //! An app is built from multiple extensions ([`AppExtension`](crate::core::app::AppExtension)) and then [`run`](crate::core::app::AppExtended::run).
 //!
 //! When the app is run, before the main loop starts, the extensions are [init](crate::core::app::AppExtension) with access to an especial context
-//! [`AppInitContext`](crate::core::context::AppInitContext). [Services](#services) and [events](#services) can only be registered with 
+//! [`AppInitContext`](crate::core::context::AppInitContext). [Services](#services) and [events](#services) can only be registered with
 //! this context, they live for the duration of the application.
 //!
 //! After the app init, the main loop starts and the other extension methods are called with the [`AppContext`](crate::core::context::AppContext).
-//! 
+//!
 //! ### Services
 //!
 //! Services are utilities that can be accessed by every component in every level, this includes [opening windows](crate::core::window::Windows)
@@ -85,10 +85,10 @@
 //!
 //! ## Level 1 - Window
 //!
-//! Components at this level live for the duration of a window instance. A window owns instances [window services](window-services) 
+//! Components at this level live for the duration of a window instance. A window owns instances [window services](window-services)
 //! and the root widget, it manages layout and rendering the widget tree.
 //!
-//! By default the [`WindowManager`](crate::core::window::WindowManager) extension sets-up the window contexts, 
+//! By default the [`WindowManager`](crate::core::window::WindowManager) extension sets-up the window contexts,
 //! but that is not a requirement, you can implement your own *windows*.
 //!
 //! ### Window Services
@@ -108,7 +108,7 @@
 //! defines that sub-tree branch as a widget.
 //!
 //! The behavior and appearance of a widget is defined in these nodes, a widget
-//! is usually composed of multiple nodes, one that defines the context, another that defines its unique behavior 
+//! is usually composed of multiple nodes, one that defines the context, another that defines its unique behavior
 //! plus more nodes introduced by [properties](#properties) that modify the widget.
 //!
 //! ### Properties
@@ -149,7 +149,7 @@
 //! TODO diagrams.
 //!
 //! ```text
-//! +------------------------------------+ 
+//! +------------------------------------+
 //! | # Setup                            |
 //! |                  ↓↑                |
 //! | App::default().extend(CustomExt)   |
@@ -159,7 +159,7 @@
 //!    | .run(|ctx: &mut AppContext| { .. })
 //!    | .run_window(|ctx: &mut AppContext| { window! { .. } })
 //!    ↓
-//! +---------------------------------------+ 
+//! +---------------------------------------+
 //! | # Run                                 |
 //! |                                       |
 //! | services.register(AppProcess)         |
@@ -201,7 +201,7 @@
 //! |   | AppProcess::shutdown()            |
 //! |   ↓                                   |
 //! |   0                                   |
-//! +---------------------------------------+ 
+//! +---------------------------------------+
 //! ```
 
 // for proc_macros that don't have $self.
