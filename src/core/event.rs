@@ -108,6 +108,9 @@ impl<T: 'static> EventChannel<T> {
             // modify the value.
             unsafe { &*self.r.data.get() }.as_ref()
         } else {
+            // SAFETY: same reason as the `if` case. 
+            // `last_update` only changes during `push_change` also.
+            unsafe { &mut *self.r.data.get() }.clear();
             &[]
         }
     }
