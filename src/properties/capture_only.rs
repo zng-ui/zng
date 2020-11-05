@@ -76,3 +76,7 @@ pub fn index(index: impl IntoVar<usize>) -> ! {}
 /// An [`usize`] that represents a list length.
 #[property(capture_only)]
 pub fn len(len: impl IntoVar<usize>) -> ! {}
+
+/// A [`bool`] that enables a feature.
+#[property(capture_only)]
+pub fn enabled(enabled: impl IntoVar<bool>) -> ! {}

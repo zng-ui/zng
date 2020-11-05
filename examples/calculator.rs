@@ -7,11 +7,13 @@ fn main() {
         let buffer = var("");
         window! {
             title: "Calculator";
+            resizable: false;
             content: v_stack! {
                 spacing: 5;
                 items: ui_vec![
                     text! {
                         text: buffer.clone();
+                        align: Alignment::RIGHT;
                         font_size: 32.pt();
                     },
                     controls(buffer)

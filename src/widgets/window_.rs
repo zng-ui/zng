@@ -86,12 +86,18 @@ widget! {
 
         /// Test inspector.
         on_shortcut_inspect -> on_shortcut: print_frame_inspector();
+
+        /// If the user can resize the window.
+        ///
+        /// Not that the window can still change size, this only disables
+        /// the OS window frame controls that change size.
+        resizable -> enabled: true;
     }
 
     /// Manually initializes a new [`window`](self).
     #[inline]
-    fn new(child, root_id, title, position, size, clear_color) -> Window {
-        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), clear_color.unwrap(), child)
+    fn new(child, root_id, title, position, size, resizable, clear_color) -> Window {
+        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), resizable.unwrap(), clear_color.unwrap(), child)
     }
 }
 

@@ -685,6 +685,7 @@ pub struct Window {
     title: BoxedLocalVar<Text>,
     position: BoxedVar<Point>,
     size: BoxedVar<Size>,
+    resizable: BoxedVar<bool>,
     clear_color: BoxedLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
@@ -695,6 +696,7 @@ impl Window {
         title: impl IntoVar<Text>,
         position: impl IntoVar<Point>,
         size: impl IntoVar<Size>,
+        resizable: impl IntoVar<bool>,
         clear_color: impl IntoVar<Rgba>,
         child: impl UiNode,
     ) -> Self {
@@ -704,6 +706,7 @@ impl Window {
             title: title.into_local().boxed_local(),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
+            resizable: resizable.into_var().boxed(),
             clear_color: clear_color.into_local().boxed_local(),
             child: child.boxed(),
         }
@@ -742,6 +745,7 @@ impl OpenWindow {
 
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to avoid flickering
+            .with_resizable(*root.resizable.get(ctx.vars))
             .with_title(root.title.get(ctx.vars).to_owned());
 
         let mut gl_ctx = GlContext::new(window_builder, event_loop.headed_target().expect("headless window not implemented"));
@@ -1063,6 +1067,11 @@ impl OpenWindow {
                 // the size var was changed to set the position size.
                 window.set_inner_size(valid_size);
             }
+        }
+
+        // resizable
+        if let Some(&resizable) = wn_ctx.root.resizable.get_new(vars) {
+            window.set_resizable(resizable);
         }
 
         // background_color
