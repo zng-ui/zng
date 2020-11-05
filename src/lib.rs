@@ -20,7 +20,7 @@
 //!
 //! fn example() -> impl UiNode {
 //!     button! {
-//!         on_click: |_| {
+//!         on_click: |_,_| {
 //!             println!("Button clicked!");
 //!         };
 //!         margin: 10.0;

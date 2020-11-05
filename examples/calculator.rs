@@ -38,8 +38,8 @@ fn controls(buffer: RcVar<Text>) -> impl Widget {
 
 fn btn(buffer: RcVar<Text>, c: char) -> impl Widget {
     button! {
-        on_click: move |a| {
-            buffer.modify(a.ctx().vars, move |b| b.to_mut().push(c))
+        on_click: move |ctx, _| {
+            buffer.modify(ctx.vars, move |b| b.to_mut().push(c))
         };
         content: text(c.to_string());
     }
@@ -47,8 +47,8 @@ fn btn(buffer: RcVar<Text>, c: char) -> impl Widget {
 
 fn btn_eval(buffer: RcVar<Text>) -> impl Widget {
     button! {
-        on_click: move |a| {
-            buffer.modify(a.ctx().vars, move |b| eval(b.to_mut()))
+        on_click: move |ctx, _| {
+            buffer.modify(ctx.vars, move |b| eval(b.to_mut()))
         };
         content: text("=");
     }

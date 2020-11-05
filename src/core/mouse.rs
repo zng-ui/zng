@@ -308,12 +308,12 @@ impl MouseManager {
         );
 
         // on_mouse_input
-        ctx.updates.push_notify(self.mouse_input.clone(), args.clone());
+        self.mouse_input.notify(ctx.events, args.clone());
 
         match state {
             ElementState::Pressed => {
                 // on_mouse_down
-                ctx.updates.push_notify(self.mouse_down.clone(), args);
+                self.mouse_down.notify(ctx.events, args);
 
                 self.click_count = self.click_count.saturating_add(1);
                 let now = Instant::now();
@@ -340,13 +340,13 @@ impl MouseManager {
 
                     if self.click_count == 2 {
                         if self.mouse_double_click.has_listeners() {
-                            ctx.updates.push_notify(self.mouse_double_click.clone(), args.clone());
+                            self.mouse_double_click.notify(ctx.events, args.clone());
                         }
                     } else if self.click_count == 3 && self.mouse_triple_click.has_listeners() {
-                        ctx.updates.push_notify(self.mouse_triple_click.clone(), args.clone());
+                        self.mouse_triple_click.notify(ctx.events, args.clone());
                     }
 
-                    ctx.updates.push_notify(self.mouse_click.clone(), args);
+                    self.mouse_click.notify(ctx.events, args);
                 } else {
                     // initial mouse press, could be a click if a Released happened on the same target.
                     self.click_count = 1;
@@ -356,7 +356,7 @@ impl MouseManager {
             }
             ElementState::Released => {
                 // on_mouse_up
-                ctx.updates.push_notify(self.mouse_up.clone(), args);
+                self.mouse_up.notify(ctx.events, args);
 
                 if let Some(click_count) = NonZeroU8::new(self.click_count) {
                     if click_count.get() == 1 {
@@ -377,11 +377,11 @@ impl MouseManager {
                             self.click_target = Some(target);
 
                             if self.mouse_single_click.has_listeners() {
-                                ctx.updates.push_notify(self.mouse_single_click.clone(), args.clone());
+                                self.mouse_single_click.notify(ctx.events, args.clone());
                             }
 
                             // on_mouse_click
-                            ctx.updates.push_notify(self.mouse_click.clone(), args);
+                            self.mouse_click.notify(ctx.events, args);
                         } else {
                             self.click_count = 0;
                             self.click_target = None;
@@ -428,10 +428,10 @@ impl MouseManager {
 
             // mouse_move
             let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits.clone(), target.clone());
-            ctx.updates.push_notify(self.mouse_move.clone(), args);
+            self.mouse_move.notify(ctx.events, args);
 
             // mouse_enter/mouse_leave.
-            self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.updates);
+            self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events);
         }
     }
 
@@ -445,7 +445,7 @@ impl MouseManager {
                     FrameHitInfo::no_hits(window_id),
                     target,
                 );
-                ctx.updates.push_notify(self.mouse_leave.clone(), args);
+                self.mouse_leave.notify(ctx.events, args);
             }
         }
     }
@@ -455,7 +455,7 @@ impl MouseManager {
             let window = ctx.services.req::<Windows>().window(window_id).unwrap();
             let hits = window.hit_test(self.pos);
             let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
-            self.update_hovered(window_id, None, hits, target, ctx.updates);
+            self.update_hovered(window_id, None, hits, target, ctx.events);
         }
     }
 
@@ -465,17 +465,17 @@ impl MouseManager {
         device_id: Option<DeviceId>,
         hits: FrameHitInfo,
         new_target: Option<WidgetPath>,
-        updates: &mut Updates,
+        events: &Events,
     ) {
         if self.hovered_target != new_target {
             if let Some(old_target) = self.hovered_target.take() {
                 let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits.clone(), old_target);
-                updates.push_notify(self.mouse_leave.clone(), args);
+                self.mouse_leave.notify(events, args);
             }
             self.hovered_target = new_target.clone();
             if let Some(new_target) = new_target {
                 let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, new_target);
-                updates.push_notify(self.mouse_enter.clone(), args);
+                self.mouse_enter.notify(events, args);
             }
         }
     }

@@ -434,13 +434,12 @@ impl AppExtension for GestureManager {
                 let args: ClickArgs = args.clone().into();
 
                 match args.click_count.get() {
-                    1 if notify_single => ctx.updates.push_notify(self.single_click.clone(), args.clone()),
-                    2 if notify_double => ctx.updates.push_notify(self.double_click.clone(), args.clone()),
-                    3 if notify_triple => ctx.updates.push_notify(self.triple_click.clone(), args.clone()),
+                    1 if notify_single => self.single_click.notify(ctx.events, args.clone()),
+                    2 if notify_double => self.double_click.notify(ctx.events, args.clone()),
+                    3 if notify_triple => self.triple_click.notify(ctx.events, args.clone()),
                     _ => {}
                 }
-
-                ctx.updates.push_notify(self.click.clone(), args);
+                self.click.notify(ctx.events, args);
             }
 
             for args in self.key_input.updates(ctx.events) {
@@ -448,18 +447,17 @@ impl AppExtension for GestureManager {
                     let args: ClickArgs = args.clone().try_into().unwrap();
 
                     if notify_single {
-                        ctx.updates.push_notify(self.single_click.clone(), args.clone());
+                        self.single_click.notify(ctx.events, args.clone());
                     }
-
-                    ctx.updates.push_notify(self.click.clone(), args);
+                    self.click.notify(ctx.events, args);
                 }
 
                 if let Some(key) = args.key {
                     match args.state {
                         ElementState::Pressed => {
                             if let Ok(gesture_key) = GestureKey::try_from(key) {
-                                ctx.updates.push_notify(
-                                    self.shortcut_input.clone(),
+                                self.shortcut_input.notify(
+                                    ctx.events,
                                     ShortcutArgs::now(
                                         args.window_id,
                                         args.device_id,
@@ -475,8 +473,8 @@ impl AppExtension for GestureManager {
                         ElementState::Released => {
                             if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                                 if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
-                                    ctx.updates.push_notify(
-                                        self.shortcut_input.clone(),
+                                    self.shortcut_input.notify(
+                                        ctx.events,
                                         ShortcutArgs::now(
                                             args.window_id,
                                             args.device_id,

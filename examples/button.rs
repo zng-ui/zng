@@ -19,13 +19,13 @@ fn example() -> impl Widget {
     let mut count = 0;
 
     button! {
-        on_click: enclose!{ (t) move |a| {
+        on_click: enclose!{ (t) move |ctx, _| {
             count += 1;
             let new_txt = formatx!("Clicked {} time{}!", count, if count > 1 {"s"} else {""});
-            t.set(a.ctx().vars, new_txt);
+            t.set(ctx.vars, new_txt);
         }};
-        on_double_click: |_| println!("double click!");
-        on_triple_click: |_| println!("triple click!");
+        on_double_click: |_, _| println!("double click!");
+        on_triple_click: |_, _| println!("triple click!");
         content: text(t);
     }
 }

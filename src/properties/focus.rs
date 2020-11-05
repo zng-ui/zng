@@ -10,7 +10,6 @@ use crate::core::{
     gesture::{Shortcut, ShortcutArgs, ShortcutEvent},
     impl_ui_node, property,
 };
-use crate::properties::events::StopPropagation;
 
 /// Enables a widget to receive focus.
 #[property(context)]
@@ -287,20 +286,15 @@ impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let handled_key = StopPropagation::<ShortcutEvent>::key();
-        if !ctx.event_state.flagged(handled_key) {
-            // if shortcut not handled
+        let shortcut = *self.shortcut.get(ctx.vars);
 
-            let shortcut = *self.shortcut.get(ctx.vars);
+        for args in self.shortcut_listener.updates(ctx.events) {
+            if !args.stop_propagation_requested() && args.shortcut == shortcut {
+                // focus on shortcut
+                ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
 
-            for update in self.shortcut_listener.updates(ctx.events) {
-                if update.shortcut == shortcut {
-                    // focus on shortcut
-
-                    ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
-                    ctx.event_state.flag(handled_key);
-                    break;
-                }
+                args.stop_propagation();
+                break;
             }
         }
     }

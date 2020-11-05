@@ -1,5 +1,5 @@
 use crate::core::render::FrameBuilder;
-use crate::core::units::{GridSpacing, LayoutGridSpacing, LayoutPoint, LayoutRect, LayoutSize};
+use crate::core::units::{GridSpacing, LayoutGridSpacing, LayoutPoint, LayoutSize};
 use crate::core::var::{IntoVar, VarLocal};
 use crate::core::{
     context::{LayoutContext, WidgetContext},

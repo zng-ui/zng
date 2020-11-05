@@ -122,6 +122,8 @@ macro_rules! event_args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+
+            stop_propagation: std::cell::Cell<bool>,
         }
         impl $Args {
             #[inline]
@@ -130,6 +132,7 @@ macro_rules! event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
+                    stop_propagation: std::cell::Cell::new(false),
                 }
             }
 
@@ -138,6 +141,22 @@ macro_rules! event_args {
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Requests that subsequent handlers skip this event.
+            #[inline]
+            pub fn stop_propagation(&self) {
+                <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
+            }
+
+            /// If the handler must skip this event.
+            ///
+            /// Note that property level handlers don't need to check this, as those handlers are
+            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            #[inline]
+            pub fn stop_propagation_requested(&self) -> bool {
+                <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
             }
         }
         impl zero_ui::core::event::EventArgs for $Args {
@@ -150,6 +169,16 @@ macro_rules! event_args {
             $(#[$concerns_widget_outer])*
             fn concerns_widget(&$self, $ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
                 $($concerns_widget)+
+            }
+
+            #[inline]
+            fn stop_propagation(&self) {
+                self.stop_propagation.set(true);
+            }
+
+            #[inline]
+            fn stop_propagation_requested(&self) -> bool {
+                self.stop_propagation.get()
             }
         }
     )+};
@@ -294,7 +323,8 @@ macro_rules! cancelable_event_args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-            cancel: std::rc::Rc<std::cell::Cell<bool>>
+            cancel: std::cell::Cell<bool>,
+            stop_propagation: std::cell::Cell<bool>,
         }
         impl $Args {
             #[inline]
@@ -303,7 +333,8 @@ macro_rules! cancelable_event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    cancel: std::rc::Rc::default()
+                    cancel: std::cell::Cell::new(false),
+                    stop_propagation: std::cell::Cell::new(false),
                 }
             }
 
@@ -312,6 +343,22 @@ macro_rules! cancelable_event_args {
             #[allow(clippy::too_many_arguments)]
             pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
                 Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Requests that subsequent handlers skip this event.
+            #[inline]
+            pub fn stop_propagation(&self) {
+                <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
+            }
+
+            /// If the handler must skip this event.
+            ///
+            /// Note that property level handlers don't need to check this, as those handlers are
+            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            #[inline]
+            pub fn stop_propagation_requested(&self) -> bool {
+                <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
             }
         }
         impl zero_ui::core::event::EventArgs for $Args {
@@ -324,6 +371,16 @@ macro_rules! cancelable_event_args {
             $(#[$concerns_widget_outer])*
             fn concerns_widget(&$self, $ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
                 $($concerns_widget)+
+            }
+
+            #[inline]
+            fn stop_propagation(&self) {
+                self.stop_propagation.set(true);
+            }
+
+            #[inline]
+            fn stop_propagation_requested(&self) -> bool {
+                self.stop_propagation.get()
             }
         }
         impl zero_ui::core::event::CancelableEventArgs for $Args {

@@ -29,7 +29,7 @@ mod build_tests {
 
     fn _basic(child: impl UiNode) -> impl UiNode {
         button! {
-            on_click: |_|{};
+            on_click: |_,_|{};
             background_gradient: (0.0, 0.0), (1.0, 1.0), vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
             content: child;
         }
@@ -38,7 +38,7 @@ mod build_tests {
     fn _args(child: impl UiNode) -> impl UiNode {
         button! {
             on_click: {
-                handler: |_|{},
+                handler: |_,_|{},
             };
 
             background_gradient: {
@@ -53,7 +53,7 @@ mod build_tests {
 
     fn _id(child: impl UiNode) -> impl UiNode {
         button! {
-            on_click: |_|{};
+            on_click: |_,_|{};
             id: WidgetId::new_unique();
             content: child;
         }
@@ -61,7 +61,7 @@ mod build_tests {
 
     fn _id_args(child: impl UiNode) -> impl UiNode {
         button! {
-            on_click: |_|{};
+            on_click: |_,_|{};
             id: {
                 id: WidgetId::new_unique()
             };

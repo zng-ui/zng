@@ -1,12 +1,13 @@
 use crate::core::widget;
 use crate::core::{
     color::rgb,
+    context::WidgetContext,
     focus::{DirectionalNav, FocusScopeOnFocus, TabNav},
     gesture::ShortcutArgs,
     window::Window,
     WidgetId,
 };
-use crate::properties::{background::*, events::on_shortcut, events::OnEventArgs, focus::*, position, size::size, title};
+use crate::properties::{background::*, events::on_shortcut, focus::*, position, size::size, title};
 use crate::widgets::container;
 use zero_ui_macros::shortcut;
 
@@ -103,18 +104,18 @@ widget! {
 }
 
 #[cfg(not(debug_assertions))]
-fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<ShortcutArgs>) {
-    |_| {}
+fn print_frame_inspector() -> impl FnMut(&mut WidgetContext, &ShortcutArgs) {
+    |_, _| {}
 }
 
 #[cfg(debug_assertions)]
-fn print_frame_inspector() -> impl FnMut(&mut OnEventArgs<ShortcutArgs>) {
+fn print_frame_inspector() -> impl FnMut(&mut WidgetContext, &ShortcutArgs) {
     use crate::core::debug::{write_frame, WriteFrameState};
 
     let mut state = WriteFrameState::none();
-    move |args| {
-        if args.args().shortcut == shortcut!(CTRL | SHIFT + I) {
-            let ctx = args.ctx();
+    move |ctx, args| {
+        if args.shortcut == shortcut!(CTRL | SHIFT + I) {
+            args.stop_propagation();
 
             let frame = ctx
                 .services
