@@ -35,14 +35,14 @@ fn font_size(font_size: RcVar<Length>) -> impl Widget {
         ui_vec![
             button! {
                 content: text("Increase Size");
-                on_click: enclose!{ (font_size) move |args| {
-                    change_size(&font_size, 1.0, args.ctx())
+                on_click: enclose!{ (font_size) move |ctx, _| {
+                    change_size(&font_size, 1.0, ctx)
                 }};
             },
             button! {
                 content: text("Decrease Size");
-                on_click: enclose!{ (font_size) move |args| {
-                    change_size(&font_size, -1.0, args.ctx())
+                on_click: enclose!{ (font_size) move |ctx, _| {
+                    change_size(&font_size, -1.0, ctx)
                 }};
             },
         ],

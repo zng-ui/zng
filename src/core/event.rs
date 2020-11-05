@@ -12,6 +12,16 @@ pub trait EventArgs: Debug + Clone + 'static {
     fn timestamp(&self) -> Instant;
     /// If this event arguments is relevant to the widget context.
     fn concerns_widget(&self, _: &mut WidgetContext) -> bool;
+
+    /// Requests that subsequent handlers skip this event.
+    fn stop_propagation(&self);
+
+    /// If the handler must skip this event.
+    ///
+    /// Note that property level handlers don't need to check this, as those handlers are
+    /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+    /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+    fn stop_propagation_requested(&self) -> bool;
 }
 
 /// [`Event`] arguments that can be canceled.
@@ -56,6 +66,7 @@ impl<A: CancelableEventArgs, E: Event<Args = A>> CancelableEvent for E {
 struct EventChannelInner<T> {
     data: UnsafeCell<Vec<T>>,
     listener_count: Cell<usize>,
+    last_update: Cell<u32>,
     is_high_pressure: bool,
 }
 
@@ -68,26 +79,37 @@ impl<T: 'static> Clone for EventChannel<T> {
     }
 }
 impl<T: 'static> EventChannel<T> {
-    pub(crate) fn notify(self, new_update: T, _assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        // SAFETY: This is safe because borrows are bound to the `Events` instance
-        // so if we have a mutable reference to it no event value is borrowed.
-        let data = unsafe { &mut *self.r.data.get() };
-        data.push(new_update);
+    pub(crate) fn notify(&self, events: &Events, new_update: T) {
+        let me = Rc::clone(&self.r);
+        events.push_change(Box::new(move |update_id, updates| {
+            // SAFETY: this is safe because Events requires a mutable reference to apply changes.
+            let data = unsafe { &mut *me.data.get() };
 
-        if data.len() == 1 {
-            // register for cleanup once
-            cleanup.push(Box::new(move || {
-                unsafe { &mut *self.r.data.get() }.clear();
-            }))
-        }
+            if me.last_update.get() != update_id {
+                data.clear();
+                me.last_update.set(update_id);
+            }
+
+            data.push(new_update);
+
+            if me.is_high_pressure {
+                updates.update_hp = true;
+            } else {
+                updates.update = true;
+            }
+        }));
     }
 
     /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
-    pub fn updates<'a>(&'a self, _events: &'a Events) -> &'a [T] {
-        // SAFETY: This is safe because we are bounding the value lifetime with
-        // the `Events` lifetime and we require a mutable reference to `Events` to
-        // modify the value.
-        unsafe { &*self.r.data.get() }.as_ref()
+    pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
+        if self.r.last_update.get() == events.update_id() {
+            // SAFETY: This is safe because we are bounding the value lifetime with
+            // the `Events` lifetime and we require a mutable reference to `Events` to
+            // modify the value.
+            unsafe { &*self.r.data.get() }.as_ref()
+        } else {
+            &[]
+        }
     }
 
     /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
@@ -169,6 +191,7 @@ impl<T: 'static> EventEmitter<T> {
                 r: Rc::new(EventChannelInner {
                     data: UnsafeCell::default(),
                     listener_count: Cell::new(0),
+                    last_update: Cell::new(0),
                     is_high_pressure,
                 }),
             },
@@ -207,6 +230,11 @@ impl<T: 'static> EventEmitter<T> {
         self.chan.is_high_pressure()
     }
 
+    /// Schedules an update notification.
+    pub fn notify(&self, events: &Events, new_update: T) {
+        self.chan.notify(events, new_update);
+    }
+
     /// Gets a new event listener linked with this emitter.
     pub fn listener(&self) -> EventListener<T> {
         EventListener::new(self.chan.clone())
@@ -215,10 +243,6 @@ impl<T: 'static> EventEmitter<T> {
     /// Converts this emitter instance into a listener.
     pub fn into_listener(self) -> EventListener<T> {
         EventListener::new(self.chan)
-    }
-
-    pub(crate) fn notify(self, new_update: T, assert_events_not_borrowed: &mut Events, cleanup: &mut Vec<Box<dyn FnOnce()>>) {
-        self.chan.notify(new_update, assert_events_not_borrowed, cleanup);
     }
 }
 

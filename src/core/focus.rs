@@ -373,7 +373,7 @@ impl AppExtension for FocusManager {
 
         if let Some(request) = request {
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
-            self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.updates);
+            self.notify(focus.fulfill_request(request, windows), focus, windows, ctx.events);
         } else if self.windows_activation.has_updates(ctx.events) {
             // foreground window maybe changed
             let (focus, windows) = ctx.services.req_multi::<(Focus, Windows)>();
@@ -383,7 +383,7 @@ impl AppExtension for FocusManager {
                     args.highlight = true;
                     focus.is_highlighting = true;
                 }
-                self.notify(Some(args), focus, windows, ctx.updates);
+                self.notify(Some(args), focus, windows, ctx.events);
                 // TODO alt scope focused just before ALT+TAB clears the focus.
             }
         }
@@ -400,31 +400,31 @@ impl AppExtension for FocusManager {
 
         if self.focused.as_ref().map(|f| f.window_id() == window_id).unwrap_or_default() {
             // new window frame, check if focus is still valid
-            self.notify(focus.continue_focus(windows), focus, windows, ctx.updates);
+            self.notify(focus.continue_focus(windows), focus, windows, ctx.events);
         }
 
         for args in focus.cleanup_returns(FrameFocusInfo::new(
             windows.window(window_id).expect("window in on_new_frame_ready").frame_info(),
         )) {
-            ctx.updates.push_notify(self.return_focus_changed.clone(), args);
+            self.return_focus_changed.notify(&ctx.events, args);
         }
     }
 }
 impl FocusManager {
-    fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, updates: &mut Updates) {
+    fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, events: &Events) {
         if let Some(args) = args {
             let prev_focus = args.prev_focus.clone();
             self.focused = args.new_focus.clone();
-            updates.push_notify(self.focus_changed.clone(), args);
+            self.focus_changed.notify(events, args);
 
             // may have focused scope.
             while let Some(after_args) = focus.move_after_focus(windows) {
                 self.focused = after_args.new_focus.clone();
-                updates.push_notify(self.focus_changed.clone(), after_args);
+                self.focus_changed.notify(events, after_args);
             }
 
             for return_args in focus.update_returns(prev_focus, windows) {
-                updates.push_notify(self.return_focus_changed.clone(), return_args);
+                self.return_focus_changed.notify(events, return_args);
             }
         }
     }

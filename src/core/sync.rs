@@ -199,7 +199,7 @@ impl<T: Send + 'static> EventSenderSync<T> {
 impl<T: Send + 'static> SyncChannel for EventSenderSync<T> {
     fn update(&self, ctx: &mut AppSyncContext) -> Retain {
         for args in self.receiver.try_iter() {
-            ctx.updates.push_notify(self.event.clone(), args);
+            self.event.notify(ctx.events, args);
         }
         !self.receiver.is_disconnected()
     }

@@ -5,10 +5,7 @@ fn main() {
     App::default().run_window(|_| {
         window! {
             title: "Focus Example";
-            on_focus_changed: |a| {
-                let args = a.args();
-                let ctx = a.ctx();
-
+            on_focus_changed: |ctx, args| {
                 if args.is_hightlight_changed() {
                     println!("highlight: {}", args.highlight);
                 } else if args.is_widget_move() {
@@ -64,7 +61,7 @@ fn button(content: impl Into<Text>, tab_index: TabIndex) -> impl Widget {
     button! {
         content: text(content.clone());
         tab_index;
-        on_click: move |_| {
+        on_click: move |_,_| {
             println!("Clicked {} {:?}", content, tab_index)
         };
     }

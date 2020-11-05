@@ -278,12 +278,13 @@ impl AppExtension for WindowManager {
                     window.is_active = *focused;
 
                     let args = WindowIsActiveArgs::now(window_id, window.is_active);
-                    ctx.updates.push_notify(self.window_is_active_changed.clone(), args.clone());
-                    if window.is_active {
-                        ctx.updates.push_notify(self.window_activated.clone(), args);
+                    self.window_is_active_changed.notify(ctx.events, args.clone());
+                    let specif_event = if window.is_active {
+                        &self.window_activated
                     } else {
-                        ctx.updates.push_notify(self.window_deactivated.clone(), args);
-                    }
+                        &self.window_deactivated
+                    };
+                    specif_event.notify(ctx.events, args);
                 }
             }
             WindowEvent::Resized(_) => {
@@ -306,8 +307,7 @@ impl AppExtension for WindowManager {
                     }
 
                     // raise window_resize
-                    ctx.updates
-                        .push_notify(self.window_resize.clone(), WindowResizeArgs::now(window_id, new_size));
+                    self.window_resize.notify(ctx.events, WindowResizeArgs::now(window_id, new_size));
                 }
             }
             WindowEvent::Moved(_) => {
@@ -325,8 +325,7 @@ impl AppExtension for WindowManager {
                     }
 
                     // raise window_move
-                    ctx.updates
-                        .push_notify(self.window_move.clone(), WindowMoveArgs::now(window_id, new_position))
+                    self.window_move.notify(ctx.events, WindowMoveArgs::now(window_id, new_position));
                 }
             }
             WindowEvent::CloseRequested => {
@@ -341,8 +340,8 @@ impl AppExtension for WindowManager {
                     ctx.updates.push_layout();
                     window.expect_layout_update();
 
-                    ctx.updates.push_notify(
-                        self.window_scale_changed.clone(),
+                    self.window_scale_changed.notify(
+                        ctx.events,
                         WindowScaleChangedArgs::now(window_id, *scale_factor as f32, window.size()),
                     );
                 }
@@ -430,15 +429,15 @@ impl WindowManager {
             wn_ctx.init(ctx);
 
             // notify the window requester
-            ctx.updates.push_notify(request.notifier, args.clone());
+            request.notifier.notify(ctx.events, args.clone());
 
             // notify everyone
-            ctx.updates.push_notify(self.window_open.clone(), args.clone());
+            self.window_open.notify(ctx.events, args.clone());
         }
 
         for (window_id, group) in close {
-            ctx.updates
-                .push_notify(self.window_closing.clone(), WindowCloseRequestedArgs::now(window_id, group))
+            self.window_closing
+                .notify(ctx.events, WindowCloseRequestedArgs::now(window_id, group));
         }
     }
 
@@ -504,17 +503,16 @@ impl WindowManager {
                 // not canceled and we can close the window.
                 // notify close, the window will be deinit on
                 // the next update.
-                ctx.updates
-                    .push_notify(self.window_close.clone(), WindowEventArgs::now(closing.window_id));
+                self.window_close.notify(ctx.events, WindowEventArgs::now(closing.window_id));
 
                 for listener in service.close_listeners.remove(&closing.window_id).unwrap_or_default() {
-                    ctx.updates.push_notify(listener, CloseWindowResult::Close);
+                    listener.notify(ctx.events, CloseWindowResult::Close);
                 }
             } else {
                 // canceled notify operation listeners.
 
                 for listener in service.close_listeners.remove(&closing.window_id).unwrap_or_default() {
-                    ctx.updates.push_notify(listener, CloseWindowResult::Cancel);
+                    listener.notify(ctx.events, CloseWindowResult::Cancel);
                 }
             }
         }

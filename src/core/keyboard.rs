@@ -133,12 +133,12 @@ impl AppExtension for KeyboardManager {
                 let target = Self::target(window_id, ctx.services);
                 ctx.services
                     .req::<Keyboard>()
-                    .device_input(device_id, scancode, key, state, target, ctx.updates);
+                    .device_input(device_id, scancode, key, state, target, ctx.events);
             }
 
             WindowEvent::ModifiersChanged(m) => {
                 let target = Self::target(window_id, ctx.services);
-                ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.updates);
+                ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.events);
             }
 
             _ => {}
@@ -185,8 +185,8 @@ impl Keyboard {
 
     /// Process a software keyboard input.
     #[inline]
-    pub fn input(&mut self, key: VirtualKeyCode, state: ElementState, target: WidgetPath, updates: &mut Updates) {
-        self.do_input(None, key as ScanCode, Some(key), state, target, updates);
+    pub fn input(&mut self, key: VirtualKeyCode, state: ElementState, target: WidgetPath, events: &Events) {
+        self.do_input(None, key as ScanCode, Some(key), state, target, events);
     }
 
     /// Process a external keyboard input.
@@ -198,17 +198,17 @@ impl Keyboard {
         key: Option<VirtualKeyCode>,
         state: ElementState,
         target: WidgetPath,
-        updates: &mut Updates,
+        events: &Events,
     ) {
-        self.do_input(Some(device_id), scan_code, key, state, target, updates);
+        self.do_input(Some(device_id), scan_code, key, state, target, events);
     }
 
     /// Set the keyboard modifiers state.
-    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, updates: &mut Updates) {
+    pub fn set_modifiers(&mut self, modifiers: ModifiersState, target: WidgetPath, events: &Events) {
         if self.modifiers != modifiers {
             let prev_modifiers = std::mem::replace(&mut self.modifiers, modifiers);
             let args = ModifiersChangedArgs::now(prev_modifiers, modifiers, target);
-            updates.push_notify(self.modifiers_changed.clone(), args);
+            self.modifiers_changed.notify(events, args);
         }
     }
 
@@ -225,7 +225,7 @@ impl Keyboard {
         key: Option<VirtualKeyCode>,
         state: ElementState,
         target: WidgetPath,
-        updates: &mut Updates,
+        events: &Events,
     ) {
         let mut repeat = false;
         if state == ElementState::Pressed {
@@ -239,12 +239,12 @@ impl Keyboard {
 
         let args = KeyInputArgs::now(target.window_id(), device_id, scan_code, state, key, self.modifiers, repeat, target);
 
-        updates.push_notify(self.key_input.clone(), args.clone());
+        self.key_input.notify(events, args.clone());
 
         let specific_event = match args.state {
-            ElementState::Pressed => self.key_down.clone(),
-            ElementState::Released => self.key_up.clone(),
+            ElementState::Pressed => &self.key_down,
+            ElementState::Released => &self.key_up,
         };
-        updates.push_notify(specific_event, args);
+        specific_event.notify(events, args);
     }
 }

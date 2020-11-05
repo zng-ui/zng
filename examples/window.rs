@@ -82,8 +82,8 @@ fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, co
     let var = var.clone();
     button! {
         content: text(content_txt);
-        on_click: move |a| {
-            var.set(a.ctx().vars,  new_value.clone());
+        on_click: move |ctx, _| {
+            var.set(ctx.vars,  new_value.clone());
         };
     }
 }
@@ -92,11 +92,10 @@ fn screenshot() -> impl Widget {
     use std::time::Instant;
     button! {
         content: text("screenshot");
-        on_click: |args| {
+        on_click: |ctx, _| {
             println!("taking `screenshot.png`..");
 
             let t = Instant::now();
-            let ctx = args.ctx();
             let img = ctx.services.req::<Windows>().window(ctx.path.window_id()).unwrap().screenshot();
             println!("taken in {:?}", t.elapsed());
 
@@ -110,7 +109,7 @@ fn screenshot() -> impl Widget {
 fn inspect() -> impl Widget {
     button! {
         content: text("inspector");
-        on_click: |_| {
+        on_click: |_,_| {
             println!("in debug only, press CTRL+SHIFT+I")
         };
     }

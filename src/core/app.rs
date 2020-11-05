@@ -220,7 +220,7 @@ fn shutdown(shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>, ctx: &mut A
     ext.on_shutdown_requested(&args, ctx);
     if args.cancel_requested() {
         for c in shutdown_requests {
-            ctx.updates.push_notify(c, ShutDownCancelled)
+            c.notify(ctx.events, ShutDownCancelled);
         }
     }
     !args.cancel_requested()
