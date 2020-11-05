@@ -1,10 +1,4 @@
-use crate::core::{
-    context::WidgetContext,
-    text::Text,
-    var::{IntoVar, Var},
-    UiNode,
-};
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct TitleNode<C: UiNode, T: Var<Text>> {
     child: C,

@@ -1,4 +1,4 @@
-//! Core infrastructure required for running a zero-ui app.
+//! Core infrastructure required for creating components and running an app.
 
 pub mod animation;
 pub mod app;
@@ -288,6 +288,8 @@ impl UiNode for FillUiNode {}
 
 /// This is called by the default widgets `new_child` function.
 ///
+/// See [widgets](crate::widgets) for more details.
+///
 /// Returns a [`NilUiNode`].
 #[inline]
 pub fn default_widget_new_child() -> impl UiNode {
@@ -295,6 +297,8 @@ pub fn default_widget_new_child() -> impl UiNode {
 }
 
 /// This is called by the default widgets `new` function.
+///
+/// See [widgets](crate::widgets) for more details.
 ///
 /// A new widget context is introduced by this function. `child` is wrapped in a node that calls
 /// [`WidgetContext::widget_context`](WidgetContext::widget_context) and [`FrameBuilder::push_widget`] to define the widget.

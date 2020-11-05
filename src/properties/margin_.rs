@@ -1,12 +1,4 @@
-use crate::core::{
-    context::LayoutContext,
-    context::WidgetContext,
-    render::FrameBuilder,
-    units::*,
-    var::{IntoVar, VarLocal},
-    UiNode,
-};
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct MarginNode<T: UiNode, M: VarLocal<SideOffsets>> {
     child: T,

@@ -1,14 +1,6 @@
-//! Color filter properties, [`opacity`], [`filter`] and more.
+//! Color filter properties, [`opacity`](mod@opacity), [`filter`](mod@filter) and more.
 
-use crate::core::{
-    color::{self, Filter, RenderFilter, Rgba},
-    context::LayoutContext,
-    context::WidgetContext,
-    render::{FrameBinding, FrameBindingKey, FrameBuilder, FrameUpdate},
-    units::{AngleDegree, LayoutSize, Length, Point},
-    var::{merge_var, IntoVar, Var, VarLocal, VarObj},
-};
-use crate::core::{impl_ui_node, property, units::FactorNormal, UiNode};
+use crate::prelude::new_property::*;
 
 struct FilterNode<C: UiNode, F: VarLocal<Filter>> {
     child: C,

@@ -1,12 +1,6 @@
 //! Transform properties, [`scale`](module@scale), [`rotate`](module@rotate), [`transform`](module@transform) and more.
 
-use crate::core::{
-    context::{LayoutContext, WidgetContext},
-    render::{FrameBuilder, FrameUpdate},
-    units::{self, *},
-    var::{merge_var, IntoVar, Var, VarLocal},
-};
-use crate::core::{impl_ui_node, property, UiNode};
+use crate::prelude::new_property::*;
 
 struct TransformNode<C: UiNode, T: VarLocal<Transform>> {
     child: C,

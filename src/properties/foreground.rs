@@ -1,14 +1,7 @@
 //! Foreground/overlay properties, [`foreground_highlight`] and more.
 
 use super::BorderDetails;
-use crate::core::color::Rgba;
-use crate::core::context::*;
-use crate::core::render::*;
-use crate::core::types::*;
-use crate::core::units::*;
-use crate::core::var::*;
-use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, fill_gradient};
 
 struct ForegroundNode<T: UiNode, B: UiNode> {

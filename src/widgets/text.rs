@@ -1,21 +1,7 @@
 //! Text widgets.
 
-use std::mem;
-
-use crate::core::context::*;
-use crate::core::impl_ui_node;
-use crate::core::render::FrameBuilder;
-use crate::core::text::*;
-use crate::core::types::*;
-use crate::core::units::*;
-use crate::core::var::{IntoVar, Var};
-use crate::core::{
-    color::{web_colors, RenderColor},
-    is_layout_any_size,
-};
-use crate::core::{UiNode, Widget};
-use crate::properties::{capture_only::text_value, text_theme::*};
-use zero_ui_macros::widget;
+use crate::prelude::new_widget::*;
+use crate::properties::text_theme::*;
 
 widget! {
     /// A configured [`text`](../fn.text.html).

@@ -183,6 +183,8 @@ pub struct AppExtended<E: AppExtension> {
 pub struct ShutDownCancelled;
 
 /// Service for managing the application process.
+///
+/// This is the only service that is registered without an application extension.
 pub struct AppProcess {
     shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
     update_notifier: UpdateNotifier,

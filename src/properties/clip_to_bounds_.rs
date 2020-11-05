@@ -1,11 +1,4 @@
-use crate::core::{
-    context::{LayoutContext, WidgetContext},
-    render::FrameBuilder,
-    units::*,
-    var::{IntoVar, VarLocal},
-    UiNode,
-};
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct ClipToBoundsNode<T: UiNode, S: VarLocal<bool>> {
     child: T,

@@ -1,3 +1,5 @@
+//! Animation API.
+
 use crate::core::var::VarValue;
 use std::fmt::Debug;
 use std::{

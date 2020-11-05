@@ -1,9 +1,5 @@
-use crate::core::context::*;
-use crate::core::render::*;
-use crate::core::var::*;
 use crate::core::window::CursorIcon;
-use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct CursorNode<T: UiNode, C: VarLocal<CursorIcon>> {
     cursor: C,

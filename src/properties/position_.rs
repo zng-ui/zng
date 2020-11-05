@@ -1,13 +1,4 @@
-use crate::core::{
-    context::{LayoutContext, WidgetContext},
-    impl_ui_node, property,
-    render::FrameBuilder,
-};
-use crate::core::{
-    units::*,
-    var::{IntoVar, VarLocal},
-    UiNode,
-};
+use crate::prelude::new_property::*;
 
 struct PositionNode<T: UiNode, P: VarLocal<Point>> {
     child: T,

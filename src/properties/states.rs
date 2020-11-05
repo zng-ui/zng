@@ -1,12 +1,8 @@
 //! Widget state properties, [`is_hovered`], [`is_pressed`], [`is_focused`] and more.
 
-use crate::core::context::*;
-use crate::core::event::*;
 use crate::core::focus::*;
 use crate::core::mouse::*;
-use crate::core::var::StateVar;
-use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct IsHoveredNode<C: UiNode> {
     child: C,

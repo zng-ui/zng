@@ -1,5 +1,4 @@
-use crate::core::{units::Alignment, widget, UiNode};
-use crate::properties::{align, capture_only::widget_child, clip_to_bounds, margin};
+use crate::prelude::new_widget::*;
 
 widget! {
     /// Base single content container.

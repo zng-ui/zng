@@ -1,12 +1,7 @@
 //! Context properties for theming the [`button!`](module@crate::widgets::button) widget.
 
-use crate::core::color::rgb;
-use crate::core::color::Rgba;
-use crate::core::property;
-use crate::core::units::*;
-use crate::core::var::{context_var, IntoVar};
-use crate::core::UiNode;
-use crate::properties::{with_context_var, BorderDetails};
+use crate::prelude::new_property::*;
+use crate::properties::BorderDetails;
 
 context_var! {
     /// Default background of [`button!`](module@crate::widgets::button) widgets.

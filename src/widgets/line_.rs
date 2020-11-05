@@ -1,13 +1,5 @@
-use crate::core::color::{rgb, Rgba};
-use crate::core::context::*;
-use crate::core::render::*;
-use crate::core::types::*;
-use crate::core::units::*;
-use crate::core::var::*;
-use crate::{
-    core::{impl_ui_node, is_layout_any_size, widget, UiNode, Widget},
-    properties::{capture_only::*, BorderDetails, BorderSide, BorderStyle},
-};
+use crate::prelude::new_widget::*;
+use crate::properties::capture_only::color;
 use webrender::api as w_api;
 
 struct LineNode<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> {

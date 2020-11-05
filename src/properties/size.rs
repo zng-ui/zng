@@ -1,13 +1,6 @@
 //! Manually sizing properties, [`min_size`], [`max_size`] and more.
 
-use crate::core::{
-    context::{LayoutContext, WidgetContext},
-    is_layout_any_size,
-    units::*,
-    var::{IntoVar, VarLocal},
-    UiNode,
-};
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct MinSizeNode<T: UiNode, S: VarLocal<Size>> {
     child: T,

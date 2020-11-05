@@ -1,9 +1,4 @@
-use crate::core::impl_ui_node;
-use crate::core::{
-    context::WidgetContext,
-    var::{Var, VarValue},
-    UiNode,
-};
+use crate::prelude::new_widget::*;
 
 /// [`view`] update.
 pub enum View<U: UiNode> {

@@ -1,15 +1,7 @@
 //! Context properties for theming the [`text!`](module@crate::widgets::text) widget.
 
-use crate::core::{
-    color::{web_colors, Rgba},
-    context::{Vars, WidgetContext},
-    impl_ui_node, property,
-    text::{font_features::*, *},
-    units::*,
-    var::{context_var, IntoVar, Var, VarValue},
-    UiNode,
-};
-use crate::properties::with_context_var;
+use crate::core::text::{font_features::*, *};
+use crate::prelude::new_property::*;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 

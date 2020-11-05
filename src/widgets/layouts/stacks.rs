@@ -1,16 +1,4 @@
-use crate::core::{
-    context::{LayoutContext, WidgetContext},
-    render::FrameBuilder,
-    ui_vec,
-    units::{LayoutLength, LayoutPoint, LayoutRect, LayoutSize, Length},
-    var::{IntoVar, VarLocal},
-    UiNode, UiVec, Widget, LAYOUT_ANY_SIZE,
-};
-use crate::core::{impl_ui_node, widget};
-use crate::properties::{
-    capture_only::{spacing, widget_children},
-    margin,
-};
+use crate::prelude::new_widget::*;
 use std::marker::PhantomData;
 
 trait StackDimension: 'static {

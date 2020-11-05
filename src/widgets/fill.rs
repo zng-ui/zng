@@ -1,10 +1,4 @@
-use crate::core::color::Rgba;
-use crate::core::context::*;
-use crate::core::render::*;
-use crate::core::types::GradientStop;
-use crate::core::units::*;
-use crate::core::var::*;
-use crate::core::{impl_ui_node, profiler::profile_scope, UiNode};
+use crate::prelude::new_widget::*;
 
 struct FillGradientNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> {
     start: A,
@@ -41,8 +35,6 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> UiN
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        profile_scope!("render_gradient");
-
         frame.push_linear_gradient(
             LayoutRect::from_size(self.final_size),
             self.render_start,
@@ -83,7 +75,6 @@ impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        profile_scope!("render_color");
         frame.push_color(LayoutRect::from_size(self.final_size), (*self.color.get_local()).into());
     }
 }

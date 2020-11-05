@@ -1,15 +1,7 @@
-use crate::core::widget;
-use crate::core::{
-    color::rgb,
-    context::WidgetContext,
-    focus::{DirectionalNav, FocusScopeOnFocus, TabNav},
-    gesture::ShortcutArgs,
-    window::Window,
-    WidgetId,
-};
-use crate::properties::{background::*, events::on_shortcut, focus::*, position, size::size, title};
-use crate::widgets::container;
-use zero_ui_macros::shortcut;
+use crate::core::focus::*;
+use crate::core::gesture::*;
+use crate::core::window::Window;
+use crate::prelude::new_widget::*;
 
 widget! {
     /// A window container.

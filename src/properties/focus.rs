@@ -1,15 +1,7 @@
 //! Keyboard focus properties, [`tab_index`], [`focusable`] and more.
 
-use crate::core::context::*;
 use crate::core::focus::*;
-use crate::core::render::*;
-use crate::core::var::*;
-use crate::core::UiNode;
-use crate::core::{
-    event::{Event, EventListener},
-    gesture::{Shortcut, ShortcutArgs, ShortcutEvent},
-    impl_ui_node, property,
-};
+use crate::prelude::new_property::*;
 
 /// Enables a widget to receive focus.
 #[property(context)]

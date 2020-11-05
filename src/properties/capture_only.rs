@@ -1,20 +1,9 @@
 //! Properties that are only used by widgets directly.
 //!
 //! Setting this properties in a widget that does not reexports then is an error.
-
-use crate::{
-    core::{
-        color::Rgba,
-        gesture::Shortcut,
-        property,
-        text::Text,
-        types::LineOrientation,
-        units::{GridSpacing, Length},
-        var::IntoVar,
-        UiNode, UiVec, WidgetId,
-    },
-    widgets::LineStyle,
-};
+use crate::core::gesture::Shortcut;
+use crate::prelude::new_property::*;
+use crate::widgets::LineStyle;
 
 /// Widget id.
 ///

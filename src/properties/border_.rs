@@ -1,11 +1,4 @@
-use crate::core::color::{RenderColor, Rgba};
-use crate::core::context::*;
-use crate::core::render::*;
-use crate::core::types::*;
-use crate::core::units::*;
-use crate::core::var::*;
-use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 use webrender::api as w_api;
 
 impl IntoVar<BorderDetails> for Rgba {

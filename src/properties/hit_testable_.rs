@@ -1,8 +1,4 @@
-use crate::core::context::*;
-use crate::core::render::FrameBuilder;
-use crate::core::var::*;
-use crate::core::UiNode;
-use crate::core::{impl_ui_node, property};
+use crate::prelude::new_property::*;
 
 struct HitTestableNode<U: UiNode, H: VarLocal<bool>> {
     child: U,
