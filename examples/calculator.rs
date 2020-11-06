@@ -5,7 +5,7 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|_| {
-        let calc: RcVar<Calculator> = var(Calculator::default());
+        let calc = var(Calculator::default());
         window! {
             title: "Calculator";
             resizable: false;

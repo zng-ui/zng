@@ -15,7 +15,7 @@ fn main() {
 }
 
 fn example() -> impl Widget {
-    let t = var("Click Me!");
+    let t = var_from("Click Me!");
     let mut count = 0;
 
     button! {

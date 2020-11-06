@@ -304,12 +304,17 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
     }
 }
 
-/// New [`RcVar`].
-pub fn var<V: VarValue, I: Into<V>>(value: I) -> RcVar<V> {
+/// new [`RcVar`].
+pub fn var<V: VarValue>(value: V) -> RcVar<V> {
+    RcVar::new(value)
+}
+
+/// New [`RcVar`] using conversion.
+pub fn var_from<V: VarValue, I: Into<V>>(value: I) -> RcVar<V> {
     RcVar::new(value.into())
 }
 
-/// Initializes a new [`StateVar`].
+/// New [`StateVar`].
 pub fn state_var() -> StateVar {
     var(false)
 }

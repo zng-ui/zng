@@ -3,8 +3,8 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|_| {
-        let position = var((f32::NAN, f32::NAN));
-        let size = var((800, 600));
+        let position = var_from((f32::NAN, f32::NAN));
+        let size = var_from((800, 600));
 
         let title = merge_var!(position.clone(), size.clone(), |p: &Point, s: &Size| {
             formatx!("Window Example - position: {:.0}, size: {:.0}", p, s)
