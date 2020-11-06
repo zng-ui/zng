@@ -273,6 +273,15 @@ pub fn on_preview_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetCont
 }
 
 #[property(event)]
+pub fn on_char_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &CharInputArgs) + 'static) -> impl UiNode {
+    on_event(child, CharInputEvent, handler)
+}
+#[property(event)]
+pub fn on_preview_char_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &CharInputArgs) + 'static) -> impl UiNode {
+    on_preview_event(child, CharInputEvent, handler)
+}
+
+#[property(event)]
 pub fn on_mouse_move(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseMoveArgs) + 'static) -> impl UiNode {
     on_event(child, MouseMoveEvent, handler)
 }

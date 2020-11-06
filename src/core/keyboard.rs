@@ -49,6 +49,25 @@ event_args! {
         }
     }
 
+    /// Character received event args.
+    pub struct CharInputArgs {
+        /// Id of window that received the event.
+        pub window_id: WindowId,
+
+        /// The character.
+        pub character: char,
+
+        /// The focused element at the time of the key input.
+        pub target: WidgetPath,
+
+        ..
+
+        /// If the widget is focused or contains the focused widget.
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            self.target.contains(ctx.path.widget_id())
+        }
+    }
+
     /// Keyboard modifiers changed event args.
     pub struct ModifiersChangedArgs {
         /// Previous modifiers state.
@@ -81,6 +100,9 @@ event! {
 
     /// Modifiers state changed event.
     pub ModifiersChangedEvent: ModifiersChangedArgs;
+
+    /// Character received event.
+    pub CharInputEvent: CharInputArgs;
 }
 
 /// Application extension that provides keyboard events.
@@ -93,6 +115,7 @@ event! {
 /// * [KeyDownEvent]
 /// * [KeyUpEvent]
 /// * [ModifiersChangedEvent]
+/// * [CharInputEvent]
 ///
 /// # Services
 ///
@@ -141,6 +164,11 @@ impl AppExtension for KeyboardManager {
                 ctx.services.req::<Keyboard>().set_modifiers(m, target, ctx.events);
             }
 
+            WindowEvent::ReceivedCharacter(c) => {
+                let target = Self::target(window_id, ctx.services);
+                ctx.services.req::<Keyboard>().char_input(c, target, ctx.events);
+            }
+
             _ => {}
         }
     }
@@ -160,6 +188,8 @@ pub struct Keyboard {
     key_up: EventEmitter<KeyInputArgs>,
 
     modifiers_changed: EventEmitter<ModifiersChangedArgs>,
+
+    char_input: EventEmitter<CharInputArgs>
 }
 impl AppService for Keyboard {}
 impl Keyboard {
@@ -173,12 +203,15 @@ impl Keyboard {
             key_up: KeyUpEvent::emitter(),
 
             modifiers_changed: ModifiersChangedEvent::emitter(),
+
+            char_input: CharInputEvent::emitter(),
         };
 
         events.register::<KeyInputEvent>(self_.key_input.listener());
         events.register::<KeyDownEvent>(self_.key_down.listener());
         events.register::<KeyUpEvent>(self_.key_up.listener());
         events.register::<ModifiersChangedEvent>(self_.modifiers_changed.listener());
+        events.register::<CharInputEvent>(self_.char_input.listener());
 
         self_
     }
@@ -212,13 +245,19 @@ impl Keyboard {
         }
     }
 
+    /// Character input.
+    pub fn char_input(&mut self, character: char, target: WidgetPath, events: &Events) {
+        let args = CharInputArgs::now(target.window_id(), character, target);
+        self.char_input.notify(events, args);
+    }
+
     /// Current modifiers pressed.
     #[inline]
     pub fn modifiers(&self) -> ModifiersState {
         self.modifiers
     }
 
-    pub fn do_input(
+    fn do_input(
         &mut self,
         device_id: Option<DeviceId>,
         scan_code: ScanCode,
