@@ -1,16 +1,15 @@
 //! Context information for app extensions, windows and widgets.
 
 use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
-use super::event::{Event, EventListener};
 use super::service::{AppServices, AppServicesInit, WindowServices, WindowServicesInit};
 use super::sync::Sync;
+use super::event::Events;
 use super::units::{LayoutSize, PixelGrid};
 use super::var::Vars;
 use super::window::WindowId;
-use super::{AnyMap, WidgetId};
-use fnv::FnvHashMap;
-use std::any::{type_name, Any, TypeId};
-use std::cell::RefCell;
+use super::WidgetId;
+use super::AnyMap;
+use std::any::{Any, TypeId};
 use std::mem;
 use std::sync::atomic::{self, AtomicU8};
 use std::{marker::PhantomData, sync::Arc};
@@ -146,8 +145,6 @@ impl UpdateNotifier {
     }
 }
 
-singleton_assert!(SingletonEvents);
-
 /// A key to a value in a [`StateMap`].
 ///
 /// The type that implements this trait is the key. You
@@ -163,9 +160,8 @@ pub use zero_ui_macros::state_key;
 /// a stage of the application.
 #[derive(Debug, Default)]
 pub struct StateMap {
-    map: FnvHashMap<TypeId, Box<dyn Any>>,
+    map: AnyMap,
 }
-
 impl StateMap {
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
         let _ = key;
@@ -316,78 +312,6 @@ impl LazyStateMap {
     /// Gets if a state key without value is set.
     pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
         self.get(key).is_some()
-    }
-}
-
-/// Access to application events.
-///
-/// Only a single instance of this type exists at a time.
-pub struct Events {
-    events: AnyMap,
-    update_id: u32,
-    #[allow(clippy::type_complexity)]
-    pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
-    _singleton: SingletonEvents,
-}
-
-impl Events {
-    /// Produces the instance of `Events`. Only a single
-    /// instance can exist at a time, panics if called
-    /// again before dropping the previous instance.
-    pub fn instance() -> Self {
-        Events {
-            events: Default::default(),
-            update_id: 0,
-            pending: RefCell::default(),
-            _singleton: SingletonEvents::assert_new(),
-        }
-    }
-
-    /// Register a new event for the duration of the application.
-    pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
-        assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
-        self.events.insert(TypeId::of::<E>(), Box::new(listener));
-    }
-
-    /// Creates an event listener if the event is registered in the application.
-    pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
-        if let Some(any) = self.events.get(&TypeId::of::<E>()) {
-            // SAFETY: This is safe because args are always the same type as key in
-            // `AppRegister::register_event` witch is the only place where insertion occurs.
-            Some(any.downcast_ref::<EventListener<E::Args>>().unwrap().clone())
-        } else {
-            None
-        }
-    }
-
-    /// Creates an event listener.
-    ///
-    /// # Panics
-    /// If the event is not registered in the application.
-    pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
-        self.try_listen::<E>()
-            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
-    }
-
-    pub(super) fn update_id(&self) -> u32 {
-        self.update_id
-    }
-
-    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32, &mut UpdateRequest)>) {
-        self.pending.borrow_mut().push(change);
-    }
-
-    pub(super) fn apply(&mut self, updates: &mut Updates) {
-        self.update_id = self.update_id.wrapping_add(1);
-
-        let pending = self.pending.get_mut();
-        if !pending.is_empty() {
-            let mut ups = UpdateRequest::default();
-            for f in pending.drain(..) {
-                f(self.update_id, &mut ups);
-            }
-            updates.push_updates(ups);
-        }
     }
 }
 

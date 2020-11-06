@@ -1,7 +1,9 @@
 //! App event API.
 
-use crate::core::context::{Events, WidgetContext};
-use std::cell::{Cell, UnsafeCell};
+use super::context::{WidgetContext, UpdateRequest, Updates};
+use super::AnyMap;
+use std::any::*;
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
@@ -252,6 +254,80 @@ impl<T: 'static> EventEmitter<T> {
     /// Converts this emitter instance into a listener.
     pub fn into_listener(self) -> EventListener<T> {
         EventListener::new(self.chan)
+    }
+}
+
+singleton_assert!(SingletonEvents);
+
+/// Access to application events.
+///
+/// Only a single instance of this type exists at a time.
+pub struct Events {
+    events: AnyMap,
+    update_id: u32,
+    #[allow(clippy::type_complexity)]
+    pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
+    _singleton: SingletonEvents,
+}
+
+impl Events {
+    /// Produces the instance of `Events`. Only a single
+    /// instance can exist at a time, panics if called
+    /// again before dropping the previous instance.
+    pub fn instance() -> Self {
+        Events {
+            events: Default::default(),
+            update_id: 0,
+            pending: RefCell::default(),
+            _singleton: SingletonEvents::assert_new(),
+        }
+    }
+
+    /// Register a new event for the duration of the application.
+    pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
+        assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
+        self.events.insert(TypeId::of::<E>(), Box::new(listener));
+    }
+
+    /// Creates an event listener if the event is registered in the application.
+    pub fn try_listen<E: Event>(&self) -> Option<EventListener<E::Args>> {
+        if let Some(any) = self.events.get(&TypeId::of::<E>()) {
+            // SAFETY: This is safe because args are always the same type as key in
+            // `AppRegister::register_event` witch is the only place where insertion occurs.
+            Some(any.downcast_ref::<EventListener<E::Args>>().unwrap().clone())
+        } else {
+            None
+        }
+    }
+
+    /// Creates an event listener.
+    ///
+    /// # Panics
+    /// If the event is not registered in the application.
+    pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
+        self.try_listen::<E>()
+            .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
+    }
+
+    pub(super) fn update_id(&self) -> u32 {
+        self.update_id
+    }
+
+    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32, &mut UpdateRequest)>) {
+        self.pending.borrow_mut().push(change);
+    }
+
+    pub(super) fn apply(&mut self, updates: &mut Updates) {
+        self.update_id = self.update_id.wrapping_add(1);
+
+        let pending = self.pending.get_mut();
+        if !pending.is_empty() {
+            let mut ups = UpdateRequest::default();
+            for f in pending.drain(..) {
+                f(self.update_id, &mut ups);
+            }
+            updates.push_updates(ups);
+        }
     }
 }
 
