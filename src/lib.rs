@@ -329,6 +329,36 @@ macro_rules! impl_from_and_into_var {
     };
 }
 
+/// Generates a type that can only have a single instance at a time.
+macro_rules! singleton_assert {
+    ($Singleton:ident) => {
+        struct $Singleton {}
+
+        impl $Singleton {
+            fn flag() -> &'static std::sync::atomic::AtomicBool {
+                static ALIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                &ALIVE
+            }
+
+            pub fn assert_new() -> Self {
+                if Self::flag().load(std::sync::atomic::Ordering::Acquire) {
+                    panic!("only a single instance of `{}` can exist at at time", stringify!($Singleton))
+                }
+
+                Self::flag().store(true, std::sync::atomic::Ordering::Release);
+
+                $Singleton {}
+            }
+        }
+
+        impl Drop for $Singleton {
+            fn drop(&mut self) {
+                Self::flag().store(false, std::sync::atomic::Ordering::Release);
+            }
+        }
+    };
+}
+
 #[doc(hidden)]
 pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
 
@@ -359,7 +389,7 @@ pub mod prelude {
             self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
             web_colors, Rgba,
         },
-        context::{AppServices, Sync, Vars, WidgetContext, WindowServices},
+        context::{AppServices, WidgetContext, WindowServices},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
@@ -377,7 +407,8 @@ pub mod prelude {
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
             TimeUnits,
         },
-        var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj},
+        var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
+        sync::Sync,
         window::{AppRunWindow, CursorIcon, Window, Windows},
         UiNode, UiVec, Widget, WidgetId,
     };

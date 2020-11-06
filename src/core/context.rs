@@ -1,32 +1,21 @@
 //! Context information for app extensions, windows and widgets.
 
-pub use super::sync::Sync;
+use super::sync::Sync;
 use super::units::{LayoutSize, PixelGrid};
-use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
-use crate::core::event::{Event, EventListener};
-use crate::core::var::*;
-use crate::core::window::WindowId;
-use crate::core::WidgetId;
+use super::var::Vars;
+use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
+use super::event::{Event, EventListener};
+use super::window::WindowId;
+use super::WidgetId;
 use fnv::{FnvHashMap, FnvHashSet};
 use std::any::{type_name, Any, TypeId};
 use std::cell::RefCell;
 use std::mem;
-use std::sync::atomic::{self, AtomicBool, AtomicU8};
+use std::sync::atomic::{self, AtomicU8};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
 
 type AnyMap = FnvHashMap<TypeId, Box<dyn Any>>;
-
-enum AnyRef {}
-impl AnyRef {
-    fn pack<T>(r: &T) -> *const AnyRef {
-        (r as *const T) as *const AnyRef
-    }
-
-    unsafe fn unpack<'a, T>(pointer: *const Self) -> &'a T {
-        &*(pointer as *const T)
-    }
-}
 
 /// Required updates for a window layout and frame.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -158,122 +147,7 @@ impl UpdateNotifier {
     }
 }
 
-macro_rules! singleton_assert {
-    ($Singleton:ident) => {
-        struct $Singleton {}
-
-        impl $Singleton {
-            fn flag() -> &'static AtomicBool {
-                static ALIVE: AtomicBool = AtomicBool::new(false);
-                &ALIVE
-            }
-
-            pub fn assert_new() -> Self {
-                if Self::flag().load(atomic::Ordering::Acquire) {
-                    panic!("only a single instance of `{}` can exist at at time", stringify!($Singleton))
-                }
-
-                Self::flag().store(true, atomic::Ordering::Release);
-
-                $Singleton {}
-            }
-        }
-
-        impl Drop for $Singleton {
-            fn drop(&mut self) {
-                Self::flag().store(false, atomic::Ordering::Release);
-            }
-        }
-    };
-}
-
 singleton_assert!(SingletonEvents);
-singleton_assert!(SingletonVars);
-
-/// Access to application variables.
-///
-/// Only a single instance of this type exists at a time.
-pub struct Vars {
-    _singleton: SingletonVars,
-    update_id: u32,
-    #[allow(clippy::type_complexity)]
-    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
-    context_vars: RefCell<FnvHashMap<TypeId, (*const AnyRef, bool, u32)>>,
-}
-
-pub type ContextVarStageId = (Option<WidgetId>, u32);
-
-impl Vars {
-    /// Produces the instance of `Vars`. Only a single
-    /// instance can exist at a time, panics if called
-    /// again before dropping the previous instance.
-    pub fn instance() -> Self {
-        Vars {
-            _singleton: SingletonVars::assert_new(),
-            update_id: 0,
-            pending: Default::default(),
-            context_vars: Default::default(),
-        }
-    }
-
-    pub(super) fn update_id(&self) -> u32 {
-        self.update_id
-    }
-
-    /// Gets a var at the context level.
-    pub(super) fn context_var<C: ContextVar>(&self) -> (&C::Type, bool, u32) {
-        let vars = self.context_vars.borrow();
-        if let Some((any_ref, is_new, version)) = vars.get(&TypeId::of::<C>()) {
-            // SAFETY: This is safe because `TypeId` keys are always associated
-            // with the same type of reference. Also we are not leaking because the
-            // source reference is borrowed in a [`with_context_var`] call.
-            let value = unsafe { AnyRef::unpack(*any_ref) };
-            (value, *is_new, *version)
-        } else {
-            (C::default_value(), false, 0)
-        }
-    }
-
-    /// Calls `f` with the context var value.
-    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, _: C, value: &C::Type, is_new: bool, version: u32, f: F) {
-        let var_id = TypeId::of::<C>();
-
-        let prev = self
-            .context_vars
-            .borrow_mut()
-            .insert(var_id, (AnyRef::pack(value), is_new, version));
-
-        f();
-
-        let mut vars = self.context_vars.borrow_mut();
-        if let Some(prev) = prev {
-            vars.insert(var_id, prev);
-        } else {
-            vars.remove(&var_id);
-        }
-    }
-
-    /// Calls `f` with the `context_var` set from the `other_var`.
-    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
-        self.with_context_var(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
-    }
-
-    pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32)>) {
-        self.pending.borrow_mut().push(change);
-    }
-
-    pub(super) fn apply(&mut self, updates: &mut Updates) {
-        self.update_id = self.update_id.wrapping_add(1);
-
-        let pending = self.pending.get_mut();
-        if !pending.is_empty() {
-            for f in pending.drain(..) {
-                f(self.update_id);
-            }
-            updates.push_update();
-        }
-    }
-}
 
 /// A key to a value in a [`StateMap`].
 ///

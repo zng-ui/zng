@@ -1,6 +1,5 @@
 //! Variables.
 
-use crate::core::context::Vars;
 use std::{
     cell::RefCell,
     cell::{Cell, UnsafeCell},
@@ -45,6 +44,9 @@ pub use rc_merge_var::*;
 
 mod rc_switch_var;
 pub use rc_switch_var::*;
+
+mod vars;
+pub use vars::*;
 
 pub use zero_ui_macros::context_var;
 /// A type that can be a [`Var`](crate::core::var::Var) value.
