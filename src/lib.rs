@@ -359,7 +359,7 @@ pub mod prelude {
             self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
             web_colors, Rgba,
         },
-        context::WidgetContext,
+        context::{AppServices, Sync, Vars, WidgetContext, WindowServices},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,

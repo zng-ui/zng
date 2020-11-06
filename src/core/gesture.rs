@@ -424,8 +424,8 @@ impl AppExtension for GestureManager {
         }
     }
 
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
-        if update.update {
+    fn update(&mut self, request: UpdateRequest, ctx: &mut AppContext) {
+        if request.update {
             let notify_single = self.single_click.has_listeners();
             let notify_double = self.double_click.has_listeners();
             let notify_triple = self.triple_click.has_listeners();

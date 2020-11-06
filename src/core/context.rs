@@ -1,9 +1,7 @@
 //! Context information for app extensions, windows and widgets.
 
-use super::{
-    sync::Sync,
-    units::{LayoutSize, PixelGrid},
-};
+pub use super::sync::Sync;
+use super::units::{LayoutSize, PixelGrid};
 use crate::core::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
 use crate::core::event::{Event, EventListener};
 use crate::core::var::*;
