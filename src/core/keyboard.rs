@@ -9,6 +9,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::focus::Focus;
 use crate::core::render::WidgetPath;
+use crate::core::service::*;
 use crate::core::types::*;
 use crate::core::window::{WindowId, Windows};
 

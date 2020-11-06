@@ -5,6 +5,7 @@ use super::{
     color::Rgba,
     context::*,
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
+    service::{AppService, WindowServices},
     text::Text,
     types::{FrameId, WindowEvent},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},

@@ -39,17 +39,18 @@
 //!
 //! TODO
 
+use super::app::AppExtension;
+use super::context::*;
+use super::event::*;
+use super::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
+use super::mouse::{MouseDownEvent, MouseInputArgs};
 use super::render::DescendantFilter;
-use crate::core::app::AppExtension;
-use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
-use crate::core::mouse::{MouseDownEvent, MouseInputArgs};
-use crate::core::render::{FrameInfo, WidgetInfo, WidgetPath};
-use crate::core::types::{DeviceEvent, DeviceId};
-use crate::core::units::LayoutPoint;
-use crate::core::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
-use crate::core::WidgetId;
+use super::render::{FrameInfo, WidgetInfo, WidgetPath};
+use super::service::AppService;
+use super::types::{DeviceEvent, DeviceId};
+use super::units::LayoutPoint;
+use super::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
+use super::WidgetId;
 use fnv::FnvHashMap;
 use std::time::{Duration, Instant};
 

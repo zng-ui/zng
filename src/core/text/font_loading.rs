@@ -1,6 +1,6 @@
 use super::{FontInstanceKey, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight};
 use crate::core::{
-    app::AppExtension, context::AppInitContext, context::WindowService, units::layout_to_pt, units::LayoutLength, var::ContextVar,
+    app::AppExtension, context::AppInitContext, service::WindowService, units::layout_to_pt, units::LayoutLength, var::ContextVar,
 };
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;

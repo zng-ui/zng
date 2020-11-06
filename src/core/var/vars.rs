@@ -1,7 +1,7 @@
 use super::*;
+use crate::core::context::Updates;
 use fnv::FnvHashMap;
 use std::any::*;
-use crate::core::context::Updates;
 
 singleton_assert!(SingletonVars);
 

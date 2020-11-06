@@ -389,10 +389,12 @@ pub mod prelude {
             self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
             web_colors, Rgba,
         },
-        context::{AppServices, WidgetContext, WindowServices},
+        context::WidgetContext,
+        service::{AppServices, WindowServices},
         focus::{DirectionalNav, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
+        sync::Sync,
         text::{
             font_features::{
                 CapsVariant, CharVariant, CnVariant, EastAsianWidth, FontPosition, FontStyleSet, JpVariant, NumFraction, NumSpacing,
@@ -408,7 +410,6 @@ pub mod prelude {
             TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
-        sync::Sync,
         window::{AppRunWindow, CursorIcon, Window, Windows},
         UiNode, UiVec, Widget, WidgetId,
     };

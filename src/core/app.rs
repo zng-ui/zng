@@ -1,15 +1,14 @@
 //! App startup and app extension API.
 
-use crate::core::event::EventEmitter;
-use crate::core::event::EventListener;
-use crate::core::profiler::*;
-use crate::core::{
-    context::*,
-    event::{cancelable_event_args, CancelableEventArgs},
+use super::context::*;
+use super::event::{cancelable_event_args, CancelableEventArgs, EventEmitter, EventListener};
+use super::profiler::*;
+use super::{
     focus::FocusManager,
     gesture::GestureManager,
     keyboard::KeyboardManager,
     mouse::MouseManager,
+    service::AppService,
     text::FontManager,
     types::*,
     window::{WindowId, WindowManager},

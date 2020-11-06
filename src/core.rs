@@ -12,6 +12,7 @@ pub mod keyboard;
 pub mod mouse;
 pub mod profiler;
 pub mod render;
+pub mod service;
 pub mod sync;
 pub mod text;
 pub mod types;
@@ -324,3 +325,6 @@ pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
 /// A mixed vector of [`Widget`] types.
 pub type UiVec = Vec<Box<dyn Widget>>;
+
+/// A map of TypeId -> Box<dyn Any>.
+type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;

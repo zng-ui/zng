@@ -10,7 +10,6 @@ mod profiler_impl {
     use serde_json::*;
 
     use crate::core::text::Text;
-    use std::borrow::Cow;
     use std::cell::RefCell;
     use std::fs::File;
     use std::io::BufWriter;
