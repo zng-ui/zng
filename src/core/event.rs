@@ -171,6 +171,12 @@ impl<T: 'static> EventListener<T> {
         self.chan.is_high_pressure()
     }
 }
+impl<T: EventArgs> EventListener<T> {
+    /// Filters out updates that are flagged [`stop_propagation`](EventArgs::stop_propagation).
+    pub fn updates_filtered<'a>(&'a self, events: &'a Events) -> impl Iterator<Item=&'a T> {
+        self.updates(events).iter().filter(|a|!a.stop_propagation_requested())
+    }
+}
 
 impl<T: 'static> Drop for EventListener<T> {
     fn drop(&mut self) {
