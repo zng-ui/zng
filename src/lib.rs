@@ -8,7 +8,7 @@
 //!
 //! fn main () {
 //!     App::default().run_window(|_| {
-//!         let size = var((800., 600.));
+//!         let size = var_from((800., 600.));
 //!         let title = size.map(|s: &Size| formatx!("Button Example - {}", s));
 //!         window! {
 //!             size;
@@ -71,14 +71,14 @@
 //! ### Services
 //!
 //! Services are utilities that can be accessed by every component in every level, this includes [opening windows](crate::core::window::Windows)
-//! and [shutting down](crate::core::app::AppProcess) the app it-self. All services implement [`AppService`](crate::core::context::AppService)
-//! and can be requested from a [`AppServices`](crate::core::context::AppServices) that is provided by every context.
+//! and [shutting down](crate::core::app::AppProcess) the app it-self. All services implement [`AppService`](crate::core::service::AppService)
+//! and can be requested from a [`AppServices`](crate::core::service::AppServices) that is provided by every context.
 //!
 //! ### Events
 //!
 //! Events are a list of [`EventArgs`](crate::core::event::EventArgs) that can be observed every update. New events can be generated from the
 //! app extension methods or from other events. All events implement [`Event`](crate::core::event::Event) and a listener can be requested from
-//! an [`Events`](crate::core::context::Events) that is provided by every context.
+//! an [`Events`](crate::core::event::Events) that is provided by every context.
 //!
 //! Note that in [Level 2](#level-2-widget) events are abstracted further into a property that setups a listener and call a handler for every
 //! event update.
