@@ -114,7 +114,7 @@ mod profiler_impl {
                 data.push(json!({
                     "pid": 0,
                     "tid": thread_id,
-                    "name": sample.name,
+                    "name": sample.name.as_ref(),
                     "ph": "B",
                     "ts": t0
                 }));
@@ -174,7 +174,7 @@ mod profiler_impl {
 
             THREAD_PROFILER.with(|profiler| match *profiler.borrow() {
                 Some(ref profiler) => {
-                    profiler.push_sample(std::mem::replace(&mut self.name, Cow::Borrowed("")), self.t0, t1);
+                    profiler.push_sample(std::mem::take(&mut self.name), self.t0, t1);
                 }
                 None => {
                     println!("ERROR: ProfileScope {} on unregistered thread!", self.name);

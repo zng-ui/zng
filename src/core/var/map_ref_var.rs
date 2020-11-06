@@ -158,3 +158,17 @@ where
         MapBidiRefVar::new(self, map, map_mut)
     }
 }
+
+impl<I, O, V, F> IntoVar<O> for MapRefVar<I, O, V, F>
+where
+    I: VarValue,
+    O: VarValue,
+    V: Var<I>,
+    F: Fn(&I) -> &O + Clone + 'static,
+{
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
+    }
+}

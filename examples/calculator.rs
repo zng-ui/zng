@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use meval::eval_str;
 use enclose::enclose;
+use meval::eval_str;
 use zero_ui::prelude::*;
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
                 spacing: 5;
                 items: ui_vec![
                     text! {
-                        text: calc.map(|c| c.result());
+                        text: calc.map_ref(|c| c.result());
                         align: Alignment::RIGHT;
                         font_size: 32.pt();
                         color: calc.map(|c| c.color());
@@ -72,15 +72,16 @@ fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
 
 #[derive(Default, Clone, Debug)]
 struct Calculator {
-    buffer: String,
+    buffer: Text,
     error: bool,
 }
 impl Calculator {
-    pub fn result(&self) -> Text {
+    pub fn result(&self) -> &Text {
         if self.buffer.is_empty() {
-            "0".into()
+            static ZERO: Text = Text::borrowed("0");
+            &ZERO
         } else {
-            self.buffer.clone().into()
+            &self.buffer
         }
     }
 
@@ -107,13 +108,13 @@ impl Calculator {
         }
 
         if self.buffer.is_empty() && c == '.' {
-            self.buffer.push_str("0.");
+            self.buffer.to_mut().push_str("0.");
         } else {
             if !c.is_digit(10) && self.trailing_op() {
-                self.buffer.pop();
+                self.buffer.to_mut().pop();
             }
 
-            self.buffer.push(c);
+            self.buffer.to_mut().push(c);
         }
     }
 
@@ -137,7 +138,7 @@ impl Calculator {
             match eval_str(expr) {
                 Ok(new) => {
                     self.buffer.clear();
-                    let _ = write!(&mut self.buffer, "{}", new);
+                    let _ = write!(&mut self.buffer.to_mut(), "{}", new);
                     self.error = false;
                 }
                 Err(_) => {

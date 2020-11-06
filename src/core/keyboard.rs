@@ -189,7 +189,7 @@ pub struct Keyboard {
 
     modifiers_changed: EventEmitter<ModifiersChangedArgs>,
 
-    char_input: EventEmitter<CharInputArgs>
+    char_input: EventEmitter<CharInputArgs>,
 }
 impl AppService for Keyboard {}
 impl Keyboard {

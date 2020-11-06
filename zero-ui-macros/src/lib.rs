@@ -477,8 +477,11 @@ macro_rules! profile_scope {
 /// ```
 #[macro_export]
 macro_rules! formatx {
+    ($str:tt) => {
+        zero_ui::core::text::Text::borrowed($str)
+    };
     ($($tt:tt)*) => {
-        std::borrow::Cow::Owned(format!($($tt)*))
+        zero_ui::core::text::Text::owned(format!($($tt)*))
     };
 }
 

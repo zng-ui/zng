@@ -5,6 +5,7 @@ use super::{
     var::IntoVar,
     var::OwnedVar,
 };
+use derive_more as dm;
 use font_kit::family_name::FamilyName;
 use std::{borrow::Cow, fmt, rc::Rc};
 use webrender::api::GlyphInstance;
@@ -508,8 +509,8 @@ impl TextTransformFn {
     pub fn transform(&self, text: Text) -> Text {
         match self {
             TextTransformFn::None => text,
-            TextTransformFn::Uppercase => Cow::Owned(text.to_uppercase()),
-            TextTransformFn::Lowercase => Cow::Owned(text.to_lowercase()),
+            TextTransformFn::Uppercase => Text::owned(text.to_uppercase()),
+            TextTransformFn::Lowercase => Text::owned(text.to_lowercase()),
             TextTransformFn::Custom(fn_) => fn_(text),
         }
     }
@@ -692,7 +693,161 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
 }
 
 /// Text string type, can be either a `&'static str` or a `String`.
-pub type Text = Cow<'static, str>;
+#[derive(Clone, dm::Display, dm::Add, dm::AddAssign, PartialEq, Eq, Hash)]
+pub struct Text(Cow<'static, str>);
+impl Text {
+    /// New text that is a static str.
+    pub const fn borrowed(s: &'static str) -> Text {
+        Text(Cow::Borrowed(s))
+    }
+
+    /// New text that is an owned string.
+    pub const fn owned(s: String) -> Text {
+        Text(Cow::Owned(s))
+    }
+
+    /// If the text is a a static str.
+    pub const fn is_borrowed(&self) -> bool {
+        match &self.0 {
+            Cow::Borrowed(_) => true,
+            Cow::Owned(_) => false,
+        }
+    }
+
+    /// If the text is an owned [`String`].
+    pub const fn is_owned(&self) -> bool {
+        !self.is_borrowed()
+    }
+
+    /// Acquires a mutable reference to string.
+    ///
+    /// Turns the text to owned if it was borrowed.
+    pub fn to_mut(&mut self) -> &mut String {
+        self.0.to_mut()
+    }
+
+    /// Extracts the owned string.
+    ///
+    /// Turns the text to owned if it was borrowed.
+    pub fn into_owned(self) -> String {
+        self.0.into_owned()
+    }
+
+    /// Reference the underlying cow.
+    pub fn cow(&self) -> &Cow<'static, str> {
+        &self.0
+    }
+
+    /// Clears the string ([`clear`](String::clear)) if owned otherwise
+    /// replaces `self` with [`empty`](Self::empty).
+    pub fn clear(&mut self) {
+        match &mut self.0 {
+            Cow::Borrowed(s) => {
+                *s = "";
+            }
+            Cow::Owned(s) => {
+                s.clear();
+            }
+        }
+    }
+
+    /// New empty static str.
+    pub const fn empty() -> Text {
+        Self::borrowed("")
+    }
+}
+impl fmt::Debug for Text {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+impl Default for Text {
+    /// Empty.
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+impl From<Text> for String {
+    fn from(t: Text) -> Self {
+        t.into_owned()
+    }
+}
+impl_from_and_into_var! {
+    fn from(s: &'static str) -> Text {
+        Text::borrowed(s)
+    }
+    fn from(s: String) -> Text {
+        Text::owned(s)
+    }
+    fn from(s: Cow<'static, str>) -> Text {
+        Text(s)
+    }
+}
+impl From<Text> for Cow<'static, str> {
+    fn from(t: Text) -> Self {
+        t.0
+    }
+}
+impl From<Text> for Box<dyn std::error::Error> {
+    fn from(err: Text) -> Self {
+        err.into_owned().into()
+    }
+}
+impl From<Text> for Box<dyn std::error::Error + Send + Sync> {
+    fn from(err: Text) -> Self {
+        err.into_owned().into()
+    }
+}
+impl std::ops::Deref for Text {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+impl AsRef<str> for Text {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+impl std::borrow::Borrow<str> for Text {
+    fn borrow(&self) -> &str {
+        self.0.borrow()
+    }
+}
+impl<'a> std::ops::Add<&'a str> for Text {
+    type Output = Text;
+
+    fn add(mut self, rhs: &'a str) -> Self::Output {
+        self += rhs;
+        self
+    }
+}
+impl std::ops::AddAssign<&str> for Text {
+    fn add_assign(&mut self, rhs: &str) {
+        self.0.to_mut().push_str(rhs);
+    }
+}
+impl PartialEq<&str> for Text {
+    fn eq(&self, other: &&str) -> bool {
+        self.0.eq(other)
+    }
+}
+impl PartialEq<String> for Text {
+    fn eq(&self, other: &String) -> bool {
+        self.0.eq(other)
+    }
+}
+impl PartialEq<Text> for &str {
+    fn eq(&self, other: &Text) -> bool {
+        other.0.eq(self)
+    }
+}
+impl PartialEq<Text> for String {
+    fn eq(&self, other: &Text) -> bool {
+        other.0.eq(self)
+    }
+}
 
 /// A trait for converting a value to a [`Text`].
 ///
@@ -702,25 +857,9 @@ pub type Text = Cow<'static, str>;
 pub trait ToText {
     fn to_text(self) -> Text;
 }
-
 impl<T: ToString> ToText for T {
     fn to_text(self) -> Text {
         self.to_string().into()
-    }
-}
-
-impl IntoVar<Text> for &'static str {
-    type Var = OwnedVar<Text>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Cow::from(self))
-    }
-}
-impl IntoVar<Text> for String {
-    type Var = OwnedVar<Text>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Cow::from(self))
     }
 }
 
