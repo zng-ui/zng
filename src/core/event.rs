@@ -1,6 +1,6 @@
 //! App event API.
 
-use super::context::{WidgetContext, UpdateRequest, Updates};
+use super::context::{UpdateRequest, Updates, WidgetContext};
 use super::AnyMap;
 use std::any::*;
 use std::cell::{Cell, RefCell, UnsafeCell};

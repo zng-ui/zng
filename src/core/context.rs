@@ -1,14 +1,14 @@
 //! Context information for app extensions, windows and widgets.
 
 use super::app::{AppEvent, EventLoopProxy, EventLoopWindowTarget};
+use super::event::Events;
 use super::service::{AppServices, AppServicesInit, WindowServices, WindowServicesInit};
 use super::sync::Sync;
-use super::event::Events;
 use super::units::{LayoutSize, PixelGrid};
 use super::var::Vars;
 use super::window::WindowId;
-use super::WidgetId;
 use super::AnyMap;
+use super::WidgetId;
 use std::any::{Any, TypeId};
 use std::mem;
 use std::sync::atomic::{self, AtomicU8};
