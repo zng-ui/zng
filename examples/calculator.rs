@@ -9,6 +9,8 @@ fn main() {
         window! {
             title: "Calculator";
             resizable: false;
+            auto_size: true;
+            padding: 5;
             content: v_stack! {
                 spacing: 5;
                 items: ui_vec![
@@ -49,6 +51,7 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
     uniform_grid! {
         spacing: 2;
         columns: 4;
+        font_size: 14.pt();
         items: ui_vec![
             b_squre, b_sroot,  b_clear,  b_back,
              b('7'),  b('8'),   b('9'),  b('/'),
@@ -86,8 +89,6 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
         content: text("⌫");
     }
 }
-
-
 
 fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     button! {
@@ -166,13 +167,13 @@ impl Calculator {
     }
 
     pub fn square(&mut self) {
-        if !self.buffer.is_empty(){
+        if !self.buffer.is_empty() {
             self.buffer = formatx!("({})^2", self.buffer)
         }
     }
 
     pub fn square_root(&mut self) {
-        if !self.buffer.is_empty(){
+        if !self.buffer.is_empty() {
             self.buffer = formatx!("sqrt({})", self.buffer)
         }
     }

@@ -683,17 +683,20 @@ pub struct Window {
     title: BoxedLocalVar<Text>,
     position: BoxedVar<Point>,
     size: BoxedVar<Size>,
+    auto_size: BoxedLocalVar<AutoSize>,
     resizable: BoxedVar<bool>,
     clear_color: BoxedLocalVar<Rgba>,
     child: Box<dyn UiNode>,
 }
 
 impl Window {
+    #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
         title: impl IntoVar<Text>,
         position: impl IntoVar<Point>,
         size: impl IntoVar<Size>,
+        auto_size: impl IntoVar<AutoSize>,
         resizable: impl IntoVar<bool>,
         clear_color: impl IntoVar<Rgba>,
         child: impl UiNode,
@@ -704,9 +707,35 @@ impl Window {
             title: title.into_local().boxed_local(),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
+            auto_size: auto_size.into_local().boxed_local(),
             resizable: resizable.into_var().boxed(),
             clear_color: clear_color.into_local().boxed_local(),
             child: child.boxed(),
+        }
+    }
+}
+
+bitflags! {
+    /// Window auto-size config.
+    pub struct AutoSize: u8 {
+        /// Does not automatically adjust size.
+        const DISABLED = 0;
+        /// Uses the content desired width.
+        const CONTENT_WIDTH = 0b01;
+        /// Uses the content desired height.
+        const CONTENT_HEIGHT = 0b10;
+        /// Uses the content desired width and height.
+        const CONTENT = Self::CONTENT_WIDTH.bits | Self::CONTENT_HEIGHT.bits;
+    }
+}
+impl_from_and_into_var! {
+    /// Returns [`AutoSize::CONTENT`] if `content` is `true`, otherwise
+    // returns [`AutoSize::DISABLED`].
+    fn from(content: bool) -> AutoSize {
+        if content {
+            AutoSize::CONTENT
+        } else {
+            AutoSize::DISABLED
         }
     }
 }
@@ -1040,6 +1069,11 @@ impl OpenWindow {
             }
         }
 
+        // auto-size
+        if wn_ctx.root.auto_size.update_local(vars).is_some() {
+            updates.push_layout();
+        }
+
         // size
         if let Some(&new_size) = wn_ctx.root.size.get_new(vars) {
             let current_size = window.inner_size();
@@ -1048,13 +1082,15 @@ impl OpenWindow {
             let dpi_factor = layout_ctx.pixel_grid().scale_factor;
             let new_size = new_size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
 
+            let auto_size = *wn_ctx.root.auto_size.get_local();
+
             let valid_size = glutin::dpi::PhysicalSize::new(
-                if new_size.width.is_finite() {
+                if !auto_size.contains(AutoSize::CONTENT_WIDTH) && new_size.width.is_finite() {
                     (new_size.width * dpi_factor) as u32
                 } else {
                     current_size.width
                 },
-                if new_size.height.is_finite() {
+                if !auto_size.contains(AutoSize::CONTENT_HEIGHT) && new_size.height.is_finite() {
                     (new_size.height * dpi_factor) as u32
                 } else {
                     current_size.height
@@ -1110,8 +1146,23 @@ impl OpenWindow {
 
             let mut layout_ctx = self.layout_ctx();
 
-            ctx.root.child.measure(layout_ctx.viewport_size(), &mut layout_ctx);
-            ctx.root.child.arrange(layout_ctx.viewport_size(), &mut layout_ctx);
+            let mut available_size = ctx.root.child.measure(layout_ctx.viewport_size(), &mut layout_ctx);
+
+            let auto_size = *ctx.root.auto_size.get_local();
+            if !auto_size.contains(AutoSize::CONTENT_WIDTH) {
+                available_size.width = layout_ctx.viewport_size().width;
+            }
+            if !auto_size.contains(AutoSize::CONTENT_HEIGHT) {
+                available_size.height = layout_ctx.viewport_size().height;
+            }
+
+            ctx.root.child.arrange(available_size, &mut layout_ctx);
+
+            if auto_size != AutoSize::DISABLED {
+                let factor = layout_ctx.pixel_grid().scale_factor;
+                let size = glutin::dpi::PhysicalSize::new((available_size.width * factor) as u32, (available_size.height * factor) as u32);
+                self.gl_ctx.borrow().window().set_inner_size(size);
+            }
         }
     }
 
@@ -1295,6 +1346,7 @@ impl OwnedWindowContext {
 
         self.root.title.init_local(ctx.vars);
         self.root.clear_color.init_local(ctx.vars);
+        self.root.auto_size.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
             ctx.updates.push_layout();

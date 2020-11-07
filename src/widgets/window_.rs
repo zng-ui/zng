@@ -58,6 +58,11 @@ widget! {
             r
         };
 
+        /// Window auto size config.
+        ///
+        /// If enabled overwrites the other sizes with the content size.
+        auto_size: false;
+
         /// Window clear color.
         ///
         /// Changes to this property are ignored, only the initial value is used.
@@ -96,8 +101,18 @@ widget! {
 
     /// Manually initializes a new [`window`](self).
     #[inline]
-    fn new(child, root_id, title, position, size, resizable, clear_color) -> Window {
-        Window::new(root_id.unwrap(), title.unwrap(), position.unwrap(), size.unwrap(), resizable.unwrap(), clear_color.unwrap(), child)
+    #[allow(clippy::too_many_arguments)]
+    fn new(child, root_id, title, position, size, auto_size, resizable, clear_color) -> Window {
+        Window::new(
+            root_id.unwrap(),
+            title.unwrap(),
+            position.unwrap(),
+            size.unwrap(),
+            auto_size.unwrap(),
+            resizable.unwrap(),
+            clear_color.unwrap(),
+            child
+        )
     }
 }
 

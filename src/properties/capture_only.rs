@@ -2,6 +2,7 @@
 //!
 //! Setting this properties in a widget that does not reexports then is an error.
 use crate::core::gesture::Shortcut;
+use crate::core::window::AutoSize;
 use crate::prelude::new_property::*;
 use crate::widgets::LineStyle;
 
@@ -80,3 +81,7 @@ pub fn len(len: impl IntoVar<usize>) -> ! {}
 /// A [`bool`] that enables a feature.
 #[property(capture_only)]
 pub fn enabled(enabled: impl IntoVar<bool>) -> ! {}
+
+/// An [`AutoSize`] config.
+#[property(capture_only)]
+pub fn auto_size(config: impl IntoVar<AutoSize>) -> ! {}
