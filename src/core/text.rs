@@ -751,6 +751,22 @@ impl Text {
         }
     }
 
+    /// Removes the last character from the string buffer and returns it.
+    /// Returns [`None`] if this `Text` is empty.
+    pub fn pop(&mut self) -> Option<char> {
+        match &mut self.0 {
+            Cow::Borrowed(s) => {
+                if let Some((i, c)) = s.char_indices().last() {
+                    *s = &s[..i];
+                    Some(c)
+                } else {
+                    None
+                }
+            }
+            Cow::Owned(s) => s.pop(),
+        }
+    }
+
     /// New empty static str.
     pub const fn empty() -> Text {
         Self::borrowed("")

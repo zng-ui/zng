@@ -16,7 +16,7 @@ fn main() {
                         text: calc.map_ref(|c| c.result());
                         align: Alignment::RIGHT;
                         font_size: 32.pt();
-                        color: calc.map(|c| c.color());
+                        color: calc.map_ref(|c| c.color());
                     },
                     controls(calc.clone())
                 ];
@@ -41,18 +41,53 @@ fn main() {
 
 fn controls(calc: RcVar<Calculator>) -> impl Widget {
     let b = |c| btn(calc.clone(), c);
-    let btn_eq = btn_eval(calc.clone());
+    let b_squre = btn_square(calc.clone());
+    let b_sroot = btn_square_root(calc.clone());
+    let b_clear = btn_clear(calc.clone());
+    let b_back = btn_backspace(calc.clone());
+    let b_equal = btn_eval(calc.clone());
     uniform_grid! {
         spacing: 2;
         columns: 4;
         items: ui_vec![
-            b('7'), b('8'), b('9'), b('/'),
-            b('4'), b('5'), b('6'), b('*'),
-            b('1'), b('2'), b('3'), b('-'),
-            b('0'), b('.'), btn_eq , b('+'),
+            b_squre, b_sroot,  b_clear,  b_back,
+             b('7'),  b('8'),   b('9'),  b('/'),
+             b('4'),  b('5'),   b('6'),  b('*'),
+             b('1'),  b('2'),   b('3'),  b('-'),
+             b('0'),  b('.'),  b_equal,  b('+'),
         ];
     }
 }
+
+fn btn_square(calc: RcVar<Calculator>) -> impl Widget {
+    button! {
+        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.square());
+        content: text("x²");
+    }
+}
+
+fn btn_square_root(calc: RcVar<Calculator>) -> impl Widget {
+    button! {
+        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.square_root());
+        content: text("√x");
+    }
+}
+
+fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
+    button! {
+        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.clear());
+        content: text("C");
+    }
+}
+
+fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
+    button! {
+        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.backspace());
+        content: text("⌫");
+    }
+}
+
+
 
 fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     button! {
@@ -85,11 +120,11 @@ impl Calculator {
         }
     }
 
-    pub fn color(&self) -> Rgba {
+    pub fn color(&self) -> &Rgba {
         if self.error {
-            web_colors::RED
+            &web_colors::RED
         } else {
-            web_colors::WHITE
+            &web_colors::WHITE
         }
     }
 
@@ -119,7 +154,27 @@ impl Calculator {
     }
 
     fn trailing_op(&self) -> bool {
-        self.buffer.chars().last().map(|c| !c.is_digit(10)).unwrap_or(false)
+        self.buffer.chars().last().map(|c| !c.is_digit(10) && c != ')').unwrap_or(false)
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer.clear()
+    }
+
+    pub fn backspace(&mut self) {
+        self.buffer.pop();
+    }
+
+    pub fn square(&mut self) {
+        if !self.buffer.is_empty(){
+            self.buffer = formatx!("({})^2", self.buffer)
+        }
+    }
+
+    pub fn square_root(&mut self) {
+        if !self.buffer.is_empty(){
+            self.buffer = formatx!("sqrt({})", self.buffer)
+        }
     }
 
     pub fn eval(&mut self) {
@@ -141,7 +196,8 @@ impl Calculator {
                     let _ = write!(&mut self.buffer.to_mut(), "{}", new);
                     self.error = false;
                 }
-                Err(_) => {
+                Err(e) => {
+                    eprintln!("{}", e);
                     self.error = true;
                 }
             }
