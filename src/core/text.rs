@@ -699,7 +699,7 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
 /// to access all mutating methods of [`String`]. The mutations that can be
 /// implemented using only a borrowed `str` are provided as methods in this type.
 #[derive(Clone, dm::Display, dm::Add, dm::AddAssign, PartialEq, Eq, Hash)]
-pub struct Text(Cow<'static, str>);
+pub struct Text(pub Cow<'static, str>);
 impl Text {
     /// New text that is a static str.
     pub const fn borrowed(s: &'static str) -> Text {
@@ -741,11 +741,6 @@ impl Text {
     /// Turns the text to owned if it was borrowed.
     pub fn into_owned(self) -> String {
         self.0.into_owned()
-    }
-
-    /// Reference the underlying [`Cow`].
-    pub fn cow(&self) -> &Cow<'static, str> {
-        &self.0
     }
 
     /// Truncates this String, removing all contents.
