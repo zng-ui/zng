@@ -693,6 +693,11 @@ impl IntoVar<Box<[FontName]>> for Vec<String> {
 }
 
 /// Text string type, can be either a `&'static str` or a `String`.
+///
+/// Note that this type dereferences to [`str`] so you can use all methods
+/// of that type also. For mutation you can call [`to_mut`](Text::to_mut)
+/// to access all mutating methods of [`String`]. The mutations that can be
+/// implemented using only a borrowed `str` are provided as methods in this type.
 #[derive(Clone, dm::Display, dm::Add, dm::AddAssign, PartialEq, Eq, Hash)]
 pub struct Text(Cow<'static, str>);
 impl Text {
@@ -706,7 +711,12 @@ impl Text {
         Text(Cow::Owned(s))
     }
 
-    /// If the text is a a static str.
+    /// New empty text.
+    pub const fn empty() -> Text {
+        Self::borrowed("")
+    }
+
+    /// If the text is a `&'static str`.
     pub const fn is_borrowed(&self) -> bool {
         match &self.0 {
             Cow::Borrowed(_) => true,
@@ -719,7 +729,7 @@ impl Text {
         !self.is_borrowed()
     }
 
-    /// Acquires a mutable reference to string.
+    /// Acquires a mutable reference to a [`String`] buffer.
     ///
     /// Turns the text to owned if it was borrowed.
     pub fn to_mut(&mut self) -> &mut String {
@@ -733,13 +743,15 @@ impl Text {
         self.0.into_owned()
     }
 
-    /// Reference the underlying cow.
+    /// Reference the underlying [`Cow`].
     pub fn cow(&self) -> &Cow<'static, str> {
         &self.0
     }
 
-    /// Clears the string ([`clear`](String::clear)) if owned otherwise
-    /// replaces `self` with [`empty`](Self::empty).
+    /// Truncates this String, removing all contents.
+    ///
+    /// This method calls [`String::clear`] if the text is owned, otherwise
+    /// replaces `self` with an empty str (`""`).
     pub fn clear(&mut self) {
         match &mut self.0 {
             Cow::Borrowed(s) => {
@@ -751,8 +763,12 @@ impl Text {
         }
     }
 
-    /// Removes the last character from the string buffer and returns it.
-    /// Returns [`None`] if this `Text` is empty.
+    /// Removes the last character from the text and returns it.
+    ///
+    /// Returns None if this `Text` is empty.
+    ///
+    /// This method calls [`String::pop`] if the text is owned, otherwise
+    /// reborrows a slice of the `str` without the last character.
     pub fn pop(&mut self) -> Option<char> {
         match &mut self.0 {
             Cow::Borrowed(s) => {
@@ -767,9 +783,43 @@ impl Text {
         }
     }
 
-    /// New empty static str.
-    pub const fn empty() -> Text {
-        Self::borrowed("")
+    /// Shortens this `Text` to the specified length.
+    ///
+    /// If `new_len` is greater than the text's current length, this has no
+    /// effect.
+    ///
+    /// This method calls [`String::truncate`] if the text is owned, otherwise
+    /// reborrows a slice of the text.
+    pub fn truncate(&mut self, new_len: usize) {
+        match &mut self.0 {
+            Cow::Borrowed(s) => {
+                if new_len <= s.len() {
+                    assert!(s.is_char_boundary(new_len));
+                    *s = &s[..new_len];
+                }
+            }
+            Cow::Owned(s) => s.truncate(new_len),
+        }
+    }
+
+    /// Splits the text into two at the given index.
+    ///
+    /// Returns a new `Text`. `self` contains bytes `[0, at)`, and
+    /// the returned `Text` contains bytes `[at, len)`. `at` must be on the
+    /// boundary of a UTF-8 code point.
+    ///
+    /// This method calls [`String::split_off`] if the text is owned, otherwise
+    /// reborrows slices of the text.
+    pub fn split_off(&mut self, at: usize) -> Text {
+        match &mut self.0 {
+            Cow::Borrowed(s) => {
+                assert!(s.is_char_boundary(at));
+                let other = &s[at..];
+                *s = &s[at..];
+                Text::borrowed(other)
+            }
+            Cow::Owned(s) => Text::owned(s.split_off(at)),
+        }
     }
 }
 impl fmt::Debug for Text {
