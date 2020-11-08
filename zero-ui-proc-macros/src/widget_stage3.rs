@@ -1559,7 +1559,7 @@ pub mod output {
 
             doc_extend!(tokens, "<ul style='display:none;'></ul></span></code></h3>");
 
-            doc_extend!(tokens, "<div class='docblock'>\n");
+            doc_extend!(tokens, "<div class='docblock'>\n\n");
             for doc in &self.docs {
                 doc.to_tokens(tokens)
             }
