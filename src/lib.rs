@@ -98,7 +98,7 @@
 //! [Level 0](level-0-app) during the app initialization, the builders then are called during the window initialization to instantiate
 //! the window services.
 //!
-//! These services can be requested from a [`WindowServices`](crate::core::context::WindowServices) that is provided by the window
+//! These services can be requested from a [`WindowServices`](crate::core::service::WindowServices) that is provided by the window
 //! and widget contexts.
 //!
 //! ## Level 2 - Widget

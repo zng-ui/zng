@@ -228,6 +228,7 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
         doc_extend!(output, "{}", js);
     } else {
         let inner = docs[0].tokens.to_string();
+        let mut skip = 0;
         if inner.starts_with('=') {
             let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
             if doc.starts_with('"') {
@@ -238,11 +239,11 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
                 doc_extend!(output, "{}{}\n\n", doc, js);
-                return;
+                skip = 1;
             }
         }
 
-        for attr in docs.iter().skip(1) {
+        for attr in docs.iter().skip(skip) {
             attr.to_tokens(output);
         }
     }
