@@ -3,32 +3,36 @@ use proc_macro2::TokenStream;
 use syn::{parse::*, punctuated::Punctuated, *};
 
 /// `widget!` recursive inheritance.
-/// To include tokens from each inherited widget internal:
-/// 1 - We need to call each inherited widget macro special (=> inherit) branch
-///     this branch includes the internal tokens of that widget plus our macro declaration
-/// 2 - All inside the next inherited macro, recursively.
-/// 3 - When there is no more widgets to inherit we go to widget_stage3.
-/// 0 - widget_stage1 already called the first inherit, like the code we generated here.
+///
+/// ## In Stage 2:
+///
+/// 1 - Parse the inherits yet to include + the stage3 return macro.
+/// 2 - If there still inherits to include, generate a call to the right-most
+///     inherit left in the stack, this call is *recursive* to **Stage 2**.
+/// 3 - Else if all inherits are included, call the stage3 return macro, this
+///     call is the start of **Stage 3**.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    // 1
     let WidgetInheriting {
         stage3_name,
         mut inherits,
         rest,
     } = parse_macro_input!(input as WidgetInheriting);
 
+    let new_widget_span = stage3_name.span();
+
     if inherits.is_empty() {
-        // go to widget_stage3.
-        let r = quote! {
+        // 3 - go to widget_stage3.
+        let r = quote_spanned! {new_widget_span=>
             #stage3_name! {
                 #rest
             }
         };
         r.into()
     } else {
-        // recursive to widget_stage2 again.
+        // 2 - recursive to widget_stage2 again.
         let next_inherit = inherits.pop().unwrap().into_value();
-
-        let r = quote! {
+        let r = quote_spanned! {new_widget_span=>
             #next_inherit! {
                 -> inherit {
                     #stage3_name;
@@ -47,7 +51,6 @@ struct WidgetInheriting {
     inherits: Punctuated<Path, Token![+]>,
     rest: TokenStream,
 }
-
 impl Parse for WidgetInheriting {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![=>]>().unwrap_or_else(|e| non_user_error!(e));

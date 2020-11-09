@@ -1,7 +1,14 @@
 use quote::ToTokens;
 use syn::parse_macro_input;
 
-/// `widget!` actual expansion, in stage3 we have all the inherited tokens to work with.
+/// `widget!` actual expansion.
+///
+/// ## In Stage 3
+///
+/// We have all the inherited tokens to work with. This module is divided in 3,
+/// * [input] - Defines the [`input::WidgetDeclaration`] type and parsers for it.
+/// * [output] -> Defines the [`output::WidgetOutput`] type and tokenizers for it.
+/// * [analysis] - Defines the [`analysis::generate`] that converts input into output.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as input::WidgetDeclaration);
     let output = analysis::generate(input);
@@ -9,6 +16,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     output_stream.into()
 }
 
+/// Widget Stage 3 AST definition and parsing.
+///
+/// The root type is [`input::WidgetDeclaration`].
 pub mod input {
     #![allow(unused)]
 
@@ -33,9 +43,10 @@ pub mod input {
         syn::custom_keyword!(whens);
         syn::custom_keyword!(local);
     }
-
     pub struct PropertyBlock<P> {
+        /// { .. }
         pub brace_token: token::Brace,
+        // ..
         pub properties: Vec<P>,
     }
     impl<P: Parse> Parse for PropertyBlock<P> {
@@ -50,14 +61,31 @@ pub mod input {
         }
     }
 
+    /// Represents a stage 3 widget declaration.
     pub struct WidgetDeclaration {
+        /// The included inheritance data.
+        ///
+        /// This was added to the input in Stage 1 and 2.
         pub inherits: Vec<InheritItem>,
-        pub mixin_signal: MixinSignal,
-        pub header: WidgetHeader,
-        pub items: Vec<WgtItem>,
-    }
 
+        /// If we are declaring a mix-in.
+        ///
+        /// This was added to the input in Stage 1.
+        pub mixin_signal: MixinSignal,
+
+        /// The widget header.
+        ///
+        /// The inherits in here should already be included in `inherits` by Stage 1 and 2.
+        pub header: WidgetHeader,
+
+        /// The widget declaration items as defined by the developer.
+        pub items: Vec<WidgetItem>,
+    }
     impl Parse for WidgetDeclaration {
+        /// $(=> inherited_tokens $inherits: InheritItem)*  
+        /// $mixin_signal: MixinSignal
+        /// $header: WidgetHeader
+        /// $($items:WidgetItem)*
         fn parse(input: ParseStream) -> Result<Self> {
             let mut inherits = Vec::new();
             while input.peek(Token![=>]) && input.peek3(keyword::inherited_tokens) {
@@ -81,18 +109,38 @@ pub mod input {
         }
     }
 
+    /// All the data included by a single inherited widget or mix-in.
+    ///
+    /// This data was included during Stage 1 and 2.
     pub struct InheritItem {
+        /// Ident of widget or mix-in inherited.
         pub ident: Ident,
+        /// The path to the inherited widget as typed by the new widget developer.
         pub inherit_path: Path,
+        /// If is inheriting a mix-in.
         pub mixin_signal: MixinSignal,
+
+        /// Inherited properties that apply to the widget.
         pub default: Punctuated<InheritedProperty, Token![,]>,
+        /// Inherited properties that apply to the widget child.
         pub default_child: Punctuated<InheritedProperty, Token![,]>,
+        /// Inherited when conditions.
         pub whens: Punctuated<InheritedWhen, Token![,]>,
+
+        /// Properties captured in the inherited widget `new` function.
         pub new: Punctuated<Ident, Token![,]>,
+        /// Properties captured in the inherited widget `new_child` function.
         pub new_child: Punctuated<Ident, Token![,]>,
     }
-
     impl Parse for InheritItem {
+        /// =>inherited_tokens
+        /// $ident:ident $inherit_path:path
+        /// $mixin_signal: MixinSignal
+        /// { $($default:InheritedProperty),* }
+        /// { $($default_child:InheritedProperty),* }
+        /// { $($whens:InheritedWhen),* }
+        /// { $($new:ident),* }
+        /// { $($new_child:ident),* }
         fn parse(input: ParseStream) -> Result<Self> {
             fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
                 input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
@@ -118,12 +166,18 @@ pub mod input {
         }
     }
 
+    /// An inherited property in [`InheritItem`].
     pub struct InheritedProperty {
+        /// Property documentation.
+        ///
+        /// We can assume only `#[doc=".."]` attributes are here.
         pub docs: Vec<Attribute>,
+
         pub kind: BuiltPropertyKind,
         pub ident: Ident,
     }
     impl Parse for InheritedProperty {
+        /// $(#[$docs:Attribute])* $kind:BuiltPropertyKind $ident:Ident
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedProperty {
                 docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
@@ -133,17 +187,22 @@ pub mod input {
         }
     }
 
+    /// The kind of [`InheritedProperty`].
     #[derive(PartialEq, Eq)]
     pub enum BuiltPropertyKind {
-        /// Required property.
+        /// Property required by the inherited widget, `property: required!;`.
+        ///
+        /// Required inherited properties cannot be unset by the new widget.
         Required,
-        /// Property is provided by the widget.
+        /// Property provided by the inherited widget without default value, `property;`.
         Local,
-        /// Property and default is provided by the widget.
+        /// Property provided by the inherited widget with default value, `property: "..";`.
         Default,
     }
-
     impl Parse for BuiltPropertyKind {
+        /// (default) => Default;
+        /// (local) => Local;
+        /// (required) => Required;
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) {
                 input.parse::<Token![default]>().unwrap_or_else(|e| non_user_error!(e));
@@ -160,12 +219,22 @@ pub mod input {
         }
     }
 
+    /// A when block inherited in a [`InheritItem`].
     pub struct InheritedWhen {
+        /// When documentation.
+        ///
+        /// We can assume only `#[doc=".."]` attributes are here.
         pub docs: Vec<Attribute>,
+
+        /// Properties used in the expression.
         pub args: Punctuated<Ident, Token![,]>,
+        /// Properties set when the expression is true.
         pub sets: Punctuated<Ident, Token![,]>,
     }
     impl Parse for InheritedWhen {
+        /// $(#[$docs:Attribute])*
+        /// ( $($args:ident),* )
+        /// ( $($sets:ident),* )
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedWhen {
                 docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
@@ -175,12 +244,16 @@ pub mod input {
         }
     }
 
+    /// Flag that indicates if we dealing with a full widget or a mix-in.
+    ///
+    /// This is used in [`InheritItem`] and [`WidgetDeclaration`].
     pub struct MixinSignal {
         pub mixin_token: keyword::mixin,
         pub colon: Token![:],
         pub value: LitBool,
     }
     impl Parse for MixinSignal {
+        /// mixin: $value:bool
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(MixinSignal {
                 mixin_token: input.parse()?,
@@ -190,21 +263,32 @@ pub mod input {
         }
     }
 
-    pub enum WgtItem {
+    /// A item in a [`WidgetDeclaration`].
+    pub enum WidgetItem {
+        /// `default { .. }` or `default_child { .. }`
         Default(WgtItemDefault),
+        /// `fn new(..) -> W { .. }` or `fn new_child(..) -> impl UiNode { .. }`
         New(WgtItemNew),
+        /// `when .. { .. }`
         When(WgtItemWhen),
     }
-    impl Parse for WgtItem {
+    impl Parse for WidgetItem {
+        /// ($default:WgtItemDefault) => Default;
+        /// ($(#[$docs:Attribute]*) => {
+        ///     ($new:WgtItemNew) => New;
+        ///     ($When:WgtItemWhen) => When;
+        /// }
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) || input.peek(keyword::default_child) {
-                input.parse().map(WgtItem::Default)
+                input.parse().map(WidgetItem::Default)
             } else {
+                // both new and when can have outer docs.
                 let attrs = Attribute::parse_outer(input)?;
 
                 let lookahead = input.lookahead1();
                 if attrs.is_empty() {
-                    // add to error message.
+                    // add Default to the expected tokens message
+                    /// that will show if we don't find any match.
                     lookahead.peek(Token![default]);
                     lookahead.peek(keyword::default_child);
                 }
@@ -212,11 +296,11 @@ pub mod input {
                 if lookahead.peek(keyword::when) {
                     let mut when: WgtItemWhen = input.parse()?;
                     when.attrs = attrs;
-                    Ok(WgtItem::When(when))
+                    Ok(WidgetItem::When(when))
                 } else if lookahead.peek(Token![fn]) {
                     let mut new: WgtItemNew = input.parse()?;
                     new.attrs = attrs;
-                    Ok(WgtItem::New(new))
+                    Ok(WidgetItem::New(new))
                 } else {
                     Err(lookahead.error())
                 }
@@ -224,12 +308,17 @@ pub mod input {
         }
     }
 
+    /// Targeted default properties.
+    ///
+    /// This is one of the [items](WidgetItem) in a [`WidgetDeclaration`].
     pub struct WgtItemDefault {
+        /// If the properties are applied to the widget or the widget child.
         pub target: DefaultTarget,
         pub block: DefaultBlock,
     }
 
     impl Parse for WgtItemDefault {
+        /// $target:DefaultTarget $block:DefaultBlock
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(WgtItemDefault {
                 target: input.parse()?,
@@ -238,11 +327,16 @@ pub mod input {
         }
     }
 
+    /// Target of a [`WgtItemDefault`].
     pub enum DefaultTarget {
+        /// Properties apply after the child properties.
         Default(Token![default]),
+        /// Properties apply before the widget properties.
         DefaultChild(keyword::default_child),
     }
     impl Parse for DefaultTarget {
+        /// (default) => Default;
+        /// (default_child) => DefaultChild;
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) {
                 Ok(DefaultTarget::Default(input.parse().unwrap()))
@@ -252,16 +346,36 @@ pub mod input {
         }
     }
 
+    /// Properties in a [`WgtItemDefault`].
     pub type DefaultBlock = PropertyBlock<PropertyDeclaration>;
 
+    /// Property declared in a [`WgtItemDefault`].
     pub struct PropertyDeclaration {
+        /// Outer attributes applied to the property.
+        ///
+        /// Attribute type is not validated here.
         pub attrs: Vec<Attribute>,
+
+        /// Property name.
         pub ident: Ident,
+
+        /// Actual name of property that is used when `ident` is set.
+        ///
+        /// If `None` `ident` must be a property module visible for
+        /// the widget declaration or one of the inherited properties.
+        ///
+        /// This is not validated during parsing.
         pub maps_to: Option<MappedProperty>,
+
+        /// Default value for the property.
         pub default_value: Option<(Token![:], PropertyDefaultValue)>,
+
+        /// Terminator.
         pub semi_token: Token![;],
     }
     impl Parse for PropertyDeclaration {
+        /// $(#[$attrs:Attribute])*
+        /// $ident:ident $(-> $maps_to:MappedProperty)? $(: $default_value:PropertyDefaultValue)?;
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyDeclaration {
                 attrs: Attribute::parse_outer(input)?,
@@ -277,11 +391,13 @@ pub mod input {
         }
     }
 
+    /// Actual property a [`PropertyDeclaration`] uses.
     pub struct MappedProperty {
         pub r_arrow_token: Token![->],
         pub ident: Ident,
     }
     impl Parse for MappedProperty {
+        /// -> $ident:ident
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(MappedProperty {
                 r_arrow_token: input.parse()?,
@@ -290,24 +406,39 @@ pub mod input {
         }
     }
 
+    /// Default value of a [`PropertyDeclaration`].
     pub enum PropertyDefaultValue {
-        /// Named arguments.
+        /// Named arguments, `{ arg0: v0, arg1: v1 }`.
         Fields(PropertyFields),
-        /// Unnamed arguments.
+        /// Unnamed arguments, `v0, v1`.
         Args(PropertyArgs),
-        /// unset.
+        /// `unset!`.
         Unset(PropertyUnset),
-        /// required.
+        /// `required!`.
         Required(PropertyRequired),
     }
-
     impl Parse for PropertyDefaultValue {
         fn parse(input: ParseStream) -> Result<Self> {
             parse_property_value(input, true)
         }
     }
 
+    /// ( $($arg:expr),+ ) => Args;
+    /// ( { $($arg:ident : $value:expr) } ) => Fields;
+    /// ( unset! ) => Unset;
+    /// ( required!) => Required;
     fn parse_property_value(input: ParseStream, allow_required: bool) -> Result<PropertyDefaultValue> {
+        // Differentiating between a fields declaration and a single args declaration gets tricky.
+        //
+        // This is a normal fields decl.: `{ field0: "value" }`
+        // This is a block single argument decl.: `{ foo(); bar() }`
+        //
+        // Fields can use the shorthand field name only `{ field0 }`
+        // witch is also a single arg block expression. In this case
+        // we parse as Args, if it was a field it will still work because
+        // we only have one field.
+
+        // first we buffer ahead to the end of all property declarations `;`.
         let ahead = input.fork();
         let mut buffer = TokenStream::new();
         while !ahead.is_empty() && !ahead.peek(Token![;]) {
@@ -315,9 +446,16 @@ pub mod input {
             tt.to_tokens(&mut buffer);
         }
         input.advance_to(&ahead);
+        // now we have only the property value in `buffer`.
 
-        if let Ok(fields) = syn::parse2(buffer.clone()) {
-            Ok(PropertyDefaultValue::Fields(fields))
+        if let Ok(fields) = syn::parse2::<PropertyFields>(buffer.clone()) {
+            if fields.fields.len() == 1 && fields.fields[0].colon_token.is_none() {
+                // we parsed `{ ident }` witch can also be a single arg expression
+                // and we don't known if ident is a field name, so we parse as args.
+                Ok(PropertyDefaultValue::Args(syn::parse2(buffer).expect("{ arg0 }")))
+            } else {
+                Ok(PropertyDefaultValue::Fields(fields))
+            }
         } else if let Ok(args) = syn::parse2(buffer.clone()) {
             Ok(PropertyDefaultValue::Args(args))
         } else if let Ok(unset) = syn::parse2(buffer.clone()) {
@@ -334,13 +472,16 @@ pub mod input {
         }
     }
 
+    /// Named args default value of [`PropertyDeclaration`].
     #[derive(Debug)]
     pub struct PropertyFields {
+        /// { .. }
         pub brace_token: token::Brace,
+        /// ..
         pub fields: Punctuated<FieldValue, Token![,]>,
     }
-
     impl Parse for PropertyFields {
+        /// { $($arg:ident : $value:expr),* }
         fn parse(input: ParseStream) -> Result<Self> {
             let fields;
             Ok(PropertyFields {
@@ -350,20 +491,23 @@ pub mod input {
         }
     }
 
+    /// Unnamed args default value of [`PropertyDeclaration`].
     #[derive(Debug)]
     pub struct PropertyArgs(pub Punctuated<Expr, Token![,]>);
-
     impl Parse for PropertyArgs {
+        /// $($arg:ident),*
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyArgs(Punctuated::parse_terminated(input)?))
         }
     }
 
+    /// Special value that indicates the property must be removed.
     pub struct PropertyUnset {
         pub unset_token: keyword::unset,
         pub bang_token: Token![!],
     }
     impl Parse for PropertyUnset {
+        /// unset!
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyUnset {
                 unset_token: input.parse()?,
@@ -378,12 +522,14 @@ pub mod input {
         }
     }
 
+    /// Special value that indicates the property must be set by of the
+    /// widget and cannot be unset.
     pub struct PropertyRequired {
         pub required_token: keyword::required,
         pub bang_token: Token![!],
     }
-
     impl Parse for PropertyRequired {
+        /// required!
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyRequired {
                 required_token: input.parse()?,
@@ -392,19 +538,33 @@ pub mod input {
         }
     }
 
+    /// A `fn new(..) -> W { .. }` or `fn new_child(..) -> impl UiNode { .. }`
+    /// in a [`PropertyDeclaration`].
     #[derive(Clone)]
     pub struct WgtItemNew {
+        /// Outer attributes applied to the function.
+        ///
+        /// Attribute type is not validated here.
         pub attrs: Vec<Attribute>,
         pub fn_token: Token![fn],
+        /// `new` or `new_child`.
         pub target: NewTarget,
+
+        /// ( .. )
         pub paren_token: token::Paren,
+        /// ..
         pub inputs: Punctuated<Ident, Token![,]>,
+
         pub r_arrow_token: Token![->],
         pub return_type: Box<Type>,
+
         pub block: Block,
     }
 
     impl Parse for WgtItemNew {
+        /// $(#[$attrs:meta])*
+        /// fn $target:NewTarget ( $($inputs:property_ident),* ) -> $returnType:ty 
+        /// $block: Block
         fn parse(input: ParseStream) -> Result<Self> {
             let inputs;
             Ok(WgtItemNew {
@@ -420,12 +580,14 @@ pub mod input {
         }
     }
 
+    /// Witch of the two widget functions is a [`WgtItemNew`].
     #[derive(Clone)]
     pub enum NewTarget {
+        /// `new`
         New(keyword::new),
+        /// `new_child`
         NewChild(keyword::new_child),
     }
-
     impl Parse for NewTarget {
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(keyword::new) {
@@ -436,7 +598,11 @@ pub mod input {
         }
     }
 
+    /// A `when` block in a [`WidgetDeclaration`].
     pub struct WgtItemWhen {
+        /// Outer attributes applied to the function.
+        ///
+        /// Attribute type is not validated here.
         pub attrs: Vec<Attribute>,
         pub when_token: keyword::when,
         pub condition: Box<Expr>,
@@ -444,6 +610,8 @@ pub mod input {
     }
 
     impl Parse for WgtItemWhen {
+        /// $(#[$attrs:meta])*
+        /// when $condition:expr $block:WhenBlock
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(WgtItemWhen {
                 attrs: Attribute::parse_outer(input)?,
@@ -454,16 +622,18 @@ pub mod input {
         }
     }
 
+    /// A block of property assigns in a [`WgtItemWhen`].
     pub type WhenBlock = PropertyBlock<PropertyAssign>;
 
+    /// A property assign in a [`WgtItemWhen`].
     pub struct PropertyAssign {
         pub ident: Ident,
         pub colon_token: Token![:],
         pub value: PropertyValue,
         pub semi_token: Token![;],
     }
-
     impl Parse for PropertyAssign {
+        /// $ident:ident : $value:PropertyValue ;
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyAssign {
                 ident: input.parse()?,
@@ -474,6 +644,7 @@ pub mod input {
         }
     }
 
+    /// A property value is a [`PropertyDeclaration`] or [`PropertyAssign`].
     pub enum PropertyValue {
         /// Named arguments. prop1: { arg0: "value", arg1: "other value" };
         Fields(PropertyFields),
@@ -482,8 +653,8 @@ pub mod input {
         /// unset. prop1: unset!;
         Unset(PropertyUnset),
     }
-
     impl Parse for PropertyValue {
+        /// see [`parse_property_value`].
         fn parse(input: ParseStream) -> Result<Self> {
             parse_property_value(input, false).map(|s| match s {
                 PropertyDefaultValue::Fields(f) => PropertyValue::Fields(f),
@@ -495,8 +666,12 @@ pub mod input {
     }
 }
 
+/// The meat of widget generation without the distractions of
+/// parsing and quoting.
+///
+/// [`analysis::generate`] is the entry-point.
 pub mod analysis {
-    use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WgtItem, WidgetDeclaration};
+    use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WidgetDeclaration, WidgetItem};
     use super::output::*;
     use crate::{
         property::input::Prefix as PropertyPrefix,
@@ -516,7 +691,8 @@ pub mod analysis {
     };
 
     pub(super) fn generate(mut input: WidgetDeclaration) -> WidgetOutput {
-        // check if included all inherits in the recursive call.
+        // check if all inherits where properly included before moving
+        // to Stage 3.
         debug_assert!(
             input
                 .header
@@ -528,7 +704,7 @@ pub mod analysis {
         );
 
         // property resolution order is left-to-right, here we setup inherits
-        // so that the left most inherit is the last item, that caused it to
+        // so that the left most inherit is the last item, that causes it to
         // override properties from the others.
         input.inherits.reverse();
 
@@ -551,17 +727,17 @@ pub mod analysis {
         let mut whens = vec![];
         for item in input.items {
             match item {
-                WgtItem::Default(d) => match d.target {
+                WidgetItem::Default(d) => match d.target {
                     DefaultTarget::Default(_) => properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::Default, p))),
                     DefaultTarget::DefaultChild(_) => {
                         properties.extend(d.block.properties.into_iter().map(|p| (PropertyTarget::DefaultChild, p)))
                     }
                 },
-                WgtItem::New(n) => match &n.target {
+                WidgetItem::New(n) => match &n.target {
                     NewTarget::New(_) => new_fns.push(n),
                     NewTarget::NewChild(_) => new_child_fns.push(n),
                 },
-                WgtItem::When(w) => whens.push(w),
+                WidgetItem::When(w) => whens.push(w),
             }
         }
 
