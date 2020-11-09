@@ -7,7 +7,7 @@ use syn::parse_macro_input;
 ///
 /// We have all the inherited tokens to work with. This module is divided in 3,
 /// * [input] - Defines the [`input::WidgetDeclaration`] type and parsers for it.
-/// * [output] -> Defines the [`output::WidgetOutput`] type and tokenizers for it.
+/// * [output] -> Defines the [`output::WidgetOutput`] type and code generation.
 /// * [analysis] - Defines the [`analysis::generate`] that converts input into output.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as input::WidgetDeclaration);
@@ -82,10 +82,12 @@ pub mod input {
         pub items: Vec<WidgetItem>,
     }
     impl Parse for WidgetDeclaration {
+        /// ```text
         /// $(=> inherited_tokens $inherits: InheritItem)*  
         /// $mixin_signal: MixinSignal
         /// $header: WidgetHeader
         /// $($items:WidgetItem)*
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             let mut inherits = Vec::new();
             while input.peek(Token![=>]) && input.peek3(keyword::inherited_tokens) {
@@ -133,6 +135,7 @@ pub mod input {
         pub new_child: Punctuated<Ident, Token![,]>,
     }
     impl Parse for InheritItem {
+        /// ```text
         /// =>inherited_tokens
         /// $ident:ident $inherit_path:path
         /// $mixin_signal: MixinSignal
@@ -141,6 +144,7 @@ pub mod input {
         /// { $($whens:InheritedWhen),* }
         /// { $($new:ident),* }
         /// { $($new_child:ident),* }
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
                 input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
@@ -177,7 +181,9 @@ pub mod input {
         pub ident: Ident,
     }
     impl Parse for InheritedProperty {
+        /// ```text
         /// $(#[$docs:Attribute])* $kind:BuiltPropertyKind $ident:Ident
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedProperty {
                 docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
@@ -200,9 +206,11 @@ pub mod input {
         Default,
     }
     impl Parse for BuiltPropertyKind {
+        /// ```text
         /// (default) => Default;
         /// (local) => Local;
         /// (required) => Required;
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) {
                 input.parse::<Token![default]>().unwrap_or_else(|e| non_user_error!(e));
@@ -232,9 +240,11 @@ pub mod input {
         pub sets: Punctuated<Ident, Token![,]>,
     }
     impl Parse for InheritedWhen {
+        /// ```text
         /// $(#[$docs:Attribute])*
         /// ( $($args:ident),* )
         /// ( $($sets:ident),* )
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedWhen {
                 docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
@@ -253,7 +263,9 @@ pub mod input {
         pub value: LitBool,
     }
     impl Parse for MixinSignal {
+        /// ```text
         /// mixin: $value:bool
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(MixinSignal {
                 mixin_token: input.parse()?,
@@ -273,11 +285,13 @@ pub mod input {
         When(WgtItemWhen),
     }
     impl Parse for WidgetItem {
+        /// ```text
         /// ($default:WgtItemDefault) => Default;
         /// ($(#[$docs:Attribute]*) => {
         ///     ($new:WgtItemNew) => New;
         ///     ($When:WgtItemWhen) => When;
         /// }
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) || input.peek(keyword::default_child) {
                 input.parse().map(WidgetItem::Default)
@@ -318,7 +332,9 @@ pub mod input {
     }
 
     impl Parse for WgtItemDefault {
+        /// ```text
         /// $target:DefaultTarget $block:DefaultBlock
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(WgtItemDefault {
                 target: input.parse()?,
@@ -335,8 +351,10 @@ pub mod input {
         DefaultChild(keyword::default_child),
     }
     impl Parse for DefaultTarget {
+        /// ```text
         /// (default) => Default;
         /// (default_child) => DefaultChild;
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             if input.peek(Token![default]) {
                 Ok(DefaultTarget::Default(input.parse().unwrap()))
@@ -374,8 +392,10 @@ pub mod input {
         pub semi_token: Token![;],
     }
     impl Parse for PropertyDeclaration {
+        /// ```text
         /// $(#[$attrs:Attribute])*
         /// $ident:ident $(-> $maps_to:MappedProperty)? $(: $default_value:PropertyDefaultValue)?;
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyDeclaration {
                 attrs: Attribute::parse_outer(input)?,
@@ -397,7 +417,9 @@ pub mod input {
         pub ident: Ident,
     }
     impl Parse for MappedProperty {
+        /// ```text
         /// -> $ident:ident
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(MappedProperty {
                 r_arrow_token: input.parse()?,
@@ -423,10 +445,12 @@ pub mod input {
         }
     }
 
+    /// ```text
     /// ( $($arg:expr),+ ) => Args;
     /// ( { $($arg:ident : $value:expr) } ) => Fields;
     /// ( unset! ) => Unset;
     /// ( required!) => Required;
+    /// ```
     fn parse_property_value(input: ParseStream, allow_required: bool) -> Result<PropertyDefaultValue> {
         // Differentiating between a fields declaration and a single args declaration gets tricky.
         //
@@ -481,7 +505,9 @@ pub mod input {
         pub fields: Punctuated<FieldValue, Token![,]>,
     }
     impl Parse for PropertyFields {
+        /// ```text
         /// { $($arg:ident : $value:expr),* }
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             let fields;
             Ok(PropertyFields {
@@ -495,7 +521,9 @@ pub mod input {
     #[derive(Debug)]
     pub struct PropertyArgs(pub Punctuated<Expr, Token![,]>);
     impl Parse for PropertyArgs {
+        /// ```text
         /// $($arg:ident),*
+        /// ```       
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyArgs(Punctuated::parse_terminated(input)?))
         }
@@ -507,7 +535,9 @@ pub mod input {
         pub bang_token: Token![!],
     }
     impl Parse for PropertyUnset {
+        /// ```text
         /// unset!
+        /// ```        
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyUnset {
                 unset_token: input.parse()?,
@@ -529,7 +559,9 @@ pub mod input {
         pub bang_token: Token![!],
     }
     impl Parse for PropertyRequired {
+        /// ```text
         /// required!
+        /// ```        
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(PropertyRequired {
                 required_token: input.parse()?,
@@ -562,9 +594,11 @@ pub mod input {
     }
 
     impl Parse for WgtItemNew {
+        /// ```text
         /// $(#[$attrs:meta])*
-        /// fn $target:NewTarget ( $($inputs:property_ident),* ) -> $returnType:ty 
+        /// fn $target:NewTarget ( $($inputs:property_ident),* ) -> $returnType:ty
         /// $block: Block
+        /// ```        
         fn parse(input: ParseStream) -> Result<Self> {
             let inputs;
             Ok(WgtItemNew {
@@ -610,8 +644,10 @@ pub mod input {
     }
 
     impl Parse for WgtItemWhen {
+        /// ```text
         /// $(#[$attrs:meta])*
         /// when $condition:expr $block:WhenBlock
+        /// ```
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(WgtItemWhen {
                 attrs: Attribute::parse_outer(input)?,
@@ -1358,6 +1394,9 @@ pub mod analysis {
     }
 }
 
+/// Widget output AST and code generation.
+///
+/// The root type is [`output::WidgetOutput`].
 pub mod output {
     use super::input::{keyword, BuiltPropertyKind, NewTarget, PropertyArgs, PropertyFields, WgtItemNew};
     use crate::util::{docs_with_first_line_js, uuid, zero_ui_crate_ident, Errors};
@@ -1369,6 +1408,7 @@ pub mod output {
 
     pub use super::input::{InheritedProperty as BuiltProperty, InheritedWhen as BuiltWhen};
 
+    /// All the data needed to generate a widget module and macro.
     pub struct WidgetOutput {
         pub macro_: WidgetMacro,
         pub mod_: WidgetMod,
@@ -1382,6 +1422,7 @@ pub mod output {
         }
     }
 
+    /// The widget macro.
     pub struct WidgetMacro {
         pub cfg: Option<Attribute>,
         pub widget_name: Ident,
@@ -1395,6 +1436,63 @@ pub mod output {
         pub new_child: BuiltNew,
     }
     impl ToTokens for WidgetMacro {
+        /// ```text
+        /// #[macro_export]
+        /// macro_rules! #widget_name_GUID {
+        ///
+        ///     // inherit branch, present in widget and mix-ins, calls the [`widget_stage2!`]
+        ///     // including this widgets information so it can be inherited.
+        ///     (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+        ///         zero_ui::widget_stage2! {
+        ///             // continuation of the inheritance recursive calls.
+        ///             => {
+        ///                 $stage3_entry;
+        ///                 $($inherit_next)*        
+        ///             }
+        ///
+        ///             // data to inherit from this widget.
+        ///             => inherited_tokens {
+        ///                 #widget_name
+        ///                 $named_as
+        ///                 mixin: #is_mixin
+        ///                 default { #(#default),* } // see [`BuiltProperty`]
+        ///                 default_child { #(#default_child),* } // see [`BuiltProperty`]
+        ///                 whens { #(#whens),* } // see [`BuiltWhen`]
+        ///                 new { #new } // see [`BuiltNew`]
+        ///                 new_child { #new_child } // see [`BuiltNew`]
+        ///             }
+        ///         }
+        ///     };
+        ///
+        ///     // instantiate branch, present only for full widgets, not mix-ins. Calls [`widget_new!`]
+        ///     // including all the information needed to instantiate the widget
+        ///     ($($input:tt)*) => {
+        ///         zero_ui::widget_new! {
+        ///             #widget_name
+        ///             
+        ///             // these are the same types used in inherited_tokens
+        ///             // except this time the #[doc=".."] attributes are not included.
+        ///             default { #(#default),* }
+        ///             default_child { #(#default_child),* }
+        ///             whens { #(#whens),* }
+        ///             new { #new }
+        ///             new_child { #new_child }
+        ///
+        ///             // the widget user input.
+        ///             user_input { $($input)* }
+        ///         }
+        ///     };
+        /// }
+        ///
+        /// // Using a random name and then reexporting is a trick to scope the macro in its parent
+        /// // module. Also allows more then one widget with the same name in different modules in the same crate.
+        ///
+        /// // When macro 2.0 is stable we can remove this.
+        ///
+        /// #[cfg(..)]// if set in the declaration header.
+        /// #[doc(hidden)]
+        /// pub use #widget_name_GUID as #widget_name;
+        /// ```
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let crate_ = zero_ui_crate_ident();
             let name = &self.widget_name;
@@ -1473,6 +1571,10 @@ pub mod output {
         }
     }
     impl BuiltProperty {
+        /// ```text
+        /// #(#docs)* // if `include_docs`
+        /// #kind #ident
+        /// ```
         fn tokens(&self, include_docs: bool) -> TokenStream {
             let mut r = TokenStream::new();
             if include_docs {
@@ -1490,6 +1592,7 @@ pub mod output {
         }
     }
     impl ToTokens for BuiltPropertyKind {
+        /// Writes the keyword for each kind.
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
                 BuiltPropertyKind::Required => keyword::required::default().to_tokens(tokens),
@@ -1499,6 +1602,10 @@ pub mod output {
         }
     }
     impl BuiltWhen {
+        /// ```text
+        /// #(#docs)* // if `include_docs`
+        /// (#(#args),*) { #(#sets),* }
+        /// ```
         fn tokens(&self, include_docs: bool) -> TokenStream {
             let mut r = TokenStream::new();
             if include_docs {
@@ -1523,14 +1630,19 @@ pub mod output {
     pub struct BuiltNew {
         pub properties: Vec<Ident>,
     }
-
     impl ToTokens for BuiltNew {
+        /// ```text
+        /// #(#properties),*
+        /// ```
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let props = &self.properties;
             tokens.extend(quote!( #(#props),* ))
         }
     }
 
+    /// The widget module, contains all the types and function required
+    /// for instantiating the widget. This is also the public face of the widget
+    /// the macro is hidden.
     pub struct WidgetMod {
         pub docs: WidgetDocs,
         pub attrs: Vec<Attribute>,
@@ -1543,8 +1655,24 @@ pub mod output {
         pub defaults: WidgetDefaults,
         pub whens: WidgetWhens,
     }
-
     impl ToTokens for WidgetMod {
+        /// ```text
+        /// #(#attrs)* // all attributes that are not docs
+        /// #docs // see [`WidgetDocs`], includes header docs
+        /// #vis mod #widget_name {
+        ///     use super::*;
+        ///     use zero_ui::widgets::mixins::implicit_mixin;
+        ///
+        ///     #new // see [`NewFn`]
+        ///     #new_child
+        ///     
+        ///     #properties // see [`WidgetProperties`]
+        ///
+        ///     #defaults // see [`WidgetDefaults`]
+        ///
+        ///     #whens // see [`WidgetWhens`]
+        /// }
+        /// ```
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let attrs = self.attrs.iter();
             let docs = &self.docs;
@@ -1589,6 +1717,10 @@ pub mod output {
         }
     }
 
+    /// Widget module documentation generation.
+    ///
+    /// Makes extensive use of HTML, CSS and JS inlining to present the concept
+    /// of widgets as a first class item.
     pub struct WidgetDocs {
         pub docs: Vec<Attribute>,
         pub is_mixin: bool,
@@ -1602,6 +1734,10 @@ pub mod output {
         pub state: Vec<PropertyDocs>,
     }
     impl WidgetDocs {
+        /// Generates a module with documentation links for rust-doc to expand.
+        ///
+        /// The module is hidden by CSS from the module list, when loaded in an IFRAME sends
+        /// a message back using `postMessage`.
         fn helper_mod_tokens(&self) -> Option<TokenStream> {
             if self.state.is_empty() {
                 None
@@ -1629,7 +1765,22 @@ pub mod output {
         }
     }
     impl ToTokens for WidgetDocs {
-        // TODO generate when documentation.
+        /// The widget header docs are inserted first, but spliced in the first line with JS that
+        /// moves the module to a new section called "Widget Modules". This is because rust-doc includes
+        /// the first line in the module list section of the parent module and we need our JS to affect that list.
+        ///
+        /// The header docs just looks like a normal module header docs in the full page. After the header docs
+        /// we insert a `</DIV>` and go rogue. This causes a small HTML parsing error at the end of the file, because
+        /// rust-doc will still close a DIV after our custom stuff.
+        ///
+        /// After the header we create sections for properties using the `<H2 class="small-section-header">` that is
+        /// used by other rust-docs generated content. The properties are divided in *required*, *provided*, *state* and *other*.
+        ///
+        /// *Required properties* are those marked `required!`, *provided properties* are the properties that have a default value,
+        /// *state properties* are the `is_state` properties that are defined in the widget and *other properties* are the properties
+        /// defined in the widget without any value set.
+        ///
+        /// The documentation for each property is included, see [`PropertyDocs`] for details.
         fn to_tokens(&self, tokens: &mut TokenStream) {
             docs_with_first_line_js(tokens, &self.docs, js_tag!("widget_mods_ext.js"));
 
@@ -1698,6 +1849,7 @@ pub mod output {
         }
     }
 
+    /// Generator of documentation for a single property in a [`WidgetDocs`] section.
     pub struct PropertyDocs {
         pub docs: Vec<Attribute>,
         pub target_child: bool,
@@ -1705,8 +1857,10 @@ pub mod output {
         pub property_source: PropertySource,
         pub is_required_provided: bool,
     }
-
     impl ToTokens for PropertyDocs {
+        /// We reuse the `<H3 class="method">` to create each property section.
+        ///
+        ///
         fn to_tokens(&self, tokens: &mut TokenStream) {
             doc_extend!(
                 tokens,
