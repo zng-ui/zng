@@ -127,6 +127,7 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
 }
 
 pub fn uuid() -> impl std::fmt::Display {
+    // could also be format!("{:?}", Span::call_site()).splitn(2, ' ').next().unwrap()[1..].to_string();
     uuid::Uuid::new_v4().to_simple()
 }
 
