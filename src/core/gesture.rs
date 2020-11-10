@@ -13,7 +13,7 @@ use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::WindowId;
-use std::convert::{TryFrom, TryInto};
+use std::{time::Duration, convert::{TryFrom, TryInto}};
 use std::fmt::{self, Display};
 use std::num::NonZeroU32;
 
@@ -440,6 +440,7 @@ impl AppExtension for GestureManager {
         let notify_double = self.double_click.has_listeners();
         let notify_triple = self.triple_click.has_listeners();
 
+        // Generate click events from mouse clicks.
         for args in self.mouse_click.updates(ctx.events) {
             let args: ClickArgs = args.clone().into();
 
@@ -452,21 +453,24 @@ impl AppExtension for GestureManager {
             self.click.notify(ctx.events, args);
         }
 
+        // Generate shortcut events from keyboard input.
         for args in self.key_input.updates(ctx.events) {
+            if args.stop_propagation_requested() {
+                continue;
+            }
             if let Some(key) = args.key {
                 match args.state {
                     ElementState::Pressed => {
                         if let Ok(gesture_key) = GestureKey::try_from(key) {
-                            self.shortcut.notify(
-                                ctx.events,
-                                ShortcutArgs::now(
-                                    args.window_id,
-                                    args.device_id,
-                                    Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
-                                    args.repeat,
-                                    args.target.clone(),
-                                ),
+                            let s_args = ShortcutArgs::new(
+                                args.timestamp,
+                                args.window_id,
+                                args.device_id,
+                                Shortcut::Gesture(KeyGesture::new(args.modifiers, gesture_key)),
+                                args.repeat,
+                                args.target.clone(),
                             );
+                            self.shortcut.notify(ctx.events, s_args);
                             self.pressed_modifier = None;
                         } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                             self.pressed_modifier = Some(mod_gesture);
@@ -475,16 +479,15 @@ impl AppExtension for GestureManager {
                     ElementState::Released => {
                         if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                             if Some(mod_gesture) == self.pressed_modifier.take() && args.modifiers.is_empty() {
-                                self.shortcut.notify(
-                                    ctx.events,
-                                    ShortcutArgs::now(
-                                        args.window_id,
-                                        args.device_id,
-                                        Shortcut::Modifier(mod_gesture),
-                                        false,
-                                        args.target.clone(),
-                                    ),
+                                let s_args = ShortcutArgs::new(
+                                    args.timestamp,
+                                    args.window_id,
+                                    args.device_id,
+                                    Shortcut::Modifier(mod_gesture),
+                                    false,
+                                    args.target.clone(),
                                 );
+                                self.shortcut.notify(ctx.events, s_args);
                             }
                         }
                     }
@@ -492,6 +495,7 @@ impl AppExtension for GestureManager {
             }
         }
 
+        // Generate click events from shortcuts.
         if self.shortcut.has_updates(ctx.events) {
             let config = ctx.services.req::<Gestures>();
             if !config.click_focused.is_empty() {
@@ -527,13 +531,20 @@ pub struct Gestures {
     /// Shortcuts that generate a [`ClickEvent`] for the focused widget.
     /// The shortcut only works if no widget handles the [`ShortcutEvent`].
     ///
-    /// By default this is [`Enter`](VirtualKeyCode::Return) or [`Space`](VirtualKeyCode::Space).
+    /// Initial shortcuts are [`Enter`](VirtualKeyCode::Return) and [`Space`](VirtualKeyCode::Space).
     pub click_focused: Vec<Shortcut>,
+
+    /// When a shortcut click happens, targeted widgets can indicate that
+    /// they are pressed for this duration.
+    /// 
+    /// Initial value is `300ms`, set to to `0` to deactivate this type of indication.
+    pub shortcut_pressed_duration: Duration
 }
 impl Gestures {
     fn new() -> Self {
         Gestures {
             click_focused: vec![shortcut!(Return), shortcut!(Space)],
+            shortcut_pressed_duration: Duration::from_millis(300),
         }
     }
 }
