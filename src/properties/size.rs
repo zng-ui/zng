@@ -15,7 +15,7 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for MinSizeNode<T, S> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.min_size.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -56,7 +56,7 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for MinWidthNode<T, W> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.min_width.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -107,7 +107,7 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for MinHeightNode<T, H> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.min_height.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -162,7 +162,7 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for MaxSizeNode<T, S> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.max_size.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -203,7 +203,7 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for MaxWidthNode<T, W> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.max_width.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -254,7 +254,7 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for MaxHeightNode<T, H> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.max_height.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -305,7 +305,7 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for SizeNode<T, S> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.size.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -359,7 +359,7 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for WidthNode<T, W> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.width.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
@@ -404,7 +404,7 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for HeightNode<T, H> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.height.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);

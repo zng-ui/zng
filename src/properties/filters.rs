@@ -16,7 +16,7 @@ impl<C: UiNode, F: VarLocal<Filter>> UiNode for FilterNode<C, F> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.filter.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout() //TODO don't use layout when not needed.
+            ctx.updates.layout() //TODO don't use layout when not needed.
         }
         self.child.update(ctx)
     }
@@ -122,7 +122,7 @@ impl<C: UiNode, A: VarLocal<FactorNormal>> UiNode for OpacityNode<C, A> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.alpha_value.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render_update();
+            ctx.updates.render_update();
         }
         self.child.update(ctx);
     }

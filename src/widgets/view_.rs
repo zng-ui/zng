@@ -19,7 +19,7 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
     fn refresh_child(&mut self, ctx: &mut WidgetContext) {
         if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
             self.child = new_child;
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
     }
 

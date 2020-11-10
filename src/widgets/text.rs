@@ -219,7 +219,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 self.text = SegmentedText::new(text);
                 self.shaped_text = ShapedText::default();
 
-                ctx.updates.push_layout();
+                ctx.updates.layout();
             }
         } else if let Some((text_transform, white_space)) = TextContext::text_update(ctx.vars) {
             let text = self.text_var.get(ctx.vars).clone();
@@ -229,7 +229,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 self.text = SegmentedText::new(text);
                 self.shaped_text = ShapedText::default();
 
-                ctx.updates.push_layout();
+                ctx.updates.layout();
             }
         }
 
@@ -246,7 +246,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 self.font_instance = None;
                 self.shaped_text = ShapedText::default();
 
-                ctx.updates.push_layout();
+                ctx.updates.layout();
             }
         }
 
@@ -259,7 +259,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 self.font_instance = None;
                 self.shaped_text = ShapedText::default();
 
-                ctx.updates.push_layout();
+                ctx.updates.layout();
             }
         }
 
@@ -271,7 +271,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             if self.color != color {
                 self.color = color;
 
-                ctx.updates.push_render();
+                ctx.updates.render();
             }
         }
     }

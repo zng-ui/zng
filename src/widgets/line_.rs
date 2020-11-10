@@ -36,10 +36,10 @@ impl<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rg
         if self.width.is_new(ctx.vars) || self.length.update_local(ctx.vars).is_some() || self.orientation.update_local(ctx.vars).is_some()
         {
             self.refresh(ctx);
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         } else if self.color.update_local(ctx.vars).is_some() || self.style.is_new(ctx.vars) {
             self.refresh(ctx);
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
     }
 

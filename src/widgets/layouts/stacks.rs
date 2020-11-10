@@ -38,7 +38,7 @@ impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
     #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.spacing.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
         for child in self.children.iter_mut() {
             child.update(ctx);

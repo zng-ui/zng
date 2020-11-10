@@ -183,7 +183,7 @@ impl<T: Send + 'static> EventSender<T> {
     /// This will generate an event update.
     pub fn notify(&self, args: T) {
         self.sender.send(args).expect("TODO can this fail?");
-        self.notifier.push_update(); // TODO high-pressure?
+        self.notifier.update(); // TODO high-pressure?
     }
 }
 struct EventSenderSync<T: Send + 'static> {
@@ -265,7 +265,7 @@ impl<T: VarValue + Send> VarSender<T> {
     #[inline]
     pub fn set(&self, new_value: T) {
         self.sender.send(new_value).expect("TODO");
-        self.notifier.push_update();
+        self.notifier.update();
     }
 }
 struct VarSenderSync<T: VarValue + Send, V: Var<T>> {
@@ -307,7 +307,7 @@ impl<T: VarValue> VarModifySender<T> {
         U: FnOnce(&mut T) + Send + 'static,
     {
         self.sender.send(Box::new(update)).expect("TODO");
-        self.notifier.push_update();
+        self.notifier.update();
     }
 }
 struct VarModifySenderSync<T: VarValue, V: Var<T>> {

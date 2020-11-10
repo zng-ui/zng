@@ -133,14 +133,14 @@ impl UpdateNotifier {
     /// Flags an update request and sends an update event
     /// if none was sent since the last one was consumed.
     #[inline]
-    pub fn push_update(&self) {
+    pub fn update(&self) {
         self.set(Self::UPDATE);
     }
 
     /// Flags an update request(high-pressure) and sends an update event
     /// if none was sent since the last one was consumed.
     #[inline]
-    pub fn push_update_hp(&self) {
+    pub fn update_hp(&self) {
         self.set(Self::UPDATE_HP);
     }
 }
@@ -370,34 +370,34 @@ impl Updates {
     }
 
     /// Schedules a low-pressure update.
-    pub fn push_update(&mut self) {
+    pub fn update(&mut self) {
         self.update.update = true;
     }
 
     /// Schedules a high-pressure update.
-    pub fn push_update_hp(&mut self) {
+    pub fn update_hp(&mut self) {
         self.update.update_hp = true;
     }
 
     /// Schedules the `updates`.
-    pub fn push_updates(&mut self, updates: UpdateRequest) {
+    pub fn schedule_updates(&mut self, updates: UpdateRequest) {
         self.update |= updates;
     }
 
     /// Schedules a layout update.
-    pub fn push_layout(&mut self) {
+    pub fn layout(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;
         self.display_update |= UpdateDisplayRequest::Layout;
     }
 
     /// Schedules a new frame.
-    pub fn push_render(&mut self) {
+    pub fn render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
         self.display_update |= UpdateDisplayRequest::Render;
     }
 
     /// Schedule a frame update.
-    pub fn push_render_update(&mut self) {
+    pub fn render_update(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::RenderUpdate;
         self.display_update |= UpdateDisplayRequest::Render;
     }

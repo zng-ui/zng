@@ -18,7 +18,7 @@ impl<C: UiNode, T: VarLocal<Transform>> UiNode for TransformNode<C, T> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
         if self.transform.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render_update();
+            ctx.updates.render_update();
         }
     }
 
@@ -175,7 +175,7 @@ impl<C: UiNode, O: VarLocal<Point>> UiNode for TransformOriginNode<C, O> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.origin.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render_update();
+            ctx.updates.render_update();
         }
         self.child.update(ctx);
     }

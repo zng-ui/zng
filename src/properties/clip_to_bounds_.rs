@@ -15,7 +15,7 @@ impl<T: UiNode, S: VarLocal<bool>> UiNode for ClipToBoundsNode<T, S> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.clip.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
 
         self.child.update(ctx);

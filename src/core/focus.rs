@@ -498,7 +498,7 @@ impl Focus {
     #[inline]
     pub fn focus(&mut self, request: FocusRequest) {
         self.request = Some(request);
-        self.update_notifier.push_update();
+        self.update_notifier.update();
     }
 
     /// Focus the widget if it is focusable.

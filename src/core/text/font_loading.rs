@@ -106,7 +106,7 @@ impl AppFonts {
     fn register_handle(&mut self, font_name: FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch, handle: FontKitHandle) {
         let props_key = FontPropertiesKey::new(FontProperties { style, weight, stretch });
         self.custom_fonts.insert((font_name, props_key), handle);
-        self.notifier.push_update();
+        self.notifier.update();
         self.rebuild_sources = true;
     }
 

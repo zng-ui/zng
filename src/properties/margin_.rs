@@ -15,7 +15,7 @@ impl<T: UiNode, M: VarLocal<SideOffsets>> UiNode for MarginNode<T, M> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.margin.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
         self.child.update(ctx);
     }

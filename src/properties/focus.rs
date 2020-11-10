@@ -106,7 +106,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusableNode<C, E> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.is_focusable.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -134,7 +134,7 @@ where
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.tab_index.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -162,7 +162,7 @@ where
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.enabled.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -187,7 +187,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for FocusScopeNode<C, E> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.is_focus_scope.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -228,7 +228,7 @@ impl<C: UiNode, E: VarLocal<TabNav>> UiNode for TabNavNode<C, E> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.tab_nav.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -252,7 +252,7 @@ impl<C: UiNode, E: VarLocal<DirectionalNav>> UiNode for DirectionalNavNode<C, E>
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.directional_nav.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }
@@ -314,7 +314,7 @@ impl<C: UiNode, B: VarLocal<FocusScopeOnFocus>> UiNode for FocusScopeBehaviorNod
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.behavior.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
         self.child.update(ctx);
     }

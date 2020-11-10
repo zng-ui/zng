@@ -289,7 +289,7 @@ impl AppExtension for WindowManager {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     let new_size = window.size();
 
-                    ctx.updates.push_layout();
+                    ctx.updates.layout();
                     window.expect_layout_update();
                     window.resize_next_render();
 
@@ -330,12 +330,12 @@ impl AppExtension for WindowManager {
                 let wins = ctx.services.req::<Windows>();
                 if wins.windows.contains_key(&window_id) {
                     wins.close_requests.insert(window_id, None);
-                    ctx.updates.push_update();
+                    ctx.updates.update();
                 }
             }
             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
-                    ctx.updates.push_layout();
+                    ctx.updates.layout();
                     window.expect_layout_update();
 
                     self.window_scale_changed.notify(
@@ -574,7 +574,7 @@ impl Windows {
         let notice = request.notifier.listener();
         self.open_requests.push(request);
 
-        self.update_notifier.push_update();
+        self.update_notifier.update();
 
         notice
     }
@@ -588,7 +588,7 @@ impl Windows {
             let notifier = EventEmitter::response();
             let notice = notifier.listener();
             self.insert_close(window_id, None, notifier);
-            self.update_notifier.push_update();
+            self.update_notifier.update();
             Ok(notice)
         } else {
             Err(WindowNotFound(window_id))
@@ -623,7 +623,7 @@ impl Windows {
             self.insert_close(id, Some(set_id), notifier.clone());
         }
 
-        self.update_notifier.push_update();
+        self.update_notifier.update();
 
         Ok(notifier.into_listener())
     }
@@ -1071,7 +1071,7 @@ impl OpenWindow {
 
         // auto-size
         if wn_ctx.root.auto_size.update_local(vars).is_some() {
-            updates.push_layout();
+            updates.layout();
         }
 
         // size
@@ -1111,7 +1111,7 @@ impl OpenWindow {
         // background_color
         if wn_ctx.root.clear_color.update_local(vars).is_some() {
             wn_ctx.update |= UpdateDisplayRequest::Render;
-            updates.push_render();
+            updates.render();
         }
     }
 
@@ -1349,7 +1349,7 @@ impl OwnedWindowContext {
         self.root.auto_size.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
 
             root.init(ctx);
         });

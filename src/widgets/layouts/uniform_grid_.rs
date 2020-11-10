@@ -94,7 +94,7 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
             | self.first_column.update_local(ctx.vars).is_some()
             | self.spacing.update_local(ctx.vars).is_some()
         {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
     }
 

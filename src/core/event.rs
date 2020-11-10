@@ -326,7 +326,7 @@ impl Events {
             for f in pending.drain(..) {
                 f(self.update_id, &mut ups);
             }
-            updates.push_updates(ups);
+            updates.schedule_updates(ups);
         }
     }
 }

@@ -18,13 +18,13 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> UiN
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.start.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
         if self.end.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
         if self.stops.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
     }
 
@@ -67,7 +67,7 @@ impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
     }
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.color.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
     }
     fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {

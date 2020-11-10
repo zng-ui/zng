@@ -235,12 +235,12 @@ impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> UiNode for Bord
         self.child.update(ctx);
 
         if self.widths.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout()
+            ctx.updates.layout()
         }
 
         if let Some(&details) = self.details.get_new(ctx.vars) {
             self.final_details = details.into();
-            ctx.updates.push_render()
+            ctx.updates.render()
         }
     }
 

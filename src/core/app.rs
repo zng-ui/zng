@@ -204,7 +204,7 @@ impl AppProcess {
     pub fn shutdown(&mut self) -> EventListener<ShutDownCancelled> {
         let emitter = EventEmitter::response();
         self.shutdown_requests.push(emitter.clone());
-        self.update_notifier.push_update();
+        self.update_notifier.update();
         emitter.into_listener()
     }
 

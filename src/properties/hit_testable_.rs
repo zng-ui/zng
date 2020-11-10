@@ -14,7 +14,7 @@ impl<U: UiNode, H: VarLocal<bool>> UiNode for HitTestableNode<U, H> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
         if self.hit_testable.update_local(ctx.vars).is_some() {
-            ctx.updates.push_render();
+            ctx.updates.render();
         }
     }
 

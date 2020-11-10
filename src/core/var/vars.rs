@@ -93,7 +93,7 @@ impl Vars {
             for f in pending.drain(..) {
                 f(self.update_id);
             }
-            updates.push_update();
+            updates.update();
         }
     }
 }

@@ -25,7 +25,7 @@ impl<T: UiNode, A: VarLocal<Alignment>> UiNode for AlignNode<T, A> {
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.alignment.update_local(ctx.vars).is_some() {
-            ctx.updates.push_layout();
+            ctx.updates.layout();
         }
 
         self.child.update(ctx);
