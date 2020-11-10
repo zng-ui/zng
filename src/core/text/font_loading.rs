@@ -1,30 +1,140 @@
 use super::{FontInstanceKey, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight};
 use crate::core::{
-    app::AppExtension, context::AppInitContext, service::WindowService, units::layout_to_pt, units::LayoutLength, var::ContextVar,
+    app::AppExtension,
+    context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest},
+    service::AppService,
+    service::WindowService,
+    units::layout_to_pt,
+    units::LayoutLength,
+    var::{ContextVar, RcVar},
 };
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
+use font_kit::handle::Handle as FontKitHandle;
 use font_kit::properties::Properties as FontProperties;
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
-use std::{collections::hash_map::Entry as HEntry, rc::Rc};
+use font_kit::source::SystemSource;
+use font_kit::sources::mem::MemSource;
+use font_kit::sources::multi::MultiSource;
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::hash_map::Entry as HEntry, fmt, rc::Rc};
 use webrender::api::{units::Au, FontInstanceFlags, FontInstanceOptions, FontKey, RenderApi, SyntheticItalics, Transaction};
 
-/// Application extension that provides the [`Fonts`] window service.
+/// Application extension that manages text fonts.
+/// # Services
+///
+/// Services this extension provides:
+///
+/// * [Fonts] - Window service that loads fonts in the window renderer.
+/// * [AppFonts] - Service that defines custom fonts.
 #[derive(Default)]
 pub struct FontManager;
 impl AppExtension for FontManager {
     fn init(&mut self, r: &mut AppInitContext) {
-        r.window_services.register(|ctx| Fonts {
+        let app_fonts = AppFonts {
+            sources: Rc::new(RefCell::new(MultiSource::from_sources(vec![Box::new(SystemSource::new())]))),
+            custom_fonts: HashMap::new(),
+            //aliases: HashMap::new(),
+            notifier: r.updates.notifier().clone(),
+            rebuild_sources: false,
+        };
+        let sources = Rc::clone(&app_fonts.sources);
+
+        r.services.register(app_fonts);
+        r.window_services.register(move |ctx| Fonts {
             api: Arc::clone(ctx.render_api),
             fonts: HashMap::default(),
-        })
+            sources: Rc::clone(&sources),
+            //active_queries: vec![],
+        });
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        if update.update_hp {
+            return;
+        }
+
+        ctx.services.req::<AppFonts>().rebuild_sources();
+        // TODO how to we update window_services?
     }
 }
 
+/// Custom fonts and aliases.
+///
+/// This service defines custom fonts for the app, use [`Fonts`] to load
+/// fonts in each window.
+pub struct AppFonts {
+    custom_fonts: HashMap<(FontName, FontPropertiesKey), FontKitHandle>,
+    //aliases: HashMap<(FontName, FontPropertiesKey), ()>,
+    sources: Rc<RefCell<MultiSource>>,
+    notifier: UpdateNotifier,
+    rebuild_sources: bool,
+}
+
+impl AppFonts {
+    /// Registers a new font with known properties and name.
+    ///
+    /// `font_index` is the index of the font if `bytes` consists in more then one font,
+    /// set to `0` if `bytes` is a single font.
+    pub fn register(
+        &mut self,
+        font_name: FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        bytes: Arc<Vec<u8>>,
+        font_index: u32,
+    ) {
+        self.register_handle(font_name, style, weight, stretch, FontKitHandle::Memory { bytes, font_index });
+    }
+
+    /// Registers a new font with known properties and name.
+    ///
+    /// `font_index` is the index of the font if `bytes` consists in more then one font,
+    /// set to `0` if `bytes` is a single font.
+    pub fn register_file(
+        &mut self,
+        font_name: FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        path: PathBuf,
+        font_index: u32,
+    ) {
+        self.register_handle(font_name, style, weight, stretch, FontKitHandle::Path { path, font_index });
+    }
+
+    fn register_handle(&mut self, font_name: FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch, handle: FontKitHandle) {
+        let props_key = FontPropertiesKey::new(FontProperties { style, weight, stretch });
+        self.custom_fonts.insert((font_name, props_key), handle);
+        self.notifier.push_update();
+        self.rebuild_sources = true;
+    }
+
+    fn rebuild_sources(&mut self) {
+        if self.rebuild_sources {
+            self.rebuild_sources = false;
+
+            let mut ss: Vec<Box<dyn font_kit::source::Source>> = vec![Box::new(SystemSource::new())];
+            if !self.custom_fonts.is_empty() {
+                match MemSource::from_fonts(self.custom_fonts.values().cloned()) {
+                    Ok(m) => ss.push(Box::new(m)),
+                    Err(e) => error_println!("failed loading custom fonts: {:?}", e),
+                }
+            }
+            *self.sources.borrow_mut() = MultiSource::from_sources(ss);
+        }
+    }
+}
+impl AppService for AppFonts {}
+
 /// Fonts cache service.
+///
+/// This is a window service
 pub struct Fonts {
     api: Arc<RenderApi>,
     fonts: HashMap<FontQueryKey, FontRef>,
+    sources: Rc<RefCell<MultiSource>>,
+    //active_queries: Vec<(FontPropertiesKey, RcVar<FontRef>)>,
 }
 impl Fonts {
     /// Gets a cached font or loads a font.
@@ -44,6 +154,15 @@ impl Fonts {
             .expect("did not find any default font")
     }
 
+    /// Gets a variable that always points to the best matched font.
+    ///
+    /// The initial font value is the same as a call to [`get_or_default`](Self::get_or_default), but the variable
+    /// can update if a better match is loaded after.
+    #[inline]
+    pub fn get_var(&mut self, _font_names: &[FontName], _style: FontStyle, _weight: FontWeight, _stretch: FontStretch) -> RcVar<FontRef> {
+        todo!()
+    }
+
     /// Removes unused font instances and fonts from the cache.
     pub fn drop_unused(&mut self) {
         let mut txn = Transaction::new();
@@ -60,7 +179,7 @@ impl Fonts {
         match self.fonts.entry(query_key) {
             HEntry::Occupied(e) => Some(e.get().clone()),
             HEntry::Vacant(e) => {
-                if let Some(font) = Self::load_font(self.api.clone(), font_names, properties) {
+                if let Some(font) = Self::load_font(&self.sources.borrow(), self.api.clone(), font_names, properties) {
                     Some(e.insert(font).clone())
                 } else {
                     None
@@ -69,9 +188,9 @@ impl Fonts {
         }
     }
 
-    fn load_font(api: Arc<RenderApi>, font_names: &[FontName], properties: FontProperties) -> Option<FontRef> {
+    fn load_font(sources: &MultiSource, api: Arc<RenderApi>, font_names: &[FontName], properties: FontProperties) -> Option<FontRef> {
         let family_names: Vec<font_kit::family_name::FamilyName> = font_names.iter().map(|n| n.clone().into()).collect();
-        match font_kit::source::SystemSource::new().select_best_match(&family_names, &properties) {
+        match sources.select_best_match(&family_names, &properties) {
             Ok(handle) => {
                 let mut txn = Transaction::new();
                 let font_key = api.generate_font_key();
@@ -337,6 +456,21 @@ impl PartialEq for FontRef {
     }
 }
 impl Eq for FontRef {}
+impl fmt::Debug for FontRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FontRef")
+            .field("family_name", self.family_name())
+            .field("style", &self.style())
+            .field("weight", &self.weight())
+            .field("stretch", &self.stretch())
+            .finish()
+    }
+}
+impl fmt::Display for FontRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.family_name(), f)
+    }
+}
 
 pub(super) struct FontInstance {
     instance_key: FontInstanceKey,
@@ -381,6 +515,12 @@ impl FontInstanceRef {
         self.0.font_size
     }
 
+    /// Size in point units.
+    #[inline]
+    pub fn size_pt(&self) -> f32 {
+        layout_to_pt(self.size())
+    }
+
     /// Various metrics that apply to this font.
     #[inline]
     pub fn metrics(&self) -> &FontMetrics {
@@ -423,6 +563,20 @@ impl PartialEq for FontInstanceRef {
     }
 }
 impl Eq for FontInstanceRef {}
+impl fmt::Debug for FontInstanceRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("FontInstanceRef")
+            .field("font", self.font())
+            .field("size_pt", &self.size_pt())
+            .field("synthesis", &self.synthesis_used())
+            .finish()
+    }
+}
+impl fmt::Display for FontInstanceRef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}, {}pt", self.font().family_name(), self.size_pt())
+    }
+}
 
 type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
 
