@@ -143,8 +143,10 @@ impl Calculator {
             self.error = false;
         }
 
-        if self.buffer.is_empty() && c == '.' {
-            self.buffer.to_mut().push_str("0.");
+        if self.buffer.is_empty() && !c.is_digit(10) && c != '-' {
+            let b = self.buffer.to_mut();
+            b.push('0');
+            b.push(c);
         } else {
             if !c.is_digit(10) && self.trailing_op() {
                 self.buffer.to_mut().pop();
@@ -159,21 +161,27 @@ impl Calculator {
     }
 
     pub fn clear(&mut self) {
-        self.buffer.clear()
+        self.buffer.clear();
+        self.error = false;
     }
 
     pub fn backspace(&mut self) {
         self.buffer.pop();
+        self.error = false;
     }
 
     pub fn square(&mut self) {
-        if !self.buffer.is_empty() {
+        if self.error {
+            self.clear()
+        } else if !self.buffer.is_empty() {
             self.buffer = formatx!("({})^2", self.buffer)
         }
     }
 
     pub fn square_root(&mut self) {
-        if !self.buffer.is_empty() {
+        if self.error {
+            self.clear()
+        } else if !self.buffer.is_empty() {
             self.buffer = formatx!("sqrt({})", self.buffer)
         }
     }
@@ -193,9 +201,14 @@ impl Calculator {
         } else {
             match eval_str(expr) {
                 Ok(new) => {
-                    self.buffer.clear();
-                    let _ = write!(&mut self.buffer.to_mut(), "{}", new);
-                    self.error = false;
+                    if new.is_finite() {
+                        self.buffer.clear();
+                        let _ = write!(&mut self.buffer.to_mut(), "{}", new);
+                        self.error = false;
+                    } else {
+                        eprintln!("Result not finite: {}", new);
+                        self.error = true;
+                    }
                 }
                 Err(e) => {
                     eprintln!("{}", e);
