@@ -405,9 +405,7 @@ impl Updates {
 
 /// Owner of [`AppContext`] objects.
 ///
-/// Because [`Vars`] and [`Events`] can only have one instance
-/// and this `struct` owns both you can only have one instance
-/// of this at a time.
+/// You can only have one instance of this at a time.
 pub struct OwnedAppContext {
     event_loop: EventLoopProxy,
     app_state: StateMap,

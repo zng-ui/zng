@@ -23,7 +23,7 @@ harfbuzz_rs = "1.2.0"
 xi-unicode = "0.3.0"
 unicode-script = "0.5.2"
 rayon = "1.5.0"
-async-global-executor = "1.4.2"
+async-global-executor = "1.4.3"
 flume = "0.9.1"
 image = "0.23.11"
 
@@ -34,8 +34,9 @@ ego-tree = "0.6.2"
 colored = "2.0.0"
 derive_more = "0.99.11"
 bitflags = "1.2.1"
-paste = "1.0.2"
+paste = "1.0.3"
 array-init = "1.0.0"
+chrono = "0.4.19"
 
 # app_profiler only
 serde_json = { version = "1.0", optional = true }

@@ -150,6 +150,21 @@ impl Sync {
         .detach();
         listener
     }
+
+    /// Gets an event listener that updates once after the `duration`.
+    pub fn update_after(&mut self, _duration: Duration) -> EventListener<()> {
+        todo!()
+    }
+
+    /// Gets an event listener that updates every `interval`.
+    pub fn update_every(&mut self, _interval: Duration) -> EventListener<()> {
+        todo!()
+    }
+
+    /// Gets an event listener that updates once when the system time reaches `time`.
+    pub fn update_when(&mut self, _time: chrono::DateTime<chrono::Utc>) -> EventListener<()> {
+        todo!()
+    }
 }
 
 type Retain = bool;
