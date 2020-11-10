@@ -74,7 +74,6 @@ mod type_bundle_impls {
 struct ServiceMap {
     m: AnyMap,
 }
-
 impl ServiceMap {
     pub fn insert<S: 'static>(&mut self, service: S) {
         self.m.insert(TypeId::of::<S>(), Box::new(service));
@@ -124,7 +123,6 @@ impl ServiceMap {
 pub struct AppServicesInit {
     m: AppServices,
 }
-
 impl Default for AppServicesInit {
     fn default() -> Self {
         AppServicesInit {
@@ -132,7 +130,6 @@ impl Default for AppServicesInit {
         }
     }
 }
-
 impl AppServicesInit {
     /// Register a new service for the duration of the application context.
     pub fn register<S: AppService>(&mut self, service: S) {
@@ -149,7 +146,6 @@ impl AppServicesInit {
 pub struct AppServices {
     m: ServiceMap,
 }
-
 impl AppServices {
     /// Gets a service reference if the service is registered in the application.
     pub fn get<S: AppService>(&mut self) -> Option<&mut S> {
@@ -200,12 +196,13 @@ type WindowServicesBuilder = Vec<(TypeId, Box<dyn Fn(&WindowContext) -> Box<dyn 
 pub struct WindowServicesInit {
     builders: WindowServicesBuilder,
 }
-
 impl WindowServicesInit {
     /// Register a new window service initializer.
     ///
     /// Window services have different instances for each window and exist for the duration
-    /// of that window. The `new` closure is called when a new window is created to
+    /// of that window. The `new` closure is called for each new window.
+    ///
+    /// Services registered only apply in windows opened after.
     pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
         self.builders.push((TypeId::of::<S>(), Box::new(move |ctx| Box::new(new(ctx)))));
     }
@@ -224,7 +221,6 @@ impl WindowServicesInit {
 pub struct WindowServices {
     m: ServiceMap,
 }
-
 impl WindowServices {
     pub(super) fn new() -> Self {
         WindowServices { m: ServiceMap::default() }
