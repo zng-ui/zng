@@ -15,7 +15,7 @@ fn main() {
                 spacing: 5;
                 items: ui_vec![
                     text! {
-                        text: calc.map_ref(|c| c.result());
+                        text: calc.map_ref(|c| c.text());
                         align: Alignment::RIGHT;
                         font_size: 32.pt();
                         color: calc.map_ref(|c| c.color());
@@ -112,7 +112,7 @@ struct Calculator {
     error: bool,
 }
 impl Calculator {
-    pub fn result(&self) -> &Text {
+    pub fn text(&self) -> &Text {
         if self.buffer.is_empty() {
             static ZERO: Text = Text::borrowed("0");
             &ZERO

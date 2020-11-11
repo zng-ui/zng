@@ -16,6 +16,8 @@ pub trait EventArgs: Debug + Clone + 'static {
     fn concerns_widget(&self, _: &mut WidgetContext) -> bool;
 
     /// Requests that subsequent handlers skip this event.
+    ///
+    /// Cloned arguments signal stop for all clones.
     fn stop_propagation(&self);
 
     /// If the handler must skip this event.
@@ -31,6 +33,8 @@ pub trait CancelableEventArgs: EventArgs {
     /// If the originating action must be canceled.
     fn cancel_requested(&self) -> bool;
     /// Cancel the originating action.
+    ///
+    /// Cloned arguments signal cancel for all clones.
     fn cancel(&self);
 }
 

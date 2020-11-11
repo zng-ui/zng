@@ -13,9 +13,12 @@ use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
 use crate::core::window::WindowId;
-use std::{time::Duration, convert::{TryFrom, TryInto}};
 use std::fmt::{self, Display};
 use std::num::NonZeroU32;
+use std::{
+    convert::{TryFrom, TryInto},
+    time::Duration,
+};
 
 /// Specific information from the source of a [`ClickArgs`].
 #[derive(Debug, Clone)]
@@ -536,9 +539,9 @@ pub struct Gestures {
 
     /// When a shortcut click happens, targeted widgets can indicate that
     /// they are pressed for this duration.
-    /// 
+    ///
     /// Initial value is `300ms`, set to to `0` to deactivate this type of indication.
-    pub shortcut_pressed_duration: Duration
+    pub shortcut_pressed_duration: Duration,
 }
 impl Gestures {
     fn new() -> Self {

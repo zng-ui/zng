@@ -69,6 +69,8 @@ macro_rules! state_key {
 ///     pub arg: String,
 ///     /// My event target.
 ///     pub target: WidgetPath,
+///
+///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>
 /// }
 ///
 /// impl MyEventArgs {
@@ -82,6 +84,7 @@ macro_rules! state_key {
 ///             timestamp: timestamp.into(),
 ///             arg: arg.into(),
 ///             target: target.into(),
+///             stop_propagation: std::rc::Rc::default()
 ///         }
 ///     }
 ///
@@ -89,6 +92,24 @@ macro_rules! state_key {
 ///     #[inline]
 ///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
 ///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+///
+///     /// Requests that subsequent handlers skip this event.
+///     ///
+///     /// Cloned arguments signal stop for all clones.
+///     #[inline]
+///     pub fn stop_propagation(&self) {
+///         <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
+///     }
+///     
+///     /// If the handler must skip this event.
+///     ///
+///     /// Note that property level handlers don't need to check this, as those handlers are
+///     /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+///     /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+///     #[inline]
+///     pub fn stop_propagation_requested(&self) -> bool {
+///         <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
 ///     }
 /// }
 ///
@@ -102,6 +123,16 @@ macro_rules! state_key {
 ///     /// If `ctx.widget_id` is in the `self.target` path.
 ///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
 ///         self.target.contains(ctx.widget_id)
+///     }
+///
+///     #[inline]
+///     fn stop_propagation(&self) {
+///         self.stop_propagation.set(true);
+///     }
+///     
+///     #[inline]
+///     fn stop_propagation_requested(&self) -> bool {
+///         self.stop_propagation.get()
 ///     }
 /// }
 /// ```
@@ -123,7 +154,7 @@ macro_rules! event_args {
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
 
-            stop_propagation: std::cell::Cell<bool>,
+            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
         }
         impl $Args {
             #[inline]
@@ -132,7 +163,7 @@ macro_rules! event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    stop_propagation: std::cell::Cell::new(false),
+                    stop_propagation: std::rc::Rc::default(),
                 }
             }
 
@@ -144,6 +175,8 @@ macro_rules! event_args {
             }
 
             /// Requests that subsequent handlers skip this event.
+            ///
+            /// Cloned arguments signal stop for all clones.
             #[inline]
             pub fn stop_propagation(&self) {
                 <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
@@ -252,6 +285,7 @@ macro_rules! event_args {
 ///     pub target: WidgetPath,
 ///
 ///     cancel: std::rc::Rc<std::cell::Cell<bool>>
+///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
 /// }
 ///
 /// impl MyEventArgs {
@@ -323,8 +357,8 @@ macro_rules! cancelable_event_args {
             /// When the event happened.
             pub timestamp: std::time::Instant,
             $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
-            cancel: std::cell::Cell<bool>,
-            stop_propagation: std::cell::Cell<bool>,
+            cancel: std::rc::Rc<std::cell::Cell<bool>>,
+            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
         }
         impl $Args {
             #[inline]
@@ -333,8 +367,8 @@ macro_rules! cancelable_event_args {
                 $Args {
                     timestamp: timestamp.into(),
                     $($arg: $arg.into(),)*
-                    cancel: std::cell::Cell::new(false),
-                    stop_propagation: std::cell::Cell::new(false),
+                    cancel: std::rc::Rc::default(),
+                    stop_propagation: std::rc::Rc::default(),
                 }
             }
 
@@ -346,6 +380,8 @@ macro_rules! cancelable_event_args {
             }
 
             /// Requests that subsequent handlers skip this event.
+            ///
+            /// Cloned arguments signal stop for all clones.
             #[inline]
             pub fn stop_propagation(&self) {
                 <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
@@ -359,6 +395,20 @@ macro_rules! cancelable_event_args {
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
+            }
+
+            /// Cancel the originating action.
+            ///
+            /// Cloned arguments signal cancel for all clones.
+            #[inline]
+            pub fn cancel(&self) {
+                <Self as zero_ui::core::event::CancelableEventArgs>::cancel(self)
+            }
+
+            /// If the originating action must be canceled.
+            #[inline]
+            pub fn cancel_requested(&self) -> bool {
+                <Self as zero_ui::core::event::CancelableEventArgs>::cancel_requested(self)
             }
         }
         impl zero_ui::core::event::EventArgs for $Args {
@@ -384,15 +434,11 @@ macro_rules! cancelable_event_args {
             }
         }
         impl zero_ui::core::event::CancelableEventArgs for $Args {
-            /// If a listener canceled the action.
             #[inline]
             fn cancel_requested(&self) -> bool {
                 self.cancel.get()
             }
 
-            /// Cancel the action.
-            ///
-            /// Cloned args are still linked, canceling one will cancel the others.
             #[inline]
             fn cancel(&self) {
                 self.cancel.set(true);

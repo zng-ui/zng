@@ -348,7 +348,7 @@ impl AppExtension for WindowManager {
         }
     }
 
-    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         self.update_open_close(ctx);
         self.update_pump(update, ctx);
         self.update_closing(update, ctx);

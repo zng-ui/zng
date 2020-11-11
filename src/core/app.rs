@@ -55,7 +55,30 @@ pub trait AppExtension: 'static {
         let _ = (window_id, event, ctx);
     }
 
-    /// Called every update after the Ui update.
+    /// Called just before [`update_ui`](Self::update_ui).
+    ///
+    /// Extensions can handle this method to interact with updates before the UI.
+    ///
+    /// Note that this is not related to the `on_event_preview` properties, all UI events
+    /// happen in `update_ui`.
+    #[inline]
+    fn update_preview(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        let _ = (update, ctx);
+    }
+
+    /// Called just before [`update`](Self::update).
+    ///
+    /// Only extensions that generate windows must handle this method. The [`UiNode::update`]
+    /// and [`UiNode::update_hp`] are called here.
+    #[inline]
+    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        let _ = (update, ctx);
+    }
+
+    /// Called after every [`update_ui`](Self::update_ui).
+    ///
+    /// This is the general extensions update, it gives the chance for
+    /// the UI to signal stop propagation.
     #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         let _ = (update, ctx);
@@ -482,6 +505,8 @@ impl<E: AppExtension> AppExtended<E> {
                         *control_flow = ControlFlow::Exit;
                         return;
                     }
+                    extensions.update_preview(update, &mut ctx);
+                    extensions.update_ui(update, &mut ctx);
                     extensions.update(update, &mut ctx);
                 } else {
                     break;
@@ -619,6 +644,8 @@ impl<E: AppExtension> HeadlessApp<E> {
                 if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
                     return ControlFlow::Exit;
                 }
+                self.extensions.update_preview(update, &mut ctx);
+                self.extensions.update_ui(update, &mut ctx);
                 self.extensions.update(update, &mut ctx);
             } else {
                 break;
@@ -685,6 +712,18 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
+    fn update_preview(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        self.0.update_preview(update, ctx);
+        self.1.update_preview(update, ctx);
+    }
+
+    #[inline]
+    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        self.0.update_ui(update, ctx);
+        self.1.update_ui(update, ctx);
+    }
+
+    #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         self.0.update(update, ctx);
         self.1.update(update, ctx);
@@ -747,6 +786,18 @@ impl AppExtension for Vec<Box<dyn AppExtension>> {
     fn on_new_frame_ready(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         for ext in self {
             ext.on_new_frame_ready(window_id, ctx);
+        }
+    }
+
+    fn update_preview(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        for ext in self {
+            ext.update_preview(update, ctx);
+        }
+    }
+
+    fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        for ext in self {
+            ext.update_ui(update, ctx);
         }
     }
 
