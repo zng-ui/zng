@@ -270,19 +270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chrono"
-version = "0.4.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
-dependencies = [
- "libc",
- "num-integer",
- "num-traits 0.2.12",
- "time",
- "winapi 0.3.9",
-]
-
-[[package]]
 name = "cloudabi"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2562,7 +2549,6 @@ dependencies = [
  "async-global-executor",
  "bencher",
  "bitflags",
- "chrono",
  "colored",
  "derive_more",
  "ego-tree",

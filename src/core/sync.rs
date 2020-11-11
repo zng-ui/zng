@@ -19,7 +19,6 @@ pub struct Sync {
 
     once_timers: Vec<OnceTimer>,
     interval_timers: Vec<IntervalTimer>,
-    utc_timers: Vec<UtcTimer>,
 
     new_wake_time: Option<Instant>,
 }
@@ -30,7 +29,6 @@ impl Sync {
             channels: vec![],
             once_timers: vec![],
             interval_timers: vec![],
-            utc_timers: vec![],
             new_wake_time: None,
         }
     }
@@ -47,11 +45,6 @@ impl Sync {
         self.once_timers.retain(|t| t.retain(now, events));
         self.interval_timers.retain_mut(|t| t.retain(now, events));
 
-        if !self.utc_timers.is_empty() {
-            let chrono_now = chrono::Utc::now();
-            self.utc_timers.retain(|t| t.retain(chrono_now, events));
-        }
-
         let mut wake_time = now;
 
         for t in &self.once_timers {
@@ -64,14 +57,8 @@ impl Sync {
                 wake_time = t.due_time;
             }
         }
-        for t in &self.utc_timers {
-            let due_time = t.due_time();
-            if due_time < wake_time {
-                wake_time = due_time;
-            }
-        }
 
-        if !self.once_timers.is_empty() || !self.interval_timers.is_empty() || !self.utc_timers.is_empty() {
+        if !self.once_timers.is_empty() || !self.interval_timers.is_empty() {
             Some(wake_time)
         } else {
             None
@@ -215,15 +202,15 @@ impl Sync {
     }
 
     /// Gets an event listener that updates once after the `duration`.
+    ///
+    /// The listener will update once at the moment of now + duration or a little later.
     pub fn update_after(&mut self, duration: Duration) -> EventListener<TimeElapsed> {
-        let timer = OnceTimer::new(duration);
-        self.update_wake_time(timer.due_time);
-        let listener = timer.emitter.listener();
-        self.once_timers.push(timer);
-        listener
+        self.update_when(Instant::now() + duration)
     }
 
     /// Gets an event listener that updates every `interval`.
+    ///
+    /// The listener will update after every interval or a litter later.
     pub fn update_every(&mut self, interval: Duration) -> EventListener<TimeElapsed> {
         let timer = IntervalTimer::new(interval);
         self.update_wake_time(timer.due_time);
@@ -232,12 +219,14 @@ impl Sync {
         listener
     }
 
-    /// Gets an event listener that updates once when the system time reaches `time`.
-    pub fn update_when(&mut self, time: chrono::DateTime<chrono::Utc>) -> EventListener<UtcTimeElapsed> {
-        let timer = UtcTimer::new(time);
-        self.update_wake_time(timer.due_time());
+    /// Gets an event listener that updates once when `time` is reached.
+    ///
+    /// The listener will update once at the moment of now + duration or a little later.
+    pub fn update_when(&mut self, time: Instant) -> EventListener<TimeElapsed> {
+        let timer = OnceTimer::new(time);
+        self.update_wake_time(timer.due_time);
         let listener = timer.emitter.listener();
-        self.utc_timers.push(timer);
+        self.once_timers.push(timer);
         listener
     }
 }
@@ -249,20 +238,14 @@ pub struct TimeElapsed {
     pub timestamp: Instant,
 }
 
-/// Message of a [`Sync`] UTC data-time timer listener.
-#[derive(Debug, Clone)]
-pub struct UtcTimeElapsed {
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-}
-
 struct OnceTimer {
     due_time: Instant,
     emitter: EventEmitter<TimeElapsed>,
 }
 impl OnceTimer {
-    fn new(duration: Duration) -> Self {
+    fn new(due_time: Instant) -> Self {
         OnceTimer {
-            due_time: Instant::now() + duration,
+            due_time,
             emitter: EventEmitter::response(),
         }
     }
@@ -313,36 +296,6 @@ impl IntervalTimer {
         }
 
         true
-    }
-}
-
-struct UtcTimer {
-    due_time: chrono::DateTime<chrono::Utc>,
-    emitter: EventEmitter<UtcTimeElapsed>,
-}
-impl UtcTimer {
-    fn new(due_time: chrono::DateTime<chrono::Utc>) -> Self {
-        UtcTimer {
-            due_time,
-            emitter: EventEmitter::response(),
-        }
-    }
-
-    pub fn due_time(&self) -> Instant {
-        todo!("UtcTimer::due_time")
-    }
-
-    fn retain(&self, now: chrono::DateTime<chrono::Utc>, events: &Events) -> bool {
-        if self.emitter.listener_count() == 0 {
-            return false;
-        }
-
-        let elapsed = self.due_time <= now;
-        if elapsed {
-            self.emitter.notify(events, UtcTimeElapsed { timestamp: now });
-        }
-
-        !elapsed
     }
 }
 
