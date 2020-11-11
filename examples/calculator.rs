@@ -27,16 +27,6 @@ fn main() {
                 let char_ = args.character;
                 calc.modify(ctx.vars, move |c|c.push(char_));
             }};
-            // on_enter
-            on_preview_key_down: move |ctx, args| {
-                match args.key {
-                    Some(VirtualKeyCode::Return) | Some(VirtualKeyCode::NumpadEnter) => {
-                        calc.modify(ctx.vars, |c|c.eval());
-                        args.stop_propagation();
-                    },
-                    _ => { }
-                }
-            };
         }
     })
 }
@@ -102,6 +92,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
 fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
     button! {
         on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.eval());
+        click_shortcut: vec![shortcut!(Return), shortcut!(NumpadEnter)];
         content: text("=");
     }
 }

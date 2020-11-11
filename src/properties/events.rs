@@ -9,6 +9,7 @@ use crate::core::mouse::*;
 use crate::core::profiler::profile_scope;
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;
+use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
 
@@ -605,4 +606,45 @@ impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMe
 #[property(event)]
 pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> LayoutSize + 'static) -> impl UiNode {
     OnMeasureNode { child, handler }
+}
+
+struct ClickShortcutNode<C: UiNode, S: Var<Vec<Shortcut>>> {
+    child: C,
+    shortcuts: S,
+    shortcut_listener: EventListener<ShortcutArgs>,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for ClickShortcutNode<C, S> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        let shortcuts = self.shortcuts.get(ctx.vars);
+
+        for args in self.shortcut_listener.updates(ctx.events) {
+            if !args.stop_propagation_requested() && shortcuts.contains(&args.shortcut) {
+                // focus on shortcut, if focusable
+                ctx.services
+                    .req::<Gestures>()
+                    .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), args.clone());
+                break;
+            }
+        }
+    }
+}
+
+/// Keyboard shortcuts that focus and clicks this widget.
+///
+/// When any of the `shortcuts` is pressed, focus and click this widget.
+#[property(context)]
+pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Vec<Shortcut>>) -> impl UiNode {
+    ClickShortcutNode {
+        child,
+        shortcuts: shortcuts.into_var(),
+        shortcut_listener: ShortcutEvent::never(),
+    }
 }

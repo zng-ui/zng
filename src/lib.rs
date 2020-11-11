@@ -390,7 +390,7 @@ pub mod prelude {
             web_colors, Rgba,
         },
         context::WidgetContext,
-        focus::{DirectionalNav, TabIndex, TabNav},
+        focus::{DirectionalNav, Focus, TabIndex, TabNav},
         gesture::shortcut,
         render::WidgetPath,
         service::{AppServices, WindowServices},

@@ -70,14 +70,14 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
     }
 }
 
-/// Keyboard shortcut that focus this widget.
+/// Keyboard shortcuts that focus this widget.
 ///
-/// When `shortcut` is pressed focus this widget if focusable or the parent focusable widget.
+/// When any of the `shortcuts` is pressed, focus this widget the parent focusable widget.
 #[property(context)]
-pub fn focus_shortcut(child: impl UiNode, shortcut: impl IntoVar<Shortcut>) -> impl UiNode {
+pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Vec<Shortcut>>) -> impl UiNode {
     FocusShortcutNode {
         child,
-        shortcut: shortcut.into_var(),
+        shortcuts: shortcuts.into_var(),
         shortcut_listener: ShortcutEvent::never(),
     }
 }
@@ -263,13 +263,13 @@ impl<C: UiNode, E: VarLocal<DirectionalNav>> UiNode for DirectionalNavNode<C, E>
     }
 }
 
-struct FocusShortcutNode<C: UiNode, S: Var<Shortcut>> {
+struct FocusShortcutNode<C: UiNode, S: Var<Vec<Shortcut>>> {
     child: C,
-    shortcut: S,
+    shortcuts: S,
     shortcut_listener: EventListener<ShortcutArgs>,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
+impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for FocusShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
@@ -278,10 +278,10 @@ impl<C: UiNode, S: Var<Shortcut>> UiNode for FocusShortcutNode<C, S> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let shortcut = *self.shortcut.get(ctx.vars);
+        let shortcuts = self.shortcuts.get(ctx.vars);
 
         for args in self.shortcut_listener.updates(ctx.events) {
-            if !args.stop_propagation_requested() && args.shortcut == shortcut {
+            if !args.stop_propagation_requested() && shortcuts.contains(&args.shortcut) {
                 // focus on shortcut
                 ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
 

@@ -4,15 +4,17 @@ use super::{
     service::AppService,
     units::LayoutPoint,
     var::{IntoVar, OwnedVar},
+    WidgetId,
 };
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::focus::Focus;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::*;
 use crate::core::types::*;
-use crate::core::window::WindowId;
+use crate::core::window::{WindowId, Windows};
 use std::fmt::{self, Display};
 use std::num::NonZeroU32;
 use std::{
@@ -286,6 +288,11 @@ impl Shortcut {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(shortcut: Shortcut) -> Vec<Shortcut> {
+        vec![shortcut]
+    }
+}
 
 impl KeyInputArgs {
     /// Key gesture this key press triggers.
@@ -497,21 +504,17 @@ impl AppExtension for GestureManager {
                 }
             }
         }
-
-        // Generate click events from shortcuts.
-        if self.shortcut.has_updates(ctx.events) {
-            let config = ctx.services.req::<Gestures>();
-            if !config.click_focused.is_empty() {
-                for args in self.shortcut.updates(ctx.events) {
-                    if args.stop_propagation_requested() {
-                        continue;
-                    }
-                    if config.click_focused.contains(&args.shortcut) {
+        let (gestures, windows, focus) = ctx.services.req_multi::<(Gestures, Windows, Focus)>();
+        // Generate click event for special shortcut.
+        for (window_id, widget_id, args) in gestures.click_shortcut.drain(..) {
+            if let Ok(window) = windows.window(window_id) {
+                if window.is_active() {
+                    if let Some(widget) = window.frame_info().find(widget_id) {
+                        // click target exists, in active window.
                         self.click.notify(
                             ctx.events,
-                            ClickArgs::new(
-                                args.timestamp,
-                                args.window_id,
+                            ClickArgs::now(
+                                window_id,
                                 args.device_id,
                                 ClickArgsSource::Shortcut {
                                     shortcut: args.shortcut,
@@ -519,10 +522,38 @@ impl AppExtension for GestureManager {
                                 },
                                 NonZeroU32::new(1).unwrap(),
                                 args.shortcut.modifiers_state(),
-                                args.target.clone(),
+                                widget.path(),
                             ),
                         );
+                        focus.focus_widget(widget_id, true);
+                        args.stop_propagation();
                     }
+                }
+            }
+        }
+
+        // Generate click events from shortcuts.
+        if self.shortcut.has_updates(ctx.events) && !gestures.click_focused.is_empty() {
+            for args in self.shortcut.updates(ctx.events) {
+                if args.stop_propagation_requested() {
+                    continue;
+                }
+                if gestures.click_focused.contains(&args.shortcut) {
+                    self.click.notify(
+                        ctx.events,
+                        ClickArgs::new(
+                            args.timestamp,
+                            args.window_id,
+                            args.device_id,
+                            ClickArgsSource::Shortcut {
+                                shortcut: args.shortcut,
+                                repeat: args.repeat,
+                            },
+                            NonZeroU32::new(1).unwrap(),
+                            args.shortcut.modifiers_state(),
+                            args.target.clone(),
+                        ),
+                    );
                 }
             }
         }
@@ -542,13 +573,21 @@ pub struct Gestures {
     ///
     /// Initial value is `300ms`, set to to `0` to deactivate this type of indication.
     pub shortcut_pressed_duration: Duration,
+
+    click_shortcut: Vec<(WindowId, WidgetId, ShortcutArgs)>,
 }
 impl Gestures {
     fn new() -> Self {
         Gestures {
             click_focused: vec![shortcut!(Return), shortcut!(Space)],
             shortcut_pressed_duration: Duration::from_millis(300),
+            click_shortcut: vec![],
         }
+    }
+
+    /// Does the [`click_shortcut`](crate::properties::events::click_shortcut) action.
+    pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, args: ShortcutArgs) {
+        self.click_shortcut.push((window_id, widget_id, args));
     }
 }
 impl AppService for Gestures {}
