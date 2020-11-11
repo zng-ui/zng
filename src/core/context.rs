@@ -9,9 +9,12 @@ use super::var::Vars;
 use super::window::WindowId;
 use super::AnyMap;
 use super::WidgetId;
-use std::any::{Any, TypeId};
 use std::mem;
 use std::sync::atomic::{self, AtomicU8};
+use std::{
+    any::{Any, TypeId},
+    time::Instant,
+};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
 
@@ -459,7 +462,7 @@ impl OwnedAppContext {
             events: &mut self.events,
             services: &mut self.services,
             window_services: &mut self.window_services,
-            tasks: &mut self.sync,
+            sync: &mut self.sync,
             updates: &mut self.updates.0,
         }
     }
@@ -472,7 +475,7 @@ impl OwnedAppContext {
             events: &self.events,
             services: self.services.services(),
             window_services: &self.window_services,
-            tasks: &mut self.sync,
+            sync: &mut self.sync,
             updates: &mut self.updates.0,
             event_loop,
         }
@@ -484,15 +487,18 @@ impl OwnedAppContext {
     }
 
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
-    pub fn apply_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
-        self.sync.update(&mut AppSyncContext {
+    ///
+    /// Returns the update requests and a time for the loop wake back and call
+    /// [`Async::update_timers`].
+    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
+        let wake = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,
             events: &mut self.events,
             updates: &mut self.updates.0,
         });
         self.vars.apply(&mut self.updates.0);
         self.events.apply(&mut self.updates.0);
-        self.updates.take_updates()
+        (self.updates.take_updates(), wake)
     }
 }
 
@@ -565,7 +571,7 @@ pub struct AppInitContext<'a> {
     ///
     /// ### Note
     /// Tasks will not be completed during this initialization.
-    pub tasks: &'a mut Sync,
+    pub sync: &'a mut Sync,
 
     /// Changes to be applied after initialization.
     ///
@@ -593,7 +599,7 @@ pub struct AppContext<'a> {
     pub window_services: &'a WindowServicesInit,
 
     /// Async tasks.
-    pub tasks: &'a mut Sync,
+    pub sync: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -633,7 +639,7 @@ impl<'a> AppContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
-            tasks: self.tasks,
+            sync: self.sync,
             updates: self.updates,
         };
 
@@ -665,7 +671,7 @@ impl<'a> AppContext<'a> {
             vars: self.vars,
             events: self.events,
             services: self.services,
-            tasks: self.tasks,
+            sync: self.sync,
             updates: self.updates,
         });
 
@@ -697,7 +703,7 @@ pub struct WindowContext<'a> {
     pub window_services: &'a mut WindowServices,
 
     /// Async tasks.
-    pub tasks: &'a mut Sync,
+    pub sync: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -729,7 +735,7 @@ impl<'a> WindowContext<'a> {
             services: self.services,
             window_services: self.window_services,
 
-            tasks: self.tasks,
+            sync: self.sync,
 
             updates: self.updates,
         });
@@ -763,7 +769,7 @@ pub struct WidgetContext<'a> {
     pub window_services: &'a mut WindowServices,
 
     /// Async tasks.
-    pub tasks: &'a mut Sync,
+    pub sync: &'a mut Sync,
 
     /// Schedule of actions to apply after this update.
     pub updates: &'a mut Updates,
@@ -785,7 +791,7 @@ impl<'a> WidgetContext<'a> {
             services: self.services,
             window_services: self.window_services,
 
-            tasks: self.tasks,
+            sync: self.sync,
 
             updates: self.updates,
         });

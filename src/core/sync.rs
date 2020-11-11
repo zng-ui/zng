@@ -2,27 +2,80 @@
 
 use super::{
     context::{AppSyncContext, UpdateNotifier},
-    event::{EventEmitter, EventListener},
+    event::{EventEmitter, EventListener, Events},
     var::{Var, VarValue},
 };
 use flume::{self, Receiver, Sender, TryRecvError};
-use std::{future::Future, time::Duration};
+use retain_mut::*;
+use std::{
+    future::Future,
+    time::{Duration, Instant},
+};
 
 /// Asynchronous tasks controller.
 pub struct Sync {
     notifier: UpdateNotifier,
     channels: Vec<Box<dyn SyncChannel>>,
+
+    once_timers: Vec<OnceTimer>,
+    interval_timers: Vec<IntervalTimer>,
+    utc_timers: Vec<UtcTimer>,
+
+    new_wake_time: Option<Instant>,
 }
 impl Sync {
     pub(super) fn new(notifier: UpdateNotifier) -> Self {
         Sync {
             notifier,
             channels: vec![],
+            once_timers: vec![],
+            interval_timers: vec![],
+            utc_timers: vec![],
+            new_wake_time: None,
         }
     }
 
-    pub(super) fn update(&mut self, ctx: &mut AppSyncContext) {
+    pub(super) fn update(&mut self, ctx: &mut AppSyncContext) -> Option<Instant> {
         self.channels.retain(|t| t.update(ctx));
+        self.new_wake_time.take()
+    }
+
+    /// Update timers, gets next wakeup moment.
+    pub(super) fn update_timers(&mut self, events: &Events) -> Option<Instant> {
+        let now = Instant::now();
+
+        self.once_timers.retain(|t| t.retain(now, events));
+        self.interval_timers.retain_mut(|t| t.retain(now, events));
+
+        if !self.utc_timers.is_empty() {
+            let chrono_now = chrono::Utc::now();
+            self.utc_timers.retain(|t| t.retain(chrono_now, events));
+        }
+
+        let mut wake_time = now;
+
+        for t in &self.once_timers {
+            if t.due_time < wake_time {
+                wake_time = t.due_time;
+            }
+        }
+        for t in &self.interval_timers {
+            if t.due_time < wake_time {
+                wake_time = t.due_time;
+            }
+        }
+        for t in &self.utc_timers {
+            let due_time = t.due_time();
+            if due_time < wake_time {
+                wake_time = due_time;
+            }
+        }
+
+        if !self.once_timers.is_empty() || !self.interval_timers.is_empty() || !self.utc_timers.is_empty() {
+            Some(wake_time)
+        } else {
+            None
+        }
     }
 
     /// Create a variable update listener that can be used from other threads.
@@ -151,19 +204,145 @@ impl Sync {
         listener
     }
 
+    fn update_wake_time(&mut self, due_time: Instant) {
+        if let Some(already) = &mut self.new_wake_time {
+            if due_time < *already {
+                *already = due_time;
+            }
+        } else {
+            self.new_wake_time = Some(due_time);
+        }
+    }
+
     /// Gets an event listener that updates once after the `duration`.
-    pub fn update_after(&mut self, _duration: Duration) -> EventListener<()> {
-        todo!()
+    pub fn update_after(&mut self, duration: Duration) -> EventListener<TimeElapsed> {
+        let timer = OnceTimer::new(duration);
+        self.update_wake_time(timer.due_time);
+        let listener = timer.emitter.listener();
+        self.once_timers.push(timer);
+        listener
     }
 
     /// Gets an event listener that updates every `interval`.
-    pub fn update_every(&mut self, _interval: Duration) -> EventListener<()> {
-        todo!()
+    pub fn update_every(&mut self, interval: Duration) -> EventListener<TimeElapsed> {
+        let timer = IntervalTimer::new(interval);
+        self.update_wake_time(timer.due_time);
+        let listener = timer.emitter.listener();
+        self.interval_timers.push(timer);
+        listener
     }
 
     /// Gets an event listener that updates once when the system time reaches `time`.
-    pub fn update_when(&mut self, _time: chrono::DateTime<chrono::Utc>) -> EventListener<()> {
-        todo!()
+    pub fn update_when(&mut self, time: chrono::DateTime<chrono::Utc>) -> EventListener<UtcTimeElapsed> {
+        let timer = UtcTimer::new(time);
+        self.update_wake_time(timer.due_time());
+        let listener = timer.emitter.listener();
+        self.utc_timers.push(timer);
+        listener
+    }
+}
+
+/// Message of a [`Sync`] timer listener.
+#[derive(Debug, Clone)]
+pub struct TimeElapsed {
+    /// Moment the timer notified.
+    pub timestamp: Instant,
+}
+
+/// Message of a [`Sync`] UTC data-time timer listener.
+#[derive(Debug, Clone)]
+pub struct UtcTimeElapsed {
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+struct OnceTimer {
+    due_time: Instant,
+    emitter: EventEmitter<TimeElapsed>,
+}
+impl OnceTimer {
+    fn new(duration: Duration) -> Self {
+        OnceTimer {
+            due_time: Instant::now() + duration,
+            emitter: EventEmitter::response(),
+        }
+    }
+
+    /// Notifies the listeners if the timer elapsed.
+    ///
+    /// Returns if the timer is still active, once timer deactivate
+    /// when they elapse or when there are no more listeners alive.
+    fn retain(&self, now: Instant, events: &Events) -> bool {
+        if self.emitter.listener_count() == 0 {
+            return false;
+        }
+
+        let elapsed = self.due_time >= now;
+        if elapsed {
+            self.emitter.notify(events, TimeElapsed { timestamp: now })
+        }
+
+        !elapsed
+    }
+}
+
+struct IntervalTimer {
+    due_time: Instant,
+    interval: Duration,
+    emitter: EventEmitter<TimeElapsed>,
+}
+impl IntervalTimer {
+    fn new(interval: Duration) -> Self {
+        IntervalTimer {
+            due_time: Instant::now() + interval,
+            interval,
+            emitter: EventEmitter::response(),
+        }
+    }
+
+    /// Notifier the listeners if the time elapsed and resets the timer.
+    ///
+    /// Returns if the timer is still active, interval timers deactivate
+    /// when there are no more listeners alive.
+    fn retain(&mut self, now: Instant, events: &Events) -> bool {
+        if self.emitter.listener_count() == 0 {
+            return false;
+        }
+        if self.due_time >= now {
+            self.emitter.notify(events, TimeElapsed { timestamp: now });
+            self.due_time = now + self.interval;
+        }
+
+        true
+    }
+}
+
+struct UtcTimer {
+    due_time: chrono::DateTime<chrono::Utc>,
+    emitter: EventEmitter<UtcTimeElapsed>,
+}
+impl UtcTimer {
+    fn new(due_time: chrono::DateTime<chrono::Utc>) -> Self {
+        UtcTimer {
+            due_time,
+            emitter: EventEmitter::response(),
+        }
+    }
+
+    pub fn due_time(&self) -> Instant {
+        todo!("UtcTimer::due_time")
+    }
+
+    fn retain(&self, now: chrono::DateTime<chrono::Utc>, events: &Events) -> bool {
+        if self.emitter.listener_count() == 0 {
+            return false;
+        }
+
+        let elapsed = self.due_time <= now;
+        if elapsed {
+            self.emitter.notify(events, UtcTimeElapsed { timestamp: now });
+        }
+
+        !elapsed
     }
 }
 

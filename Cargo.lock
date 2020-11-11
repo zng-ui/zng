@@ -1560,9 +1560,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.4.1"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "260e51e7efe62b592207e9e13a68e43692a7a279171d6ba57abd208bf23645ad"
+checksum = "f53cef67919d7d247eb9a2f128ca9e522789967ef1eb4ccd8c71a95a8aedf596"
 
 [[package]]
 name = "opaque-debug"
@@ -1853,6 +1853,12 @@ dependencies = [
  "redox_syscall",
  "rust-argon2",
 ]
+
+[[package]]
+name = "retain_mut"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e005d658ad26eacc2b6c506dfde519f4e277e328d0eb3379ca61647d70a8f531"
 
 [[package]]
 name = "rust-argon2"
@@ -2575,6 +2581,7 @@ dependencies = [
  "paste",
  "raw-window-handle",
  "rayon",
+ "retain_mut",
  "serde_json",
  "unicode-script",
  "webrender",

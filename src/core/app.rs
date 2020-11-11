@@ -14,6 +14,7 @@ use super::{
     window::{WindowId, WindowManager},
 };
 use glutin::event::Event as GEvent;
+use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
@@ -454,7 +455,23 @@ impl<E: AppExtension> AppExtended<E> {
 
             let mut event_update = UpdateRequest::default();
             match event {
-                GEvent::NewEvents(_) => {
+                GEvent::NewEvents(cause) => {
+                    match cause {
+                        GEventStartCause::ResumeTimeReached { .. } => {
+                            // we assume only timers set WaitUntil.
+                            let ctx = owned_ctx.borrow(event_loop);
+                            if let Some(resume) = ctx.sync.update_timers(ctx.events) {
+                                *control_flow = ControlFlow::WaitUntil(resume);
+                            }
+                        }
+                        GEventStartCause::WaitCancelled {
+                            requested_resume: Some(requested),
+                            start,
+                        } => {
+                            *control_flow = ControlFlow::WaitUntil(requested);
+                        }
+                        _ => {}
+                    }
                     in_sequence = true;
                 }
 
@@ -493,9 +510,13 @@ impl<E: AppExtension> AppExtended<E> {
 
             let mut limit = UPDATE_LIMIT;
             loop {
-                let (mut update, display) = owned_ctx.apply_updates();
+                let ((mut update, display), wake) = owned_ctx.apply_updates();
+
                 update |= mem::take(&mut event_update);
                 sequence_update |= display;
+                if let Some(until) = wake {
+                    *control_flow = ControlFlow::WaitUntil(until);
+                }
 
                 if update.update || update.update_hp {
                     profile_scope!("app::update");
@@ -630,12 +651,16 @@ impl<E: AppExtension> HeadlessApp<E> {
     pub fn update(&mut self) -> ControlFlow {
         let mut event_update = self.owned_ctx.take_request();
         let mut sequence_update = UpdateDisplayRequest::None;
+        let mut control_flow = ControlFlow::Wait;
 
         let mut limit = UPDATE_LIMIT;
         loop {
-            let (mut update, display) = self.owned_ctx.apply_updates();
+            let ((mut update, display), wake) = self.owned_ctx.apply_updates();
             update |= mem::take(&mut event_update);
             sequence_update |= display;
+            if let Some(until) = wake {
+                control_flow = ControlFlow::WaitUntil(until);
+            }
 
             if update.update || update.update_hp {
                 profile_scope!("headless_app::update");
@@ -663,7 +688,7 @@ impl<E: AppExtension> HeadlessApp<E> {
                 .update_display(sequence_update, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
         }
 
-        ControlFlow::Wait
+        control_flow
     }
 }
 
