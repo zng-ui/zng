@@ -456,6 +456,7 @@ pub enum Key {
     NextTrack,
     NoConvert,
     OEM102,
+    /// The '.' key, also called a dot.
     Period,
     PlayPause,
     Plus,
