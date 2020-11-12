@@ -36,9 +36,11 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
     let b_equal = btn_eval(calc.clone());
     // TODO: Implement shortcut from char input?
     macro_rules! bn {
-        ($n:tt) => {paste::paste!{
-            btn(calc.clone(), ('0' as u8 + $n) as char, vec![shortcut!([<Key $n>]), shortcut!([<Numpad $n>])])
-        }}; 
+        ($n:tt) => {
+            paste::paste! {
+                btn(calc.clone(), ('0' as u8 + $n) as char, vec![shortcut!([<Key $n>]), shortcut!([<Numpad $n>])])
+            }
+        };
     }
 
     uniform_grid! {

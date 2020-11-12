@@ -204,8 +204,25 @@ impl Sync {
     /// Gets an event listener that updates once after the `duration`.
     ///
     /// The listener will update once at the moment of now + duration or a little later.
+    #[inline]
     pub fn update_after(&mut self, duration: Duration) -> EventListener<TimeElapsed> {
         self.update_when(Instant::now() + duration)
+    }
+
+    /// Gets an event listener that updates once after the number of milliseconds.
+    ///
+    /// The listener will update once at the moment of now + duration or a little later.
+    #[inline]
+    pub fn update_after_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+        self.update_after(Duration::from_millis(millis))
+    }
+
+    /// Gets an event listener that updates once after the number of seconds.
+    ///
+    /// The listener will update once at the moment of now + duration or a little later.
+    #[inline]
+    pub fn update_after_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+        self.update_after(Duration::from_secs(secs))
     }
 
     /// Gets an event listener that updates every `interval`.
@@ -217,6 +234,22 @@ impl Sync {
         let listener = timer.emitter.listener();
         self.interval_timers.push(timer);
         listener
+    }
+
+    /// Gets an event listener that updated every *n* seconds.
+    ///
+    /// The listener will update after every interval or a litter later.
+    #[inline]
+    pub fn update_every_secs(&mut self, secs: u64) -> EventListener<TimeElapsed> {
+        self.update_every(Duration::from_secs(secs))
+    }
+
+    /// Gets an event listener that updated every *n* milliseconds.
+    ///
+    /// The listener will update after every interval or a litter later.
+    #[inline]
+    pub fn update_every_millis(&mut self, millis: u64) -> EventListener<TimeElapsed> {
+        self.update_every(Duration::from_millis(millis))
     }
 
     /// Gets an event listener that updates once when `time` is reached.

@@ -62,11 +62,11 @@ pub trait AppRunWindow {
     ///     });
     /// })   
     /// ```
-    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static);
+    fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static);
 }
 
 impl<E: AppExtension> AppRunWindow for AppExtended<E> {
-    fn run_window(self, new_window: impl FnOnce(&AppContext) -> Window + 'static) {
+    fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) {
         self.run(|ctx| {
             ctx.services.req::<Windows>().open(new_window);
         })
@@ -566,7 +566,7 @@ impl Windows {
     }
 
     /// Requests a new window. Returns a listener that will update once when the window is opened.
-    pub fn open(&mut self, new_window: impl FnOnce(&AppContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
+    pub fn open(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> EventListener<WindowEventArgs> {
         let request = OpenWindowRequest {
             new: Box::new(new_window),
             notifier: EventEmitter::response(),
@@ -652,7 +652,7 @@ impl Windows {
 }
 
 struct OpenWindowRequest {
-    new: Box<dyn FnOnce(&AppContext) -> Window>,
+    new: Box<dyn FnOnce(&mut AppContext) -> Window>,
     notifier: EventEmitter<WindowEventArgs>,
 }
 
@@ -762,7 +762,7 @@ pub struct OpenWindow {
 
 impl OpenWindow {
     fn new(
-        new_window: Box<dyn FnOnce(&AppContext) -> Window>,
+        new_window: Box<dyn FnOnce(&mut AppContext) -> Window>,
         ctx: &mut AppContext,
         event_loop: EventLoopWindowTarget,
         event_loop_proxy: EventLoopProxy,
