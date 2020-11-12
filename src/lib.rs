@@ -232,6 +232,13 @@ macro_rules! warn_println {
     }}
 }
 
+#[cfg(debug_assertions)]
+macro_rules! print_backtrace {
+    () => {
+        eprintln!("\n\n\n=========BACKTRACE=========\n{:?}", backtrace::Backtrace::new())
+    };
+}
+
 /// Declare a new unique id type.
 macro_rules! unique_id {
     ($(#[$docs:meta])* $vis:vis struct $Type:ident;) => {
