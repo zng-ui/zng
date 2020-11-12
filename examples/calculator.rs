@@ -20,34 +20,37 @@ fn main() {
                         font_size: 32.pt();
                         color: calc.map_ref(|c| c.color());
                     },
-                    controls(calc.clone())
+                    controls(calc)
                 ];
             };
-            on_char_input: enclose! { (calc) move |ctx, args| {
-                let char_ = args.character;
-                calc.modify(ctx.vars, move |c|c.push(char_));
-            }};
         }
     })
 }
 
 fn controls(calc: RcVar<Calculator>) -> impl Widget {
-    let b = |c| btn(calc.clone(), c);
+    let b = |c| btn(calc.clone(), c, vec![]);
     let b_squre = btn_square(calc.clone());
     let b_sroot = btn_square_root(calc.clone());
     let b_clear = btn_clear(calc.clone());
     let b_back = btn_backspace(calc.clone());
     let b_equal = btn_eval(calc.clone());
+    // TODO: Implement shortcut from char input?
+    macro_rules! bn {
+        ($n:tt) => {paste::paste!{
+            btn(calc.clone(), ('0' as u8 + $n) as char, vec![shortcut!([<Key $n>]), shortcut!([<Numpad $n>])])
+        }}; 
+    }
+
     uniform_grid! {
         spacing: 2;
         columns: 4;
         font_size: 14.pt();
         items: ui_vec![
             b_squre, b_sroot,  b_clear,  b_back,
-             b('7'),  b('8'),   b('9'),  b('/'),
-             b('4'),  b('5'),   b('6'),  b('*'),
-             b('1'),  b('2'),   b('3'),  b('-'),
-             b('0'),  b('.'),  b_equal,  b('+'),
+             bn!(7),  bn!(8),   bn!(9),  b('/'),
+             bn!(4),  bn!(5),   bn!(6),  b('*'),
+             bn!(1),  bn!(2),   bn!(3),  b('-'),
+             bn!(0),  b('.'),  b_equal,  b('+'),
         ];
     }
 }
@@ -69,6 +72,7 @@ fn btn_square_root(calc: RcVar<Calculator>) -> impl Widget {
 fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
     button! {
         on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.clear());
+        click_shortcut: shortcut!(Escape);
         content: text("C");
     }
 }
@@ -76,15 +80,17 @@ fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
 fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
     button! {
         on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.backspace());
+        click_shortcut: shortcut!(Backspace);
         content: text("⌫");
     }
 }
 
-fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
+fn btn(calc: RcVar<Calculator>, c: char, click_shortcut: Vec<Shortcut>) -> impl Widget {
     button! {
         on_click: move |ctx, _| {
             calc.modify(ctx.vars, move |b| b.push(c))
         };
+        click_shortcut;
         content: text(c.to_string());
     }
 }
