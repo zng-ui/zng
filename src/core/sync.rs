@@ -35,7 +35,11 @@ impl Sync {
 
     pub(super) fn update(&mut self, ctx: &mut AppSyncContext) -> Option<Instant> {
         self.channels.retain(|t| t.update(ctx));
-        self.new_wake_time.take()
+        if let Some(wake) = self.new_wake_time.take() {
+            Some(wake)
+        } else {
+            None
+        }
     }
 
     /// Update timers, gets next wakeup moment.
@@ -45,24 +49,28 @@ impl Sync {
         self.once_timers.retain(|t| t.retain(now, events));
         self.interval_timers.retain_mut(|t| t.retain(now, events));
 
-        let mut wake_time = now;
+        let mut wake_time = None;
 
         for t in &self.once_timers {
-            if t.due_time < wake_time {
-                wake_time = t.due_time;
+            if let Some(wake_time) = &mut wake_time {
+                if t.due_time < *wake_time {
+                    *wake_time = t.due_time;
+                }
+            } else {
+                wake_time = Some(t.due_time);
             }
         }
         for t in &self.interval_timers {
-            if t.due_time < wake_time {
-                wake_time = t.due_time;
+            if let Some(wake_time) = &mut wake_time {
+                if t.due_time < *wake_time {
+                    *wake_time = t.due_time;
+                }
+            } else {
+                wake_time = Some(t.due_time);
             }
         }
 
-        if !self.once_timers.is_empty() || !self.interval_timers.is_empty() {
-            Some(wake_time)
-        } else {
-            None
-        }
+        wake_time
     }
 
     /// Create a variable update listener that can be used from other threads.
@@ -292,7 +300,7 @@ impl OnceTimer {
             return false;
         }
 
-        let elapsed = self.due_time >= now;
+        let elapsed = self.due_time <= now;
         if elapsed {
             self.emitter.notify(events, TimeElapsed { timestamp: now })
         }
@@ -323,7 +331,7 @@ impl IntervalTimer {
         if self.emitter.listener_count() == 0 {
             return false;
         }
-        if self.due_time >= now {
+        if self.due_time <= now {
             self.emitter.notify(events, TimeElapsed { timestamp: now });
             self.due_time = now + self.interval;
         }

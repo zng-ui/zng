@@ -1,7 +1,7 @@
 //! App startup and app extension API.
 
 use super::context::*;
-use super::event::{cancelable_event_args, CancelableEventArgs, EventEmitter, EventListener};
+use super::event::{cancelable_event_args, EventEmitter, EventListener};
 use super::profiler::*;
 use super::{
     focus::FocusManager,
@@ -451,7 +451,12 @@ impl<E: AppExtension> AppExtended<E> {
         event_loop.run_headed(move |event, event_loop, control_flow| {
             profile_scope!("app::event");
 
-            *control_flow = ControlFlow::Wait;
+            if let ControlFlow::Poll = &control_flow {
+                // Poll is the initial value but we want to use
+                // Wait by default. This should only happen once
+                // because we don't use Poll at all.
+                *control_flow = ControlFlow::Wait;
+            }
 
             let mut event_update = UpdateRequest::default();
             match event {
@@ -462,12 +467,15 @@ impl<E: AppExtension> AppExtended<E> {
                             let ctx = owned_ctx.borrow(event_loop);
                             if let Some(resume) = ctx.sync.update_timers(ctx.events) {
                                 *control_flow = ControlFlow::WaitUntil(resume);
+                            } else {
+                                *control_flow = ControlFlow::Wait;
                             }
                         }
                         GEventStartCause::WaitCancelled {
                             requested_resume: Some(requested),
-                            start,
+                            ..
                         } => {
+                            // already set to this?
                             *control_flow = ControlFlow::WaitUntil(requested);
                         }
                         _ => {}
@@ -570,6 +578,7 @@ impl<E: AppExtension> AppExtended<E> {
             event_loop,
             extensions,
             owned_ctx,
+            control_flow: ControlFlow::Wait,
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
@@ -590,6 +599,7 @@ pub struct HeadlessApp<E: AppExtension> {
     event_loop: EventLoop,
     extensions: E,
     owned_ctx: OwnedAppContext,
+    control_flow : ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
 }
@@ -651,15 +661,14 @@ impl<E: AppExtension> HeadlessApp<E> {
     pub fn update(&mut self) -> ControlFlow {
         let mut event_update = self.owned_ctx.take_request();
         let mut sequence_update = UpdateDisplayRequest::None;
-        let mut control_flow = ControlFlow::Wait;
-
+        
         let mut limit = UPDATE_LIMIT;
         loop {
             let ((mut update, display), wake) = self.owned_ctx.apply_updates();
             update |= mem::take(&mut event_update);
             sequence_update |= display;
             if let Some(until) = wake {
-                control_flow = ControlFlow::WaitUntil(until);
+                self.control_flow = ControlFlow::WaitUntil(until);
             }
 
             if update.update || update.update_hp {
@@ -688,7 +697,7 @@ impl<E: AppExtension> HeadlessApp<E> {
                 .update_display(sequence_update, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
         }
 
-        control_flow
+        *self.control_flow
     }
 }
 

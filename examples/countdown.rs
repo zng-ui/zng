@@ -4,12 +4,12 @@ use zero_ui::prelude::*;
 
 fn main() {
     App::default().run_window(|ctx| {
-        let count = var(20u32);
+        let count = var(10u32);
         let mut every1s = Some(ctx.sync.update_every_secs(1));
         window! {
             title: "Countdown Example";
             on_update: enclose!{ (count) move |ctx| {
-                println!("on_update");
+                // println!("on_update");
 
                 // if timer still running.
                 if let Some(l) = &every1s {

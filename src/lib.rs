@@ -232,6 +232,7 @@ macro_rules! warn_println {
     }}
 }
 
+#[allow(unused)]
 #[cfg(debug_assertions)]
 macro_rules! print_backtrace {
     () => {
