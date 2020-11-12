@@ -391,7 +391,8 @@ pub mod prelude {
         },
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
-        gesture::shortcut,
+        gesture::{shortcut, GestureKey},
+        keyboard::Key,
         render::WidgetPath,
         service::{AppServices, WindowServices},
         sync::Sync,
@@ -403,7 +404,7 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, WhiteSpace, WordBreak,
         },
-        types::{BorderRadius, ElementState, ModifiersState, MouseButton, VirtualKeyCode},
+        types::{BorderRadius, ElementState, ModifiersState, MouseButton},
         ui_vec,
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,

@@ -9,7 +9,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// use zero_ui::widgets::text;
+    /// use zero_ui::prelude::text;
     ///
     /// let hello_txt = text! {
     ///     font_family: "Arial";

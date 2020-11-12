@@ -225,14 +225,14 @@ impl Display for ModifierGesture {
         }
     }
 }
-impl TryFrom<VirtualKeyCode> for ModifierGesture {
-    type Error = VirtualKeyCode;
-    fn try_from(value: VirtualKeyCode) -> Result<Self, Self::Error> {
+impl TryFrom<Key> for ModifierGesture {
+    type Error = Key;
+    fn try_from(value: Key) -> Result<Self, Self::Error> {
         match value {
-            VirtualKeyCode::LAlt | VirtualKeyCode::RAlt => Ok(ModifierGesture::Alt),
-            VirtualKeyCode::LControl | VirtualKeyCode::RControl => Ok(ModifierGesture::Ctrl),
-            VirtualKeyCode::LShift | VirtualKeyCode::RShift => Ok(ModifierGesture::Shift),
-            VirtualKeyCode::LWin | VirtualKeyCode::RWin => Ok(ModifierGesture::Logo),
+            Key::LAlt | Key::RAlt => Ok(ModifierGesture::Alt),
+            Key::LControl | Key::RControl => Ok(ModifierGesture::Ctrl),
+            Key::LShift | Key::RShift => Ok(ModifierGesture::Shift),
+            Key::LWin | Key::RWin => Ok(ModifierGesture::Logo),
             key => Err(key),
         }
     }
@@ -361,7 +361,7 @@ pub use zero_ui_macros::shortcut;
 event! {
     /// Aggregate click event.
     ///
-    /// Can be a mouse click, a [return key](VirtualKeyCode::Return) press or a touch tap.
+    /// Can be a mouse click, a [return key](Key::Return) press or a touch tap.
     pub ClickEvent: ClickArgs;
 
     /// [`ClickEvent`] when the [`click_count`](ClickArgs::click_count) is `1`.
@@ -565,7 +565,7 @@ pub struct Gestures {
     /// Shortcuts that generate a [`ClickEvent`] for the focused widget.
     /// The shortcut only works if no widget handles the [`ShortcutEvent`].
     ///
-    /// Initial shortcuts are [`Enter`](VirtualKeyCode::Return) and [`Space`](VirtualKeyCode::Space).
+    /// Initial shortcuts are [`Enter`](Key::Enter) and [`Space`](Key::Space).
     pub click_focused: Vec<Shortcut>,
 
     /// When a shortcut click happens, targeted widgets can indicate that
@@ -579,7 +579,7 @@ pub struct Gestures {
 impl Gestures {
     fn new() -> Self {
         Gestures {
-            click_focused: vec![shortcut!(Return), shortcut!(Space)],
+            click_focused: vec![shortcut!(Enter), shortcut!(Space)],
             shortcut_pressed_duration: Duration::from_millis(300),
             click_shortcut: vec![],
         }
@@ -690,12 +690,12 @@ macro_rules! gesture_keys {
         pub enum GestureKey {
             $($key),+
         }
-        impl TryFrom<VirtualKeyCode> for GestureKey {
-            type Error = VirtualKeyCode;
+        impl TryFrom<Key> for GestureKey {
+            type Error = Key;
 
-            fn try_from(key: VirtualKeyCode) -> Result<Self, VirtualKeyCode> {
+            fn try_from(key: Key) -> Result<Self, Key> {
                 match key {
-                    $(VirtualKeyCode::$key => Ok(GestureKey::$key),)+
+                    $(Key::$key => Ok(GestureKey::$key),)+
                     _ => Err(key)
                 }
             }
@@ -788,8 +788,8 @@ gesture_keys! {
     Up,
     Right,
     Down,
-    Back,
-    Return = "Enter",
+    Backspace,
+    Enter,
     Space,
     Plus = "+",
     Asterisk = "*",

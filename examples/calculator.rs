@@ -92,7 +92,7 @@ fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
 fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
     button! {
         on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.eval());
-        click_shortcut: vec![shortcut!(Return), shortcut!(NumpadEnter)];
+        click_shortcut: vec![shortcut!(Enter), shortcut!(NumpadEnter)];
         content: text("=");
     }
 }

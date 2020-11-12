@@ -4,9 +4,7 @@ pub use webrender::api::{BorderRadius, FontInstanceKey, GlyphInstance, GlyphOpti
 
 use super::color::Rgba;
 
-pub use glutin::event::{
-    DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, VirtualKeyCode, WindowEvent,
-};
+pub use glutin::event::{DeviceEvent, DeviceId, ElementState, KeyboardInput, ModifiersState, MouseButton, ScanCode, WindowEvent};
 
 /// Id of a rendered or rendering window frame. Not unique across windows.
 pub type FrameId = webrender::api::Epoch;

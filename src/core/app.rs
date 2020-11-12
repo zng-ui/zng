@@ -68,8 +68,8 @@ pub trait AppExtension: 'static {
 
     /// Called just before [`update`](Self::update).
     ///
-    /// Only extensions that generate windows must handle this method. The [`UiNode::update`]
-    /// and [`UiNode::update_hp`] are called here.
+    /// Only extensions that generate windows must handle this method. The [`UiNode::update`](super::UiNode::update)
+    /// and [`UiNode::update_hp`](super::UiNode::update_hp) are called here.
     #[inline]
     fn update_ui(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         let _ = (update, ctx);
