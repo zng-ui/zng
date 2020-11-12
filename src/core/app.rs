@@ -697,7 +697,7 @@ impl<E: AppExtension> HeadlessApp<E> {
                 .update_display(sequence_update, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
         }
 
-        *self.control_flow
+        self.control_flow
     }
 }
 
