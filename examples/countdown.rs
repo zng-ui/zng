@@ -9,7 +9,7 @@ fn main() {
         window! {
             title: "Countdown Example";
             on_update: enclose!{ (count) move |ctx| {
-                // println!("on_update");
+                println!("on_update");
 
                 // if timer still running.
                 if let Some(l) = &every1s {

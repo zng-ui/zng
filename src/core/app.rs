@@ -461,24 +461,14 @@ impl<E: AppExtension> AppExtended<E> {
             let mut event_update = UpdateRequest::default();
             match event {
                 GEvent::NewEvents(cause) => {
-                    match cause {
-                        GEventStartCause::ResumeTimeReached { .. } => {
-                            // we assume only timers set WaitUntil.
-                            let ctx = owned_ctx.borrow(event_loop);
-                            if let Some(resume) = ctx.sync.update_timers(ctx.events) {
-                                *control_flow = ControlFlow::WaitUntil(resume);
-                            } else {
-                                *control_flow = ControlFlow::Wait;
-                            }
+                    if let GEventStartCause::ResumeTimeReached { .. } = cause {
+                        // we assume only timers set WaitUntil.
+                        let ctx = owned_ctx.borrow(event_loop);
+                        if let Some(resume) = ctx.sync.update_timers(ctx.events) {
+                            *control_flow = ControlFlow::WaitUntil(resume);
+                        } else {
+                            *control_flow = ControlFlow::Wait;
                         }
-                        GEventStartCause::WaitCancelled {
-                            requested_resume: Some(requested),
-                            ..
-                        } => {
-                            // already set to this?
-                            *control_flow = ControlFlow::WaitUntil(requested);
-                        }
-                        _ => {}
                     }
                     in_sequence = true;
                 }
@@ -599,7 +589,7 @@ pub struct HeadlessApp<E: AppExtension> {
     event_loop: EventLoop,
     extensions: E,
     owned_ctx: OwnedAppContext,
-    control_flow : ControlFlow,
+    control_flow: ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
 }
@@ -661,7 +651,7 @@ impl<E: AppExtension> HeadlessApp<E> {
     pub fn update(&mut self) -> ControlFlow {
         let mut event_update = self.owned_ctx.take_request();
         let mut sequence_update = UpdateDisplayRequest::None;
-        
+
         let mut limit = UPDATE_LIMIT;
         loop {
             let ((mut update, display), wake) = self.owned_ctx.apply_updates();

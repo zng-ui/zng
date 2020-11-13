@@ -517,7 +517,7 @@ impl UiNode for PropertyInfoNode {
         }
     }
     fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        ctx_mtd!(self.update, ctx, mut info);
+        ctx_mtd!(self.update_hp, ctx, mut info);
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
