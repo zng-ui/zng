@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-use enclose::enclose;
 use meval::eval_str;
+use std::convert::TryInto;
 use zero_ui::prelude::*;
 
 fn main() {
@@ -28,31 +28,23 @@ fn main() {
 }
 
 fn controls(calc: RcVar<Calculator>) -> impl Widget {
-    let b = |c| btn(calc.clone(), c, vec![]);
+    let bn = |c| btn(calc.clone(), c);
     let b_squre = btn_square(calc.clone());
     let b_sroot = btn_square_root(calc.clone());
     let b_clear = btn_clear(calc.clone());
     let b_back = btn_backspace(calc.clone());
     let b_equal = btn_eval(calc.clone());
-    // TODO: Implement shortcut from char input?
-    macro_rules! bn {
-        ($n:tt) => {
-            paste::paste! {
-                btn(calc.clone(), ('0' as u8 + $n) as char, vec![shortcut!([<Key $n>]), shortcut!([<Numpad $n>])])
-            }
-        };
-    }
 
     uniform_grid! {
         spacing: 2;
         columns: 4;
         font_size: 14.pt();
         items: ui_vec![
-            b_squre, b_sroot,  b_clear,  b_back,
-             bn!(7),  bn!(8),   bn!(9),  b('/'),
-             bn!(4),  bn!(5),   bn!(6),  b('*'),
-             bn!(1),  bn!(2),   bn!(3),  b('-'),
-             bn!(0),  b('.'),  b_equal,  b('+'),
+            b_squre,  b_sroot,  b_clear,  b_back,
+            bn('7'),  bn('8'),  bn('9'),  bn('/'),
+            bn('4'),  bn('5'),  bn('6'),  bn('*'),
+            bn('1'),  bn('2'),  bn('3'),  bn('-'),
+            bn('0'),  bn('.'),  b_equal,  bn('+'),
         ];
     }
 }
@@ -87,12 +79,16 @@ fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
     }
 }
 
-fn btn(calc: RcVar<Calculator>, c: char, click_shortcut: Vec<Shortcut>) -> impl Widget {
+fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     button! {
         on_click: move |ctx, _| {
             calc.modify(ctx.vars, move |b| b.push(c))
         };
-        click_shortcut;
+        click_shortcut: {
+            let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
+            assert!(!shortcuts.0.is_empty());
+            shortcuts
+        };
         content: text(c.to_string());
     }
 }
@@ -100,7 +96,7 @@ fn btn(calc: RcVar<Calculator>, c: char, click_shortcut: Vec<Shortcut>) -> impl 
 fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
     button! {
         on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.eval());
-        click_shortcut: vec![shortcut!(Enter), shortcut!(NumpadEnter)];
+        click_shortcut: vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
         content: text("=");
     }
 }

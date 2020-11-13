@@ -74,7 +74,7 @@ pub fn directional_nav(child: impl UiNode, directional_nav: impl IntoVar<Directi
 ///
 /// When any of the `shortcuts` is pressed, focus this widget the parent focusable widget.
 #[property(context)]
-pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Vec<Shortcut>>) -> impl UiNode {
+pub fn focus_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     FocusShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
@@ -263,13 +263,13 @@ impl<C: UiNode, E: VarLocal<DirectionalNav>> UiNode for DirectionalNavNode<C, E>
     }
 }
 
-struct FocusShortcutNode<C: UiNode, S: Var<Vec<Shortcut>>> {
+struct FocusShortcutNode<C: UiNode, S: Var<Shortcuts>> {
     child: C,
     shortcuts: S,
     shortcut_listener: EventListener<ShortcutArgs>,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for FocusShortcutNode<C, S> {
+impl<C: UiNode, S: Var<Shortcuts>> UiNode for FocusShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
@@ -281,7 +281,7 @@ impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for FocusShortcutNode<C, S> {
         let shortcuts = self.shortcuts.get(ctx.vars);
 
         for args in self.shortcut_listener.updates(ctx.events) {
-            if !args.stop_propagation_requested() && shortcuts.contains(&args.shortcut) {
+            if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
                 // focus on shortcut
                 ctx.services.req::<Focus>().focus_widget_or_parent(ctx.path.widget_id(), true);
 

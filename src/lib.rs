@@ -399,7 +399,7 @@ pub mod prelude {
         },
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
-        gesture::{shortcut, GestureKey, Shortcut},
+        gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
         keyboard::Key,
         render::WidgetPath,
         service::{AppServices, WindowServices},

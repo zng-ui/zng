@@ -608,13 +608,13 @@ pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> Layo
     OnMeasureNode { child, handler }
 }
 
-struct ClickShortcutNode<C: UiNode, S: Var<Vec<Shortcut>>> {
+struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {
     child: C,
     shortcuts: S,
     shortcut_listener: EventListener<ShortcutArgs>,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for ClickShortcutNode<C, S> {
+impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
@@ -626,7 +626,7 @@ impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for ClickShortcutNode<C, S> {
         let shortcuts = self.shortcuts.get(ctx.vars);
 
         for args in self.shortcut_listener.updates(ctx.events) {
-            if !args.stop_propagation_requested() && shortcuts.contains(&args.shortcut) {
+            if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
                 // focus on shortcut, if focusable
                 ctx.services
                     .req::<Gestures>()
@@ -641,7 +641,7 @@ impl<C: UiNode, S: Var<Vec<Shortcut>>> UiNode for ClickShortcutNode<C, S> {
 ///
 /// When any of the `shortcuts` is pressed, focus and click this widget.
 #[property(context)]
-pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Vec<Shortcut>>) -> impl UiNode {
+pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
     ClickShortcutNode {
         child,
         shortcuts: shortcuts.into_var(),
