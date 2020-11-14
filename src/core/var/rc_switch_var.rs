@@ -17,12 +17,10 @@ use super::*;
 /// ```
 /// # use zero_ui::core::var::switch_var;
 /// # use zero_ui::prelude::{var, text};
-/// # fn main() {
 /// let var0 = var("Read-write");
 /// let var1 = "Read-only";
 ///
 /// let t = text(switch_var!(0, var0, var1));
-/// # }
 /// ```
 pub use zero_ui_macros::switch_var;
 

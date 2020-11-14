@@ -1,10 +1,6 @@
 //! Font resolving and text shaping.
 
-use super::{
-    units::{layout_to_pt, LayoutLength, LayoutPoint, LayoutRect, LayoutSize},
-    var::IntoVar,
-    var::OwnedVar,
-};
+use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use derive_more as dm;
 use font_kit::family_name::FamilyName;
 use std::{borrow::Cow, fmt, ops::Deref, rc::Rc};

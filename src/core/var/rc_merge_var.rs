@@ -15,12 +15,10 @@ use super::*;
 /// # use zero_ui::core::var::merge_var;
 /// # use zero_ui::prelude::{var, text, Text};
 /// # use zero_ui::core::var::SharedVar;
-/// # fn main() {
 /// let var0: SharedVar<Text> = var("Hello");
 /// let var1: SharedVar<Text> = var("World");
 ///
 /// let greeting_text = text(merge_var!(var0, var1, |a, b|formatx!("{} {}!", a, b)));
-/// # }
 /// ```
 pub use zero_ui_macros::merge_var;
 

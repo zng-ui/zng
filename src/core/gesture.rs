@@ -1,11 +1,6 @@
 //! Aggregate events.
 
-use super::{
-    service::AppService,
-    units::LayoutPoint,
-    var::{IntoVar, OwnedVar},
-    WidgetId,
-};
+use super::{service::AppService, units::LayoutPoint, WidgetId};
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
