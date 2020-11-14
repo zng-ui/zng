@@ -7,13 +7,7 @@ use std::marker::PhantomData;
 
 context_var! {
     /// Font family of [`text`](crate::widgets::text) spans.
-    pub struct FontFamilyVar: Box<[FontName]> = once Box::new([
-        FontName::sans_serif(),
-        FontName::serif(),
-        FontName::monospace(),
-        FontName::cursive(),
-        FontName::fantasy()
-    ]);
+    pub struct FontFamilyVar: FontNames = once FontNames::default();
 
     /// Font weight of [`text`](crate::widgets::text) spans.
     pub struct FontWeightVar: FontWeight = const FontWeight::NORMAL;
@@ -71,7 +65,7 @@ context_var! {
 
 /// Sets the [`FontFamilyVar`] context var.
 #[property(context)]
-pub fn font_family(child: impl UiNode, names: impl IntoVar<Box<[FontName]>>) -> impl UiNode {
+pub fn font_family(child: impl UiNode, names: impl IntoVar<FontNames>) -> impl UiNode {
     with_context_var(child, FontFamilyVar, names)
 }
 

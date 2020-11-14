@@ -194,16 +194,16 @@ impl KeyGesture {
 impl Display for KeyGesture {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.modifiers.logo() {
-            write!(f, "logo + ")?
+            write!(f, "Logo + ")?
         }
         if self.modifiers.ctrl() {
-            write!(f, "ctrl + ")?
+            write!(f, "Ctrl + ")?
         }
         if self.modifiers.shift() {
-            write!(f, "shift + ")?
+            write!(f, "Shift + ")?
         }
         if self.modifiers.alt() {
-            write!(f, "alt + ")?
+            write!(f, "Alt + ")?
         }
 
         write!(f, "{}", self.key)
@@ -221,10 +221,10 @@ pub enum ModifierGesture {
 impl Display for ModifierGesture {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ModifierGesture::Logo => write!(f, "logo"),
-            ModifierGesture::Ctrl => write!(f, "ctrl"),
-            ModifierGesture::Shift => write!(f, "shift"),
-            ModifierGesture::Alt => write!(f, "alt"),
+            ModifierGesture::Logo => write!(f, "Logo"),
+            ModifierGesture::Ctrl => write!(f, "Ctrl"),
+            ModifierGesture::Shift => write!(f, "Shift"),
+            ModifierGesture::Alt => write!(f, "Alt"),
         }
     }
 }

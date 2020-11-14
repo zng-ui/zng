@@ -1,4 +1,4 @@
-use super::{FontInstanceKey, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight};
+use super::{FontInstanceKey, FontMetrics, FontName, FontNames, FontStretch, FontStyle, FontSynthesis, FontWeight};
 use crate::core::{
     app::AppExtension,
     context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest},
@@ -174,7 +174,7 @@ impl Fonts {
     }
 
     fn get_font(&mut self, font_names: &[FontName], properties: FontProperties) -> Option<FontRef> {
-        let query_key = (font_names.to_vec().into_boxed_slice(), FontPropertiesKey::new(properties));
+        let query_key = (FontNames(font_names.to_vec()), FontPropertiesKey::new(properties));
 
         match self.fonts.entry(query_key) {
             HEntry::Occupied(e) => Some(e.get().clone()),
@@ -578,7 +578,7 @@ impl fmt::Display for FontInstanceRef {
     }
 }
 
-type FontQueryKey = (Box<[FontName]>, FontPropertiesKey);
+type FontQueryKey = (FontNames, FontPropertiesKey);
 
 #[derive(Eq, PartialEq, Hash, Clone, Copy)]
 struct FontPropertiesKey(u8, u32, u32);

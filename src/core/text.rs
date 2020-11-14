@@ -7,7 +7,7 @@ use super::{
 };
 use derive_more as dm;
 use font_kit::family_name::FamilyName;
-use std::{borrow::Cow, fmt, rc::Rc};
+use std::{borrow::Cow, fmt, ops::Deref, rc::Rc};
 use webrender::api::GlyphInstance;
 use xi_unicode::LineBreakIterator;
 
@@ -649,46 +649,56 @@ impl fmt::Display for FontName {
     }
 }
 
-impl IntoVar<Box<[FontName]>> for &'static str {
-    type Var = OwnedVar<Box<[FontName]>>;
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
+pub struct FontNames(pub Vec<FontName>);
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName::new(self)]))
+impl Default for FontNames {
+    fn default() -> Self {
+        FontNames(vec![
+            FontName::sans_serif(),
+            FontName::serif(),
+            FontName::monospace(),
+            FontName::cursive(),
+            FontName::fantasy(),
+        ])
     }
 }
-impl IntoVar<Box<[FontName]>> for String {
-    type Var = OwnedVar<Box<[FontName]>>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName::new(self)]))
+impl_from_and_into_var! {
+    fn from(font_name: &'static str) -> FontNames {
+        FontNames(vec![FontName::new(font_name)])
+    }
+
+    fn from(font_name: String) -> FontNames {
+        FontNames(vec![FontName::new(font_name)])
+    }
+
+    fn from(font_name: Text) -> FontNames {
+        FontNames(vec![FontName(font_name)])
+    }
+
+    fn from(font_names: Vec<FontName>) -> FontNames {
+        FontNames(font_names)
+    }
+
+    fn from(font_names: Vec<&'static str>) -> FontNames {
+        FontNames(font_names.into_iter().map(FontName::new).collect())
+    }
+
+    fn from(font_names: Vec<String>) -> FontNames {
+        FontNames(font_names.into_iter().map(FontName::new).collect())
+    }
+
+    fn from(font_name: FontName) -> FontNames {
+        FontNames(vec![font_name])
     }
 }
-impl IntoVar<Box<[FontName]>> for Text {
-    type Var = OwnedVar<Box<[FontName]>>;
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(Box::new([FontName(self)]))
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<FontName> {
-    type Var = OwnedVar<Box<[FontName]>>;
+impl Deref for FontNames {
+    type Target = [FontName];
 
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_boxed_slice())
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<&'static str> {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
-    }
-}
-impl IntoVar<Box<[FontName]>> for Vec<String> {
-    type Var = OwnedVar<Box<[FontName]>>;
-
-    fn into_var(self) -> Self::Var {
-        OwnedVar(self.into_iter().map(FontName::new).collect::<Vec<FontName>>().into_boxed_slice())
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
