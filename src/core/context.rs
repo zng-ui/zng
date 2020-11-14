@@ -489,7 +489,7 @@ impl OwnedAppContext {
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
     /// Returns the update requests and a time for the loop wake back and call
-    /// [`Async::update_timers`].
+    /// [`Sync::update_timers`].
     pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
         let wake = self.sync.update(&mut AppSyncContext {
             vars: &mut self.vars,

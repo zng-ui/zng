@@ -49,6 +49,7 @@ mod vars;
 pub use vars::*;
 
 pub use zero_ui_macros::context_var;
+
 /// A type that can be a [`Var`](crate::core::var::Var) value.
 ///
 /// # Trait Alias

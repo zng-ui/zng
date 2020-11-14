@@ -144,7 +144,7 @@ impl Sync {
     /// # struct SomeStruct { sum_listener: EventListener<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.sum_listener = ctx.tasks.run(||{
+    ///     self.sum_listener = ctx.sync.run(||{
     ///         (0..1000).sum()
     ///     });
     /// }
@@ -176,7 +176,7 @@ impl Sync {
     /// # struct SomeStruct { file_listener: EventListener<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
-    ///     self.file_listener = ctx.tasks.run_async(async {
+    ///     self.file_listener = ctx.sync.run_async(async {
     ///         todo!("use async_std to read a file")     
     ///     });
     /// }

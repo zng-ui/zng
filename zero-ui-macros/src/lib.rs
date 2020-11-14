@@ -5,6 +5,8 @@ pub use zero_ui_proc_macros::*;
 /// # Example
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::context::state_key;
 /// state_key! {
 ///     /// Key docs.
 ///     pub struct FooKey: u32;
@@ -32,6 +34,8 @@ macro_rules! state_key {
 ///
 /// # Example
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::event::event_args;
 /// use zero_ui::core::render::WidgetPath;
 ///
 /// event_args! {
@@ -58,6 +62,8 @@ macro_rules! state_key {
 /// Expands to:
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::event::event_args;
 /// # use zero_ui::core::render::WidgetPath;
 /// #
 /// /// My event arguments.
@@ -246,6 +252,8 @@ macro_rules! event_args {
 ///
 /// # Example
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::event::event_args;
 /// use zero_ui::core::render::WidgetPath;
 ///
 /// cancelable_event_args! {
@@ -272,6 +280,8 @@ macro_rules! event_args {
 /// Expands to:
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::event::event_args;
 /// # use zero_ui::core::render::WidgetPath;
 /// #
 /// /// My event arguments.
@@ -478,6 +488,8 @@ macro_rules! cancelable_event_args {
 /// If compiled with the `app_profiler` feature, this will register a "do-things" scope
 /// that starts when the macro was called and has the duration of the block.
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::debug::profile_scope;
 /// # fn main()
 /// {
 /// # fn do_thing() { }
@@ -515,6 +527,8 @@ macro_rules! profile_scope {
 ///
 /// # Example
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::debug::profile_scope;
 /// # fn main() {
 /// use zero_ui::core::types::Text;
 ///
@@ -603,6 +617,8 @@ macro_rules! __context_var_inner {
 ///
 /// # Examples
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::var::context_var;
 /// # fn main() {
 /// # #[derive(Debug, Clone)]
 /// # struct NotConst(u8);
@@ -667,6 +683,8 @@ macro_rules! context_var {
 ///
 /// # Example
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::var::merge_var;
 /// # use zero_ui::prelude::{var, text, Text};
 /// # use zero_ui::core::var::SharedVar;
 /// # fn main() {
@@ -722,6 +740,8 @@ macro_rules! merge_var {
 ///
 /// # Example
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::var::switch_var;
 /// # use zero_ui::prelude::{var, text};
 /// # fn main() {
 /// let var0 = var("Read-write");
@@ -769,6 +789,8 @@ macro_rules! switch_var {
 /// # Example
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::ui_vec;
 /// let widgets = ui_vec![
 ///     text("Hello"),
 ///     text("World!")
@@ -790,6 +812,7 @@ macro_rules! ui_vec {
 /// # Example
 ///
 /// ```
+/// # extern crate zero_ui;
 /// # use zero_ui::core::event::event;
 /// # use zero_ui::core::gesture::ClickArgs;
 /// event! {
@@ -836,6 +859,7 @@ macro_rules! event {
 /// # Example
 ///
 /// ```
+/// # extern crate zero_ui;
 /// # use zero_ui::core::event::event_hp;
 /// # use zero_ui::core::mouse::MouseMoveArgs;
 /// event! {
@@ -911,6 +935,7 @@ macro_rules! __shortcut {
 /// # Examples
 ///
 /// ```
+/// # extern crate zero_ui;
 /// use zero_ui::core::gesture::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {

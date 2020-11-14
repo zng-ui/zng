@@ -58,6 +58,8 @@ pub(crate) mod widget_stage3;
 ///
 /// Given an UI node `struct`:
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::units::LayoutSize;
 /// struct FillColor<C> {
 ///     color: C,
 ///     final_size: LayoutSize,
@@ -67,6 +69,8 @@ pub(crate) mod widget_stage3;
 /// In an `UiNode` trait impl block, annotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// #[impl_ui_node(none)]
 /// impl<C: Var<ColorF>> UiNode for FillColor<C> {
 ///     fn render(&self, f: &mut FrameBuilder) {
@@ -78,6 +82,8 @@ pub(crate) mod widget_stage3;
 /// Or, in a inherent impl, annotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// #[impl_ui_node(none)]
 /// impl<C: LocalVar<ColorF>> FillColor<C> {
 ///     pub fn new(color: C) -> Self {
@@ -105,6 +111,8 @@ pub(crate) mod widget_stage3;
 /// * Render: Does nothing, blank implementation.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// #[impl_ui_node(none)]
 /// impl<C: LocalVar<ColorF>> NoneDelegateSample<C> {
 ///     pub fn new(color: C) -> Self {
@@ -115,6 +123,8 @@ pub(crate) mod widget_stage3;
 /// Expands to:
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// impl<C: LocalVar<ColorF>> NoneDelegateSample<C> {
 ///     pub fn new(color: C) -> Self {
 ///          FillColor { color: final_size: LayoutSize::zero() }
@@ -166,6 +176,8 @@ pub(crate) mod widget_stage3;
 /// * Render: Delegates to child render.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// #[impl_ui_node(child)]
 /// impl<C: UiNode> UiNode for ChildDelegateSample<C> { }
 /// ```
@@ -173,6 +185,8 @@ pub(crate) mod widget_stage3;
 /// Expands to:
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// impl<C: UiNode> UiNode ChildDelegateSample<C> {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
@@ -230,6 +244,8 @@ pub(crate) mod widget_stage3;
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// #[impl_ui_node(children)]
 /// impl<C: UiNode> UiNode for ChildrenDelegateSample<C> { }
 /// ```
@@ -237,6 +253,8 @@ pub(crate) mod widget_stage3;
 /// Expands to:
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::prelude::new_property::*;
 /// impl<C: UiNode> UiNode ChildrenDelegateSample<C> {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
@@ -327,6 +345,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// `UiNode`. All of these requirements are validated at compile time.
 ///
 /// ```
+/// # extern crate zero_ui;
 /// use zero_ui::core::{property, UiNode, impl_ui_node, var::Var, context::WidgetContext};
 ///
 /// struct MyNode<C, V> { child: C, value: V }
@@ -351,6 +370,7 @@ pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
 /// At least one argument is required. The return type must be never (`!`) and the property body must be empty.
 ///
 /// ```
+/// # extern crate zero_ui;
 /// use zero_ui::core::{property, var::Var};
 ///
 /// /// Property docs.
@@ -431,6 +451,9 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// are [inherited](#inheritance) into the new one.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
+/// # use zero_ui::widgets::{container, mixins::focusable_mixin};
 /// widget! {
 ///     /// Widget documentation.
 ///     pub button: container + focusable_mixin;
@@ -443,6 +466,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Extra documentation about the widget properties is auto-generated and added to the module as well.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     /// Widget documentation.
 ///     #[foo(bar)]
@@ -455,6 +480,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// The visibility is transferred to the widget module and macro and supports all visibility configurations.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     pub(crate) widget_name;
 /// }
@@ -465,6 +492,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Widgets can optionally 'inherit' from other widgets and widget mix-ins.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     pub foo: container;
 /// }
@@ -488,6 +517,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Property blocks contains a list of [property declarations](#property-declarations) grouped by the [target](#target) of the properties.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     pub foo;
 ///
@@ -524,6 +555,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// the only way to apply the same property twice.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     default {
 ///         new_property -> other_property;
@@ -537,6 +570,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// instantiation using the default value if the user does not set the property.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     default {
 ///         new_property: "value";
@@ -552,6 +587,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Properties declared with the `required!` special value must be set by the user during widget initialization.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     default {
 ///         on_click: required!;
@@ -571,6 +608,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// if the referenced values are [vars](zero_ui::core::var::Var).
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     when self.is_pressed {
 ///         background_color: rgb(0.3, 0.3, 0.3);
@@ -586,6 +625,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// If the first property argument is referenced by `self.property`, to reference other arguments you can use `self.property.1` or `self.property.arg_name`.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     when self.foo.argument == "value" && self.is_state {
 ///         bar: "foo is value";
@@ -614,6 +655,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Initializes the inner most node of the widget.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     pub container;
 ///     
@@ -638,6 +681,8 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Initializes the outer wrapper of the widget.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget! {
 ///     pub window;
 ///     
@@ -687,6 +732,8 @@ pub fn widget(input: TokenStream) -> TokenStream {
 /// you cannot write the `new` and `new_child` functions.
 ///
 /// ```
+/// # extern crate zero_ui;
+/// # use zero_ui::core::widget;
 /// widget_mixin! {
 ///     /// Mix-in documentation.
 ///     pub focusable_mixin;
@@ -762,6 +809,7 @@ pub fn widget_new(input: TokenStream) -> TokenStream {
 /// # Examples
 ///
 /// ```
+/// # extern crate zero_ui;
 /// # use zero_ui::core::color::hex_color;
 /// let red = hex_color!(#FF0000);
 /// let green = hex_color!(#00FF00);

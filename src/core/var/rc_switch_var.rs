@@ -1,5 +1,7 @@
 use super::*;
+
 pub use zero_ui_macros::switch_var;
+
 macro_rules! impl_rc_switch_var {
     ($(
         $len:tt => $($n:tt),+;
