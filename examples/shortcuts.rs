@@ -15,11 +15,11 @@ fn main() {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text())
             }};
             on_key_down: enclose! { (keypress_text, shortcut_text) move |ctx, args| {
+                shortcut_text.set(ctx.vars, "".into());
                 keypress_text.set(ctx.vars,
                     if let Some(key) = args.key {
                         formatx!{"{:?}", key}
                     } else {
-                        shortcut_text.set(ctx.vars, "".into());
                         formatx!{"Scan Code: {:?}", args.scan_code}
                     }
                 )
