@@ -482,6 +482,7 @@ pub mod prelude {
         pub use crate::properties::capture_only::*;
         pub use crate::properties::events::*;
         pub use crate::properties::filters::*;
+        pub use crate::properties::focus::focusable;
         pub use crate::properties::focus::*;
         pub use crate::properties::foreground::{foreground, *};
         pub use crate::properties::size::{size, *};

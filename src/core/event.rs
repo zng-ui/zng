@@ -335,4 +335,281 @@ impl Events {
     }
 }
 
-pub use zero_ui_macros::{cancelable_event_args, event, event_args, event_hp};
+/// Declares new [`EventArgs`](crate::core::event::EventArgs) types.
+///
+/// # Example
+/// ```
+/// # use zero_ui::core::event::event_args;
+/// use zero_ui::core::render::WidgetPath;
+///
+/// event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event_args;
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+///
+///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///             stop_propagation: std::rc::Rc::default()
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+///
+///     /// Requests that subsequent handlers skip this event.
+///     ///
+///     /// Cloned arguments signal stop for all clones.
+///     #[inline]
+///     pub fn stop_propagation(&self) {
+///         <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
+///     }
+///     
+///     /// If the handler must skip this event.
+///     ///
+///     /// Note that property level handlers don't need to check this, as those handlers are
+///     /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+///     /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+///     #[inline]
+///     pub fn stop_propagation_requested(&self) -> bool {
+///         <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
+///     }
+///
+///     #[inline]
+///     fn stop_propagation(&self) {
+///         self.stop_propagation.set(true);
+///     }
+///     
+///     #[inline]
+///     fn stop_propagation_requested(&self) -> bool {
+///         self.stop_propagation.get()
+///     }
+/// }
+/// ```
+pub use zero_ui_macros::event_args;
+
+/// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
+///
+/// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
+///
+/// # Example
+/// ```
+/// # use zero_ui::core::event::event_args;
+/// use zero_ui::core::render::WidgetPath;
+///
+/// cancelable_event_args! {
+///     /// My event arguments.
+///     pub struct MyEventArgs {
+///         /// My argument.
+///         pub arg: String,
+///         /// My event target.
+///         pub target: WidgetPath,
+///
+///         ..
+///
+///         /// If `ctx.widget_id` is in the `self.target` path.
+///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+///             self.target.contains(ctx.widget_id)
+///         }
+///     }
+///
+///     // multiple structs can be declared in the same call.
+///     // pub struct MyOtherEventArgs { /**/ }
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event_args;
+/// # use zero_ui::core::render::WidgetPath;
+/// #
+/// /// My event arguments.
+/// #[derive(Debug, Clone)]
+/// pub struct MyEventArgs {
+///     /// When the event happened.
+///     pub timestamp: std::time::Instant,
+///     /// My argument.
+///     pub arg: String,
+///     /// My event target.
+///     pub target: WidgetPath,
+///
+///     cancel: std::rc::Rc<std::cell::Cell<bool>>
+///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
+/// }
+///
+/// impl MyEventArgs {
+///     #[inline]
+///     pub fn new(
+///         timestamp: impl Into<std::time::Instant>,
+///         arg: impl Into<String>,
+///         target: impl Into<WidgetPath>,
+///     ) -> Self {
+///         MyEventArgs {
+///             timestamp: timestamp.into(),
+///             arg: arg.into(),
+///             target: target.into(),
+///             cancel: std::rc::Rc::default()
+///         }
+///     }
+///
+///     /// Arguments for event that happened now (`Instant::now`).
+///     #[inline]
+///     pub fn now(arg: impl Into<String>, target: impl Into<WidgetPath>) -> Self {
+///         Self::new(std::time::Instant::now(), arg, target)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+///     #[inline]
+///     fn timestamp(&self) -> std::time::Instant {
+///         self.timestamp
+///     }
+///
+///     #[inline]
+///     /// If `ctx.widget_id` is in the `self.target` path.
+///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///         self.target.contains(ctx.widget_id)
+///     }
+/// }
+///
+/// impl zero_ui::core::event::CancelableEventArgs for MyEventArgs {
+///     /// If a listener canceled the action.
+///     #[inline]
+///     fn cancel_requested(&self) -> bool {
+///         self.cancel.get()
+///     }
+///
+///     /// Cancel the action.
+///     ///
+///     /// Cloned args are still linked, canceling one will cancel the others.
+///     #[inline]
+///     fn cancel(&self) {
+///         self.cancel.set(true);
+///     }
+/// }
+/// ```
+pub use zero_ui_macros::cancelable_event_args;
+
+/// Declares new low-pressure [`Event`](zero_ui::core::event::Event) types.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::event::event;
+/// # use zero_ui::core::gesture::ClickArgs;
+/// event! {
+///     /// Event docs.
+///     pub ClickEvent: ClickArgs;
+///
+///     /// Other event docs.
+///     pub DoubleClickEvent: ClickArgs;
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event;
+/// # use zero_ui::core::gesture::ClickArgs;
+/// /// Event docs
+/// pub struct ClickEvent;
+/// impl zero_ui::core::event::Event for ClickEvent {
+///     type Args = ClickArgs;
+/// }
+///
+/// /// Other event docs
+/// pub struct DoubleClickEvent;
+/// impl zero_ui::core::event::Event for DoubleClickEvent {
+///     type Args = ClickArgs;
+/// }
+/// ```
+pub use zero_ui_macros::event;
+
+/// Declares new high-pressure [`Event`](zero_ui::core::event::Event) types.
+///
+/// Same syntax as [`event!`](macro.event.html) but the event is marked [high-pressure](zero_ui::core::event::Event::IS_HIGH_PRESSURE).
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::event::event_hp;
+/// # use zero_ui::core::mouse::MouseMoveArgs;
+/// event! {
+///     /// Event docs.
+///     pub MouseMoveEvent: MouseMoveArgs;
+/// }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::core::event::event_hp;
+/// # use zero_ui::core::gesture::MouseMoveArgs;
+/// /// Event docs
+/// pub struct MouseMoveEvent;
+/// impl zero_ui::core::event::Event for MouseMoveEvent {
+///     type Args = MouseMoveArgs;
+///     const IS_HIGH_PRESSURE: bool = true;
+/// }
+/// ```
+pub use zero_ui_macros::event_hp;

@@ -23,8 +23,6 @@ pub use font_loading::*;
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 pub use webrender::api::FontInstanceKey;
 
-pub use zero_ui_macros::formatx;
-
 impl FontInstanceRef {
     fn buffer_segment(&self, segment: &str, config: &TextShapingArgs) -> harfbuzz_rs::UnicodeBuffer {
         let mut buffer = harfbuzz_rs::UnicodeBuffer::new().set_direction(if config.right_to_left {
@@ -1280,3 +1278,13 @@ mod tests {
         }
     }
 }
+
+/// Creates a [`Text`](crate::core::text::Text) by calling the `format!` macro and
+/// wrapping the result in a `Cow::Owned`.
+///
+/// # Example
+/// ```
+/// # use zero_ui::core::text::formatx;
+/// let text = formatx!("Hello {}", "World!");
+/// ```
+pub use zero_ui_macros::formatx;

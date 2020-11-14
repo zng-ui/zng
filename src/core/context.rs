@@ -157,6 +157,20 @@ pub trait StateKey: Clone + Copy + 'static {
     type Type: 'static;
 }
 
+/// Declares new [`StateKey`](zero_ui::core::context::StateKey) types.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::context::state_key;
+/// state_key! {
+///     /// Key docs.
+///     pub struct FooKey: u32;
+/// }
+/// ```
+/// # Naming Convention
+///
+/// It is recommended that the type name ends with the `Key` suffix.
 pub use zero_ui_macros::state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for

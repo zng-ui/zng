@@ -17,7 +17,7 @@ widget_mixin! {
 
     default {
 
-        /// Enables keyboard focusing in this widget.
+        /// Enables keyboard focusing in the widget.
         focusable: true;
 
         /// A border overlay that is visible when the widget is focused.

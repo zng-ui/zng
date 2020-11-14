@@ -1,5 +1,27 @@
 use super::*;
 
+/// Initializes a new [`Var`](crate::core::var::Var) with value made
+/// by merging multiple other variables.
+///
+/// # Arguments
+///
+/// All arguments are separated by comma like a function call.
+///
+/// * `var0..N`: A list of [vars](crate::core::var::Var), minimal 2.
+/// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
+///
+/// # Example
+/// ```
+/// # use zero_ui::core::var::merge_var;
+/// # use zero_ui::prelude::{var, text, Text};
+/// # use zero_ui::core::var::SharedVar;
+/// # fn main() {
+/// let var0: SharedVar<Text> = var("Hello");
+/// let var1: SharedVar<Text> = var("World");
+///
+/// let greeting_text = text(merge_var!(var0, var1, |a, b|formatx!("{} {}!", a, b)));
+/// # }
+/// ```
 pub use zero_ui_macros::merge_var;
 
 macro_rules! impl_rc_merge_var {

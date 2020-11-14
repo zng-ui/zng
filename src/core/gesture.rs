@@ -414,6 +414,33 @@ impl KeyInputArgs {
     }
 }
 
+/// Creates a [`Shortcut`](zero_ui::core::gesture::Shortcut).
+///
+/// # Examples
+///
+/// ```
+/// use zero_ui::core::gesture::{Shortcut, shortcut};
+///
+/// fn single_key() -> Shortcut {
+///     shortcut!(Return)
+/// }
+///
+/// fn modified_key() -> Shortcut {
+///     shortcut!(CTRL+C)
+/// }
+///
+/// fn multi_modified_key() -> Shortcut {
+///     shortcut!(CTRL|SHIFT+C)
+/// }
+///
+/// fn chord() -> Shortcut {
+///     shortcut!(CTRL+E, A)
+/// }
+///
+/// fn modifier_release() -> Shortcut {
+///     shortcut!(Alt)
+/// }
+/// ```
 pub use zero_ui_macros::shortcut;
 
 event! {

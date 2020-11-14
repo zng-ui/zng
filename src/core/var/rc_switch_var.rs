@@ -1,5 +1,29 @@
 use super::*;
 
+/// Initializes a new switch var.
+///
+/// # Arguments
+///
+/// All arguments are separated by comma like a function call.
+///
+/// * `$index`: A positive integer that is the initial switch index.
+/// * `$v0..$vn`: A list of [vars](crate::core::var::VarObj), minimal 2.
+///
+/// [`RcSwitchVar`](crate::core::var::RcSwitchVar) is used for more then 8 variables.
+///
+/// All arguments are [`IntoVar`](crate::core::var::RcSwitchVar).
+///
+/// # Example
+/// ```
+/// # use zero_ui::core::var::switch_var;
+/// # use zero_ui::prelude::{var, text};
+/// # fn main() {
+/// let var0 = var("Read-write");
+/// let var1 = "Read-only";
+///
+/// let t = text(switch_var!(0, var0, var1));
+/// # }
+/// ```
 pub use zero_ui_macros::switch_var;
 
 macro_rules! impl_rc_switch_var {

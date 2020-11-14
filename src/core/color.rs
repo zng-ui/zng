@@ -4,6 +4,32 @@ use super::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
 use webrender::api::{self as wr, FilterOp};
 
+/// Hexadecimal color literal.
+///
+/// # Syntax
+///
+/// `[#|0x]RRGGBB[AA]` or `[#|0x]RGB[A]`.
+///
+/// An optional prefix `#` or `0x` is supported, after the prefix a hexadecimal integer literal is expected. The literal can be
+/// separated using `_`. No integer type suffix is allowed.
+///
+/// The literal is a sequence of 3 or 4 bytes (red, green, blue and alpha). If the sequence is in pairs each pair is a byte `[00..=FF]`.
+/// If the sequence is in single characters this is a shorthand that repeats the character for each byte, e.g. `#012F` equals `#001122FF`.
+///
+/// # Examples
+///
+/// ```
+/// # use zero_ui::core::color::hex;
+/// let red = hex!(#FF0000);
+/// let green = hex!(#00FF00);
+/// let blue = hex!(#0000FF);
+/// let red_half_transparent = hex!(#FF00007F);
+///
+/// assert_eq!(red, hex!(#F00));
+/// assert_eq!(red, hex!(0xFF_00_00));
+/// assert_eq!(red, hex!(FF_00_00));
+/// ```
+///
 pub use zero_ui_macros::hex_color as hex;
 
 /// Webrender RGBA.
