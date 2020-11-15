@@ -684,12 +684,13 @@ pub use zero_ui_macros::impl_ui_node;
 /// `UiNode`. All of these requirements are validated at compile time.
 ///
 /// ```
-/// use zero_ui::core::{property, UiNode, impl_ui_node, var::Var, context::WidgetContext};
+/// # fn main() { }
+/// use zero_ui::core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
 ///
 /// struct MyNode<C, V> { child: C, value: V }
 /// #[impl_ui_node(child)]
 /// impl<C: UiNode, V: Var<&'static str>> UiNode for MyNode<C, V> {
-///     fn init(&self, ctx: &mut WidgetContext) {
+///     fn init(&mut self, ctx: &mut WidgetContext) {
 ///         self.child.init(ctx);
 ///         println!("{}", self.value.get(ctx.vars));
 ///     }
@@ -697,8 +698,8 @@ pub use zero_ui_macros::impl_ui_node;
 ///
 /// /// Property docs.
 /// #[property(context)]
-/// pub fn my_property(child: impl UiNode, value: impl Var<&'static str>) -> impl UiNode {
-///     MyNode { child, value }
+/// pub fn my_property(child: impl UiNode, value: impl IntoVar<&'static str>) -> impl UiNode {
+///     MyNode { child, value: value.into_var() }
 /// }
 /// ```
 ///
@@ -709,11 +710,11 @@ pub use zero_ui_macros::impl_ui_node;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::core::{property, var::Var, text::Text};
+/// use zero_ui::core::{property, var::IntoVar, text::Text};
 ///
 /// /// Property docs.
 /// #[property(capture_only)]
-/// pub fn my_property(value: impl Var<Text>) -> ! { }
+/// pub fn my_property(value: impl IntoVar<Text>) -> ! { }
 /// ```
 /// ## Limitations
 ///
@@ -786,6 +787,7 @@ pub use zero_ui_macros::property;
 /// are [inherited](#inheritance) into the new one.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
 /// # use zero_ui::widgets::{container, mixins::focusable_mixin};
 /// widget! {
@@ -824,13 +826,15 @@ pub use zero_ui_macros::property;
 /// Widgets can optionally 'inherit' from other widgets and widget mix-ins.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
+/// # use zero_ui::widgets::{container, mixins};
 /// widget! {
 ///     pub foo: container;
 /// }
 ///
 /// widget! {
-///     pub bar: foo + widgets::focusable_mixin;
+///     pub bar: container + mixins::focusable_mixin;
 /// }
 /// ```
 ///
@@ -848,7 +852,9 @@ pub use zero_ui_macros::property;
 /// Property blocks contains a list of [property declarations](#property-declarations) grouped by the [target](#target) of the properties.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
+/// # use zero_ui::properties::margin;
 /// widget! {
 ///     pub foo;
 ///
@@ -885,8 +891,14 @@ pub use zero_ui_macros::property;
 /// the only way to apply the same property twice.
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # fn main() { }
+/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar};
+/// # #[property(context)]
+/// # fn other_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
 /// widget! {
+/// # widget_name;
+///     //..
+///     
 ///     default {
 ///         new_property -> other_property;
 ///     }
@@ -899,11 +911,17 @@ pub use zero_ui_macros::property;
 /// instantiation using the default value if the user does not set the property.
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # fn main() { }
+/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar};
+/// # #[property(context)]
+/// # pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
 /// widget! {
+/// # widget_name;
+///     //..
+///     
 ///     default {
-///         new_property: "value";
-///         foo -> bar: "value";
+///         my_property: "value";
+///         foo -> my_property: "value";
 ///     }
 /// }
 /// ```
@@ -915,8 +933,13 @@ pub use zero_ui_macros::property;
 /// Properties declared with the `required!` special value must be set by the user during widget initialization.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
+/// # use zero_ui::properties::events::on_click;
 /// widget! {
+/// # widget_name;
+///     //..
+///     
 ///     default {
 ///         on_click: required!;
 ///     }
@@ -935,8 +958,14 @@ pub use zero_ui_macros::property;
 /// if the referenced values are [vars](zero_ui::core::var::Var).
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # fn main() { }
+/// # use zero_ui::core::{widget, color::rgb};
+/// # use zero_ui::properties::{background::background_color, states::is_pressed};
 /// widget! {
+/// # widget_name;
+/// # default { background_color: rgb(0, 0, 0); }
+///     //..
+///     
 ///     when self.is_pressed {
 ///         background_color: rgb(0.3, 0.3, 0.3);
 ///     }
@@ -951,10 +980,16 @@ pub use zero_ui_macros::property;
 /// If the first property argument is referenced by `self.property`, to reference other arguments you can use `self.property.1` or `self.property.arg_name`.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
+/// # use zero_ui::properties::{background::background_color, title, states::is_pressed};
 /// widget! {
-///     when self.foo.argument == "value" && self.is_state {
-///         bar: "foo is value";
+/// # widget_name;
+/// # default { title = "value"; }
+///     //..
+///     
+///     when self.title == "value" && self.is_pressed {
+///         background_color: "foo is value";
 ///     }
 /// }
 /// ```
@@ -980,7 +1015,9 @@ pub use zero_ui_macros::property;
 /// Initializes the inner most node of the widget.
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # fn main() { }
+/// # use zero_ui::core::{widget, UiNode};
+/// # use zero_ui::properties::capture_only::widget_child;
 /// widget! {
 ///     pub container;
 ///     
@@ -1006,12 +1043,13 @@ pub use zero_ui_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
+/// # use zero_ui::core::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
 /// # use zero_ui::properties::title;
 /// # use zero_ui::properties::background::background_color;
-/// # use zero_ui::core::window::Window;
+/// # use zero_ui::widgets::container;
+/// # pub struct Window { } impl Window { pub fn new(child: impl zero_ui::core::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
 /// widget! {
-///     pub window;
+///     pub window: container;
 ///     
 ///     default {
 ///         title: "New Window";
@@ -1056,6 +1094,7 @@ pub use zero_ui_macros::widget;
 /// you cannot write the `new` and `new_child` functions.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::prelude::new_widget::{widget_mixin, focusable, border, is_focused, SideOffsets};
 /// # use zero_ui::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
 /// widget_mixin! {

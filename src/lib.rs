@@ -1,4 +1,8 @@
 #![warn(unused_extern_crates)]
+// examples of `widget! { .. }` and `#[property(..)]` need to be declared
+// outside the main function, because they generate a `mod` with `use super::*;`
+// that does not import `use` clauses declared inside the parent function.
+#![allow(clippy::needless_doctest_main)]
 
 //! Zero-Ui is a pure Rust UI framework.
 //!
