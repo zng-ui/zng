@@ -370,7 +370,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// Given an UI node `struct`:
 /// ```
 /// # use zero_ui::core::units::LayoutSize;
-/// struct FillColor<C> {
+/// struct FillColorNode<C> {
 ///     color: C,
 ///     final_size: LayoutSize,
 /// }
@@ -380,10 +380,12 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
+/// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
-/// impl<C: Var<ColorF>> UiNode for FillColor<C> {
-///     fn render(&self, f: &mut FrameBuilder) {
-///         frame.push_color(LayoutRect::from_size(self.final_size), *self.color.get_local());
+/// impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
+///     fn render(&self, frame: &mut FrameBuilder) {
+///         let area = LayoutRect::from_size(self.final_size);
+///         frame.push_color(area, (*self.color.get_local()).into());
 ///     }
 /// }
 /// ```
@@ -392,15 +394,17 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
+/// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
-/// impl<C: LocalVar<ColorF>> FillColor<C> {
+/// impl<C: VarLocal<Rgba>> FillColorNode<C> {
 ///     pub fn new(color: C) -> Self {
-///         FillColor { color: final_size: LayoutSize::zero() }
+///         FillColorNode { color, final_size: LayoutSize::zero() }
 ///     }
 ///
 ///     #[UiNode]
 ///     fn render(&self, frame: &mut FrameBuilder) {
-///         frame.push_color(LayoutRect::from_size(self.final_size), *self.color.get_local());
+///         let area = LayoutRect::from_size(self.final_size);
+///         frame.push_color(area, (*self.color.get_local()).into());
 ///     }
 /// }
 /// ```
@@ -420,10 +424,17 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
+/// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
 /// #[impl_ui_node(none)]
-/// impl<C: LocalVar<ColorF>> NoneDelegateSample<C> {
+/// impl<C: VarLocal<Rgba>> FillColorNode<C> {
 ///     pub fn new(color: C) -> Self {
-///          FillColor { color: final_size: LayoutSize::zero() }
+///          FillColorNode { color, final_size: LayoutSize::zero() }
+///     }
+///
+///     #[UiNode]
+///     fn render(&self, frame: &mut FrameBuilder) {
+///         let area = LayoutRect::from_size(self.final_size);
+///         frame.push_color(area, (*self.color.get_local()).into())
 ///     }
 /// }
 /// ```
@@ -431,13 +442,14 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// impl<C: LocalVar<ColorF>> NoneDelegateSample<C> {
+/// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
+/// impl<C: VarLocal<Rgba>> FillColorNode<C> {
 ///     pub fn new(color: C) -> Self {
-///          FillColor { color: final_size: LayoutSize::zero() }
+///          FillColorNode { color, final_size: LayoutSize::zero() }
 ///     }
 /// }
 ///
-/// impl<C: LocalVar<ColorF>> zero_ui::core::UiNode for NoneDelegateSample<C> {
+/// impl<C: VarLocal<Rgba>> zero_ui::core::UiNode for FillColorNode<C> {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
 ///
@@ -448,7 +460,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::types::LayoutSize) -> zero_ui::core::types::LayoutSize {
+///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
 ///         let mut size = available_size;
 ///         if zero_ui::core::is_layout_any_size(size.width) {
 ///             size.width = 0.0;
@@ -460,10 +472,18 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::types::LayoutSize) { }
+///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) { }
 ///
 ///     #[inline]
-///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) { }
+///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///         // empty here when you don't implement render.
+///
+///         let area = LayoutRect::from_size(self.final_size);
+///         frame.push_color(area, (*self.color.get_local()).into())
+///     }
+///
+///     #[inline]
+///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) { }
 ///
 ///     #[inline]
 ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
@@ -483,15 +503,18 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
+/// struct DelegateChildNode<C: UiNode> { child: C }
+///
 /// #[impl_ui_node(child)]
-/// impl<C: UiNode> UiNode for ChildDelegateSample<C> { }
+/// impl<C: UiNode> UiNode for DelegateChildNode<C> { }
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// impl<C: UiNode> UiNode ChildDelegateSample<C> {
+/// # struct DelegateChildNode<C: UiNode> { child: C }
+/// impl<C: UiNode> UiNode for DelegateChildNode<C> {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
 ///         let child = { &mut self.child };
@@ -511,21 +534,27 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::types::LayoutSize) -> zero_ui::core::types::LayoutSize {
+///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
 ///         let child = { &mut self.child };
-///         child.measure(available_size)
+///         child.measure(available_size, ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::types::LayoutSize) {
+///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
 ///         let child = { &mut self.child };
-///         child.arrange(final_size)
+///         child.arrange(final_size, ctx)
 ///     }
 ///
 ///     #[inline]
 ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
 ///         let child = { &self.child };
 ///         child.render(frame)
+///     }
+///
+///     #[inline]
+///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///         let child = { &self.child };
+///         child.render_update(update)
 ///     }
 ///
 ///     #[inline]
@@ -549,62 +578,73 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
+/// struct DelegateChildrenNode {
+///     children: UiVec,
+/// }
 /// #[impl_ui_node(children)]
-/// impl<C: UiNode> UiNode for ChildrenDelegateSample<C> { }
+/// impl UiNode for DelegateChildrenNode { }
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// impl<C: UiNode> UiNode ChildrenDelegateSample<C> {
+/// # struct DelegateChildrenNode { children: UiVec }
+/// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
-///         for child in { self.child.iter_mut() } {
+///         for child in { self.children.iter_mut() } {
 ///             child.init(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
 ///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
-///         for child in { self.child.iter_mut() } {
+///         for child in { self.children.iter_mut() } {
 ///             child.update(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
 ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
-///         for child in { self.child.iter_mut() } {
+///         for child in { self.children.iter_mut() } {
 ///             child.update_hp(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::types::LayoutSize) -> zero_ui::core::types::LayoutSize {
+///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
 ///         let mut size = Default::default();
-///         for child in { self.child.iter_mut() } {
-///            size = child.measure(available_size).max(size);
+///         for child in { self.children.iter_mut() } {
+///            size = child.measure(available_size, ctx).max(size);
 ///         }
 ///         size
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::types::LayoutSize) {
-///         for child in { self.child.iter_mut() } {
-///             child.arrange(final_size)
+///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
+///         for child in { self.children.iter_mut() } {
+///             child.arrange(final_size, ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
 ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
-///         for child in { self.child.iter() } {
+///         for child in { self.children.iter() } {
 ///             child.render(frame)
 ///         }
 ///     }
 ///
 ///     #[inline]
+///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///         for child in { self.children.iter() } {
+///             child.render_update(update)
+///         }
+///     }
+///
+///     #[inline]
 ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
-///         for child in { self.child.iter_mut() } {
+///         for child in { self.children.iter_mut() } {
 ///             child.deinit(ctx)
 ///         }
 ///     }
@@ -668,11 +708,12 @@ pub use zero_ui_macros::impl_ui_node;
 /// At least one argument is required. The return type must be never (`!`) and the property body must be empty.
 ///
 /// ```
-/// use zero_ui::core::{property, var::Var};
+/// # fn main() { }
+/// use zero_ui::core::{property, var::Var, text::Text};
 ///
 /// /// Property docs.
 /// #[property(capture_only)]
-/// pub fn my_property(value: impl Var<&'static str>) -> ! { }
+/// pub fn my_property(value: impl Var<Text>) -> ! { }
 /// ```
 /// ## Limitations
 ///
@@ -762,7 +803,7 @@ pub use zero_ui_macros::property;
 /// # use zero_ui::core::widget;
 /// widget! {
 ///     /// Widget documentation.
-///     #[foo(bar)]
+///     #[cfg(debug_assertions)]
 ///     widget_name;
 /// }
 /// ```
@@ -964,7 +1005,11 @@ pub use zero_ui_macros::property;
 /// Initializes the outer wrapper of the widget.
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::core::widget;
+/// # use zero_ui::properties::title;
+/// # use zero_ui::properties::background::background_color;
+/// # use zero_ui::core::window::Window;
 /// widget! {
 ///     pub window;
 ///     
@@ -1061,6 +1106,7 @@ pub use zero_ui_macros::widget_mixin;
 ///
 /// ```
 /// # use zero_ui::core::ui_vec;
+/// # use zero_ui::widgets::text::text;
 /// let widgets = ui_vec![
 ///     text("Hello"),
 ///     text("World!")

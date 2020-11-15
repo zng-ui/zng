@@ -453,9 +453,8 @@ pub use zero_ui_macros::event_args;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::event::event_args;
-/// use zero_ui::core::render::WidgetPath;
-///
+/// # use zero_ui::core::event::cancelable_event_args;
+/// # use zero_ui::core::render::WidgetPath;
 /// cancelable_event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
