@@ -424,7 +424,7 @@ pub mod prelude {
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
         window::{AppRunWindow, CursorIcon, Window, Windows},
-        UiNode, UiVec, Widget, WidgetId,
+        UiList, UiNode, UiVec, Widget, WidgetId,
     };
 
     pub use crate::properties::*;
@@ -460,7 +460,7 @@ pub mod prelude {
         pub use crate::core::units::{self, *};
         pub use crate::core::var::*;
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, UiVec, Widget, WidgetId, LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiList, UiNode, UiVec, Widget, WidgetId, LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::{
             events::{on_event, on_event_filtered, on_preview_event, on_preview_event_filtered},
@@ -480,7 +480,8 @@ pub mod prelude {
         pub use crate::core::units::*;
         pub use crate::core::var::*;
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, ui_vec, widget, widget_mixin, FillUiNode, UiNode, UiVec, Widget, WidgetId, LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, ui_vec, widget, widget_mixin, FillUiNode, UiList, UiNode, UiVec, Widget, WidgetId,
+            LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::background::{background, *};
         pub use crate::properties::capture_only::*;

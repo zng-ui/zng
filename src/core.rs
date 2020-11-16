@@ -340,14 +340,19 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// Set this two arguments to delegate to a single node:
 ///
-/// * `delegate: &impl UiNode` - Expression that borrows the node, you can use `self`.
+/// * `delegate: &impl UiNode` - Expression that borrows the node, you can use `self` in the expression.
 /// * `delegate_mut: &mut impl UiNode` - Exclusive borrow the node.
 ///
 /// ## Multiple Nodes Delegate
 ///
-/// Set this two arguments to delegate to a node sequence:
+/// Set this two arguments to delegate to a widget list:
 ///
-/// * `delegate_iter: impl Iterator<& impl UiNode>` - Expression that creates a borrowing iterator, you can use `self`.
+/// * `delegate_list: & impl UiList` - Expression that borrows the list.
+/// * `delegate_list_mut: &mut impl UiList` - Exclusive borrow the list.
+///
+/// Or, set this two arguments to delegate to a node iterator sequence:
+///
+/// * `delegate_iter: impl Iterator<& impl UiNode>` - Expression that creates a borrowing iterator.
 /// * `delegate_iter_mut: impl Iterator<&mut impl UiNode>` - Exclusive borrowing iterator.
 ///
 /// ## Shorthand
@@ -355,7 +360,8 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// You can also use shorthand for common delegation:
 ///
 /// * `child` is the same as `delegate: &self.child, delegate_mut: &mut self.child`.
-/// * `children` is the same as `delegate_iter: self.children.iter(), delegate_iter_mut: self.children.iter_mut()`.
+/// * `children` is the same as `delegate_list: &self.children, delegate_list_mut: &mut self.children`.
+/// * `children_iter` is the same as `delegate_iter: self.children.iter(), delegate_iter_mut: self.children.iter_mut()`.
 ///
 /// ## None
 ///
@@ -568,10 +574,91 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// }
 /// ```
 ///
-/// ## Delegate to many (`children` or `delegate_iter, delegate_iter_mut`)
+/// ## Delegate to many (`children` or `delegate_list, delegate_list_mut`)
 ///
-/// Generates defaults for UI components with a multiple children nodes. This is used mostly by
+/// Generates defaults for UI components with a multiple children widgets. This is used mostly by
 /// layout panels.
+///
+/// ### Defaults
+///
+/// * Init, Updates: Calls the [`UiList`] equivalent method.
+/// * Layout: Is the same size as the largest child.
+/// * Render: Z-stacks the children. Last child on top.
+///
+/// ```
+/// # use zero_ui::prelude::new_property::*;
+/// struct DelegateChildrenNode<C: UiList> {
+///     children: C,
+/// }
+/// #[impl_ui_node(children)]
+/// impl<C: UiList> UiNode for DelegateChildrenNode<C> { }
+/// ```
+///
+/// Expands to:
+///
+/// ```
+/// # use zero_ui::prelude::new_property::*;
+/// # struct DelegateChildrenNode { children: UiVec }
+/// impl UiNode for DelegateChildrenNode {
+///     #[inline]
+///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///         let children = { &mut self.children };
+///         children.init_all(ctx);
+///     }
+///
+///     #[inline]
+///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///         let children = { &mut self.children };
+///         children.update_all(ctx);
+///     }
+///
+///     #[inline]
+///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///         let children = { &mut self.children };
+///         children.update_hp_all(ctx);
+///     }
+///
+///     #[inline]
+///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
+///         let children = { &mut self.children };
+///         let mut size = zero_ui::core::units::LayoutSize::zero();
+///         children.measure_all(|_, _|available_size, |_, desired_size, _| {
+///             size = size.max(desired_size);
+///         }, ctx);
+///         size
+///     }
+///
+///     #[inline]
+///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
+///         let children = { &mut self.children };
+///         children.arrange_all(|_, _|final_size, ctx);
+///     }
+///
+///     #[inline]
+///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///         let children = { &self.children };
+///         children.render_all(|_|zero_ui::core::units::LayoutPoint::zero(), frame);
+///     }
+///
+///     #[inline]
+///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///         let children = { &self.children };
+///         children.render_update_all(update);
+///     }
+///
+///     #[inline]
+///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///         let children = { &mut self.children };
+///         children.deinit_all(ctx);
+///     }
+/// }
+/// ```
+///
+///
+/// ## Delegate to many nodes (`children_iter` or `delegate_iter, delegate_iter_mut`)
+///
+/// Generates defaults for UI components with a multiple children nodes. This must be used only
+/// when a widget list cannot be used.
 ///
 /// ### Defaults
 ///
@@ -584,7 +671,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// struct DelegateChildrenNode {
 ///     children: UiVec,
 /// }
-/// #[impl_ui_node(children)]
+/// #[impl_ui_node(children_iter)]
 /// impl UiNode for DelegateChildrenNode { }
 /// ```
 ///
@@ -617,7 +704,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 ///     #[inline]
 ///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
-///         let mut size = Default::default();
+///         let mut size = zero_ui::core::units::LayoutSize::zero();
 ///         for child in { self.children.iter_mut() } {
 ///            size = child.measure(available_size, ctx).max(size);
 ///         }
@@ -652,7 +739,6 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///         }
 ///     }
 /// }
-/// ```
 pub use zero_ui_macros::impl_ui_node;
 
 /// Expands a function to a widget property module.

@@ -68,6 +68,10 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
             no_delegate_absents(crate_.clone(), node_item_names)
         }
         Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut),
+        Args::DelegateList {
+            delegate_list,
+            delegate_list_mut,
+        } => delegate_list_absents(crate_.clone(), node_item_names, delegate_list, delegate_list_mut),
         Args::DelegateIter {
             delegate_iter,
             delegate_iter_mut,
@@ -253,6 +257,55 @@ fn delegate_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borr
     }
 }
 
+fn delegate_list_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+    make_absents! { user_mtds
+
+        [fn init(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
+            let children = {#borrow_mut};
+            children.init_all(ctx)
+        }]
+
+        [fn deinit(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
+            let children = {#borrow_mut};
+            children.deinit_all(ctx)
+        }]
+
+        [fn update(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
+            let children = {#borrow_mut};
+            children.update_all(ctx)
+        }]
+
+        [fn update_hp(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
+            let children = {#borrow_mut};
+            children.update_hp_all(ctx)
+        }]
+
+        [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) {
+            let children = {#borrow};
+            children.render_all(|_|#crate_::core::units::LayoutPoint::zero(), frame)
+        }]
+
+        [fn render_update(&self, update: &mut #crate_::core::render::FrameUpdate) {
+            let children = {#borrow};
+            children.render_update_all(update)
+        }]
+
+        [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) {
+            let children = {#borrow_mut};
+            children.arrange_all(|_, _|final_size, ctx)
+        }]
+
+        [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
+            let children = {#borrow_mut};
+            let mut size = #crate_::core::units::LayoutSize::zero();
+            children.measure_all(|_, _|available_size, |_, desired_size, _| {
+                size = size.max(desired_size);
+            }, ctx);
+            size
+        }]
+    }
+}
+
 fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, iter_mut: Expr) -> Vec<ImplItem> {
     make_absents! { user_mtds
 
@@ -299,7 +352,7 @@ fn delegate_iter_absents(crate_: Ident, user_mtds: HashSet<Ident>, iter: Expr, i
         }]
 
         [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
-            let mut size = Default::default();
+            let mut size = #crate_::core::units::LayoutSize::zero();
             for child in #iter_mut {
                 size = child.measure(available_size, ctx).max(size);
             }
@@ -315,7 +368,10 @@ enum Args {
     /// `child` or `delegate=expr` and `delegate_mut=expr`. Impl is for
     /// an Ui that delegates each call to a single delegate.
     Delegate { delegate: Expr, delegate_mut: Expr },
-    /// `children` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
+    /// `children` or `delegate_list=expr` and `delegate_list_mut=expr`. Impl
+    /// is for an Ui that delegates each call to multiple delegates.
+    DelegateList { delegate_list: Expr, delegate_list_mut: Expr },
+    /// `children_iter` or `delegate_iter=expr` and `delegate_iter_mut=expr`. Impl
     /// is for an Ui that delegates each call to multiple delegates.
     DelegateIter { delegate_iter: Expr, delegate_iter_mut: Expr },
 }
@@ -331,6 +387,11 @@ impl Parse for Args {
                     delegate_mut: parse_quote!(&mut self.child),
                 }
             } else if arg0 == ident!("children") {
+                Args::DelegateList {
+                    delegate_list: parse_quote!(&self.children),
+                    delegate_list_mut: parse_quote!(&mut self.children),
+                }
+            } else if arg0 == ident!("children_iter") {
                 Args::DelegateIter {
                     delegate_iter: parse_quote!(self.children.iter()),
                     delegate_iter_mut: parse_quote!(self.children.iter_mut()),
@@ -355,10 +416,21 @@ impl Parse for Args {
                             delegate_iter_mut,
                         }
                     } else {
-                        return Err(Error::new(
-                            arg0.span(),
-                            "expected `child`, `children`, `delegate` or `delegate_iter`",
-                        ));
+                        let delegate_list = ident!("delegate_list");
+                        let delegate_list_mut = ident!("delegate_list_mut");
+
+                        if arg0 == delegate_list || arg0 == delegate_list_mut {
+                            let (delegate_list, delegate_list_mut) = parse_pair(args, arg0, delegate_list, delegate_list_mut)?;
+                            Args::DelegateList {
+                                delegate_list,
+                                delegate_list_mut,
+                            }
+                        } else {
+                            return Err(Error::new(
+                                arg0.span(),
+                                "expected `child`, `children`, `children_iter`, `delegate`, `delegate_list` or `delegate_iter`",
+                            ));
+                        }
                     }
                 }
             };
@@ -367,7 +439,7 @@ impl Parse for Args {
         } else {
             Err(Error::new(
                 Span::call_site(),
-                "missing macro argument, expected `none`, `child`, `children`, `delegate` or `delegate_iter`",
+                "missing macro argument, expected `none`, `child`, `children`, `children_iter`, `delegate`, `delegate_list` or `delegate_iter`",
             ))
         }
     }

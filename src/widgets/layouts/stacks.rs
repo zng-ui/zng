@@ -16,7 +16,7 @@ struct StackNode<S: VarLocal<Length>, D: StackDimension> {
     spacing: S,
     _d: PhantomData<D>,
 }
-#[impl_ui_node(children)]
+#[impl_ui_node(children_iter)]
 impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
     fn new(children: UiVec, spacing: S, _dimension: D) -> Self {
         StackNode {
@@ -245,7 +245,7 @@ pub fn v_stack(items: UiVec) -> impl Widget {
 struct ZStackNode {
     children: Box<[Box<dyn Widget>]>,
 }
-#[impl_ui_node(children)]
+#[impl_ui_node(children_iter)]
 impl UiNode for ZStackNode {}
 
 widget! {

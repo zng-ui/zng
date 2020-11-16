@@ -71,7 +71,7 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
         (columns, rows)
     }
 }
-#[impl_ui_node(children)]
+#[impl_ui_node(children_iter)]
 impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UiNode for UniformGridNode<C, R, FC, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         for child in self.children.iter_mut() {
