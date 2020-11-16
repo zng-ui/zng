@@ -13,10 +13,10 @@ use super::*;
 /// # Example
 /// ```
 /// # use zero_ui::core::var::merge_var;
-/// # use zero_ui::prelude::{var, text, Text};
-/// # use zero_ui::core::var::SharedVar;
-/// let var0: SharedVar<Text> = var("Hello");
-/// let var1: SharedVar<Text> = var("World");
+/// # use zero_ui::prelude::{var_from, text, formatx, Text};
+/// # use zero_ui::core::var::RcVar;
+/// let var0: RcVar<Text> = var_from("Hello");
+/// let var1: RcVar<Text> = var_from("World");
 ///
 /// let greeting_text = text(merge_var!(var0, var1, |a, b|formatx!("{} {}!", a, b)));
 /// ```

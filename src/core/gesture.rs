@@ -417,7 +417,7 @@ impl KeyInputArgs {
 /// use zero_ui::core::gesture::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {
-///     shortcut!(Return)
+///     shortcut!(Enter)
 /// }
 ///
 /// fn modified_key() -> Shortcut {

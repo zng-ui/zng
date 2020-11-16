@@ -352,9 +352,9 @@ impl Events {
 ///
 ///         ..
 ///
-///         /// If `ctx.widget_id` is in the `self.target` path.
+///         /// If `ctx.path.widget_id()` is in the `self.target` path.
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             self.target.contains(ctx.widget_id)
+///             self.target.contains(ctx.path.widget_id())
 ///         }
 ///     }
 ///
@@ -429,9 +429,9 @@ impl Events {
 ///     }
 ///
 ///     #[inline]
-///     /// If `ctx.widget_id` is in the `self.target` path.
+///     /// If `ctx.path.widget_id()` is in the `self.target` path.
 ///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
-///         self.target.contains(ctx.widget_id)
+///         self.target.contains(ctx.path.widget_id())
 ///     }
 ///
 ///     #[inline]
@@ -465,9 +465,9 @@ pub use zero_ui_macros::event_args;
 ///
 ///         ..
 ///
-///         /// If `ctx.widget_id` is in the `self.target` path.
+///         /// If `ctx.path.widget_id()` is in the `self.target` path.
 ///         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
-///             self.target.contains(ctx.widget_id)
+///             self.target.contains(ctx.path.widget_id())
 ///         }
 ///     }
 ///
@@ -492,7 +492,7 @@ pub use zero_ui_macros::event_args;
 ///     /// My event target.
 ///     pub target: WidgetPath,
 ///
-///     cancel: std::rc::Rc<std::cell::Cell<bool>>
+///     cancel: std::rc::Rc<std::cell::Cell<bool>>,
 ///     stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
 /// }
 ///
@@ -507,7 +507,8 @@ pub use zero_ui_macros::event_args;
 ///             timestamp: timestamp.into(),
 ///             arg: arg.into(),
 ///             target: target.into(),
-///             cancel: std::rc::Rc::default()
+///             cancel: std::rc::Rc::default(),
+///             stop_propagation: std::rc::Rc::default(),
 ///         }
 ///     }
 ///
@@ -525,9 +526,19 @@ pub use zero_ui_macros::event_args;
 ///     }
 ///
 ///     #[inline]
-///     /// If `ctx.widget_id` is in the `self.target` path.
+///     /// If `ctx.path.widget_id()` is in the `self.target` path.
 ///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
-///         self.target.contains(ctx.widget_id)
+///         self.target.contains(ctx.path.widget_id())
+///     }
+///
+///     #[inline]
+///     fn stop_propagation(&self) {
+///         self.stop_propagation.set(true);
+///     }
+///     
+///     #[inline]
+///     fn stop_propagation_requested(&self) -> bool {
+///         self.stop_propagation.get()
 ///     }
 /// }
 ///
@@ -593,7 +604,7 @@ pub use zero_ui_macros::event;
 /// ```
 /// # use zero_ui::core::event::event_hp;
 /// # use zero_ui::core::mouse::MouseMoveArgs;
-/// event! {
+/// event_hp! {
 ///     /// Event docs.
 ///     pub MouseMoveEvent: MouseMoveArgs;
 /// }
@@ -603,7 +614,7 @@ pub use zero_ui_macros::event;
 ///
 /// ```
 /// # use zero_ui::core::event::event_hp;
-/// # use zero_ui::core::gesture::MouseMoveArgs;
+/// # use zero_ui::core::mouse::MouseMoveArgs;
 /// /// Event docs
 /// pub struct MouseMoveEvent;
 /// impl zero_ui::core::event::Event for MouseMoveEvent {

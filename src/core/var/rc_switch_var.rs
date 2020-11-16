@@ -16,11 +16,12 @@ use super::*;
 /// # Example
 /// ```
 /// # use zero_ui::core::var::switch_var;
-/// # use zero_ui::prelude::{var, text};
-/// let var0 = var("Read-write");
+/// # use zero_ui::prelude::{var, text, ToText};
+/// let index = var(0);
+/// let var0 = var("Read-write".to_text());
 /// let var1 = "Read-only";
 ///
-/// let t = text(switch_var!(0, var0, var1));
+/// let t = text(switch_var!(index, var0, var1));
 /// ```
 pub use zero_ui_macros::switch_var;
 

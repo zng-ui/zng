@@ -912,9 +912,9 @@ pub use zero_ui_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar};
+/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar, text::Text};
 /// # #[property(context)]
-/// # pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
+/// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode { child }
 /// widget! {
 /// # widget_name;
 ///     //..
@@ -981,15 +981,15 @@ pub use zero_ui_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
+/// # use zero_ui::core::{widget, color::rgb};
 /// # use zero_ui::properties::{background::background_color, title, states::is_pressed};
 /// widget! {
 /// # widget_name;
-/// # default { title = "value"; }
+/// # default { title: "value"; background_color: rgb(0, 0, 0); }
 ///     //..
 ///     
 ///     when self.title == "value" && self.is_pressed {
-///         background_color: "foo is value";
+///         background_color: rgb(255, 0, 255);
 ///     }
 /// }
 /// ```
@@ -1095,7 +1095,7 @@ pub use zero_ui_macros::widget;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude::new_widget::{widget_mixin, focusable, border, is_focused, SideOffsets};
+/// # use zero_ui::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
 /// # use zero_ui::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
 /// widget_mixin! {
 ///     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
