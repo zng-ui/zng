@@ -32,7 +32,7 @@ pub fn widget_child(child: impl UiNode) -> ! {}
 ///
 /// Layout widgets can capture this property in their implementation.
 #[property(capture_only, allowed_in_when: false)]
-pub fn widget_children(children: UiVec) -> ! {}
+pub fn widget_children(children: impl UiList) -> ! {}
 
 /// A [`Length`] spacing.
 #[property(capture_only)]

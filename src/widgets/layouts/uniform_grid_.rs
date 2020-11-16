@@ -29,8 +29,8 @@ impl Iterator for CellsIter {
     }
 }
 
-struct UniformGridNode<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> {
-    children: Box<[Box<dyn Widget>]>,
+struct UniformGridNode<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> {
+    children: U,
     columns: C,
     rows: R,
     first_column: FC,
@@ -38,7 +38,7 @@ struct UniformGridNode<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usiz
     cells_iter: CellsIter,
 }
 
-impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<C, R, FC, S> {
+impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<U, C, R, FC, S> {
     /// cells count for `grid_len`.
     fn cells_count(&self) -> f32 {
         match self.children.len() {
@@ -71,12 +71,12 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
         (columns, rows)
     }
 }
-#[impl_ui_node(children_iter)]
-impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UiNode for UniformGridNode<C, R, FC, S> {
+#[impl_ui_node(children)]
+impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UiNode
+    for UniformGridNode<U, C, R, FC, S>
+{
     fn init(&mut self, ctx: &mut WidgetContext) {
-        for child in self.children.iter_mut() {
-            child.init(ctx);
-        }
+        self.children.init_all(ctx);
 
         self.columns.init_local(ctx.vars);
         self.rows.init_local(ctx.vars);
@@ -85,9 +85,7 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        for child in self.children.iter_mut() {
-            child.update(ctx);
-        }
+        self.children.update_all(ctx);
 
         if self.columns.update_local(ctx.vars).is_some()
             | self.rows.update_local(ctx.vars).is_some()
@@ -110,9 +108,9 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
         .snap_to(ctx.pixel_grid());
 
         let mut cell_size = LayoutSize::zero();
-        for child in self.children.iter_mut() {
-            cell_size = cell_size.max(child.measure(available_size, ctx));
-        }
+
+        self.children
+            .measure_all(|_, _| available_size, |_, s, _| cell_size = cell_size.max(s), ctx);
 
         LayoutSize::new(
             cell_size.width * columns + layout_spacing.column * (columns - 1.0),
@@ -132,9 +130,7 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
         )
         .snap_to(ctx.pixel_grid());
 
-        for child in self.children.iter_mut() {
-            child.arrange(cell_size, ctx);
-        }
+        self.children.arrange_all(|_, _| cell_size, ctx);
 
         let mut first_column = *self.first_column.get_local() as f32;
         if first_column >= columns {
@@ -145,15 +141,9 @@ impl<C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<Gr
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        // only non collapsed children are rendered.
-        for (child, offset) in self
-            .children
-            .iter()
-            .filter(|c| !c.size().is_empty_or_negative())
-            .zip(self.cells_iter.clone())
-        {
-            frame.push_reference_frame(offset.snap_to(frame.pixel_grid()), |frame| child.render(frame));
-        }
+        let mut cells = self.cells_iter.clone();
+        let grid = frame.pixel_grid();
+        self.children.render_all(move |_| cells.next().unwrap().snap_to(grid), frame);
     }
 }
 
@@ -230,7 +220,7 @@ widget! {
     #[inline]
     fn new_child(items, columns, rows, first_column, spacing) -> impl UiNode {
         UniformGridNode {
-            children: items.unwrap().into_boxed_slice(),
+            children: items.unwrap(),
 
             columns: columns.unwrap().into_local(),
             rows: rows.unwrap().into_local(),
@@ -266,6 +256,6 @@ widget! {
 /// This function is just a shortcut for [`uniform_grid!`](module@uniform_grid). Use the full widget
 /// to better configure the grid widget.
 #[inline]
-pub fn uniform_grid(items: UiVec) -> impl Widget {
+pub fn uniform_grid(items: impl UiList) -> impl Widget {
     uniform_grid! { items; }
 }

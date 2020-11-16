@@ -10,18 +10,18 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct StackNode<S: VarLocal<Length>, D: StackDimension> {
-    children: Box<[Box<dyn Widget>]>,
+struct StackNode<C: UiList, S: VarLocal<Length>, D: StackDimension> {
+    children: C,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
-#[impl_ui_node(children_iter)]
-impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
-    fn new(children: UiVec, spacing: S, _dimension: D) -> Self {
+#[impl_ui_node(children)]
+impl<C: UiList, S: VarLocal<Length>, D: StackDimension> StackNode<C, S, D> {
+    fn new(children: C, spacing: S, _dimension: D) -> Self {
         StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
-            children: children.into_boxed_slice(),
+            children,
             spacing,
             _d: PhantomData,
         }
@@ -30,9 +30,7 @@ impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
     #[UiNode]
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.spacing.init_local(ctx.vars);
-        for child in self.children.iter_mut() {
-            child.init(ctx);
-        }
+        self.children.init_all(ctx);
     }
 
     #[UiNode]
@@ -40,9 +38,7 @@ impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
         if self.spacing.update_local(ctx.vars).is_some() {
             ctx.updates.layout();
         }
-        for child in self.children.iter_mut() {
-            child.update(ctx);
-        }
+        self.children.update_all(ctx);
     }
 
     #[UiNode]
@@ -57,22 +53,28 @@ impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
             .to_layout(LayoutLength::new(D::length(available_size)), ctx)
             .get();
         let mut first = true;
+        let rectangles = &mut self.rectangles;
+        self.children.measure_all(
+            |_, _| available_size,
+            |i, s, _| {
+                let r = &mut rectangles[i];
+                r.size = s;
 
-        for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {
-            r.size = child.measure(available_size, ctx);
+                let origin = D::origin_mut(&mut r.origin);
+                *origin = *total_len;
+                *total_len += D::length(r.size);
 
-            let origin = D::origin_mut(&mut r.origin);
-            *origin = *total_len;
-            *total_len += D::length(r.size);
+                if first {
+                    first = false;
+                } else {
+                    *origin += spacing;
+                    *total_len += spacing;
+                }
 
-            if first {
-                first = false;
-            } else {
-                *origin += spacing;
-                *total_len += spacing;
-            }
-            *max_ort_len = max_ort_len.max(D::ort_length(r.size));
-        }
+                *max_ort_len = max_ort_len.max(D::ort_length(r.size));
+            },
+            ctx,
+        );
 
         total_size
     }
@@ -80,18 +82,20 @@ impl<S: VarLocal<Length>, D: StackDimension> StackNode<S, D> {
     #[UiNode]
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         let max_ort_len = D::ort_length(final_size);
-        for (child, r) in self.children.iter_mut().zip(self.rectangles.iter_mut()) {
-            let mut size = r.size;
-            *D::lengths_mut(&mut size).1 = max_ort_len;
-            child.arrange(size, ctx);
-        }
+        let rectangles = &mut self.rectangles;
+        self.children.arrange_all(
+            |i, _| {
+                let mut size = rectangles[i].size;
+                *D::lengths_mut(&mut size).1 = max_ort_len;
+                size
+            },
+            ctx,
+        );
     }
 
     #[UiNode]
     fn render(&self, frame: &mut FrameBuilder) {
-        for (child, r) in self.children.iter().zip(self.rectangles.iter()) {
-            frame.push_reference_frame(r.origin, |frame| child.render(frame));
-        }
+        self.children.render_all(|i| self.rectangles[i].origin, frame);
     }
 }
 struct VerticalD;
@@ -214,7 +218,7 @@ widget! {
 ///
 /// This function is just a shortcut for [`h_stack!`](module@v_stack). Use the full widget
 /// to better configure the horizontal stack widget.
-pub fn h_stack(items: UiVec) -> impl Widget {
+pub fn h_stack(items: impl UiList) -> impl Widget {
     h_stack! {
         items;
     }
@@ -236,17 +240,17 @@ pub fn h_stack(items: UiVec) -> impl Widget {
 ///
 /// This function is just a shortcut for [`v_stack!`](module@v_stack). Use the full widget
 /// to better configure the vertical stack widget.
-pub fn v_stack(items: UiVec) -> impl Widget {
+pub fn v_stack(items: impl UiList) -> impl Widget {
     v_stack! {
         items;
     }
 }
 
-struct ZStackNode {
-    children: Box<[Box<dyn Widget>]>,
+struct ZStackNode<C: UiList> {
+    children: C,
 }
-#[impl_ui_node(children_iter)]
-impl UiNode for ZStackNode {}
+#[impl_ui_node(children)]
+impl<C: UiList> UiNode for ZStackNode<C> {}
 
 widget! {
     /// Layering stack layout.
@@ -278,7 +282,7 @@ widget! {
 
     fn new_child(items) -> impl UiNode {
         ZStackNode {
-            children: items.unwrap().into_boxed_slice(),
+            children: items.unwrap(),
         }
     }
 }
@@ -299,6 +303,6 @@ widget! {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: UiVec) -> impl Widget {
+pub fn z_stack(items: impl UiList) -> impl Widget {
     z_stack! { items; }
 }
