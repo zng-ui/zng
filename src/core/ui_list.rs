@@ -298,7 +298,7 @@ macro_rules! impl_iter {
     };
 }
 
-impl UiList for UiVec {
+impl<W: Widget> UiList for Vec<W> {
     #[inline]
     fn len(&self) -> usize {
         self.len()
@@ -309,21 +309,21 @@ impl UiList for UiVec {
     }
     #[inline]
     fn box_all(self) -> UiVec {
-        self
+        self.into_iter().map(|w| w.boxed_widget()).collect()
     }
 
     impl_iter! {}
 }
 
 macro_rules! impl_arrays {
-    ( $($N:tt),+ $(,)?) => {$(
-        impl<W: Widget> UiList for [W; $N] {
+    ( $($L:tt),+ $(,)?) => {$(
+        impl<W: Widget> UiList for [W; $L] {
             fn len(&self) -> usize {
-                $N
+                $L
             }
 
             fn is_empty(&self) -> bool {
-                $N == 0
+                $L == 0
             }
 
             fn box_all(self) -> UiVec {
@@ -371,16 +371,16 @@ impl_arrays! {
 }
 
 macro_rules! impl_tuples {
-    ($($N:tt => $($WN:tt),+;)+) => {$(paste::paste! {
+    ($($L:tt => $($n:tt),+;)+) => {$(paste::paste! {
 
-        impl_tuples! { $N => $($WN = [<W $WN>]),+ }
+        impl_tuples! { $L => $($n = [<W $n>]),+ }
 
     })+};
-    ($N:tt => $($WN:tt = $W:ident),+) => {
+    ($L:tt => $($n:tt = $W:ident),+) => {
         impl<$($W: Widget),+> UiList for ($($W,)+) {
             #[inline]
             fn len(&self) -> usize {
-                $N
+                $L
             }
 
             #[inline]
@@ -390,27 +390,27 @@ macro_rules! impl_tuples {
 
             #[inline]
             fn box_all(self) -> UiVec {
-                ui_vec![$(self.$WN.boxed_widget()),+]
+                ui_vec![$(self.$n.boxed_widget()),+]
             }
 
             #[inline]
             fn init_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$WN.init(ctx);)+
+                $(self.$n.init(ctx);)+
             }
 
             #[inline]
             fn deinit_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$WN.deinit(ctx);)+
+                $(self.$n.deinit(ctx);)+
             }
 
             #[inline]
             fn update_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$WN.update(ctx);)+
+                $(self.$n.update(ctx);)+
             }
 
             #[inline]
             fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
-                $(self.$WN.update_hp(ctx);)+
+                $(self.$n.update_hp(ctx);)+
             }
 
             fn measure_all<A, D>(&mut self, mut available_size: A, mut desired_size: D, ctx: &mut LayoutContext)
@@ -419,9 +419,9 @@ macro_rules! impl_tuples {
                 D: FnMut(usize, LayoutSize, &mut LayoutContext),
             {
                 $(
-                let av_sz = available_size($WN, ctx);
-                let r = self.$WN.measure(av_sz, ctx);
-                desired_size($WN, r, ctx);
+                let av_sz = available_size($n, ctx);
+                let r = self.$n.measure(av_sz, ctx);
+                desired_size($n, r, ctx);
                 )+
             }
 
@@ -430,8 +430,8 @@ macro_rules! impl_tuples {
                 F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
             {
                 $(
-                let fi_sz = final_size($WN, ctx);
-                self.$WN.arrange(fi_sz, ctx);
+                let fi_sz = final_size($n, ctx);
+                self.$n.arrange(fi_sz, ctx);
                 )+
             }
 
@@ -440,40 +440,40 @@ macro_rules! impl_tuples {
                 O: FnMut(usize) -> LayoutPoint,
             {
                 $(
-                let o = origin($WN);
-                frame.push_reference_frame(o, |frame| self.$WN.render(frame));
+                let o = origin($n);
+                frame.push_reference_frame(o, |frame| self.$n.render(frame));
                 )+
             }
 
             #[inline]
             fn render_update_all(&self, update: &mut FrameUpdate) {
-                $(self.$WN.render_update(update);)+
+                $(self.$n.render_update(update);)+
             }
 
             fn widget_id(&self, index: usize) -> WidgetId {
                 match index {
-                    $($WN => self.$WN.id(),)+
+                    $($n => self.$n.id(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
 
             fn widget_state(&self, index: usize) -> &LazyStateMap {
                 match index {
-                    $($WN => self.$WN.state(),)+
+                    $($n => self.$n.state(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
 
             fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap {
                 match index {
-                    $($WN => self.$WN.state_mut(),)+
+                    $($n => self.$n.state_mut(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
 
             fn widget_size(&self, index: usize) -> LayoutSize {
                 match index {
-                    $($WN => self.$WN.size(),)+
+                    $($n => self.$n.size(),)+
                     _ => panic!("index {} out of range for length {}", index, self.len())
                 }
             }
