@@ -13,7 +13,7 @@ fn main() {
             padding: 5;
             content: v_stack! {
                 spacing: 5;
-                items: ui_vec![
+                items: (
                     text! {
                         text: calc.map_ref(|c| c.text());
                         align: Alignment::RIGHT;
@@ -21,7 +21,7 @@ fn main() {
                         color: calc.map_ref(|c| c.color());
                     },
                     controls(calc)
-                ];
+                );
             };
         }
     })
@@ -39,13 +39,13 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
         spacing: 2;
         columns: 4;
         font_size: 14.pt();
-        items: ui_vec![
+        items: (
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),
             bn('1'),  bn('2'),  bn('3'),  bn('-'),
             bn('0'),  bn('.'),  b_equal,  bn('+'),
-        ];
+        );
     }
 }
 
