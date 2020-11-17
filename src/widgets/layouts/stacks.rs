@@ -138,7 +138,7 @@ widget! {
     /// # use zero_ui::prelude::*;
     /// let text = v_stack! {
     ///     spacing: 5.0;
-    ///     items: ui_vec![
+    ///     items: [
     ///         text("1. Hello"),
     ///         text("2. World"),
     ///     ];
@@ -154,7 +154,7 @@ widget! {
         /// Space in-between items.
         spacing: 0.0;
         /// Widget items.
-        items -> widget_children: ui_vec![];
+        items -> widget_children: ();
         /// Items margin.
         padding -> margin;
     }
@@ -175,7 +175,7 @@ widget! {
     /// # use zero_ui::prelude::*;
     /// let text = h_stack! {
     ///     spacing: 5.0;
-    ///     items: ui_vec![
+    ///     items: [
     ///         text("Hello"),
     ///         text("World"),
     ///     ];
@@ -190,7 +190,7 @@ widget! {
         /// Space in-between items.
         spacing: 0.0;
         /// Widget items.
-        items -> widget_children: ui_vec![];
+        items -> widget_children: ();
         /// Items margin.
         padding -> margin;
     }
@@ -208,7 +208,7 @@ widget! {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = h_stack(ui_vec![
+/// let text = h_stack([
 ///     text("Hello "),
 ///     text("World"),
 /// ]);
@@ -230,7 +230,7 @@ pub fn h_stack(items: impl UiList) -> impl Widget {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = v_stack(ui_vec![
+/// let text = v_stack([
 ///     text("1. Hello"),
 ///     text("2. World"),
 /// ]);
@@ -261,7 +261,7 @@ widget! {
     /// # use zero_ui::prelude::*;
     /// let text = z_stack! {
     ///     padding: 5.0;
-    ///     items: ui_vec![
+    ///     items: [
     ///         text("under"),
     ///         text("over"),
     ///     ];
@@ -275,7 +275,7 @@ widget! {
 
     default_child {
         /// Widget items.
-        items -> widget_children: ui_vec![];
+        items -> widget_children: ();
         /// Items margin.
         padding -> margin;
     }
@@ -293,7 +293,7 @@ widget! {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = z_stack(ui_vec![
+/// let text = z_stack([
 ///     text("under"),
 ///     text("over"),
 /// ]);

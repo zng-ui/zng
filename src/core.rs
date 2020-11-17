@@ -1235,7 +1235,7 @@ pub use zero_ui_macros::widget_mixin;
 /// ```
 /// # use zero_ui::core::ui_vec;
 /// # use zero_ui::widgets::text::text;
-/// let widgets = ui_vec![
+/// let widgets = [
 ///     text("Hello"),
 ///     text("World!")
 /// ];

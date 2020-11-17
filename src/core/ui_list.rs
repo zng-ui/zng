@@ -148,7 +148,7 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
             .measure_all(|i, c| available_size(i, c), |i, l, c| desired_size(i, l, c), ctx);
         let offset = self.0.len();
         self.1
-            .measure_all(|i, c| available_size(i - offset, c), |i, l, c| desired_size(i - offset, l, c), ctx);
+            .measure_all(|i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c), ctx);
     }
 
     fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
@@ -157,7 +157,7 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
     {
         self.0.arrange_all(|i, c| final_size(i, c), ctx);
         let offset = self.0.len();
-        self.1.arrange_all(|i, c| final_size(i - offset, c), ctx);
+        self.1.arrange_all(|i, c| final_size(i + offset, c), ctx);
     }
 
     fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
@@ -166,7 +166,7 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
     {
         self.0.render_all(|i| origin(i), frame);
         let offset = self.0.len();
-        self.1.render_all(|i| origin(i - offset), frame);
+        self.1.render_all(|i| origin(i + offset), frame);
     }
 
     fn render_update_all(&self, update: &mut FrameUpdate) {

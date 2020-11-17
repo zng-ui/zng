@@ -157,7 +157,7 @@ widget! {
     /// let grid = uniform_grid!{
     ///     columns: 3;
     ///     rows: 2;
-    ///     items: ui_vec![
+    ///     items: [
     ///         text("0,0"), text("1,0"), text("2,0"),
     ///         text("0,1"), text("1,1")
     ///     ];
@@ -174,7 +174,7 @@ widget! {
 
     default_child {
         /// Widget items.
-        items -> widget_children: ui_vec![];
+        items -> widget_children: ();
 
         /// Number of columns.
         ///
@@ -194,7 +194,7 @@ widget! {
         ///     columns: 3;
         ///     rows: 2;
         ///     first_column: 1;
-        ///     items: ui_vec![
+        ///     items: [
         ///                      text("1,0"), text("2,0"),
         ///         text("0,1"), text("1,1"), text("2,1")
         ///     ];
@@ -238,7 +238,7 @@ widget! {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let grid = uniform_grid(ui_vec![
+/// let grid = uniform_grid([
 ///     text("0,0"), text("1,0"),
 ///     text("0,1"), text("1,1"),
 /// ]);

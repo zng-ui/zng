@@ -18,51 +18,46 @@ fn main() {
             title;
             content: h_stack! {
                 spacing: 40;
-                items: ui_vec![
+                items: (
                     v_stack! {
                         spacing: 20;
-                        items: ui_vec![
-                            property_stack("position", ui_vec![
+                        items: (
+                            property_stack("position", [
                                 set_position(0.0, 0.0, &position),
                                 set_position(490.0, 290.0, &position),
                                 set_position(500.0, 300.0, &position),
                             ]),
-                            property_stack("miscellaneous", ui_vec![
+                            property_stack("miscellaneous", (
                                 screenshot(),
                                 inspect(),
-                            ]),
-                       ];
+                            )),
+                        );
                     },
-                    property_stack("size", ui_vec![
+                    property_stack("size", [
                         set_size(1000.0, 900.0, &size),
                         set_size(500.0, 1000.0, &size),
                         set_size(800.0, 600.0, &size),
                     ]),
-                    property_stack("background_color", ui_vec![
+                    property_stack("background_color", [
                         set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
                         set_background(rgb(0.5, 0.0, 0.0), "red", &background_color),
                         set_background(rgb(0.0, 0.5, 0.0), "green", &background_color),
                         set_background(rgb(0.0, 0.0, 0.5), "blue", &background_color),
                     ])
-                ];
+                );
             };
         }
     })
 }
 
-fn property_stack(header: &'static str, mut items: UiVec) -> impl Widget {
-    items.insert(
-        0,
-        text! {
+fn property_stack(header: &'static str, items: impl UiList) -> impl Widget {
+    v_stack! {
+        spacing: 5;
+        items: [text! {
             text: header;
             font_weight: FontWeight::BOLD;
             margin: (0, 4);
-        }
-        .boxed_widget(),
-    );
-    v_stack! {
-        spacing: 5;
-        items;
+        }].chain(items);
     }
 }
 

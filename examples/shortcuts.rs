@@ -25,7 +25,7 @@ fn main() {
                 )
             }};
             content: v_stack! {
-                items: ui_vec! [
+                items: (
                     text!{
                         align: Alignment::CENTER;
                         font_size: 18.pt();
@@ -44,7 +44,7 @@ fn main() {
                         color: web_colors::LIGHT_SLATE_GRAY;
                         text: keypress_text;
                     }
-                ];
+                );
             };
         }
     })
