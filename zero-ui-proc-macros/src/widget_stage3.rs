@@ -1785,7 +1785,10 @@ pub mod output {
                     ///
                     #[doc=#callback]
                     pub mod doc_helper {
-                        #(pub use super::properties::#properties;)*
+                        #(
+                            #[doc(inline)]
+                            pub use super::properties::#properties;
+                        )*
                     }
                 })
             }
