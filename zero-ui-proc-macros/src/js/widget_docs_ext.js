@@ -36,6 +36,7 @@ window.addEventListener('message', function(e) {
     var help = parse.childNodes[0];
     var property_help = {};
     for (row of help.rows) {
+        console.log(row);
         var property = row.querySelector('a.mod').innerHTML;
         var help  = row.querySelector('p');
         property_help[property] = help;
@@ -43,6 +44,11 @@ window.addEventListener('message', function(e) {
     var requests = document.querySelectorAll('span.load-property-help');
     requests.forEach(req => {
         var property = req.getAttribute('data-property');
-        req.parentElement.replaceWith(property_help[property]);
+        var value = property_help[property];
+        if (value !== null) {
+            req.parentElement.replaceWith(value);
+        } else {
+            req.parentElement.replaceWith("")
+        }
     });
 });
