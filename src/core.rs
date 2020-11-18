@@ -739,6 +739,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///         }
 ///     }
 /// }
+/// ```
 pub use zero_ui_macros::impl_ui_node;
 
 /// Expands a function to a widget property module.
