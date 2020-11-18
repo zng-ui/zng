@@ -62,13 +62,17 @@ macro_rules! doc_extend {
     ($tokens:ident, $str:expr) => {
         {
             let doc_comment = $str;
-            $tokens.extend(quote!(#[doc=#doc_comment]));
+            for line in doc_comment.lines() {
+                $tokens.extend(quote!(#[doc=#line]));
+            }
         }
     };
     ($tokens:ident, $($tt:tt)*) => {
         {
             let doc_comment = format!($($tt)*);
-            $tokens.extend(quote!(#[doc=#doc_comment]));
+            for line in doc_comment.lines() {
+                $tokens.extend(quote!(#[doc=#line]));
+            }
         }
     }
 }
@@ -247,5 +251,35 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
         for attr in docs.iter().skip(skip) {
             attr.to_tokens(output);
         }
+    }
+}
+
+/// Split docs with line breaks into different doc attributes.
+#[allow(unused)]
+pub fn normalize_docs(docs: &[Attribute]) -> Vec<Attribute> {
+    let mut r = Vec::with_capacity(docs.len());
+    for a in docs {
+        if let AttrStyle::Inner(_) = a.style {
+            r.push(a.clone());
+        } else {
+            let doc: DocArgs = parse2(a.tokens.clone()).unwrap();
+            for line in doc.str_.value().lines() {
+                r.push(parse_quote!( #[doc=#line] ));
+            }
+        }
+    }
+    r
+}
+
+struct DocArgs {
+    _eq: Token![=],
+    str_: LitStr,
+}
+impl Parse for DocArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(DocArgs {
+            _eq: input.parse()?,
+            str_: input.parse()?,
+        })
     }
 }

@@ -1793,8 +1793,7 @@ pub mod output {
             fn open_section(tokens: &mut TokenStream, id: &str, title: &str) {
                 doc_extend!(
                     tokens,
-                    r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2>
-                    <div class="methods" style="display: block;">"##,
+                    r##"<h2 id="{0}" class="small-section-header">{1}<a href="#{0}" class="anchor"></a></h2><div class="methods" style="display: block;">"##,
                     id,
                     title
                 )
@@ -1833,15 +1832,13 @@ pub mod output {
                 if !self.is_mixin {
                     doc_extend!(
                         tokens,
-                        r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> 
-                        <span title="applied to self">self</span>.<span class='wgprop'>"##
+                        r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##
                     );
                     //generate link to properties module (needs to be separate and in between \n)
                     doc_extend!(tokens, "\n[<span class='mod'>*</span>](zero_ui::properties)\n");
                     doc_extend!(
                         tokens,
-                        r##"<ul style='display:none;'></ul></span></code></h3>
-                        <div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##
+                        r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##
                     );
                 }
                 close_section(tokens);
@@ -1936,8 +1933,9 @@ pub mod output {
                         "Initializes a new [`{}`](self).\n\nThis calls the [`default_widget_new`]({}::core::default_widget_new) function.",
                         widget_name, crate_
                     );
+                    let fn_docs = fn_doc.lines();
                     quote!(
-                        #[doc=#fn_doc]
+                        #(#[doc=#fn_docs])*
                         #[inline]
                         pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::Widget {
                             #crate_::core::default_widget_new(child, id)
@@ -1979,8 +1977,9 @@ pub mod output {
                         "Initializes a new [`{}`](self) content.\n\n[`default_widget_new_child`]({}::core::default_widget_new_child) function.",
                         widget_name, crate_
                     );
+                    let fn_docs = fn_doc.lines();
                     quote!(
-                        #[doc=#fn_doc]
+                        #(#[doc=#fn_docs])*
                         #[inline]
                         pub fn new_child() -> impl #crate_::core::UiNode {
                             #crate_::core::default_widget_new_child()
