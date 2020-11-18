@@ -1,6 +1,6 @@
 var local = document.currentScript.closest('tr');
 if (document.widget_modules === undefined) {
-    document.widget_modules = [local];
+    document.widget_modules = new Array(local);
 
     document.addEventListener('DOMContentLoaded', function () {
         var modules = document.querySelector('h2#modules.section-header');

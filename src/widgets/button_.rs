@@ -9,11 +9,10 @@ widget! {
         /// Button click event.
         on_click;
 
-        /// Set to [`ButtonBackground`](super::ButtonBackground).
+        /// Set to [`ButtonBackgroundVar`].
         background_color: ButtonBackgroundVar;
 
-        /// Set to [`ButtonBorderWidthsVar`](super::ButtonBorderWidthsVar) and
-        /// [`ButtonBorderDetailsVar`](super::ButtonBorderDetailsVar).
+        /// Set to [`ButtonBorderWidthsVar`] and [`ButtonBorderDetailsVar`].
         border: {
             widths: ButtonBorderWidthsVar,
             details: ButtonBorderDetailsVar,
@@ -21,7 +20,7 @@ widget! {
     }
 
     default_child {
-        /// Set to [`ButtonPadding`](super::ButtonPadding).
+        /// Set to [`ButtonPaddingVar`].
         padding: ButtonPaddingVar;
     }
 
