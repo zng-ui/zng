@@ -910,7 +910,7 @@ pub mod analysis {
                             docs: property.docs.clone(),
                             target_child: target == PropertyTarget::DefaultChild,
                             ident: property.ident.clone(),
-                            property_source: PropertySource::Widget(inherit_path.clone()),
+                            property_source: PropertySource::Widget(inherit_path.clone(), property.ident.clone()),
                             is_required_provided: false,
                         });
 
@@ -991,13 +991,6 @@ pub mod analysis {
                 &mut docs_other
             };
             let attrs = Attributes::new(property.attrs);
-            docs.push(PropertyDocs {
-                docs: attrs.docs.clone(),
-                target_child: target == PropertyTarget::DefaultChild,
-                ident: property.ident.clone(),
-                property_source: PropertySource::Property(property.maps_to.as_ref().map(|m| &m.ident).unwrap_or(&property.ident).clone()),
-                is_required_provided: false,
-            });
 
             if let Some(default) = default_value {
                 mod_defaults.defaults.push(WidgetDefault {
@@ -1011,7 +1004,7 @@ pub mod analysis {
                 PropertyTarget::DefaultChild => &mut macro_default_child,
             };
             macro_properties.push(BuiltProperty {
-                docs: attrs.docs,
+                docs: attrs.docs.clone(),
                 kind: if is_required {
                     BuiltPropertyKind::Required
                 } else if has_value {
@@ -1022,31 +1015,65 @@ pub mod analysis {
                 ident: property.ident.clone(),
             });
 
-            mod_properties.props.push(if let Some(maps_to) = property.maps_to {
+            if let Some(maps_to) = property.maps_to {
                 // property maps to another, re-export with new property name.
+
                 if let Some(widget) = inheritance_map.get(&maps_to.ident).and_then(|o| o.setted_path()) {
-                    WidgetPropertyUse::AliasInherited {
+                    // property maps to another inherited property
+                    docs.push(PropertyDocs {
+                        docs: attrs.docs,
+                        target_child: target == PropertyTarget::DefaultChild,
+                        ident: property.ident.clone(),
+                        property_source: PropertySource::Widget(widget.clone(), maps_to.ident.clone()),
+                        is_required_provided: false,
+                    });
+                    mod_properties.props.push(WidgetPropertyUse::AliasInherited {
                         ident: property.ident,
                         widget: widget.clone(),
                         original: maps_to.ident,
-                    }
+                    });
                 } else {
-                    WidgetPropertyUse::Alias {
+                    // property maps to a new property
+                    docs.push(PropertyDocs {
+                        docs: attrs.docs,
+                        target_child: target == PropertyTarget::DefaultChild,
+                        ident: property.ident.clone(),
+                        property_source: PropertySource::Property(maps_to.ident.clone()),
+                        is_required_provided: false,
+                    });
+                    mod_properties.props.push(WidgetPropertyUse::Alias {
                         ident: property.ident,
                         original: maps_to.ident,
-                    }
+                    });
                 }
             } else {
                 // property does not map to another, re-export the property mod.
+
                 if let Some(widget) = inheritance_map[&property.ident].setted_path() {
-                    WidgetPropertyUse::Inherited {
+                    // property sets inherited property
+                    docs.push(PropertyDocs {
+                        docs: attrs.docs,
+                        target_child: target == PropertyTarget::DefaultChild,
+                        ident: property.ident.clone(),
+                        property_source: PropertySource::Widget(widget.clone(), property.ident.clone()),
+                        is_required_provided: false,
+                    });
+                    mod_properties.props.push(WidgetPropertyUse::Inherited {
                         widget: widget.clone(),
                         ident: property.ident,
-                    }
+                    });
                 } else {
-                    WidgetPropertyUse::Mod(property.ident)
+                    // property is new
+                    docs.push(PropertyDocs {
+                        docs: attrs.docs,
+                        target_child: target == PropertyTarget::DefaultChild,
+                        ident: property.ident.clone(),
+                        property_source: PropertySource::Property(property.ident.clone()),
+                        is_required_provided: false,
+                    });
+                    mod_properties.props.push(WidgetPropertyUse::Mod(property.ident));
                 }
-            });
+            }
         }
 
         // process newly declared whens
@@ -1868,17 +1895,18 @@ pub mod output {
 
             let mut is_inherited = false;
             let mut source_widget = String::new();
+
             match &self.property_source {
                 PropertySource::Property(p) => {
                     doc_extend!(tokens, "\n[<span class='mod'>{0}</span>]({0})\n", p);
                 }
-                PropertySource::Widget(p) => {
+                PropertySource::Widget(w, p) => {
                     is_inherited = true;
-                    source_widget = p.to_token_stream().to_string().replace(" :: ", "::");
+                    source_widget = w.to_token_stream().to_string().replace(" :: ", "::");
                     doc_extend!(
                         tokens,
                         "\n[<span class='mod' data-inherited>{0}</span>](module@{1}#wgproperty.{0})\n",
-                        self.ident,
+                        p,
                         source_widget
                     );
                 }
@@ -1915,7 +1943,7 @@ pub mod output {
 
     pub enum PropertySource {
         Property(Ident),
-        Widget(Path),
+        Widget(Path, Ident),
     }
 
     #[derive(Clone)]

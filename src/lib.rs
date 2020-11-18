@@ -10,7 +10,7 @@
 //! ```no_run
 //! use zero_ui::prelude::*;
 //!
-//! fn main () {
+//! fn main() {
 //!     App::default().run_window(|_| {
 //!         let size = var_from((800., 600.));
 //!         let title = size.map(|s: &Size| formatx!("Button Example - {}", s));
