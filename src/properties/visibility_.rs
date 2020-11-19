@@ -133,12 +133,16 @@ impl<C: UiNode, V: VarLocal<Visibility>> UiNode for VisibilityNode<C, V> {
     fn render(&self, frame: &mut FrameBuilder) {
         if let Visibility::Visible = self.visibility.get_local() {
             self.child.render(frame);
+        } else {
+            frame.cancel_widget().expect("visibility not set before `FrameBuilder::open_widget_display`");
         }
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {
         if let Visibility::Visible = self.visibility.get_local() {
             self.child.render_update(update);
+        } else {
+            update.cancel_widget();
         }
     }
 }

@@ -42,6 +42,7 @@ pub struct FrameBuilder {
     widget_id: WidgetId,
     widget_transform_key: WidgetTransformKey,
     widget_stack_ctx_data: Option<(LayoutTransform, Vec<FilterOp>)>,
+    cancel_widget: bool,
     widget_display_mode: WidgetDisplayMode,
 
     meta: LazyStateMap,
@@ -84,6 +85,7 @@ impl FrameBuilder {
             widget_id: root_id,
             widget_transform_key: root_transform_key,
             widget_stack_ctx_data: None,
+            cancel_widget: false,
             widget_display_mode: WidgetDisplayMode::empty(),
             meta: LazyStateMap::default(),
             cursor: CursorIcon::default(),
@@ -129,6 +131,9 @@ impl FrameBuilder {
     /// Don't try to render using the [`FrameBuilder`] methods inside a custom clip or space, the methods will still
     /// use the [`clip_id`](Self::clip_id) and [`spatial_id`](Self::spatial_id). Custom items added to the display list
     /// should be self-contained and completely custom.
+    ///
+    /// If [`is_cancelling_widget`](Self::is_cancelling_widget) don't modify the display list and try to
+    /// early return pretending the operation worked.
     #[inline]
     pub fn display_list(&mut self) -> &mut DisplayListBuilder {
         &mut self.display_list
@@ -222,6 +227,9 @@ impl FrameBuilder {
     /// In case of error the `child` render is still called just without the transform.
     #[inline]
     pub fn with_widget_transform(&mut self, transform: &LayoutTransform, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+        if self.cancel_widget {
+            return Ok(());
+        }
         if let Some((t, _)) = self.widget_stack_ctx_data.as_mut() {
             // we don't use post_transform here fore the same reason `Self::open_widget_display`
             // reverses filters, there is a detailed comment there.
@@ -241,6 +249,9 @@ impl FrameBuilder {
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
     pub fn with_widget_filter(&mut self, filter: RenderFilter, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+        if self.cancel_widget {
+            return Ok(());
+        }
         if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
             f.extend(filter.into_iter().rev()); // see `Self::open_widget_display` for why it is reversed.
             child.render(self);
@@ -258,6 +269,9 @@ impl FrameBuilder {
     /// In case of error the `child` render is still called just without the filter.
     #[inline]
     pub fn with_widget_opacity(&mut self, bind: FrameBinding<f32>, child: &impl UiNode) -> Result<(), WidgetStartedError> {
+        if self.cancel_widget {
+            return Ok(());
+        }
         if let Some((_, f)) = self.widget_stack_ctx_data.as_mut() {
             let value = match &bind {
                 PropertyBinding::Value(v) => *v,
@@ -275,6 +289,9 @@ impl FrameBuilder {
     /// Finish widget transform and filters by starting the widget reference frame and stacking context.
     #[inline]
     pub fn open_widget_display(&mut self) {
+        if self.cancel_widget {
+            return;
+        }
         if let Some((transform, mut filters)) = self.widget_stack_ctx_data.take() {
             if transform != LayoutTransform::identity() {
                 self.widget_display_mode |= WidgetDisplayMode::REFERENCE_FRAME;
@@ -323,8 +340,32 @@ impl FrameBuilder {
         self.widget_display_mode = WidgetDisplayMode::empty();
     }
 
+    /// Cancel the current [`push_widget`](Self::push_widget) if we are
+    /// still in before [`open_widget_display`](Self::open_widget_display).
+    pub fn cancel_widget(&mut self) -> Result<(), WidgetStartedError> {
+        if self.widget_stack_ctx_data.is_some() || self.cancel_widget {
+            self.widget_stack_ctx_data = None;
+            self.cancel_widget = true;
+            Ok(())
+        } else {
+            Err(WidgetStartedError)
+        }
+    }
+
+    /// Gets if [`cancel_widget`](Self::cancel_widget) was requested.
+    ///
+    /// When this is `true` all other methods just pretend to work until the [`push_widget`](Self::push_widget) ends.
+    #[inline]
+    pub fn is_cancelling_widget(&self) -> bool {
+        self.cancel_widget
+    }
+
     /// Calls [`render`](UiNode::render) for `child` inside a new widget context.
     pub fn push_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, area: LayoutSize, child: &impl UiNode) {
+        if self.cancel_widget {
+            return;
+        }
+
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
 
@@ -348,9 +389,14 @@ impl FrameBuilder {
 
         child.render(self);
 
-        self.close_widget_display();
-
-        self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
+        if self.cancel_widget {
+            self.cancel_widget = false;
+            self.info.cancel(node);
+            self.meta = parent_meta;
+        } else {
+            self.close_widget_display();
+            self.info.set_meta(node, mem::replace(&mut self.meta, parent_meta));
+        }
 
         self.widget_id = parent_id;
         self.widget_transform_key = parent_transform_key;
@@ -362,6 +408,10 @@ impl FrameBuilder {
     /// if [`hit_testable`](FrameBuilder::hit_testable) is `true`.
     #[inline]
     pub fn push_hit_test(&mut self, rect: LayoutRect) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(rect, self.pixel_grid());
 
         if self.hit_testable {
@@ -373,6 +423,10 @@ impl FrameBuilder {
     /// Calls `f` while [`hit_testable`](FrameBuilder::hit_testable) is set to `hit_testable`.
     #[inline]
     pub fn push_hit_testable(&mut self, hit_testable: bool, f: impl FnOnce(&mut FrameBuilder)) {
+        if self.cancel_widget {
+            return;
+        }
+
         let parent_hit_testable = mem::replace(&mut self.hit_testable, hit_testable);
         f(self);
         self.hit_testable = parent_hit_testable;
@@ -381,6 +435,10 @@ impl FrameBuilder {
     /// Calls `f` with a new [`clip_id`](FrameBuilder::clip_id) that clips to `bounds`.
     #[inline]
     pub fn push_simple_clip(&mut self, bounds: LayoutSize, f: impl FnOnce(&mut FrameBuilder)) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(bounds, self.pixel_grid());
 
         self.open_widget_display();
@@ -406,6 +464,10 @@ impl FrameBuilder {
     /// Calls `f` inside a new reference frame at `origin`.
     #[inline]
     pub fn push_reference_frame(&mut self, origin: LayoutPoint, f: impl FnOnce(&mut FrameBuilder)) {
+        if self.cancel_widget {
+            return;
+        }
+
         if origin == LayoutPoint::zero() {
             return f(self);
         }
@@ -435,6 +497,10 @@ impl FrameBuilder {
 
     #[inline]
     pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
+        if self.cancel_widget {
+            return;
+        }
+
         self.open_widget_display();
 
         let parent_spatial_id = self.spatial_id;
@@ -455,6 +521,10 @@ impl FrameBuilder {
     /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(bounds, self.pixel_grid());
         debug_assert_aligned!(widths, self.pixel_grid());
 
@@ -467,6 +537,10 @@ impl FrameBuilder {
     /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font_instance_key: FontInstanceKey, color: ColorF) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(rect, self.pixel_grid());
 
         self.open_widget_display();
@@ -480,6 +554,10 @@ impl FrameBuilder {
     /// Note that for the cursor to be used `node` or its children must push a hit-testable item.
     #[inline]
     pub fn push_cursor(&mut self, cursor: CursorIcon, f: impl FnOnce(&mut FrameBuilder)) {
+        if self.cancel_widget {
+            return;
+        }
+
         let parent_cursor = std::mem::replace(&mut self.cursor, cursor);
         f(self);
         self.cursor = parent_cursor;
@@ -488,6 +566,10 @@ impl FrameBuilder {
     /// Push a color rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_color(&mut self, rect: LayoutRect, color: RenderColor) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(rect, self.pixel_grid());
 
         self.open_widget_display();
@@ -498,6 +580,10 @@ impl FrameBuilder {
     /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
     pub fn push_linear_gradient(&mut self, rect: LayoutRect, start: LayoutPoint, end: LayoutPoint, stops: &[GradientStop]) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(rect, self.pixel_grid());
 
         self.open_widget_display();
@@ -525,6 +611,10 @@ impl FrameBuilder {
         style: LineStyle,
         wavy_line_thickness: f32,
     ) {
+        if self.cancel_widget {
+            return;
+        }
+
         debug_assert_aligned!(bounds, self.pixel_grid());
 
         self.open_widget_display();
@@ -552,7 +642,7 @@ impl FrameBuilder {
     }
 }
 
-/// Attempt to modify a widget transform or filters when it already started
+/// Attempt to modify/cancel a widget transform or filters when it already started
 /// pushing display items.
 #[derive(Debug, dm::Display, dm::Error)]
 #[display(fmt = "cannot modify widget transform or filters, widget display items already pushed")]
@@ -566,6 +656,7 @@ pub struct FrameUpdate {
     widget_id: WidgetId,
     widget_transform: LayoutTransform,
     widget_transform_key: WidgetTransformKey,
+    cancel_widget: bool,
 }
 impl FrameUpdate {
     pub fn new(window_id: WindowId, root_id: WidgetId, root_transform_key: WidgetTransformKey, frame_id: FrameId) -> Self {
@@ -576,6 +667,7 @@ impl FrameUpdate {
             widget_transform: LayoutTransform::identity(),
             widget_transform_key: root_transform_key,
             frame_id,
+            cancel_widget: false,
         }
     }
 
@@ -619,22 +711,40 @@ impl FrameUpdate {
     /// Calls [`render_update`](UiNode::render_update) for `child` inside a new widget context.
     #[inline]
     pub fn update_widget(&mut self, id: WidgetId, transform_key: WidgetTransformKey, child: &impl UiNode) {
+        if self.cancel_widget {
+            return;
+        }
+
         // NOTE: root widget is not processed by this method, if you add widget behavior here
         // similar behavior must be added in the `new` and `finalize` methods.
 
         let parent_id = mem::replace(&mut self.widget_id, id);
         let parent_transform_key = mem::replace(&mut self.widget_transform_key, transform_key);
         let parent_transform = mem::replace(&mut self.widget_transform, LayoutTransform::identity());
+        let transforms_len = self.bindings.transforms.len();
+        let floats_len = self.bindings.floats.len();
 
         child.render_update(self);
 
         self.widget_id = parent_id;
         self.widget_transform_key = parent_transform_key;
-        let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
 
-        if widget_transform != LayoutTransform::identity() {
-            self.update_transform(self.widget_transform_key.update(widget_transform));
+        if self.cancel_widget {
+            self.cancel_widget = false;
+            self.widget_transform = parent_transform;
+            self.bindings.transforms.truncate(transforms_len);
+            self.bindings.floats.truncate(floats_len);
+        } else {
+            let widget_transform = mem::replace(&mut self.widget_transform, parent_transform);
+            if widget_transform != LayoutTransform::identity() {
+                self.update_transform(self.widget_transform_key.update(widget_transform));
+            }
         }
+    }
+
+    /// Rollback the current [`update_widget`](Self::update_widget).
+    pub fn cancel_widget(&mut self) {
+        self.cancel_widget = true;
     }
 
     /// Finalize the update.
@@ -927,13 +1037,25 @@ impl FrameInfoBuilder {
         )
     }
 
+    /// Detaches the widget node.
+    #[inline]
+    pub fn cancel(&mut self, widget: WidgetInfoId) {
+        self.node(widget).detach();
+    }
+
     /// Builds the final frame info.
     #[inline]
     pub fn build(self) -> FrameInfo {
+        let root_id = self.tree.root().id();
         FrameInfo {
             window_id: self.window_id,
             frame_id: self.frame_id,
-            lookup: self.tree.nodes().map(|n| (n.value().widget_id, n.id())).collect(),
+            lookup: self
+                .tree
+                .nodes()
+                .filter(|n| n.parent().is_some() || n.id() == root_id)
+                .map(|n| (n.value().widget_id, n.id()))
+                .collect(),
             tree: self.tree,
         }
     }
