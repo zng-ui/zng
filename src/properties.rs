@@ -20,6 +20,7 @@ pub mod states;
 pub mod text_theme;
 mod title_;
 pub mod transform;
+mod visibility_;
 
 pub use align_::*;
 pub use attached::*;
@@ -30,6 +31,7 @@ pub use hit_testable_::*;
 pub use margin_::*;
 pub use position_::*;
 pub use title_::*;
+pub use visibility_::*;
 
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]

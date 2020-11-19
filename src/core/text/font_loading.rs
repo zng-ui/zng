@@ -75,13 +75,13 @@ impl AppFonts {
     ///
     /// `font_index` is the index of the font if `bytes` consists in more then one font,
     /// set to `0` if `bytes` is a single font.
-    #[allow(clippy::rc_buffer)]// font-kit requires this type.
+    #[allow(clippy::rc_buffer)] // font-kit requires this type.
     pub fn register(
         &mut self,
         font_name: FontName,
         style: FontStyle,
         weight: FontWeight,
-        stretch: FontStretch,       
+        stretch: FontStretch,
         bytes: Arc<Vec<u8>>,
         font_index: u32,
     ) {
