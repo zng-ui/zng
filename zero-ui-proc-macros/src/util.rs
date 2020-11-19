@@ -234,13 +234,12 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
     } else {
         let inner = docs[0].tokens.to_string();
         let mut skip = 0;
-        if inner.starts_with('=') {
-            let doc = &inner[1..].trim_start().trim_start_matches('r').trim_start_matches('#');
-            if doc.starts_with('"') {
+        if let Some(doc) = inner.strip_prefix('=') {
+            let doc = doc.trim_start().trim_start_matches('r').trim_start_matches('#');
+            if let Some(doc) = doc.strip_prefix('"') {
                 // is #[doc=".."] like attribute.
                 // inject JS without breaking line so that it is included in the item summary.
 
-                let doc = &doc[1..]; // remove \" start
                 let doc = &doc[..doc.len() - 1]; // remove \" end
 
                 doc_extend!(output, "{}{}\n\n", doc, js);
