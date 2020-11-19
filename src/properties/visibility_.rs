@@ -57,6 +57,13 @@ impl ops::BitOrAssign for Visibility {
         *self = *self | rhs;
     }
 }
+impl_from_and_into_var! {
+    /// * `true` -> `Visible`
+    /// * `false` -> `Collapsed`
+    fn from(visible: bool) -> Visibility {
+        if visible { Visibility::Visible } else { Visibility::Collapsed }
+    }
+}
 
 struct VisibilityNode<C: UiNode, V: VarLocal<Visibility>> {
     child: C,
@@ -134,7 +141,9 @@ impl<C: UiNode, V: VarLocal<Visibility>> UiNode for VisibilityNode<C, V> {
         if let Visibility::Visible = self.visibility.get_local() {
             self.child.render(frame);
         } else {
-            frame.cancel_widget().expect("visibility not set before `FrameBuilder::open_widget_display`");
+            frame
+                .cancel_widget()
+                .expect("visibility not set before `FrameBuilder::open_widget_display`");
         }
     }
 
@@ -173,7 +182,12 @@ impl<W: Widget> WidgetVisibilityExt for W {
     }
 }
 
-context_var! { struct VisibilityVar: Visibility = return &Visibility::Visible; }
+context_var! {
+    /// Don't use this directly unless you read all the visibility related
+    /// source code here and in core/window.rs
+    #[doc(hidden)]
+    pub struct VisibilityVar: Visibility = return &Visibility::Visible;
+}
 
 /// Contextual [`Visibility`] accessor.
 pub struct VisibilityContext;

@@ -97,12 +97,17 @@ widget! {
         /// Not that the window can still change size, this only disables
         /// the OS window frame controls that change size.
         resizable -> enabled: true;
+
+        /// If the window is visible.
+        ///
+        /// Hidden an collapsed behave the same way.
+        visibility: Visibility::Visible;
     }
 
     /// Manually initializes a new [`window`](self).
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    fn new(child, root_id, title, position, size, auto_size, resizable, clear_color) -> Window {
+    fn new(child, root_id, title, position, size, auto_size, resizable, clear_color, visibility) -> Window {
         Window::new(
             root_id.unwrap(),
             title.unwrap(),
@@ -111,6 +116,7 @@ widget! {
             auto_size.unwrap(),
             resizable.unwrap(),
             clear_color.unwrap(),
+            visibility.unwrap(),
             child
         )
     }
