@@ -371,8 +371,7 @@ pub enum Key {
 
     /// Print Screen/SysRq.
     PrtScr,
-    /// Scroll Lock.
-    Scroll,
+    ScrollLock,
     /// Pause/Break key, next to Scroll lock.
     Pause,
 
@@ -401,7 +400,7 @@ pub enum Key {
 
     Caret,
 
-    Numlock,
+    NumLock,
     Numpad0,
     Numpad1,
     Numpad2,
@@ -430,7 +429,7 @@ pub enum Key {
     Ax,
     Backslash,
     Calculator,
-    Capital,
+    CapsLock,
     Colon,
     Comma,
     Convert,
@@ -440,9 +439,9 @@ pub enum Key {
     Kanji,
     LAlt,
     LBracket,
-    LControl,
+    LCtrl,
     LShift,
-    LWin,
+    LLogo,
     Mail,
     MediaSelect,
     MediaStop,
@@ -466,7 +465,7 @@ pub enum Key {
     RBracket,
     RControl,
     RShift,
-    RWin,
+    RLogo,
     Semicolon,
     Slash,
     Sleep,
@@ -489,6 +488,41 @@ pub enum Key {
     Copy,
     Paste,
     Cut,
+}
+impl Key {
+    /// If the key is a modifier key.
+    pub fn is_modifier(self) -> bool {
+        matches!(
+            self,
+            Key::LAlt | Key::LCtrl | Key::LShift | Key::LLogo | Key::RAlt | Key::RControl | Key::RShift | Key::RLogo
+        )
+    }
+
+    /// If the key is left alt or right alt.
+    pub fn is_alt(self) -> bool {
+        matches!(self, Key::LAlt | Key::RAlt)
+    }
+
+    /// If the key is left ctrl or right ctrl.
+    pub fn is_ctrl(self) -> bool {
+        matches!(self, Key::LCtrl | Key::RControl)
+    }
+
+    /// If the key is left shift or right shift.
+    pub fn is_shift(self) -> bool {
+        matches!(self, Key::LShift | Key::RShift)
+    }
+
+    /// If the key is left logo or right logo.
+    pub fn is_logo(self) -> bool {
+        matches!(self, Key::LLogo | Key::RLogo)
+    }
+
+    /// If the key is a numpad key, includes numlock.
+    pub fn is_numpad(self) -> bool {
+        let key = self as u32;
+        key >= Key::NumLock as u32 &&  key <= Key::NumpadSubtract as u32
+    }
 }
 use glutin::event::VirtualKeyCode as VKey;
 impl From<VKey> for Key {
@@ -557,7 +591,7 @@ impl From<VKey> for Key {
             VKey::F23 => Key::F23,
             VKey::F24 => Key::F24,
             VKey::Snapshot => Key::PrtScr,
-            VKey::Scroll => Key::Scroll,
+            VKey::Scroll => Key::ScrollLock,
             VKey::Pause => Key::Pause,
             VKey::Insert => Key::Insert,
             VKey::Home => Key::Home,
@@ -574,7 +608,7 @@ impl From<VKey> for Key {
             VKey::Space => Key::Space,
             VKey::Compose => Key::Compose,
             VKey::Caret => Key::Caret,
-            VKey::Numlock => Key::Numlock,
+            VKey::Numlock => Key::NumLock,
             VKey::Numpad0 => Key::Numpad0,
             VKey::Numpad1 => Key::Numpad1,
             VKey::Numpad2 => Key::Numpad2,
@@ -602,7 +636,7 @@ impl From<VKey> for Key {
             VKey::Ax => Key::Ax,
             VKey::Backslash => Key::Backslash,
             VKey::Calculator => Key::Calculator,
-            VKey::Capital => Key::Capital,
+            VKey::Capital => Key::CapsLock,
             VKey::Colon => Key::Colon,
             VKey::Comma => Key::Comma,
             VKey::Convert => Key::Convert,
@@ -612,9 +646,9 @@ impl From<VKey> for Key {
             VKey::Kanji => Key::Kanji,
             VKey::LAlt => Key::LAlt,
             VKey::LBracket => Key::LBracket,
-            VKey::LControl => Key::LControl,
+            VKey::LControl => Key::LCtrl,
             VKey::LShift => Key::LShift,
-            VKey::LWin => Key::LWin,
+            VKey::LWin => Key::LLogo,
             VKey::Mail => Key::Mail,
             VKey::MediaSelect => Key::MediaSelect,
             VKey::MediaStop => Key::MediaStop,
@@ -635,7 +669,7 @@ impl From<VKey> for Key {
             VKey::RBracket => Key::RBracket,
             VKey::RControl => Key::RControl,
             VKey::RShift => Key::RShift,
-            VKey::RWin => Key::RWin,
+            VKey::RWin => Key::RLogo,
             VKey::Semicolon => Key::Semicolon,
             VKey::Slash => Key::Slash,
             VKey::Sleep => Key::Sleep,

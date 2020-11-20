@@ -228,9 +228,9 @@ impl TryFrom<Key> for ModifierGesture {
     fn try_from(value: Key) -> Result<Self, Self::Error> {
         match value {
             Key::LAlt | Key::RAlt => Ok(ModifierGesture::Alt),
-            Key::LControl | Key::RControl => Ok(ModifierGesture::Ctrl),
+            Key::LCtrl | Key::RControl => Ok(ModifierGesture::Ctrl),
             Key::LShift | Key::RShift => Ok(ModifierGesture::Shift),
-            Key::LWin | Key::RWin => Ok(ModifierGesture::Logo),
+            Key::LLogo | Key::RLogo => Ok(ModifierGesture::Logo),
             key => Err(key),
         }
     }
