@@ -12,6 +12,7 @@ use crate::core::units::*;
 use crate::core::var::*;
 use crate::core::UiNode;
 use crate::core::{impl_ui_node, property};
+use crate::properties::IsEnabled;
 
 struct OnEventNode<C, E, F, H>
 where
@@ -59,10 +60,12 @@ where
     }
 
     fn do_update(&mut self, ctx: &mut WidgetContext) {
-        for args in self.listener.updates(&ctx.events) {
-            if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                profile_scope!("on_event::<{}>", std::any::type_name::<E>());
-                (self.handler)(ctx, &args);
+        if self.listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
+            for args in self.listener.updates(ctx.events) {
+                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    profile_scope!("on_event::<{}>", std::any::type_name::<E>());
+                    (self.handler)(ctx, &args);
+                }
             }
         }
     }
@@ -114,10 +117,12 @@ where
     }
 
     fn do_update(&mut self, ctx: &mut WidgetContext) {
-        for args in self.listener.updates(&ctx.events) {
-            if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                profile_scope!("on_preview_event::<{}>", std::any::type_name::<E>());
-                (self.handler)(ctx, &args);
+        if self.listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
+            for args in self.listener.updates(ctx.events) {
+                if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
+                    profile_scope!("on_preview_event::<{}>", std::any::type_name::<E>());
+                    (self.handler)(ctx, &args);
+                }
             }
         }
     }
@@ -129,7 +134,7 @@ where
 ///
 /// The event is raised after the [preview](on_preview_event) version. If the event targets a path the target
 /// widget is notified first followed by every parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
-/// is requested the event is not notified further.
+/// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
 ///
 /// This route is also called *bubbling*.
 ///
@@ -160,7 +165,7 @@ pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut
 ///
 /// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested. It
 /// must return `true` if the event arguments are relevant in the context of the widget. If it returns `true`
-/// the `handler` closure is called.
+/// the `handler` closure is called. If the widget is [disabled](IsEnabled) the event is not notified.
 ///
 /// # Route
 ///
@@ -189,6 +194,7 @@ pub fn on_event_filtered<E: Event>(
 /// Preview events are fired before the main event ([`on_event`]). If the event targets a path the root parent
 /// is notified first, followed by every parent down to the target. If [`stop_propagation`](EventArgs::stop_propagation) is
 /// requested the event is not notified further and the main event handlers are also not notified.
+///  If the widget is [disabled](IsEnabled) the event is not notified.
 ///
 /// This route is also called *tunneling* or *capturing*.
 ///
@@ -224,7 +230,7 @@ pub fn on_preview_event<E: Event>(
 ///
 /// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested. It
 /// must return `true` if the event arguments are relevant in the context of the widget. If it returns `true`
-/// the `handler` closure is called.
+/// the `handler` closure is called.  If the widget is [disabled](IsEnabled) the event is not notified.
 ///
 /// # Route
 ///
@@ -254,7 +260,6 @@ pub fn on_preview_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetC
     on_preview_event(child, KeyInputEvent, handler)
 }
 
-/// Sets an event listener for the [`KeyDown`] event.
 #[property(event)]
 pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
     on_event(child, KeyDownEvent, handler)
@@ -521,6 +526,8 @@ macro_rules! on_ctx_mtd {
         }
 
         $(#[$outer])*
+        ///
+        /// The `handler` is called even when the widget is [disabled](IsEnabled).
         #[property(event)]
         pub fn $on_mtd(child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
             $OnCtxMtd {
@@ -551,6 +558,7 @@ impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F
     }
 }
 
+/// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
     OnRenderNode { child, handler }
@@ -574,6 +582,7 @@ impl<C: UiNode, F: FnMut(OnArrangeArgs) + 'static> UiNode for OnArrangeNode<C, F
     }
 }
 
+/// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
 pub fn on_arrange(child: impl UiNode, handler: impl FnMut(OnArrangeArgs) + 'static) -> impl UiNode {
     OnArrangeNode { child, handler }
@@ -603,6 +612,7 @@ impl<C: UiNode, F: FnMut(OnMeasureArgs) -> LayoutSize + 'static> UiNode for OnMe
     }
 }
 
+/// The `handler` is called even when the widget is [disabled](IsEnabled).
 #[property(event)]
 pub fn on_measure(child: impl UiNode, handler: impl FnMut(OnMeasureArgs) -> LayoutSize + 'static) -> impl UiNode {
     OnMeasureNode { child, handler }
@@ -623,15 +633,17 @@ impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let shortcuts = self.shortcuts.get(ctx.vars);
+        if self.shortcut_listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
+            let shortcuts = self.shortcuts.get(ctx.vars);
 
-        for args in self.shortcut_listener.updates(ctx.events) {
-            if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
-                // focus on shortcut, if focusable
-                ctx.services
-                    .req::<Gestures>()
-                    .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), args.clone());
-                break;
+            for args in self.shortcut_listener.updates(ctx.events) {
+                if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
+                    // focus on shortcut, if focusable
+                    ctx.services
+                        .req::<Gestures>()
+                        .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), args.clone());
+                    break;
+                }
             }
         }
     }

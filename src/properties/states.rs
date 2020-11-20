@@ -350,3 +350,96 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
         return_focus_changed: ReturnFocusChangedEvent::never(),
     }
 }
+
+struct IsEnabledNode<C: UiNode> {
+    child: C,
+    state: StateVar,
+}
+impl<C: UiNode> IsEnabledNode<C> {
+    fn update_state(&self, ctx: &mut WidgetContext) {
+        let enabled = IsEnabled::get(ctx.vars) && ctx.widget_state.enabled();
+        if enabled != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, enabled);
+        }
+    }
+}
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsEnabledNode<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.update_state(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+        self.update_state(ctx);
+    }
+}
+
+/// If the widget is enabled for receiving events.
+///
+/// This property is used only for probing the state. You can set the state using
+/// the [`enabled`](crate::properties::enabled) property.
+#[property(context)]
+pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsEnabledNode { child, state }
+}
+
+use crate::properties::{Visibility, VisibilityContext, WidgetVisibilityExt};
+
+struct IsVisibilityNode<C: UiNode> {
+    child: C,
+    state: StateVar,
+    expected: super::Visibility,
+}
+impl<C: UiNode> IsVisibilityNode<C> {
+    fn update_state(&self, ctx: &mut WidgetContext) {
+        let vis = VisibilityContext::get(ctx.vars) | ctx.widget_state.visibility();
+        let is_state = vis == self.expected;
+        if is_state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, is_state);
+        }
+    }
+}
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsVisibilityNode<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.update_state(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+        self.update_state(ctx);
+    }
+}
+
+/// If the widget [`visibility`](super::visibility) is [`Visible`](super::Visibility::Visible).
+#[property(context)]
+pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsVisibilityNode {
+        child,
+        state,
+        expected: Visibility::Visible,
+    }
+}
+
+/// If the widget [`visibility`](super::visibility) is [`Hidden`](super::Visibility::Hidden).
+#[property(context)]
+pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsVisibilityNode {
+        child,
+        state,
+        expected: Visibility::Hidden,
+    }
+}
+
+/// If the widget [`visibility`](super::visibility) is [`Collapsed`](super::Visibility::Collapsed).
+#[property(context)]
+pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsVisibilityNode {
+        child,
+        state,
+        expected: Visibility::Collapsed,
+    }
+}

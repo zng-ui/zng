@@ -464,7 +464,7 @@ pub mod prelude {
         };
         pub use crate::properties::{
             events::{on_event, on_event_filtered, on_preview_event, on_preview_event_filtered},
-            set_widget_state, with_context_var,
+            set_widget_state, with_context_var, IsEnabled, WidgetEnabledExt,
         };
     }
 

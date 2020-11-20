@@ -521,7 +521,7 @@ impl Key {
     /// If the key is a numpad key, includes numlock.
     pub fn is_numpad(self) -> bool {
         let key = self as u32;
-        key >= Key::NumLock as u32 &&  key <= Key::NumpadSubtract as u32
+        key >= Key::NumLock as u32 && key <= Key::NumpadSubtract as u32
     }
 }
 use glutin::event::VirtualKeyCode as VKey;

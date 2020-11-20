@@ -26,6 +26,8 @@ context_var! {
 
     /// Text color of [`text`](crate::widgets::text) spans.
     pub struct TextColorVar: Rgba = const web_colors::WHITE;
+    /// Text color of [`text`](crate::widgets::text) spans inside a disabled widget.
+    pub struct TextColorDisabledVar: Rgba = const web_colors::GRAY;
 
     /// Text transformation function applied to [`text`](crate::widgets::text) spans.
     pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;
@@ -103,6 +105,12 @@ pub fn font_size(child: impl UiNode, size: impl IntoVar<Length>) -> impl UiNode 
 #[property(context)]
 pub fn text_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, TextColorVar, color)
+}
+
+/// Sets the [`TextColorDisabledVar`] context var.
+#[property(context)]
+pub fn text_color_disabled(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(child, TextColorDisabledVar, color)
 }
 
 /// Sets the [`TextTransformVar`] context var.

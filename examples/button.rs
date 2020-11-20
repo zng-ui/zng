@@ -8,7 +8,11 @@ fn main() {
             title: "Button Example";
             content: v_stack! {
                 spacing: 5;
-                items: [example(), example()];
+                items: (
+                    example(),
+                    example(),
+                    disabled()
+                );
             };
         }
     })
@@ -27,5 +31,13 @@ fn example() -> impl Widget {
         on_double_click: |_, _| println!("double click!");
         on_triple_click: |_, _| println!("triple click!");
         content: text(t);
+    }
+}
+
+fn disabled() -> impl Widget {
+    button! {
+        on_click: |_, _| panic!("disabled button");
+        enabled: false;
+        content: text("Disabled");
     }
 }

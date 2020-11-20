@@ -1,5 +1,6 @@
 use crate::prelude::new_widget::*;
 use crate::properties::button_theme::*;
+use crate::properties::text_theme::{TextColorDisabledVar, TextColorVar};
 
 widget! {
     /// A clickable container.
@@ -17,6 +18,8 @@ widget! {
             widths: ButtonBorderWidthsVar,
             details: ButtonBorderDetailsVar,
         };
+
+        text_color: TextColorVar;
     }
 
     default_child {
@@ -40,5 +43,14 @@ widget! {
             widths: ButtonBorderWidthsPressedVar,
             details: ButtonBorderDetailsPressedVar,
         };
+    }
+
+    when !self.is_enabled {
+        background_color: ButtonBackgroundDisabledVar;
+        border: {
+            widths: ButtonBorderWidthsDisabledVar,
+            details: ButtonBorderDetailsDisabledVar,
+        };
+        text_color: TextColorDisabledVar;
     }
 }

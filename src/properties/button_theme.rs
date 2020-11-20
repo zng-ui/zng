@@ -8,14 +8,17 @@ context_var! {
     pub struct ButtonBackgroundVar: Rgba = once rgb(0.2, 0.2, 0.2);
     pub struct ButtonBackgroundHoveredVar: Rgba = once rgb(0.25, 0.25, 0.25);
     pub struct ButtonBackgroundPressedVar: Rgba = once rgb(0.3, 0.3, 0.3);
+    pub struct ButtonBackgroundDisabledVar: Rgba = once rgb(0.2, 0.2, 0.2);
 
     pub struct ButtonBorderWidthsVar: SideOffsets = once SideOffsets::new_all(1.0);
     pub struct ButtonBorderWidthsHoveredVar: SideOffsets = once SideOffsets::new_all(1.0);
     pub struct ButtonBorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
+    pub struct ButtonBorderWidthsDisabledVar: SideOffsets = once SideOffsets::new_all(1.0);
 
     pub struct ButtonBorderDetailsVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
     pub struct ButtonBorderDetailsHoveredVar: BorderDetails = once BorderDetails::solid(rgb(0.4, 0.4, 0.4));
     pub struct ButtonBorderDetailsPressedVar: BorderDetails = once BorderDetails::solid(rgb(0.6, 0.6, 0.6));
+    pub struct ButtonBorderDetailsDisabledVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
 
     pub struct ButtonPaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
 }
@@ -36,6 +39,12 @@ pub fn button_background_hovered(child: impl UiNode, color: impl IntoVar<Rgba>) 
 #[property(context)]
 pub fn button_background_pressed(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     with_context_var(child, ButtonBackgroundPressedVar, color)
+}
+
+/// Sets the [`ButtonBackgroundDisabledVar`] context var.
+#[property(context)]
+pub fn button_background_disabled(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
+    with_context_var(child, ButtonBackgroundDisabledVar, color)
 }
 
 /// Sets the [`ButtonPaddingVar`] context var.
@@ -63,4 +72,11 @@ pub fn button_border_hovered(child: impl UiNode, widths: impl IntoVar<SideOffset
 pub fn button_border_pressed(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
     let child = with_context_var(child, ButtonBorderWidthsPressedVar, widths);
     with_context_var(child, ButtonBorderDetailsPressedVar, details)
+}
+
+/// Sets the [`ButtonBorderWidthsDisabledVar`] and [`ButtonBorderDetailsDisabledVar`] context var.
+#[property(context)]
+pub fn button_border_disabled(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
+    let child = with_context_var(child, ButtonBorderWidthsDisabledVar, widths);
+    with_context_var(child, ButtonBorderDetailsDisabledVar, details)
 }

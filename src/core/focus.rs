@@ -51,6 +51,7 @@ use super::types::{DeviceEvent, DeviceId};
 use super::units::LayoutPoint;
 use super::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use super::WidgetId;
+use crate::properties::WidgetEnabledExt;
 use fnv::FnvHashMap;
 use std::time::{Duration, Instant};
 
@@ -1093,7 +1094,9 @@ impl<'a> WidgetFocusInfo<'a> {
     /// Widget focus metadata.
     #[inline]
     pub fn focus_info(self) -> FocusInfo {
-        if let Some(builder) = self.info.meta().get(FocusInfoKey) {
+        if !self.info.enabled() {
+            FocusInfo::NotFocusable
+        } else if let Some(builder) = self.info.meta().get(FocusInfoKey) {
             builder.build()
         } else {
             FocusInfo::NotFocusable
