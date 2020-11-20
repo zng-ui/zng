@@ -168,7 +168,7 @@ pub fn visibility(child: impl UiNode, visibility: impl IntoVar<Visibility>) -> i
 state_key! { struct VisibilityState: Visibility; }
 
 /// Extension method for accessing the [`Visibility`] of widgets.
-pub trait WidgetVisibilityExt: Widget {
+pub trait WidgetVisibilityExt {
     /// Gets the widget visibility.
     ///
     /// This gets only the visibility configured in the widget, if a parent widget
@@ -176,9 +176,39 @@ pub trait WidgetVisibilityExt: Widget {
     /// visibility from inside a widget.
     fn visibility(&self) -> Visibility;
 }
+impl WidgetVisibilityExt for LazyStateMap {
+    fn visibility(&self) -> Visibility {
+        self.get(VisibilityState).copied().unwrap_or_default()
+    }
+}
 impl<W: Widget> WidgetVisibilityExt for W {
     fn visibility(&self) -> Visibility {
-        self.state().get(VisibilityState).copied().unwrap_or_default()
+        self.state().visibility()
+    }
+}
+
+/// Extension methods for filtering an [`UiList`] by [`Visibility`].
+pub trait UiListVisibilityExt: UiList {
+    /// Counts the widgets that are not collapsed.
+    fn count_not_collapsed(&self) -> usize;
+
+    /// Render widgets, calls `origin` only for widgets that are not collapsed.
+    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, origin: O, frame: &mut FrameBuilder);
+}
+
+impl<U: UiList> UiListVisibilityExt for U {
+    fn count_not_collapsed(&self) -> usize {
+        self.count(|_, s|s.visibility() != Visibility::Collapsed)
+    }
+
+    fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, mut origin: O, frame: &mut FrameBuilder) {
+        self.render_filtered(|i, s|{
+            if s.visibility() != Visibility::Collapsed {
+                Some(origin(i))
+            } else {
+                None
+            }
+        }, frame)
     }
 }
 

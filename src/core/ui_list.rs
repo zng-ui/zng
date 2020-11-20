@@ -14,6 +14,20 @@ pub trait UiList: 'static {
     /// Number of widgets in the list.
     fn len(&self) -> usize;
 
+    /// Count widgets that pass filter using the widget state.
+    fn count<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(usize, &LazyStateMap) -> bool,
+    {
+        let mut count = 0;
+        for i in 0..self.len() {
+            if filter(i, self.widget_state(i)) {
+                count += 1;
+            }
+        }
+        count
+    }
+
     /// If the list is empty.
     fn is_empty(&self) -> bool;
 
@@ -95,6 +109,17 @@ pub trait UiList: 'static {
     where
         O: FnMut(usize) -> LayoutPoint;
 
+    /// Calls [`UiNode::render`] in all widgets in the list that have an origin, sequentially. Uses a reference frame
+    /// to offset each widget.
+    ///
+    /// # `origin`
+    ///
+    /// The `origin` parameter is a function that takes a widget index and state and returns the offset that must
+    /// be used to render it, if it must be rendered.
+    fn render_filtered<O>(&self, origin: O, frame: &mut FrameBuilder)
+    where
+        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>;
+
     /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
     fn render_update_all(&self, update: &mut FrameUpdate);
 }
@@ -167,6 +192,15 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
         self.0.render_all(|i| origin(i), frame);
         let offset = self.0.len();
         self.1.render_all(|i| origin(i + offset), frame);
+    }
+
+    fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    where
+        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+    {
+        self.0.render_filtered(|i, s| origin(i, s), frame);
+        let offset = self.0.len();
+        self.1.render_filtered(|i, s| origin(i + offset, s), frame);
     }
 
     fn render_update_all(&self, update: &mut FrameUpdate) {
@@ -270,6 +304,17 @@ macro_rules! impl_iter {
             for (i, w) in self.iter().enumerate() {
                 let origin = origin(i);
                 frame.push_reference_frame(origin, |frame| w.render(frame));
+            }
+        }
+
+        fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+        where
+            O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+        {
+            for (i, w) in self.iter().enumerate() {
+                if let Some(origin) = origin(i, w.state()) {
+                    frame.push_reference_frame(origin, |frame| w.render(frame));
+                }
             }
         }
 
@@ -445,6 +490,17 @@ macro_rules! impl_tuples {
                 )+
             }
 
+            fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+            where
+                O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
+            {
+                $(
+                if let Some(o) = origin($n, self.$n.state()) {
+                    frame.push_reference_frame(o, |frame| self.$n.render(frame));
+                }
+                )+
+            }
+
             #[inline]
             fn render_update_all(&self, update: &mut FrameUpdate) {
                 $(self.$n.render_update(update);)+
@@ -562,6 +618,12 @@ impl UiList for () {
     fn render_all<O>(&self, _: O, _: &mut FrameBuilder)
     where
         O: FnMut(usize) -> LayoutPoint,
+    {
+    }
+
+    fn render_filtered<O>(&self, _: O, _: &mut FrameBuilder)
+    where
+        O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {
     }
 

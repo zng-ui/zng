@@ -41,7 +41,7 @@ struct UniformGridNode<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: Va
 impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<U, C, R, FC, S> {
     /// cells count for `grid_len`.
     fn cells_count(&self) -> f32 {
-        match self.children.len() {
+        match self.children.count_not_collapsed() {
             0 => 1.0,
             n => n as f32,
         }
@@ -143,7 +143,7 @@ impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: 
     fn render(&self, frame: &mut FrameBuilder) {
         let mut cells = self.cells_iter.clone();
         let grid = frame.pixel_grid();
-        self.children.render_all(move |_| cells.next().unwrap().snap_to(grid), frame);
+        self.children.render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), frame);
     }
 }
 
