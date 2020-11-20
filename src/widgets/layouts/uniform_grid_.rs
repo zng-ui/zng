@@ -143,7 +143,8 @@ impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: 
     fn render(&self, frame: &mut FrameBuilder) {
         let mut cells = self.cells_iter.clone();
         let grid = frame.pixel_grid();
-        self.children.render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), frame);
+        self.children
+            .render_not_collapsed(move |_| cells.next().unwrap().snap_to(grid), frame);
     }
 }
 

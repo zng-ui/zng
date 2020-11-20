@@ -100,7 +100,7 @@ widget! {
 
         /// If the window is visible.
         ///
-        /// Hidden an collapsed behave the same way.
+        /// Hidden and collapsed behave the same way.
         visibility: Visibility::Visible;
     }
 

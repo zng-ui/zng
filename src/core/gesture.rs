@@ -564,6 +564,8 @@ impl AppExtension for GestureManager {
                             self.pressed_modifier = None;
                         } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
                             self.pressed_modifier = Some(mod_gesture);
+                        } else {
+                            self.pressed_modifier = None;
                         }
                     }
                     ElementState::Released => {
@@ -582,6 +584,9 @@ impl AppExtension for GestureManager {
                         }
                     }
                 }
+            } else {
+                // Scancode only
+                self.pressed_modifier = None;
             }
         }
         let (gestures, windows, focus) = ctx.services.req_multi::<(Gestures, Windows, Focus)>();

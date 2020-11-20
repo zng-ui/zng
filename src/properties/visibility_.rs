@@ -198,17 +198,20 @@ pub trait UiListVisibilityExt: UiList {
 
 impl<U: UiList> UiListVisibilityExt for U {
     fn count_not_collapsed(&self) -> usize {
-        self.count(|_, s|s.visibility() != Visibility::Collapsed)
+        self.count(|_, s| s.visibility() != Visibility::Collapsed)
     }
 
     fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, mut origin: O, frame: &mut FrameBuilder) {
-        self.render_filtered(|i, s|{
-            if s.visibility() != Visibility::Collapsed {
-                Some(origin(i))
-            } else {
-                None
-            }
-        }, frame)
+        self.render_filtered(
+            |i, s| {
+                if s.visibility() != Visibility::Collapsed {
+                    Some(origin(i))
+                } else {
+                    None
+                }
+            },
+            frame,
+        )
     }
 }
 
