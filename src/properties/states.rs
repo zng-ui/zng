@@ -21,16 +21,21 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let mut new_state = *self.state.get(ctx.vars);
-        if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            new_state = false;
-        }
-        if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            new_state = true;
+        let mut state = *self.state.get(ctx.vars);
+
+        if IsEnabled::get(ctx.vars) {
+            if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                state = false;
+            }
+            if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                state = true;
+            }
+        } else {
+            state = false;
         }
 
-        if new_state != *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, new_state);
+        if state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, state);
         }
     }
 
@@ -43,6 +48,8 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
 }
 
 /// If the mouse pointer is over the widget.
+///
+/// This is always `false` when the widget is [disabled](IsEnabled).
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHoveredNode {
@@ -70,14 +77,21 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        if *self.state.get(ctx.vars) {
-            if self.mouse_up.has_updates(ctx.events) {
-                // if mouse_up in any place.
-                self.state.set(ctx.vars, false);
+        let mut state = *self.state.get(ctx.vars);
+
+        if IsEnabled::get(ctx.vars) {
+            if self.mouse_up.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                state = false;
             }
-        } else if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-            // if not pressed and mouse down inside.
-            self.state.set(ctx.vars, true);
+            if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                state = true;
+            }
+        } else {
+            state = false;
+        }
+
+        if state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, state);
         }
     }
 
@@ -90,6 +104,8 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
 }
 
 /// If the mouse pointer is pressed in the widget.
+///
+/// This is always `false` when the widget is [disabled](IsEnabled).
 #[property(context)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsPressedNode {
