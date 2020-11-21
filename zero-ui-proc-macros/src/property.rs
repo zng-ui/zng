@@ -349,7 +349,13 @@ mod analysis {
             Prefix::Event => false,
         });
 
+        let mut patch_super = PatchSuperPath::new(1);
+
         let mut args: Vec<_> = fn_.args.into_iter().collect();
+        for arg in &mut args {
+            patch_super.visit_type_mut(&mut *arg.ty);
+        }
+
         let crate_ = zero_ui_crate_ident();
 
         // fix args to continue validation, this errors where already added during prefix validation.
@@ -374,6 +380,7 @@ mod analysis {
             .into_iter()
             .map(|p| (p.ident, p.bounds.map(|(_, b)| b).unwrap_or_default()))
             .collect();
+
         // generic idents lookup.
         let generic_idents: HashSet<_> = generics.iter().map(|(id, _)| id.clone()).collect();
 
@@ -381,6 +388,11 @@ mod analysis {
         for c in fn_.where_clause.map(|c| c.predicates).unwrap_or_default() {
             let i = generics.iter().position(|(p, _)| p == &c.ident).unwrap();
             generics[i].1.extend(c.bounds);
+        }
+        for (_, bounds) in &mut generics {
+            for bound in bounds.iter_mut() {
+                patch_super.visit_type_param_bound_mut(bound);
+            }
         }
         // 3 - impl Trait in args are replaced with a new generic type.
         for a in &mut args {
@@ -526,11 +538,13 @@ mod analysis {
                 panic!(#msg);
             }};
         } else {
-            let mut patch_super = PatchSuperPath::new(1);
             let mut block = fn_.block;
             patch_super.visit_block_mut(&mut *block);
             fn_block = block;
         };
+
+        let mut fn_output = fn_.output.1;
+        patch_super.visit_type_mut(&mut fn_output);
 
         PropertyMod {
             errors,
@@ -549,7 +563,7 @@ mod analysis {
                 set_attrs,
                 generics: fn_generics,
                 args,
-                output: fn_.output.1,
+                output: fn_output,
                 block: fn_block,
                 is_capture_only,
                 priority,
