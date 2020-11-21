@@ -1208,6 +1208,9 @@ pub mod analysis {
             let mut patch_super = PatchSuperPath::new(1);
             patch_super.visit_block_mut(&mut fn_.block);
             patch_super.visit_type_mut(&mut *fn_.return_type);
+            for attr in fn_.attrs.iter_mut() {
+                patch_super.visit_attribute_mut(attr);
+            }
             new = NewFn::New(fn_);
         } else if let Some((inherited, fn_, _)) = &inherited_fns {
             macro_new = BuiltNew {
@@ -1227,6 +1230,9 @@ pub mod analysis {
             let mut patch_super = PatchSuperPath::new(1);
             patch_super.visit_block_mut(&mut fn_.block);
             patch_super.visit_type_mut(&mut *fn_.return_type);
+            for attr in fn_.attrs.iter_mut() {
+                patch_super.visit_attribute_mut(attr);
+            }
             new_child = NewFn::New(fn_);
         } else if let Some((inherited, _, fn_)) = inherited_fns {
             macro_new_child = BuiltNew {
