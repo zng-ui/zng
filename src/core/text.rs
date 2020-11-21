@@ -645,7 +645,6 @@ impl fmt::Display for FontName {
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct FontNames(pub Vec<FontName>);
-
 impl Default for FontNames {
     fn default() -> Self {
         FontNames(vec![
@@ -657,7 +656,6 @@ impl Default for FontNames {
         ])
     }
 }
-
 impl_from_and_into_var! {
     fn from(font_name: &'static str) -> FontNames {
         FontNames(vec![FontName::new(font_name)])
@@ -687,13 +685,67 @@ impl_from_and_into_var! {
         FontNames(vec![font_name])
     }
 }
-
 impl Deref for FontNames {
     type Target = [FontName];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+macro_rules! impl_font_names_from_array {
+    ($($N:tt),+ $(,)?) => {
+        impl_from_and_into_var! {
+            $(
+            fn from(font_names: [FontName; $N]) -> FontNames {
+                FontNames(font_names.into())
+            }
+
+            fn from(font_names: [&'static str; $N]) -> FontNames {
+                FontNames(arrayvec::ArrayVec::from(font_names).into_iter().map(FontName::new).collect())
+            }
+            
+            fn from(font_names: [String; $N]) -> FontNames {
+                FontNames(arrayvec::ArrayVec::from(font_names).into_iter().map(FontName::new).collect())
+            }
+
+            )+
+        }
+    };
+}
+impl_font_names_from_array! {
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
 }
 
 /// Text string type, can be either a `&'static str` or a `String`.
