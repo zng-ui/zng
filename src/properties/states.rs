@@ -370,12 +370,14 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
 struct IsEnabledNode<C: UiNode> {
     child: C,
     state: StateVar,
+    expected: bool,
 }
 impl<C: UiNode> IsEnabledNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {
         let enabled = IsEnabled::get(ctx.vars) && ctx.widget_state.enabled();
-        if enabled != *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, enabled);
+        let is_state = enabled == self.expected;
+        if is_state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, is_state);
         }
     }
 }
@@ -398,7 +400,26 @@ impl<C: UiNode> UiNode for IsEnabledNode<C> {
 /// the [`enabled`](crate::properties::enabled) property.
 #[property(context)]
 pub fn is_enabled(child: impl UiNode, state: StateVar) -> impl UiNode {
-    IsEnabledNode { child, state }
+    IsEnabledNode {
+        child,
+        state,
+        expected: true,
+    }
+}
+
+/// If the widget is disabled for receiving events.
+///
+/// This property is used only for probing the state. You can set the state using
+/// the [`enabled`](crate::properties::enabled) property.
+///
+/// This is the same as `!self.is_enabled`.
+#[property(context)]
+pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsEnabledNode {
+        child,
+        state,
+        expected: false,
+    }
 }
 
 use crate::properties::{Visibility, VisibilityContext, WidgetVisibilityExt};

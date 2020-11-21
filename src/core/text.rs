@@ -703,7 +703,7 @@ macro_rules! impl_font_names_from_array {
             fn from(font_names: [&'static str; $N]) -> FontNames {
                 FontNames(arrayvec::ArrayVec::from(font_names).into_iter().map(FontName::new).collect())
             }
-            
+
             fn from(font_names: [String; $N]) -> FontNames {
                 FontNames(arrayvec::ArrayVec::from(font_names).into_iter().map(FontName::new).collect())
             }

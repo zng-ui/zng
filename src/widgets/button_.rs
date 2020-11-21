@@ -45,7 +45,7 @@ widget! {
         };
     }
 
-    when !self.is_enabled {
+    when self.is_disabled {
         background_color: ButtonBackgroundDisabledVar;
         border: {
             widths: ButtonBorderWidthsDisabledVar,
