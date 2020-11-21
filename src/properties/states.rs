@@ -427,7 +427,7 @@ use crate::properties::{Visibility, VisibilityContext, WidgetVisibilityExt};
 struct IsVisibilityNode<C: UiNode> {
     child: C,
     state: StateVar,
-    expected: super::Visibility,
+    expected: Visibility,
 }
 impl<C: UiNode> IsVisibilityNode<C> {
     fn update_state(&self, ctx: &mut WidgetContext) {

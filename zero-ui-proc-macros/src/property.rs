@@ -266,7 +266,7 @@ pub mod input {
 mod analysis {
     use super::input::{MacroArgs, Prefix, PropertyFn};
     use super::output::*;
-    use crate::util::{zero_ui_crate_ident, Attributes, Errors};
+    use crate::util::{zero_ui_crate_ident, Attributes, Errors, PatchSuperPath};
     use heck::CamelCase;
     use proc_macro2::Ident;
     use std::{
@@ -526,7 +526,10 @@ mod analysis {
                 panic!(#msg);
             }};
         } else {
-            fn_block = fn_.block;
+            let mut patch_super = PatchSuperPath::new(1);
+            let mut block = fn_.block;
+            patch_super.visit_block_mut(&mut *block);
+            fn_block = block;
         };
 
         PropertyMod {

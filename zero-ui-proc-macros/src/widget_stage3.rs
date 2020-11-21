@@ -711,7 +711,7 @@ pub mod analysis {
     use super::output::*;
     use crate::{
         property::input::Prefix as PropertyPrefix,
-        util::{Attributes, Errors},
+        util::{Attributes, Errors, PatchSuperPath},
     };
     use input::{PropertyAssign, PropertyValue, WgtItemWhen};
     use proc_macro2::Ident;
@@ -960,6 +960,8 @@ pub mod analysis {
             }
         }
         // process newly declared properties
+        // widget_mod { defaults { <moved here> } }
+        let mut patch_super = PatchSuperPath::new(2);
         for (target, property) in properties {
             let mut has_value = true;
             let mut is_required = false;
@@ -967,8 +969,18 @@ pub mod analysis {
 
             match property.default_value {
                 Some((_, value)) => match value {
-                    PropertyDefaultValue::Fields(fields) => default_value = Some(FinalPropertyDefaultValue::Fields(fields)),
-                    PropertyDefaultValue::Args(args) => default_value = Some(FinalPropertyDefaultValue::Args(args)),
+                    PropertyDefaultValue::Fields(mut fields) => {
+                        for field in fields.fields.iter_mut() {
+                            patch_super.visit_field_value_mut(field);
+                        }
+                        default_value = Some(FinalPropertyDefaultValue::Fields(fields))
+                    }
+                    PropertyDefaultValue::Args(mut args) => {
+                        for expr in args.0.iter_mut() {
+                            patch_super.visit_expr_mut(expr);
+                        }
+                        default_value = Some(FinalPropertyDefaultValue::Args(args))
+                    }
 
                     PropertyDefaultValue::Unset(_) => continue,
 
@@ -1124,10 +1136,19 @@ pub mod analysis {
                 }
             }
 
+            // widget_mod { whens {  <moved here> } }
+            let mut patch_super = PatchSuperPath::new(2);
+            let mut expr = when_analysis.expr;
+            match &mut expr {
+                WhenConditionExpr::Map(_, expr) | WhenConditionExpr::Merge(_, expr) => {
+                    patch_super.visit_expr_mut(expr);
+                }
+                _ => {}
+            }
             mod_whens.push(WhenCondition {
                 index: when_index,
                 properties: when_analysis.properties.iter().map(|p| &p.property).cloned().collect(),
-                expr: when_analysis.expr,
+                expr,
                 #[cfg(debug_assertions)]
                 expr_str,
                 #[cfg(debug_assertions)]
@@ -1141,6 +1162,8 @@ pub mod analysis {
                 sets: when.block.properties.iter().map(|p| p.ident.clone()).collect(),
             });
 
+            // widget_mod { when_defaults { w1 { <moved here> } } }
+            let mut patch_super = PatchSuperPath::new(3);
             mod_defaults.when_defaults.push(WhenDefaults {
                 index: when_index,
                 defaults: when
@@ -1150,8 +1173,18 @@ pub mod analysis {
                     .map(|p| WidgetDefault {
                         property: p.ident,
                         default: match p.value {
-                            PropertyValue::Fields(fields) => FinalPropertyDefaultValue::Fields(fields),
-                            PropertyValue::Args(args) => FinalPropertyDefaultValue::Args(args),
+                            PropertyValue::Fields(mut fields) => {
+                                for field in fields.fields.iter_mut() {
+                                    patch_super.visit_field_value_mut(field);
+                                }
+                                FinalPropertyDefaultValue::Fields(fields)
+                            }
+                            PropertyValue::Args(mut args) => {
+                                for expr in args.0.iter_mut() {
+                                    patch_super.visit_expr_mut(expr);
+                                }
+                                FinalPropertyDefaultValue::Args(args)
+                            }
                             PropertyValue::Unset(_) => unreachable!("error case removed early"),
                         },
                     })
@@ -1168,10 +1201,12 @@ pub mod analysis {
         let macro_new_child;
         let new;
         let new_child;
-        if let Some(fn_) = new_fns.drain(..).next() {
+        if let Some(mut fn_) = new_fns.drain(..).next() {
             macro_new = BuiltNew {
                 properties: fn_.inputs.iter().skip(1).cloned().collect(),
             };
+            let mut patch_super = PatchSuperPath::new(1);
+            patch_super.visit_block_mut(&mut fn_.block);
             new = NewFn::New(fn_);
         } else if let Some((inherited, fn_, _)) = &inherited_fns {
             macro_new = BuiltNew {
@@ -1184,10 +1219,12 @@ pub mod analysis {
             };
             new = NewFn::None;
         }
-        if let Some(fn_) = new_child_fns.drain(..).next() {
+        if let Some(mut fn_) = new_child_fns.drain(..).next() {
             macro_new_child = BuiltNew {
                 properties: fn_.inputs.iter().cloned().collect(),
             };
+            let mut patch_super = PatchSuperPath::new(1);
+            patch_super.visit_block_mut(&mut fn_.block);
             new_child = NewFn::New(fn_);
         } else if let Some((inherited, _, fn_)) = inherited_fns {
             macro_new_child = BuiltNew {

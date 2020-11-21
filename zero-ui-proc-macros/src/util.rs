@@ -282,3 +282,56 @@ impl Parse for DocArgs {
         })
     }
 }
+
+/// Inserts extra `super::` in paths that start with super that reference
+/// out of the implied mod visited.
+pub struct PatchSuperPath {
+    super_ident: Ident,
+    new_depth: usize,
+    mod_depth: usize,
+}
+impl PatchSuperPath {
+    /// `new_depth` is the number of `super::` to insert the paths.
+    pub fn new(new_depth: usize) -> Self {
+        PatchSuperPath {
+            super_ident: ident!("super"),
+            new_depth,
+            mod_depth: 0,
+        }
+    }
+}
+impl syn::visit_mut::VisitMut for PatchSuperPath {
+    fn visit_path_mut(&mut self, i: &mut syn::Path) {
+        syn::visit_mut::visit_path_mut(self, i);
+
+        // if the path does not start with ::
+        if i.leading_colon.is_none() {
+            // count super::(super::)?.
+            let mut super_count = 0;
+            for seg in i.segments.iter() {
+                if seg.ident == self.super_ident {
+                    super_count += 1;
+                } else {
+                    break;
+                }
+            }
+
+            // if the path super:: prefixes reference out of the outer mod visited.
+            if super_count > 0 && super_count > self.mod_depth {
+                let first = i.segments[0].clone();
+
+                // insert the `new_depth` count of supers in the `0` index.
+                for _ in 1..self.new_depth {
+                    i.segments.insert(0, first.clone());
+                }
+                i.segments.insert(0, first);
+            }
+        }
+    }
+
+    fn visit_item_mod_mut(&mut self, i: &mut ItemMod) {
+        self.mod_depth += 1;
+        syn::visit_mut::visit_item_mod_mut(self, i);
+        self.mod_depth -= 1;
+    }
+}
