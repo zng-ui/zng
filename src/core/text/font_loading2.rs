@@ -7,7 +7,9 @@ use super::{FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::core::service::{AppService, WindowService};
+use crate::core::units::{layout_to_pt, LayoutLength};
 use crate::core::var::{RcVar, Vars};
+use crate::core::window::WindowId;
 
 /// Application extension that manages text fonts.
 /// # Services
@@ -118,6 +120,67 @@ type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
 #[derive(Debug)]
 pub struct FontFace {
     h_face: HarfbuzzFace,
+    display_name: FontName,
+    family_name: FontName,
+    postscript_name: Option<String>,
+    style: FontStyle,
+    weight: FontWeight,
+    stretch: FontStretch,
+}
+impl FontFace {
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    #[inline]
+    pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Face> {
+        &self.h_face
+    }
+
+    /// Font full name.
+    #[inline]
+    pub fn display_name(&self) -> &FontName {
+        &self.display_name
+    }
+
+    /// Font family name.
+    #[inline]
+    pub fn family_name(&self) -> &FontName {
+        &self.family_name
+    }
+
+    /// Font globally unique name.
+    #[inline]
+    pub fn postscript_name(&self) -> Option<&str> {
+        self.postscript_name.as_deref()
+    }
+
+    /// Index of the font in the font file.
+    #[inline]
+    pub fn index(&self) -> u32 {
+        self.h_face.index()
+    }
+
+    /// Number of glyphs in the font.
+    #[inline]
+    pub fn glyph_count(&self) -> u32 {
+        self.h_face.glyph_count()
+    }
+
+    /// Font style.
+    #[inline]
+    pub fn style(&self) -> FontStyle {
+        self.style
+    }
+
+    /// Font weight.
+    #[inline]
+    pub fn weight(&self) -> FontWeight {
+        self.weight
+    }
+
+    /// Font stretch.
+    #[inline]
+    pub fn stretch(&self) -> FontStretch {
+        self.stretch
+    }
 }
 
 /// A shared [`FontFace`].
@@ -127,39 +190,70 @@ pub type FontFaceRef = Rc<FontFace>;
 ///
 /// Glyphs that are not resolved by the first font fallback to the second font and so on.
 #[derive(Debug, Clone)]
-pub struct FontList(Vec<FontFaceRef>);
+pub struct FontList {
+    fonts: Box<[FontFaceRef]>,
+}
+#[allow(clippy::len_without_is_empty)] // is never empty.
+impl FontList {
+    /// The font face that best matches the requested properties.
+    #[inline]
+    pub fn best(&self) -> &FontFaceRef {
+        &self.fonts[0]
+    }
+
+    /// Iterate over font faces, more specific first.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<FontFaceRef> {
+        self.fonts.iter()
+    }
+
+    /// Number of font faces in the list.
+    ///
+    /// This is at least `1`.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.fonts.len()
+    }
+}
 impl PartialEq for FontList {
+    /// Both are equal if each point to the same fonts in the same order.
     fn eq(&self, other: &Self) -> bool {
-        self.0.len() == other.0.len() && self.0.iter().zip(other.0.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+        self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
     }
 }
 impl Eq for FontList {}
+impl std::ops::Deref for FontList {
+    type Target = [FontFaceRef];
 
-struct FontLoader {
-    system: font_kit::source::SystemSource,
-    custom: font_kit::sources::mem::MemSource,
+    fn deref(&self) -> &Self::Target {
+        &self.fonts
+    }
 }
+impl<'a> std::iter::IntoIterator for &'a FontList {
+    type Item = &'a FontFaceRef;
+
+    type IntoIter = std::slice::Iter<'a, FontFaceRef>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+impl std::ops::Index<usize> for FontList {
+    type Output = FontFaceRef;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.fonts[index]
+    }
+}
+
+struct FontLoader {}
 impl FontLoader {
     fn new() -> Self {
-        FontLoader {
-            system: font_kit::source::SystemSource::new(),
-            custom: font_kit::sources::mem::MemSource::from_fonts(std::iter::empty()).unwrap(),
-        }
+        FontLoader {}
     }
 
     fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let font = match custom_font.source {
-            FontSource::File(path, i) => font_kit::handle::Handle::Path { path, font_index: i }.load()?,
-            FontSource::Memory(bytes, i) => font_kit::handle::Handle::Memory { bytes, font_index: i }.load()?,
-            FontSource::Alias(name) => self
-                .system
-                .select_family_by_name(&name)
-                .map(|f| f.fonts()[0].clone())
-                .map_err(|_| FontLoadingError::NoSuchFontInCollection)?
-                .load()?,
-        };
-
-        Ok(())
+        todo!()
     }
 
     fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontList {
@@ -168,41 +262,6 @@ impl FontLoader {
 
     fn get_query(&self, query: &FontQueryKey) -> FontList {
         todo!()
-    }
-}
-impl font_kit::source::Source for FontLoader {
-    fn all_fonts(&self) -> Result<Vec<font_kit::handle::Handle>, font_kit::error::SelectionError> {
-        let mut r = self.custom.all_fonts()?;
-        r.extend(self.system.all_fonts()?);
-        Ok(r)
-    }
-
-    fn all_families(&self) -> Result<Vec<String>, font_kit::error::SelectionError> {
-        let mut r = self.custom.all_families()?;
-        r.extend(self.system.all_families()?);
-        Ok(r)
-    }
-
-    fn select_family_by_name(&self, family_name: &str) -> Result<font_kit::family_handle::FamilyHandle, font_kit::error::SelectionError> {
-        match self.custom.select_family_by_name(family_name) {
-            Ok(r) => return Ok(r),
-            Err(e) => match e {
-                font_kit::error::SelectionError::NotFound => {}
-                font_kit::error::SelectionError::CannotAccessSource => return Err(e),
-            },
-        }
-        self.system.select_family_by_name(family_name)
-    }
-
-    fn select_by_postscript_name(&self, postscript_name: &str) -> Result<font_kit::handle::Handle, font_kit::error::SelectionError> {
-        match self.custom.select_by_postscript_name(postscript_name) {
-            Ok(r) => return Ok(r),
-            Err(e) => match e {
-                font_kit::error::SelectionError::NotFound => {}
-                font_kit::error::SelectionError::CannotAccessSource => return Err(e),
-            },
-        }
-        self.system.select_by_postscript_name(postscript_name)
     }
 }
 
@@ -217,12 +276,86 @@ impl FontCache {
     }
 
     /// Gets a font list with the cached renderer data for each font.
-    pub fn get(&mut self, font_list: &FontList, font_size: f32) -> RenderFontList {
+    pub fn get(&mut self, font_list: &FontList, font_size: LayoutLength) -> RenderFontList {
         todo!()
     }
 }
 
-pub struct RenderFontList;
+type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
+
+/// A [`FontFace`] + font size cached in a window renderer.
+pub struct RenderFont {
+    face: FontFaceRef,
+    h_font: HarfbuzzFont,
+    window_id: WindowId,
+    instance_key: super::FontInstanceKey,
+    size: LayoutLength,
+    synthesis_used: super::FontSynthesis,
+    metrics: super::FontMetrics,
+}
+impl RenderFont {
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    #[inline]
+    pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>> {
+        &self.h_font
+    }
+
+    /// Reference the font face from which this font was created.
+    #[inline]
+    pub fn face(&self) -> &FontFaceRef {
+        &self.face
+    }
+
+    /// Owner window id.
+    ///
+    /// Render fonts can only be used in the same window that created then.
+    #[inline]
+    pub fn window_id(&self) -> WindowId {
+        self.window_id
+    }
+
+    /// Gets the font instance key.
+    ///
+    /// # Careful
+    ///
+    /// The WebRender font instance resource is managed by this struct, don't manually request a delete with this key.
+    ///
+    /// Keep a clone of the font reference alive for the period you want to render using this font,
+    /// otherwise the font may be cleaned-up.
+    #[inline]
+    pub fn instance_key(&self) -> super::FontInstanceKey {
+        self.instance_key
+    }
+
+    /// Font size.
+    #[inline]
+    pub fn size(&self) -> LayoutLength {
+        self.size
+    }
+
+    /// Font size in point units.
+    #[inline]
+    pub fn size_pt(&self) -> f32 {
+        layout_to_pt(self.size())
+    }
+
+    /// Various metrics that apply to this font.
+    #[inline]
+    pub fn metrics(&self) -> &super::FontMetrics {
+        &self.metrics
+    }
+
+    /// What synthetic properties are used in this instance.
+    #[inline]
+    pub fn synthesis_used(&self) -> super::FontSynthesis {
+        self.synthesis_used
+    }
+}
+
+/// A shared [`RenderFont`].
+pub type RenderFontRef = Rc<RenderFont>;
+
+pub struct RenderFontList(Vec<RenderFont>);
 
 /// Fallback fonts configuration for the app.
 ///
