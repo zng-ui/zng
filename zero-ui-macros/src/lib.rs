@@ -303,23 +303,45 @@ macro_rules! __context_var_inner {
         $vis struct $ident;
 
         impl $ident {
+            std::thread_local! {
+                static CURRENT_VALUE: std::cell::Cell<(*const $type, bool, u32)> = std::cell::Cell::new(($ident::default_value() as _, false, 0));
+            }
+
             /// [`Var`](zero_ui::core::var::Var) that represents this context var.
             #[inline]
             pub fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
-                <Self as zero_ui::core::var::ContextVar>::var()
+                const VAR: zero_ui::core::var::ContextVarProxy<$ident> = zero_ui::core::var::ContextVarProxy(std::marker::PhantomData);
+                &VAR
+            }
+
+            /// Default value, used when the variable is not set in a context.
+            #[inline]
+            pub fn default_value() -> &'static $type {
+                $DEFAULT
             }
         }
 
         impl zero_ui::core::var::ContextVar for $ident {
             type Type = $type;
 
+            #[inline]
             fn default_value() -> &'static Self::Type {
-               $DEFAULT
+               Self::default_value()
             }
 
+            #[inline]
             fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
-                const VAR: zero_ui::core::var::ContextVarProxy<$ident> = zero_ui::core::var::ContextVarProxy(std::marker::PhantomData);
-                &VAR
+               Self::var()
+            }
+
+            #[inline]
+            fn current_value() -> (*const Self::Type, bool, u32) {
+                Self::CURRENT_VALUE.with(|c|c.get())
+            }
+
+            #[inline]
+            fn replace_current(value: *const Self::Type, is_new: bool, version: u32) -> (*const Self::Type, bool, u32) {
+                Self::CURRENT_VALUE.with(move |c|c.replace((value, is_new, version)))
             }
         }
 

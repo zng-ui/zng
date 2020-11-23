@@ -112,11 +112,26 @@ pub trait ContextVar: Clone + Copy + 'static {
     /// The variable type.
     type Type: VarValue;
 
-    /// Default value, used when the variable is not set in the context.
+    /// Default value, used when the variable is not set in a context.
     fn default_value() -> &'static Self::Type;
 
     /// Gets the variable.
     fn var() -> &'static ContextVarProxy<Self>;
+
+    /// See [`Self::replace_current`].
+    #[doc(hidden)]
+    fn current_value() -> (*const Self::Type, bool, u32);
+
+    /// Use the [`context_var!`] macro to generate a context var when possible.
+    ///
+    /// If that is not possible copy the generated implementation of `current_value` and `replace_current`
+    /// exactly in your manual implementation.
+    ///
+    /// # DO NOT CALL
+    ///
+    /// See [`Vars`] to see how these methods are used, safety in `Vars` assumes only `Vars` calls this method.
+    #[doc(hidden)]
+    fn replace_current(value: *const Self::Type, is_new: bool, version: u32) -> (*const Self::Type, bool, u32);
 }
 
 /// Error when trying to set or modify a read-only variable.
