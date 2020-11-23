@@ -3,11 +3,11 @@ use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 use fnv::FnvHashMap;
 use webrender::api::RenderApi;
 
-use crate::core::app::AppExtension;
-use crate::core::context::AppInitContext;
-use crate::core::service::{AppService, WindowService};
-use crate::core::var::RcVar;
 use super::{FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
+use crate::core::app::AppExtension;
+use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
+use crate::core::service::{AppService, WindowService};
+use crate::core::var::{RcVar, Vars};
 
 /// Application extension that manages text fonts.
 /// # Services
@@ -20,9 +20,14 @@ use super::{FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
 pub struct FontManager;
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
-        ctx.services.register( Fonts::new());
-        ctx.window_services
-            .register(move |ctx| FontCache::new(Arc::clone(ctx.render_api)));
+        ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
+        ctx.window_services.register(move |ctx| FontCache::new(Arc::clone(ctx.render_api)));
+    }
+
+    fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
+        if update.update {
+            ctx.services.req::<Fonts>().update(ctx.vars);
+        }
     }
 }
 
@@ -34,10 +39,10 @@ pub struct Fonts {
 }
 impl AppService for Fonts {}
 impl Fonts {
-    fn new() -> Self {
+    fn new(notifier: UpdateNotifier) -> Self {
         Fonts {
             loader: FontLoader::new(),
-            fallbacks: FontFallbacks::default(),
+            fallbacks: FontFallbacks::new(notifier),
             live_queries: HashMap::new(),
         }
     }
@@ -57,9 +62,9 @@ impl Fonts {
     /// Load and register a custom font.
     #[inline]
     pub fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
+        self.request_update();
         self.loader.register(custom_font)
     }
-
 
     /// Gets a font list that best matches the query.
     #[inline]
@@ -77,6 +82,31 @@ impl Fonts {
                 let result = RcVar::new(self.loader.get(&e.key().0, style, weight, stretch));
                 e.insert(result).clone()
             }
+        }
+    }
+
+    fn request_update(&mut self) {
+        self.fallbacks.request_update();
+    }
+
+    fn update(&mut self, vars: &Vars) {
+        if self.fallbacks.pending_update {
+            self.fallbacks.pending_update = false;
+
+            // 1 - Retain only vars with more then one reference.
+            // 2 - Rerun the query and update the var if the result changes.
+
+            let loader = &self.loader;
+            self.live_queries.retain(|query, var| {
+                let retain = var.ptr_count() > 1;
+                if retain {
+                    let result = loader.get_query(query);
+                    if &result != var.get(vars) {
+                        var.set(vars, result);
+                    }
+                }
+                retain
+            });
         }
     }
 }
@@ -98,6 +128,12 @@ pub type FontFaceRef = Rc<FontFace>;
 /// Glyphs that are not resolved by the first font fallback to the second font and so on.
 #[derive(Debug, Clone)]
 pub struct FontList(Vec<FontFaceRef>);
+impl PartialEq for FontList {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len() && self.0.iter().zip(other.0.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+    }
+}
+impl Eq for FontList {}
 
 struct FontLoader {
     system: font_kit::source::SystemSource,
@@ -127,6 +163,10 @@ impl FontLoader {
     }
 
     fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontList {
+        todo!()
+    }
+
+    fn get_query(&self, query: &FontQueryKey) -> FontList {
         todo!()
     }
 }
@@ -198,9 +238,11 @@ pub struct FontFallbacks {
     cursive: FnvHashMap<Script, FontName>,
     fantasy: FnvHashMap<Script, FontName>,
     fallback: FnvHashMap<Script, FontName>,
+    notifier: UpdateNotifier,
+    pending_update: bool,
 }
-impl Default for FontFallbacks {
-    fn default() -> Self {
+impl FontFallbacks {
+    fn new(notifier: UpdateNotifier) -> Self {
         fn default(name: impl Into<FontName>) -> FnvHashMap<Script, FontName> {
             let mut f = FnvHashMap::with_capacity_and_hasher(1, fnv::FnvBuildHasher::default());
             f.insert(Script::Unknown, name.into());
@@ -216,6 +258,8 @@ impl Default for FontFallbacks {
             #[cfg(not(target_family = "windows"))]
             fantasy: default("Papyrus"),
             fallback: default("Segoe UI Symbol"),
+            notifier,
+            pending_update: false,
         }
     }
 }
@@ -236,6 +280,7 @@ macro_rules! impl_fallback_accessors {
     ///
     /// Set [`Script::Unknown`] for all scripts that don't have a specific font association.
     pub fn [<set_ $name>]<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
+        self.request_update();
         self.$name.insert(script, font_name.into())
     }
     })+};
@@ -268,10 +313,17 @@ impl FontFallbacks {
     ///
     /// Set [`Script::Unknown`] for all scripts that don't have a specific font association.
     pub fn set_fallback<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
+        self.request_update();
         self.fallback.insert(script, font_name.into())
     }
-}
 
+    fn request_update(&mut self) {
+        if !self.pending_update {
+            self.pending_update = true;
+            self.notifier.update();
+        }
+    }
+}
 
 /// Reference to in memory font data.
 // We can't use Arc<[u8]> here because of compatibility with the font-kit crate.
@@ -374,5 +426,5 @@ impl FontQueryKey {
     #[inline]
     fn new(names: FontNames, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Self {
         FontQueryKey(names, style as u8, (weight.0 * 100.0) as u32, (stretch.0 * 100.0) as u32)
-    }    
+    }
 }

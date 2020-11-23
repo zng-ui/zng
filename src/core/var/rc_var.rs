@@ -74,6 +74,11 @@ impl<T: VarValue> RcVar<T> {
         Rc::ptr_eq(&self.0, &other.0)
     }
 
+    /// Returns the number of pointers to this same var.
+    pub fn ptr_count(&self) -> usize {
+        Rc::strong_count(&self.0)
+    }
+
     /// Returns a variable with value generated from `self`.
     ///
     /// The value is new when the `self` value is new, `map` is only called once per new value.
