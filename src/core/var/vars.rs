@@ -1,20 +1,7 @@
 use super::*;
 use crate::core::context::Updates;
-use fnv::FnvHashMap;
-use std::any::*;
 
 singleton_assert!(SingletonVars);
-
-enum AnyRef {}
-impl AnyRef {
-    fn pack<T>(r: &T) -> *const AnyRef {
-        (r as *const T) as *const AnyRef
-    }
-
-    unsafe fn unpack<'a, T>(pointer: *const Self) -> &'a T {
-        &*(pointer as *const T)
-    }
-}
 
 /// Access to application variables.
 ///
@@ -24,7 +11,6 @@ pub struct Vars {
     update_id: u32,
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
-    context_vars: RefCell<FnvHashMap<TypeId, (*const AnyRef, bool, u32)>>,
 }
 impl Vars {
     /// Produces the instance of `Vars`. Only a single
@@ -35,7 +21,6 @@ impl Vars {
             _singleton: SingletonVars::assert_new(),
             update_id: 0,
             pending: Default::default(),
-            context_vars: Default::default(),
         }
     }
 
@@ -45,35 +30,36 @@ impl Vars {
 
     /// Gets a var at the context level.
     pub(super) fn context_var<C: ContextVar>(&self) -> (&C::Type, bool, u32) {
-        let vars = self.context_vars.borrow();
-        if let Some((any_ref, is_new, version)) = vars.get(&TypeId::of::<C>()) {
-            // SAFETY: This is safe because `TypeId` keys are always associated
-            // with the same type of reference. Also we are not leaking because the
-            // source reference is borrowed in a [`with_context_var`] call.
-            let value = unsafe { AnyRef::unpack(*any_ref) };
-            (value, *is_new, *version)
-        } else {
-            (C::default_value(), false, 0)
-        }
+        let (value, is_new, version) = C::current_value();
+
+        (
+            // SAFETY: this is safe as long we are the only one to call `C::replace_current` in
+            // `Self::with_context_var`.
+            //
+            // The reference is held for as long as it is accessible in here, at least:
+            //
+            // * The initial reference is actually the `static` default value.
+            // * Other references are held by `Self::with_context_var` for the duration
+            //   they can appear here.
+            unsafe { &*value },
+            is_new,
+            version,
+        )
     }
 
     /// Calls `f` with the context var value.
-    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, _: C, value: &C::Type, is_new: bool, version: u32, f: F) {
-        let var_id = TypeId::of::<C>();
+    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+        // SAFETY: `Self::context_var` makes safety assumptions about this code
+        // don't change before studying it.
 
-        let prev = self
-            .context_vars
-            .borrow_mut()
-            .insert(var_id, (AnyRef::pack(value), is_new, version));
+        let _prev = RestoreOnDrop {
+            prev: C::replace_current(value as _, is_new, version),
+            _c: context_var,
+        };
 
         f();
 
-        let mut vars = self.context_vars.borrow_mut();
-        if let Some(prev) = prev {
-            vars.insert(var_id, prev);
-        } else {
-            vars.remove(&var_id);
-        }
+        // _prev restores the parent reference here on drop
     }
 
     /// Calls `f` with the `context_var` set from the `other_var`.
@@ -95,5 +81,15 @@ impl Vars {
             }
             updates.update();
         }
+    }
+}
+
+struct RestoreOnDrop<C: ContextVar> {
+    prev: (*const C::Type, bool, u32),
+    _c: C,
+}
+impl<C: ContextVar> Drop for RestoreOnDrop<C> {
+    fn drop(&mut self) {
+        C::replace_current(self.prev.0, self.prev.1, self.prev.2);
     }
 }
