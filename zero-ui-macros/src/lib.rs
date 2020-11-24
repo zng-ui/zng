@@ -445,6 +445,18 @@ macro_rules! event {
         impl zero_ui::core::event::Event for $Event {
             type Args = $Args;
         }
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> zero_ui::core::event::EventEmitter<$Args> {
+                <Self as zero_ui::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> zero_ui::core::event::EventListener<$Args> {
+                <Self as zero_ui::core::event::Event>::never()
+            }
+        }
     )+};
 }
 
@@ -456,6 +468,19 @@ macro_rules! event_hp {
         impl zero_ui::core::event::Event for $Event {
             type Args = $Args;
             const IS_HIGH_PRESSURE: bool = true;
+        }
+
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> zero_ui::core::event::EventEmitter<$Args> {
+                <Self as zero_ui::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> zero_ui::core::event::EventListener<$Args> {
+                <Self as zero_ui::core::event::Event>::never()
+            }
         }
     )+};
 }
