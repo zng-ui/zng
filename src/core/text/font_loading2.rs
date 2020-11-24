@@ -1,9 +1,9 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 
 use fnv::FnvHashMap;
 use webrender::api::RenderApi;
 
-use super::{FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
+use super::{FontMetrics, FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::core::event::{event, event_args, EventEmitter};
@@ -60,7 +60,7 @@ pub enum FontChange {
 /// Services this extension provides:
 ///
 /// * [Fonts] - Service that finds and loads fonts.
-/// * [FontCache] - Window service that caches fonts for the window renderer.
+/// * [FontRenderCache] - Window service that caches fonts for the window renderer.
 ///
 /// Events this extension provides:
 ///
@@ -79,7 +79,8 @@ impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
         ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
-        ctx.window_services.register(move |ctx| FontCache::new(Arc::clone(ctx.render_api)));
+        ctx.window_services
+            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api)));
     }
 
     #[cfg(windows)]
@@ -98,14 +99,14 @@ impl AppExtension for FontManager {
 
 /// Font loading, custom fonts and app font configuration.
 pub struct Fonts {
-    loader: FontLoader,
+    loader: FontFaceLoader,
     fallbacks: FontFallbacks,
 }
 impl AppService for Fonts {}
 impl Fonts {
     fn new(notifier: UpdateNotifier) -> Self {
         Fonts {
-            loader: FontLoader::new(),
+            loader: FontFaceLoader::new(),
             fallbacks: FontFallbacks::new(notifier),
         }
     }
@@ -167,8 +168,13 @@ impl Fonts {
 pub use font_kit::error::FontLoadingError;
 
 type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
+type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
 type FontKitFont = font_kit::font::Font;
 
+/// A font face selected from a font family.
+///
+/// Usually this is part of a [`FontList`] that can be requested from
+/// the [`Fonts`] service.
 #[derive(Debug)]
 pub struct FontFace {
     h_face: HarfbuzzFace,
@@ -179,9 +185,10 @@ pub struct FontFace {
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
+    instances: RefCell<FnvHashMap<u32, FontRef>>,
 }
 impl FontFace {
-    fn load_custom(custom_font: CustomFont, loader: &FontLoader) -> Result<Self, FontLoadingError> {
+    fn load_custom(custom_font: CustomFont, loader: &FontFaceLoader) -> Result<Self, FontLoadingError> {
         let (kit_font, h_face) = match custom_font.source {
             FontSource::File(path, font_index) => (
                 font_kit::handle::Handle::Path {
@@ -210,6 +217,7 @@ impl FontFace {
                     style: custom_font.style,
                     weight: custom_font.weight,
                     stretch: custom_font.stretch,
+                    instances: Default::default(),
                 });
             }
         };
@@ -224,10 +232,11 @@ impl FontFace {
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
+            instances: Default::default(),
         })
     }
 
-    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font face handle.
     #[inline]
     pub fn harfbuzz_handle(&self) -> &HarfbuzzFace {
         &self.h_face
@@ -257,7 +266,7 @@ impl FontFace {
         self.postscript_name.as_deref()
     }
 
-    /// Index of the font in the font file.
+    /// Index of the font face in the font file.
     #[inline]
     pub fn index(&self) -> u32 {
         self.h_face.index()
@@ -286,10 +295,78 @@ impl FontFace {
     pub fn stretch(&self) -> FontStretch {
         self.stretch
     }
+
+    /// Gets a cached sized [`Font`].
+    pub fn sized(self: &Rc<Self>, font_size: LayoutLength) -> FontRef {
+        let font_size = font_size.get() as u32;
+        let mut instances = self.instances.borrow_mut();
+        let f = instances
+            .entry(font_size)
+            .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), LayoutLength::new(font_size as f32))));
+        Rc::clone(f)
+    }
 }
 
 /// A shared [`FontFace`].
 pub type FontFaceRef = Rc<FontFace>;
+
+/// A sized font face.
+///
+/// A sized font can be requested from a [`FontFace`].
+#[derive(Debug)]
+pub struct Font {
+    face: FontFaceRef,
+    h_font: HarfbuzzFont,
+    size: LayoutLength,
+    metrics: FontMetrics,
+}
+impl Font {
+    fn new(face: FontFaceRef, size: LayoutLength) -> Self {
+        let h_font = harfbuzz_rs::Font::new(face.h_face.clone());
+        let metrics = FontMetrics::new(size.get(), &face.font_kit_handle().metrics());
+        // TODO size
+
+        Font {
+            face,
+            h_font: h_font.into(),
+            size,
+            metrics,
+        }
+    }
+
+    /// Reference the font face source of this font.
+    #[inline]
+    pub fn face(&self) -> &FontFaceRef {
+        &self.face
+    }
+
+    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    #[inline]
+    pub fn harfbuzz_handle(&self) -> &HarfbuzzFont {
+        &self.h_font
+    }
+
+    /// Font size.
+    #[inline]
+    pub fn size(&self) -> LayoutLength {
+        self.size
+    }
+
+    /// Font size in point units.
+    #[inline]
+    pub fn size_pt(&self) -> f32 {
+        layout_to_pt(self.size)
+    }
+
+    /// Sized font metrics.
+    #[inline]
+    pub fn metrics(&self) -> &FontMetrics {
+        &self.metrics
+    }
+}
+
+/// A shared [`Font`].
+pub type FontRef = Rc<Font>;
 
 /// A list of [`FontFaceRef`] resolved from a [`FontName`] list, plus the [fallback](FontFallbacks::fallback) font.
 ///
@@ -351,12 +428,12 @@ impl std::ops::Index<usize> for FontList {
     }
 }
 
-struct FontLoader {
+struct FontFaceLoader {
     custom_fonts: HashMap<FontName, FontFaceRef>,
 }
-impl FontLoader {
+impl FontFaceLoader {
     fn new() -> Self {
-        FontLoader {
+        FontFaceLoader {
             custom_fonts: HashMap::new(),
         }
     }
@@ -382,14 +459,14 @@ impl FontLoader {
 }
 
 /// Per-window font glyph cache.
-pub struct FontCache {
+pub struct FontRenderCache {
     api: Arc<RenderApi>,
     cache: FnvHashMap<*const FontFace, RenderFontRef>,
 }
-impl WindowService for FontCache {}
-impl FontCache {
+impl WindowService for FontRenderCache {}
+impl FontRenderCache {
     fn new(api: Arc<RenderApi>) -> Self {
-        FontCache {
+        FontRenderCache {
             api,
             cache: FnvHashMap::default(),
         }
@@ -415,29 +492,18 @@ impl FontCache {
     }
 }
 
-type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
-
-/// A [`FontFace`] + font size cached in a window renderer.
+/// A [`Font`] cached in a window renderer.
 pub struct RenderFont {
-    face: FontFaceRef,
-    h_font: HarfbuzzFont,
+    font: FontRef,
     window_id: WindowId,
     instance_key: super::FontInstanceKey,
-    size: LayoutLength,
     synthesis_used: super::FontSynthesis,
-    metrics: super::FontMetrics,
 }
 impl RenderFont {
-    /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font handle.
+    /// Reference the font.
     #[inline]
-    pub fn harfbuzz_handle(&self) -> &harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>> {
-        &self.h_font
-    }
-
-    /// Reference the font face from which this font was created.
-    #[inline]
-    pub fn face(&self) -> &FontFaceRef {
-        &self.face
+    pub fn font(&self) -> &FontRef {
+        &self.font
     }
 
     /// Owner window id.
@@ -459,24 +525,6 @@ impl RenderFont {
     #[inline]
     pub fn instance_key(&self) -> super::FontInstanceKey {
         self.instance_key
-    }
-
-    /// Font size.
-    #[inline]
-    pub fn size(&self) -> LayoutLength {
-        self.size
-    }
-
-    /// Font size in point units.
-    #[inline]
-    pub fn size_pt(&self) -> f32 {
-        layout_to_pt(self.size())
-    }
-
-    /// Various metrics that apply to this font.
-    #[inline]
-    pub fn metrics(&self) -> &super::FontMetrics {
-        &self.metrics
     }
 
     /// What synthetic properties are used in this instance.

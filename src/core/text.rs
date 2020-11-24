@@ -556,7 +556,9 @@ impl WhiteSpace {
     }
 }
 
-/// A possible value for the `font_family` property.
+/// Font family name.
+///
+/// A possible value for the [`font_family`](crate::properties::font_family) property.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FontName(Text);
 impl FontName {
