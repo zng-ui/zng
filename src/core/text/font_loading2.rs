@@ -1,9 +1,15 @@
-use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    path::PathBuf,
+    rc::Rc,
+    sync::Arc,
+};
 
 use fnv::FnvHashMap;
 use webrender::api::RenderApi;
 
-use super::{FontMetrics, FontName, FontNames, FontStretch, FontStyle, FontWeight, Script};
+use super::{FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::core::event::{event, event_args, EventEmitter};
@@ -146,12 +152,12 @@ impl Fonts {
         Ok(())
     }
 
-    /// Removes a custom font. If the font is not in use it is also unloaded.
+    /// Removes a custom font family. If the font faces are not in use it is also unloaded.
     ///
-    /// Returns if any font was removed.
+    /// Returns if any was removed.
     #[inline]
-    pub fn unregister(&mut self, custom_font: &FontName) -> bool {
-        let unregistered = self.loader.unregister(custom_font);
+    pub fn unregister(&mut self, custom_family: &FontName) -> bool {
+        let unregistered = self.loader.unregister(custom_family);
         if unregistered {
             self.fallbacks.notify(FontChange::CustomFonts);
         }
@@ -161,7 +167,8 @@ impl Fonts {
     /// Gets a font list that best matches the query.
     #[inline]
     pub fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
-        self.loader.get(families, style, weight, stretch)
+        self.loader
+            .get_list(families, style, weight, stretch, &self.fallbacks.fallback[&Script::Unknown])
     }
 }
 
@@ -185,7 +192,9 @@ pub struct FontFace {
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
+    synthesis: FontSynthesis,
     instances: RefCell<FnvHashMap<u32, FontRef>>,
+    unregistered: Cell<bool>,
 }
 impl FontFace {
     fn load_custom(custom_font: CustomFont, loader: &FontFaceLoader) -> Result<Self, FontLoadingError> {
@@ -207,7 +216,9 @@ impl FontFace {
                 harfbuzz_rs::Face::new(harfbuzz_rs::Blob::with_bytes_owned(bytes, |b| &b[..]), font_index),
             ),
             FontSource::Alias(other_font) => {
-                let other_font = loader.get_exact(&other_font).ok_or(FontLoadingError::NoSuchFontInCollection)?;
+                let other_font = loader
+                    .get(&other_font, custom_font.style, custom_font.weight, custom_font.stretch)
+                    .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     h_face: other_font.h_face.clone(),
                     kit_font: other_font.kit_font.clone(),
@@ -217,7 +228,9 @@ impl FontFace {
                     style: custom_font.style,
                     weight: custom_font.weight,
                     stretch: custom_font.stretch,
+                    synthesis: custom_font.synthesis,
                     instances: Default::default(),
+                    unregistered: Cell::new(false),
                 });
             }
         };
@@ -232,8 +245,26 @@ impl FontFace {
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
+            synthesis: custom_font.synthesis,
             instances: Default::default(),
+            unregistered: Cell::new(false),
         })
+    }
+
+    fn empty() -> Self {
+        FontFace {
+            h_face: harfbuzz_rs::Face::empty().into(),
+            kit_font: font_kit::font::Font::from_bytes(Arc::new(include_bytes!("empty.ttf").to_vec()), 0).expect("error loading empty.ttf"),
+            display_name: "<empty>".into(),
+            family_name: "<empty>".into(),
+            postscript_name: None,
+            style: FontStyle::Normal,
+            weight: FontWeight::NORMAL,
+            stretch: FontStretch::NORMAL,
+            synthesis: FontSynthesis::DISABLED,
+            instances: Default::default(),
+            unregistered: Cell::new(false),
+        }
     }
 
     /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font face handle.
@@ -296,14 +327,25 @@ impl FontFace {
         self.stretch
     }
 
+    /// Font synthesis required for making this font match its style and/or weight.
+    #[inline]
+    pub fn synthesis(&self) -> FontSynthesis {
+        self.synthesis
+    }
+
     /// Gets a cached sized [`Font`].
     pub fn sized(self: &Rc<Self>, font_size: LayoutLength) -> FontRef {
-        let font_size = font_size.get() as u32;
-        let mut instances = self.instances.borrow_mut();
-        let f = instances
-            .entry(font_size)
-            .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), LayoutLength::new(font_size as f32))));
-        Rc::clone(f)
+        if !self.unregistered.get() {
+            let font_size = font_size.get() as u32;
+            let mut instances = self.instances.borrow_mut();
+            let f = instances
+                .entry(font_size)
+                .or_insert_with(|| Rc::new(Font::new(Rc::clone(self), LayoutLength::new(font_size as f32))));
+            Rc::clone(f)
+        } else {
+            warn_println!("creating font from unregistered `{}`, will not cache", self.display_name);
+            Rc::new(Font::new(Rc::clone(self), font_size))
+        }
     }
 }
 
@@ -448,39 +490,77 @@ pub struct FontList {
 }
 
 struct FontFaceLoader {
-    custom_fonts: HashMap<FontName, FontFaceRef>,
+    custom_fonts: HashMap<FontName, Vec<FontFaceRef>>,
+    system_fonts: font_kit::source::SystemSource,
 }
 impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
+            system_fonts: font_kit::source::SystemSource::new(),
         }
     }
 
     fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
-        let name = custom_font.name.clone();
-        let face = FontFace::load_custom(custom_font, self)?;
-        self.custom_fonts.insert(name, Rc::new(face));
+        let face = Rc::new(FontFace::load_custom(custom_font, self)?);
+
+        let family = self.custom_fonts.entry(face.family_name.clone()).or_default();
+
+        let existing = family
+            .iter()
+            .position(|f| f.weight == face.weight && f.style == face.style && f.stretch == face.stretch);
+
+        if let Some(i) = existing {
+            family[i] = face;
+        } else {
+            family.push(face);
+        }
         Ok(())
     }
 
-    fn unregister(&mut self, custom_font: &FontName) -> bool {
-        if let Some(removed) = self.custom_fonts.remove(custom_font) {
+    fn unregister(&mut self, custom_family: &FontName) -> bool {
+        if let Some(removed) = self.custom_fonts.remove(custom_family) {
             // cut circular reference so that when the last font ref gets dropped
-            // this font face also gets dropped.
-            removed.instances.borrow_mut().clear();
+            // this font face also gets dropped. Also tag the font as unregistered
+            // so it does not create further circular references.
+            for removed in removed {
+                removed.instances.borrow_mut().clear();
+                removed.unregistered.set(true);
+            }
             true
         } else {
             false
         }
     }
 
-    fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
-        todo!()
+    fn get_list(
+        &self,
+        families: &[FontName],
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+        fallback: &FontName,
+    ) -> FontFaceList {
+        let mut r = Vec::with_capacity(families.len() + 1);
+        r.extend(families.iter().filter_map(|name| self.get(name, style, weight, stretch)));
+        if !families.contains(fallback) {
+            if let Some(fallback) = self.get(fallback, style, weight, stretch) {
+                r.push(fallback);
+            }
+        }
+
+        if r.is_empty() {
+            error_println!("failed to load fallback font");
+            r.push(Rc::new(FontFace::empty()));
+        }
+
+        FontFaceList {
+            fonts: r.into_boxed_slice(),
+        }
     }
 
-    fn get_exact(&self, font_name: &FontName) -> Option<&FontFaceRef> {
-        self.custom_fonts.get(font_name)
+    fn get(&self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
+        todo!()
     }
 }
 
@@ -516,16 +596,57 @@ impl FontRenderCache {
         #[allow(clippy::mutable_key_type)] // a *const pointer?
         let fonts = &mut self.fonts;
         let api = &self.api;
+
+        // get or cache the font render key.
         let instance_key = *self.instances.entry(Rc::as_ptr(&font)).or_insert_with(|| {
-            let font_key = *fonts.entry(Rc::as_ptr(font.face())).or_insert_with(|| todo!());
-            todo!()
+            // font not cached
+
+            let mut txn = webrender::api::Transaction::new();
+
+            // get or cache the font face render key.
+            let font_key = *fonts.entry(Rc::as_ptr(font.face())).or_insert_with(|| {
+                // font face not cached
+
+                let font_key = api.generate_font_key();
+                match font.face.kit_font.handle().expect("expected font handle from `FontRef`") {
+                    font_kit::handle::Handle::Path { path, font_index } => {
+                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
+                    }
+                    font_kit::handle::Handle::Memory { bytes, font_index } => {
+                        txn.add_raw_font(font_key, (*bytes).clone(), font_index);
+                    }
+                }
+                font_key
+            });
+
+            let instance_key = api.generate_font_instance_key();
+
+            let mut opt = webrender::api::FontInstanceOptions::default();
+            if font.face.synthesis.contains(FontSynthesis::STYLE) {
+                opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
+            }
+            if font.face.synthesis.contains(FontSynthesis::BOLD) {
+                opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
+            }
+
+            txn.add_font_instance(
+                instance_key,
+                font_key,
+                webrender::api::units::Au::from_f32_px(font.size.get()),
+                None,
+                None,
+                vec![],
+            );
+
+            api.update_resources(txn.resource_updates);
+
+            instance_key
         });
 
         RenderFont {
             font,
             window_id: self.window_id,
             instance_key,
-            synthesis_used: super::FontSynthesis::DISABLED, //TODO
         }
     }
 }
@@ -536,7 +657,6 @@ pub struct RenderFont {
     font: FontRef,
     window_id: WindowId,
     instance_key: super::FontInstanceKey,
-    synthesis_used: super::FontSynthesis,
 }
 impl RenderFont {
     /// Reference the font.
@@ -569,7 +689,7 @@ impl RenderFont {
     /// What synthetic properties are used in this instance.
     #[inline]
     pub fn synthesis_used(&self) -> super::FontSynthesis {
-        self.synthesis_used
+        self.font.face.synthesis
     }
 }
 
@@ -700,6 +820,7 @@ pub struct CustomFont {
     stretch: FontStretch,
     style: FontStyle,
     weight: FontWeight,
+    synthesis: FontSynthesis,
 }
 impl CustomFont {
     /// A custom font loaded from a file.
@@ -714,6 +835,7 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
+            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -729,6 +851,7 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
+            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -742,6 +865,7 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
+            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -771,13 +895,24 @@ impl CustomFont {
         self.weight = weight;
         self
     }
+
+    /// Font synthesis required to correct render
+    /// the font style and/or weight.
+    ///
+    /// Default is [`FontSynthesis::DISABLED`].
+    #[inline]
+    pub fn synthesis(mut self, required: FontSynthesis) -> Self {
+        self.synthesis = required;
+        self
+    }
 }
 
-#[derive(Eq, PartialEq, Hash)]
-struct FontQueryKey(FontNames, u8, u32, u32);
-impl FontQueryKey {
-    #[inline]
-    fn new(names: FontNames, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Self {
-        FontQueryKey(names, style as u8, (weight.0 * 100.0) as u32, (stretch.0 * 100.0) as u32)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_font() {
+        let _empty = FontFace::empty();
     }
 }

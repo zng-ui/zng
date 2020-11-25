@@ -614,6 +614,12 @@ impl FontName {
     pub fn name(&self) -> &str {
         &self.0
     }
+
+    /// Unwraps into a [`Text`].
+    #[inline]
+    pub fn into_text(self) -> Text {
+        self.0
+    }
 }
 impl From<FamilyName> for FontName {
     #[inline]
