@@ -118,9 +118,9 @@ impl Calculator {
 
     pub fn color(&self) -> &Rgba {
         if self.error {
-            &web_colors::RED
+            &colors::RED
         } else {
-            &web_colors::WHITE
+            &colors::WHITE
         }
     }
 

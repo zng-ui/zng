@@ -165,7 +165,7 @@ impl<T: Var<Text>> TextNode<T> {
             text_var: text,
 
             text: SegmentedText::default(),
-            color: web_colors::BLACK.into(),
+            color: colors::BLACK.into(),
             font: None,
             font_size: 0.into(),
             font_synthesis: FontSynthesis::DISABLED,

@@ -704,7 +704,7 @@ pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
 }
 
 /// Named web colors
-pub mod web_colors {
+pub mod colors {
     use super::Rgba;
 
     macro_rules! rgb {
@@ -1426,14 +1426,14 @@ fn test_hex_color() {
     }
     assert_eq!(Rgba::new(f(0x11), f(0x22), f(0x33), f(0x44)), hex!(0x11223344));
 
-    assert_eq!(web_colors::BLACK, hex!(0x00_00_00_FF));
-    assert_eq!(web_colors::WHITE, hex!(0xFF_FF_FF_FF));
-    assert_eq!(web_colors::WHITE, hex!(0xFF_FF_FF));
-    assert_eq!(web_colors::WHITE, hex!(0xFFFFFF));
-    assert_eq!(web_colors::WHITE, hex!(#FFFFFF));
-    assert_eq!(web_colors::WHITE, hex!(FFFFFF));
-    assert_eq!(web_colors::WHITE, hex!(0xFFFF));
-    assert_eq!(web_colors::BLACK, hex!(0x000));
-    assert_eq!(web_colors::BLACK, hex!(#000));
-    assert_eq!(web_colors::BLACK, hex!(000));
+    assert_eq!(colors::BLACK, hex!(0x00_00_00_FF));
+    assert_eq!(colors::WHITE, hex!(0xFF_FF_FF_FF));
+    assert_eq!(colors::WHITE, hex!(0xFF_FF_FF));
+    assert_eq!(colors::WHITE, hex!(0xFFFFFF));
+    assert_eq!(colors::WHITE, hex!(#FFFFFF));
+    assert_eq!(colors::WHITE, hex!(FFFFFF));
+    assert_eq!(colors::WHITE, hex!(0xFFFF));
+    assert_eq!(colors::BLACK, hex!(0x000));
+    assert_eq!(colors::BLACK, hex!(#000));
+    assert_eq!(colors::BLACK, hex!(000));
 }

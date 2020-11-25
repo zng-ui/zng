@@ -57,7 +57,7 @@ fn basic() -> impl Widget {
             strong("Strong Text"),
             em("Emphasis Text"),
             text! {
-                color: web_colors::LIGHT_GREEN;
+                color: colors::LIGHT_GREEN;
                 text: "Colored Text";
             },
         ),
@@ -70,13 +70,13 @@ fn line_height() -> impl Widget {
         (
             text! {
                 text: "Default: 'Émp Giga Ç'";
-                background_color: web_colors::LIGHT_BLUE;
-                color: web_colors::BLACK;
+                background_color: colors::LIGHT_BLUE;
+                color: colors::BLACK;
             },
             text! {
                 text: "1.3em: 'Émp Giga Ç'";
-                background_color: web_colors::LIGHT_BLUE;
-                color: web_colors::BLACK;
+                background_color: colors::LIGHT_BLUE;
+                color: colors::BLACK;
                 line_height: 1.3.em();
             },
         ),

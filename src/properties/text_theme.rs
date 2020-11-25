@@ -25,9 +25,9 @@ context_var! {
     pub struct FontSizeVar: Length = once Length::pt(11.0);
 
     /// Text color of [`text`](crate::widgets::text) spans.
-    pub struct TextColorVar: Rgba = const web_colors::WHITE;
+    pub struct TextColorVar: Rgba = const colors::WHITE;
     /// Text color of [`text`](crate::widgets::text) spans inside a disabled widget.
-    pub struct TextColorDisabledVar: Rgba = const web_colors::GRAY;
+    pub struct TextColorDisabledVar: Rgba = const colors::GRAY;
 
     /// Text transformation function applied to [`text`](crate::widgets::text) spans.
     pub struct TextTransformVar: TextTransformFn = return &TextTransformFn::None;

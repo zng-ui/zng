@@ -399,7 +399,7 @@ pub mod prelude {
         app::App,
         color::{
             self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
-            web_colors, Rgba,
+            colors, Rgba,
         },
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
