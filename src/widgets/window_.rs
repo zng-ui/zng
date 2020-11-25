@@ -1,6 +1,6 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::window::Window;
+use crate::core::window::{StartPosition, Window};
 use crate::prelude::new_widget::*;
 
 widget! {
@@ -28,6 +28,8 @@ widget! {
         /// Window title.
         title: "";
 
+        start_position: StartPosition::Default;
+
         /// Window position (left, top).
         ///
         ///  If set to a variable it is kept in sync.
@@ -43,6 +45,7 @@ widget! {
 
             r
         };
+
         /// Window size.
         ///
         /// If set to a variable it is kept in sync.
@@ -107,10 +110,11 @@ widget! {
     /// Manually initializes a new [`window`](self).
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    fn new(child, root_id, title, position, size, auto_size, resizable, clear_color, visibility) -> Window {
+    fn new(child, root_id, title, start_position, position, size, auto_size, resizable, clear_color, visibility) -> Window {
         Window::new(
             root_id.unwrap(),
             title.unwrap(),
+            start_position.unwrap(),
             position.unwrap(),
             size.unwrap(),
             auto_size.unwrap(),

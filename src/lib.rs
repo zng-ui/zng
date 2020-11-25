@@ -398,8 +398,8 @@ pub mod prelude {
     pub use crate::core::{
         app::App,
         color::{
-            self, blur, brightness, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate, sepia,
-            colors, Rgba,
+            self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
+            sepia, Rgba,
         },
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
@@ -423,7 +423,7 @@ pub mod prelude {
             TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
-        window::{AppRunWindow, CursorIcon, Window, Windows},
+        window::{AppRunWindow, CursorIcon, StartPosition, Window, Windows},
         UiList, UiNode, UiVec, Widget, WidgetId,
     };
 

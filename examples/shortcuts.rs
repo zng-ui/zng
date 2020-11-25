@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use enclose::enclose;
-use zero_ui::{properties::text_theme::TextColorVar, prelude::*};
+use zero_ui::{prelude::*, properties::text_theme::TextColorVar};
 
 fn main() {
     App::default().run_window(|_| {
@@ -12,6 +12,7 @@ fn main() {
             title: "Shortcuts Example";
             auto_size: true;
             margin: 50;
+            start_position: StartPosition::CenterScreen;
             on_shortcut: enclose! { (shortcut_text, shortcut_color) move |ctx, args| {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
                 shortcut_color.set(ctx.vars, shortcut_color_dft);

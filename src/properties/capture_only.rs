@@ -2,7 +2,7 @@
 //!
 //! Setting this properties in a widget that does not reexports then is an error.
 use crate::core::gesture::Shortcut;
-use crate::core::window::AutoSize;
+use crate::core::window::{AutoSize, StartPosition};
 use crate::prelude::new_property::*;
 use crate::widgets::LineStyle;
 
@@ -85,3 +85,7 @@ pub fn enabled(enabled: impl IntoVar<bool>) -> ! {}
 /// An [`AutoSize`] config.
 #[property(capture_only)]
 pub fn auto_size(config: impl IntoVar<AutoSize>) -> ! {}
+
+/// A ['StartPosition'] config.
+#[property(capture_only)]
+pub fn start_position(position: impl Into<StartPosition> + Clone + std::fmt::Debug + 'static) -> ! {}

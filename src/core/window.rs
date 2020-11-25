@@ -683,6 +683,7 @@ pub struct Window {
     meta: LazyStateMap,
     id: WidgetId,
     title: BoxedLocalVar<Text>,
+    start_position: StartPosition,
     position: BoxedVar<Point>,
     size: BoxedVar<Size>,
     auto_size: BoxedLocalVar<AutoSize>,
@@ -697,6 +698,7 @@ impl Window {
     pub fn new(
         root_id: WidgetId,
         title: impl IntoVar<Text>,
+        start_position: impl Into<StartPosition>,
         position: impl IntoVar<Point>,
         size: impl IntoVar<Size>,
         auto_size: impl IntoVar<AutoSize>,
@@ -709,6 +711,7 @@ impl Window {
             meta: LazyStateMap::default(),
             id: root_id,
             title: title.into_local().boxed_local(),
+            start_position: start_position.into(),
             position: position.into_var().boxed(),
             size: size.into_var().boxed(),
             auto_size: auto_size.into_local().boxed_local(),
@@ -742,6 +745,22 @@ impl_from_and_into_var! {
         } else {
             AutoSize::DISABLED
         }
+    }
+}
+
+/// Window startup position.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartPosition {
+    /// Uses the value of the `position` property.
+    Default,
+    /// Centralizes the window in relation to the active screen.
+    CenterScreen,
+    /// Centralizes the window in relation to the parent window.
+    CenterOwner,
+}
+impl Default for StartPosition {
+    fn default() -> Self {
+        Self::Default
     }
 }
 
@@ -1273,9 +1292,37 @@ impl OpenWindow {
     /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
     /// from the OS after calling this.
     fn request_redraw(&mut self) {
+        let gl_ctx = self.gl_ctx.borrow();
+        let window = gl_ctx.window();
         if self.first_draw {
+            match self.wn_ctx.borrow().root.start_position {
+                StartPosition::Default => {}
+                StartPosition::CenterScreen => {
+                    let size = window.outer_size();
+                    let available_size = window
+                        .current_monitor()
+                        .map(|m| m.size())
+                        .unwrap_or_else(|| glutin::dpi::PhysicalSize::new(0, 0));
+                    let position = glutin::dpi::PhysicalPosition::new(
+                        if size.width < available_size.width {
+                            (available_size.width - size.width) / 2
+                        } else {
+                            0
+                        },
+                        if size.height < available_size.height {
+                            (available_size.height - size.height) / 2
+                        } else {
+                            0
+                        },
+                    );
+                    window.set_outer_position(position)
+                }
+                StartPosition::CenterOwner => {
+                    todo!()
+                }
+            }
             let vis = Visibility::Visible == *self.wn_ctx.borrow().root.visibility.get_local();
-            self.gl_ctx.borrow().window().set_visible(vis); // OS generates a RequestRedraw here
+            window.set_visible(vis); // OS generates a RequestRedraw here
             self.first_draw = false;
         } else {
             self.gl_ctx.borrow().window().request_redraw();
