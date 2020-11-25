@@ -80,7 +80,7 @@ impl AppExtension for FontManager {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
         ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
         ctx.window_services
-            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api)));
+            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
     }
 
     #[cfg(windows)]
@@ -310,6 +310,8 @@ impl FontFace {
 /// A shared [`FontFace`].
 pub type FontFaceRef = Rc<FontFace>;
 
+const HARFBUZZ_FONT_SCALE: i32 = 64;
+
 /// A sized font face.
 ///
 /// A sized font can be requested from a [`FontFace`].
@@ -322,9 +324,12 @@ pub struct Font {
 }
 impl Font {
     fn new(face: FontFaceRef, size: LayoutLength) -> Self {
-        let h_font = harfbuzz_rs::Font::new(face.h_face.clone());
-        let metrics = FontMetrics::new(size.get(), &face.font_kit_handle().metrics());
-        // TODO size
+        let mut h_font = harfbuzz_rs::Font::new(HarfbuzzFace::clone(&face.h_face));
+        let metrics = FontMetrics::new(size.get(), &face.kit_font.metrics());
+
+        let font_size_pt = layout_to_pt(size) as u32;
+        h_font.set_ppem(font_size_pt, font_size_pt);
+        h_font.set_scale(font_size_pt as i32 * HARFBUZZ_FONT_SCALE, font_size_pt as i32 * HARFBUZZ_FONT_SCALE);
 
         Font {
             face,
@@ -461,38 +466,43 @@ impl FontFaceLoader {
 /// Per-window font glyph cache.
 pub struct FontRenderCache {
     api: Arc<RenderApi>,
-    cache: FnvHashMap<*const FontFace, RenderFontRef>,
+    window_id: WindowId,
+    fonts: FnvHashMap<*const FontFace, webrender::api::FontKey>,
+    instances: FnvHashMap<*const Font, super::FontInstanceKey>,
 }
+
 impl WindowService for FontRenderCache {}
 impl FontRenderCache {
-    fn new(api: Arc<RenderApi>) -> Self {
+    fn new(api: Arc<RenderApi>, window_id: WindowId) -> Self {
         FontRenderCache {
             api,
-            cache: FnvHashMap::default(),
+            window_id,
+            fonts: FnvHashMap::default(),
+            instances: FnvHashMap::default(),
         }
     }
 
     /// Gets a font list with the cached renderer data for each font.
     #[inline]
     pub fn get(&mut self, font_list: &FontList, font_size: LayoutLength) -> RenderFontList {
-        RenderFontList(font_list.iter().map(|r| self.get_or_cache(r, font_size)).collect())
-    }
-
-    fn get_or_cache(&mut self, font: &FontFaceRef, font_size: LayoutLength) -> RenderFontRef {
-        let api = &self.api;
-        let r = self
-            .cache
-            .entry(Rc::as_ptr(font))
-            .or_insert_with(move || Self::instantiate(api, Rc::clone(font), font_size));
-        Rc::clone(r)
-    }
-
-    fn instantiate(api: &RenderApi, font: FontFaceRef, font_size: LayoutLength) -> RenderFontRef {
         todo!()
+    }
+
+    /// Gets a [`RenderFont`] cached in the window renderer.
+    pub fn render_font(&mut self, font: FontRef) -> RenderFont {
+        let instance_key = *self.instances.entry(Rc::as_ptr(&font)).or_insert_with(|| todo!());
+
+        RenderFont {
+            font,
+            window_id: self.window_id,
+            instance_key,
+            synthesis_used: super::FontSynthesis::DISABLED, //TODO
+        }
     }
 }
 
 /// A [`Font`] cached in a window renderer.
+#[derive(Debug, Clone)]
 pub struct RenderFont {
     font: FontRef,
     window_id: WindowId,
