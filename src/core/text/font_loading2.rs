@@ -160,7 +160,7 @@ impl Fonts {
 
     /// Gets a font list that best matches the query.
     #[inline]
-    pub fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontList {
+    pub fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
         self.loader.get(families, style, weight, stretch)
     }
 }
@@ -377,11 +377,11 @@ pub type FontRef = Rc<Font>;
 ///
 /// Glyphs that are not resolved by the first font fallback to the second font and so on.
 #[derive(Debug, Clone)]
-pub struct FontList {
+pub struct FontFaceList {
     fonts: Box<[FontFaceRef]>,
 }
 #[allow(clippy::len_without_is_empty)] // is never empty.
-impl FontList {
+impl FontFaceList {
     /// The font face that best matches the requested properties.
     #[inline]
     pub fn best(&self) -> &FontFaceRef {
@@ -401,22 +401,30 @@ impl FontList {
     pub fn len(&self) -> usize {
         self.fonts.len()
     }
+
+    /// Gets a sized font list.
+    #[inline]
+    pub fn sized(&self, font_size: LayoutLength) -> FontList {
+        FontList {
+            fonts: self.fonts.iter().map(|f| f.sized(font_size)).collect(),
+        }
+    }
 }
-impl PartialEq for FontList {
+impl PartialEq for FontFaceList {
     /// Both are equal if each point to the same fonts in the same order.
     fn eq(&self, other: &Self) -> bool {
         self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
     }
 }
-impl Eq for FontList {}
-impl std::ops::Deref for FontList {
+impl Eq for FontFaceList {}
+impl std::ops::Deref for FontFaceList {
     type Target = [FontFaceRef];
 
     fn deref(&self) -> &Self::Target {
         &self.fonts
     }
 }
-impl<'a> std::iter::IntoIterator for &'a FontList {
+impl<'a> std::iter::IntoIterator for &'a FontFaceList {
     type Item = &'a FontFaceRef;
 
     type IntoIter = std::slice::Iter<'a, FontFaceRef>;
@@ -425,12 +433,18 @@ impl<'a> std::iter::IntoIterator for &'a FontList {
         self.iter()
     }
 }
-impl std::ops::Index<usize> for FontList {
+impl std::ops::Index<usize> for FontFaceList {
     type Output = FontFaceRef;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.fonts[index]
     }
+}
+
+/// A list of [`FontRef`] created from a [`FontFaceList`].
+#[derive(Debug, Clone)]
+pub struct FontList {
+    fonts: Box<[FontRef]>,
 }
 
 struct FontFaceLoader {
@@ -451,10 +465,17 @@ impl FontFaceLoader {
     }
 
     fn unregister(&mut self, custom_font: &FontName) -> bool {
-        self.custom_fonts.remove(custom_font).is_some()
+        if let Some(removed) = self.custom_fonts.remove(custom_font) {
+            // cut circular reference so that when the last font ref gets dropped
+            // this font face also gets dropped.
+            removed.instances.borrow_mut().clear();
+            true
+        } else {
+            false
+        }
     }
 
-    fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontList {
+    fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
         todo!()
     }
 
@@ -484,13 +505,21 @@ impl FontRenderCache {
 
     /// Gets a font list with the cached renderer data for each font.
     #[inline]
-    pub fn get(&mut self, font_list: &FontList, font_size: LayoutLength) -> RenderFontList {
-        todo!()
+    pub fn get(&mut self, font_list: &FontList) -> RenderFontList {
+        RenderFontList {
+            fonts: font_list.fonts.iter().map(|f| self.render_font(Rc::clone(f))).collect(),
+        }
     }
 
     /// Gets a [`RenderFont`] cached in the window renderer.
     pub fn render_font(&mut self, font: FontRef) -> RenderFont {
-        let instance_key = *self.instances.entry(Rc::as_ptr(&font)).or_insert_with(|| todo!());
+        #[allow(clippy::mutable_key_type)] // a *const pointer?
+        let fonts = &mut self.fonts;
+        let api = &self.api;
+        let instance_key = *self.instances.entry(Rc::as_ptr(&font)).or_insert_with(|| {
+            let font_key = *fonts.entry(Rc::as_ptr(font.face())).or_insert_with(|| todo!());
+            todo!()
+        });
 
         RenderFont {
             font,
@@ -544,10 +573,9 @@ impl RenderFont {
     }
 }
 
-/// A shared [`RenderFont`].
-pub type RenderFontRef = Rc<RenderFont>;
-
-pub struct RenderFontList(Vec<RenderFontRef>);
+pub struct RenderFontList {
+    fonts: Box<[RenderFont]>,
+}
 
 /// Fallback fonts configuration for the app.
 ///
