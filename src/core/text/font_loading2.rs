@@ -107,14 +107,19 @@ impl AppExtension for FontManager {
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update {
-            for args in ctx.services.req::<Fonts>().take_updates() {
-                self.font_changed.notify(ctx.events, args);
-            }
+            {
+                let fonts = ctx.services.req::<Fonts>();
 
-            #[cfg(windows)]
-            if self.system_fonts_changed.take() {
-                // subclass monitor flagged a font (un)install.
-                self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+                for args in fonts.take_updates() {
+                    self.font_changed.notify(ctx.events, args);
+                }
+
+                #[cfg(windows)]
+                if self.system_fonts_changed.take() {
+                    // subclass monitor flagged a font (un)install.
+                    self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+                    fonts.on_system_fonts_changed();
+                }
             }
 
             #[cfg(windows)]
@@ -156,6 +161,10 @@ impl Fonts {
             loader: FontFaceLoader::new(),
             fallbacks: FontFallbacks::new(notifier),
         }
+    }
+
+    fn on_system_fonts_changed(&mut self) {
+        self.loader.on_system_fonts_changed();
     }
 
     #[inline]
@@ -207,27 +216,33 @@ impl Fonts {
 
     /// Gets a font list that best matches the query.
     #[inline]
-    pub fn get_list(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
+    pub fn get_list(&mut self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
         self.loader
             .get_list(families, style, weight, stretch, &self.fallbacks.fallback[&Script::Unknown])
     }
 
     /// Gets a single font face that best matches the query.
     #[inline]
-    pub fn get(&self, family: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
+    pub fn get(&mut self, family: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
         self.loader.get(family, style, weight, stretch)
     }
 
     /// Gets all [registered](Self::register) font families.
     #[inline]
     pub fn custom_fonts(&self) -> Vec<FontName> {
-        todo!()
+        self.loader.custom_fonts.keys().cloned().collect()
     }
 
     /// Gets all font families available in the system.
     #[inline]
     pub fn system_fonts(&self) -> Vec<FontName> {
-        todo!()
+        self.loader
+            .system_fonts
+            .all_families()
+            .unwrap_or_default()
+            .into_iter()
+            .map(FontName::from)
+            .collect()
     }
 }
 
@@ -256,7 +271,7 @@ pub struct FontFace {
     unregistered: Cell<bool>,
 }
 impl FontFace {
-    fn load_custom(custom_font: CustomFont, loader: &FontFaceLoader) -> Result<Self, FontLoadingError> {
+    fn load_custom(custom_font: CustomFont, loader: &mut FontFaceLoader) -> Result<Self, FontLoadingError> {
         let (kit_font, h_face) = match custom_font.source {
             FontSource::File(path, font_index) => (
                 font_kit::handle::Handle::Path {
@@ -294,7 +309,6 @@ impl FontFace {
             }
         };
 
-        // loaded external
         Ok(FontFace {
             h_face: h_face.to_shared(),
             kit_font,
@@ -308,6 +322,20 @@ impl FontFace {
             instances: Default::default(),
             unregistered: Cell::new(false),
         })
+    }
+
+    fn load(handle: font_kit::handle::Handle) -> Result<Self, FontLoadingError> {
+        let kit_font = handle.load()?;
+        let h_face = match handle {
+            font_kit::handle::Handle::Path { path, font_index } => {
+                harfbuzz_rs::Face::from_file(path, font_index).map_err(FontLoadingError::Io)?
+            }
+            font_kit::handle::Handle::Memory { bytes, font_index } => {
+                harfbuzz_rs::Face::new(harfbuzz_rs::Blob::with_bytes_owned(bytes, |b| &b[..]), font_index)
+            }
+        };
+
+        todo!()
     }
 
     fn empty() -> Self {
@@ -324,6 +352,11 @@ impl FontFace {
             instances: Default::default(),
             unregistered: Cell::new(false),
         }
+    }
+
+    fn on_unregistered(&self) {
+        self.instances.borrow_mut().clear();
+        self.unregistered.set(true);
     }
 
     /// Reference the underlying [`harfbuzz`](harfbuzz_rs) font face handle.
@@ -551,12 +584,30 @@ pub struct FontList {
 struct FontFaceLoader {
     custom_fonts: HashMap<FontName, Vec<FontFaceRef>>,
     system_fonts: font_kit::source::SystemSource,
+    system_fonts_cache: HashMap<FontName, Vec<SystemFontFace>>,
+}
+enum SystemFontFace {
+    /// Properties queried and face returned by system.
+    Found(FontStyle, FontWeight, FontStretch, FontFaceRef),
+    NotFound(FontStyle, FontWeight, FontStretch),
 }
 impl FontFaceLoader {
     fn new() -> Self {
         FontFaceLoader {
             custom_fonts: HashMap::new(),
             system_fonts: font_kit::source::SystemSource::new(),
+            system_fonts_cache: HashMap::new(),
+        }
+    }
+
+    fn on_system_fonts_changed(&mut self) {
+        self.system_fonts = font_kit::source::SystemSource::new();
+        for (_, sys_family) in self.system_fonts_cache.drain() {
+            for sys_font in sys_family {
+                if let SystemFontFace::Found(_, _, _, ref_) = sys_font {
+                    ref_.on_unregistered();
+                }
+            }
         }
     }
 
@@ -583,8 +634,7 @@ impl FontFaceLoader {
             // this font face also gets dropped. Also tag the font as unregistered
             // so it does not create further circular references.
             for removed in removed {
-                removed.instances.borrow_mut().clear();
-                removed.unregistered.set(true);
+                removed.on_unregistered();
             }
             true
         } else {
@@ -593,7 +643,7 @@ impl FontFaceLoader {
     }
 
     fn get_list(
-        &self,
+        &mut self,
         families: &[FontName],
         style: FontStyle,
         weight: FontWeight,
@@ -618,8 +668,77 @@ impl FontFaceLoader {
         }
     }
 
-    fn get(&self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
-        todo!()
+    fn get(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
+        if let Some(custom_family) = self.custom_fonts.get(font_name) {
+            for c_face in custom_family {
+                if c_face.style == style && c_face.weight == weight && c_face.stretch == stretch {
+                    return Some(Rc::clone(c_face)); // perfect match
+                }
+            }
+
+            todo!("match custom")
+        }
+
+        if let Some(cached_sys_family) = self.system_fonts_cache.get_mut(font_name) {
+            for sys_face in cached_sys_family.iter() {
+                match sys_face {
+                    SystemFontFace::Found(m_style, m_weight, m_stretch, face) => {
+                        if *m_style == style && *m_weight == weight && *m_stretch == stretch {
+                            return Some(Rc::clone(face)); // cached match
+                        }
+                    }
+                    SystemFontFace::NotFound(n_style, n_weight, n_stretch) => {
+                        if *n_style == style && *n_weight == weight && *n_stretch == stretch {
+                            return None; // cached not match
+                        }
+                    }
+                }
+            }
+        }
+
+        let handle = self.get_system(font_name, style, weight, stretch);
+
+        let sys_family = self
+            .system_fonts_cache
+            .entry(font_name.clone())
+            .or_insert_with(|| Vec::with_capacity(1));
+
+        if let Some(handle) = handle {
+            match FontFace::load(handle) {
+                Ok(f) => {
+                    let f = Rc::new(f);
+                    sys_family.push(SystemFontFace::Found(style, weight, stretch, Rc::clone(&f)));
+                    return Some(f); // new match
+                }
+                Err(e) => {
+                    error_println!("failed to load system font, {}", e);
+                }
+            }
+        } else {
+            sys_family.push(SystemFontFace::NotFound(style, weight, stretch));
+        }
+
+        None // no new match
+    }
+
+    fn get_system(
+        &self,
+        font_name: &FontName,
+        style: FontStyle,
+        weight: FontWeight,
+        stretch: FontStretch,
+    ) -> Option<font_kit::handle::Handle> {
+        let family_name = font_kit::family_name::FamilyName::from(font_name.clone());
+        match self
+            .system_fonts
+            .select_best_match(&[family_name], &font_kit::properties::Properties { style, weight, stretch })
+        {
+            Ok(handle) => Some(handle),
+            Err(e) => {
+                error_println!("failed to select system font, {}", e);
+                None
+            }
+        }
     }
 }
 
