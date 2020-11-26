@@ -12,10 +12,10 @@ use webrender::api::RenderApi;
 use super::{FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
-use crate::core::event::{event, event_args, EventEmitter};
+use crate::core::event::{event, event_args, EventEmitter, EventListener};
 use crate::core::service::{AppService, WindowService};
 use crate::core::units::{layout_to_pt, LayoutLength};
-use crate::core::window::WindowId;
+use crate::core::window::{WindowEventArgs, WindowId, WindowOpenEvent, Windows};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
@@ -73,11 +73,13 @@ pub enum FontChange {
 /// * [FontChangedEvent] - Font fallbacks or system fonts changed.
 pub struct FontManager {
     font_changed: EventEmitter<FontChangedArgs>,
+    window_open: EventListener<WindowEventArgs>,
 }
 impl Default for FontManager {
     fn default() -> Self {
         FontManager {
             font_changed: FontChangedEvent::emitter(),
+            window_open: WindowOpenEvent::never(),
         }
     }
 }
@@ -87,17 +89,28 @@ impl AppExtension for FontManager {
         ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
         ctx.window_services
             .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
+
+        self.window_open = ctx.events.listen::<WindowOpenEvent>();
     }
 
     #[cfg(windows)]
-    fn on_window_event(&mut self, _window_id: WindowId, _event: &crate::core::types::WindowEvent, _ctx: &mut AppContext) {
+    fn on_window_event(&mut self, _window_id: WindowId, event: &crate::core::types::WindowEvent, _ctx: &mut AppContext) {
+
         // TODO use Windows sub-classing to listen to WM_FONTCHANGE
+        // https://github.com/rust-windowing/winit/issues/1052
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         if update.update {
             for args in ctx.services.req::<Fonts>().take_updates() {
                 self.font_changed.notify(ctx.events, args);
+            }
+
+            if self.window_open.has_updates(ctx.events) {
+                let windows = ctx.services.req::<Windows>();
+                for w in self.window_open.updates(ctx.events) {
+                    if let Ok(w) = windows.window(w.window_id) {}
+                }
             }
         }
     }
@@ -166,9 +179,27 @@ impl Fonts {
 
     /// Gets a font list that best matches the query.
     #[inline]
-    pub fn get(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
+    pub fn get_list(&self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
         self.loader
             .get_list(families, style, weight, stretch, &self.fallbacks.fallback[&Script::Unknown])
+    }
+
+    /// Gets a single font face that best matches the query.
+    #[inline]
+    pub fn get(&self, family: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
+        self.loader.get(family, style, weight, stretch)
+    }
+
+    /// Gets all [registered](Self::register) font families.
+    #[inline]
+    pub fn custom_fonts(&self) -> Vec<FontName> {
+        todo!()
+    }
+
+    /// Gets all font families available in the system.
+    #[inline]
+    pub fn system_fonts(&self) -> Vec<FontName> {
+        todo!()
     }
 }
 
@@ -585,15 +616,15 @@ impl FontRenderCache {
 
     /// Gets a font list with the cached renderer data for each font.
     #[inline]
-    pub fn get(&mut self, font_list: &FontList) -> RenderFontList {
+    pub fn get_list(&mut self, font_list: &FontList) -> RenderFontList {
         RenderFontList {
-            fonts: font_list.fonts.iter().map(|f| self.render_font(Rc::clone(f))).collect(),
+            fonts: font_list.fonts.iter().map(|f| self.get(Rc::clone(f))).collect(),
         }
     }
 
     /// Gets a [`RenderFont`] cached in the window renderer.
-    pub fn render_font(&mut self, font: FontRef) -> RenderFont {
-        #[allow(clippy::mutable_key_type)] // a *const pointer?
+    pub fn get(&mut self, font: FontRef) -> RenderFont {
+        #[allow(clippy::mutable_key_type)] // Hash impl for *const T hashes the pointer usize value.
         let fonts = &mut self.fonts;
         let api = &self.api;
 
@@ -633,7 +664,7 @@ impl FontRenderCache {
                 instance_key,
                 font_key,
                 webrender::api::units::Au::from_f32_px(font.size.get()),
-                None,
+                Some(opt),
                 None,
                 vec![],
             );

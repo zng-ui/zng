@@ -76,7 +76,7 @@ impl<E: AppExtension> AppRunWindow for AppExtended<E> {
 }
 
 event_args! {
-    /// [`WindowOpen`], [`WindowClose`] event args.
+    /// [`WindowOpenEvent`], [`WindowCloseEvent`] event args.
     pub struct WindowEventArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -1026,6 +1026,19 @@ impl OpenWindow {
             height,
             dpi,
         }
+    }
+
+    /// Installs or updates a window subclass callback.
+    ///
+    /// # Safety
+    ///
+    /// TODO
+    #[cfg(windows)]
+    pub unsafe fn set_subclass(&mut self, callback: winapi::um::commctrl::SUBCLASSPROC, data: winapi::shared::basetsd::DWORD_PTR) -> bool {
+        use glutin::platform::windows::WindowExtWindows;
+
+        let hwnd = self.gl_ctx.borrow().window().hwnd() as winapi::shared::windef::HWND;
+        winapi::um::commctrl::SetWindowSubclass(hwnd, callback, 0, data) != 0
     }
 
     /// Manually flags layout to actually update on the next call.
