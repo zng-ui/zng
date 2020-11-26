@@ -763,6 +763,9 @@ pub struct OpenWindow {
     doc_view_changed: bool,
 
     is_active: bool,
+
+    #[doc(windows)]
+    subclass_id: std::cell::Cell<usize>,
 }
 
 impl OpenWindow {
@@ -882,6 +885,9 @@ impl OpenWindow {
             doc_view: units::DeviceIntRect::from_size(start_size),
             doc_view_changed: false,
             is_active: true, // just opened it?
+
+            #[doc(windows)]
+            subclass_id: std::cell::Cell::new(0),
         };
 
         if set_position_var {
@@ -1026,19 +1032,6 @@ impl OpenWindow {
             height,
             dpi,
         }
-    }
-
-    /// Installs or updates a window subclass callback.
-    ///
-    /// # Safety
-    ///
-    /// TODO
-    #[cfg(windows)]
-    pub unsafe fn set_subclass(&mut self, callback: winapi::um::commctrl::SUBCLASSPROC, data: winapi::shared::basetsd::DWORD_PTR) -> bool {
-        use glutin::platform::windows::WindowExtWindows;
-
-        let hwnd = self.gl_ctx.borrow().window().hwnd() as winapi::shared::windef::HWND;
-        winapi::um::commctrl::SetWindowSubclass(hwnd, callback, 0, data) != 0
     }
 
     /// Manually flags layout to actually update on the next call.
@@ -1328,6 +1321,100 @@ impl OpenWindow {
         self.gl_ctx.borrow_mut().make_current();
         self.renderer.deinit();
         self.gl_ctx.borrow_mut().make_not_current();
+    }
+}
+
+/// # Windows OS Only
+#[cfg(windows)]
+impl OpenWindow {
+    /// Windows OS window handler.
+    ///
+    /// # See Also
+    ///
+    /// * [`Self::generate_subclass_id`]
+    /// * [`Self::set_raw_windows_event_handler`]
+    #[inline]
+    pub fn hwnd(&self) -> winapi::shared::windef::HWND {
+        use glutin::platform::windows::WindowExtWindows;
+        self.gl_ctx.borrow().window().hwnd() as winapi::shared::windef::HWND
+    }
+
+    /// Generate Windows OS subclasses id that is unique for this window.
+    #[inline]
+    pub fn generate_subclass_id(&self) -> winapi::shared::basetsd::UINT_PTR {
+        self.subclass_id.replace(self.subclass_id.get() + 1)
+    }
+
+    /// Sets a window subclass that calls a raw event handler.
+    ///
+    /// Use this to receive Windows OS events not covered in [`WindowEvent`].
+    ///
+    /// Returns if adding a subclass handler succeeded.
+    ///
+    /// # Handler
+    ///
+    /// The handler inputs are the first 4 arguments of a [`SUBCLASSPROC`](https://docs.microsoft.com/en-us/windows/win32/api/commctrl/nc-commctrl-subclassproc).
+    /// You can use closure capture to include extra data.
+    ///
+    /// The handler must return `Some(LRESULT)` to stop the propagation of a specific message.
+    ///
+    /// The handler is dropped after it receives the `WM_DESTROY` message.
+    pub fn set_raw_windows_event_handler<
+        H: FnMut(
+                winapi::shared::windef::HWND,
+                winapi::shared::minwindef::UINT,
+                winapi::shared::minwindef::WPARAM,
+                winapi::shared::minwindef::LPARAM,
+            ) -> Option<winapi::shared::minwindef::LRESULT>
+            + 'static,
+    >(
+        &self,
+        handler: H,
+    ) -> bool {
+        let hwnd = self.hwnd();
+        let data = Box::new(handler);
+        unsafe {
+            winapi::um::commctrl::SetWindowSubclass(
+                hwnd,
+                Some(Self::subclass_raw_event_proc::<H>),
+                self.generate_subclass_id(),
+                Box::into_raw(data) as winapi::shared::basetsd::DWORD_PTR,
+            ) != 0
+        }
+    }
+
+    unsafe extern "system" fn subclass_raw_event_proc<
+        H: FnMut(
+                winapi::shared::windef::HWND,
+                winapi::shared::minwindef::UINT,
+                winapi::shared::minwindef::WPARAM,
+                winapi::shared::minwindef::LPARAM,
+            ) -> Option<winapi::shared::minwindef::LRESULT>
+            + 'static,
+    >(
+        hwnd: winapi::shared::windef::HWND,
+        msg: winapi::shared::minwindef::UINT,
+        wparam: winapi::shared::minwindef::WPARAM,
+        lparam: winapi::shared::minwindef::LPARAM,
+        _id: winapi::shared::basetsd::UINT_PTR,
+        data: winapi::shared::basetsd::DWORD_PTR,
+    ) -> winapi::shared::minwindef::LRESULT {
+        match msg {
+            winapi::um::winuser::WM_DESTROY => {
+                // last call and cleanup.
+                let mut handler = Box::from_raw(data as *mut H);
+                handler(hwnd, msg, wparam, lparam).unwrap_or_default()
+            }
+
+            msg => {
+                let handler = &mut *(data as *mut H);
+                if let Some(r) = handler(hwnd, msg, wparam, lparam) {
+                    r
+                } else {
+                    winapi::um::commctrl::DefSubclassProc(hwnd, msg, wparam, lparam)
+                }
+            }
+        }
     }
 }
 

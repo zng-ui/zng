@@ -73,13 +73,22 @@ pub enum FontChange {
 /// * [FontChangedEvent] - Font fallbacks or system fonts changed.
 pub struct FontManager {
     font_changed: EventEmitter<FontChangedArgs>,
+
+    #[cfg(windows)]
     window_open: EventListener<WindowEventArgs>,
+
+    #[cfg(windows)]
+    system_fonts_changed: Rc<Cell<bool>>,
 }
 impl Default for FontManager {
     fn default() -> Self {
         FontManager {
             font_changed: FontChangedEvent::emitter(),
+
+            #[cfg(windows)]
             window_open: WindowOpenEvent::never(),
+            #[cfg(windows)]
+            system_fonts_changed: Rc::new(Cell::new(false)),
         }
     }
 }
@@ -90,14 +99,10 @@ impl AppExtension for FontManager {
         ctx.window_services
             .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
 
-        self.window_open = ctx.events.listen::<WindowOpenEvent>();
-    }
-
-    #[cfg(windows)]
-    fn on_window_event(&mut self, _window_id: WindowId, event: &crate::core::types::WindowEvent, _ctx: &mut AppContext) {
-
-        // TODO use Windows sub-classing to listen to WM_FONTCHANGE
-        // https://github.com/rust-windowing/winit/issues/1052
+        #[cfg(windows)]
+        {
+            self.window_open = ctx.events.listen::<WindowOpenEvent>();
+        }
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -106,10 +111,33 @@ impl AppExtension for FontManager {
                 self.font_changed.notify(ctx.events, args);
             }
 
+            #[cfg(windows)]
+            if self.system_fonts_changed.take() {
+                // subclass monitor flagged a font (un)install.
+                self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
+            }
+
+            #[cfg(windows)]
             if self.window_open.has_updates(ctx.events) {
+                // attach subclass WM_FONTCHANGE monitor to new windows.
                 let windows = ctx.services.req::<Windows>();
                 for w in self.window_open.updates(ctx.events) {
-                    if let Ok(w) = windows.window(w.window_id) {}
+                    if let Ok(w) = windows.window(w.window_id) {
+                        let notifier = ctx.updates.notifier().clone();
+                        let flag = Rc::clone(&self.system_fonts_changed);
+                        let ok = w.set_raw_windows_event_handler(move |_, msg, _, _| {
+                            if msg == winapi::um::winuser::WM_FONTCHANGE {
+                                flag.set(true);
+                                notifier.update();
+                                Some(0)
+                            } else {
+                                None
+                            }
+                        });
+                        if !ok {
+                            error_println!("failed to set WM_FONTCHANGE subclass monitor");
+                        }
+                    }
                 }
             }
         }
@@ -858,7 +886,7 @@ impl CustomFont {
     ///
     /// If the file is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
-    /// The font is loaded in [`AppFonts::register`].
+    /// The font is loaded in [`Fonts::register`].
     pub fn from_file<N: Into<FontName>, P: Into<PathBuf>>(name: N, path: P, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -874,7 +902,7 @@ impl CustomFont {
     ///
     /// If the font data is a collection of fonts, `font_index` determines which, otherwise just pass `0`.
     ///
-    /// The font is loaded in [`AppFonts::register`].
+    /// The font is loaded in [`Fonts::register`].
     pub fn from_bytes<N: Into<FontName>>(name: N, data: FontDataRef, font_index: u32) -> Self {
         CustomFont {
             name: name.into(),
@@ -888,7 +916,7 @@ impl CustomFont {
 
     /// A custom font that maps to another font.
     ///
-    /// The font is loaded in [`AppFonts::register`].
+    /// The font is loaded in [`Fonts::register`].
     pub fn from_other<N: Into<FontName>, O: Into<FontName>>(name: N, other_font: O) -> Self {
         CustomFont {
             name: name.into(),
