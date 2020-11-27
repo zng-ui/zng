@@ -95,7 +95,7 @@ impl Default for FontManager {
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
-        ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
+        ctx.services.register(Fonts::new(ctx.updates.notifier().clone())).unwrap();
         ctx.window_services
             .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
 
@@ -150,11 +150,11 @@ impl AppExtension for FontManager {
 }
 
 /// Font loading, custom fonts and app font configuration.
+#[derive(AppService)]
 pub struct Fonts {
     loader: FontFaceLoader,
     fallbacks: FontFallbacks,
 }
-impl AppService for Fonts {}
 impl Fonts {
     fn new(notifier: UpdateNotifier) -> Self {
         Fonts {

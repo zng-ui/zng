@@ -258,7 +258,7 @@ impl Default for WindowManager {
 impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.notifier().clone()));
+        r.services.register(Windows::new(r.updates.notifier().clone())).unwrap();
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
         r.events
             .register::<WindowIsActiveChangedEvent>(self.window_is_active_changed.listener());
@@ -539,6 +539,7 @@ impl WindowManager {
 }
 
 /// Windows service.
+#[derive(AppService)]
 pub struct Windows {
     /// If shutdown is requested when there are no more windows open, `true` by default.
     pub shutdown_on_last_close: bool,
@@ -551,8 +552,6 @@ pub struct Windows {
     close_listeners: FnvHashMap<WindowId, Vec<EventEmitter<CloseWindowResult>>>,
     update_notifier: UpdateNotifier,
 }
-
-impl AppService for Windows {}
 
 impl Windows {
     fn new(update_notifier: UpdateNotifier) -> Self {

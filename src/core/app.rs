@@ -208,11 +208,11 @@ pub struct ShutDownCancelled;
 /// Service for managing the application process.
 ///
 /// This is the only service that is registered without an application extension.
+#[derive(AppService)]
 pub struct AppProcess {
     shutdown_requests: Vec<EventEmitter<ShutDownCancelled>>,
     update_notifier: UpdateNotifier,
 }
-impl AppService for AppProcess {}
 impl AppProcess {
     pub fn new(update_notifier: UpdateNotifier) -> Self {
         AppProcess {
@@ -440,7 +440,10 @@ impl<E: AppExtension> AppExtended<E> {
         let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
         let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
+        init_ctx
+            .services
+            .register(AppProcess::new(init_ctx.updates.notifier().clone()))
+            .unwrap();
         extensions.init(&mut init_ctx);
 
         let mut in_sequence = false;
@@ -561,7 +564,10 @@ impl<E: AppExtension> AppExtended<E> {
         let mut extensions = self.extensions;
 
         let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
+        init_ctx
+            .services
+            .register(AppProcess::new(init_ctx.updates.notifier().clone()))
+            .unwrap();
         extensions.init(&mut init_ctx);
 
         HeadlessApp {

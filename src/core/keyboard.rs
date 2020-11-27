@@ -138,7 +138,7 @@ impl KeyboardManager {
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppInitContext) {
         let k = Keyboard::new(r.events);
-        r.services.register(k);
+        r.services.register(k).unwrap();
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -180,6 +180,7 @@ impl AppExtension for KeyboardManager {
 /// # Provider
 ///
 /// This service is provided by the [`KeyboardManager`] extension.
+#[derive(AppService)]
 pub struct Keyboard {
     modifiers: ModifiersState,
     last_key_down: Option<(Option<DeviceId>, ScanCode)>,
@@ -192,7 +193,6 @@ pub struct Keyboard {
 
     char_input: EventEmitter<CharInputArgs>,
 }
-impl AppService for Keyboard {}
 impl Keyboard {
     pub fn new(events: &mut Events) -> Self {
         let self_ = Keyboard {

@@ -12,6 +12,7 @@ use proc_macro::TokenStream;
 #[macro_use]
 mod util;
 
+mod derive_app_service;
 mod hex_color;
 mod impl_ui_node;
 pub(crate) mod property;
@@ -61,4 +62,9 @@ pub fn widget_new(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
+}
+
+#[proc_macro_derive(AppService)]
+pub fn derive_app_service(item: TokenStream) -> TokenStream {
+    derive_app_service::derive(item)
 }

@@ -512,7 +512,7 @@ impl AppExtension for GestureManager {
 
         r.events.register::<ShortcutEvent>(self.shortcut.listener());
 
-        r.services.register(Gestures::new());
+        r.services.register(Gestures::new()).unwrap();
     }
 
     fn on_window_event(&mut self, _: WindowId, event: &WindowEvent, _: &mut AppContext) {
@@ -646,6 +646,7 @@ impl AppExtension for GestureManager {
 }
 
 /// Gesture events configuration.
+#[derive(AppService)]
 pub struct Gestures {
     /// Shortcuts that generate a [`ClickEvent`] for the focused widget.
     /// The shortcut only works if no widget handles the [`ShortcutEvent`].
@@ -675,7 +676,6 @@ impl Gestures {
         self.click_shortcut.push((window_id, widget_id, args));
     }
 }
-impl AppService for Gestures {}
 
 impl std::str::FromStr for ModifierGesture {
     type Err = ParseError;

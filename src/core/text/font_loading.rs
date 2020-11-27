@@ -6,7 +6,7 @@ use crate::core::{
     service::WindowService,
     units::layout_to_pt,
     units::LayoutLength,
-    var::{ContextVar, RcVar},
+    var::RcVar,
 };
 use crate::properties::text_theme::FontFamilyVar;
 use fnv::FnvHashMap;
@@ -62,6 +62,7 @@ impl AppExtension for FontManager {
 ///
 /// This service defines custom fonts for the app, use [`Fonts`] to load
 /// fonts in each window.
+#[derive(AppService)]
 pub struct AppFonts {
     custom_fonts: HashMap<(FontName, FontPropertiesKey), FontKitHandle>,
     //aliases: HashMap<(FontName, FontPropertiesKey), ()>,
@@ -126,7 +127,6 @@ impl AppFonts {
         }
     }
 }
-impl AppService for AppFonts {}
 
 /// Fonts cache service.
 ///

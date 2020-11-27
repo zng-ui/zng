@@ -332,7 +332,7 @@ impl AppExtension for FocusManager {
         self.mouse_down = ctx.events.listen::<MouseDownEvent>();
         self.shortcut = ctx.events.listen::<ShortcutEvent>();
 
-        ctx.services.register(Focus::new(ctx.updates.notifier().clone()));
+        ctx.services.register(Focus::new(ctx.updates.notifier().clone())).unwrap();
 
         ctx.events.register::<FocusChangedEvent>(self.focus_changed.listener());
         ctx.events.register::<ReturnFocusChangedEvent>(self.return_focus_changed.listener());
@@ -437,6 +437,7 @@ impl FocusManager {
 /// # Provider
 ///
 /// This service is provided by the [`FocusManager`] extension.
+#[derive(AppService)]
 pub struct Focus {
     request: Option<FocusRequest>,
     update_notifier: UpdateNotifier,
@@ -873,8 +874,6 @@ impl Focus {
         r
     }
 }
-
-impl AppService for Focus {}
 
 #[derive(Clone, Copy, Debug)]
 /// Focus change request.
