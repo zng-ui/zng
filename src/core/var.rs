@@ -37,8 +37,8 @@ pub use map_bidi_ref_var::*;
 mod rc_map_bidi_var;
 pub use rc_map_bidi_var::*;
 
-mod context_var_proxy;
-pub use context_var_proxy::*;
+mod context_var;
+pub use context_var::*;
 
 mod rc_merge_var;
 pub use rc_merge_var::*;
@@ -125,45 +125,6 @@ pub trait ContextVar: Clone + Copy + 'static {
     // by the macro as close as possible.
     #[doc(hidden)]
     fn thread_local_value() -> ContextVarLocalKey<Self>;
-}
-
-/// See [`ContextVar::thread_local_value`].
-pub struct ContextVarValue<V: ContextVar> {
-    _var: PhantomData<V>,
-    value: Cell<(*const V::Type, bool, u32)>,
-}
-impl<V: ContextVar> ContextVarValue<V> {
-    #[inline]
-    pub fn init() -> Self {
-        ContextVarValue {
-            _var: PhantomData,
-            value: Cell::new((V::default_value() as *const V::Type, false, 0)),
-        }
-    }
-}
-
-/// See [`ContextVar::thread_local_value`].
-#[doc(hidden)]
-pub struct ContextVarLocalKey<V: ContextVar> {
-    local: &'static LocalKey<ContextVarValue<V>>,
-}
-impl<V: ContextVar> ContextVarLocalKey<V> {
-    #[inline]
-    pub fn new(local: &'static LocalKey<ContextVarValue<V>>) -> Self {
-        ContextVarLocalKey { local }
-    }
-
-    pub(super) fn get(&self) -> (*const V::Type, bool, u32) {
-        self.local.with(|l| l.value.get())
-    }
-
-    pub(super) fn set(&self, value: (*const V::Type, bool, u32)) {
-        self.local.with(|l| l.value.set(value))
-    }
-
-    pub(super) fn replace(&self, value: (*const V::Type, bool, u32)) -> (*const V::Type, bool, u32) {
-        self.local.with(|l| l.value.replace(value))
-    }
 }
 
 /// Error when trying to set or modify a read-only variable.
