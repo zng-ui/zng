@@ -71,7 +71,6 @@ impl<S: AppService> AppServiceEntry<S> {
 pub trait WindowService: 'static {}
 
 mod protected {
-    use super::AppServices;
     use std::any::*;
 
     pub trait TypeBundle<'m> {
@@ -81,12 +80,12 @@ mod protected {
         fn downcast_mut(instances: Vec<&'m mut Box<dyn Any>>) -> Self::Borrowed;
     }
 
-    pub trait AppServicesTuple<'s> {
+    pub trait ServicesTuple<'s> {
         type Borrowed;
 
         fn assert_no_dup();
 
-        fn get(services: &'s mut AppServices) -> Result<Self::Borrowed, &'static str>;
+        fn get() -> Result<Self::Borrowed, &'static str>;
     }
 }
 
@@ -94,7 +93,7 @@ mod protected {
 pub trait WindowServicesTuple<'m>: protected::TypeBundle<'m> {}
 
 #[doc(hidden)]
-pub trait AppServicesTuple<'s>: protected::AppServicesTuple<'s> {}
+pub trait AppServicesTuple<'s>: protected::ServicesTuple<'s> {}
 
 macro_rules! impl_AppServicesTuple {
     ( $( ( $($n:tt),+ ) ),+  $(,)?) => {$(paste::paste!{
@@ -104,7 +103,7 @@ macro_rules! impl_AppServicesTuple {
     })+};
 
     (impl $($assert:tt, $ptr:tt = $S:tt),+ ) => {
-        impl<'s, $($S: AppService),+> protected::AppServicesTuple<'s> for ( $($S),+ ) {
+        impl<'s, $($S: AppService),+> protected::ServicesTuple<'s> for ( $($S),+ ) {
             type Borrowed = ( $(&'s mut $S),+ );
 
             fn assert_no_dup() {
@@ -113,7 +112,7 @@ macro_rules! impl_AppServicesTuple {
                 )+
             }
 
-            fn get(_: &'s mut AppServices) -> Result<Self::Borrowed, &'static str> {
+            fn get() -> Result<Self::Borrowed, &'static str> {
                 Self::assert_no_dup();
 
                 $(
@@ -347,7 +346,7 @@ impl AppServices {
     ///
     /// If the same service type is requested more then once.
     pub fn get_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> Option<M::Borrowed> {
-        M::get(self).ok()
+        M::get().ok()
     }
 
     /// Requires multiple service references.
@@ -363,7 +362,7 @@ impl AppServices {
     ///
     /// If the same service type is required more then once.
     pub fn req_multi<'m, M: AppServicesTuple<'m>>(&'m mut self) -> M::Borrowed {
-        M::get(self).unwrap_or_else(|e| panic!("service `{}` is required", e))
+        M::get().unwrap_or_else(|e| panic!("service `{}` is required", e))
     }
 }
 
