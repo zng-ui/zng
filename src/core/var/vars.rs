@@ -30,10 +30,10 @@ impl Vars {
 
     /// Gets a var at the context level.
     pub(super) fn context_var<C: ContextVar>(&self) -> (&C::Type, bool, u32) {
-        let (value, is_new, version) = C::current_value();
+        let (value, is_new, version) = C::thread_local_value().get();
 
         (
-            // SAFETY: this is safe as long we are the only one to call `C::replace_current` in
+            // SAFETY: this is safe as long we are the only one to call `C::thread_local_value().get()` in
             // `Self::with_context_var`.
             //
             // The reference is held for as long as it is accessible in here, at least:
@@ -53,7 +53,7 @@ impl Vars {
         // don't change before studying it.
 
         let _prev = RestoreOnDrop {
-            prev: C::replace_current(value as _, is_new, version),
+            prev: C::thread_local_value().replace((value as _, is_new, version)),
             _c: context_var,
         };
 
@@ -90,6 +90,6 @@ struct RestoreOnDrop<C: ContextVar> {
 }
 impl<C: ContextVar> Drop for RestoreOnDrop<C> {
     fn drop(&mut self) {
-        C::replace_current(self.prev.0, self.prev.1, self.prev.2);
+        C::thread_local_value().set(self.prev);
     }
 }

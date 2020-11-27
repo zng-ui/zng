@@ -7,6 +7,7 @@ use std::{
     marker::PhantomData,
     mem::MaybeUninit,
     rc::Rc,
+    thread::LocalKey,
 };
 
 mod boxed_var;
@@ -118,20 +119,51 @@ pub trait ContextVar: Clone + Copy + 'static {
     /// Gets the variable.
     fn var() -> &'static ContextVarProxy<Self>;
 
-    /// See [`Self::replace_current`].
+    /// Use [`context_var!`] to implement context vars.
+    ///
+    /// If that is not possible copy the `thread_local` implementation generated
+    // by the macro as close as possible.
     #[doc(hidden)]
-    fn current_value() -> (*const Self::Type, bool, u32);
+    fn thread_local_value() -> ContextVarLocalKey<Self>;
+}
 
-    /// Use the [`context_var!`] macro to generate a context var when possible.
-    ///
-    /// If that is not possible copy the generated implementation of `current_value` and `replace_current`
-    /// exactly in your manual implementation.
-    ///
-    /// # DO NOT CALL
-    ///
-    /// See [`Vars`] to see how these methods are used, safety in `Vars` assumes only `Vars` calls this method.
-    #[doc(hidden)]
-    fn replace_current(value: *const Self::Type, is_new: bool, version: u32) -> (*const Self::Type, bool, u32);
+/// See [`ContextVar::thread_local_value`].
+pub struct ContextVarValue<V: ContextVar> {
+    _var: PhantomData<V>,
+    value: Cell<(*const V::Type, bool, u32)>,
+}
+impl<V: ContextVar> ContextVarValue<V> {
+    #[inline]
+    pub fn init() -> Self {
+        ContextVarValue {
+            _var: PhantomData,
+            value: Cell::new((V::default_value() as *const V::Type, false, 0)),
+        }
+    }
+}
+
+/// See [`ContextVar::thread_local_value`].
+#[doc(hidden)]
+pub struct ContextVarLocalKey<V: ContextVar> {
+    local: &'static LocalKey<ContextVarValue<V>>,
+}
+impl<V: ContextVar> ContextVarLocalKey<V> {
+    #[inline]
+    pub fn new(local: &'static LocalKey<ContextVarValue<V>>) -> Self {
+        ContextVarLocalKey { local }
+    }
+
+    pub(super) fn get(&self) -> (*const V::Type, bool, u32) {
+        self.local.with(|l| l.value.get())
+    }
+
+    pub(super) fn set(&self, value: (*const V::Type, bool, u32)) {
+        self.local.with(|l| l.value.set(value))
+    }
+
+    pub(super) fn replace(&self, value: (*const V::Type, bool, u32)) -> (*const V::Type, bool, u32) {
+        self.local.with(|l| l.value.replace(value))
+    }
 }
 
 /// Error when trying to set or modify a read-only variable.
