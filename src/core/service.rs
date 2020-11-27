@@ -59,7 +59,7 @@ impl<S: AppService> AppServiceEntry<S> {
 
     fn assert_no_dup(&self) -> Rc<()> {
         let count = self.local.with(|l| Rc::clone(&l.assert_count));
-        if Rc::strong_count(&count) == 1 {
+        if Rc::strong_count(&count) == 2 {
             count
         } else {
             panic!("service `{}` already in query", type_name::<S>())
