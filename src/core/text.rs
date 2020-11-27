@@ -16,6 +16,8 @@ use font_features::HFontFeatures;
 mod font_loading;
 pub use font_loading::*;
 
+pub mod font_loading2;
+
 pub use font_kit::properties::{Stretch as FontStretch, Style as FontStyle, Weight as FontWeight};
 pub use webrender::api::FontInstanceKey;
 
@@ -554,10 +556,11 @@ impl WhiteSpace {
     }
 }
 
-/// A possible value for the `font_family` property.
+/// Font family name.
+///
+/// A possible value for the [`font_family`](crate::properties::text_theme::font_family) property.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FontName(Text);
-
 impl FontName {
     #[inline]
     pub fn new(name: impl Into<Text>) -> Self {
@@ -611,6 +614,12 @@ impl FontName {
     pub fn name(&self) -> &str {
         &self.0
     }
+
+    /// Unwraps into a [`Text`].
+    #[inline]
+    pub fn into_text(self) -> Text {
+        self.0
+    }
 }
 impl From<FamilyName> for FontName {
     #[inline]
@@ -637,9 +646,32 @@ impl From<FontName> for FamilyName {
         }
     }
 }
+impl_from_and_into_var! {
+    fn from(s: &'static str) -> FontName {
+        FontName::new(s)
+    }
+    fn from(s: String) -> FontName {
+        FontName::new(s)
+    }
+    fn from(s: Cow<'static, str>) -> FontName {
+        FontName::new(s)
+    }
+}
 impl fmt::Display for FontName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
+    }
+}
+impl std::ops::Deref for FontName {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+impl AsRef<str> for FontName {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
     }
 }
 
@@ -884,11 +916,6 @@ impl Default for Text {
         Self::empty()
     }
 }
-impl From<Text> for String {
-    fn from(t: Text) -> Self {
-        t.into_owned()
-    }
-}
 impl_from_and_into_var! {
     fn from(s: &'static str) -> Text {
         Text::borrowed(s)
@@ -899,9 +926,10 @@ impl_from_and_into_var! {
     fn from(s: Cow<'static, str>) -> Text {
         Text(s)
     }
-}
-impl From<Text> for Cow<'static, str> {
-    fn from(t: Text) -> Self {
+    fn from(t: Text) -> String {
+        t.into_owned()
+    }
+    fn from(t: Text) -> Cow<'static, str> {
         t.0
     }
 }

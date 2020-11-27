@@ -304,7 +304,7 @@ macro_rules! __context_var_inner {
 
         impl $ident {
             std::thread_local! {
-                static CURRENT_VALUE: std::cell::Cell<(*const $type, bool, u32)> = std::cell::Cell::new(($ident::default_value() as _, false, 0));
+                static THREAD_LOCAL_VALUE: zero_ui::core::var::ContextVarValue<$ident> = zero_ui::core::var::ContextVarValue::init();
             }
 
             /// [`Var`](zero_ui::core::var::Var) that represents this context var.
@@ -335,13 +335,8 @@ macro_rules! __context_var_inner {
             }
 
             #[inline]
-            fn current_value() -> (*const Self::Type, bool, u32) {
-                Self::CURRENT_VALUE.with(|c|c.get())
-            }
-
-            #[inline]
-            fn replace_current(value: *const Self::Type, is_new: bool, version: u32) -> (*const Self::Type, bool, u32) {
-                Self::CURRENT_VALUE.with(move |c|c.replace((value, is_new, version)))
+            fn thread_local_value() -> zero_ui::core::var::ContextVarLocalKey<Self> {
+                zero_ui::core::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
             }
         }
 
@@ -445,6 +440,18 @@ macro_rules! event {
         impl zero_ui::core::event::Event for $Event {
             type Args = $Args;
         }
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> zero_ui::core::event::EventEmitter<$Args> {
+                <Self as zero_ui::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> zero_ui::core::event::EventListener<$Args> {
+                <Self as zero_ui::core::event::Event>::never()
+            }
+        }
     )+};
 }
 
@@ -456,6 +463,19 @@ macro_rules! event_hp {
         impl zero_ui::core::event::Event for $Event {
             type Args = $Args;
             const IS_HIGH_PRESSURE: bool = true;
+        }
+
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> zero_ui::core::event::EventEmitter<$Args> {
+                <Self as zero_ui::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> zero_ui::core::event::EventListener<$Args> {
+                <Self as zero_ui::core::event::Event>::never()
+            }
         }
     )+};
 }

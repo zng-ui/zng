@@ -724,6 +724,7 @@ pub struct WindowContext<'a> {
 }
 
 /// Read-only value in a public context struct field.
+#[derive(Clone, Copy)]
 pub struct ReadOnly<T>(T);
 impl<T: Copy> ReadOnly<T> {
     #[inline]
