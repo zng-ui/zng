@@ -266,7 +266,6 @@ pub struct FontFace {
     style: FontStyle,
     weight: FontWeight,
     stretch: FontStretch,
-    synthesis: FontSynthesis,
     instances: RefCell<FnvHashMap<u32, FontRef>>,
     unregistered: Cell<bool>,
 }
@@ -302,7 +301,6 @@ impl FontFace {
                     style: custom_font.style,
                     weight: custom_font.weight,
                     stretch: custom_font.stretch,
-                    synthesis: custom_font.synthesis,
                     instances: Default::default(),
                     unregistered: Cell::new(false),
                 });
@@ -318,7 +316,6 @@ impl FontFace {
             style: custom_font.style,
             weight: custom_font.weight,
             stretch: custom_font.stretch,
-            synthesis: custom_font.synthesis,
             instances: Default::default(),
             unregistered: Cell::new(false),
         })
@@ -335,7 +332,19 @@ impl FontFace {
             }
         };
 
-        todo!()
+        let props = kit_font.properties();
+        Ok(FontFace {
+            h_face: h_face.to_shared(),
+            display_name: kit_font.full_name().into(),
+            family_name: kit_font.family_name().into(),
+            postscript_name: kit_font.postscript_name(),
+            style: props.style,
+            weight: props.weight,
+            stretch: props.stretch,
+            kit_font,
+            instances: Default::default(),
+            unregistered: Cell::new(false),
+        })
     }
 
     fn empty() -> Self {
@@ -348,7 +357,6 @@ impl FontFace {
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
             stretch: FontStretch::NORMAL,
-            synthesis: FontSynthesis::DISABLED,
             instances: Default::default(),
             unregistered: Cell::new(false),
         }
@@ -417,12 +425,6 @@ impl FontFace {
     #[inline]
     pub fn stretch(&self) -> FontStretch {
         self.stretch
-    }
-
-    /// Font synthesis required for making this font match its style and/or weight.
-    #[inline]
-    pub fn synthesis(&self) -> FontSynthesis {
-        self.synthesis
     }
 
     /// Gets a cached sized [`Font`].
@@ -800,12 +802,13 @@ impl FontRenderCache {
             let instance_key = api.generate_font_instance_key();
 
             let mut opt = webrender::api::FontInstanceOptions::default();
-            if font.face.synthesis.contains(FontSynthesis::STYLE) {
-                opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
-            }
-            if font.face.synthesis.contains(FontSynthesis::BOLD) {
-                opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
-            }
+            // TODO
+            // if font.face.synthesis.contains(FontSynthesis::STYLE) {
+            //     opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
+            // }
+            // if font.face.synthesis.contains(FontSynthesis::BOLD) {
+            //     opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
+            // }
 
             txn.add_font_instance(
                 instance_key,
@@ -862,12 +865,6 @@ impl RenderFont {
     #[inline]
     pub fn instance_key(&self) -> super::FontInstanceKey {
         self.instance_key
-    }
-
-    /// What synthetic properties are used in this instance.
-    #[inline]
-    pub fn synthesis_used(&self) -> super::FontSynthesis {
-        self.font.face.synthesis
     }
 }
 
@@ -998,7 +995,6 @@ pub struct CustomFont {
     stretch: FontStretch,
     style: FontStyle,
     weight: FontWeight,
-    synthesis: FontSynthesis,
 }
 impl CustomFont {
     /// A custom font loaded from a file.
@@ -1013,7 +1009,6 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
-            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -1029,7 +1024,6 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
-            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -1043,7 +1037,6 @@ impl CustomFont {
             stretch: FontStretch::NORMAL,
             style: FontStyle::Normal,
             weight: FontWeight::NORMAL,
-            synthesis: FontSynthesis::DISABLED,
         }
     }
 
@@ -1071,16 +1064,6 @@ impl CustomFont {
     #[inline]
     pub fn weight(mut self, weight: FontWeight) -> Self {
         self.weight = weight;
-        self
-    }
-
-    /// Font synthesis required to correct render
-    /// the font style and/or weight.
-    ///
-    /// Default is [`FontSynthesis::DISABLED`].
-    #[inline]
-    pub fn synthesis(mut self, required: FontSynthesis) -> Self {
-        self.synthesis = required;
         self
     }
 }
