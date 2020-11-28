@@ -97,7 +97,8 @@ impl AppExtension for FontManager {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
         ctx.services.register(Fonts::new(ctx.updates.notifier().clone())).unwrap();
         ctx.window_services
-            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
+            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()))
+            .unwrap();
 
         #[cfg(windows)]
         {
@@ -745,14 +746,13 @@ impl FontFaceLoader {
 }
 
 /// Per-window font glyph cache.
+#[derive(WindowService)]
 pub struct FontRenderCache {
     api: Arc<RenderApi>,
     window_id: WindowId,
     fonts: FnvHashMap<*const FontFace, webrender::api::FontKey>,
     instances: FnvHashMap<*const Font, super::FontInstanceKey>,
 }
-
-impl WindowService for FontRenderCache {}
 impl FontRenderCache {
     fn new(api: Arc<RenderApi>, window_id: WindowId) -> Self {
         FontRenderCache {

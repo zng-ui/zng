@@ -45,7 +45,7 @@ impl AppExtension for FontManager {
             fonts: HashMap::default(),
             sources: Rc::clone(&sources),
             //active_queries: vec![],
-        });
+        }).unwrap();
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -131,6 +131,7 @@ impl AppFonts {
 /// Fonts cache service.
 ///
 /// This is a window service
+#[derive(WindowService)]
 pub struct Fonts {
     api: Arc<RenderApi>,
     fonts: HashMap<FontQueryKey, FontRef>,
@@ -221,7 +222,6 @@ impl Fonts {
         }
     }
 }
-impl WindowService for Fonts {}
 
 struct Font {
     api: Arc<RenderApi>,

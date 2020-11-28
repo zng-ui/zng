@@ -674,6 +674,7 @@ impl<'a> AppContext<'a> {
         self.updates.win_display_update = UpdateDisplayRequest::None;
 
         let mut event_state = StateMap::default();
+        window_services.load();
 
         f(&mut WindowContext {
             window_id: ReadOnly(window_id),
@@ -688,6 +689,8 @@ impl<'a> AppContext<'a> {
             sync: self.sync,
             updates: self.updates,
         });
+
+        window_services.unload();
 
         mem::take(&mut self.updates.win_display_update)
     }
