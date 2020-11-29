@@ -1,4 +1,4 @@
-use super::{FontInstanceKey, FontMetrics, FontName, FontNames, FontStretch, FontStyle, FontSynthesis, FontWeight};
+use super::{FontFaceMetrics, FontInstanceKey, FontMetrics, FontName, FontNames, FontStretch, FontStyle, FontSynthesis, FontWeight};
 use crate::core::{
     app::AppExtension,
     context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest},
@@ -40,12 +40,14 @@ impl AppExtension for FontManager {
         let sources = Rc::clone(&app_fonts.sources);
 
         r.services.register(app_fonts).unwrap();
-        r.window_services.register(move |ctx| Fonts {
-            api: Arc::clone(ctx.render_api),
-            fonts: HashMap::default(),
-            sources: Rc::clone(&sources),
-            //active_queries: vec![],
-        }).unwrap();
+        r.window_services
+            .register(move |ctx| Fonts {
+                api: Arc::clone(ctx.render_api),
+                fonts: HashMap::default(),
+                sources: Rc::clone(&sources),
+                //active_queries: vec![],
+            })
+            .unwrap();
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
@@ -295,7 +297,7 @@ impl FontRef {
         harfbuzz_font.set_ppem(font_size_pt, font_size_pt);
         harfbuzz_font.set_scale(font_size_pt as i32 * 64, font_size_pt as i32 * 64);
 
-        let metrics = FontMetrics::new(size_px, &self.0.metrics);
+        let metrics = FontFaceMetrics::from(self.0.metrics).sized(size_px);
 
         let instance = FontInstanceRef::new(
             self.clone(),

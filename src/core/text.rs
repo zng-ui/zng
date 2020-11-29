@@ -418,70 +418,111 @@ impl Default for Justify {
     }
 }
 
-/// Various metrics about a [`FontInstanceRef`].
+/// Various metrics that apply to the entire [`FontFace`].
+///
+/// For OpenType fonts, these mostly come from the `OS/2` table.
 #[derive(Clone, Debug)]
-pub struct FontMetrics {
+pub struct FontFaceMetrics {
     /// The number of font units per em.
     ///
     /// Font sizes are usually expressed in pixels per em; e.g. `12px` means 12 pixels per em.
     pub units_per_em: u32,
 
-    /// The maximum amount the font rises above the baseline, in layout units.
+    /// The maximum amount the font rises above the baseline, in font units.
     pub ascent: f32,
 
-    /// The maximum amount the font descends below the baseline, in layout units.
+    /// The maximum amount the font descends below the baseline, in font units.
     ///
     /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
     /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
     /// beware, as the sign is reversed from what those APIs return.
     pub descent: f32,
 
-    /// Distance between baselines, in layout units.
+    /// Distance between baselines, in font units.
     pub line_gap: f32,
 
     /// The suggested distance of the top of the underline from the baseline (negative values
-    /// indicate below baseline), in layout units.
+    /// indicate below baseline), in font units.
     pub underline_position: f32,
 
-    /// A suggested value for the underline thickness, in layout units.
+    /// A suggested value for the underline thickness, in font units.
     pub underline_thickness: f32,
 
-    /// The approximate amount that uppercase letters rise above the baseline, in layout units.
+    /// The approximate amount that uppercase letters rise above the baseline, in font units.
     pub cap_height: f32,
 
     /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
     /// font units.
     pub x_height: f32,
 
-    /// A rectangle that surrounds all bounding boxes of all glyphs, in layout units.
+    /// A rectangle that surrounds all bounding boxes of all glyphs, in font units.
+    ///
+    /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
+    pub bounding_box: euclid::Rect<f32, FontUnit>,
+}
+impl FontFaceMetrics {
+    pub fn sized(&self, font_size_px: f32) -> FontMetrics {
+        let em = self.units_per_em as f32;
+        let s = move |f: f32| f / em * font_size_px;
+        FontMetrics {
+            ascent: s(self.ascent),
+            descent: s(self.descent),
+            line_gap: s(self.line_gap),
+            underline_position: s(self.underline_position),
+            underline_thickness: s(self.underline_thickness),
+            cap_height: s(self.cap_height),
+            x_height: (s(self.x_height)),
+            bounding_box: {
+                let b = self.bounding_box;
+                LayoutRect::new(
+                    LayoutPoint::new(s(b.origin.x), s(b.origin.y)),
+                    LayoutSize::new(s(b.size.width), s(b.size.height)),
+                )
+            },
+        }
+    }
+}
+#[doc(hidden)]
+pub struct FontUnit;
+
+/// Various metrics about a [`Font`].
+///
+/// You can compute these metrics from a [`FaceMetrics`]
+#[derive(Clone, Debug)]
+pub struct FontMetrics {
+    /// The maximum amount the font rises above the baseline, in layout pixels.
+    pub ascent: f32,
+
+    /// The maximum amount the font descends below the baseline, in layout pixels.
+    ///
+    /// NB: This is typically a negative value to match the definition of `sTypoDescender` in the
+    /// `OS/2` table in the OpenType specification. If you are used to using Windows or Mac APIs,
+    /// beware, as the sign is reversed from what those APIs return.
+    pub descent: f32,
+
+    /// Distance between baselines, in layout pixels.
+    pub line_gap: f32,
+
+    /// The suggested distance of the top of the underline from the baseline (negative values
+    /// indicate below baseline), in layout pixels.
+    pub underline_position: f32,
+
+    /// A suggested value for the underline thickness, in layout pixels.
+    pub underline_thickness: f32,
+
+    /// The approximate amount that uppercase letters rise above the baseline, in layout pixels.
+    pub cap_height: f32,
+
+    /// The approximate amount that non-ascending lowercase letters rise above the baseline, in
+    /// font units.
+    pub x_height: f32,
+
+    /// A rectangle that surrounds all bounding boxes of all glyphs, in layout pixels.
     ///
     /// This corresponds to the `xMin`/`xMax`/`yMin`/`yMax` values in the OpenType `head` table.
     pub bounding_box: LayoutRect,
 }
 impl FontMetrics {
-    /// Calculate metrics from global.
-    fn new(font_size_px: f32, metrics: &font_kit::metrics::Metrics) -> Self {
-        let em = metrics.units_per_em as f32;
-        let s = move |f: f32| f / em * font_size_px;
-        FontMetrics {
-            units_per_em: metrics.units_per_em,
-            ascent: s(metrics.ascent),
-            descent: s(metrics.descent),
-            line_gap: s(metrics.line_gap),
-            underline_position: s(metrics.underline_position),
-            underline_thickness: s(metrics.underline_thickness),
-            cap_height: s(metrics.cap_height),
-            x_height: (s(metrics.x_height)),
-            bounding_box: {
-                let b = metrics.bounding_box;
-                LayoutRect::new(
-                    LayoutPoint::new(s(b.origin_x()), s(b.origin_y())),
-                    LayoutSize::new(s(b.width()), s(b.height())),
-                )
-            },
-        }
-    }
-
     /// The font line height.
     pub fn line_height(&self) -> f32 {
         self.ascent - self.descent + self.line_gap

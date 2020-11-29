@@ -9,7 +9,7 @@ use std::{
 use fnv::FnvHashMap;
 use webrender::api::RenderApi;
 
-use super::{FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
+use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::core::event::{event, event_args, EventEmitter, EventListener};
@@ -253,6 +253,27 @@ type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
 type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
 type FontKitFont = font_kit::font::Font;
 
+impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
+    fn from(m: font_kit::metrics::Metrics) -> Self {
+        FontFaceMetrics {
+            units_per_em: m.units_per_em,
+            ascent: m.ascent,
+            descent: m.descent,
+            line_gap: m.line_gap,
+            underline_position: m.underline_position,
+            underline_thickness: m.underline_thickness,
+            cap_height: m.cap_height,
+            x_height: m.x_height,
+            bounding_box: euclid::rect(
+                m.bounding_box.origin_x(),
+                m.bounding_box.origin_y(),
+                m.bounding_box.width(),
+                m.bounding_box.height(),
+            ),
+        }
+    }
+}
+
 /// A font face selected from a font family.
 ///
 /// Usually this is part of a [`FontList`] that can be requested from
@@ -260,13 +281,13 @@ type FontKitFont = font_kit::font::Font;
 #[derive(Debug)]
 pub struct FontFace {
     h_face: HarfbuzzFace,
-    kit_font: FontKitFont,
     display_name: FontName,
     family_name: FontName,
     postscript_name: Option<String>,
-    style: FontStyle,
-    weight: FontWeight,
-    stretch: FontStretch,
+    is_monospace: bool,
+    properties: font_kit::properties::Properties,
+    metrics: FontFaceMetrics,
+
     instances: RefCell<FnvHashMap<u32, FontRef>>,
     unregistered: Cell<bool>,
 }
@@ -295,13 +316,12 @@ impl FontFace {
                     .ok_or(FontLoadingError::NoSuchFontInCollection)?;
                 return Ok(FontFace {
                     h_face: other_font.h_face.clone(),
-                    kit_font: other_font.kit_font.clone(),
                     display_name: custom_font.name.clone(),
                     family_name: custom_font.name,
                     postscript_name: None,
-                    style: custom_font.style,
-                    weight: custom_font.weight,
-                    stretch: custom_font.stretch,
+                    properties: other_font.properties,
+                    is_monospace: other_font.is_monospace,
+                    metrics: other_font.metrics.clone(),
                     instances: Default::default(),
                     unregistered: Cell::new(false),
                 });
@@ -310,13 +330,16 @@ impl FontFace {
 
         Ok(FontFace {
             h_face: h_face.to_shared(),
-            kit_font,
             display_name: custom_font.name.clone(),
             family_name: custom_font.name,
             postscript_name: None,
-            style: custom_font.style,
-            weight: custom_font.weight,
-            stretch: custom_font.stretch,
+            properties: font_kit::properties::Properties {
+                style: custom_font.style,
+                weight: custom_font.weight,
+                stretch: custom_font.stretch,
+            },
+            is_monospace: kit_font.is_monospace(),
+            metrics: kit_font.metrics().into(),
             instances: Default::default(),
             unregistered: Cell::new(false),
         })
@@ -332,17 +355,14 @@ impl FontFace {
                 harfbuzz_rs::Face::new(harfbuzz_rs::Blob::with_bytes_owned(bytes, |b| &b[..]), font_index)
             }
         };
-
-        let props = kit_font.properties();
         Ok(FontFace {
             h_face: h_face.to_shared(),
             display_name: kit_font.full_name().into(),
             family_name: kit_font.family_name().into(),
             postscript_name: kit_font.postscript_name(),
-            style: props.style,
-            weight: props.weight,
-            stretch: props.stretch,
-            kit_font,
+            properties: kit_font.properties(),
+            is_monospace: kit_font.is_monospace(),
+            metrics: kit_font.metrics().into(),
             instances: Default::default(),
             unregistered: Cell::new(false),
         })
@@ -351,13 +371,22 @@ impl FontFace {
     fn empty() -> Self {
         FontFace {
             h_face: harfbuzz_rs::Face::empty().into(),
-            kit_font: font_kit::font::Font::from_bytes(Arc::new(include_bytes!("empty.ttf").to_vec()), 0).expect("error loading empty.ttf"),
             display_name: "<empty>".into(),
             family_name: "<empty>".into(),
             postscript_name: None,
-            style: FontStyle::Normal,
-            weight: FontWeight::NORMAL,
-            stretch: FontStretch::NORMAL,
+            properties: font_kit::properties::Properties::default(),
+            is_monospace: true,
+            metrics: FontFaceMetrics {
+                units_per_em: 1,
+                ascent: 0.0,
+                descent: 0.0,
+                line_gap: 0.0,
+                underline_position: 0.0,
+                underline_thickness: 0.0,
+                cap_height: 0.0,
+                x_height: 0.0,
+                bounding_box: euclid::rect(0.0, 0.0, 0.0, 0.0),
+            },
             instances: Default::default(),
             unregistered: Cell::new(false),
         }
@@ -372,12 +401,6 @@ impl FontFace {
     #[inline]
     pub fn harfbuzz_handle(&self) -> &HarfbuzzFace {
         &self.h_face
-    }
-
-    /// Reference the underlying [`font-kit`](font_kit) font handle.
-    #[inline]
-    pub fn font_kit_handle(&self) -> &FontKitFont {
-        &self.kit_font
     }
 
     /// Font full name.
@@ -413,19 +436,31 @@ impl FontFace {
     /// Font style.
     #[inline]
     pub fn style(&self) -> FontStyle {
-        self.style
+        self.properties.style
     }
 
     /// Font weight.
     #[inline]
     pub fn weight(&self) -> FontWeight {
-        self.weight
+        self.properties.weight
     }
 
     /// Font stretch.
     #[inline]
     pub fn stretch(&self) -> FontStretch {
-        self.stretch
+        self.properties.stretch
+    }
+
+    /// Font is monospace (fixed-width).
+    #[inline]
+    pub fn is_monospace(&self) -> bool {
+        self.is_monospace
+    }
+
+    /// Font metrics in font units.
+    #[inline]
+    pub fn metrics(&self) -> &FontFaceMetrics {
+        &self.metrics
     }
 
     /// Gets a cached sized [`Font`].
@@ -462,7 +497,7 @@ pub struct Font {
 impl Font {
     fn new(face: FontFaceRef, size: LayoutLength) -> Self {
         let mut h_font = harfbuzz_rs::Font::new(HarfbuzzFace::clone(&face.h_face));
-        let metrics = FontMetrics::new(size.get(), &face.kit_font.metrics());
+        let metrics = face.metrics().sized(size.get());
 
         let font_size_pt = layout_to_pt(size) as u32;
         h_font.set_ppem(font_size_pt, font_size_pt);
@@ -619,9 +654,7 @@ impl FontFaceLoader {
 
         let family = self.custom_fonts.entry(face.family_name.clone()).or_default();
 
-        let existing = family
-            .iter()
-            .position(|f| f.weight == face.weight && f.style == face.style && f.stretch == face.stretch);
+        let existing = family.iter().position(|f| f.properties == face.properties);
 
         if let Some(i) = existing {
             family[i] = face;
@@ -674,7 +707,7 @@ impl FontFaceLoader {
     fn get(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
         if let Some(custom_family) = self.custom_fonts.get(font_name) {
             for c_face in custom_family {
-                if c_face.style == style && c_face.weight == weight && c_face.stretch == stretch {
+                if c_face.style() == style && c_face.weight() == weight && c_face.stretch() == stretch {
                     return Some(Rc::clone(c_face)); // perfect match
                 }
             }
@@ -788,14 +821,7 @@ impl FontRenderCache {
                 // font face not cached
 
                 let font_key = api.generate_font_key();
-                match font.face.kit_font.handle().expect("expected font handle from `FontRef`") {
-                    font_kit::handle::Handle::Path { path, font_index } => {
-                        txn.add_native_font(font_key, webrender::api::NativeFontHandle { path, index: font_index });
-                    }
-                    font_kit::handle::Handle::Memory { bytes, font_index } => {
-                        txn.add_raw_font(font_key, (*bytes).clone(), font_index);
-                    }
-                }
+                txn.add_raw_font(font_key, font.face.h_face.face_data().get_data().into(), font.face.index());
                 font_key
             });
 
