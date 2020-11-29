@@ -20,6 +20,14 @@ use crate::core::window::{WindowEventArgs, WindowId, WindowOpenEvent, Windows};
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
     /// a different result.
+    ///
+    /// # Cache
+    ///
+    /// Every time this event updates the font cache is cleared. Meaning that even
+    /// if the query returns the same font it will be a new reference.
+    ///
+    /// Fonts only unload when all references to then are dropped, so you can still continue using
+    /// old references if you don't want to monitor this event.
     pub FontChangedEvent: FontChangedArgs;
 }
 
@@ -43,6 +51,8 @@ event_args! {
 #[derive(Clone, Debug)]
 pub enum FontChange {
     /// OS fonts change.
+    ///
+    /// Currently this is only supported in Microsoft Windows.
     SystemFonts,
 
     /// Custom fonts change caused by call to [`Fonts::register`] or [`Fonts::unregister`].
@@ -120,6 +130,7 @@ impl AppExtension for FontManager {
                     // subclass monitor flagged a font (un)install.
                     self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
                     fonts.on_system_fonts_changed();
+                    
                 }
             }
 
@@ -173,9 +184,11 @@ impl Fonts {
         std::mem::take(&mut self.fallbacks.updates)
     }
 
-    /// Raises [`FontChangedEvent`].
+    /// Clear cache and notify `Refresh` in [`FontChangedEvent`].
+    ///
+    /// See the event documentation for more information.
     #[inline]
-    pub fn notify_refresh(&mut self) {
+    pub fn refresh(&mut self) {
         self.fallbacks.notify(FontChange::Refesh);
     }
 
