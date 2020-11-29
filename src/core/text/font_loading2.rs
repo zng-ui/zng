@@ -102,7 +102,7 @@ impl AppExtension for FontManager {
 
         #[cfg(windows)]
         {
-            self.window_open = ctx.events.listen::<WindowOpenEvent>();
+            self.window_open = ctx.events.listen_or_never::<WindowOpenEvent>();
         }
     }
 
@@ -228,6 +228,24 @@ impl Fonts {
         self.loader.get(family, style, weight, stretch)
     }
 
+    /// Gets a single font face with all normal properties.
+    #[inline]
+    pub fn get_normal(&mut self, family: &FontName) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::NORMAL, FontStretch::NORMAL)
+    }
+
+    /// Gets a single font face with italic italic style and normal weight and stretch.
+    #[inline]
+    pub fn get_italic(&mut self, family: &FontName) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Italic, FontWeight::NORMAL, FontStretch::NORMAL)
+    }
+
+    /// Gets a single font face with bold weight and normal style and stretch.
+    #[inline]
+    pub fn get_bold(&mut self, family: &FontName) -> Option<FontFaceRef> {
+        self.get(family, FontStyle::Normal, FontWeight::BOLD, FontStretch::NORMAL)
+    }
+
     /// Gets all [registered](Self::register) font families.
     #[inline]
     pub fn custom_fonts(&self) -> Vec<FontName> {
@@ -251,7 +269,6 @@ pub use font_kit::error::FontLoadingError;
 
 type HarfbuzzFace = harfbuzz_rs::Shared<harfbuzz_rs::Face<'static>>;
 type HarfbuzzFont = harfbuzz_rs::Shared<harfbuzz_rs::Font<'static>>;
-type FontKitFont = font_kit::font::Font;
 
 impl From<font_kit::metrics::Metrics> for FontFaceMetrics {
     fn from(m: font_kit::metrics::Metrics) -> Self {
@@ -376,16 +393,17 @@ impl FontFace {
             postscript_name: None,
             properties: font_kit::properties::Properties::default(),
             is_monospace: true,
+            // copied from the default Windows "monospace".
             metrics: FontFaceMetrics {
-                units_per_em: 1,
-                ascent: 0.0,
-                descent: 0.0,
+                units_per_em: 2048,
+                ascent: 1705.0,
+                descent: -615.0,
                 line_gap: 0.0,
-                underline_position: 0.0,
-                underline_thickness: 0.0,
-                cap_height: 0.0,
-                x_height: 0.0,
-                bounding_box: euclid::rect(0.0, 0.0, 0.0, 0.0),
+                underline_position: -477.0,
+                underline_thickness: 84.0,
+                cap_height: 1170.0,
+                x_height: 866.0,
+                bounding_box: euclid::rect(1524.0, 3483.0, -249.0, -1392.0),
             },
             instances: Default::default(),
             unregistered: Cell::new(false),

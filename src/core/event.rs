@@ -313,6 +313,11 @@ impl Events {
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
     }
 
+    /// Creates an event listener or returns [`E::never()`](Event::never).
+    pub fn listen_or_never<E: Event>(&self) -> EventListener<E::Args> {
+        self.try_listen::<E>().unwrap_or_else(E::never)
+    }
+
     pub(super) fn update_id(&self) -> u32 {
         self.update_id
     }
