@@ -314,6 +314,8 @@ macro_rules! impl_multi_tuple {
                     }
                 )+
 
+                // SAFETY: assert_no_dup validated that all pointers are unique.
+                // The cast to &mut is safe as long as it's only called in AppServices::get_multi().
                 Ok(unsafe {($(
                     &mut *$ptr,
                 )+)})
