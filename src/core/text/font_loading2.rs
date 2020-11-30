@@ -1042,16 +1042,16 @@ impl FontFaceLoader {
 pub struct FontRenderCache {
     api: Arc<RenderApi>,
     window_id: WindowId,
-    fonts: FnvHashMap<*const FontFace, webrender::api::FontKey>,
-    instances: FnvHashMap<(FontSynthesis, *const Font), super::FontInstanceKey>,
+    faces: FnvHashMap<*const FontFace, Rc<RenderFontFace>>,
+    fonts: FnvHashMap<(FontSynthesis, *const Font), RenderFontRef>,
 }
 impl FontRenderCache {
     fn new(api: Arc<RenderApi>, window_id: WindowId) -> Self {
         FontRenderCache {
             api,
             window_id,
+            faces: FnvHashMap::default(),
             fonts: FnvHashMap::default(),
-            instances: FnvHashMap::default(),
         }
     }
 
@@ -1067,7 +1067,7 @@ impl FontRenderCache {
                 .iter()
                 .map(|f| {
                     self.get(
-                        Rc::clone(f),
+                        f,
                         f.face.synthesis_for(font_list.requested_style, font_list.requested_weight) & synthesis_allowed,
                     )
                 })
@@ -1075,72 +1075,119 @@ impl FontRenderCache {
         }
     }
 
-    /// Gets a [`RenderFont`] cached in the window renderer.
+    /// Gets a [`RenderFontRef`] cached in the window renderer.
     ///
     /// The `synthesis` parameter controls what font synthesis is used to render the font.
     /// The same `font` with a different synthesis is a different `RenderFont`.
-    pub fn get(&mut self, font: FontRef, synthesis: FontSynthesis) -> RenderFont {
+    pub fn get(&mut self, font: &FontRef, synthesis: FontSynthesis) -> RenderFontRef {
         #[allow(clippy::mutable_key_type)] // Hash impl for *const T hashes the pointer usize value.
-        let fonts = &mut self.fonts;
+        let fonts = &mut self.faces;
         let api = &self.api;
+        let window_id = self.window_id;
 
-        // get or cache the font render key.
-        let instance_key = *self.instances.entry((synthesis, Rc::as_ptr(&font))).or_insert_with(|| {
+        // get or cache the font render.
+        let render_font = self.fonts.entry((synthesis, Rc::as_ptr(&font))).or_insert_with(|| {
             // font not cached
 
-            let mut txn = webrender::api::Transaction::new();
-
-            // get or cache the font face render key.
-            let font_key = *fonts.entry(Rc::as_ptr(font.face())).or_insert_with(|| {
+            // get or cache the render font face render.
+            let render_face = fonts.entry(Rc::as_ptr(font.face())).or_insert_with(|| {
                 // font face not cached
-
-                let font_key = api.generate_font_key();
-                txn.add_raw_font(font_key, font.face.h_face.face_data().get_data().into(), font.face.index());
-                font_key
+                Rc::new(RenderFontFace {
+                    api: Arc::clone(api),
+                    key: Cell::new(None),
+                })
             });
 
-            let instance_key = api.generate_font_instance_key();
-
-            let mut opt = webrender::api::FontInstanceOptions::default();
-            if synthesis.contains(FontSynthesis::STYLE) {
-                opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
-            }
-            if synthesis.contains(FontSynthesis::BOLD) {
-                opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
-            }
-
-            txn.add_font_instance(
-                instance_key,
-                font_key,
-                webrender::api::units::Au::from_f32_px(font.size.get()),
-                Some(opt),
-                None,
-                vec![],
-            );
-
-            api.update_resources(txn.resource_updates);
-
-            instance_key
+            Rc::new(RenderFont {
+                face: Rc::clone(render_face),
+                font: Rc::clone(font),
+                window_id,
+                synthesis,
+                key: Cell::new(None),
+            })
         });
 
-        RenderFont {
-            font,
-            window_id: self.window_id,
-            instance_key,
-            synthesis,
+        Rc::clone(render_font)
+    }
+}
+
+struct RenderFontFace {
+    api: Arc<RenderApi>,
+    key: Cell<Option<webrender::api::FontKey>>,
+}
+impl RenderFontFace {
+    fn key(&self, face: &FontFace) -> webrender::api::FontKey {
+        if let Some(key) = self.key.get() {
+            key
+        } else {
+            let key = self.api.generate_font_key();
+            let mut txn = webrender::api::Transaction::new();
+            txn.add_raw_font(key, face.h_face.face_data().get_data().into(), face.index());
+            self.api.update_resources(txn.resource_updates);
+            self.key.set(Some(key));
+            key
+        }
+    }
+}
+impl Drop for RenderFontFace {
+    fn drop(&mut self) {
+        if let Some(key) = self.key.get() {
+            let mut txn = webrender::api::Transaction::new();
+            txn.delete_font(key);
+            self.api.update_resources(txn.resource_updates);
         }
     }
 }
 
 /// A [`Font`] cached in a window renderer.
-#[derive(Debug, Clone)]
 pub struct RenderFont {
+    face: Rc<RenderFontFace>,
     font: FontRef,
     window_id: WindowId,
-    instance_key: super::FontInstanceKey,
     synthesis: FontSynthesis,
+    key: Cell<Option<super::FontInstanceKey>>,
 }
 impl RenderFont {
+    /// Gets the font instance key.
+    ///
+    /// The font gets loaded in the renderer in the first call of this method.
+    ///
+    /// # Careful
+    ///
+    /// The WebRender font instance resource is managed by this struct, don't manually request a delete with this key.
+    ///
+    /// Keep a clone of the font reference alive for the period you want to render using this font,
+    /// otherwise the font may be cleaned-up.
+    pub fn instance_key(&self) -> super::FontInstanceKey {
+        if let Some(key) = self.key.get() {
+            key
+        } else {
+            let font_key = self.face.key(&self.font.face);
+            let api = &self.face.api;
+            let key = api.generate_font_instance_key();
+            let mut txn = webrender::api::Transaction::new();
+            let mut opt = webrender::api::FontInstanceOptions::default();
+            if self.synthesis.contains(FontSynthesis::STYLE) {
+                opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
+            }
+            if self.synthesis.contains(FontSynthesis::BOLD) {
+                opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
+            }
+            txn.add_font_instance(
+                key,
+                font_key,
+                webrender::api::units::Au::from_f32_px(self.font.size.get()),
+                Some(opt),
+                None,
+                vec![],
+            );
+            api.update_resources(txn.resource_updates);
+
+            self.key.set(Some(key));
+            key
+        }
+    }
+
     /// Reference the font.
     #[inline]
     pub fn font(&self) -> &FontRef {
@@ -1155,61 +1202,60 @@ impl RenderFont {
         self.window_id
     }
 
-    /// Gets the font instance key.
-    ///
-    /// # Careful
-    ///
-    /// The WebRender font instance resource is managed by this struct, don't manually request a delete with this key.
-    ///
-    /// Keep a clone of the font reference alive for the period you want to render using this font,
-    /// otherwise the font may be cleaned-up.
-    #[inline]
-    pub fn instance_key(&self) -> super::FontInstanceKey {
-        self.instance_key
-    }
-
     /// Font synthesis used to render this font.
     #[inline]
     pub fn synthesis(&self) -> super::FontSynthesis {
         self.synthesis
     }
 }
+impl Drop for RenderFont {
+    fn drop(&mut self) {
+        if let Some(key) = self.key.get() {
+            let mut txn = webrender::api::Transaction::new();
+            txn.delete_font_instance(key);
+            self.face.api.update_resources(txn.resource_updates);
+        }
+    }
+}
 impl PartialEq for RenderFont {
     fn eq(&self, other: &Self) -> bool {
-        self.instance_key == other.instance_key && self.window_id == other.window_id
+        Rc::ptr_eq(&self.font, &other.font) && self.synthesis == other.synthesis && self.window_id == other.window_id
     }
 }
 impl Eq for RenderFont {}
 
-/// A list of [`RenderFont`] produced by [`FontRenderCache::get_list`].
+/// A shared [`RenderFont`].
+pub type RenderFontRef = Rc<RenderFont>;
+
+/// A list of [`RenderFontRef`] produced by [`FontRenderCache::get_list`].
 pub struct RenderFontList {
-    fonts: Box<[RenderFont]>,
+    fonts: Box<[RenderFontRef]>,
 }
 impl PartialEq for RenderFontList {
     /// Both are equal if each point to the same fonts in the same order and have the same synthesis enabled.
     fn eq(&self, other: &Self) -> bool {
-        self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| a == b)
+        self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
     }
 }
 impl Eq for RenderFontList {}
 impl std::ops::Deref for RenderFontList {
-    type Target = [RenderFont];
+    type Target = [RenderFontRef];
 
     fn deref(&self) -> &Self::Target {
         &self.fonts
     }
 }
 impl<'a> std::iter::IntoIterator for &'a RenderFontList {
-    type Item = &'a RenderFont;
+    type Item = &'a RenderFontRef;
 
-    type IntoIter = std::slice::Iter<'a, RenderFont>;
+    type IntoIter = std::slice::Iter<'a, RenderFontRef>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 impl std::ops::Index<usize> for RenderFontList {
-    type Output = RenderFont;
+    type Output = RenderFontRef;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.fonts[index]
