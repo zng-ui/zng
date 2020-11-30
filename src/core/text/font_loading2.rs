@@ -130,7 +130,6 @@ impl AppExtension for FontManager {
                     // subclass monitor flagged a font (un)install.
                     self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
                     fonts.on_system_fonts_changed();
-                    
                 }
             }
 
@@ -743,7 +742,7 @@ impl FontFaceLoader {
                 }
             }
 
-            todo!("match custom")
+            return Some(Self::match_custom(custom_family, style, weight, stretch));
         }
 
         if let Some(cached_sys_family) = self.system_fonts_cache.get_mut(font_name) {
@@ -806,6 +805,10 @@ impl FontFaceLoader {
                 None
             }
         }
+    }
+
+    fn match_custom(faces: &[FontFaceRef], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceRef {
+        todo!()
     }
 }
 
@@ -1122,6 +1125,32 @@ impl CustomFont {
     pub fn weight(mut self, weight: FontWeight) -> Self {
         self.weight = weight;
         self
+    }
+}
+
+impl From<font_kit::family_name::FamilyName> for FontName {
+    #[inline]
+    fn from(family_name: font_kit::family_name::FamilyName) -> Self {
+        match family_name {
+            font_kit::family_name::FamilyName::Title(title) => FontName::new(title),
+            font_kit::family_name::FamilyName::Serif => FontName::serif(),
+            font_kit::family_name::FamilyName::SansSerif => FontName::sans_serif(),
+            font_kit::family_name::FamilyName::Monospace => FontName::monospace(),
+            font_kit::family_name::FamilyName::Cursive => FontName::cursive(),
+            font_kit::family_name::FamilyName::Fantasy => FontName::fantasy(),
+        }
+    }
+}
+impl From<FontName> for font_kit::family_name::FamilyName {
+    fn from(font_name: FontName) -> Self {
+        match font_name.name() {
+            "serif" => font_kit::family_name::FamilyName::Serif,
+            "sans-serif" => font_kit::family_name::FamilyName::SansSerif,
+            "monospace" => font_kit::family_name::FamilyName::Monospace,
+            "cursive" => font_kit::family_name::FamilyName::Cursive,
+            "fantasy" => font_kit::family_name::FamilyName::Fantasy,
+            _ => font_kit::family_name::FamilyName::Title(font_name.text.into()),
+        }
     }
 }
 

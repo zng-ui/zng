@@ -2,7 +2,6 @@
 
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use derive_more as dm;
-use font_kit::family_name::FamilyName;
 use std::{borrow::Cow, fmt, ops::Deref, rc::Rc};
 use webrender::api::GlyphInstance;
 use xi_unicode::LineBreakIterator;
@@ -600,12 +599,42 @@ impl WhiteSpace {
 /// Font family name.
 ///
 /// A possible value for the [`font_family`](crate::properties::text_theme::font_family) property.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FontName(Text);
+///
+/// # Case Insensitive
+///
+/// Font family names are case-insensitive. `"Arial"` and `"ARIAL"` are equal and have the same hash.
+#[derive(Clone, Debug)]
+pub struct FontName {
+    text: Text,
+    is_ascii: bool,
+}
+impl PartialEq for FontName {
+    fn eq(&self, other: &Self) -> bool {
+        self.unicase() == other.unicase()
+    }
+}
+impl Eq for FontName {}
+impl std::hash::Hash for FontName {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::hash::Hash::hash(&self.unicase(), state)
+    }
+}
 impl FontName {
+    fn unicase(&self) -> unicase::UniCase<&str> {
+        if self.is_ascii {
+            unicase::UniCase::ascii(self)
+        } else {
+            unicase::UniCase::unicode(self)
+        }
+    }
+
     #[inline]
     pub fn new(name: impl Into<Text>) -> Self {
-        FontName(name.into())
+        let text = name.into();
+        FontName {
+            is_ascii: text.is_ascii(),
+            text,
+        }
     }
 
     /// New "serif" font.
@@ -653,38 +682,13 @@ impl FontName {
     /// Reference the font name.
     #[inline]
     pub fn name(&self) -> &str {
-        &self.0
+        &self.text
     }
 
     /// Unwraps into a [`Text`].
     #[inline]
     pub fn into_text(self) -> Text {
-        self.0
-    }
-}
-impl From<FamilyName> for FontName {
-    #[inline]
-    fn from(family_name: FamilyName) -> Self {
-        match family_name {
-            FamilyName::Title(title) => FontName::new(title),
-            FamilyName::Serif => FontName::serif(),
-            FamilyName::SansSerif => FontName::sans_serif(),
-            FamilyName::Monospace => FontName::monospace(),
-            FamilyName::Cursive => FontName::cursive(),
-            FamilyName::Fantasy => FontName::fantasy(),
-        }
-    }
-}
-impl From<FontName> for FamilyName {
-    fn from(font_name: FontName) -> Self {
-        match font_name.name() {
-            "serif" => FamilyName::Serif,
-            "sans-serif" => FamilyName::SansSerif,
-            "monospace" => FamilyName::Monospace,
-            "cursive" => FamilyName::Cursive,
-            "fantasy" => FamilyName::Fantasy,
-            _ => FamilyName::Title(font_name.0.into()),
-        }
+        self.text
     }
 }
 impl_from_and_into_var! {
@@ -707,12 +711,12 @@ impl std::ops::Deref for FontName {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        self.text.deref()
     }
 }
 impl AsRef<str> for FontName {
     fn as_ref(&self) -> &str {
-        self.0.as_ref()
+        self.text.as_ref()
     }
 }
 
@@ -739,7 +743,7 @@ impl_from_and_into_var! {
     }
 
     fn from(font_name: Text) -> FontNames {
-        FontNames(vec![FontName(font_name)])
+        FontNames(vec![FontName::new(font_name)])
     }
 
     fn from(font_names: Vec<FontName>) -> FontNames {

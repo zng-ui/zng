@@ -735,6 +735,13 @@ impl<T: Copy> ReadOnly<T> {
         self.0
     }
 }
+impl<T> std::ops::Deref for ReadOnly<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<'a> WindowContext<'a> {
     /// Runs a function `f` within the context of a widget.
