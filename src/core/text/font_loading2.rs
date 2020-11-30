@@ -736,12 +736,6 @@ impl FontFaceLoader {
 
     fn get(&mut self, font_name: &FontName, style: FontStyle, weight: FontWeight, stretch: FontStretch) -> Option<FontFaceRef> {
         if let Some(custom_family) = self.custom_fonts.get(font_name) {
-            for c_face in custom_family {
-                if c_face.style() == style && c_face.weight() == weight && c_face.stretch() == stretch {
-                    return Some(Rc::clone(c_face)); // perfect match
-                }
-            }
-
             return Some(Self::match_custom(custom_family, style, weight, stretch));
         }
 
@@ -808,7 +802,114 @@ impl FontFaceLoader {
     }
 
     fn match_custom(faces: &[FontFaceRef], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceRef {
-        todo!()
+        if faces.len() == 1 {
+            // it is common for custom font names to only have one face.
+            return Rc::clone(&faces[0]);
+        }
+
+        let mut set = Vec::with_capacity(faces.len());
+        let mut set_dist = 0.0f64; // stretch distance of current set if it is not empty.
+
+        // # Filter Stretch
+        //
+        // Closest to query stretch, if the query is narrow, closest narrow then
+        // closest wide, if the query is wide the reverse.
+        let wrong_side = |s| {
+            if stretch <= FontStretch::NORMAL {
+                s > FontStretch::NORMAL
+            } else {
+                s <= FontStretch::NORMAL
+            }
+        };
+        for face in faces {
+            let mut dist = (face.stretch().0 - stretch.0).abs() as f64;
+            if wrong_side(face.stretch()) {
+                dist += f32::MAX as f64 + 1.0;
+            }
+
+            if set.is_empty() {
+                set.push(face);
+                set_dist = dist;
+            } else if dist < set_dist {
+                // better candidate found, restart closest set.
+                set_dist = dist;
+                set.clear();
+                set.push(face);
+            } else if (dist - set_dist).abs() < 0.0001 {
+                // another candidate, same distance.
+                set.push(face);
+            }
+        }
+        if set.len() == 1 {
+            return Rc::clone(set[0]);
+        }
+
+        // # Filter Style
+        //
+        // Each query style has a fallback preference, we retain the faces that have the best
+        // style given the query preference.
+        let style_pref = match style {
+            FontStyle::Normal => [FontStyle::Normal, FontStyle::Oblique, FontStyle::Italic],
+            FontStyle::Italic => [FontStyle::Italic, FontStyle::Oblique, FontStyle::Normal],
+            FontStyle::Oblique => [FontStyle::Oblique, FontStyle::Italic, FontStyle::Normal],
+        };
+        let mut best_style = style_pref.len();
+        for face in &set {
+            let i = style_pref.iter().position(|&s| s == face.style()).unwrap();
+            if i < best_style {
+                best_style = i;
+            }
+        }
+        set.retain(|f| f.style() == style_pref[best_style]);
+        if set.len() == 1 {
+            return Rc::clone(set[0]);
+        }
+
+        // # Filter Weight
+        //
+        // a - under 400 query matches query then descending under query then ascending over query.
+        // b - over 500 query matches query then ascending over query then descending under query.
+        //
+        // c - 400-450 matches query then 500 then descending under 400 then ascending over 400.
+        // d - 450-500 matches query then 400 then descending under 500 then ascending over 500.
+        if let Some(exact) = set.iter().find(|f| f.weight() == weight) {
+            return Rc::clone(exact);
+        }
+        let mut descending_first = true;
+        let mut weight = weight;
+        if weight.0 >= 400.0 && weight.0 <= 450.0 {
+            // c
+            if let Some(special) = set.iter().find(|f| f.weight() == FontWeight(500.0)) {
+                return Rc::clone(special);
+            } else {
+                weight = FontWeight(400.0);
+            }
+        } else if weight.0 <= 500.0 && weight.0 > 450.0 {
+            // d
+            if let Some(special) = set.iter().find(|f| f.weight() == FontWeight(400.0)) {
+                return Rc::clone(special);
+            } else {
+                weight = FontWeight(500.0);
+            }
+        } else if weight.0 > 500.0 {
+            // b
+            descending_first = false;
+        } // else a
+        
+        let wrong_side = |w| if descending_first { w > weight } else { w < weight };
+        let mut best = set[0];
+        let mut best_dist = f64::MAX;
+        for face in set {
+            let mut dist = (face.weight().0 - weight.0).abs() as f64;
+            if wrong_side(face.weight()) {
+                dist += f32::MAX as f64 + 1.0;
+            }
+            if dist < best_dist {
+                best = face;
+                best_dist = dist;
+            }
+        }
+        Rc::clone(best)
     }
 }
 
