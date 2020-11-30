@@ -61,12 +61,12 @@ pub enum FontChange {
     /// Custom request caused by call to [`Fonts::notify_refresh`].
     Refesh,
 
-    /// One of the named [`FontFallbacks`] was set for the script.
+    /// One of the [`GenericFonts`] was set for the script.
     ///
-    /// The font name is one of [`FontName`] fallback names.
-    NamedFallback(FontName, Script),
+    /// The font name is one of [`FontName`] generic names.
+    GenericFont(FontName, Script),
 
-    /// A new [fallback](FontFallbacks::fallback) font was set for the script.
+    /// A new [fallback](GenericFonts::fallback) font was set for the script.
     Fallback(Script),
 }
 
@@ -80,7 +80,7 @@ pub enum FontChange {
 ///
 /// Events this extension provides:
 ///
-/// * [FontChangedEvent] - Font fallbacks or system fonts changed.
+/// * [FontChangedEvent] - Font config or system fonts changed.
 pub struct FontManager {
     font_changed: EventEmitter<FontChangedArgs>,
 
@@ -1043,7 +1043,7 @@ pub struct FontRenderCache {
     api: Arc<RenderApi>,
     window_id: WindowId,
     fonts: FnvHashMap<*const FontFace, webrender::api::FontKey>,
-    instances: FnvHashMap<*const Font, super::FontInstanceKey>,
+    instances: FnvHashMap<(FontSynthesis, *const Font), super::FontInstanceKey>,
 }
 impl FontRenderCache {
     fn new(api: Arc<RenderApi>, window_id: WindowId) -> Self {
@@ -1056,24 +1056,36 @@ impl FontRenderCache {
     }
 
     /// Gets a font list with the cached renderer data for each font.
+    ///
+    /// The `synthesis_allowed` controls what font synthesis can be used for the fonts. If the font
+    /// properties does not match the requested properties an allowed synthesis is used for that font.
     #[inline]
-    pub fn get_list(&mut self, font_list: &FontList) -> RenderFontList {
+    pub fn get_list(&mut self, font_list: &FontList, synthesis_allowed: FontSynthesis) -> RenderFontList {
         RenderFontList {
-            fonts: font_list.fonts.iter().map(|f| self.get(Rc::clone(f))).collect(),
-            requested_style: font_list.requested_style,
-            requested_weight: font_list.requested_weight,
-            requested_stretch: font_list.requested_stretch,
+            fonts: font_list
+                .fonts
+                .iter()
+                .map(|f| {
+                    self.get(
+                        Rc::clone(f),
+                        f.face.synthesis_for(font_list.requested_style, font_list.requested_weight) & synthesis_allowed,
+                    )
+                })
+                .collect(),
         }
     }
 
     /// Gets a [`RenderFont`] cached in the window renderer.
-    pub fn get(&mut self, font: FontRef) -> RenderFont {
+    ///
+    /// The `synthesis` parameter controls what font synthesis is used to render the font.
+    /// The same `font` with a different synthesis is a different `RenderFont`.
+    pub fn get(&mut self, font: FontRef, synthesis: FontSynthesis) -> RenderFont {
         #[allow(clippy::mutable_key_type)] // Hash impl for *const T hashes the pointer usize value.
         let fonts = &mut self.fonts;
         let api = &self.api;
 
         // get or cache the font render key.
-        let instance_key = *self.instances.entry(Rc::as_ptr(&font)).or_insert_with(|| {
+        let instance_key = *self.instances.entry((synthesis, Rc::as_ptr(&font))).or_insert_with(|| {
             // font not cached
 
             let mut txn = webrender::api::Transaction::new();
@@ -1090,13 +1102,12 @@ impl FontRenderCache {
             let instance_key = api.generate_font_instance_key();
 
             let mut opt = webrender::api::FontInstanceOptions::default();
-            // TODO
-            // if font.face.synthesis.contains(FontSynthesis::STYLE) {
-            //     opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
-            // }
-            // if font.face.synthesis.contains(FontSynthesis::BOLD) {
-            //     opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
-            // }
+            if synthesis.contains(FontSynthesis::STYLE) {
+                opt.synthetic_italics = webrender::api::SyntheticItalics::enabled();
+            }
+            if synthesis.contains(FontSynthesis::BOLD) {
+                opt.flags |= webrender::api::FontInstanceFlags::SYNTHETIC_BOLD;
+            }
 
             txn.add_font_instance(
                 instance_key,
@@ -1116,6 +1127,7 @@ impl FontRenderCache {
             font,
             window_id: self.window_id,
             instance_key,
+            synthesis,
         }
     }
 }
@@ -1126,6 +1138,7 @@ pub struct RenderFont {
     font: FontRef,
     window_id: WindowId,
     instance_key: super::FontInstanceKey,
+    synthesis: FontSynthesis,
 }
 impl RenderFont {
     /// Reference the font.
@@ -1154,6 +1167,12 @@ impl RenderFont {
     pub fn instance_key(&self) -> super::FontInstanceKey {
         self.instance_key
     }
+
+    /// Font synthesis used to render this font.
+    #[inline]
+    pub fn synthesis(&self) -> super::FontSynthesis {
+        self.synthesis
+    }
 }
 impl PartialEq for RenderFont {
     fn eq(&self, other: &Self) -> bool {
@@ -1165,47 +1184,11 @@ impl Eq for RenderFont {}
 /// A list of [`RenderFont`] produced by [`FontRenderCache::get_list`].
 pub struct RenderFontList {
     fonts: Box<[RenderFont]>,
-    requested_style: FontStyle,
-    requested_weight: FontWeight,
-    requested_stretch: FontStretch,
-}
-impl RenderFontList {
-    /// Style requested in the query that generated this font face list.
-    #[inline]
-    pub fn requested_style(&self) -> FontStyle {
-        self.requested_style
-    }
-
-    /// Weight requested in the query that generated this font face list.
-    #[inline]
-    pub fn requested_weight(&self) -> FontWeight {
-        self.requested_weight
-    }
-
-    /// Stretch requested in the query that generated this font face list.
-    #[inline]
-    pub fn requested_stretch(&self) -> FontStretch {
-        self.requested_stretch
-    }
-
-    /// Gets the font synthesis to use to better render the given font on the list.
-    #[inline]
-    pub fn face_synthesis(&self, font_index: usize) -> FontSynthesis {
-        if let Some(font) = self.fonts.get(font_index) {
-            font.font.face.synthesis_for(self.requested_style, self.requested_weight)
-        } else {
-            FontSynthesis::DISABLED
-        }
-    }
 }
 impl PartialEq for RenderFontList {
-    /// Both are equal if each point to the same fonts in the same order and have the same requested properties.
+    /// Both are equal if each point to the same fonts in the same order and have the same synthesis enabled.
     fn eq(&self, other: &Self) -> bool {
-        self.requested_style == other.requested_style
-            && self.requested_weight == other.requested_weight
-            && self.requested_stretch == other.requested_stretch
-            && self.fonts.len() == other.fonts.len()
-            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| a == b)
+        self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| a == b)
     }
 }
 impl Eq for RenderFontList {}
@@ -1285,7 +1268,7 @@ macro_rules! impl_fallback_accessors {
     ///
     /// Set [`Script::Unknown`] for all scripts that don't have a specific font association.
     pub fn [<set_ $name>]<F: Into<FontName>>(&mut self, script: Script, font_name: F) -> Option<FontName> {
-        self.notify(FontChange::NamedFallback(FontName::$name(), script));
+        self.notify(FontChange::GenericFont(FontName::$name(), script));
         self.$name.insert(script, font_name.into())
     }
     })+};
