@@ -164,13 +164,13 @@ impl AppExtension for FontManager {
 #[derive(AppService)]
 pub struct Fonts {
     loader: FontFaceLoader,
-    fallbacks: FontFallbacks,
+    generics: GenericFonts,
 }
 impl Fonts {
     fn new(notifier: UpdateNotifier) -> Self {
         Fonts {
             loader: FontFaceLoader::new(),
-            fallbacks: FontFallbacks::new(notifier),
+            generics: GenericFonts::new(notifier),
         }
     }
 
@@ -180,7 +180,7 @@ impl Fonts {
 
     #[inline]
     fn take_updates(&mut self) -> Vec<FontChangedArgs> {
-        std::mem::take(&mut self.fallbacks.updates)
+        std::mem::take(&mut self.generics.updates)
     }
 
     /// Clear cache and notify `Refresh` in [`FontChangedEvent`].
@@ -188,19 +188,19 @@ impl Fonts {
     /// See the event documentation for more information.
     #[inline]
     pub fn refresh(&mut self) {
-        self.fallbacks.notify(FontChange::Refesh);
+        self.generics.notify(FontChange::Refesh);
     }
 
-    /// Actual name of fallback fonts.
+    /// Actual name of generic fonts.
     #[inline]
-    pub fn fallbacks(&self) -> &FontFallbacks {
-        &self.fallbacks
+    pub fn generics(&self) -> &GenericFonts {
+        &self.generics
     }
 
-    /// Configure the actual name of fallback fonts.
+    /// Configure the actual name of generic fonts.
     #[inline]
-    pub fn fallbacks_mut(&mut self) -> &mut FontFallbacks {
-        &mut self.fallbacks
+    pub fn generics_mut(&mut self) -> &mut GenericFonts {
+        &mut self.generics
     }
 
     /// Load and register a custom font.
@@ -211,7 +211,7 @@ impl Fonts {
     #[inline]
     pub fn register(&mut self, custom_font: CustomFont) -> Result<(), FontLoadingError> {
         self.loader.register(custom_font)?;
-        self.fallbacks.notify(FontChange::CustomFonts);
+        self.generics.notify(FontChange::CustomFonts);
         Ok(())
     }
 
@@ -222,7 +222,7 @@ impl Fonts {
     pub fn unregister(&mut self, custom_family: &FontName) -> bool {
         let unregistered = self.loader.unregister(custom_family);
         if unregistered {
-            self.fallbacks.notify(FontChange::CustomFonts);
+            self.generics.notify(FontChange::CustomFonts);
         }
         unregistered
     }
@@ -231,7 +231,7 @@ impl Fonts {
     #[inline]
     pub fn get_list(&mut self, families: &[FontName], style: FontStyle, weight: FontWeight, stretch: FontStretch) -> FontFaceList {
         self.loader
-            .get_list(families, style, weight, stretch, &self.fallbacks.fallback[&Script::Unknown])
+            .get_list(families, style, weight, stretch, &self.generics.fallback[&Script::Unknown])
     }
 
     /// Gets a single font face that best matches the query.
@@ -507,6 +507,23 @@ impl FontFace {
             Rc::new(Font::new(Rc::clone(self), font_size))
         }
     }
+
+    /// Gets what font synthesis to use to better render this font face given the style and weight.
+    pub fn synthesis_for(&self, style: FontStyle, weight: FontWeight) -> FontSynthesis {
+        let mut synth = FontSynthesis::DISABLED;
+
+        if style != FontStyle::Normal && self.style() == FontStyle::Normal {
+            // if requested oblique or italic and the face is neither.
+            synth |= FontSynthesis::STYLE;
+        }
+        if weight > self.weight() {
+            // if requested a weight larger then the face weight the renderer can
+            // add extra stroke outlines to compensate.
+            synth |= FontSynthesis::BOLD;
+        }
+
+        synth
+    }
 }
 
 /// A shared [`FontFace`].
@@ -581,13 +598,44 @@ pub type FontRef = Rc<Font>;
 #[derive(Debug, Clone)]
 pub struct FontFaceList {
     fonts: Box<[FontFaceRef]>,
+    requested_style: FontStyle,
+    requested_weight: FontWeight,
+    requested_stretch: FontStretch,
 }
 #[allow(clippy::len_without_is_empty)] // is never empty.
 impl FontFaceList {
+    /// Style requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_style(&self) -> FontStyle {
+        self.requested_style
+    }
+
+    /// Weight requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_weight(&self) -> FontWeight {
+        self.requested_weight
+    }
+
+    /// Stretch requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_stretch(&self) -> FontStretch {
+        self.requested_stretch
+    }
+
     /// The font face that best matches the requested properties.
     #[inline]
     pub fn best(&self) -> &FontFaceRef {
         &self.fonts[0]
+    }
+
+    /// Gets the font synthesis to use to better render the given font face on the list.
+    #[inline]
+    pub fn face_synthesis(&self, face_index: usize) -> FontSynthesis {
+        if let Some(face) = self.fonts.get(face_index) {
+            face.synthesis_for(self.requested_style, self.requested_weight)
+        } else {
+            FontSynthesis::DISABLED
+        }
     }
 
     /// Iterate over font faces, more specific first.
@@ -609,13 +657,20 @@ impl FontFaceList {
     pub fn sized(&self, font_size: LayoutLength) -> FontList {
         FontList {
             fonts: self.fonts.iter().map(|f| f.sized(font_size)).collect(),
+            requested_style: self.requested_style,
+            requested_weight: self.requested_weight,
+            requested_stretch: self.requested_stretch,
         }
     }
 }
 impl PartialEq for FontFaceList {
-    /// Both are equal if each point to the same fonts in the same order.
+    /// Both are equal if each point to the same fonts in the same order and have the same requested properties.
     fn eq(&self, other: &Self) -> bool {
-        self.fonts.len() == other.fonts.len() && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+        self.requested_style == other.requested_style
+            && self.requested_weight == other.requested_weight
+            && self.requested_stretch == other.requested_stretch
+            && self.fonts.len() == other.fonts.len()
+            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
     }
 }
 impl Eq for FontFaceList {}
@@ -647,6 +702,72 @@ impl std::ops::Index<usize> for FontFaceList {
 #[derive(Debug, Clone)]
 pub struct FontList {
     fonts: Box<[FontRef]>,
+    requested_style: FontStyle,
+    requested_weight: FontWeight,
+    requested_stretch: FontStretch,
+}
+impl FontList {
+    /// Style requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_style(&self) -> FontStyle {
+        self.requested_style
+    }
+
+    /// Weight requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_weight(&self) -> FontWeight {
+        self.requested_weight
+    }
+
+    /// Stretch requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_stretch(&self) -> FontStretch {
+        self.requested_stretch
+    }
+
+    /// Gets the font synthesis to use to better render the given font on the list.
+    #[inline]
+    pub fn face_synthesis(&self, font_index: usize) -> FontSynthesis {
+        if let Some(font) = self.fonts.get(font_index) {
+            font.face.synthesis_for(self.requested_style, self.requested_weight)
+        } else {
+            FontSynthesis::DISABLED
+        }
+    }
+}
+impl PartialEq for FontList {
+    /// Both are equal if each point to the same fonts in the same order and have the same requested properties.
+    fn eq(&self, other: &Self) -> bool {
+        self.requested_style == other.requested_style
+            && self.requested_weight == other.requested_weight
+            && self.requested_stretch == other.requested_stretch
+            && self.fonts.len() == other.fonts.len()
+            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| Rc::ptr_eq(a, b))
+    }
+}
+impl Eq for FontList {}
+impl std::ops::Deref for FontList {
+    type Target = [FontRef];
+
+    fn deref(&self) -> &Self::Target {
+        &self.fonts
+    }
+}
+impl<'a> std::iter::IntoIterator for &'a FontList {
+    type Item = &'a FontRef;
+
+    type IntoIter = std::slice::Iter<'a, FontRef>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+impl std::ops::Index<usize> for FontList {
+    type Output = FontRef;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.fonts[index]
+    }
 }
 
 struct FontFaceLoader {
@@ -731,6 +852,9 @@ impl FontFaceLoader {
 
         FontFaceList {
             fonts: r.into_boxed_slice(),
+            requested_style: style,
+            requested_weight: weight,
+            requested_stretch: stretch,
         }
     }
 
@@ -895,7 +1019,7 @@ impl FontFaceLoader {
             // b
             descending_first = false;
         } // else a
-        
+
         let wrong_side = |w| if descending_first { w > weight } else { w < weight };
         let mut best = set[0];
         let mut best_dist = f64::MAX;
@@ -936,6 +1060,9 @@ impl FontRenderCache {
     pub fn get_list(&mut self, font_list: &FontList) -> RenderFontList {
         RenderFontList {
             fonts: font_list.fonts.iter().map(|f| self.get(Rc::clone(f))).collect(),
+            requested_style: font_list.requested_style,
+            requested_weight: font_list.requested_weight,
+            requested_stretch: font_list.requested_stretch,
         }
     }
 
@@ -1028,19 +1155,88 @@ impl RenderFont {
         self.instance_key
     }
 }
+impl PartialEq for RenderFont {
+    fn eq(&self, other: &Self) -> bool {
+        self.instance_key == other.instance_key && self.window_id == other.window_id
+    }
+}
+impl Eq for RenderFont {}
 
+/// A list of [`RenderFont`] produced by [`FontRenderCache::get_list`].
 pub struct RenderFontList {
     fonts: Box<[RenderFont]>,
+    requested_style: FontStyle,
+    requested_weight: FontWeight,
+    requested_stretch: FontStretch,
+}
+impl RenderFontList {
+    /// Style requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_style(&self) -> FontStyle {
+        self.requested_style
+    }
+
+    /// Weight requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_weight(&self) -> FontWeight {
+        self.requested_weight
+    }
+
+    /// Stretch requested in the query that generated this font face list.
+    #[inline]
+    pub fn requested_stretch(&self) -> FontStretch {
+        self.requested_stretch
+    }
+
+    /// Gets the font synthesis to use to better render the given font on the list.
+    #[inline]
+    pub fn face_synthesis(&self, font_index: usize) -> FontSynthesis {
+        if let Some(font) = self.fonts.get(font_index) {
+            font.font.face.synthesis_for(self.requested_style, self.requested_weight)
+        } else {
+            FontSynthesis::DISABLED
+        }
+    }
+}
+impl PartialEq for RenderFontList {
+    /// Both are equal if each point to the same fonts in the same order and have the same requested properties.
+    fn eq(&self, other: &Self) -> bool {
+        self.requested_style == other.requested_style
+            && self.requested_weight == other.requested_weight
+            && self.requested_stretch == other.requested_stretch
+            && self.fonts.len() == other.fonts.len()
+            && self.fonts.iter().zip(other.fonts.iter()).all(|(a, b)| a == b)
+    }
+}
+impl Eq for RenderFontList {}
+impl std::ops::Deref for RenderFontList {
+    type Target = [RenderFont];
+
+    fn deref(&self) -> &Self::Target {
+        &self.fonts
+    }
+}
+impl<'a> std::iter::IntoIterator for &'a RenderFontList {
+    type Item = &'a RenderFont;
+
+    type IntoIter = std::slice::Iter<'a, RenderFont>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+impl std::ops::Index<usize> for RenderFontList {
+    type Output = RenderFont;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.fonts[index]
+    }
 }
 
-/// Fallback fonts configuration for the app.
+/// Generic fonts configuration for the app.
 ///
 /// This type can be accessed from the [`Fonts`] service.
-///
-/// # Fallback Fonts
-///
-/// TODO
-pub struct FontFallbacks {
+pub struct GenericFonts {
     serif: FnvHashMap<Script, FontName>,
     sans_serif: FnvHashMap<Script, FontName>,
     monospace: FnvHashMap<Script, FontName>,
@@ -1050,14 +1246,14 @@ pub struct FontFallbacks {
     notifier: UpdateNotifier,
     updates: Vec<FontChangedArgs>,
 }
-impl FontFallbacks {
+impl GenericFonts {
     fn new(notifier: UpdateNotifier) -> Self {
         fn default(name: impl Into<FontName>) -> FnvHashMap<Script, FontName> {
             let mut f = FnvHashMap::with_capacity_and_hasher(1, fnv::FnvBuildHasher::default());
             f.insert(Script::Unknown, name.into());
             f
         }
-        FontFallbacks {
+        GenericFonts {
             serif: default("Times New Roman"),
             sans_serif: default("Arial"),
             monospace: default("Courier New"),
@@ -1094,7 +1290,7 @@ macro_rules! impl_fallback_accessors {
     }
     })+};
 }
-impl FontFallbacks {
+impl GenericFonts {
     fn get_fallback(map: &FnvHashMap<Script, FontName>, script: Script) -> (&FontName, Script) {
         map.get(&script)
             .map(|f| (f, script))
