@@ -7,6 +7,7 @@ use std::{
 };
 
 use fnv::FnvHashMap;
+use font_kit::properties::Weight;
 use webrender::api::RenderApi;
 
 use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
@@ -999,6 +1000,16 @@ impl FontFaceLoader {
         //
         // c - in 400..=500 query matches query then ascending to 500 then descending under query
         //     then ascending over 500.
+
+        // TODO: This doesn't give a "no two closures have the same type" error, use this to only have one for?
+        let test = if weight.0 >= 400.0 && weight.0 <= 500.0 { |face:&&Rc<FontFace>, weight:&Weight, dist:&mut f32| {// Add penalty for:
+            if &face.weight() < weight {
+                // Not being in search up to 500
+                *dist += 100.0;
+            } else if face.weight().0 > 500.0 {
+                // Not being in search down to 0
+                *dist += 500.0;
+            }}} else { |_:&&Rc<FontFace>, _:&Weight, _:&mut f32| {}};
 
         if weight.0 >= 400.0 && weight.0 <= 500.0 {
             let mut best = set[0];
