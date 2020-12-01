@@ -7,6 +7,7 @@ use super::{
     color::Rgba,
     context::*,
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
+    service::WindowServicesVisitors,
     service::{AppService, WindowServices},
     text::Text,
     types::{FrameId, WindowEvent},
@@ -347,6 +348,13 @@ impl AppExtension for WindowManager {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
+        for window in ctx.services.req::<Windows>().windows() {
+            let mut ctx = window.wn_ctx.borrow_mut();
+            visitors.visit(ctx.window_id, &mut ctx.services);
         }
     }
 

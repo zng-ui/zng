@@ -486,7 +486,7 @@ pub struct FontUnit;
 
 /// Various metrics about a [`Font`].
 ///
-/// You can compute these metrics from a [`FaceMetrics`]
+/// You can compute these metrics from a [`FontFaceMetrics`]
 #[derive(Clone, Debug)]
 pub struct FontMetrics {
     /// The maximum amount the font rises above the baseline, in layout pixels.

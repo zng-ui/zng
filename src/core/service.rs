@@ -125,8 +125,8 @@ pub struct WindowServicesInit {
     registered: FnvHashSet<TypeId>,
     #[allow(clippy::type_complexity)] // its a vec of boxed Fn(&WindowContext) -> (services, loaders, unloaders).
     builders: Vec<Box<dyn Fn(&WindowContext) -> (Box<dyn WindowService>, Box<dyn Fn()>, Box<dyn Fn()>)>>,
-    #[allow(clippy::type_complexity)] // its a vec of boxed FnMut(&mut WindowContext), in a RefCell.
-    visitors: RefCell<Vec<Box<dyn FnMut(&mut WindowContext)>>>,
+    #[allow(clippy::type_complexity)] // its a vec of boxed visitors, in a RefCell.
+    visitors: RefCell<Vec<Box<dyn FnMut(super::window::WindowId, &mut WindowServices)>>>,
 }
 impl WindowServicesInit {
     /// Register a new window service initializer.
@@ -157,17 +157,15 @@ impl WindowServicesInit {
     }
 
     /// Schedules a visitor that is called once for each open window.
-    pub fn visit<V: FnMut(super::window::WindowId, &mut WindowServices) + 'static>(&self, mut visitor: V) {
-        self.visitors.borrow_mut().push(Box::new(move |ctx| {
-            visitor(ctx.window_id.get(), ctx.window_services);
-        }));
+    pub fn visit<V: FnMut(super::window::WindowId, &mut WindowServices) + 'static>(&self, visitor: V) {
+        self.visitors.borrow_mut().push(Box::new(visitor));
     }
 
     /// Initializes services for a window context.
     ///
     /// # Using Services
     ///
-    /// The window services are only available inside a call to [`AppContext::window_context`]. All
+    /// The window services are only available inside a call to [`AppContext::window_context`](crate::core::context::AppContext::window_context). All
     /// the accessor methods panic if you attempt to request a service outside of the method.
     pub fn init(&self, ctx: &WindowContext) -> WindowServices {
         let mut services = Vec::with_capacity(self.builders.len());
@@ -189,8 +187,41 @@ impl WindowServicesInit {
         }
     }
 
-    pub(super) fn visitors(&mut self) -> &mut [Box<dyn FnMut(&mut WindowContext)>] {
-        self.visitors.get_mut()
+    pub(super) fn take_visitors(&mut self) -> Option<WindowServicesVisitors> {
+        let visitors = self.visitors.get_mut();
+        if visitors.is_empty() {
+            None
+        } else {
+            Some(WindowServicesVisitors {
+                visitors: std::mem::take(visitors),
+            })
+        }
+    }
+}
+
+/// Windows services visit request.
+///
+/// See [`visit_window_services`](crate::core::app::AppExtension::visit_window_services) for more details.
+pub struct WindowServicesVisitors {
+    visitors: Vec<Box<dyn FnMut(super::window::WindowId, &mut WindowServices)>>,
+}
+impl WindowServicesVisitors {
+    /// Calls the visitors in a window context.
+    ///
+    /// You don't need to call this method from inside a window context, if the `services` are not loaded
+    /// in the window context they are loaded for the duration of the visit call.
+    #[inline]
+    pub fn visit(&mut self, window_id: super::window::WindowId, services: &mut WindowServices) {
+        if !services.loaded {
+            let unloader = services.load();
+            for visitor in &mut self.visitors {
+                visitor(window_id, unloader.window_services);
+            }
+        } else {
+            for visitor in &mut self.visitors {
+                visitor(window_id, services);
+            }
+        }
     }
 }
 
@@ -216,7 +247,8 @@ impl WindowServices {
         assert!(self.loaded, "window services is not loaded in a WindowContext");
     }
 
-    pub(super) fn load(&mut self) {
+    pub(super) fn load(&mut self) -> UnloadWindowServicesOnDrop {
+        #[cfg(debug_assertions)]
         if self.loaded {
             panic!("window services already loaded");
         }
@@ -224,9 +256,15 @@ impl WindowServices {
             load();
         }
         self.loaded = true;
+
+        UnloadWindowServicesOnDrop { window_services: self }
     }
 
-    pub(super) fn unload(&mut self) {
+    fn unload(&mut self) {
+        #[cfg(debug_assertions)]
+        if !self.loaded {
+            panic!("window services already not loaded");
+        }
         for unload in &self.unloaders {
             unload();
         }
@@ -291,6 +329,15 @@ impl WindowServices {
         self.assert_loaded();
 
         M::get().unwrap_or_else(|e| panic!("service `{}` is required", e))
+    }
+}
+
+pub(super) struct UnloadWindowServicesOnDrop<'s> {
+    pub window_services: &'s mut WindowServices,
+}
+impl<'s> Drop for UnloadWindowServicesOnDrop<'s> {
+    fn drop(&mut self) {
+        self.window_services.unload();
     }
 }
 

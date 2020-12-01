@@ -1,8 +1,8 @@
 //! App startup and app extension API.
 
-use super::context::*;
 use super::event::{cancelable_event_args, EventEmitter, EventListener};
 use super::profiler::*;
+use super::{context::*, service::WindowServicesVisitors};
 use super::{
     focus::FocusManager,
     gesture::GestureManager,
@@ -83,6 +83,16 @@ pub trait AppExtension: 'static {
     #[inline]
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         let _ = (update, ctx);
+    }
+
+    /// Called when a [`WindowServicesInit::visit`](crate::core::service::WindowServicesInit::visit) request was made.
+    ///
+    /// Only extensions that generate windows must handle this method. They must iterate
+    /// through every window and call [`visit`](WindowServicesVisitors::visit) for each
+    /// window context.
+    #[inline]
+    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
+        let _ = (visitors, ctx);
     }
 
     /// Called after every sequence of updates if display update was requested.
@@ -520,16 +530,24 @@ impl<E: AppExtension> AppExtended<E> {
                 }
 
                 if update.update || update.update_hp {
-                    profile_scope!("app::update");
-                    let mut ctx = owned_ctx.borrow(event_loop);
-                    let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
-                    if shutdown(shutdown_requests, &mut ctx, &mut extensions) {
-                        *control_flow = ControlFlow::Exit;
-                        return;
+                    {
+                        profile_scope!("app::update");
+                        let mut ctx = owned_ctx.borrow(event_loop);
+                        let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
+                        if shutdown(shutdown_requests, &mut ctx, &mut extensions) {
+                            *control_flow = ControlFlow::Exit;
+                            return;
+                        }
+                        extensions.update_preview(update, &mut ctx);
+                        extensions.update_ui(update, &mut ctx);
+                        extensions.update(update, &mut ctx);
                     }
-                    extensions.update_preview(update, &mut ctx);
-                    extensions.update_ui(update, &mut ctx);
-                    extensions.update(update, &mut ctx);
+
+                    if let Some(mut visitors) = owned_ctx.take_window_service_visitors() {
+                        profile_scope!("app::visit_window_services");
+                        let mut ctx = owned_ctx.borrow(event_loop);
+                        extensions.visit_window_services(&mut visitors, &mut ctx);
+                    }
                 } else {
                     break;
                 }
@@ -668,15 +686,23 @@ impl<E: AppExtension> HeadlessApp<E> {
             }
 
             if update.update || update.update_hp {
-                profile_scope!("headless_app::update");
-                let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
-                let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
-                if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
-                    return ControlFlow::Exit;
+                {
+                    profile_scope!("headless_app::update");
+                    let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
+                    let shutdown_requests = ctx.services.req::<AppProcess>().take_requests();
+                    if shutdown(shutdown_requests, &mut ctx, &mut self.extensions) {
+                        return ControlFlow::Exit;
+                    }
+                    self.extensions.update_preview(update, &mut ctx);
+                    self.extensions.update_ui(update, &mut ctx);
+                    self.extensions.update(update, &mut ctx);
                 }
-                self.extensions.update_preview(update, &mut ctx);
-                self.extensions.update_ui(update, &mut ctx);
-                self.extensions.update(update, &mut ctx);
+
+                if let Some(mut visitors) = self.owned_ctx.take_window_service_visitors() {
+                    profile_scope!("headless_app::visit_window_services");
+                    let mut ctx = self.owned_ctx.borrow(self.event_loop.window_target());
+                    self.extensions.visit_window_services(&mut visitors, &mut ctx);
+                }
             } else {
                 break;
             }
@@ -760,6 +786,12 @@ impl<A: AppExtension, B: AppExtension> AppExtension for (A, B) {
     }
 
     #[inline]
+    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
+        self.0.visit_window_services(visitors, ctx);
+        self.1.visit_window_services(visitors, ctx);
+    }
+
+    #[inline]
     fn update_display(&mut self, update: UpdateDisplayRequest, ctx: &mut AppContext) {
         self.0.update_display(update, ctx);
         self.1.update_display(update, ctx);
@@ -834,6 +866,12 @@ impl AppExtension for Vec<Box<dyn AppExtension>> {
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {
         for ext in self {
             ext.update(update, ctx);
+        }
+    }
+
+    fn visit_window_services(&mut self, visitors: &mut WindowServicesVisitors, ctx: &mut AppContext) {
+        for ext in self {
+            ext.visit_window_services(visitors, ctx);
         }
     }
 

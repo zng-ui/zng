@@ -500,6 +500,11 @@ impl OwnedAppContext {
         self.updates.take_request()
     }
 
+    /// Takes the window service visitor requests, of there is any.
+    pub fn take_window_service_visitors(&mut self) -> Option<super::service::WindowServicesVisitors> {
+        self.window_services.take_visitors()
+    }
+
     /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
     ///
     /// Returns the update requests and a time for the loop wake back and call
@@ -674,14 +679,14 @@ impl<'a> AppContext<'a> {
         self.updates.win_display_update = UpdateDisplayRequest::None;
 
         let mut event_state = StateMap::default();
-        window_services.load();
+        let unloader = window_services.load();
 
         f(&mut WindowContext {
             window_id: ReadOnly(window_id),
             render_api,
             app_state: self.app_state,
             window_state,
-            window_services,
+            window_services: unloader.window_services,
             event_state: &mut event_state,
             vars: self.vars,
             events: self.events,
@@ -689,8 +694,6 @@ impl<'a> AppContext<'a> {
             sync: self.sync,
             updates: self.updates,
         });
-
-        window_services.unload();
 
         mem::take(&mut self.updates.win_display_update)
     }
