@@ -130,6 +130,9 @@ impl AppExtension for FontManager {
                     // subclass monitor flagged a font (un)install.
                     self.font_changed.notify(ctx.events, FontChangedArgs::now(FontChange::SystemFonts));
                     fonts.on_system_fonts_changed();
+                    ctx.window_services.visit(|_, w_services| {
+                        w_services.req::<FontRenderCache>().on_system_fonts_changed();
+                    });
                 }
             }
 
@@ -1053,6 +1056,11 @@ impl FontRenderCache {
             faces: FnvHashMap::default(),
             fonts: FnvHashMap::default(),
         }
+    }
+
+    fn on_system_fonts_changed(&mut self) {
+        self.faces.clear();
+        self.fonts.clear();
     }
 
     /// Gets a font list with the cached renderer data for each font.

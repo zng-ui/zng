@@ -1,7 +1,13 @@
 //! Services API.
 
 use super::context::WindowContext;
-use std::{any::*, cell::Cell, fmt, ptr, rc::Rc, thread::LocalKey};
+use std::{
+    any::*,
+    cell::{Cell, RefCell},
+    fmt, ptr,
+    rc::Rc,
+    thread::LocalKey,
+};
 
 /// Auto implement [`AppService`] trait.
 use fnv::FnvHashSet;
@@ -117,8 +123,10 @@ impl AppServices {
 #[derive(Default)]
 pub struct WindowServicesInit {
     registered: FnvHashSet<TypeId>,
-    #[allow(clippy::type_complexity)] // its a boxed Fn(&WindowContext) -> (services, loaders, unloaders).
+    #[allow(clippy::type_complexity)] // its a vec of boxed Fn(&WindowContext) -> (services, loaders, unloaders).
     builders: Vec<Box<dyn Fn(&WindowContext) -> (Box<dyn WindowService>, Box<dyn Fn()>, Box<dyn Fn()>)>>,
+    #[allow(clippy::type_complexity)] // its a vec of boxed FnMut(&mut WindowContext), in a RefCell.
+    visitors: RefCell<Vec<Box<dyn FnMut(&mut WindowContext)>>>,
 }
 impl WindowServicesInit {
     /// Register a new window service initializer.
@@ -148,6 +156,13 @@ impl WindowServicesInit {
         Ok(())
     }
 
+    /// Schedules a visitor that is called once for each open window.
+    pub fn visit<V: FnMut(super::window::WindowId, &mut WindowServices) + 'static>(&self, mut visitor: V) {
+        self.visitors.borrow_mut().push(Box::new(move |ctx| {
+            visitor(ctx.window_id.get(), ctx.window_services);
+        }));
+    }
+
     /// Initializes services for a window context.
     ///
     /// # Using Services
@@ -172,6 +187,10 @@ impl WindowServicesInit {
             unloaders,
             loaded: false,
         }
+    }
+
+    pub(super) fn visitors(&mut self) -> &mut [Box<dyn FnMut(&mut WindowContext)>] {
+        self.visitors.get_mut()
     }
 }
 
