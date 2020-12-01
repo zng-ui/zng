@@ -997,46 +997,35 @@ impl FontFaceLoader {
         // a - under 400 query matches query then descending under query then ascending over query.
         // b - over 500 query matches query then ascending over query then descending under query.
         //
-        // c - 400-450 matches query then 500 then descending under 400 then ascending over 400.
-        // d - 450-500 matches query then 400 then descending under 500 then ascending over 500.
-        if let Some(exact) = set.iter().find(|f| f.weight() == weight) {
-            return Rc::clone(exact);
-        }
-        let mut descending_first = true;
-        let mut weight = weight;
-        if weight.0 >= 400.0 && weight.0 <= 450.0 {
-            // c
-            if let Some(special) = set.iter().find(|f| f.weight() == FontWeight(500.0)) {
-                return Rc::clone(special);
-            } else {
-                weight = FontWeight(400.0);
-            }
-        } else if weight.0 <= 500.0 && weight.0 > 450.0 {
-            // d
-            if let Some(special) = set.iter().find(|f| f.weight() == FontWeight(400.0)) {
-                return Rc::clone(special);
-            } else {
-                weight = FontWeight(500.0);
-            }
-        } else if weight.0 > 500.0 {
-            // b
-            descending_first = false;
-        } // else a
+        // c - in 400..=500 query matches query then ascending to 500 then descending under query
+        //     then ascending over 500.
 
-        let wrong_side = |w| if descending_first { w > weight } else { w < weight };
-        let mut best = set[0];
-        let mut best_dist = f64::MAX;
-        for face in set {
-            let mut dist = (face.weight().0 - weight.0).abs() as f64;
-            if wrong_side(face.weight()) {
-                dist += f32::MAX as f64 + 1.0;
+        if weight.0 >= 400.0 && weight.0 <= 500.0 {
+            let mut best = set[0];
+            let mut best_dist = f32::MAX;
+            for face in &set {
+                let mut dist = (face.weight().0 - weight.0).abs();
+
+                // Add penalty for:
+                if face.weight() < weight {
+                    // Not being in search up to 500
+                    dist += 100.0;
+                } else if face.weight().0 > 500.0 {
+                    // Not being in search down to 0
+                    dist += 500.0;
+                }
+
+                if dist < best_dist {
+                    best_dist = dist;
+                    best = face;
+                }
             }
-            if dist < best_dist {
-                best = face;
-                best_dist = dist;
-            }
+
+            Rc::clone(best)
+        } else {
+            todo!() // or think of a way to only have 1 for, and no else,
+                    // without repeatedly checking the if
         }
-        Rc::clone(best)
     }
 }
 
