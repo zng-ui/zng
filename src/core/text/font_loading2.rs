@@ -941,12 +941,10 @@ impl FontFaceLoader {
         //
         // Closest to query stretch, if the query is narrow, closest narrow then
         // closest wide, if the query is wide the reverse.
-        let wrong_side = |s| {
-            if stretch <= FontStretch::NORMAL {
-                s > FontStretch::NORMAL
-            } else {
-                s <= FontStretch::NORMAL
-            }
+        let wrong_side = if stretch <= FontStretch::NORMAL {
+            |s| s > FontStretch::NORMAL
+        } else {
+            |s| s <= FontStretch::NORMAL
         };
         for face in faces {
             let mut dist = (face.stretch().0 - stretch.0).abs() as f64;
@@ -994,17 +992,16 @@ impl FontFaceLoader {
 
         // # Filter Weight
         //
-        // a - under 400 query matches query then descending under query then ascending over query.
-        // b - over 500 query matches query then ascending over query then descending under query.
+        // a: under 400 query matches query then descending under query then ascending over query.
+        // b: over 500 query matches query then ascending over query then descending under query.
         //
-        // c - in 400..=500 query matches query then ascending to 500 then descending under query
+        // c: in 400..=500 query matches query then ascending to 500 then descending under query
         //     then ascending over 500.
-
-        // TODO: This doesn't give a "no two closures have the same type" error, use this to only have one for?
-        let test = if weight.0 >= 400.0 && weight.0 <= 500.0 {
-            |face: &&Rc<FontFace>, weight: &Weight, dist: &mut f32| {
+        let add_penalty = if weight.0 >= 400.0 && weight.0 <= 500.0 {
+            // c:
+            |face: &FontFace, weight: Weight, dist: &mut f64| {
                 // Add penalty for:
-                if &face.weight() < weight {
+                if face.weight() < weight {
                     // Not being in search up to 500
                     *dist += 100.0;
                 } else if face.weight().0 > 500.0 {
@@ -1012,36 +1009,38 @@ impl FontFaceLoader {
                     *dist += 500.0;
                 }
             }
-        } else {
-            |_: &&Rc<FontFace>, _: &Weight, _: &mut f32| {}
-        };
-
-        if weight.0 >= 400.0 && weight.0 <= 500.0 {
-            let mut best = set[0];
-            let mut best_dist = f32::MAX;
-            for face in &set {
-                let mut dist = (face.weight().0 - weight.0).abs();
-
-                // Add penalty for:
-                if face.weight() < weight {
-                    // Not being in search up to 500
-                    dist += 100.0;
-                } else if face.weight().0 > 500.0 {
-                    // Not being in search down to 0
-                    dist += 500.0;
-                }
-
-                if dist < best_dist {
-                    best_dist = dist;
-                    best = face;
+        } else if weight.0 < 400.0 {
+            // a:
+            |face: &FontFace, weight: Weight, dist: &mut f64| {
+                if face.weight() >= weight {
+                    *dist += (weight.0 + 1.0) as f64;
                 }
             }
-
-            Rc::clone(best)
         } else {
-            todo!() // or think of a way to only have 1 for, and no else,
-                    // without repeatedly checking the if
+            debug_assert!(weight.0 > 500.0);
+            // b:
+            |face: &FontFace, weight: Weight, dist: &mut f64| {
+                if face.weight() <= weight {
+                    *dist += f32::MAX as f64 + 1.0;
+                }
+            }
+        };
+
+        let mut best = set[0];
+        let mut best_dist = f64::MAX;
+
+        for face in &set {
+            let mut dist = (face.weight().0 - weight.0).abs() as f64;
+
+            add_penalty(face, weight, &mut dist);
+
+            if dist < best_dist {
+                best_dist = dist;
+                best = face;
+            }
         }
+
+        Rc::clone(best)
     }
 }
 
