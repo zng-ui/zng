@@ -106,10 +106,9 @@ impl Default for FontManager {
 impl AppExtension for FontManager {
     fn init(&mut self, ctx: &mut AppInitContext) {
         ctx.events.register::<FontChangedEvent>(self.font_changed.listener());
-        ctx.services.register(Fonts::new(ctx.updates.notifier().clone())).unwrap();
+        ctx.services.register(Fonts::new(ctx.updates.notifier().clone()));
         ctx.window_services
-            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()))
-            .unwrap();
+            .register(move |ctx| FontRenderCache::new(Arc::clone(ctx.render_api), ctx.window_id.get()));
 
         #[cfg(windows)]
         {

@@ -512,7 +512,7 @@ impl AppExtension for GestureManager {
 
         r.events.register::<ShortcutEvent>(self.shortcut.listener());
 
-        r.services.register(Gestures::new()).unwrap();
+        r.services.register(Gestures::new());
     }
 
     fn on_window_event(&mut self, _: WindowId, event: &WindowEvent, _: &mut AppContext) {

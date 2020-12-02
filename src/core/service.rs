@@ -1,10 +1,10 @@
 //! Services API.
 
-use super::context::WindowContext;
+use super::context::{AlreadyRegistered, WindowContext};
 use std::{
     any::*,
     cell::{Cell, RefCell},
-    fmt, ptr,
+    ptr,
     rc::Rc,
     thread::LocalKey,
 };
@@ -28,7 +28,7 @@ impl Default for AppServicesInit {
 }
 impl AppServicesInit {
     /// Register a new service for the duration of the application context.
-    pub fn register<S: AppService + Sized>(&mut self, service: S) -> Result<(), AlreadyRegistered> {
+    pub fn try_register<S: AppService + Sized>(&mut self, service: S) -> Result<(), AlreadyRegistered> {
         let mut service = Box::new(service);
         let prev = S::thread_local_entry().init(service.as_mut() as _);
         if prev.is_null() {
@@ -42,24 +42,20 @@ impl AppServicesInit {
         }
     }
 
+    /// Register a new service for the duration of the application context.
+    ///
+    /// # Panics
+    ///
+    /// Panics if another instance of the service is already registered.
+    pub fn register<S: AppService + Sized>(&mut self, service: S) {
+        self.try_register(service).unwrap()
+    }
+
     /// Reference the [`AppServices`].
     pub fn services(&mut self) -> &mut AppServices {
         &mut self.m
     }
 }
-
-/// Error when an app service or event of the same type is registered twice.
-#[derive(Debug, Clone, Copy)]
-pub struct AlreadyRegistered {
-    /// Type name of the service.
-    pub type_name: &'static str,
-}
-impl fmt::Display for AlreadyRegistered {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "`{}` is already registered", self.type_name)
-    }
-}
-impl std::error::Error for AlreadyRegistered {}
 
 /// Access to application services.
 pub struct AppServices {
@@ -135,7 +131,7 @@ impl WindowServicesInit {
     /// of that window. The `new` closure is called for each new window.
     ///
     /// Services registered only apply in windows opened after.
-    pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) -> Result<(), AlreadyRegistered> {
+    pub fn try_register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) -> Result<(), AlreadyRegistered> {
         if !self.registered.insert(TypeId::of::<S>()) {
             return Err(AlreadyRegistered {
                 type_name: type_name::<S>(),
@@ -154,6 +150,20 @@ impl WindowServicesInit {
         }));
 
         Ok(())
+    }
+
+    /// Register a new window service initializer.
+    ///
+    /// Window services have different instances for each window and exist for the duration
+    /// of that window. The `new` closure is called for each new window.
+    ///
+    /// Services registered only apply in windows opened after.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the window service type is already registered.
+    pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
+        self.try_register(new).unwrap()
     }
 
     /// Schedules a visitor that is called once for each open window.

@@ -450,10 +450,7 @@ impl<E: AppExtension> AppExtended<E> {
         let mut owned_ctx = OwnedAppContext::instance(event_loop.create_proxy());
 
         let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx
-            .services
-            .register(AppProcess::new(init_ctx.updates.notifier().clone()))
-            .unwrap();
+        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
         extensions.init(&mut init_ctx);
 
         let mut in_sequence = false;
@@ -582,10 +579,7 @@ impl<E: AppExtension> AppExtended<E> {
         let mut extensions = self.extensions;
 
         let mut init_ctx = owned_ctx.borrow_init();
-        init_ctx
-            .services
-            .register(AppProcess::new(init_ctx.updates.notifier().clone()))
-            .unwrap();
+        init_ctx.services.register(AppProcess::new(init_ctx.updates.notifier().clone()));
         extensions.init(&mut init_ctx);
 
         HeadlessApp {

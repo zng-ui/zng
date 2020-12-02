@@ -1,6 +1,6 @@
 //! App event API.
 
-use super::context::{UpdateRequest, Updates, WidgetContext};
+use super::context::{AlreadyRegistered, UpdateRequest, Updates, WidgetContext};
 use super::AnyMap;
 use std::any::*;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -288,9 +288,27 @@ impl Events {
     }
 
     /// Register a new event for the duration of the application.
+    pub fn try_register<E: Event>(&mut self, listener: EventListener<E::Args>) -> Result<(), AlreadyRegistered> {
+        debug_assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
+
+        match self.events.entry(TypeId::of::<E>()) {
+            std::collections::hash_map::Entry::Occupied(_) => Err(AlreadyRegistered {
+                type_name: type_name::<E>(),
+            }),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                e.insert(Box::new(listener));
+                Ok(())
+            }
+        }
+    }
+
+    /// Register a new event for the duration of the application.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the event type is already registered.
     pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
-        assert_eq!(E::IS_HIGH_PRESSURE, listener.is_high_pressure());
-        self.events.insert(TypeId::of::<E>(), Box::new(listener));
+        self.try_register::<E>(listener).unwrap()
     }
 
     /// Creates an event listener if the event is registered in the application.

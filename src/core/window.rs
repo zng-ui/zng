@@ -259,7 +259,7 @@ impl Default for WindowManager {
 impl AppExtension for WindowManager {
     fn init(&mut self, r: &mut AppInitContext) {
         self.event_loop_proxy = Some(r.event_loop.clone());
-        r.services.register(Windows::new(r.updates.notifier().clone())).unwrap();
+        r.services.register(Windows::new(r.updates.notifier().clone()));
         r.events.register::<WindowOpenEvent>(self.window_open.listener());
         r.events
             .register::<WindowIsActiveChangedEvent>(self.window_is_active_changed.listener());

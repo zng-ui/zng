@@ -39,15 +39,13 @@ impl AppExtension for FontManager {
         };
         let sources = Rc::clone(&app_fonts.sources);
 
-        r.services.register(app_fonts).unwrap();
-        r.window_services
-            .register(move |ctx| Fonts {
-                api: Arc::clone(ctx.render_api),
-                fonts: HashMap::default(),
-                sources: Rc::clone(&sources),
-                //active_queries: vec![],
-            })
-            .unwrap();
+        r.services.register(app_fonts);
+        r.window_services.register(move |ctx| Fonts {
+            api: Arc::clone(ctx.render_api),
+            fonts: HashMap::default(),
+            sources: Rc::clone(&sources),
+            //active_queries: vec![],
+        });
     }
 
     fn update(&mut self, update: UpdateRequest, ctx: &mut AppContext) {

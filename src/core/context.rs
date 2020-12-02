@@ -9,12 +9,12 @@ use super::var::Vars;
 use super::window::WindowId;
 use super::AnyMap;
 use super::WidgetId;
-use std::mem;
 use std::sync::atomic::{self, AtomicU8};
 use std::{
     any::{Any, TypeId},
     time::Instant,
 };
+use std::{fmt, mem};
 use std::{marker::PhantomData, sync::Arc};
 use webrender::api::RenderApi;
 
@@ -941,3 +941,16 @@ impl LayoutContext {
         r
     }
 }
+
+/// Error when an service or event of the same type is registered twice.
+#[derive(Debug, Clone, Copy)]
+pub struct AlreadyRegistered {
+    /// Type name of the service.
+    pub type_name: &'static str,
+}
+impl fmt::Display for AlreadyRegistered {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "`{}` is already registered", self.type_name)
+    }
+}
+impl std::error::Error for AlreadyRegistered {}

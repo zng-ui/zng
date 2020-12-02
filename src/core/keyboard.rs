@@ -138,7 +138,7 @@ impl KeyboardManager {
 impl AppExtension for KeyboardManager {
     fn init(&mut self, r: &mut AppInitContext) {
         let k = Keyboard::new(r.events);
-        r.services.register(k).unwrap();
+        r.services.register(k);
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
