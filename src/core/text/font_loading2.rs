@@ -1006,22 +1006,22 @@ impl FontFaceLoader {
                     *dist += 100.0;
                 } else if face.weight().0 > 500.0 {
                     // Not being in search down to 0
-                    *dist += 500.0;
+                    *dist += 600.0;
                 }
             }
         } else if weight.0 < 400.0 {
             // a:
             |face: &FontFace, weight: Weight, dist: &mut f64| {
-                if face.weight() >= weight {
-                    *dist += (weight.0 + 1.0) as f64;
+                if face.weight() > weight {
+                    *dist += weight.0 as f64;
                 }
             }
         } else {
             debug_assert!(weight.0 > 500.0);
             // b:
             |face: &FontFace, weight: Weight, dist: &mut f64| {
-                if face.weight() <= weight {
-                    *dist += f32::MAX as f64 + 1.0;
+                if face.weight() < weight {
+                    *dist += f32::MAX as f64;
                 }
             }
         };
