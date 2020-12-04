@@ -1340,8 +1340,7 @@ impl OpenWindow {
             self.first_draw = false;
             drop(gl_ctx);
 
-
-            // draws the first frame before showing 
+            // draws the first frame before showing
             // because we can still flash white here.
             self.redraw();
 

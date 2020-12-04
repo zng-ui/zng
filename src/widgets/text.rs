@@ -144,7 +144,7 @@ pub struct TextNode<T: Var<Text>> {
     font_face: Option<FontFaceRef>,
     // Copy for layout, or zero before init.
     font_size: Length,
-    font_synthesis: FontSynthesis,
+    synthesis_used: FontSynthesis,
     line_spacing: Length,
 
     /* measure, arrange data */
@@ -168,7 +168,7 @@ impl<T: Var<Text>> TextNode<T> {
             color: colors::BLACK.into(),
             font_face: None,
             font_size: 0.into(),
-            font_synthesis: FontSynthesis::DISABLED,
+            synthesis_used: FontSynthesis::DISABLED,
             line_spacing: 0.into(),
 
             line_shaping_args: TextShapingArgs::default(),
@@ -186,13 +186,14 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         let t_ctx = TextContext::get(ctx.vars);
 
         // TODO use the full list.
-        self.font_face = Some(
-            ctx.services
-                .req::<Fonts>()
-                .get_list(t_ctx.font_family, t_ctx.font_style, t_ctx.font_weight, t_ctx.font_stretch)
-                .best()
-                .clone(),
-        );
+        let font_face = ctx
+            .services
+            .req::<Fonts>()
+            .get_list(t_ctx.font_family, t_ctx.font_style, t_ctx.font_weight, t_ctx.font_stretch)
+            .best()
+            .clone();
+        self.synthesis_used = t_ctx.font_synthesis & font_face.synthesis_for(t_ctx.font_style, t_ctx.font_weight);
+        self.font_face = Some(font_face);
 
         self.font_size = t_ctx.font_size;
 
@@ -236,7 +237,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_face`, affects shaping and layout
-        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_update(ctx.vars) {
+        if let Some((font_family, font_style, font_weight, font_stretch)) = TextContext::font_fate_update(ctx.vars) {
             let face = ctx
                 .services
                 .req::<Fonts>()
@@ -245,6 +246,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
                 .clone();
 
             if !self.font_face.as_ref().map(|f| f.ptr_eq(&face)).unwrap_or_default() {
+                self.synthesis_used = *FontSynthesisVar::var().get(ctx.vars) & face.synthesis_for(font_style, font_weight);
                 self.font_face = Some(face);
                 self.font = None;
                 self.shaped_text = ShapedText::default();
@@ -254,10 +256,9 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         }
 
         // update `self.font_instance`, affects shaping and layout
-        if let Some((font_size, font_synthesis)) = TextContext::font_instance_update(ctx.vars) {
-            if font_size != self.font_size || font_synthesis != self.font_synthesis {
+        if let Some(font_size) = TextContext::font_update(ctx.vars) {
+            if font_size != self.font_size {
                 self.font_size = font_size;
-                self.font_synthesis = font_synthesis;
 
                 self.font = None;
                 self.shaped_text = ShapedText::default();
@@ -268,13 +269,24 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
 
         // TODO features, spacing, breaking.
 
-        // update `self.color` and `self.glyph_options`, affects render
-        if let Some(color) = TextContext::render_update(ctx.vars) {
+        // update `self.color`
+        if let Some(color) = TextContext::color_update(ctx.vars) {
             let color = RenderColor::from(color);
             if self.color != color {
                 self.color = color;
 
                 ctx.updates.render();
+            }
+        }
+
+        // update `self.font_synthesis`
+        if let Some((synthesis_allowed, style, weight)) = TextContext::font_synthesis_update(ctx.vars) {
+            if let Some(face) = &self.font_face {
+                let synthesis_used = synthesis_allowed & face.synthesis_for(style, weight);
+                if synthesis_used != self.synthesis_used {
+                    self.synthesis_used = synthesis_used;
+                    ctx.updates.render();
+                }
             }
         }
     }
@@ -310,7 +322,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
             self.shaped_text.glyphs(),
             self.font.as_ref().expect("font not initied in render"),
             self.color,
-            self.font_synthesis,
+            self.synthesis_used,
         );
     }
 }

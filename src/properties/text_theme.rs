@@ -424,6 +424,8 @@ pub struct TextContext<'a> {
 
     /* Affects render only */
     pub text_color: Rgba,
+
+    /* Maybe affects render only */
     pub font_synthesis: FontSynthesis,
 }
 impl<'a> TextContext<'a> {
@@ -452,12 +454,13 @@ impl<'a> TextContext<'a> {
             text_align: *TextAlignVar::var().get(vars),
 
             text_color: *TextColorVar::var().get(vars),
+
             font_synthesis: *FontSynthesisVar::var().get(vars),
         }
     }
 
-    /// Gets the properties that affect the font.
-    pub fn font(vars: &'a Vars) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
+    /// Gets the properties that affect the font face.
+    pub fn font_face(vars: &'a Vars) -> (&'a [FontName], FontStyle, FontWeight, FontStretch) {
         (
             FontFamilyVar::var().get(vars),
             *FontStyleVar::var().get(vars),
@@ -465,14 +468,14 @@ impl<'a> TextContext<'a> {
             *FontStretchVar::var().get(vars),
         )
     }
-    /// Gets [`font`](Self::font) if any of the properties updated.
-    pub fn font_update(vars: &'a Vars) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
+    /// Gets [`font_face`](Self::font_face) if any of the properties updated.
+    pub fn font_fate_update(vars: &'a Vars) -> Option<(&'a [FontName], FontStyle, FontWeight, FontStretch)> {
         if FontFamilyVar::var().is_new(vars)
             || FontStyleVar::var().is_new(vars)
             || FontWeightVar::var().is_new(vars)
             || FontStretchVar::var().is_new(vars)
         {
-            Some(Self::font(vars))
+            Some(Self::font_face(vars))
         } else {
             None
         }
@@ -492,30 +495,46 @@ impl<'a> TextContext<'a> {
         }
     }
 
-    /// Gets the properties that affect the font instance. The [`Length`] is `font_size`.
+    /// Gets the properties that affect the sized font. The [`Length`] is `font_size`.
     #[inline]
-    pub fn font_instance(vars: &'a Vars) -> (Length, FontSynthesis) {
-        (*FontSizeVar::var().get(vars), *FontSynthesisVar::var().get(vars))
+    pub fn font(vars: &'a Vars) -> Length {
+        *FontSizeVar::var().get(vars)
     }
-    /// Gets [`font_instance`](Self::font_instance) if any of the properties updated.
+    /// Gets [`font`](Self::font) if any of the properties updated.
     #[inline]
-    pub fn font_instance_update(vars: &'a Vars) -> Option<(Length, FontSynthesis)> {
-        if FontSizeVar::var().is_new(vars) || FontSynthesisVar::var().is_new(vars) {
-            Some(Self::font_instance(vars))
+    pub fn font_update(vars: &'a Vars) -> Option<Length> {
+        FontSizeVar::var().get_new(vars).copied()
+    }
+
+    /// Gets the property that affect color.
+    #[inline]
+    pub fn color(vars: &'a Vars) -> Rgba {
+        *TextColorVar::var().get(vars)
+    }
+    /// Gets [`color`](Self::color) if any the property updated.
+    #[inline]
+    pub fn color_update(vars: &'a Vars) -> Option<Rgba> {
+        TextColorVar::var().get_new(vars).copied()
+    }
+
+    /// Gets the properties that affects what font synthesis is used.
+    #[inline]
+    pub fn font_synthesis(vars: &'a Vars) -> (FontSynthesis, FontStyle, FontWeight) {
+        (
+            *FontSynthesisVar::var().get(vars),
+            *FontStyleVar::var().get(vars),
+            *FontWeightVar::var().get(vars),
+        )
+    }
+
+    /// Gets [`font_synthesis`](Self::font_synthesis) if any of the properties changed.
+    #[inline]
+    pub fn font_synthesis_update(vars: &'a Vars) -> Option<(FontSynthesis, FontStyle, FontWeight)> {
+        if FontSynthesisVar::var().is_new(vars) || FontStyleVar::var().is_new(vars) || FontWeightVar::var().is_new(vars) {
+            Some(Self::font_synthesis(vars))
         } else {
             None
         }
-    }
-
-    /// Gets the properties that affect render.
-    #[inline]
-    pub fn render(vars: &'a Vars) -> Rgba {
-        *TextColorVar::var().get(vars)
-    }
-    /// Gets [`render`](Self::render) if the property `text_color` updated.
-    #[inline]
-    pub fn render_update(vars: &'a Vars) -> Option<Rgba> {
-        TextColorVar::var().get_new(vars).copied()
     }
 }
 impl<'a> Clone for TextContext<'a> {
