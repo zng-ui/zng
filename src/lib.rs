@@ -316,7 +316,17 @@ macro_rules! unique_id {
 macro_rules! impl_from_and_into_var {
     ($(
         $(#[$docs:meta])*
-        fn from($name:ident : $From:ty) -> $To:ty {
+        fn from(
+            $($name:ident)? // single ident OR
+            $( ( // tuple deconstruct of
+                $(
+                    $($tuple_names:ident)? // single idents OR
+                    $( ( // another tuple deconstruct of
+                        $($tuple_inner_names:ident ),+ // inner idents
+                    ) )?
+                ),+
+            ) )?
+            : $From:ty) -> $To:ty {
             $convert:expr
         }
     )+) => {
@@ -324,7 +334,17 @@ macro_rules! impl_from_and_into_var {
             impl From<$From> for $To {
                 $(#[$docs])*
                 #[inline]
-                fn from($name: $From) -> Self {
+                fn from(
+                    $($name)?
+                    $( (
+                        $(
+                            $($tuple_names)?
+                            $( (
+                                $($tuple_inner_names),+
+                            ) )?
+                        ),+
+                    ) )?
+                    : $From) -> Self {
                     $convert
                 }
             }

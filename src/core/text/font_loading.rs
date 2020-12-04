@@ -15,9 +15,9 @@ use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, Font
 use crate::core::app::AppExtension;
 use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
 use crate::core::event::{event, event_args, EventEmitter, EventListener};
-use crate::core::service::{AppService, WindowService};
+use crate::core::service::AppService;
 use crate::core::units::{layout_to_pt, LayoutLength};
-use crate::core::window::{WindowEventArgs, WindowId, WindowOpenEvent, Windows};
+use crate::core::window::{WindowEventArgs, WindowOpenEvent, Windows};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give

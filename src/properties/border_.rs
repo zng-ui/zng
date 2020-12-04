@@ -1,58 +1,165 @@
 use crate::prelude::new_property::*;
 use webrender::api as w_api;
 
-impl IntoVar<BorderDetails> for Rgba {
-    type Var = OwnedVar<BorderDetails>;
-
-    fn into_var(self) -> Self::Var {
+impl_from_and_into_var! {
+    /// All sides solid style, same `self` color. Square corners.
+    fn from(color: Rgba) -> BorderDetails {{
         let border_side = BorderSide {
-            color: self,
+            color,
             style: BorderStyle::Solid,
         };
-        OwnedVar(BorderDetails {
+        BorderDetails {
             left: border_side,
             right: border_side,
             top: border_side,
             bottom: border_side,
             radius: BorderRadius::zero(),
-        })
-    }
-}
+        }
+    }}
 
-impl IntoVar<BorderDetails> for (Rgba, BorderStyle) {
-    type Var = OwnedVar<BorderDetails>;
-
-    fn into_var(self) -> Self::Var {
-        let border_side = BorderSide {
-            color: self.0,
-            style: self.1,
+    /// All sides solid style, first color applied to top and bottom,
+    /// second color applied to left and right. Square corners
+    fn from((top_bottom, left_right): (Rgba, Rgba)) -> BorderDetails {{
+        let top_bottom = BorderSide {
+            color: top_bottom,
+            style: BorderStyle::Solid,
         };
-        OwnedVar(BorderDetails {
+        let left_right = BorderSide {
+            color: left_right,
+            style: BorderStyle::Solid,
+        };
+        BorderDetails {
+            left: left_right,
+            right: left_right,
+            top: top_bottom,
+            bottom: top_bottom,
+            radius: BorderRadius::zero(),
+        }
+    }}
+
+    /// Each side a color in order, top, right, bottom, left. All sides solid style. Square corners.
+    fn from((top, right, bottom, left): (Rgba, Rgba, Rgba, Rgba)) -> BorderDetails {
+        BorderDetails {
+            top: BorderSide {
+                color: top,
+                style: BorderStyle::Solid,
+            },
+            right: BorderSide {
+                color: right,
+                style: BorderStyle::Solid,
+            },
+            bottom: BorderSide {
+                color: bottom,
+                style: BorderStyle::Solid,
+            },
+            left: BorderSide {
+                color: left,
+                style: BorderStyle::Solid,
+            },
+            radius: BorderRadius::zero()
+        }
+    }
+
+     /// All sides same color and style. Square corners.
+    fn from((color, style): (Rgba, BorderStyle)) -> BorderDetails {{
+        let border_side = BorderSide {
+            color,
+            style,
+        };
+        BorderDetails {
             left: border_side,
             right: border_side,
             top: border_side,
             bottom: border_side,
             radius: BorderRadius::zero(),
-        })
+        }
+    }}
+
+    /// All sides the same style, first color applied to top and bottom,
+    /// second color applied to left and right. Square corners.
+    fn from((top_bottom, left_right, style): (Rgba, Rgba, BorderStyle)) -> BorderDetails {{
+        let top_bottom = BorderSide {
+            color: top_bottom,
+            style,
+        };
+        let left_right = BorderSide {
+            color: left_right,
+            style,
+        };
+        BorderDetails {
+            left: left_right,
+            right: left_right,
+            top: top_bottom,
+            bottom: top_bottom,
+            radius: BorderRadius::zero(),
+        }
+    }}
+
+    /// Each side a color in order, top, right, bottom, left. All sides the same style. Square corners.
+    fn from((top, right, bottom, left, style): (Rgba, Rgba, Rgba, Rgba, BorderStyle)) -> BorderDetails {
+        BorderDetails {
+            top: BorderSide {
+                color: top,
+                style,
+            },
+            right: BorderSide {
+                color: right,
+                style,
+            },
+            bottom: BorderSide {
+                color: bottom,
+                style,
+            },
+            left: BorderSide {
+                color: left,
+                style,
+            },
+            radius: BorderRadius::zero()
+        }
     }
-}
 
-impl<V: Var<Rgba>> IntoVar<BorderDetails> for (V, BorderStyle) {
-    #[allow(clippy::type_complexity)]
-    type Var = RcMapVar<Rgba, BorderDetails, V, Box<dyn FnMut(&Rgba) -> BorderDetails>>;
+    /// First color and style applied to top and bottom,
+    /// second color and style applied to left and right. Square corners.
+    fn from((top_bottom_color, top_bottom_style, left_right_color, left_right_style): (Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {{
+        let top_bottom = BorderSide {
+            color: top_bottom_color,
+            style: top_bottom_style,
+        };
+        let left_right = BorderSide {
+            color: left_right_color,
+            style: left_right_style,
+        };
+        BorderDetails {
+            left: left_right,
+            right: left_right,
+            top: top_bottom,
+            bottom: top_bottom,
+            radius: BorderRadius::zero(),
+        }
+    }}
 
-    fn into_var(self) -> Self::Var {
-        let style = self.1;
-        self.0.map(Box::new(move |color: &Rgba| {
-            let border_side = BorderSide { color: *color, style };
-            BorderDetails {
-                left: border_side,
-                right: border_side,
-                top: border_side,
-                bottom: border_side,
-                radius: BorderRadius::zero(),
-            }
-        }))
+    /// Each side a color and style in order, top, right, bottom, left. Square corners.
+    fn from((top_color, top_style, right_color, right_style, bottom_color, bottom_style, left_color, left_style)
+    : (Rgba, BorderStyle, Rgba, BorderStyle, Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {
+        BorderDetails {
+            top: BorderSide {
+                color: top_color,
+                style: top_style,
+            },
+            right: BorderSide {
+                color: right_color,
+                style: right_style,
+            },
+            bottom: BorderSide {
+                color: bottom_color,
+                style: bottom_style,
+            },
+            left: BorderSide {
+                color: left_color,
+                style: left_style,
+            },
+            radius: BorderRadius::zero()
+        }
     }
 }
 
@@ -63,6 +170,8 @@ pub enum BorderStyle {
     Double = 2,
     Dotted = 3,
     Dashed = 4,
+
+    Hidden = 5,
 
     Groove = 6,
     Ridge = 7,
@@ -131,11 +240,6 @@ impl BorderDetails {
             bottom: side,
             radius: new_border_radius_all_same_circular(0.0),
         }
-    }
-}
-impl From<Rgba> for BorderDetails {
-    fn from(color: Rgba) -> Self {
-        BorderDetails::solid(color)
     }
 }
 
