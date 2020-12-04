@@ -340,7 +340,17 @@ pub struct FontFace {
 }
 impl fmt::Debug for FontFace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        f.debug_struct("FontFace")
+            .field("display_name", &self.display_name)
+            .field("family_name", &self.family_name)
+            .field("postscript_name", &self.postscript_name)
+            .field("is_monospace", &self.is_monospace)
+            .field("properties", &self.properties)
+            .field("metrics", &self.metrics)
+            .field("instances.len()", &self.instances.borrow().len())
+            .field("render_keys.len()", &self.render_keys.borrow().len())
+            .field("unregistered", &self.unregistered.get())
+            .finish()
     }
 }
 impl FontFace {
@@ -593,7 +603,12 @@ pub struct Font {
 }
 impl fmt::Debug for Font {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        f.debug_struct("Font")
+            .field("face", &self.face)
+            .field("size", &self.size)
+            .field("metrics", &self.metrics)
+            .field("render_keys.len()", &self.render_keys.borrow().len())
+            .finish()
     }
 }
 impl Font {
