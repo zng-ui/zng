@@ -1253,6 +1253,7 @@ impl OpenWindow {
                 frame_id,
                 ctx.window_id,
                 self.pipeline_id,
+                Arc::clone(&ctx.api),
                 ctx.root.id,
                 ctx.root_transform_key,
                 size,

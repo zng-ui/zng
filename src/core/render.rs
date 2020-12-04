@@ -10,7 +10,7 @@ use crate::core::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{marker::PhantomData, mem};
+use std::{marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
 macro_rules! debug_assert_aligned {
@@ -31,8 +31,24 @@ macro_rules! debug_assert_aligned {
     };
 }
 
+/// A text font.
+///
+/// This trait is an interface for the renderer into the font API used in the application.
+///
+/// # Font API
+///
+/// The default font API is provided by [`FontsManager`](crate::core::text::FontsManager) that is included
+/// in the app default extensions. The default font type is [`Font`](crate::core::text::Font) that implements this trait.
+pub trait Font {
+    /// Gets the instance key in the `api` namespace.
+    /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.
+    fn instance_key(&self, api: &Arc<RenderApi>, synthesis: FontSynthesis) -> webrender::api::FontInstanceKey;
+}
+
 /// A full frame builder.
 pub struct FrameBuilder {
+    api: Arc<RenderApi>,
+
     scale_factor: f32,
     display_list: DisplayListBuilder,
 
@@ -68,6 +84,7 @@ impl FrameBuilder {
         frame_id: FrameId,
         window_id: WindowId,
         pipeline_id: PipelineId,
+        api: Arc<RenderApi>,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
@@ -78,6 +95,7 @@ impl FrameBuilder {
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
         let spatial_id = SpatialId::root_reference_frame(pipeline_id);
         let mut new = FrameBuilder {
+            api,
             scale_factor,
             display_list: DisplayListBuilder::with_capacity(pipeline_id, root_size, 100),
             info_id: info.root_id(),
@@ -536,7 +554,7 @@ impl FrameBuilder {
 
     /// Push a text run using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font_instance_key: FontInstanceKey, color: ColorF) {
+    pub fn push_text(&mut self, rect: LayoutRect, glyphs: &[GlyphInstance], font: &impl Font, color: ColorF, synthesis: FontSynthesis) {
         if self.cancel_widget {
             return;
         }
@@ -545,8 +563,12 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
+        let instance_key = font.instance_key(&self.api, synthesis);
+
+        debug_assert_eq!(self.api.get_namespace_id(), instance_key.0);
+
         self.display_list
-            .push_text(&self.common_item_properties(rect), rect, glyphs, font_instance_key, color, None);
+            .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
     }
 
     /// Calls `f` while [`item_tag`](FrameBuilder::item_tag) indicates the `cursor`.
@@ -1620,4 +1642,32 @@ pub enum WidgetOrientation {
     Right,
     Above,
     Below,
+}
+
+bitflags! {
+    /// Configure if a synthetic font is generated for fonts that do not implement **bold** or *oblique* variants.
+    pub struct FontSynthesis: u8 {
+        /// No synthetic font generated, if font resolution does not find a variant the matches the requested propertied
+        /// the properties are ignored and the normal font is returned.
+        const DISABLED = 0;
+        /// Enable synthetic bold. Font resolution finds the closest bold variant, the difference added using extra stroke.
+        const BOLD = 1;
+        /// Enable synthetic oblique. If the font resolution does not find an oblique or italic variant a skew transform is applied.
+        const STYLE = 2;
+        /// Enabled all synthetic font possibilities.
+        const ENABLED = Self::BOLD.bits | Self::STYLE.bits;
+    }
+}
+impl Default for FontSynthesis {
+    /// [`FontSynthesis::ENABLED`]
+    #[inline]
+    fn default() -> Self {
+        FontSynthesis::ENABLED
+    }
+}
+impl_from_and_into_var! {
+    /// Convert to full [`ENABLED`](FontSynthesis::ENABLED) or [`DISABLED`](FontSynthesis::DISABLED).
+    fn from(enabled: bool) -> FontSynthesis {
+        if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
+    }
 }
