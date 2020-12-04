@@ -1306,9 +1306,10 @@ impl OpenWindow {
     /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
     /// from the OS after calling this.
     fn request_redraw(&mut self) {
-        let gl_ctx = self.gl_ctx.borrow();
-        let window = gl_ctx.window();
         if self.first_draw {
+            let gl_ctx = self.gl_ctx.borrow();
+            let window = gl_ctx.window();
+
             match self.wn_ctx.borrow().root.start_position {
                 StartPosition::Default => {}
                 StartPosition::CenterScreen => {
@@ -1335,9 +1336,19 @@ impl OpenWindow {
                     todo!()
                 }
             }
-            let vis = Visibility::Visible == *self.wn_ctx.borrow().root.visibility.get_local();
-            window.set_visible(vis); // OS generates a RequestRedraw here
+
             self.first_draw = false;
+            drop(gl_ctx);
+
+
+            // draws the first frame before showing 
+            // because we can still flash white here.
+            self.redraw();
+
+            // apply user initial visibility
+            if Visibility::Visible == *self.wn_ctx.borrow().root.visibility.get_local() {
+                self.gl_ctx.borrow().window().set_visible(true);
+            }
         } else {
             self.gl_ctx.borrow().window().request_redraw();
         }
