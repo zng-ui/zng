@@ -490,7 +490,7 @@ impl AppExtension for MouseManager {
         r.events.register::<MouseUpEvent>(self.mouse_up.listener());
 
         r.events.register::<MouseClickEvent>(self.mouse_click.listener());
-        r.events.register::<MouseClickEvent>(self.mouse_click.listener());
+        r.events.register::<MouseSingleClickEvent>(self.mouse_single_click.listener());
         r.events.register::<MouseDoubleClickEvent>(self.mouse_double_click.listener());
         r.events.register::<MouseTripleClickEvent>(self.mouse_triple_click.listener());
 

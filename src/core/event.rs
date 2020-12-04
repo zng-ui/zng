@@ -307,6 +307,7 @@ impl Events {
     /// # Panics
     ///
     /// Panics if the event type is already registered.
+    #[track_caller]
     pub fn register<E: Event>(&mut self, listener: EventListener<E::Args>) {
         self.try_register::<E>(listener).unwrap()
     }

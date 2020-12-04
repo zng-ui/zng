@@ -47,6 +47,7 @@ impl AppServicesInit {
     /// # Panics
     ///
     /// Panics if another instance of the service is already registered.
+    #[track_caller]
     pub fn register<S: AppService + Sized>(&mut self, service: S) {
         self.try_register(service).unwrap()
     }
@@ -162,6 +163,7 @@ impl WindowServicesInit {
     /// # Panics
     ///
     /// Panics if the window service type is already registered.
+    #[track_caller]
     pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
         self.try_register(new).unwrap()
     }
