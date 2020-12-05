@@ -1,5 +1,9 @@
+//! Border property and types.
+
 use crate::prelude::new_property::*;
 use webrender::api as w_api;
+
+pub use w_api::BorderRadius;
 
 impl_from_and_into_var! {
     /// All sides solid style, same `self` color. Square corners.
@@ -163,22 +167,35 @@ impl_from_and_into_var! {
     }
 }
 
+/// The line style for the sides of a widget's border.
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Hash, Eq)]
 pub enum BorderStyle {
+    /// A single straight solid line.
     Solid = 1,
+    /// Two straight solid lines that add up to the pixel size defined by the side width.
     Double = 2,
+
+    /// Displays a series of rounded dots.
     Dotted = 3,
+    /// Displays a series of short square-ended dashes or line segments.
     Dashed = 4,
 
+    /// Fully transparent line.
     Hidden = 5,
 
+    /// Displays a border with a carved appearance.
     Groove = 6,
+    /// Displays a border with an extruded appearance.
     Ridge = 7,
+
+    /// Displays a border that makes the widget appear embedded.
     Inset = 8,
+    /// Displays a border that makes the widget appear embossed.
     Outset = 9,
 }
 
+/// The line style and color for the sides of a widget's border.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderSide {

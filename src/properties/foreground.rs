@@ -1,6 +1,7 @@
 //! Foreground/overlay properties, [`foreground_highlight`] and more.
 
-use super::BorderDetails;
+use super::border::{border, BorderDetails};
+use super::margin;
 use crate::prelude::new_property::*;
 use crate::widgets::{fill_color, fill_gradient};
 
@@ -61,9 +62,8 @@ pub fn foreground_highlight(
     widths: impl IntoVar<SideOffsets>,
     details: impl IntoVar<BorderDetails>,
 ) -> impl UiNode {
-    use crate::properties as p;
-    let border = p::border::set(crate::core::FillUiNode, widths, details);
-    foreground::set(child, p::margin::set(border, offsets))
+    let border = border::set(crate::core::FillUiNode, widths, details);
+    foreground::set(child, margin::set(border, offsets))
 }
 
 /// Fill color overlay property.

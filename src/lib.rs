@@ -436,7 +436,7 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
-        types::{BorderRadius, ElementState, ModifiersState, MouseButton},
+        types::{ElementState, ModifiersState, MouseButton},
         ui_vec,
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
@@ -451,6 +451,7 @@ pub mod prelude {
     pub use crate::widgets::*;
 
     pub use crate::properties::background::{background, *};
+    pub use crate::properties::border::*;
     pub use crate::properties::events::*;
     pub use crate::properties::filters::*;
     pub use crate::properties::focus::*;
@@ -504,6 +505,7 @@ pub mod prelude {
             LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::background::{background, *};
+        pub use crate::properties::border::{border, *};
         pub use crate::properties::capture_only::*;
         pub use crate::properties::events::*;
         pub use crate::properties::filters::*;

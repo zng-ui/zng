@@ -37,7 +37,7 @@ macro_rules! debug_assert_aligned {
 ///
 /// # Font API
 ///
-/// The default font API is provided by [`FontsManager`](crate::core::text::FontsManager) that is included
+/// The default font API is provided by [`FontManager`](crate::core::text::FontManager) that is included
 /// in the app default extensions. The default font type is [`Font`](crate::core::text::Font) that implements this trait.
 pub trait Font {
     /// Gets the instance key in the `api` namespace.

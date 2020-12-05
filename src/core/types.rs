@@ -1,6 +1,6 @@
 //! Assorted small types.
 
-pub use webrender::api::{BorderRadius, FontInstanceKey, GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
+pub use webrender::api::{GlyphInstance, GlyphOptions, GradientStop, LineOrientation};
 
 use super::color::Rgba;
 

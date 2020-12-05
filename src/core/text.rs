@@ -176,7 +176,7 @@ fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
     )
 }
 
-/// Extra configuration for [`shape_text`](FontInstanceRef::shape_text).
+/// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
 pub struct TextShapingArgs {
     /// Extra spacing to add after each character.
@@ -282,7 +282,7 @@ impl ShapedText {
     }
 }
 
-/// Result of [`shape_text`](FontInstanceRef::shape_text).
+/// Result of [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
 pub struct ShapedLine {
     /// Glyphs for the renderer.

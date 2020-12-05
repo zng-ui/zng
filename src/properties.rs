@@ -3,7 +3,7 @@
 mod align_;
 mod attached;
 pub mod background;
-mod border_;
+pub mod border;
 pub mod button_theme;
 pub mod capture_only;
 mod clip_to_bounds_;
@@ -25,7 +25,6 @@ mod visibility_;
 
 pub use align_::*;
 pub use attached::*;
-pub use border_::*;
 pub use clip_to_bounds_::*;
 pub use cursor_::*;
 pub use enabled_::*;

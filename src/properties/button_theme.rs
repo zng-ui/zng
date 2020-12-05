@@ -1,7 +1,7 @@
 //! Context properties for theming the [`button!`](module@crate::widgets::button) widget.
 
 use crate::prelude::new_property::*;
-use crate::properties::BorderDetails;
+use crate::properties::border::BorderDetails;
 
 context_var! {
     /// Default background of [`button!`](module@crate::widgets::button) widgets.
