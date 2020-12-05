@@ -166,6 +166,13 @@ impl Font {
     }
 }
 
+impl FontList {
+    pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
+        // TODO inspect result of best for unknown glyphs, try unknown segments in fallback fonts.
+        self.best().shape_text(text, config)
+    }
+}
+
 fn script_to_tag(script: Script) -> harfbuzz_rs::Tag {
     let mut name = script.short_name().chars();
     harfbuzz_rs::Tag::new(

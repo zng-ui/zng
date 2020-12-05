@@ -834,19 +834,25 @@ pub struct FontList {
     requested_stretch: FontStretch,
 }
 impl FontList {
-    /// Style requested in the query that generated this font face list.
+    /// The font that best matches the requested properties.
+    #[inline]
+    pub fn best(&self) -> &FontRef {
+        &self.fonts[0]
+    }
+
+    /// Style requested in the query that generated this font list.
     #[inline]
     pub fn requested_style(&self) -> FontStyle {
         self.requested_style
     }
 
-    /// Weight requested in the query that generated this font face list.
+    /// Weight requested in the query that generated this font list.
     #[inline]
     pub fn requested_weight(&self) -> FontWeight {
         self.requested_weight
     }
 
-    /// Stretch requested in the query that generated this font face list.
+    /// Stretch requested in the query that generated this font list.
     #[inline]
     pub fn requested_stretch(&self) -> FontStretch {
         self.requested_stretch
@@ -860,6 +866,20 @@ impl FontList {
         } else {
             FontSynthesis::DISABLED
         }
+    }
+
+    /// Iterate over font faces, more specific first.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<FontRef> {
+        self.fonts.iter()
+    }
+
+    /// Number of font faces in the list.
+    ///
+    /// This is at least `1`.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.fonts.len()
     }
 }
 impl PartialEq for FontList {
