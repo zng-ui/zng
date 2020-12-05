@@ -37,6 +37,7 @@ impl<C: UiNode, E: VarLocal<bool>> UiNode for EnabledNode<C, E> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(&state) = self.enabled.update_local(ctx.vars) {
             ctx.widget_state.set(EnabledState, state);
+            ctx.updates.render(); // TODO meta updates without a new frame?
         }
         self.with_context(ctx.vars, |c| c.update(ctx));
     }

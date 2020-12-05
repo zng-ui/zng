@@ -159,6 +159,12 @@ impl FrameBuilder {
         &mut self.display_list
     }
 
+    /// Reference webrender API.
+    #[inline]
+    pub fn render_api(&self) -> &Arc<RenderApi> {
+        &self.api
+    }
+
     /// Window that owns the frame.
     #[inline]
     pub fn window_id(&self) -> WindowId {
@@ -440,14 +446,14 @@ impl FrameBuilder {
         }
     }
 
-    /// Calls `f` while [`hit_testable`](FrameBuilder::hit_testable) is set to `hit_testable`.
+    /// Calls `f` while [`hit_testable`](FrameBuilder::hit_testable) is set to `false`.
     #[inline]
-    pub fn push_hit_testable(&mut self, hit_testable: bool, f: impl FnOnce(&mut FrameBuilder)) {
+    pub fn push_not_hit_testable(&mut self, f: impl FnOnce(&mut FrameBuilder)) {
         if self.cancel_widget {
             return;
         }
 
-        let parent_hit_testable = mem::replace(&mut self.hit_testable, hit_testable);
+        let parent_hit_testable = mem::replace(&mut self.hit_testable, false);
         f(self);
         self.hit_testable = parent_hit_testable;
     }

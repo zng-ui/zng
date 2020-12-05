@@ -92,7 +92,6 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
 /// Gradient stops for linear or radial gradients.
 #[derive(Debug, Clone)]
 pub struct GradientStops(pub Vec<GradientStop>);
-
 impl std::ops::Deref for GradientStops {
     type Target = [GradientStop];
 
@@ -100,7 +99,6 @@ impl std::ops::Deref for GradientStops {
         &self.0
     }
 }
-
 impl_from_and_into_var! {
     fn from(stops: Vec<(f32, Rgba)>) -> GradientStops {
         GradientStops(stops.into_iter()
@@ -111,6 +109,7 @@ impl_from_and_into_var! {
         .collect())
     }
 
+    /// Gradient stops that are all evenly spaced.
     fn from(stops: Vec<Rgba>) -> GradientStops {{
         let point = 1. / (stops.len() as f32 - 1.);
         GradientStops(stops.into_iter()
@@ -121,4 +120,17 @@ impl_from_and_into_var! {
         })
         .collect())
     }}
+
+    /// A single two color gradient stops. The first color is at offset `0.0`,
+    /// the second color is at offset `1.0`.
+    fn from((stop0, stop1): (Rgba, Rgba)) -> GradientStops {
+        GradientStops(vec![
+            GradientStop { offset: 0.0, color: stop0.into() },
+            GradientStop { offset: 1.0, color: stop1.into() },
+        ])
+    }
+
+    fn from(stops: Vec<GradientStop>) -> GradientStops {
+        GradientStops(stops)
+    }
 }

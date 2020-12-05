@@ -367,6 +367,46 @@ pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
+struct IsHitTestableNode<C: UiNode> {
+    child: C,
+    state: StateVar,
+    //expected: bool,
+}
+impl<C: UiNode> IsHitTestableNode<C> {
+    fn update_state(&self, ctx: &mut WidgetContext) {
+        let hit_testable = IsHitTestable::get(ctx.vars) && ctx.widget_state.hit_testable();
+        let is_state = hit_testable; // == self.expected;
+        if is_state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, is_state);
+        }
+    }
+}
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsHitTestableNode<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.update_state(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+        self.update_state(ctx);
+    }
+}
+
+/// If the widget is hit-test visible.
+///
+/// This property is used only for probing the state. You can set the state using the
+/// [`hit_testable`](crate::properties::hit_testable) property.
+#[property(context)]
+pub fn is_hit_testable(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsHitTestableNode {
+        child,
+        state,
+        //expected: true
+    }
+}
+
 struct IsEnabledNode<C: UiNode> {
     child: C,
     state: StateVar,
@@ -423,6 +463,8 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 }
 
 use crate::properties::{Visibility, VisibilityContext, WidgetVisibilityExt};
+
+use super::{IsHitTestable, WidgetHitTestableExt};
 
 struct IsVisibilityNode<C: UiNode> {
     child: C,

@@ -41,12 +41,14 @@ impl<T: UiNode, B: UiNode> UiNode for BackgroundNode<T, B> {
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
-        self.background.render(frame);
+        self.background.render(frame); // TODO, disable events and focus for this?
         self.child.render(frame);
     }
 }
 
 /// Custom background property. Allows using any other widget as a background.
+///
+/// Backgrounds are not hit-testable
 #[property(inner, allowed_in_when: false)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     BackgroundNode { child, background }
