@@ -416,7 +416,7 @@ pub mod widgets;
 /// new properties, [`new_widget`](crate::prelude::new_widget) for creating widgets.
 pub mod prelude {
     pub use crate::core::{
-        app::App,
+        app::{App, ElementState},
         color::{
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
@@ -424,7 +424,8 @@ pub mod prelude {
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
-        keyboard::Key,
+        keyboard::{Key, ModifiersState},
+        mouse::MouseButton,
         render::WidgetPath,
         service::{AppServices, WindowServices},
         sync::Sync,
@@ -436,7 +437,6 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
-        types::{ElementState, ModifiersState, MouseButton},
         ui_vec,
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
@@ -477,7 +477,6 @@ pub mod prelude {
         pub use crate::core::gesture::*;
         pub use crate::core::render::*;
         pub use crate::core::text::Text;
-        pub use crate::core::types::*;
         pub use crate::core::units::{self, *};
         pub use crate::core::var::*;
         pub use crate::core::{
@@ -497,7 +496,6 @@ pub mod prelude {
         pub use crate::core::context::*;
         pub use crate::core::render::*;
         pub use crate::core::text::*;
-        pub use crate::core::types::*;
         pub use crate::core::units::*;
         pub use crate::core::var::*;
         pub use crate::core::{

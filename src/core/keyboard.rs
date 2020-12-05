@@ -10,8 +10,9 @@ use crate::core::event::*;
 use crate::core::focus::Focus;
 use crate::core::render::WidgetPath;
 use crate::core::service::*;
-use crate::core::types::*;
-use crate::core::window::{WindowId, Windows};
+use crate::core::window::{WindowEvent, WindowId, Windows};
+
+pub use glutin::event::{KeyboardInput, ModifiersState, ScanCode};
 
 event_args! {
     /// Keyboard event args.

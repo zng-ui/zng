@@ -1,6 +1,8 @@
 use crate::prelude::new_widget::*;
 
-struct FillGradientNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> {
+pub use webrender::api::GradientStop;
+
+struct FillGradientNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>> {
     start: A,
     end: B,
     stops: S,
@@ -9,7 +11,7 @@ struct FillGradientNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> UiNode for FillGradientNode<A, B, S> {
+impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>> UiNode for FillGradientNode<A, B, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.start.init_local(ctx.vars);
         self.end.init_local(ctx.vars);
@@ -45,7 +47,7 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<Vec<GradientStop>>> UiN
 }
 
 /// Fill the widget area with a linear gradient.
-pub fn fill_gradient(start: impl IntoVar<Point>, end: impl IntoVar<Point>, stops: impl IntoVar<Vec<GradientStop>>) -> impl UiNode {
+pub fn fill_gradient(start: impl IntoVar<Point>, end: impl IntoVar<Point>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     FillGradientNode {
         start: start.into_local(),
         end: end.into_local(),
@@ -85,4 +87,38 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
         color: color.into_local(),
         final_size: LayoutSize::default(),
     }
+}
+
+/// Gradient stops for linear or radial gradients.
+#[derive(Debug, Clone)]
+pub struct GradientStops(pub Vec<GradientStop>);
+
+impl std::ops::Deref for GradientStops {
+    type Target = [GradientStop];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl_from_and_into_var! {
+    fn from(stops: Vec<(f32, Rgba)>) -> GradientStops {
+        GradientStops(stops.into_iter()
+        .map(|(offset, color)| GradientStop {
+            offset,
+            color: color.into(),
+        })
+        .collect())
+    }
+
+    fn from(stops: Vec<Rgba>) -> GradientStops {{
+        let point = 1. / (stops.len() as f32 - 1.);
+        GradientStops(stops.into_iter()
+        .enumerate()
+        .map(|(i, color)| GradientStop {
+            offset: (i as f32) * point,
+            color: color.into(),
+        })
+        .collect())
+    }}
 }

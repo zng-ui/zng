@@ -3,7 +3,7 @@
 use super::border::{border, BorderDetails};
 use super::margin;
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, fill_gradient};
+use crate::widgets::{fill_color, fill_gradient, GradientStops};
 
 struct ForegroundNode<T: UiNode, B: UiNode> {
     child: T,
@@ -82,7 +82,7 @@ pub fn foreground_gradient(
     child: impl UiNode,
     start: impl IntoVar<Point>,
     end: impl IntoVar<Point>,
-    stops: impl IntoVar<Vec<GradientStop>>,
+    stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     foreground::set(child, fill_gradient(start, end, stops))
 }

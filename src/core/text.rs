@@ -3,7 +3,7 @@
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use derive_more as dm;
 use std::{borrow::Cow, fmt, ops::Deref, rc::Rc};
-use webrender::api::GlyphInstance;
+pub use webrender::api::GlyphInstance;
 use xi_unicode::LineBreakIterator;
 
 pub use unicode_script::{self, Script};

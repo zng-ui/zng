@@ -499,14 +499,14 @@ macro_rules! __shortcut {
     (-> + $Key:ident) => {
         zero_ui::core::gesture::KeyGesture {
             key: zero_ui::core::gesture::GestureKey::$Key,
-            modifiers: zero_ui::core::types::ModifiersState::empty(),
+            modifiers: zero_ui::core::keyboard::ModifiersState::empty(),
         }
     };
 
     (-> $($MODIFIER:ident)|+ + $Key:ident) => {
         zero_ui::core::gesture::KeyGesture {
             key: zero_ui::core::gesture::GestureKey::$Key,
-            modifiers: $(zero_ui::core::types::ModifiersState::$MODIFIER)|+,
+            modifiers: $(zero_ui::core::keyboard::ModifiersState::$MODIFIER)|+,
         }
     };
 

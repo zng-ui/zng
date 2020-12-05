@@ -15,7 +15,6 @@ pub mod render;
 pub mod service;
 pub mod sync;
 pub mod text;
-pub mod types;
 mod ui_list;
 pub mod units;
 pub mod var;

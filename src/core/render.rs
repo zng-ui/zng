@@ -2,7 +2,6 @@
 
 use super::color::{RenderColor, RenderFilter};
 use crate::core::context::LazyStateMap;
-use crate::core::types::*;
 use crate::core::units::*;
 use crate::core::{
     window::{CursorIcon, WindowId},
@@ -30,6 +29,9 @@ macro_rules! debug_assert_aligned {
         }
     };
 }
+
+/// Id of a rendered or rendering window frame. Not unique across windows.
+pub type FrameId = webrender::api::Epoch;
 
 /// A text font.
 ///

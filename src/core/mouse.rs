@@ -3,15 +3,17 @@
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
+use crate::core::keyboard::ModifiersState;
 use crate::core::render::*;
-use crate::core::types::*;
-use crate::core::window::{WindowId, Windows};
+use crate::core::window::{WindowEvent, WindowId, Windows};
 use std::num::NonZeroU8;
 use std::time::*;
 
 use super::units::LayoutPoint;
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
+
+pub use glutin::event::MouseButton;
 
 event_args! {
     /// [`MouseMove`] event args.

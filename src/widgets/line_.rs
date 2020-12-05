@@ -2,6 +2,8 @@ use crate::prelude::new_widget::*;
 use crate::properties::capture_only::color;
 use webrender::api as w_api;
 
+pub use w_api::LineOrientation;
+
 struct LineNode<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> {
     width: W,
     length: L,

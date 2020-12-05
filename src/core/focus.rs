@@ -39,7 +39,7 @@
 //!
 //! TODO
 
-use super::app::AppExtension;
+use super::app::{AppExtension, DeviceEvent, DeviceId};
 use super::context::*;
 use super::event::*;
 use super::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
@@ -47,7 +47,6 @@ use super::mouse::{MouseDownEvent, MouseInputArgs};
 use super::render::DescendantFilter;
 use super::render::{FrameInfo, WidgetInfo, WidgetPath};
 use super::service::AppService;
-use super::types::{DeviceEvent, DeviceId};
 use super::units::LayoutPoint;
 use super::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use super::WidgetId;

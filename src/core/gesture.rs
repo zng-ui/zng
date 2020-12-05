@@ -8,8 +8,7 @@ use crate::core::focus::Focus;
 use crate::core::keyboard::*;
 use crate::core::mouse::*;
 use crate::core::render::*;
-use crate::core::types::*;
-use crate::core::window::{WindowId, Windows};
+use crate::core::window::{WindowEvent, WindowId, Windows};
 use std::num::NonZeroU32;
 use std::{
     convert::{TryFrom, TryInto},

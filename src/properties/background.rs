@@ -1,7 +1,7 @@
 //! Background properties, [`background_color`], [`background_gradient`] and more.
 
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, fill_gradient};
+use crate::widgets::{fill_color, fill_gradient, GradientStops};
 
 struct BackgroundNode<T: UiNode, B: UiNode> {
     child: T,
@@ -68,7 +68,7 @@ pub fn background_gradient(
     child: impl UiNode,
     start: impl IntoVar<Point>,
     end: impl IntoVar<Point>,
-    stops: impl IntoVar<Vec<GradientStop>>,
+    stops: impl IntoVar<GradientStops>,
 ) -> impl UiNode {
     background::set(child, fill_gradient(start, end, stops))
 }

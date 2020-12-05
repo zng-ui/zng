@@ -6,11 +6,11 @@ use super::{
     app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     color::Rgba,
     context::*,
+    render::FrameId,
     render::{FrameBuilder, FrameHitInfo, FrameInfo},
     service::WindowServicesVisitors,
     service::{AppService, WindowServices},
     text::Text,
-    types::{FrameId, WindowEvent},
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj, Vars},
     UiNode, WidgetId,
@@ -30,6 +30,7 @@ use std::num::NonZeroU16;
 use std::{mem, rc::Rc, sync::Arc};
 use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
 
+pub use glutin::event::WindowEvent;
 pub use glutin::window::{CursorIcon, WindowId};
 
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;

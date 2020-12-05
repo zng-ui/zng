@@ -10,8 +10,7 @@ use super::{
     mouse::MouseManager,
     service::AppService,
     text::FontManager,
-    types::*,
-    window::{WindowId, WindowManager},
+    window::{WindowEvent, WindowId, WindowManager},
 };
 use glutin::event::Event as GEvent;
 use glutin::event::StartCause as GEventStartCause;
@@ -23,6 +22,8 @@ use std::{
     mem,
     sync::{Arc, Mutex},
 };
+
+pub use glutin::event::{DeviceEvent, DeviceId, ElementState};
 
 /// An [`App`] extension.
 pub trait AppExtension: 'static {

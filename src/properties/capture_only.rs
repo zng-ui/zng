@@ -4,7 +4,7 @@
 use crate::core::gesture::Shortcut;
 use crate::core::window::{AutoSize, StartPosition};
 use crate::prelude::new_property::*;
-use crate::widgets::LineStyle;
+use crate::widgets::{LineOrientation, LineStyle};
 
 /// Widget id.
 ///
