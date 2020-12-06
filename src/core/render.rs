@@ -617,7 +617,7 @@ impl FrameBuilder {
         rect: LayoutRect,
         start: LayoutPoint,
         end: LayoutPoint,
-        stops: &[GradientStop],
+        stops: &[crate::widgets::LayoutGradientStop],
         extend_mode: ExtendMode,
     ) {
         if self.cancel_widget {
@@ -649,7 +649,7 @@ impl FrameBuilder {
         rect: LayoutRect,
         start: LayoutPoint,
         end: LayoutPoint,
-        stops: &[GradientStop],
+        stops: &[crate::widgets::LayoutGradientStop],
         tile_size: LayoutSize,
         tile_spacing: LayoutSize,
     ) {
