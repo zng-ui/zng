@@ -78,11 +78,6 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`fill_gradient`] as [`foreground`].
 #[property(inner)]
-pub fn foreground_gradient(
-    child: impl UiNode,
-    start: impl IntoVar<Point>,
-    end: impl IntoVar<Point>,
-    stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
-    foreground::set(child, fill_gradient(start, end, stops))
+pub fn foreground_gradient(child: impl UiNode, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    foreground::set(child, fill_gradient(angle, stops))
 }

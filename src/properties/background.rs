@@ -66,11 +66,6 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`fill_gradient`] as [`background`].
 #[property(inner)]
-pub fn background_gradient(
-    child: impl UiNode,
-    start: impl IntoVar<Point>,
-    end: impl IntoVar<Point>,
-    stops: impl IntoVar<GradientStops>,
-) -> impl UiNode {
-    background::set(child, fill_gradient(start, end, stops))
+pub fn background_gradient(child: impl UiNode, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    background::set(child, fill_gradient(angle, stops))
 }

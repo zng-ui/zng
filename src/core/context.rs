@@ -61,6 +61,16 @@ impl std::ops::BitOr for UpdateDisplayRequest {
         self
     }
 }
+impl std::cmp::PartialOrd for UpdateDisplayRequest {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        std::cmp::PartialOrd::partial_cmp(&(*self as u8), &(*other as u8))
+    }
+}
+impl std::cmp::Ord for UpdateDisplayRequest {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        std::cmp::Ord::cmp(&(*self as u8), &(*other as u8))
+    }
+}
 
 /// Updates that where requested during a previous round of
 /// updates.
@@ -382,41 +392,85 @@ impl Updates {
     }
 
     /// Cloneable out-of-band notification sender.
+    #[inline]
     pub fn notifier(&self) -> &UpdateNotifier {
         &self.notifier
     }
 
     /// Schedules a low-pressure update.
+    #[inline]
     pub fn update(&mut self) {
         self.update.update = true;
     }
 
+    /// Gets `true` if a low-pressure update was requested.
+    #[inline]
+    pub fn update_requested(&self) -> bool {
+        self.update.update
+    }
+
     /// Schedules a high-pressure update.
+    #[inline]
     pub fn update_hp(&mut self) {
         self.update.update_hp = true;
     }
 
+    /// Gets `true` if a high-pressure update was requested.
+    #[inline]
+    pub fn update_hp_requested(&self) -> bool {
+        self.update.update_hp
+    }
+
     /// Schedules the `updates`.
+    #[inline]
     pub fn schedule_updates(&mut self, updates: UpdateRequest) {
         self.update |= updates;
     }
 
     /// Schedules a layout update.
+    #[inline]
     pub fn layout(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Layout;
         self.display_update |= UpdateDisplayRequest::Layout;
     }
 
+    /// Gets `true` if a layout update is scheduled.
+    #[inline]
+    pub fn layout_requested(&self) -> bool {
+        self.win_display_update == UpdateDisplayRequest::Layout
+    }
+
     /// Schedules a new frame.
+    #[inline]
     pub fn render(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::Render;
         self.display_update |= UpdateDisplayRequest::Render;
     }
 
+    /// Gets `true` if a new frame is scheduled.
+    #[inline]
+    pub fn render_requested(&self) -> bool {
+        self.win_display_update >= UpdateDisplayRequest::Render
+    }
+
     /// Schedule a frame update.
+    #[inline]
     pub fn render_update(&mut self) {
         self.win_display_update |= UpdateDisplayRequest::RenderUpdate;
-        self.display_update |= UpdateDisplayRequest::Render;
+        self.display_update |= UpdateDisplayRequest::RenderUpdate;
+    }
+
+    /// Gets `true` if a frame update is scheduled.
+    #[inline]
+    pub fn render_update_requested(&self) -> bool {
+        self.win_display_update >= UpdateDisplayRequest::RenderUpdate
+    }
+
+    /// Schedule the `updates`.
+    #[inline]
+    pub fn schedule_display_updates(&mut self, updates: UpdateDisplayRequest) {
+        self.win_display_update |= updates;
+        self.display_update |= updates;
     }
 }
 
