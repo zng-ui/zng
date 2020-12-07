@@ -3,7 +3,7 @@
 use super::border::{border, BorderDetails};
 use super::margin;
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, fill_gradient, GradientStops};
+use crate::widgets::{fill_color_node, linear_gradient_node, GradientStops};
 
 struct ForegroundNode<T: UiNode, B: UiNode> {
     child: T,
@@ -68,16 +68,16 @@ pub fn foreground_highlight(
 
 /// Fill color overlay property.
 ///
-/// This property applies a [`fill_color`] as [`foreground`].
+/// This property applies a [`fill_color_node`] as [`foreground`].
 #[property(inner)]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    foreground::set(child, fill_color(color))
+    foreground::set(child, fill_color_node(color))
 }
 
 /// Linear gradient overlay property.
 ///
-/// This property applies a [`fill_gradient`] as [`foreground`].
+/// This property applies a [`linear_gradient_node`] as [`foreground`].
 #[property(inner)]
 pub fn foreground_gradient(child: impl UiNode, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    foreground::set(child, fill_gradient(angle, stops))
+    foreground::set(child, linear_gradient_node(angle, stops))
 }

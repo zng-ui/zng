@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use crate::prelude::new_widget::*;
 
 pub use webrender::api::ExtendMode;
@@ -21,7 +23,7 @@ impl GradientStop {
     }
 }
 
-struct FillGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> {
+struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> {
     angle: A,
     stops: S,
     render_start: LayoutPoint,
@@ -30,7 +32,7 @@ struct FillGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> {
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for FillGradientNode<A, S> {
+impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGradientNode<A, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.angle.init_local(ctx.vars);
         let stops = self.stops.init_local(ctx.vars);
@@ -68,7 +70,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for FillGradie
     }
 }
 
-struct FillGradientPointsNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
+struct LinearGradientPointsNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
     start: A,
     end: B,
     stops: S,
@@ -80,7 +82,7 @@ struct FillGradientPointsNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLoca
 }
 #[impl_ui_node(none)]
 impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> UiNode
-    for FillGradientPointsNode<A, B, S, E>
+    for LinearGradientPointsNode<A, B, S, E>
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.start.init_local(ctx.vars);
@@ -129,7 +131,7 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarL
     }
 }
 
-struct FillGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS: VarLocal<Size>> {
+struct LinearGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS: VarLocal<Size>> {
     angle: A,
     stops: S,
     tile_size: T,
@@ -146,7 +148,7 @@ struct FillGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>
 }
 #[impl_ui_node(none)]
 impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS: VarLocal<Size>> UiNode
-    for FillGradientTileNode<A, S, T, TS>
+    for LinearGradientTileNode<A, S, T, TS>
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.angle.init_local(ctx.vars);
@@ -196,9 +198,12 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
     }
 }
 
-/// Fill the widget area with a linear gradient.
-pub fn fill_gradient(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    FillGradientNode {
+/// Paints a linear gradient with a line defined by angle.
+///
+/// The gradient line has the `angle` and connects the intersections with the available space.
+/// The color extend mode is [`Clamp`](ExtendMode::Clamp).
+pub fn linear_gradient_node(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    LinearGradientNode {
         angle: angle.into_local(),
         stops: stops.into_local(),
         render_start: LayoutPoint::zero(),
@@ -208,14 +213,14 @@ pub fn fill_gradient(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<Gradi
     }
 }
 
-/// Fill the widget area with a linear gradient defined by two points relative to the widget top-left corner.
-pub fn fill_gradient_points(
+/// Paints a linear gradient with a line defined by two points.
+pub fn linear_gradient_points_node(
     start: impl IntoVar<Point>,
     end: impl IntoVar<Point>,
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
-    FillGradientPointsNode {
+    LinearGradientPointsNode {
         start: start.into_local(),
         end: end.into_local(),
         stops: stops.into_local(),
@@ -227,34 +232,14 @@ pub fn fill_gradient_points(
     }
 }
 
-/// Fill the widget area with a linear gradient, from left to right.
-pub fn fill_gradient_to_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    fill_gradient_points(Point::zero(), Point::new(1.0.normal(), 0), stops, ExtendMode::Clamp)
-}
-
-/// Fill the widget area with a linear gradient, from right to left.
-pub fn fill_gradient_to_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    fill_gradient_points(Point::new(1.0.normal(), 0), Point::zero(), stops, ExtendMode::Clamp)
-}
-
-/// Fill the widget area with a linear gradient, from top to bottom.
-pub fn fill_gradient_to_bottom(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    fill_gradient_points(Point::zero(), Point::new(0, 1.0.normal()), stops, ExtendMode::Clamp)
-}
-
-/// Fill the widget area with a linear gradient, from bottom to top.
-pub fn fill_gradient_to_top(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    fill_gradient_points(Point::new(0, 1.0.normal()), Point::zero(), stops, ExtendMode::Clamp)
-}
-
-/// Fill the widget area with a linear gradient.
-pub fn fill_gradient_tile(
+/// Paints a repeating tiling linear gradient with a line defined by angle.
+pub fn linear_gradient_tile_node(
     angle: impl IntoVar<AngleRadian>,
     stops: impl IntoVar<GradientStops>,
     tile_size: impl IntoVar<Size>,
     tile_spacing: impl IntoVar<Size>,
 ) -> impl UiNode {
-    FillGradientTileNode {
+    LinearGradientTileNode {
         angle: angle.into_local(),
         stops: stops.into_local(),
         tile_size: tile_size.into_local(),
@@ -267,6 +252,39 @@ pub fn fill_gradient_tile(
         render_tile_spacing: LayoutSize::zero(),
     }
 }
+
+/// Linear gradient angle for a vertical line from bottom to top.
+///
+/// 0 degrees.
+pub const TO_TOP: AngleRadian = AngleRadian(0.0);
+/// Linear gradient angle for a vertical line from top to bottom.
+///
+/// 180 degrees.
+pub const TO_BOTTOM: AngleRadian = AngleRadian(PI);
+/// Linear gradient angle for a horizontal line from right to left.
+///
+/// 270 degrees.
+pub const TO_LEFT: AngleRadian = AngleRadian(270.0 * (PI / 180.0));
+/// Linear gradient angle for a horizontal line from left to right.
+///
+/// 90 degrees.
+pub const TO_RIGHT: AngleRadian = AngleRadian(90.0 * (PI / 180.0));
+/// Linear gradient angle for a diagonal line from bottom-left to top-right corner.
+///
+/// 45 degrees.
+pub const TO_TOP_RIGHT: AngleRadian = AngleRadian(45.0 * (PI / 180.0));
+/// Linear gradient angle for a diagonal line from top-left to bottom-right corner.
+///
+/// 135 degrees.
+pub const TO_BOTTOM_RIGHT: AngleRadian = AngleRadian(134.0 * (PI / 180.0));
+/// Linear gradient angle for a diagonal line from bottom-right to top-left corner.
+///
+/// 315 degrees.
+pub const TO_TOP_LEFT: AngleRadian = AngleRadian(315.0 * (PI / 180.0));
+/// Linear gradient angle for a diagonal line from top-right to bottom-left corner.
+///
+/// 225 degrees.
+pub const TO_BOTTOM_LEFT: AngleRadian = AngleRadian(225.0 * (PI / 180.0));
 
 struct FillColorNode<C: VarLocal<Rgba>> {
     color: C,
@@ -292,7 +310,7 @@ impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
 }
 
 /// Fill the widget area with a color.
-pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn fill_color_node(color: impl IntoVar<Rgba>) -> impl UiNode {
     FillColorNode {
         color: color.into_local(),
         final_size: LayoutSize::default(),
