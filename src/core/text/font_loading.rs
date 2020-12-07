@@ -833,6 +833,7 @@ pub struct FontList {
     requested_weight: FontWeight,
     requested_stretch: FontStretch,
 }
+#[allow(clippy::len_without_is_empty)] // cannot be empty.
 impl FontList {
     /// The font that best matches the requested properties.
     #[inline]

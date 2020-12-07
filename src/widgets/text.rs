@@ -144,8 +144,9 @@ pub struct TextNode<T: Var<Text>> {
     font_face: Option<FontFaceRef>,
     // Copy for layout, or zero before init.
     font_size: Length,
-    synthesis_used: FontSynthesis,
     line_spacing: Length,
+
+    synthesis_used: FontSynthesis,
 
     /* measure, arrange data */
     //
@@ -167,9 +168,11 @@ impl<T: Var<Text>> TextNode<T> {
             text: SegmentedText::default(),
             color: colors::BLACK.into(),
             font_face: None,
+
             font_size: 0.into(),
-            synthesis_used: FontSynthesis::DISABLED,
             line_spacing: 0.into(),
+
+            synthesis_used: FontSynthesis::DISABLED,
 
             line_shaping_args: TextShapingArgs::default(),
             layout_line_spacing: 0.0,
