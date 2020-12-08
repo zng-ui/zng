@@ -52,6 +52,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.final_size = final_size;
         let (start, end, length) = gradient_ends_from_rad(*self.angle.get_local(), self.final_size);
+
         self.render_start = start;
         self.render_end = end;
         self.render_stops.clear();
@@ -180,8 +181,10 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
         self.render_tile_size = self.tile_size.get_local().to_layout(final_size, ctx);
 
         let (start, end, length) = gradient_ends_from_rad(*self.angle.get_local(), self.render_tile_size);
+
         self.render_start = start;
         self.render_end = end;
+        self.render_stops.clear();
         self.render_stops
             .extend(self.stops.get_local().iter().map(|s| s.to_layout(length, ctx)));
     }
@@ -269,6 +272,9 @@ pub const TO_LEFT: AngleRadian = AngleRadian(270.0 * (PI / 180.0));
 ///
 /// 90 degrees.
 pub const TO_RIGHT: AngleRadian = AngleRadian(90.0 * (PI / 180.0));
+
+// TODO fix corners, need area to calculate.
+
 /// Linear gradient angle for a diagonal line from bottom-left to top-right corner.
 ///
 /// 45 degrees.
