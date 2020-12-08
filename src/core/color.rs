@@ -703,6 +703,19 @@ pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
     Filter::default().hue_rotate(angle)
 }
 
+/// Linear interpolate between `a` and `b` by the normalized `amount`.
+pub fn lerp_render_color(a: RenderColor, b: RenderColor, amount: f32) -> RenderColor {
+    fn lerp(a: f32, b: f32, s: f32) -> f32 {
+        a + (b - a) * s
+    }
+    RenderColor {
+        r: lerp(a.r, b.r, amount),
+        g: lerp(a.g, b.g, amount),
+        b: lerp(a.b, b.b, amount),
+        a: lerp(a.a, b.a, amount),
+    }
+}
+
 /// Named web colors
 pub mod colors {
     use super::Rgba;
@@ -1417,6 +1430,16 @@ pub mod colors {
     ///
     /// `rgb(0, 0, 0)`
     pub const BLACK: Rgba = rgb!(0, 0, 0);
+
+    /// Transparent (`#00000000`)
+    ///
+    /// `rgba(0, 0, 0, 0)`
+    pub const TRANSPARENT: Rgba = Rgba {
+        red: 0.0,
+        green: 0.0,
+        blue: 0.0,
+        alpha: 0.0,
+    };
 }
 
 #[test]

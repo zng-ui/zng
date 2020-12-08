@@ -30,7 +30,7 @@ mod build_tests {
     fn _basic(child: impl UiNode) -> impl UiNode {
         button! {
             on_click: |_,_|{};
-            background_gradient: 90.deg(), vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
+            background_gradient: 90.deg(), [rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
             content: child;
         }
     }
@@ -43,7 +43,7 @@ mod build_tests {
 
             background_gradient: {
                 angle: 90.deg(),
-                stops: vec![rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)]
+                stops: [rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)]
             };
 
             content: child;
