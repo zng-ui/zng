@@ -217,7 +217,7 @@ pub fn linear_gradient(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<Gra
 }
 
 /// Paints a linear gradient with a line defined by two points.
-pub fn linear_gradient_points(
+pub fn linear_gradient_pt(
     start: impl IntoVar<Point>,
     end: impl IntoVar<Point>,
     stops: impl IntoVar<GradientStops>,
@@ -256,41 +256,45 @@ pub fn linear_gradient_tile(
     }
 }
 
-/// Linear gradient angle for a vertical line from bottom to top.
-///
-/// 0 degrees.
-pub const TO_TOP: AngleRadian = AngleRadian(0.0);
-/// Linear gradient angle for a vertical line from top to bottom.
-///
-/// 180 degrees.
-pub const TO_BOTTOM: AngleRadian = AngleRadian(PI);
-/// Linear gradient angle for a horizontal line from right to left.
-///
-/// 270 degrees.
-pub const TO_LEFT: AngleRadian = AngleRadian(270.0 * (PI / 180.0));
-/// Linear gradient angle for a horizontal line from left to right.
-///
-/// 90 degrees.
-pub const TO_RIGHT: AngleRadian = AngleRadian(90.0 * (PI / 180.0));
+/// Linear gradient from bottom to top.
+pub fn linear_gradient_to_top(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((0, 100.pct()), (0, 0), stops)
+}
 
-// TODO fix corners, need area to calculate.
+/// Linear gradient from top to bottom.
+pub fn linear_gradient_to_bottom(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (0, 100.pct()), stops)
+}
 
-/// Linear gradient angle for a diagonal line from bottom-left to top-right corner.
-///
-/// 45 degrees.
-pub const TO_TOP_RIGHT: AngleRadian = AngleRadian(45.0 * (PI / 180.0));
-/// Linear gradient angle for a diagonal line from top-left to bottom-right corner.
-///
-/// 135 degrees.
-pub const TO_BOTTOM_RIGHT: AngleRadian = AngleRadian(134.0 * (PI / 180.0));
-/// Linear gradient angle for a diagonal line from bottom-right to top-left corner.
-///
-/// 315 degrees.
-pub const TO_TOP_LEFT: AngleRadian = AngleRadian(315.0 * (PI / 180.0));
-/// Linear gradient angle for a diagonal line from top-right to bottom-left corner.
-///
-/// 225 degrees.
-pub const TO_BOTTOM_LEFT: AngleRadian = AngleRadian(225.0 * (PI / 180.0));
+/// Linear gradient from right to left.
+pub fn linear_gradient_to_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 0), (0, 0), stops)
+}
+
+/// Linear gradient from left to right.
+pub fn linear_gradient_to_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (100.pct(), 0), stops)
+}
+
+/// Linear gradient from bottom-left to top-right.
+pub fn linear_gradient_to_top_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((0, 100.pct()), (100.pct(), 0), stops)
+}
+
+/// Linear gradient from top-left to bottom-right.
+pub fn linear_gradient_to_bottom_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (100.pct(), 100.pct()), stops)
+}
+
+/// Linear gradient from bottom-right to top-left.
+pub fn linear_gradient_to_top_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 100.pct()), (0, 0), stops)
+}
+
+/// Linear gradient from top-right to bottom-left.
+pub fn linear_gradient_to_bottom_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 0), (0, 100.pct()), stops)
+}
 
 struct FillColorNode<C: VarLocal<Rgba>> {
     color: C,

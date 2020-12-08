@@ -24,7 +24,7 @@ fn linear_angle() -> impl Widget {
         items: (
             //sample("linear 90º", linear_gradient(90.deg(), (colors::RED, colors::BLUE))),
             //sample("linear 45º", linear_gradient(45.deg(), (colors::GREEN, colors::BLUE))),
-            sample("linear TO_TOP", linear_gradient(TO_TOP, (colors::BLACK, colors::GREEN))),
+            sample("linear 0º", linear_gradient(0.deg(), (colors::BLACK, colors::GREEN))),
         );
     }
 }
@@ -35,15 +35,15 @@ fn linear_points() -> impl Widget {
         items: (
             //sample(
             //    "linear points - clamp",
-            //    linear_gradient_points((30, 30), (90, 90), (colors::GREEN, colors::RED), ExtendMode::Clamp)
+            //    linear_gradient_pt((30, 30), (90, 90), (colors::GREEN, colors::RED), ExtendMode::Clamp)
             //),
             //sample(
             //    "linear points - repeat",
-            //    linear_gradient_points((30, 30), (90, 90), (colors::GREEN, colors::RED), ExtendMode::Repeat)
+            //    linear_gradient_pt((30, 30), (90, 90), (colors::GREEN, colors::RED), ExtendMode::Repeat)
             //),
             sample(
                 "test",
-                linear_gradient_points((90, 180), (90, 0), (colors::BLACK, colors::GREEN), ExtendMode::Repeat)
+                linear_gradient_pt((90, 180), (90, 0), (colors::BLACK, colors::GREEN), ExtendMode::Repeat)
             ),
         );
     }
