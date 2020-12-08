@@ -22,8 +22,11 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for MinSizeNode<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let min_size = replace_layout_any_size(self.min_size.get_local().to_layout(available_size, ctx), available_size);
-        self.child.measure(min_size.max(available_size), ctx)
+        let min_size = self.min_size.get_local().to_layout(available_size, ctx);
+        let desired_size = self
+            .child
+            .measure(replace_layout_any_size(min_size, available_size).max(available_size), ctx);
+        desired_size.max(replace_layout_any_size(min_size, desired_size))
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -68,10 +71,15 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for MinWidthNode<T, W> {
             .get_local()
             .to_layout(LayoutLength::new(available_size.width), ctx)
             .get();
+
         if !is_layout_any_size(min_width) {
             available_size.width = min_width.max(available_size.width);
+            let mut desired_size = self.child.measure(available_size, ctx);
+            desired_size.width = desired_size.width.max(min_width);
+            desired_size
+        } else {
+            self.child.measure(available_size, ctx)
         }
-        self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -121,8 +129,12 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for MinHeightNode<T, H> {
             .get();
         if !is_layout_any_size(min_height) {
             available_size.height = min_height.max(available_size.height);
+            let mut desired_size = self.child.measure(available_size, ctx);
+            desired_size.height = desired_size.height.max(min_height);
+            desired_size
+        } else {
+            self.child.measure(available_size, ctx)
         }
-        self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -169,8 +181,8 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for MaxSizeNode<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        self.child
-            .measure(self.max_size.get_local().to_layout(available_size, ctx).min(available_size), ctx)
+        let max_size = self.max_size.get_local().to_layout(available_size, ctx);
+        self.child.measure(max_size.min(available_size), ctx).min(max_size)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -210,13 +222,19 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for MaxWidthNode<T, W> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        available_size.width = self
+        let max_width = self
             .max_width
             .get_local()
             .to_layout(LayoutLength::new(available_size.width), ctx)
-            .get()
-            .min(available_size.width);
-        self.child.measure(available_size, ctx)
+            .get();
+
+        // if max_width is LAYOUT_ANY_SIZE this still works because every other value
+        // is smaller the positive infinity.
+        available_size.width = available_size.width.min(max_width);
+
+        let mut desired_size = self.child.measure(available_size, ctx);
+        desired_size.width = desired_size.width.min(max_width);
+        desired_size
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -261,13 +279,19 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for MaxHeightNode<T, H> {
     }
 
     fn measure(&mut self, mut available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        available_size.height = self
+        let max_height = self
             .max_height
             .get_local()
             .to_layout(LayoutLength::new(available_size.height), ctx)
-            .get()
-            .min(available_size.height);
-        self.child.measure(available_size, ctx)
+            .get();
+
+        // if max_height is LAYOUT_ANY_SIZE this still works because every other value
+        // is smaller the positive infinity.
+        available_size.height = available_size.height.min(max_height);
+
+        let mut desired_size = self.child.measure(available_size, ctx);
+        desired_size.height = desired_size.height.min(max_height);
+        desired_size
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -312,8 +336,9 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for SizeNode<T, S> {
     }
 
     fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let size = replace_layout_any_size(self.size.get_local().to_layout(available_size, ctx), available_size);
-        self.child.measure(size, ctx)
+        let size = self.size.get_local().to_layout(available_size, ctx);
+        let desired_size = self.child.measure(replace_layout_any_size(size, available_size), ctx);
+        replace_layout_any_size(size, desired_size)
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -369,8 +394,12 @@ impl<T: UiNode, W: VarLocal<Length>> UiNode for WidthNode<T, W> {
         let width = self.width.get_local().to_layout(LayoutLength::new(available_size.width), ctx).get();
         if !is_layout_any_size(width) {
             available_size.width = width;
+            let mut desired_size = self.child.measure(available_size, ctx);
+            desired_size.width = width;
+            desired_size
+        } else {
+            self.child.measure(available_size, ctx)
         }
-        self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -418,8 +447,12 @@ impl<T: UiNode, H: VarLocal<Length>> UiNode for HeightNode<T, H> {
             .get();
         if !is_layout_any_size(height) {
             available_size.height = height;
+            let mut desired_size = self.child.measure(available_size, ctx);
+            desired_size.height = height;
+            desired_size
+        } else {
+            self.child.measure(available_size, ctx)
         }
-        self.child.measure(available_size, ctx)
     }
 
     fn arrange(&mut self, mut final_size: LayoutSize, ctx: &mut LayoutContext) {
