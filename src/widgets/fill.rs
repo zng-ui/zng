@@ -202,7 +202,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
 ///
 /// The gradient line has the `angle` and connects the intersections with the available space.
 /// The color extend mode is [`Clamp`](ExtendMode::Clamp).
-pub fn linear_gradient_node(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+pub fn linear_gradient(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     LinearGradientNode {
         angle: angle.into_local(),
         stops: stops.into_local(),
@@ -214,7 +214,7 @@ pub fn linear_gradient_node(angle: impl IntoVar<AngleRadian>, stops: impl IntoVa
 }
 
 /// Paints a linear gradient with a line defined by two points.
-pub fn linear_gradient_points_node(
+pub fn linear_gradient_points(
     start: impl IntoVar<Point>,
     end: impl IntoVar<Point>,
     stops: impl IntoVar<GradientStops>,
@@ -233,7 +233,7 @@ pub fn linear_gradient_points_node(
 }
 
 /// Paints a repeating tiling linear gradient with a line defined by angle.
-pub fn linear_gradient_tile_node(
+pub fn linear_gradient_tile(
     angle: impl IntoVar<AngleRadian>,
     stops: impl IntoVar<GradientStops>,
     tile_size: impl IntoVar<Size>,
@@ -310,7 +310,7 @@ impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
 }
 
 /// Fill the widget area with a color.
-pub fn fill_color_node(color: impl IntoVar<Rgba>) -> impl UiNode {
+pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
     FillColorNode {
         color: color.into_local(),
         final_size: LayoutSize::default(),

@@ -1,7 +1,7 @@
 //! Background properties, [`background_color`], [`background_gradient`] and more.
 
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color_node, linear_gradient_node, GradientStops};
+use crate::widgets::{fill_color, linear_gradient, GradientStops};
 
 struct BackgroundNode<T: UiNode, B: UiNode> {
     child: T,
@@ -56,16 +56,16 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Single color background property.
 ///
-/// This property applies a [`fill_color_node`] as [`background`].
+/// This property applies a [`fill_color`] as [`background`].
 #[property(inner)]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    background::set(child, fill_color_node(color))
+    background::set(child, fill_color(color))
 }
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`linear_gradient_node`] as [`background`].
+/// This property applies a [`linear_gradient`] as [`background`].
 #[property(inner)]
 pub fn background_gradient(child: impl UiNode, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    background::set(child, linear_gradient_node(angle, stops))
+    background::set(child, linear_gradient(angle, stops))
 }
