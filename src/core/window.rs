@@ -808,7 +808,8 @@ impl OpenWindow {
         let window_builder = WindowBuilder::new()
             .with_visible(false) // not visible until first render, to avoid flickering
             .with_resizable(*root.resizable.get(ctx.vars))
-            .with_title(root.title.get(ctx.vars).to_owned());
+            .with_title(root.title.get(ctx.vars).to_owned())
+            .with_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT);
 
         let mut gl_ctx = GlContext::new(window_builder, event_loop.headed_target().expect("headless window not implemented"));
 
@@ -1134,6 +1135,13 @@ impl OpenWindow {
                     current_size.height
                 },
             );
+
+            if auto_size == AutoSize::CONTENT {
+                window.set_resizable(false);
+            } else {
+                // TODO disable resize in single dimension?
+                window.set_resizable(true);
+            }
 
             if valid_size != current_size {
                 // the size var was changed to set the position size.
