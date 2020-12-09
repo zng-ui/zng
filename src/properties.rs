@@ -8,6 +8,7 @@ pub mod button_theme;
 pub mod capture_only;
 mod clip_to_bounds_;
 mod cursor_;
+pub mod drag_move;
 mod enabled_;
 pub mod events;
 pub mod filters;
