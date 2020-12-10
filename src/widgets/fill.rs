@@ -531,6 +531,7 @@ impl GradientStops {
         }
 
         render_stops.push(stop);
+        // TODO normalize stops
     }
 
     fn mid_to_color_stop(prev: LayoutColorStop, mid: f32, next: LayoutColorStop) -> LayoutColorStop {
