@@ -552,13 +552,13 @@ impl Mouse {
     fn new() -> Self {
         Mouse {
             current_capture: None,
-            capture_request: None
+            capture_request: None,
         }
     }
 
     /// Gets the current capture target and mode.
     pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
-        self.current_capture.as_ref().map(|(p, c)|(p, *c))
+        self.current_capture.as_ref().map(|(p, c)| (p, *c))
     }
 
     /// Set a `target` to redirect all mouse events to.

@@ -65,6 +65,7 @@ struct IsPressedNode<C: UiNode> {
     state: StateVar,
     mouse_down: EventListener<MouseInputArgs>,
     mouse_up: EventListener<MouseInputArgs>,
+    mouse_leave: EventListener<MouseHoverArgs>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsPressedNode<C> {
@@ -72,6 +73,7 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         self.child.init(ctx);
         self.mouse_down = ctx.events.listen::<MouseDownEvent>();
         self.mouse_up = ctx.events.listen::<MouseUpEvent>();
+        self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -80,7 +82,7 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         let mut state = *self.state.get(ctx.vars);
 
         if IsEnabled::get(ctx.vars) {
-            if self.mouse_up.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+            if self.mouse_up.has_updates(ctx.events) || self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                 state = false;
             }
             if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
@@ -113,6 +115,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state,
         mouse_down: MouseDownEvent::never(),
         mouse_up: MouseUpEvent::never(),
+        mouse_leave: MouseLeaveEvent::never(),
     }
 }
 
