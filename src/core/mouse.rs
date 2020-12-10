@@ -5,6 +5,7 @@ use crate::core::context::*;
 use crate::core::event::*;
 use crate::core::keyboard::ModifiersState;
 use crate::core::render::*;
+use crate::core::service::*;
 use crate::core::window::{WindowEvent, WindowId, Windows};
 use std::num::NonZeroU8;
 use std::time::*;
@@ -214,6 +215,12 @@ event! {
 /// * [MouseTripleClickEvent]
 /// * [MouseEnterEvent]
 /// * [MouseLeaveEvent]
+///
+/// # Services
+///
+/// Services this extension provides.
+///
+/// * [Mouse]
 pub struct MouseManager {
     /// last cursor move position (scaled).
     pos: LayoutPoint,
@@ -498,6 +505,8 @@ impl AppExtension for MouseManager {
 
         r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
         r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());
+
+        r.services.register(Mouse::new());
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -527,4 +536,48 @@ fn multi_click_time_ms() -> u32 {
     // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
     // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
     Duration::from_millis(500)
+}
+
+/// Mouse service.
+///
+/// # Provider
+///
+/// This service is provided by the [`MouseManager`] extension.
+#[derive(AppService)]
+pub struct Mouse {
+    current_capture: Option<(WidgetPath, CaptureMode)>,
+    capture_request: Option<(WidgetPath, CaptureMode)>,
+}
+impl Mouse {
+    fn new() -> Self {
+        Mouse {
+            current_capture: None,
+            capture_request: None
+        }
+    }
+
+    /// Gets the current capture target and mode.
+    pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
+        self.current_capture.as_ref().map(|(p, c)|(p, *c))
+    }
+
+    /// Set a `target` to redirect all mouse events to.
+    pub fn capture(&mut self, target: WidgetPath, mode: CaptureMode) -> EventListener<bool> {
+        todo!()
+    }
+
+    /// Release the current mouse capture.
+    pub fn release_capture(&mut self) {
+        todo!()
+    }
+}
+
+/// Mouse capture mode.
+#[derive(Copy, Clone, Debug)]
+pub enum CaptureMode {
+    /// All mouse events redirected to the widget.
+    Widget,
+    /// All mouse events inside the widget sub-tree permitted. All mouse events
+    /// outside of the widget redirected to the widget.
+    Subtree,
 }
