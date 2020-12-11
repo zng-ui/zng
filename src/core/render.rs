@@ -617,7 +617,7 @@ impl FrameBuilder {
         rect: LayoutRect,
         start: LayoutPoint,
         end: LayoutPoint,
-        stops: &[crate::widgets::LayoutColorStop],
+        stops: &[crate::widgets::RenderColorStop],
         extend_mode: ExtendMode,
     ) {
         if self.cancel_widget {
@@ -649,7 +649,7 @@ impl FrameBuilder {
         rect: LayoutRect,
         start: LayoutPoint,
         end: LayoutPoint,
-        stops: &[crate::widgets::LayoutColorStop],
+        stops: &[crate::widgets::RenderColorStop],
         tile_size: LayoutSize,
         tile_spacing: LayoutSize,
     ) {
@@ -666,7 +666,7 @@ impl FrameBuilder {
         let gradient = Gradient {
             start_point: start,
             end_point: end,
-            extend_mode: ExtendMode::Repeat,
+            extend_mode: ExtendMode::Clamp,
         };
 
         self.display_list

@@ -10,7 +10,7 @@ fn main() {
                 spacing: 20;
                 items: (
                    linear_angle(),
-                   linear_points(),
+                   //linear_points(),
                    //linear_tile(),
                 );
             };

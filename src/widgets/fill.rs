@@ -7,7 +7,7 @@ struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> 
     stops: S,
     render_start: LayoutPoint,
     render_end: LayoutPoint,
-    render_stops: Vec<LayoutColorStop>,
+    render_stops: Vec<RenderColorStop>,
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
@@ -34,7 +34,14 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
 
         self.render_start = start;
         self.render_end = end;
-        self.stops.get_local().layout(length, ctx, &mut self.render_stops);
+        self.stops.get_local().layout_linear(
+            length,
+            ctx,
+            ExtendMode::Clamp,
+            &mut self.render_start,
+            &mut self.render_end,
+            &mut self.render_stops,
+        );
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -55,7 +62,7 @@ struct LinearGradientPointsNode<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLo
     extend_mode: E,
     render_start: LayoutPoint,
     render_end: LayoutPoint,
-    render_stops: Vec<LayoutColorStop>,
+    render_stops: Vec<RenderColorStop>,
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
@@ -93,7 +100,14 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarL
 
         let length = LayoutLength::new(self.render_start.distance_to(self.render_end));
 
-        self.stops.get_local().layout(length, ctx, &mut self.render_stops);
+        self.stops.get_local().layout_linear(
+            length,
+            ctx,
+            *self.extend_mode.get_local(),
+            &mut self.render_start,
+            &mut self.render_end,
+            &mut self.render_stops,
+        );
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -115,7 +129,7 @@ struct LinearGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStop
 
     render_start: LayoutPoint,
     render_end: LayoutPoint,
-    render_stops: Vec<LayoutColorStop>,
+    render_stops: Vec<RenderColorStop>,
 
     render_tile_size: LayoutSize,
     render_tile_spacing: LayoutSize,
@@ -159,7 +173,14 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
 
         self.render_start = start;
         self.render_end = end;
-        self.stops.get_local().layout(length, ctx, &mut self.render_stops);
+        self.stops.get_local().layout_linear(
+            length,
+            ctx,
+            ExtendMode::Clamp,
+            &mut self.render_start,
+            &mut self.render_end,
+            &mut self.render_stops,
+        );
     }
 
     fn render(&self, frame: &mut FrameBuilder) {
@@ -301,7 +322,7 @@ pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
 }
 
 /// Computed [`GradientStop`].
-pub type LayoutColorStop = webrender::api::GradientStop;
+pub type RenderColorStop = webrender::api::GradientStop;
 
 /// A color stop in a gradient.
 #[derive(Clone, Copy, Debug)]
@@ -311,8 +332,8 @@ pub struct ColorStop {
 }
 impl ColorStop {
     #[inline]
-    pub fn to_layout(self, length: LayoutLength, ctx: &LayoutContext) -> LayoutColorStop {
-        LayoutColorStop {
+    pub fn to_layout(self, length: LayoutLength, ctx: &LayoutContext) -> RenderColorStop {
+        RenderColorStop {
             offset: self.offset.to_layout(length, ctx).get(),
             color: self.color.into(),
         }
@@ -476,12 +497,38 @@ impl GradientStops {
         }
     }
 
+    pub fn layout_linear(
+        &self,
+        length: LayoutLength,
+        ctx: &LayoutContext,
+        extend_mode: ExtendMode,
+        start_pt: &mut LayoutPoint,
+        end_pt: &mut LayoutPoint,
+        render_stops: &mut Vec<RenderColorStop>,
+    ) {
+        let (start_offset, end_offset) = self.layout(length, ctx, extend_mode, render_stops);
+        let start_to_end = *end_pt - *start_pt;
+
+        *start_pt += start_to_end * start_offset;
+        *end_pt = *start_pt + start_to_end * end_offset;
+    }
+
     /// Computes the actual color stops.
-    pub fn layout(&self, length: LayoutLength, ctx: &LayoutContext, render_stops: &mut Vec<LayoutColorStop>) {
+    ///
+    /// Returns offsets to apply for the start and end points in layout pixels of the line defined by `length`.
+    pub fn layout(
+        &self,
+        length: LayoutLength,
+        ctx: &LayoutContext,
+        extend_mode: ExtendMode,
+        render_stops: &mut Vec<RenderColorStop>,
+    ) -> (f32, f32) {
         // In this method we need to:
         // 1 - Convert all Length values to LayoutLength.
         // 2 - Adjust offsets to they are always larger or equal to the previous offset.
         // 3 - Convert GradientStop::Mid to LayoutColorStop.
+        // 4 - Calculate offset that must be applied to line points (in case the start and end are not 0.0 and 1.0).
+        // 5 - Normalize stops to be all between 0.0..=1.0.
 
         render_stops.clear();
         let mut prev_stop = self.start.to_layout(length, ctx); // 1
@@ -531,12 +578,56 @@ impl GradientStops {
         }
 
         render_stops.push(stop);
-        // TODO normalize stops
+
+        let first = render_stops[0];
+        let last = render_stops[render_stops.len() - 1];
+
+        let delta = last.offset - first.offset;
+
+        if delta > 0.00001 {
+            // 5
+            for stop in render_stops {
+                stop.offset = (stop.offset - first.offset) / delta;
+            }
+
+            (first.offset, last.offset) // 4
+        } else {
+            // 5
+            match extend_mode {
+                ExtendMode::Clamp => {
+                    render_stops.clear();
+                    render_stops.push(first);
+                    render_stops.push(first);
+                    render_stops.push(last);
+                    render_stops.push(last);
+                    render_stops[0].offset = 0.0;
+                    render_stops[1].offset = 0.5;
+                    render_stops[2].offset = 0.5;
+                    render_stops[3].offset = 1.0;
+
+                    (last.offset - 0.5, last.offset + 0.5) // 4
+                }
+                ExtendMode::Repeat => {
+                    let len = render_stops.len() as f32;
+                    let color = RenderColor {
+                        r: render_stops.iter().map(|s| s.color.r).sum::<f32>() / len,
+                        g: render_stops.iter().map(|s| s.color.g).sum::<f32>() / len,
+                        b: render_stops.iter().map(|s| s.color.b).sum::<f32>() / len,
+                        a: render_stops.iter().map(|s| s.color.a).sum::<f32>() / len,
+                    };
+                    render_stops.clear();
+                    render_stops.push(RenderColorStop { offset: 0.0, color });
+                    render_stops.push(RenderColorStop { offset: 1.0, color });
+
+                    (0.0, 1.0) // 4
+                }
+            }
+        }
     }
 
-    fn mid_to_color_stop(prev: LayoutColorStop, mid: f32, next: LayoutColorStop) -> LayoutColorStop {
+    fn mid_to_color_stop(prev: RenderColorStop, mid: f32, next: RenderColorStop) -> RenderColorStop {
         let lerp_mid = (next.offset - prev.offset) / (mid - prev.offset);
-        LayoutColorStop {
+        RenderColorStop {
             color: lerp_render_color(prev.color, next.color, lerp_mid),
             offset: mid,
         }
@@ -560,6 +651,19 @@ impl<C: Into<Rgba> + Copy + 'static> IntoVar<GradientStops> for &[C] {
         OwnedVar(self.into())
     }
 }
+impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> From<&[(C, L)]> for GradientStops {
+    fn from(a: &[(C, L)]) -> Self {
+        GradientStops::from_stops(a)
+    }
+}
+impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<GradientStops> for &[(C, L)] {
+    type Var = OwnedVar<GradientStops>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+
 macro_rules! impl_from_color_arrays {
     ($($N:tt),+ $(,)?) => {$(
         impl<C: Into<Rgba> + Copy + 'static> From<[C; $N]> for GradientStops {
@@ -568,6 +672,19 @@ macro_rules! impl_from_color_arrays {
             }
         }
         impl<C: Into<Rgba> + Copy + 'static> IntoVar<GradientStops> for [C; $N] {
+            type Var = OwnedVar<GradientStops>;
+
+            fn into_var(self) -> Self::Var {
+                OwnedVar(self.into())
+            }
+        }
+
+        impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> From<[(C, L); $N]> for GradientStops {
+            fn from(a: [(C, L); $N]) -> Self {
+                GradientStops::from_stops(&a)
+            }
+        }
+        impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<GradientStops> for [(C, L); $N] {
             type Var = OwnedVar<GradientStops>;
 
             fn into_var(self) -> Self::Var {
