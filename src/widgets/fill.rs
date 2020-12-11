@@ -52,6 +52,8 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
             &self.render_stops,
             ExtendMode::Clamp,
         );
+        frame.push_debug_dot(self.render_start, colors::WHITE);
+        frame.push_debug_dot(self.render_end, colors::WHITE);
     }
 }
 
@@ -525,10 +527,10 @@ impl GradientStops {
     ) -> (f32, f32) {
         // In this method we need to:
         // 1 - Convert all Length values to LayoutLength.
-        // 2 - Adjust offsets to they are always larger or equal to the previous offset.
-        // 3 - Convert GradientStop::Mid to LayoutColorStop.
-        // 4 - Calculate offset that must be applied to line points (in case the start and end are not 0.0 and 1.0).
-        // 5 - Normalize stops to be all between 0.0..=1.0.
+        // 2 - Adjust offsets so they are always after or equal to the previous offset.
+        // 3 - Convert GradientStop::Mid to RenderColorStop.
+        // 4 - Calculate line point offsets (in case the start and end stops are not 0.0 and 1.0).
+        // 5 - Normalize stop offsets to be all between 0.0..=1.0.
 
         render_stops.clear();
         let mut prev_stop = self.start.to_layout(length, ctx); // 1
@@ -582,19 +584,23 @@ impl GradientStops {
         let first = render_stops[0];
         let last = render_stops[render_stops.len() - 1];
 
-        let delta = last.offset - first.offset;
+        let actual_length = last.offset - first.offset;
 
-        if delta > 0.00001 {
+        if actual_length > 0.00001 {
             // 5
             for stop in render_stops {
-                stop.offset = (stop.offset - first.offset) / delta;
+                stop.offset = (stop.offset - first.offset) / actual_length;
             }
 
-            (first.offset, last.offset) // 4
+            (first.offset / length.get(), last.offset / length.get()) // 4
         } else {
+            // all stops are at the same offset
             // 5
             match extend_mode {
                 ExtendMode::Clamp => {
+                    // we want the first and last color to fill their side
+                    // any other middle colors can be removed.
+                    // TODO: can we make this happen with just two stops?
                     render_stops.clear();
                     render_stops.push(first);
                     render_stops.push(first);
@@ -605,9 +611,12 @@ impl GradientStops {
                     render_stops[2].offset = 0.5;
                     render_stops[3].offset = 1.0;
 
-                    (last.offset - 0.5, last.offset + 0.5) // 4
+                    // line starts and ends at the offset point.
+                    let offset = last.offset;
+                    (offset - 0.5, offset + 0.5) // 4
                 }
                 ExtendMode::Repeat => {
+                    // fill with the average of all colors.
                     let len = render_stops.len() as f32;
                     let color = RenderColor {
                         r: render_stops.iter().map(|s| s.color.r).sum::<f32>() / len,

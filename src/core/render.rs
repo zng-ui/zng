@@ -700,6 +700,16 @@ impl FrameBuilder {
         );
     }
 
+    /// Draws a dot at the offset.  
+    #[inline]
+    pub fn push_debug_dot(&mut self, mut offset: LayoutPoint, color: impl Into<RenderColor>) {
+        // TODO use radial gradient to draw a dot.
+        offset.x -= 2.0;
+        offset.y -= 2.0;
+        let rect = LayoutRect::new(offset, LayoutSize::new(4.0, 4.0)).snap_to(self.pixel_grid());
+        self.push_color(rect, color.into());
+    }
+
     /// Finalizes the build.
     ///
     /// # Returns
