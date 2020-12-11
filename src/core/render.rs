@@ -702,12 +702,21 @@ impl FrameBuilder {
 
     /// Draws a dot at the offset.  
     #[inline]
-    pub fn push_debug_dot(&mut self, mut offset: LayoutPoint, color: impl Into<RenderColor>) {
+    pub fn push_debug_dot(&mut self, offset: LayoutPoint, color: impl Into<RenderColor>) {
         // TODO use radial gradient to draw a dot.
-        offset.x -= 2.0;
-        offset.y -= 2.0;
-        let rect = LayoutRect::new(offset, LayoutSize::new(4.0, 4.0)).snap_to(self.pixel_grid());
-        self.push_color(rect, color.into());
+        let offset = offset.snap_to(self.pixel_grid());
+
+        let mut centered_rect = |mut o: LayoutPoint, s, c| {
+            let s = LayoutSize::new(s, s);
+            o.x -= s.width / 2.0;
+            o.y -= s.height / 2.0;
+            let rect = LayoutRect::new(o, s).snap_to(self.pixel_grid());
+            self.push_color(rect, c);
+        };
+
+        centered_rect(offset, 8.0, crate::prelude::colors::BLACK.into());
+        centered_rect(offset, 6.0, crate::prelude::colors::WHITE.into());
+        centered_rect(offset, 4.0, color.into());
     }
 
     /// Finalizes the build.

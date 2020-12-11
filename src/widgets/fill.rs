@@ -52,8 +52,8 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
             &self.render_stops,
             ExtendMode::Clamp,
         );
-        frame.push_debug_dot(self.render_start, colors::WHITE);
-        frame.push_debug_dot(self.render_end, colors::WHITE);
+        frame.push_debug_dot(self.render_start, self.render_stops[0].color);
+        frame.push_debug_dot(self.render_end, self.render_stops[self.render_stops.len() - 1].color);
     }
 }
 
