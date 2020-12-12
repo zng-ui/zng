@@ -8,14 +8,16 @@ mod button_;
 mod container_;
 mod window_;
 
-mod fill;
+mod gradient;
+mod fill_color;
 mod line_;
 mod ui_n;
 mod view_;
 
 pub use button_::*;
 pub use container_::*;
-pub use fill::*;
+pub use fill_color::*;
+pub use gradient::*;
 pub use line_::*;
 pub use ui_n::*;
 pub use view_::*;

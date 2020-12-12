@@ -1,6 +1,15 @@
 use crate::prelude::new_widget::*;
 
-pub use webrender::api::ExtendMode;
+/// Gradient extend mode.
+///
+/// # Clamp
+///
+/// The first or last color is used to fill the rest of the widget area.
+///
+/// # Repeat
+///
+/// The gradient is repeated to fill the rest of the widget area.
+pub type ExtendMode = webrender::api::ExtendMode;
 
 /// Paints a linear gradient with a line defined by angle.
 ///
@@ -157,14 +166,6 @@ pub fn linear_gradient_to_top_left(stops: impl IntoVar<GradientStops>, extend_mo
 /// This is equivalent to points `(100.pct(), 0), (0, 100.pct())`. There is no angle equivalent.
 pub fn linear_gradient_to_bottom_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
     linear_gradient_pt((100.pct(), 0), (0, 100.pct()), stops, extend_mode)
-}
-
-/// Fill the widget area with a color.
-pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
-    FillColorNode {
-        color: color.into_local(),
-        final_size: LayoutSize::default(),
-    }
 }
 
 struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
@@ -472,29 +473,6 @@ impl<
             self.render_tile_size,
             self.render_tile_spacing,
         );
-    }
-}
-
-struct FillColorNode<C: VarLocal<Rgba>> {
-    color: C,
-    final_size: LayoutSize,
-}
-#[impl_ui_node(none)]
-impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.color.init_local(ctx.vars);
-    }
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.color.update_local(ctx.vars).is_some() {
-            ctx.updates.render();
-        }
-    }
-    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
-        self.final_size = final_size;
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_color(LayoutRect::from_size(self.final_size), (*self.color.get_local()).into());
     }
 }
 
