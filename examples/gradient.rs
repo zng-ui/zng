@@ -9,23 +9,31 @@ fn main() {
             content: v_stack! {
                 spacing: 20;
                 items: (
-                   linear_angle(),
-                   linear_points(),
-                   linear_tile(),
+                    title("Linear"),
+                    linear_angle(),
+                    linear_points(),
+                    linear_tile(),
                 );
             };
         }
     })
 }
 
+fn title(title: &'static str) -> impl Widget {
+    text! {
+        text: title;
+        font_size: 18.pt();
+    }
+}
+
 fn linear_angle() -> impl Widget {
     h_stack! {
         spacing: 5;
         items: (
-            sample("linear 90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
-            sample("linear 45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
-            sample("linear 0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
-            sample("clamp", linear_gradient(135.deg(), [(colors::DARK_RED, 50.pct()), (colors::ORANGE, 50.pct())], ExtendMode::Clamp)),
+            sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
+            sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
+            sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
+            sample("45º 14px", linear_gradient(45.deg(), [(colors::RED, 14), (colors::ORANGE, 14)], ExtendMode::Clamp)),
         );
     }
 }
@@ -35,16 +43,12 @@ fn linear_points() -> impl Widget {
         spacing: 5;
         items: (
             sample(
-                "linear pt - clamp",
+                "(30, 30) to (90, 90) clamp",
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Clamp)
             ),
             sample(
-                "linear pt - repeat",
+                "(30, 30) to (90, 90) repeat",
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat)
-            ),
-            sample(
-                "test",
-                linear_gradient_pt((90, 180), (90, 0), [colors::BLACK, colors::GREEN], ExtendMode::Repeat)
             ),
         );
     }
@@ -56,13 +60,16 @@ fn linear_tile() -> impl Widget {
         spacing: 5;
         items: (
             sample(
-                "linear tiles",
+                "tiles",
                 linear_gradient_tile(45.deg(), [colors::GREEN, colors::YELLOW], (w, w), (0, 0))
             ),
             sample(
-                "linear tiles spaced",
+                "tiles spaced",
                 linear_gradient_tile(45.deg(), [colors::MAGENTA, colors::AQUA], (w + 5, w + 5), (5, 5))
-
+            ),
+            sample(
+                "pattern",
+                linear_gradient_tile(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())], (20, 20), (0, 0))
             ),
         );
     }
