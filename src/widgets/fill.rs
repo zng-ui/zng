@@ -2,18 +2,20 @@ use crate::prelude::new_widget::*;
 
 pub use webrender::api::ExtendMode;
 
-struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> {
+struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
     angle: A,
     stops: S,
+    extend_mode: E,
     render_start: LayoutPoint,
     render_end: LayoutPoint,
     render_stops: Vec<RenderColorStop>,
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGradientNode<A, S> {
+impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> UiNode for LinearGradientNode<A, S, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.angle.init_local(ctx.vars);
+        self.extend_mode.init_local(ctx.vars);
         let stops = self.stops.init_local(ctx.vars);
         self.render_stops.reserve(stops.len());
     }
@@ -24,6 +26,9 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
             ctx.updates.layout();
         }
         if self.stops.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.extend_mode.update_local(ctx.vars).is_some() {
             ctx.updates.layout();
         }
     }
@@ -37,7 +42,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
         self.stops.get_local().layout_linear(
             length,
             ctx,
-            ExtendMode::Clamp,
+            *self.extend_mode.get_local(),
             &mut self.render_start,
             &mut self.render_end,
             &mut self.render_stops,
@@ -50,10 +55,8 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>> UiNode for LinearGrad
             self.render_start,
             self.render_end,
             &self.render_stops,
-            ExtendMode::Clamp,
+            *self.extend_mode.get_local(),
         );
-        frame.push_debug_dot(self.render_start, self.render_stops[0].color);
-        frame.push_debug_dot(self.render_end, self.render_stops[self.render_stops.len() - 1].color);
     }
 }
 
@@ -201,10 +204,15 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
 ///
 /// The gradient line has the `angle` and connects the intersections with the available space.
 /// The color extend mode is [`Clamp`](ExtendMode::Clamp).
-pub fn linear_gradient(angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+pub fn linear_gradient(
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+) -> impl UiNode {
     LinearGradientNode {
         angle: angle.into_local(),
         stops: stops.into_local(),
+        extend_mode: extend_mode.into_local(),
         render_start: LayoutPoint::zero(),
         render_end: LayoutPoint::zero(),
         render_stops: vec![],
@@ -509,16 +517,18 @@ impl GradientStops {
         render_stops: &mut Vec<RenderColorStop>,
     ) {
         let (start_offset, end_offset) = self.layout(length, ctx, extend_mode, render_stops);
-        let start_to_end = *end_pt - *start_pt;
 
-        *start_pt += start_to_end * start_offset;
-        *end_pt = *start_pt + start_to_end * end_offset;
+        let v = *end_pt - *start_pt;
+        let v = v / length.get();
+
+        *end_pt = *start_pt + v * end_offset;
+        *start_pt += v * start_offset;
     }
 
     /// Computes the actual color stops.
     ///
-    /// Returns offsets to apply for the start and end points in layout pixels of the line defined by `length`.
-    pub fn layout(
+    /// Returns offsets of the first and last stop in the `length` line.
+    fn layout(
         &self,
         length: LayoutLength,
         ctx: &LayoutContext,
@@ -529,8 +539,8 @@ impl GradientStops {
         // 1 - Convert all Length values to LayoutLength.
         // 2 - Adjust offsets so they are always after or equal to the previous offset.
         // 3 - Convert GradientStop::Mid to RenderColorStop.
-        // 4 - Calculate line point offsets (in case the start and end stops are not 0.0 and 1.0).
-        // 5 - Normalize stop offsets to be all between 0.0..=1.0.
+        // 4 - Normalize stop offsets to be all between 0.0..=1.0.
+        // 5 - Return the first and last stop offset.
 
         render_stops.clear();
         let mut prev_stop = self.start.to_layout(length, ctx); // 1
@@ -587,15 +597,14 @@ impl GradientStops {
         let actual_length = last.offset - first.offset;
 
         if actual_length > 0.00001 {
-            // 5
+            // 4
             for stop in render_stops {
                 stop.offset = (stop.offset - first.offset) / actual_length;
             }
 
-            (first.offset / length.get(), last.offset / length.get()) // 4
+            (first.offset, last.offset) // 5
         } else {
-            // all stops are at the same offset
-            // 5
+            // 4 - all stops are at the same offset
             match extend_mode {
                 ExtendMode::Clamp => {
                     // we want the first and last color to fill their side
@@ -611,9 +620,9 @@ impl GradientStops {
                     render_stops[2].offset = 0.5;
                     render_stops[3].offset = 1.0;
 
-                    // line starts and ends at the offset point.
+                    // 5 - line starts and ends at the offset point.
                     let offset = last.offset;
-                    (offset - 0.5, offset + 0.5) // 4
+                    (offset - 0.5, offset + 0.5)
                 }
                 ExtendMode::Repeat => {
                     // fill with the average of all colors.
@@ -628,7 +637,7 @@ impl GradientStops {
                     render_stops.push(RenderColorStop { offset: 0.0, color });
                     render_stops.push(RenderColorStop { offset: 1.0, color });
 
-                    (0.0, 1.0) // 4
+                    (0.0, 1.0) // 5
                 }
             }
         }

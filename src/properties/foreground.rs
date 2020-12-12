@@ -3,7 +3,7 @@
 use super::border::{border, BorderDetails};
 use super::margin;
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, linear_gradient, GradientStops};
+use crate::widgets::{fill_color, linear_gradient, ExtendMode, GradientStops};
 
 struct ForegroundNode<T: UiNode, B: UiNode> {
     child: T,
@@ -76,8 +76,8 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient overlay property.
 ///
-/// This property applies a [`linear_gradient`] as [`foreground`].
+/// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`](ExtendMode::Clamp) extend mode.
 #[property(inner)]
 pub fn foreground_gradient(child: impl UiNode, angle: impl IntoVar<AngleRadian>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    foreground::set(child, linear_gradient(angle, stops))
+    foreground::set(child, linear_gradient(angle, stops, ExtendMode::Clamp))
 }

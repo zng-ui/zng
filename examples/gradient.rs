@@ -22,10 +22,10 @@ fn linear_angle() -> impl Widget {
     h_stack! {
         spacing: 5;
         items: (
-            sample("linear 90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE])),
-            sample("linear 45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE])),
-            sample("linear 0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN])),
-            sample("clamp", linear_gradient(135.deg(), [(colors::DARK_RED, 49.pct()), (colors::ORANGE, 51.pct())])),
+            sample("linear 90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
+            sample("linear 45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
+            sample("linear 0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
+            sample("clamp", linear_gradient(135.deg(), [(colors::DARK_RED, 50.pct()), (colors::ORANGE, 50.pct())], ExtendMode::Clamp)),
         );
     }
 }
@@ -35,11 +35,11 @@ fn linear_points() -> impl Widget {
         spacing: 5;
         items: (
             sample(
-                "linear points - clamp",
+                "linear pt - clamp",
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Clamp)
             ),
             sample(
-                "linear points - repeat",
+                "linear pt - repeat",
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat)
             ),
             sample(
