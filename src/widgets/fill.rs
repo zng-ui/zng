@@ -2,6 +2,171 @@ use crate::prelude::new_widget::*;
 
 pub use webrender::api::ExtendMode;
 
+/// Paints a linear gradient with a line defined by angle.
+///
+/// The line is centered in the widget, the start and end points are defined so that
+/// color stops at 0% and 100% are always visible at opposite corners.
+///
+/// If the first color stop is greater then 0% or the last color stop is less then 100% the gradient
+/// is extended using the `extend_mode`.
+pub fn linear_gradient(
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+) -> impl UiNode {
+    LinearGradientNode {
+        angle: angle.into_local(),
+        stops: stops.into_local(),
+        extend_mode: extend_mode.into_local(),
+        render_start: LayoutPoint::zero(),
+        render_end: LayoutPoint::zero(),
+        render_stops: vec![],
+        final_size: LayoutSize::zero(),
+    }
+}
+
+/// Paints a linear gradient with a line defined by two points.
+///
+/// The points are relative to the widget area (top-left origin), a color stop at 0% is at the `start` point,
+/// a color stop at 100% is at the `end` point.
+///
+/// The line is logically infinite, the two points define the angle, center and 0-100% range, color stops
+/// can be set outside the range.
+///
+/// If no color stop outside the range fully covers the visible gradient in the widget
+/// area the gradient is extended using the `extend_mode`.
+pub fn linear_gradient_pt(
+    start: impl IntoVar<Point>,
+    end: impl IntoVar<Point>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+) -> impl UiNode {
+    LinearGradientPointsNode {
+        start: start.into_local(),
+        end: end.into_local(),
+        stops: stops.into_local(),
+        extend_mode: extend_mode.into_local(),
+        render_start: LayoutPoint::zero(),
+        render_end: LayoutPoint::zero(),
+        render_stops: vec![],
+        final_size: LayoutSize::zero(),
+    }
+}
+
+/// Paints a [`linear_gradient`] to fill the `tile_size` area, the tile is then repeated to fill
+/// the widget area. Space can be added between tiles using `tile_spacing`.
+pub fn linear_gradient_tile(
+    angle: impl IntoVar<AngleRadian>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+    tile_size: impl IntoVar<Size>,
+    tile_spacing: impl IntoVar<Size>,
+) -> impl UiNode {
+    LinearGradientTileNode {
+        angle: angle.into_local(),
+        stops: stops.into_local(),
+        extend_mode: extend_mode.into_local(),
+        tile_size: tile_size.into_local(),
+        tile_spacing: tile_spacing.into_local(),
+        render_start: LayoutPoint::zero(),
+        render_end: LayoutPoint::zero(),
+        final_size: LayoutSize::zero(),
+        render_stops: vec![],
+        render_tile_size: LayoutSize::zero(),
+        render_tile_spacing: LayoutSize::zero(),
+    }
+}
+
+/// Paints a [`linear_gradient_pt`] to fill the `tile_size` area, the tile is then repeated to fill
+/// the widget area. Space can be added between tiles using `tile_spacing`.
+pub fn linear_gradient_pt_tile(
+    start: impl IntoVar<Point>,
+    end: impl IntoVar<Point>,
+    stops: impl IntoVar<GradientStops>,
+    extend_mode: impl IntoVar<ExtendMode>,
+    tile_size: impl IntoVar<Size>,
+    tile_spacing: impl IntoVar<Size>,
+) -> impl UiNode {
+    LinearGradientPointsTileNode {
+        start: start.into_local(),
+        end: end.into_local(),
+        stops: stops.into_local(),
+        extend_mode: extend_mode.into_local(),
+        tile_size: tile_size.into_local(),
+        tile_spacing: tile_spacing.into_local(),
+        render_start: LayoutPoint::zero(),
+        render_end: LayoutPoint::zero(),
+        final_size: LayoutSize::zero(),
+        render_stops: vec![],
+        render_tile_size: LayoutSize::zero(),
+        render_tile_spacing: LayoutSize::zero(),
+    }
+}
+
+/// Linear gradient from bottom to top.
+///
+/// This is equivalent to angle `0.deg()` or points `(0, 100.pct()) to (0, 0)`.
+pub fn linear_gradient_to_top(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((0, 100.pct()), (0, 0), stops, extend_mode)
+}
+
+/// Linear gradient from top to bottom.
+///
+/// This is equivalent to angle `180.deg()` or points `(0, 0), (0, 100.pct())`.
+pub fn linear_gradient_to_bottom(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (0, 100.pct()), stops, extend_mode)
+}
+
+/// Linear gradient from right to left.
+///
+/// This is equivalent to angle `270.deg()` or points `(100.pct(), 0), (0, 0)`.
+pub fn linear_gradient_to_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 0), (0, 0), stops, extend_mode)
+}
+
+/// Linear gradient from left to right.
+///
+/// This is equivalent to angle `90.deg()` or points `(0, 0), (100.pct(), 0)`.
+pub fn linear_gradient_to_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (100.pct(), 0), stops, extend_mode)
+}
+
+/// Linear gradient from bottom-left to top-right.
+///
+/// This is equivalent to points `(0, 100.pct()), (100.pct(), 0)`. There is no angle equivalent.
+pub fn linear_gradient_to_top_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((0, 100.pct()), (100.pct(), 0), stops, extend_mode)
+}
+
+/// Linear gradient from top-left to bottom-right.
+///
+/// This is equivalent to points `(0, 0), (100.pct(), 100.pct())`. There is no angle equivalent.
+pub fn linear_gradient_to_bottom_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((0, 0), (100.pct(), 100.pct()), stops, extend_mode)
+}
+
+/// Linear gradient from bottom-right to top-left.
+///
+/// This is equivalent to points `(100.pct(), 100.pct()), (0, 0)`. There is no angle equivalent.
+pub fn linear_gradient_to_top_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 100.pct()), (0, 0), stops, extend_mode)
+}
+
+/// Linear gradient from top-right to bottom-left.
+///
+/// This is equivalent to points `(100.pct(), 0), (0, 100.pct())`. There is no angle equivalent.
+pub fn linear_gradient_to_bottom_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
+    linear_gradient_pt((100.pct(), 0), (0, 100.pct()), stops, extend_mode)
+}
+
+/// Fill the widget area with a color.
+pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
+    FillColorNode {
+        color: color.into_local(),
+        final_size: LayoutSize::default(),
+    }
+}
+
 struct LinearGradientNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
     angle: A,
     stops: S,
@@ -126,9 +291,16 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarL
     }
 }
 
-struct LinearGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS: VarLocal<Size>> {
+struct LinearGradientTileNode<
+    A: VarLocal<AngleRadian>,
+    S: VarLocal<GradientStops>,
+    E: VarLocal<ExtendMode>,
+    T: VarLocal<Size>,
+    TS: VarLocal<Size>,
+> {
     angle: A,
     stops: S,
+    extend_mode: E,
     tile_size: T,
     tile_spacing: TS,
 
@@ -142,8 +314,8 @@ struct LinearGradientTileNode<A: VarLocal<AngleRadian>, S: VarLocal<GradientStop
     final_size: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS: VarLocal<Size>> UiNode
-    for LinearGradientTileNode<A, S, T, TS>
+impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>, T: VarLocal<Size>, TS: VarLocal<Size>> UiNode
+    for LinearGradientTileNode<A, S, E, T, TS>
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.angle.init_local(ctx.vars);
@@ -151,6 +323,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
         self.tile_spacing.init_local(ctx.vars);
         let stops = self.stops.init_local(ctx.vars);
         self.render_stops.reserve(stops.len());
+        self.extend_mode.init_local(ctx.vars);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -167,6 +340,9 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
             // angle changes the line length, so we need to update the stops.
             ctx.updates.layout();
         }
+        if self.extend_mode.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
@@ -181,7 +357,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
         self.stops.get_local().layout_linear(
             length,
             ctx,
-            ExtendMode::Clamp,
+            *self.extend_mode.get_local(),
             &mut self.render_start,
             &mut self.render_end,
             &mut self.render_stops,
@@ -194,110 +370,109 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, T: VarLocal<Size>, TS
             self.render_start,
             self.render_end,
             &self.render_stops,
+            *self.extend_mode.get_local(),
             self.render_tile_size,
             self.render_tile_spacing,
         );
     }
 }
 
-/// Paints a linear gradient with a line defined by angle.
-///
-/// The gradient line has the `angle` and connects the intersections with the available space.
-/// The color extend mode is [`Clamp`](ExtendMode::Clamp).
-pub fn linear_gradient(
-    angle: impl IntoVar<AngleRadian>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-) -> impl UiNode {
-    LinearGradientNode {
-        angle: angle.into_local(),
-        stops: stops.into_local(),
-        extend_mode: extend_mode.into_local(),
-        render_start: LayoutPoint::zero(),
-        render_end: LayoutPoint::zero(),
-        render_stops: vec![],
-        final_size: LayoutSize::zero(),
+struct LinearGradientPointsTileNode<
+    A: VarLocal<Point>,
+    B: VarLocal<Point>,
+    S: VarLocal<GradientStops>,
+    E: VarLocal<ExtendMode>,
+    T: VarLocal<Size>,
+    TS: VarLocal<Size>,
+> {
+    start: A,
+    end: B,
+    stops: S,
+    extend_mode: E,
+    tile_size: T,
+    tile_spacing: TS,
+
+    render_start: LayoutPoint,
+    render_end: LayoutPoint,
+    render_stops: Vec<RenderColorStop>,
+
+    render_tile_size: LayoutSize,
+    render_tile_spacing: LayoutSize,
+
+    final_size: LayoutSize,
+}
+#[impl_ui_node(none)]
+impl<
+        A: VarLocal<Point>,
+        B: VarLocal<Point>,
+        S: VarLocal<GradientStops>,
+        E: VarLocal<ExtendMode>,
+        T: VarLocal<Size>,
+        TS: VarLocal<Size>,
+    > UiNode for LinearGradientPointsTileNode<A, B, S, E, T, TS>
+{
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.start.init_local(ctx.vars);
+        self.end.init_local(ctx.vars);
+        self.tile_size.init_local(ctx.vars);
+        self.tile_spacing.init_local(ctx.vars);
+        let stops = self.stops.init_local(ctx.vars);
+        self.render_stops.reserve(stops.len());
+        self.extend_mode.init_local(ctx.vars);
     }
-}
 
-/// Paints a linear gradient with a line defined by two points.
-pub fn linear_gradient_pt(
-    start: impl IntoVar<Point>,
-    end: impl IntoVar<Point>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-) -> impl UiNode {
-    LinearGradientPointsNode {
-        start: start.into_local(),
-        end: end.into_local(),
-        stops: stops.into_local(),
-        extend_mode: extend_mode.into_local(),
-        render_start: LayoutPoint::zero(),
-        render_end: LayoutPoint::zero(),
-        render_stops: vec![],
-        final_size: LayoutSize::zero(),
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        if self.stops.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.tile_size.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.tile_spacing.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.start.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.end.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
+        if self.extend_mode.update_local(ctx.vars).is_some() {
+            ctx.updates.layout();
+        }
     }
-}
 
-/// Paints a repeating tiling linear gradient with a line defined by angle.
-pub fn linear_gradient_tile(
-    angle: impl IntoVar<AngleRadian>,
-    stops: impl IntoVar<GradientStops>,
-    tile_size: impl IntoVar<Size>,
-    tile_spacing: impl IntoVar<Size>,
-) -> impl UiNode {
-    LinearGradientTileNode {
-        angle: angle.into_local(),
-        stops: stops.into_local(),
-        tile_size: tile_size.into_local(),
-        tile_spacing: tile_spacing.into_local(),
-        render_start: LayoutPoint::zero(),
-        render_end: LayoutPoint::zero(),
-        final_size: LayoutSize::zero(),
-        render_stops: vec![],
-        render_tile_size: LayoutSize::zero(),
-        render_tile_spacing: LayoutSize::zero(),
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.final_size = final_size;
+        self.render_tile_spacing = self.tile_spacing.get_local().to_layout(final_size, ctx);
+        self.render_tile_size = self.tile_size.get_local().to_layout(final_size, ctx);
+
+        self.render_start = self.start.get_local().to_layout(final_size, ctx);
+        self.render_end = self.end.get_local().to_layout(final_size, ctx);
+
+        let length = LayoutLength::new(self.render_start.distance_to(self.render_end));
+
+        self.stops.get_local().layout_linear(
+            length,
+            ctx,
+            *self.extend_mode.get_local(),
+            &mut self.render_start,
+            &mut self.render_end,
+            &mut self.render_stops,
+        );
     }
-}
 
-/// Linear gradient from bottom to top.
-pub fn linear_gradient_to_top(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((0, 100.pct()), (0, 0), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from top to bottom.
-pub fn linear_gradient_to_bottom(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (0, 100.pct()), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from right to left.
-pub fn linear_gradient_to_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 0), (0, 0), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from left to right.
-pub fn linear_gradient_to_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (100.pct(), 0), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from bottom-left to top-right.
-pub fn linear_gradient_to_top_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((0, 100.pct()), (100.pct(), 0), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from top-left to bottom-right.
-pub fn linear_gradient_to_bottom_right(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (100.pct(), 100.pct()), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from bottom-right to top-left.
-pub fn linear_gradient_to_top_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 100.pct()), (0, 0), stops, ExtendMode::Clamp)
-}
-
-/// Linear gradient from top-right to bottom-left.
-pub fn linear_gradient_to_bottom_left(stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 0), (0, 100.pct()), stops, ExtendMode::Clamp)
+    fn render(&self, frame: &mut FrameBuilder) {
+        frame.push_linear_gradient_tile(
+            LayoutRect::from_size(self.final_size),
+            self.render_start,
+            self.render_end,
+            &self.render_stops,
+            *self.extend_mode.get_local(),
+            self.render_tile_size,
+            self.render_tile_spacing,
+        );
+    }
 }
 
 struct FillColorNode<C: VarLocal<Rgba>> {
@@ -323,15 +498,9 @@ impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
     }
 }
 
-/// Fill the widget area with a color.
-pub fn fill_color(color: impl IntoVar<Rgba>) -> impl UiNode {
-    FillColorNode {
-        color: color.into_local(),
-        final_size: LayoutSize::default(),
-    }
-}
-
 /// Computed [`GradientStop`].
+///
+/// The color offset is in the 0..=1 range.
 pub type RenderColorStop = webrender::api::GradientStop;
 
 /// A color stop in a gradient.

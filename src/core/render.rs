@@ -609,8 +609,7 @@ impl FrameBuilder {
 
     /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     ///
-    /// The gradient fills the `rect`, colors outside `start` and `end` extend by *clamping*, that is, the first and last
-    /// color fills the rect of the rectangle.
+    /// The gradient fills the `rect`.
     #[inline]
     pub fn push_linear_gradient(
         &mut self,
@@ -620,11 +619,38 @@ impl FrameBuilder {
         stops: &[crate::widgets::RenderColorStop],
         extend_mode: ExtendMode,
     ) {
+        self.push_linear_gradient_tile(rect, start, end, stops, extend_mode, rect.size, LayoutSize::zero());
+    }
+
+    /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
+    ///
+    /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
+    /// The `extend_mode` controls how the gradient fills the tile.
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_linear_gradient_tile(
+        &mut self,
+        rect: LayoutRect,
+        start: LayoutPoint,
+        end: LayoutPoint,
+        stops: &[crate::widgets::RenderColorStop],
+        extend_mode: ExtendMode,
+        tile_size: LayoutSize,
+        tile_spacing: LayoutSize,
+    ) {
         if self.cancel_widget {
             return;
         }
 
         debug_assert_aligned!(rect, self.pixel_grid());
+        debug_assert_aligned!(tile_size, self.pixel_grid());
+        debug_assert_aligned!(tile_spacing, self.pixel_grid());
+        debug_assert!(stops.len() >= 2);
+        debug_assert!(stops[0].offset.abs() < 0.00001, "first color stop must be at offset 0.0");
+        debug_assert!(
+            (stops[stops.len() - 1].offset - 1.0).abs() < 0.00001,
+            "last color stop must be at offset 1.0"
+        );
 
         self.open_widget_display();
 
@@ -634,39 +660,6 @@ impl FrameBuilder {
             start_point: start,
             end_point: end,
             extend_mode,
-        };
-        let tile_size = rect.size;
-        let tile_spacing = LayoutSize::zero();
-
-        self.display_list
-            .push_gradient(&self.common_item_properties(rect), rect, gradient, tile_size, tile_spacing);
-    }
-
-    /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
-    #[inline]
-    pub fn push_linear_gradient_tile(
-        &mut self,
-        rect: LayoutRect,
-        start: LayoutPoint,
-        end: LayoutPoint,
-        stops: &[crate::widgets::RenderColorStop],
-        tile_size: LayoutSize,
-        tile_spacing: LayoutSize,
-    ) {
-        if self.cancel_widget {
-            return;
-        }
-
-        debug_assert_aligned!(rect, self.pixel_grid());
-
-        self.open_widget_display();
-
-        self.display_list.push_stops(stops);
-
-        let gradient = Gradient {
-            start_point: start,
-            end_point: end,
-            extend_mode: ExtendMode::Clamp,
         };
 
         self.display_list

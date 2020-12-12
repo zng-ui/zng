@@ -61,15 +61,15 @@ fn linear_tile() -> impl Widget {
         items: (
             sample(
                 "tiles",
-                linear_gradient_tile(45.deg(), [colors::GREEN, colors::YELLOW], (w, w), (0, 0))
+                linear_gradient_tile(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0))
             ),
             sample(
                 "tiles spaced",
-                linear_gradient_tile(45.deg(), [colors::MAGENTA, colors::AQUA], (w + 5, w + 5), (5, 5))
+                linear_gradient_tile(45.deg(), [colors::MAGENTA, colors::AQUA], ExtendMode::Clamp, (w + 5, w + 5), (5, 5))
             ),
             sample(
                 "pattern",
-                linear_gradient_tile(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())], (20, 20), (0, 0))
+                linear_gradient_tile(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())], ExtendMode::Clamp, (20, 20), (0, 0))
             ),
         );
     }
