@@ -7,7 +7,7 @@ pub use w_api::BorderRadius;
 
 impl_from_and_into_var! {
     /// All sides solid style, same `self` color. Square corners.
-    fn from(color: Rgba) -> BorderDetails {{
+    fn from(color: Rgba) -> BorderDetails {
         let border_side = BorderSide {
             color,
             style: BorderStyle::Solid,
@@ -19,11 +19,11 @@ impl_from_and_into_var! {
             bottom: border_side,
             radius: BorderRadius::zero(),
         }
-    }}
+    }
 
     /// All sides solid style, first color applied to top and bottom,
     /// second color applied to left and right. Square corners
-    fn from((top_bottom, left_right): (Rgba, Rgba)) -> BorderDetails {{
+    fn from((top_bottom, left_right): (Rgba, Rgba)) -> BorderDetails {
         let top_bottom = BorderSide {
             color: top_bottom,
             style: BorderStyle::Solid,
@@ -39,7 +39,7 @@ impl_from_and_into_var! {
             bottom: top_bottom,
             radius: BorderRadius::zero(),
         }
-    }}
+    }
 
     /// Each side a color in order, top, right, bottom, left. All sides solid style. Square corners.
     fn from((top, right, bottom, left): (Rgba, Rgba, Rgba, Rgba)) -> BorderDetails {
@@ -65,7 +65,7 @@ impl_from_and_into_var! {
     }
 
      /// All sides same color and style. Square corners.
-    fn from((color, style): (Rgba, BorderStyle)) -> BorderDetails {{
+    fn from((color, style): (Rgba, BorderStyle)) -> BorderDetails {
         let border_side = BorderSide {
             color,
             style,
@@ -77,11 +77,11 @@ impl_from_and_into_var! {
             bottom: border_side,
             radius: BorderRadius::zero(),
         }
-    }}
+    }
 
     /// All sides the same style, first color applied to top and bottom,
     /// second color applied to left and right. Square corners.
-    fn from((top_bottom, left_right, style): (Rgba, Rgba, BorderStyle)) -> BorderDetails {{
+    fn from((top_bottom, left_right, style): (Rgba, Rgba, BorderStyle)) -> BorderDetails {
         let top_bottom = BorderSide {
             color: top_bottom,
             style,
@@ -97,7 +97,7 @@ impl_from_and_into_var! {
             bottom: top_bottom,
             radius: BorderRadius::zero(),
         }
-    }}
+    }
 
     /// Each side a color in order, top, right, bottom, left. All sides the same style. Square corners.
     fn from((top, right, bottom, left, style): (Rgba, Rgba, Rgba, Rgba, BorderStyle)) -> BorderDetails {
@@ -124,7 +124,7 @@ impl_from_and_into_var! {
 
     /// First color and style applied to top and bottom,
     /// second color and style applied to left and right. Square corners.
-    fn from((top_bottom_color, top_bottom_style, left_right_color, left_right_style): (Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {{
+    fn from((top_bottom_color, top_bottom_style, left_right_color, left_right_style): (Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {
         let top_bottom = BorderSide {
             color: top_bottom_color,
             style: top_bottom_style,
@@ -140,7 +140,7 @@ impl_from_and_into_var! {
             bottom: top_bottom,
             radius: BorderRadius::zero(),
         }
-    }}
+    }
 
     /// Each side a color and style in order, top, right, bottom, left. Square corners.
     fn from((top_color, top_style, right_color, right_style, bottom_color, bottom_style, left_color, left_style)

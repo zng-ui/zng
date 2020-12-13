@@ -592,9 +592,9 @@ macro_rules! __stops {
         tail: $next_middle:expr, $($stops:expr),+
     ) => {
         $crate::__stops! {
-            start: $start:expr,
+            start: $start,
             middle: [$($middle,)* $next_middle],
-            tail: $($stops:expr),+
+            tail: $($stops),+
         }
     };
     (
@@ -604,7 +604,7 @@ macro_rules! __stops {
     ) => {
         zero_ui::widgets::GradientStops {
             start: zero_ui::widgets::ColorStop::from($start),
-            middle: std::vec![$(zero_ui::widgets::GradientStop::from($midle)),*],
+            middle: std::vec![$(zero_ui::widgets::GradientStop::from($middle)),*],
             end: zero_ui::widgets::ColorStop::from($end),
         }
     }

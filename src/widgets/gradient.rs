@@ -496,11 +496,11 @@ impl ColorStop {
         }
     }
 }
-impl<C: Into<Rgba>, O: Into<Length>> From<(C, O)> for ColorStop {
-    fn from((c, o): (C, O)) -> Self {
+impl_from_and_into_var! {
+    fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> ColorStop {
         ColorStop {
-            color: c.into(),
-            offset: o.into(),
+            color: color_offset.0.into(),
+            offset: color_offset.1.into(),
         }
     }
 }
@@ -511,7 +511,40 @@ pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
     /// Midway point between two colors.
-    Mid(Length),
+    ColorHint(Length),
+}
+impl_from_and_into_var! {
+    fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> GradientStop {
+        GradientStop::Color(color_offset.into())
+    }
+
+    fn from(color_stop: ColorStop) -> GradientStop {
+        GradientStop::Color(color_stop)
+    }
+
+    fn from(color_hint: Length) -> GradientStop {
+        GradientStop::ColorHint(color_hint)
+    }
+
+    /// Conversion to [`Length::Relative`] color hint.
+    fn from(color_hint: FactorPercent) -> GradientStop {
+        GradientStop::ColorHint(color_hint.into())
+    }
+
+    /// Conversion to [`Length::Relative`] color hint.
+    fn from(color_hint: FactorNormal) -> GradientStop {
+        GradientStop::ColorHint(color_hint.into())
+    }
+
+    /// Conversion to [`Length::Exact`] color hint.
+    fn from(color_hint: f32) -> GradientStop {
+        GradientStop::ColorHint(color_hint.into())
+    }
+
+    /// Conversion to [`Length::Exact`] color hint.
+    fn from(color_hint: i32) -> GradientStop {
+        GradientStop::ColorHint(color_hint.into())
+    }
 }
 
 /// Stops in a gradient.
@@ -561,7 +594,7 @@ impl GradientStops {
                 color: start.into(),
                 offset: Length::zero(),
             },
-            middle: vec![GradientStop::Mid(mid.into())],
+            middle: vec![GradientStop::ColorHint(mid.into())],
             end: ColorStop {
                 color: end.into(),
                 offset: 100.pct().into(),
@@ -713,7 +746,7 @@ impl GradientStops {
                     render_stops.push(stop);
                     prev_stop = stop;
                 }
-                GradientStop::Mid(l) => {
+                GradientStop::ColorHint(l) => {
                     // TODO do we care if pending_mid is some here?
 
                     let mut l = l.to_layout(length, ctx).0; // 1
@@ -828,7 +861,6 @@ impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<G
         OwnedVar(self.into())
     }
 }
-
 macro_rules! impl_from_color_arrays {
     ($($N:tt),+ $(,)?) => {$(
         impl<C: Into<Rgba> + Copy + 'static> From<[C; $N]> for GradientStops {
@@ -876,7 +908,7 @@ impl GradientStopsBuilder {
     }
 
     fn mid(mut self, offset: impl Into<Length>) -> Self {
-        self.middle.push(GradientStop::Mid(offset.into()));
+        self.middle.push(GradientStop::ColorHint(offset.into()));
         self
     }
 

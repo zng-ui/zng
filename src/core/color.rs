@@ -215,7 +215,7 @@ impl fmt::Display for Hsva {
     }
 }
 impl_from_and_into_var! {
-    fn from(hsla: Hsla) -> Hsva {{
+    fn from(hsla: Hsla) -> Hsva {
         let lightness = clamp_normal(hsla.lightness);
         let saturation = clamp_normal(hsla.saturation);
 
@@ -232,9 +232,9 @@ impl_from_and_into_var! {
             value,
             alpha: hsla.alpha,
         }
-    }}
+    }
 
-    fn from(hsva: Hsva) -> Hsla {{
+    fn from(hsva: Hsva) -> Hsla {
         let saturation = clamp_normal(hsva.saturation);
         let value = clamp_normal(hsva.value);
 
@@ -251,9 +251,9 @@ impl_from_and_into_var! {
             lightness,
             alpha: hsva.alpha,
         }
-    }}
+    }
 
-    fn from(hsva: Hsva) -> Rgba {{
+    fn from(hsva: Hsva) -> Rgba {
         let hue = AngleDegree(hsva.hue).modulo().0;
         let saturation = clamp_normal(hsva.saturation);
         let value = clamp_normal(hsva.value);
@@ -288,9 +288,9 @@ impl_from_and_into_var! {
             blue: f(blue),
             alpha: hsva.alpha,
         }
-    }}
+    }
 
-    fn from(hsla: Hsla) -> Rgba {{
+    fn from(hsla: Hsla) -> Rgba {
         if hsla.saturation <= f32::EPSILON {
             return rgba(hsla.lightness, hsla.lightness, hsla.lightness, hsla.alpha);
         }
@@ -327,7 +327,7 @@ impl_from_and_into_var! {
             blue: f(blue),
             alpha: hsla.alpha,
         }
-    }}
+    }
 }
 
 macro_rules! cylindrical_color {
@@ -365,7 +365,7 @@ macro_rules! cylindrical_color {
 }
 
 impl_from_and_into_var! {
-    fn from(rgba: Rgba) -> Hsva {{
+    fn from(rgba: Rgba) -> Hsva {
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
         let saturation = if max <= f32::EPSILON { 0.0 } else { delta / max };
@@ -378,9 +378,9 @@ impl_from_and_into_var! {
             value,
             alpha: rgba.alpha,
         }
-    }}
+    }
 
-    fn from(rgba: Rgba) -> Hsla {{
+    fn from(rgba: Rgba) -> Hsla {
         cylindrical_color!(rgba -> (min, max, delta, hue));
 
         let lightness = (max + min) / 2.0;
@@ -397,7 +397,7 @@ impl_from_and_into_var! {
             saturation,
             alpha: rgba.alpha,
         }
-    }}
+    }
 }
 
 impl From<Rgba> for RenderColor {

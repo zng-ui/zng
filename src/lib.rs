@@ -316,7 +316,7 @@ macro_rules! unique_id {
 macro_rules! impl_from_and_into_var {
     ($(
         $(#[$docs:meta])*
-        fn from $(< $($T:ident  $(: $TConstrain:ty)?),+ $(,)?>)? (
+        fn from $(< $($T:ident  $(: $TConstrain:path)?),+ $(,)?>)? (
             $($name:ident)? // single ident OR
             $( ( // tuple deconstruct of
                 $(
@@ -326,12 +326,11 @@ macro_rules! impl_from_and_into_var {
                     ) )?
                 ),+
             ) )?
-            : $From:ty) -> $To:ty {
-            $convert:expr
-        }
+            : $From:ty) -> $To:ty
+            $convert_block:block
     )+) => {
         $(
-            impl $(< $T $(: $TConstrain)? >)? From<$From> for $To {
+            impl $(< $($T $(: $TConstrain)?),+ >)? From<$From> for $To {
                 $(#[$docs])*
                 #[inline]
                 fn from(
@@ -344,12 +343,12 @@ macro_rules! impl_from_and_into_var {
                             ) )?
                         ),+
                     ) )?
-                    : $From) -> Self {
-                    $convert
-                }
+                    : $From) -> Self
+                    $convert_block
+
             }
 
-            impl $(< $T $(: $TConstrain)? >)? $crate::core::var::IntoVar<$To> for $From {
+            impl $(< $($T $(: $TConstrain + Clone)?),+ >)? $crate::core::var::IntoVar<$To> for $From {
                 type Var = $crate::core::var::OwnedVar<$To>;
 
                 $(#[$docs])*
