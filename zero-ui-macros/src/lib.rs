@@ -582,3 +582,41 @@ macro_rules! profile_scope {
             zero_ui::core::profiler::ProfileScope::new(format!($($args)+));
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __stops {
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: $next_middle:expr, $($stops:expr),+
+    ) => {
+        $crate::__stops! {
+            start: $start:expr,
+            middle: [$($middle,)* $next_middle],
+            tail: $($stops:expr),+
+        }
+    };
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: $end:expr
+    ) => {
+        zero_ui::widgets::GradientStops {
+            start: zero_ui::widgets::ColorStop::from($start),
+            middle: std::vec![$(zero_ui::widgets::GradientStop::from($midle)),*],
+            end: zero_ui::widgets::ColorStop::from($end),
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! stops {
+    ($start:expr, $($stops:expr),+ $(,)?) => {
+        $crate::__stops! {
+            start: $start,
+            middle: [],
+            tail: $($stops),+
+        }
+    };
+}

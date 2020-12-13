@@ -930,3 +930,17 @@ fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, L
 
     (center - delta, center + delta, length)
 }
+
+/// Creates a [`GradientStops`] containing the arguments.
+///
+/// A minimal of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
+/// the middle arguments mut be expressions that convert to [`GradientStop`].
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # use zero_ui::widgets::stops;
+/// let stops = stops![(colors::GREEN, 0.pct()), 30.pct(), (colors::BLUE, 100.pct())];
+/// ```
+pub use zero_ui_macros::stops;
