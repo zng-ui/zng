@@ -625,6 +625,8 @@ impl_from_and_into_var! {
 }
 
 /// Stops in a gradient.
+///
+/// Use [`stops!`] to create a new instance, you can convert from arrays for simpler gradients.
 #[derive(Debug, Clone)]
 pub struct GradientStops {
     /// First color stop.
@@ -638,40 +640,14 @@ pub struct GradientStops {
 }
 #[allow(clippy::len_without_is_empty)] // cannot be empty
 impl GradientStops {
-    /// Start a color gradient builder with the first color stop.
-    pub fn start(color: impl Into<Rgba>, offset: impl Into<Length>) -> GradientStopsBuilder {
-        GradientStopsBuilder {
-            start: ColorStop {
-                color: color.into(),
-                offset: offset.into(),
-            },
-            middle: vec![],
-        }
-    }
-
     /// Gradients stops with two colors from `start` to `end`.
-    pub fn start_end(start: impl Into<Rgba>, end: impl Into<Rgba>) -> Self {
+    pub fn new(start: impl Into<Rgba>, end: impl Into<Rgba>) -> Self {
         GradientStops {
             start: ColorStop {
                 color: start.into(),
                 offset: Length::zero(),
             },
             middle: vec![],
-            end: ColorStop {
-                color: end.into(),
-                offset: 100.pct().into(),
-            },
-        }
-    }
-
-    /// Gradients stops with two colors from `start` to `end` and with custom midway point.
-    pub fn start_mid_end(start: impl Into<Rgba>, mid: impl Into<Length>, end: impl Into<Rgba>) -> Self {
-        GradientStops {
-            start: ColorStop {
-                color: start.into(),
-                offset: Length::zero(),
-            },
-            middle: vec![GradientStop::ColorHint(mid.into())],
             end: ColorStop {
                 color: end.into(),
                 offset: 100.pct().into(),
@@ -694,6 +670,11 @@ impl GradientStops {
     }
 
     /// Gradient stops from colors spaced equally.
+    ///
+    /// The stops look like a sequence of positional only color stops but
+    /// the proportional distribution is pre-calculated.
+    ///
+    /// If less then 2 colors are given, the missing stops are filled with transparent color.
     pub fn from_colors<C: Into<Rgba> + Copy>(colors: &[C]) -> Self {
         if colors.is_empty() {
             GradientStops {
@@ -741,6 +722,8 @@ impl GradientStops {
     }
 
     /// Gradient stops from color stops.
+    ///
+    /// If less then 2 colors are given, the missing stops are filled with transparent color.
     pub fn from_stops<C: Into<ColorStop> + Copy>(stops: &[C]) -> Self {
         if stops.is_empty() {
             GradientStops {
@@ -764,6 +747,11 @@ impl GradientStops {
         }
     }
 
+    /// Computes the layout for a linear gradient.
+    ///
+    /// The `render_stops` content is replaced with stops with offset in the `0..=1` range.
+    ///
+    /// The `start_pt` and `end_pt` points are moved to accommodate input offsets outside the line bounds.
     pub fn layout_linear(
         &self,
         length: LayoutLength,
@@ -1034,57 +1022,6 @@ macro_rules! impl_from_color_arrays {
 }
 impl_from_color_arrays!(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
 
-/// A [`GradientStops`] builder.
-pub struct GradientStopsBuilder {
-    start: ColorStop,
-    middle: Vec<GradientStop>,
-}
-impl GradientStopsBuilder {
-    /// Add a color stop.
-    pub fn color(mut self, color: impl Into<Rgba>, offset: impl Into<Length>) -> GradientStopsBuilderWithMid {
-        self.middle.push(GradientStop::Color(ColorStop {
-            color: color.into(),
-            offset: offset.into(),
-        }));
-        GradientStopsBuilderWithMid(self)
-    }
-
-    fn mid(mut self, offset: impl Into<Length>) -> Self {
-        self.middle.push(GradientStop::ColorHint(offset.into()));
-        self
-    }
-
-    /// Finishes the gradient with the last color stop.
-    pub fn end(self, color: impl Into<Rgba>, offset: impl Into<Length>) -> GradientStops {
-        GradientStops {
-            start: self.start,
-            middle: self.middle,
-            end: ColorStop {
-                color: color.into(),
-                offset: offset.into(),
-            },
-        }
-    }
-}
-
-/// [`GradientStopsBuilder`] in a state that allows adding a midway point.
-pub struct GradientStopsBuilderWithMid(GradientStopsBuilder);
-impl GradientStopsBuilderWithMid {
-    /// Add a color stop.
-    pub fn color(self, color: impl Into<Rgba>, offset: impl Into<Length>) -> GradientStopsBuilderWithMid {
-        self.0.color(color, offset)
-    }
-
-    /// Add the midway points between the previous color stop and the next.
-    pub fn mid(self, offset: impl Into<Length>) -> GradientStopsBuilder {
-        self.0.mid(offset)
-    }
-
-    /// Finishes the gradient with the last color stop.
-    pub fn end(self, color: impl Into<Rgba>, offset: impl Into<Length>) -> GradientStops {
-        self.0.end(color, offset)
-    }
-}
 
 fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, LayoutPoint, LayoutLength) {
     let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
