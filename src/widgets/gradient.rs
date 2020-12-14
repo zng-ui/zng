@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::prelude::new_widget::*;
 
 /// Gradient extend mode.
@@ -489,6 +491,57 @@ pub struct ColorStop {
 }
 impl ColorStop {
     #[inline]
+    pub fn new(color: impl Into<Rgba>, offset: impl Into<Length>) -> Self {
+        ColorStop {
+            color: color.into(),
+            offset: offset.into(),
+        }
+    }
+
+    /// New color stop with a undefined offset.
+    ///
+    /// See [`is_positional`](Self::is_positional) for more details.
+    #[inline]
+    pub fn new_positional(color: impl Into<Rgba>) -> Self {
+        ColorStop {
+            color: color.into(),
+            offset: Length::Relative(FactorNormal(f32::NAN)),
+        }
+    }
+
+    /// If this color stop offset is resolved relative to the position of the color stop in the stops list.
+    ///
+    /// Any offset that does not resolve to a finite layout offset is positional.
+    ///
+    /// # Resolution
+    ///
+    /// When a [`GradientStops`] calculates layout, positional stops are resolved like this:
+    ///
+    /// * If it is the first stop, the offset is 0%.
+    /// * If it is the last stop, the offset is 100% or the previous stop offset whichever is greater.
+    /// * If it is surrounded by two stops with known offsets it is the mid-point between the two stops.
+    /// * If there is a sequence of positional stops, they split the available length that is defined by the two
+    ///   stops with known length that define the sequence.
+    ///
+    /// # Note
+    ///
+    /// Use [`ColorStop::is_layout_positional`] is you already have the layout offset, it is faster then calling
+    /// this method and then converting to layout.
+    pub fn is_positional(&self) -> bool {
+        let l = self.offset.to_layout(
+            LayoutLength::new(100.0),
+            &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
+        );
+        Self::is_layout_positional(l.get())
+    }
+
+    /// If a calculated layout offset is [positional](Self::is_positional).
+    #[inline]
+    pub fn is_layout_positional(layout_offset: f32) -> bool {
+        !f32::is_finite(layout_offset)
+    }
+
+    #[inline]
     pub fn to_layout(self, length: LayoutLength, ctx: &LayoutContext) -> RenderColorStop {
         RenderColorStop {
             offset: self.offset.to_layout(length, ctx).get(),
@@ -498,10 +551,19 @@ impl ColorStop {
 }
 impl_from_and_into_var! {
     fn from<C: Into<Rgba>, O: Into<Length>>(color_offset: (C, O)) -> ColorStop {
-        ColorStop {
-            color: color_offset.0.into(),
-            offset: color_offset.1.into(),
-        }
+        ColorStop::new(color_offset.0, color_offset.1)
+    }
+
+    fn from(positional_color: Rgba) -> ColorStop {
+        ColorStop::new_positional(positional_color)
+    }
+
+    fn from(positional_color: Hsla) -> ColorStop {
+        ColorStop::new_positional(positional_color)
+    }
+
+    fn from(positional_color: Hsva) -> ColorStop {
+        ColorStop::new_positional(positional_color)
     }
 }
 
@@ -544,6 +606,21 @@ impl_from_and_into_var! {
     /// Conversion to [`Length::Exact`] color hint.
     fn from(color_hint: i32) -> GradientStop {
         GradientStop::ColorHint(color_hint.into())
+    }
+
+    /// Conversion to positional color.
+    fn from(positional_color: Rgba) -> GradientStop {
+        GradientStop::Color(ColorStop::new_positional(positional_color))
+    }
+
+    /// Conversion to positional color.
+    fn from(positional_color: Hsla) -> GradientStop {
+        GradientStop::Color(ColorStop::new_positional(positional_color))
+    }
+
+    /// Conversion to positional color.
+    fn from(positional_color: Hsva) -> GradientStop {
+        GradientStop::Color(ColorStop::new_positional(positional_color))
     }
 }
 
@@ -718,58 +795,103 @@ impl GradientStops {
         // In this method we need to:
         // 1 - Convert all Length values to LayoutLength.
         // 2 - Adjust offsets so they are always after or equal to the previous offset.
-        // 3 - Convert GradientStop::Mid to RenderColorStop.
+        // 3 - Convert GradientStop::ColorHint to RenderColorStop.
         // 4 - Normalize stop offsets to be all between 0.0..=1.0.
-        // 5 - Return the first and last stop offset.
+        // 5 - Return the first and last stop offset in layout units.
+
+        fn is_positional(o: f32) -> bool {
+            ColorStop::is_layout_positional(o)
+        }
 
         render_stops.clear();
-        let mut prev_stop = self.start.to_layout(length, ctx); // 1
-        let mut pending_mid = None;
+        render_stops.reserve(self.middle.len() + 2);
 
-        render_stops.push(prev_stop);
+        let mut start = self.start.to_layout(length, ctx); // 1
+        if is_positional(start.offset) {
+            start.offset = 0.0;
+        }
+        render_stops.push(start);
+
+        let mut prev_offset = start.offset;
+        let mut hints = vec![];
+        let mut positional_start = None;
+
         for gs in self.middle.iter() {
             match gs {
                 GradientStop::Color(s) => {
                     let mut stop = s.to_layout(length, ctx); // 1
-
-                    if let Some(mid) = pending_mid.take() {
-                        if stop.offset < mid {
-                            stop.offset = mid; // 2
+                    if is_positional(stop.offset) {
+                        if positional_start.is_none() {
+                            positional_start = Some(render_stops.len());
                         }
+                        render_stops.push(stop);
+                    } else {
+                        if stop.offset < prev_offset {
+                            stop.offset = prev_offset;
+                        }
+                        prev_offset = stop.offset;
 
-                        render_stops.push(Self::mid_to_color_stop(prev_stop, mid, stop));
-                    // 3
-                    } else if stop.offset < prev_stop.offset {
-                        stop.offset = prev_stop.offset; // 2
+                        render_stops.push(stop);
+
+                        if let Some(start) = positional_start.take() {
+                            // finished positional sequence.
+                            // 1
+                            Self::calculate_positional(start..render_stops.len(), render_stops, &hints);
+                        }
                     }
-
-                    render_stops.push(stop);
-                    prev_stop = stop;
                 }
-                GradientStop::ColorHint(l) => {
-                    // TODO do we care if pending_mid is some here?
-
-                    let mut l = l.to_layout(length, ctx).0; // 1
-                    if l > prev_stop.offset {
-                        l = prev_stop.offset; // 2
-                    }
-                    pending_mid = Some(l);
+                GradientStop::ColorHint(_) => {
+                    hints.push(render_stops.len());
+                    render_stops.push(RenderColorStop {
+                        // offset and color will be calculated later.
+                        offset: 0.0,
+                        color: RenderColor::BLACK,
+                    })
                 }
             }
         }
 
         let mut stop = self.end.to_layout(length, ctx); // 1
-        if let Some(mid) = pending_mid.take() {
-            if stop.offset < mid {
-                stop.offset = mid; // 2
-            }
+        if is_positional(stop.offset) {
+            stop.offset = length.get();
+        }
+        if stop.offset < prev_offset {
+            stop.offset = prev_offset;
+        }
+        render_stops.push(stop);
 
-            render_stops.push(Self::mid_to_color_stop(prev_stop, mid, stop)); // 3
-        } else if stop.offset < prev_stop.offset {
-            stop.offset = prev_stop.offset; // 2
+        if let Some(start) = positional_start.take() {
+            // finished positional sequence.
+            // 1
+            Self::calculate_positional(start..render_stops.len(), render_stops, &hints);
         }
 
-        render_stops.push(stop);
+        // 3
+        for &i in hints.iter() {
+            let prev = render_stops[i - 1];
+            let after = render_stops[i + 1];
+            let length = after.offset - prev.offset;
+            if length > 0.00001 {
+                if let GradientStop::ColorHint(offset) = self.middle[i - 1] {
+                    let mut offset = offset.to_layout(LayoutLength::new(length), ctx).get();
+                    if is_positional(offset) {
+                        offset = length / 2.0;
+                    } else {
+                        offset = offset.min(after.offset).max(prev.offset);
+                    }
+                    let color = lerp_render_color(prev.color, after.color, length / offset);
+                    offset += prev.offset;
+
+                    let stop = &mut render_stops[i];
+                    stop.color = color;
+                    stop.offset = offset;
+                } else {
+                    unreachable!()
+                }
+            } else {
+                render_stops[i] = prev;
+            }
+        }
 
         let first = render_stops[0];
         let last = render_stops[render_stops.len() - 1];
@@ -823,11 +945,31 @@ impl GradientStops {
         }
     }
 
-    fn mid_to_color_stop(prev: RenderColorStop, mid: f32, next: RenderColorStop) -> RenderColorStop {
-        let lerp_mid = (next.offset - prev.offset) / (mid - prev.offset);
-        RenderColorStop {
-            color: lerp_render_color(prev.color, next.color, lerp_mid),
-            offset: mid,
+    fn calculate_positional(range: Range<usize>, render_stops: &mut [RenderColorStop], hints: &[usize]) {
+        // count of stops in the positional sequence that are not hints.
+        let sequence_count = range.len() - hints.iter().filter(|i| range.contains(i)).count();
+        debug_assert!(sequence_count > 1);
+
+        // length that must be split between positional stops.
+        let (start_offset, layout_length) = {
+            // index of stop after the sequence that has a calculated offset.
+            let sequence_ender = (range.end..render_stops.len()).find(|i| !hints.contains(&i)).unwrap();
+            // index of stop before the sequence that has a calculated offset.
+            let sequence_starter = (0..range.start).rev().find(|i| !hints.contains(&i)).unwrap();
+
+            let start_offset = render_stops[sequence_starter].offset;
+            let length = render_stops[sequence_ender].offset - start_offset;
+            (start_offset, length)
+        };
+
+        let d = layout_length / (sequence_count + 1) as f32;
+        let mut offset = start_offset;
+
+        for i in range {
+            if !hints.contains(&i) {
+                offset += d;
+                render_stops[i].offset = offset;
+            }
         }
     }
 
@@ -973,6 +1115,10 @@ fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, L
 /// ```
 /// # use zero_ui::prelude::*;
 /// # use zero_ui::widgets::stops;
-/// let stops = stops![(colors::GREEN, 0.pct()), 30.pct(), (colors::BLUE, 100.pct())];
+/// // green to blue, the midway color is at 30%.
+/// let stops = stops![colors::GREEN, 30.pct(), colors::BLUE];
+///
+/// // green 0%, red 30%, blue 100%.
+/// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
 /// ```
 pub use zero_ui_macros::stops;
