@@ -13,6 +13,8 @@ fn main() {
                     linear_angle(),
                     linear_points(),
                     linear_tile(),
+                    //title("Stack"),
+                    //stack_linear(),
                 );
             };
         }
@@ -33,7 +35,7 @@ fn linear_angle() -> impl Widget {
             sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
             sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
             sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
-            sample("45º 14px", linear_gradient(45.deg(), [(colors::RED, 14), (colors::ORANGE, 14)], ExtendMode::Clamp)),
+            sample("45º 14px", linear_gradient(45.deg(), [(colors::LIME, 14), (colors::GRAY, 14)], ExtendMode::Clamp)),
         );
     }
 }
@@ -49,6 +51,10 @@ fn linear_points() -> impl Widget {
             sample(
                 "(30, 30) to (90, 90) repeat",
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat)
+            ),
+            sample(
+                "to bottom right",
+                linear_gradient_to_bottom_right(stops![colors::MIDNIGHT_BLUE, 80.pct(), colors::CRIMSON], ExtendMode::Clamp)
             ),
         );
     }
@@ -74,6 +80,14 @@ fn linear_tile() -> impl Widget {
         );
     }
 }
+
+// TODO
+//fn stack_linear() -> impl Widget {
+//    sample("stack 2", z_stack((
+//        linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
+//        linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
+//    )))
+//}
 
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
     let name = name.to_text();
