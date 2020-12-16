@@ -76,11 +76,16 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
         pub target: WidgetPath,
 
+        /// Current mouse capture.
+        pub capture: Option<CaptureInfo>,
+
         ..
 
-        /// If the widget is in [`target`](MouseInputArgs::target).
+        /// If the widget is in [`target`](MouseInputArgs::target)
+        /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
+            && self.capture.as_ref().map(|c|c.allows(ctx)).unwrap_or(true)
         }
     }
 
@@ -200,6 +205,35 @@ impl MouseMoveArgs {
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
         self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(false)
+    }
+}
+
+impl MouseInputArgs {
+    /// If the widget is in [`target`](Self::target)
+    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    #[inline]
+    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
+        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(false)
+    }
+}
+
+impl MouseCaptureArgs {
+    /// If the same widget has mouse capture, but the widget path changed.
+    #[inline]
+    pub fn is_widget_move(&self) -> bool {
+        match (&self.prev_capture, &self.new_capture) {
+            (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.0 != new.0,
+            _ => false,
+        }
+    }
+
+    /// If the same widget has mouse capture, but the capture mode changed.
+    #[inline]
+    pub fn is_mode_change(&self) -> bool {
+        match (&self.prev_capture, &self.new_capture) {
+            (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.1 != new.1,
+            _ => false,
+        }
     }
 }
 
@@ -356,6 +390,7 @@ impl MouseManager {
             state,
             hits.clone(),
             target.clone(),
+            None, // TODO
         );
 
         // on_mouse_input
@@ -664,21 +699,23 @@ impl Mouse {
         self.release_requested = true;
     }
 
-    fn update_capture(&mut self, pressed_window: Option<&FrameInfo>, events: &Events) {
+    fn update_capture(&mut self, pressed_window: Option<(&FrameInfo, &FrameHitInfo)>, events: &Events) {
         let mut new_capture = None;
 
         /* Correct Requests */
 
-        if let Some(frame) = pressed_window {
+        if let Some((frame, hits)) = pressed_window {
             // mouse pressed in an app window
 
             if let Some((target, mode)) = self.capture_request.take() {
                 debug_assert_ne!(mode, CaptureMode::Window);
                 // user requested capture
 
-                if let Some(widget) = frame.find(target) {
-                    // valid request
-                    new_capture = Some((widget.path(), mode));
+                if hits.contains(target) {
+                    if let Some(widget) = frame.find(target) {
+                        // valid request
+                        new_capture = Some((widget.path(), mode));
+                    }
                 }
             }
 
@@ -705,15 +742,19 @@ impl Mouse {
 
         /* Update & Notify */
 
-        if let Some(new_capture) = new_capture {
-            // new capture or capture move, maybe releasing previous capture.
+        if new_capture.is_some() {
+            // user requested capture, or current capture moved.
             self.release_requested = false;
 
-            let prev = self.current_capture.take();
-            self.current_capture = Some(new_capture);
+            if new_capture != self.current_capture {
+                // only need to notify if path or mode actually changed.
 
-            let args = MouseCaptureArgs::now(prev, self.current_capture.clone());
-            self.capture_event.notify(events, args);
+                let prev = self.current_capture.take();
+                self.current_capture = new_capture;
+
+                let args = MouseCaptureArgs::now(prev, self.current_capture.clone());
+                self.capture_event.notify(events, args);
+            }
         } else if mem::take(&mut self.release_requested) {
             // just releasing capture.
             if let Some(prev) = self.current_capture.take() {
