@@ -1,5 +1,7 @@
 //! Mouse events.
 
+use super::units::LayoutPoint;
+use super::WidgetId;
 use crate::core::app::*;
 use crate::core::context::*;
 use crate::core::event::*;
@@ -7,17 +9,15 @@ use crate::core::keyboard::ModifiersState;
 use crate::core::render::*;
 use crate::core::service::*;
 use crate::core::window::{WindowEvent, WindowId, Windows};
-use std::num::NonZeroU8;
 use std::time::*;
-
-use super::units::LayoutPoint;
+use std::{mem, num::NonZeroU8};
 
 type WPos = glutin::dpi::PhysicalPosition<f64>;
 
 pub use glutin::event::MouseButton;
 
 event_args! {
-    /// [`MouseMove`] event args.
+    /// [`MouseMoveEvent`] event args.
     pub struct MouseMoveArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -28,7 +28,7 @@ event_args! {
         /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
-        /// Position of the mouse in the coordinates of [target](MouseMoveArgs::target).
+        /// Position of the mouse in the coordinates of [`target`](MouseMoveArgs::target).
         pub position: LayoutPoint,
 
         /// Hit-test result for the mouse point in the window.
@@ -37,15 +37,20 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](MouseMoveArgs::hits).
         pub target: WidgetPath,
 
+        /// Current mouse capture.
+        pub capture: Option<CaptureInfo>,
+
         ..
 
-        /// If the widget is in [`target`](MouseMoveArgs::target).
+        /// If the widget is in [`target`](Self::target)
+        /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
-         }
+            && self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(true)
+        }
     }
 
-    /// [`MouseInput`], [`MouseDown`], [`MouseUp`] event args.
+    /// [`MouseInputEvent`], [`MouseDownEvent`], [`MouseUpEvent`] event args.
     pub struct MouseInputArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -79,7 +84,7 @@ event_args! {
         }
     }
 
-    /// [`MouseClick`] event args.
+    /// [`MouseClickEvent`] event args.
     pub struct MouseClickArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -125,7 +130,7 @@ event_args! {
         }
     }
 
-    /// [`MouseEnter`] and [`MouseLeave`] event args.
+    /// [`MouseEnterEvent`] and [`MouseLeaveEvent`] event args.
     pub struct MouseHoverArgs {
         /// Id of window that received the event.
         pub window_id: WindowId,
@@ -149,6 +154,30 @@ event_args! {
             self.target.contains(ctx.path.widget_id())
         }
     }
+
+    /// [`MouseCaptureEvent`] arguments.
+    pub struct MouseCaptureArgs {
+        /// Previous mouse capture target and mode.
+        pub prev_capture: Option<(WidgetPath, CaptureMode)>,
+        /// new mouse capture target and mode.
+        pub new_capture: Option<(WidgetPath, CaptureMode)>,
+
+        ..
+
+        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+            if let Some(prev) = &self.prev_capture {
+                if prev.0.contains(ctx.path.widget_id()) {
+                    return true;
+                }
+            }
+            if let Some(new) = &self.new_capture {
+                if new.0.contains(ctx.path.widget_id()) {
+                    return true;
+                }
+            }
+            false
+        }
+    }
 }
 
 impl MouseHoverArgs {
@@ -162,6 +191,15 @@ impl MouseHoverArgs {
     #[inline]
     pub fn is_widget_move(&self) -> bool {
         self.device_id.is_none()
+    }
+}
+
+impl MouseMoveArgs {
+    /// If the widget is in [`target`](Self::target)
+    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    #[inline]
+    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
+        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(false)
     }
 }
 
@@ -197,6 +235,9 @@ event! {
 
     /// Mouse leaves a widget area event.
     pub MouseLeaveEvent: MouseHoverArgs;
+
+    /// Mouse capture changed event.
+    pub MouseCaptureEvent: MouseCaptureArgs;
 }
 
 /// Application extension that provides mouse events.
@@ -215,6 +256,7 @@ event! {
 /// * [MouseTripleClickEvent]
 /// * [MouseEnterEvent]
 /// * [MouseLeaveEvent]
+/// * [MouseCaptureEvent]
 ///
 /// # Services
 ///
@@ -435,8 +477,34 @@ impl MouseManager {
                 (frame_info.root().path(), pos)
             };
 
+            // TODO
+            //let capture = frame_info.root().path();
+            //let capture_mode = CaptureMode::Window;
+            //let capture_pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
+            let mouse = ctx.services.req::<Mouse>();
+            // TODO Some(_) case.
+            mouse.update_capture(None, ctx.events);
+
+            let capture = if let Some((path, mode)) = mouse.current_capture() {
+                Some(CaptureInfo {
+                    position: self.pos, // TODO must be related to capture.
+                    target: path.clone(),
+                    mode,
+                })
+            } else {
+                None
+            };
+
             // mouse_move
-            let args = MouseMoveArgs::now(window_id, device_id, self.modifiers, position, hits.clone(), target.clone());
+            let args = MouseMoveArgs::now(
+                window_id,
+                device_id,
+                self.modifiers,
+                position,
+                hits.clone(),
+                target.clone(),
+                capture,
+            );
             self.mouse_move.notify(ctx.events, args);
 
             // mouse_enter/mouse_leave.
@@ -506,7 +574,7 @@ impl AppExtension for MouseManager {
         r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
         r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());
 
-        r.services.register(Mouse::new());
+        r.services.register(Mouse::new(r.events));
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -545,39 +613,164 @@ fn multi_click_time_ms() -> u32 {
 /// This service is provided by the [`MouseManager`] extension.
 #[derive(AppService)]
 pub struct Mouse {
+    capture_event: EventEmitter<MouseCaptureArgs>,
     current_capture: Option<(WidgetPath, CaptureMode)>,
-    capture_request: Option<(WidgetPath, CaptureMode)>,
+    capture_request: Option<(WidgetId, CaptureMode)>,
+    release_requested: bool,
 }
 impl Mouse {
-    fn new() -> Self {
+    fn new(events: &mut Events) -> Self {
+        let capture_event = MouseCaptureEvent::emitter();
+        events.register::<MouseCaptureEvent>(capture_event.listener());
+
         Mouse {
+            capture_event,
             current_capture: None,
             capture_request: None,
+            release_requested: false,
         }
     }
 
     /// Gets the current capture target and mode.
+    ///
+    /// Returns if the mouse is not pressed in app window.
+    #[inline]
     pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
         self.current_capture.as_ref().map(|(p, c)| (p, *c))
     }
 
-    /// Set a `target` to redirect all mouse events to.
-    pub fn capture(&mut self, target: WidgetPath, mode: CaptureMode) -> EventListener<bool> {
-        todo!()
+    /// Set a widget to redirect all mouse events to.
+    ///
+    /// The capture will be set only if the pointer is currently pressed over the widget.
+    #[inline]
+    pub fn capture_widget(&mut self, widget_id: WidgetId) {
+        self.capture_request = Some((widget_id, CaptureMode::Widget));
+    }
+
+    /// Set a widget to be the root of a capture subtree.
+    ///
+    /// Mouse events targeting inside the subtree go to target normally. Mouse events outside
+    /// the capture root are redirected to the capture root.
+    ///
+    /// The capture will be set only if the pointer is currently pressed over the widget.
+    #[inline]
+    pub fn capture_subtree(&mut self, widget_id: WidgetId) {
+        self.capture_request = Some((widget_id, CaptureMode::Subtree));
     }
 
     /// Release the current mouse capture.
+    #[inline]
     pub fn release_capture(&mut self) {
-        todo!()
+        self.release_requested = true;
+    }
+
+    fn update_capture(&mut self, pressed_window: Option<&FrameInfo>, events: &Events) {
+        let mut new_capture = None;
+
+        /* Correct Requests */
+
+        if let Some(frame) = pressed_window {
+            // mouse pressed in an app window
+
+            if let Some((target, mode)) = self.capture_request.take() {
+                debug_assert_ne!(mode, CaptureMode::Window);
+                // user requested capture
+
+                if let Some(widget) = frame.find(target) {
+                    // valid request
+                    new_capture = Some((widget.path(), mode));
+                }
+            }
+
+            if new_capture.is_none() && !self.release_requested {
+                // no valid new request and user did not request release.
+                if let Some((path, mode)) = self.current_capture.as_ref() {
+                    // is current capture still valid?
+                    if frame.get(path).is_some() {
+                        // yes, no update needed.
+                    } else if let Some(widget) = frame.find(path.widget_id()) {
+                        // yes, but the widget moved within the window.
+                        new_capture = Some((widget.path(), *mode));
+                    } else {
+                        // no, we must release capture.
+                        self.release_requested = true;
+                    }
+                }
+            }
+        } else {
+            // mouse not pressed in app, release any current capture and ignore any user request.
+            self.release_requested = true;
+            self.capture_request = None;
+        }
+
+        /* Update & Notify */
+
+        if let Some(new_capture) = new_capture {
+            // new capture or capture move, maybe releasing previous capture.
+            self.release_requested = false;
+
+            let prev = self.current_capture.take();
+            self.current_capture = Some(new_capture);
+
+            let args = MouseCaptureArgs::now(prev, self.current_capture.clone());
+            self.capture_event.notify(events, args);
+        } else if mem::take(&mut self.release_requested) {
+            // just releasing capture.
+            if let Some(prev) = self.current_capture.take() {
+                let args = MouseCaptureArgs::now(Some(prev), None);
+                self.capture_event.notify(events, args);
+            }
+        }
     }
 }
 
 /// Mouse capture mode.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CaptureMode {
-    /// All mouse events redirected to the widget.
-    Widget,
-    /// All mouse events inside the widget sub-tree permitted. All mouse events
+    /// Mouse captured by the window only.
+    ///
+    /// Default behavior.
+    Window,
+    /// Mouse events inside the widget sub-tree permitted. Mouse events
     /// outside of the widget redirected to the widget.
     Subtree,
+
+    /// Mouse events redirected to the widget.
+    Widget,
+}
+impl Default for CaptureMode {
+    /// [`CaptureMode::Window`]
+    #[inline]
+    fn default() -> Self {
+        CaptureMode::Window
+    }
+}
+
+/// Information about mouse capture in a mouse event argument.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CaptureInfo {
+    /// Widget that is capturing all mouse events.
+    ///
+    /// This is the window root widget for capture mode `Window`.
+    pub target: WidgetPath,
+    pub mode: CaptureMode,
+    /// Position of the pointer related to the `target` area.
+    pub position: LayoutPoint,
+}
+impl CaptureInfo {
+    /// If the widget is allowed by the current capture.
+    ///
+    /// | Mode           | Allows                                             |
+    /// |----------------|----------------------------------------------------|
+    /// | `Window`       | All widgets in the same window.                    |
+    /// | `Subtree`      | All widgets that have the `target` in their path. |
+    /// | `Widget`       | Only the `target` widget.                         |
+    #[inline]
+    pub fn allows(&self, ctx: &WidgetContext) -> bool {
+        match self.mode {
+            CaptureMode::Window => self.target.window_id() == ctx.path.window_id(),
+            CaptureMode::Widget => self.target.widget_id() == ctx.path.widget_id(),
+            CaptureMode::Subtree => ctx.path.contains(self.target.widget_id()),
+        }
+    }
 }

@@ -934,6 +934,12 @@ impl WidgetContextPath {
     pub fn parent(&self) -> Option<WidgetId> {
         self.ancestors().next()
     }
+
+    /// If the `widget_id` is part of the path.
+    #[inline]
+    pub fn contains(&self, widget_id: WidgetId) -> bool {
+        self.widget_ids.iter().any(move |&w| w == widget_id)
+    }
 }
 
 /// A widget layout context.
