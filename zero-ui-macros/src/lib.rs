@@ -585,20 +585,7 @@ macro_rules! profile_scope {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! __stops {    
-    // match $color with 2 stops at the start point plus other stops, e.g.:
-    // stops![(colors::RED, 14, 20), colors::ORANGE]
-    (
-        start: ($color:expr, $stop0:expr, $stop1:expr),
-        middle: [],
-        tail: $($stops:expr),+
-    ) => {
-        $crate::__stops! {
-            start: ($color, $stop0),,
-            middle: [($color, $stop1)],
-            tail: $($stops),+
-        }
-    };
+macro_rules! __stops {
     // match single color stop at the $start, plus $color with 2 stops plus other stops, e.g.:
     // stops![colors::RED, (colors::GREEN, 14, 20), colors::BLUE]
     // OR
@@ -607,12 +594,12 @@ macro_rules! __stops {
     (
         start: $start:expr,
         middle: [$($middle:expr),*],
-        tail: ($color:expr, $stop0:expr, $stop1:expr), $($stops:expr),+
+        tail: ($color:expr, $stop0:expr, $stop1:expr), $($stops:tt)+
     ) => {
         $crate::__stops! {
             start: $start,
             middle: [$($middle,)* ($color, $stop0), ($color, $stop1)],
-            tail: $($stops),+
+            tail: $($stops)+
         }
     };
     // match single color stop at the $start, plus single color stop in the $next_middle, plus other stops, e.g.:
@@ -623,14 +610,14 @@ macro_rules! __stops {
     (
         start: $start:expr,
         middle: [$($middle:expr),*],
-        tail: $next_middle:expr, $($stops:expr),+
+        tail: $next_middle:expr, $($stops:tt)+
     ) => {
         $crate::__stops! {
             start: $start,
             middle: [$($middle,)* $next_middle],
-            tail: $($stops),+
+            tail: $($stops)+
         }
-    };  
+    };
     // match single color stop at the $start, plus single $color with 2 stops, e.g.:
     // stops![colors::RED, (colors::GREEN, 15, 30)]
     // OR
@@ -639,7 +626,7 @@ macro_rules! __stops {
     (
         start: $start:expr,
         middle: [$($middle:expr),*],
-        tail: ($color:expr, $stop0:expr, $stop1:expr)
+        tail: ($color:expr, $stop0:expr, $stop1:expr) $(,)?
     ) => {
         $crate::__stops! {
             start: $start,
@@ -655,7 +642,7 @@ macro_rules! __stops {
     (
         start: $start:expr,
         middle: [$($middle:expr),*],
-        tail: $end:expr
+        tail: $end:expr $(,)?
     ) => {
         zero_ui::widgets::GradientStops {
             start: zero_ui::widgets::ColorStop::from($start),
@@ -676,11 +663,20 @@ macro_rules! stops {
             tail: ($color, $stop1)
         }
     };
-    ($start:expr, $($stops:expr),+ $(,)?) => {
+    // match first entry as as single color with 2 stops, plus other stops, e.g:
+    // stops![(colors::RED, 0, 20), colors::WHITE]
+    (($color:expr, $stop0:expr, $stop1:expr), $($stops:tt)+) => {
+        $crate::__stops! {
+            start: ($color, $stop0),
+            middle: [($color, $stop1)],
+            tail: $($stops)+
+        }
+    };
+    ($start:expr, $($stops:tt)+) => {
         $crate::__stops! {
             start: $start,
             middle: [],
-            tail: $($stops),+
+            tail: $($stops)+
         }
     };
 }

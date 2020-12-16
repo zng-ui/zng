@@ -484,7 +484,7 @@ impl<
 pub type RenderColorStop = webrender::api::GradientStop;
 
 /// A color stop in a gradient.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ColorStop {
     pub color: Rgba,
     pub offset: Length,
@@ -505,7 +505,7 @@ impl ColorStop {
     pub fn new_positional(color: impl Into<Rgba>) -> Self {
         ColorStop {
             color: color.into(),
-            offset: Length::Relative(FactorNormal(f32::NAN)),
+            offset: Length::Relative(FactorNormal(f32::INFINITY)),
         }
     }
 
@@ -568,7 +568,7 @@ impl_from_and_into_var! {
 }
 
 /// A stop in a gradient.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GradientStop {
     /// Color stop.
     Color(ColorStop),
@@ -867,8 +867,9 @@ impl GradientStops {
                     } else {
                         offset = offset.min(after.offset).max(prev.offset);
                     }
-                    let color = lerp_render_color(prev.color, after.color, length / offset);
                     offset += prev.offset;
+
+                    let color = lerp_render_color(prev.color, after.color, 100.0 / length / 2.0);
 
                     let stop = &mut render_stops[i];
                     stop.color = color;
@@ -1022,7 +1023,6 @@ macro_rules! impl_from_color_arrays {
 }
 impl_from_color_arrays!(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
 
-
 fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, LayoutPoint, LayoutLength) {
     let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
 
@@ -1044,7 +1044,7 @@ fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, L
 
 /// Creates a [`GradientStops`] containing the arguments.
 ///
-/// A minimal of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
+/// A minimum of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
 /// the middle arguments mut be expressions that convert to [`GradientStop`].
 ///
 /// # Example
@@ -1052,10 +1052,153 @@ fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, L
 /// ```
 /// # use zero_ui::prelude::*;
 /// # use zero_ui::widgets::stops;
-/// // green to blue, the midway color is at 30%.
-/// let stops = stops![colors::GREEN, 30.pct(), colors::BLUE];
-///
 /// // green 0%, red 30%, blue 100%.
 /// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
+///
+/// // green to blue, the midway color is at 30%.
+/// let stops = stops![colors::GREEN, 30.pct(), colors::BLUE];
+/// ```
+///
+/// # Two Stops Per Color
+///
+/// The `stops!` macro also accepts a special 3 item *tuple* that represents a color followed by two offsets, this
+/// expands to two color stops of the same color. The color type must implement `Into<Rgba> + Copy`. The offset types
+/// must implement `Into<Length>`.
+///
+/// ## Example
+/// ```
+/// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 pub use zero_ui_macros::stops;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stops_simple_2() {
+        let stops = stops![colors::BLACK, colors::WHITE];
+
+        assert!(stops.start.is_positional());
+        assert_eq!(stops.start.color, colors::BLACK);
+
+        assert!(stops.middle.is_empty());
+
+        assert!(stops.end.is_positional());
+        assert_eq!(stops.end.color, colors::WHITE);
+    }
+
+    fn test_layout_stops(stops: GradientStops) -> Vec<RenderColorStop> {
+        let mut render_stops = vec![];
+        stops.layout_linear(
+            LayoutLength::new(100.0),
+            &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
+            ExtendMode::Clamp,
+            &mut LayoutPoint::zero(),
+            &mut LayoutPoint::new(100.0, 100.0),
+            &mut render_stops,
+        );
+        render_stops
+    }
+
+    #[test]
+    fn positional_end_stops() {
+        let stops = test_layout_stops(stops![colors::BLACK, colors::WHITE]);
+
+        assert_eq!(stops.len(), 2);
+
+        assert_eq!(
+            stops[0],
+            RenderColorStop {
+                color: RenderColor::BLACK,
+                offset: 0.0
+            }
+        );
+        assert_eq!(
+            stops[1],
+            RenderColorStop {
+                color: RenderColor::WHITE,
+                offset: 1.0
+            }
+        );
+    }
+
+    #[test]
+    fn single_color_2_stops_only() {
+        let stops = stops![(colors::BLACK, 0, 100.pct())];
+
+        assert_eq!(stops.start, ColorStop::new(colors::BLACK, 0));
+        assert!(stops.middle.is_empty());
+        assert_eq!(stops.end, ColorStop::new(colors::BLACK, 100.pct()));
+    }
+
+    #[test]
+    fn single_color_2_stops_at_start() {
+        let stops = stops![(colors::BLACK, 0, 50.pct()), colors::WHITE];
+
+        assert_eq!(stops.start, ColorStop::new(colors::BLACK, 0));
+        assert_eq!(stops.middle.len(), 1);
+        assert_eq!(stops.middle[0], GradientStop::Color(ColorStop::new(colors::BLACK, 50.pct())));
+        assert_eq!(stops.end, ColorStop::new_positional(colors::WHITE));
+    }
+
+    #[test]
+    fn single_color_2_stops_at_middle() {
+        let stops = stops![colors::BLACK, (colors::RED, 10.pct(), 90.pct()), colors::WHITE];
+
+        assert_eq!(stops.start, ColorStop::new_positional(colors::BLACK));
+        assert_eq!(stops.middle.len(), 2);
+        assert_eq!(stops.middle[0], GradientStop::Color(ColorStop::new(colors::RED, 10.pct())));
+        assert_eq!(stops.middle[1], GradientStop::Color(ColorStop::new(colors::RED, 90.pct())));
+        assert_eq!(stops.end, ColorStop::new_positional(colors::WHITE));
+    }
+
+    #[test]
+    fn single_color_2_stops_at_end() {
+        let stops = stops![colors::BLACK, (colors::WHITE, 10.pct(), 50.pct())];
+
+        assert_eq!(stops.start, ColorStop::new_positional(colors::BLACK));
+        assert_eq!(stops.middle.len(), 1);
+        assert_eq!(stops.middle[0], GradientStop::Color(ColorStop::new(colors::WHITE, 10.pct())));
+        assert_eq!(stops.end, ColorStop::new(colors::WHITE, 50.pct()));
+    }
+
+    #[test]
+    fn color_hint() {
+        let stops = stops![colors::BLACK, 30.pct(), colors::WHITE];
+        assert_eq!(stops.middle.len(), 1);
+        assert_eq!(stops.middle[0], GradientStop::ColorHint(30.pct().into()));
+    }
+
+    #[test]
+    fn color_hint_layout() {
+        let stops = test_layout_stops(stops![colors::BLACK, 30.pct(), colors::WHITE]);
+        assert_eq!(stops.len(), 3);
+        assert_eq!(
+            stops[0],
+            RenderColorStop {
+                color: RenderColor::BLACK,
+                offset: 0.0
+            }
+        );
+        assert_eq!(
+            stops[1],
+            RenderColorStop {
+                color: RenderColor {
+                    r: 0.5,
+                    g: 0.5,
+                    b: 0.5,
+                    a: 1.0
+                },
+                offset: 30.0 / 100.0
+            }
+        );
+        assert_eq!(
+            stops[2],
+            RenderColorStop {
+                color: RenderColor::WHITE,
+                offset: 1.0
+            }
+        );
+    }
+}
