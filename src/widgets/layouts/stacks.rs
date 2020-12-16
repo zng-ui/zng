@@ -10,14 +10,14 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct StackNode<C: UiList, S: VarLocal<Length>, D: StackDimension> {
+struct StackNode<C: WidgetList, S: VarLocal<Length>, D: StackDimension> {
     children: C,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
 #[impl_ui_node(children)]
-impl<C: UiList, S: VarLocal<Length>, D: StackDimension> StackNode<C, S, D> {
+impl<C: WidgetList, S: VarLocal<Length>, D: StackDimension> StackNode<C, S, D> {
     fn new(children: C, spacing: S, _dimension: D) -> Self {
         StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
@@ -218,7 +218,7 @@ widget! {
 ///
 /// This function is just a shortcut for [`h_stack!`](module@v_stack). Use the full widget
 /// to better configure the horizontal stack widget.
-pub fn h_stack(items: impl UiList) -> impl Widget {
+pub fn h_stack(items: impl WidgetList) -> impl Widget {
     h_stack! {
         items;
     }
@@ -240,17 +240,17 @@ pub fn h_stack(items: impl UiList) -> impl Widget {
 ///
 /// This function is just a shortcut for [`v_stack!`](module@v_stack). Use the full widget
 /// to better configure the vertical stack widget.
-pub fn v_stack(items: impl UiList) -> impl Widget {
+pub fn v_stack(items: impl WidgetList) -> impl Widget {
     v_stack! {
         items;
     }
 }
 
-struct ZStackNode<C: UiList> {
+struct ZStackNode<C: WidgetList> {
     children: C,
 }
 #[impl_ui_node(children)]
-impl<C: UiList> UiNode for ZStackNode<C> {}
+impl<C: WidgetList> UiNode for ZStackNode<C> {}
 
 widget! {
     /// Layering stack layout.
@@ -303,6 +303,6 @@ widget! {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: impl UiList) -> impl Widget {
+pub fn z_stack(items: impl WidgetList) -> impl Widget {
     z_stack! { items; }
 }

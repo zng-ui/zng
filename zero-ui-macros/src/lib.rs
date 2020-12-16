@@ -424,7 +424,7 @@ macro_rules! switch_var {
 
 #[macro_export]
 macro_rules! ui_vec {
-    () => { zero_ui::core::UiVec::new() };
+    () => { zero_ui::core::WidgetVec::new() };
     ($($node:expr),+ $(,)?) => {
         vec![
             $(zero_ui::core::Widget::boxed_widget($node)),*

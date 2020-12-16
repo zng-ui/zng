@@ -50,7 +50,7 @@ fn main() {
     })
 }
 
-fn property_stack(header: &'static str, items: impl UiList) -> impl Widget {
+fn property_stack(header: &'static str, items: impl WidgetList) -> impl Widget {
     v_stack! {
         spacing: 5;
         items: [text! {

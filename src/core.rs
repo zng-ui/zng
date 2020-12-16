@@ -324,7 +324,7 @@ pub fn is_layout_any_size(f: f32) -> bool {
 pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 
 /// A mixed vector of [`Widget`] types.
-pub type UiVec = Vec<Box<dyn Widget>>;
+pub type WidgetVec = Vec<Box<dyn Widget>>;
 
 /// A map of TypeId -> Box<dyn Any>.
 type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
@@ -346,8 +346,8 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// Set this two arguments to delegate to a widget list:
 ///
-/// * `delegate_list: & impl UiList` - Expression that borrows the list.
-/// * `delegate_list_mut: &mut impl UiList` - Exclusive borrow the list.
+/// * `delegate_list: & impl WidgetList` - Expression that borrows the list.
+/// * `delegate_list_mut: &mut impl WidgetList` - Exclusive borrow the list.
 ///
 /// Or, set this two arguments to delegate to a node iterator sequence:
 ///
@@ -580,24 +580,24 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ### Defaults
 ///
-/// * Init, Updates: Calls the [`UiList`] equivalent method.
+/// * Init, Updates: Calls the [`WidgetList`] equivalent method.
 /// * Layout: Is the same size as the largest child.
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// struct DelegateChildrenNode<C: UiList> {
+/// struct DelegateChildrenNode<C: WidgetList> {
 ///     children: C,
 /// }
 /// #[impl_ui_node(children)]
-/// impl<C: UiList> UiNode for DelegateChildrenNode<C> { }
+/// impl<C: WidgetList> UiNode for DelegateChildrenNode<C> { }
 /// ```
 ///
 /// Expands to:
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// # struct DelegateChildrenNode { children: UiVec }
+/// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
@@ -668,7 +668,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// ```
 /// # use zero_ui::prelude::new_property::*;
 /// struct DelegateChildrenNode {
-///     children: UiVec,
+///     children: WidgetVec,
 /// }
 /// #[impl_ui_node(children_iter)]
 /// impl UiNode for DelegateChildrenNode { }
@@ -678,7 +678,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # use zero_ui::prelude::new_property::*;
-/// # struct DelegateChildrenNode { children: UiVec }
+/// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
 ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
@@ -1228,7 +1228,7 @@ pub use zero_ui_macros::widget;
 /// are used during widget instantiation.
 pub use zero_ui_macros::widget_mixin;
 
-/// Creates a [`UiVec`](zero_ui::core::UiVec) containing the arguments.
+/// Creates a [`WidgetVec`](zero_ui::core::WidgetVec) containing the arguments.
 ///
 /// # Example
 ///

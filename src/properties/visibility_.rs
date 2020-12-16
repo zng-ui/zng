@@ -187,8 +187,8 @@ impl<W: Widget> WidgetVisibilityExt for W {
     }
 }
 
-/// Extension methods for filtering an [`UiList`] by [`Visibility`].
-pub trait UiListVisibilityExt: UiList {
+/// Extension methods for filtering an [`WidgetList`] by [`Visibility`].
+pub trait WidgetListVisibilityExt: WidgetList {
     /// Counts the widgets that are not collapsed.
     fn count_not_collapsed(&self) -> usize;
 
@@ -196,7 +196,7 @@ pub trait UiListVisibilityExt: UiList {
     fn render_not_collapsed<O: FnMut(usize) -> LayoutPoint>(&self, origin: O, frame: &mut FrameBuilder);
 }
 
-impl<U: UiList> UiListVisibilityExt for U {
+impl<U: WidgetList> WidgetListVisibilityExt for U {
     fn count_not_collapsed(&self) -> usize {
         self.count(|_, s| s.visibility() != Visibility::Collapsed)
     }

@@ -262,43 +262,43 @@ fn delegate_list_absents(crate_: Ident, user_mtds: HashSet<Ident>, borrow: Expr,
 
         [fn init(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
             let children = {#borrow_mut};
-            children.init_all(ctx)
+            #crate_::core::UiNodeList::init_all(children, ctx)
         }]
 
         [fn deinit(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
             let children = {#borrow_mut};
-            children.deinit_all(ctx)
+            #crate_::core::UiNodeList::deinit_all(children, ctx)
         }]
 
         [fn update(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
             let children = {#borrow_mut};
-            children.update_all(ctx)
+            #crate_::core::UiNodeList::update_all(children, ctx)
         }]
 
         [fn update_hp(&mut self, ctx: &mut #crate_::core::context::WidgetContext) {
             let children = {#borrow_mut};
-            children.update_hp_all(ctx)
+            #crate_::core::UiNodeList::update_hp_all(children, ctx)
         }]
 
         [fn render(&self, frame: &mut #crate_::core::render::FrameBuilder) {
             let children = {#borrow};
-            children.render_all(|_|#crate_::core::units::LayoutPoint::zero(), frame)
+            #crate_::core::UiNodeList::render_all(children, |_|#crate_::core::units::LayoutPoint::zero(), frame)
         }]
 
         [fn render_update(&self, update: &mut #crate_::core::render::FrameUpdate) {
             let children = {#borrow};
-            children.render_update_all(update)
+            #crate_::core::UiNodeList::render_update_all(children, update)
         }]
 
         [fn arrange(&mut self, final_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) {
             let children = {#borrow_mut};
-            children.arrange_all(|_, _|final_size, ctx)
+            #crate_::core::UiNodeList::arrange_all(children, |_, _|final_size, ctx)
         }]
 
         [fn measure(&mut self, available_size: #crate_::core::units::LayoutSize, ctx: &mut #crate_::core::context::LayoutContext) -> #crate_::core::units::LayoutSize {
             let children = {#borrow_mut};
             let mut size = #crate_::core::units::LayoutSize::zero();
-            children.measure_all(|_, _|available_size, |_, desired_size, _| {
+            #crate_::core::UiNodeList::measure_all(children, |_, _|available_size, |_, desired_size, _| {
                 size = size.max(desired_size);
             }, ctx);
             size

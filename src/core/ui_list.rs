@@ -4,58 +4,28 @@ use super::UiNode;
 use super::{
     context::{LayoutContext, LazyStateMap, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
-    ui_vec, UiVec, Widget, WidgetId,
+    ui_vec, Widget, WidgetId, WidgetVec,
 };
 
-/// A generic view over a list of [`Widget`] UI nodes.
-///
-/// Layout widgets should use this to abstract the children list type if possible.
-pub trait UiList: 'static {
-    /// Number of widgets in the list.
+/// A generic view over a list of [`UiNode`] items.
+pub trait UiNodeList: 'static {
+    /// Number of items in the list.
     fn len(&self) -> usize;
-
-    /// Count widgets that pass filter using the widget state.
-    fn count<F>(&self, mut filter: F) -> usize
-    where
-        F: FnMut(usize, &LazyStateMap) -> bool,
-    {
-        let mut count = 0;
-        for i in 0..self.len() {
-            if filter(i, self.widget_state(i)) {
-                count += 1;
-            }
-        }
-        count
-    }
 
     /// If the list is empty.
     fn is_empty(&self) -> bool;
 
-    /// Boxes all widgets and moved then to a [`UiVec`].
-    fn box_all(self) -> UiVec;
+    /// Boxes all items.
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>>;
 
-    /// Creates a new list that consists of this list followed by the `other` list.
-    fn chain<U>(self, other: U) -> UiListChain<Self, U>
+    /// Creates a new list that consists of this list followed by the `other` list of nodes.
+    fn chain_nodes<U>(self, other: U) -> UiNodeListChain<Self, U>
     where
         Self: Sized,
-        U: UiList,
+        U: UiNodeList,
     {
-        UiListChain(self, other)
+        UiNodeListChain(self, other)
     }
-
-    /// Gets the id of the widget at the `index`.
-    ///
-    /// The index is zero-based.
-    fn widget_id(&self, index: usize) -> WidgetId;
-
-    /// Reference the state of the widget at the `index`.
-    fn widget_state(&self, index: usize) -> &LazyStateMap;
-
-    /// Exclusive reference the state of the widget at the `index`.
-    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap;
-
-    /// Gets the last arranged size of the widget at the `index`.
-    fn widget_size(&self, index: usize) -> LayoutSize;
 
     /// Calls [`UiNode::init`] in all widgets in the list, sequentially.
     fn init_all(&mut self, ctx: &mut WidgetContext);
@@ -109,6 +79,54 @@ pub trait UiList: 'static {
     where
         O: FnMut(usize) -> LayoutPoint;
 
+    /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
+    fn render_update_all(&self, update: &mut FrameUpdate);
+}
+
+/// A generic view over a list of [`Widget`] UI nodes.
+///
+/// Layout widgets should use this to abstract the children list type if possible.
+pub trait WidgetList: UiNodeList {
+    /// Count widgets that pass filter using the widget state.
+    fn count<F>(&self, mut filter: F) -> usize
+    where
+        F: FnMut(usize, &LazyStateMap) -> bool,
+    {
+        let mut count = 0;
+        for i in 0..self.len() {
+            if filter(i, self.widget_state(i)) {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Boxes all widgets and moved then to a [`WidgetVec`].
+    fn boxed_widget_all(self) -> WidgetVec;
+
+    /// Creates a new list that consists of this list followed by the `other` list.
+    fn chain<U>(self, other: U) -> WidgetListChain<Self, U>
+    where
+        Self: Sized,
+        U: WidgetList,
+    {
+        WidgetListChain(self, other)
+    }
+
+    /// Gets the id of the widget at the `index`.
+    ///
+    /// The index is zero-based.
+    fn widget_id(&self, index: usize) -> WidgetId;
+
+    /// Reference the state of the widget at the `index`.
+    fn widget_state(&self, index: usize) -> &LazyStateMap;
+
+    /// Exclusive reference the state of the widget at the `index`.
+    fn widget_state_mut(&mut self, index: usize) -> &mut LazyStateMap;
+
+    /// Gets the last arranged size of the widget at the `index`.
+    fn widget_size(&self, index: usize) -> LayoutSize;
+
     /// Calls [`UiNode::render`] in all widgets in the list that have an origin, sequentially. Uses a reference frame
     /// to offset each widget.
     ///
@@ -119,17 +137,14 @@ pub trait UiList: 'static {
     fn render_filtered<O>(&self, origin: O, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>;
-
-    /// Calls [`UiNode::render_update`] in all widgets in the list, sequentially.
-    fn render_update_all(&self, update: &mut FrameUpdate);
 }
 
-/// Two [`UiList`] lists chained.
+/// Two [`WidgetList`] lists chained.
 ///
-/// See [`UiList::chain`] for more information.
-pub struct UiListChain<A: UiList, B: UiList>(A, B);
+/// See [`WidgetList::chain`] for more information.
+pub struct WidgetListChain<A: WidgetList, B: WidgetList>(A, B);
 
-impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
+impl<A: WidgetList, B: WidgetList> UiNodeList for WidgetListChain<A, B> {
     fn len(&self) -> usize {
         self.0.len() + self.1.len()
     }
@@ -138,9 +153,9 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
         self.0.is_empty() && self.1.is_empty()
     }
 
-    fn box_all(self) -> UiVec {
-        let mut a = self.0.box_all();
-        a.extend(self.1.box_all());
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+        let mut a = self.0.boxed_all();
+        a.extend(self.1.boxed_all());
         a
     }
 
@@ -194,6 +209,19 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
         self.1.render_all(|i| origin(i + offset), frame);
     }
 
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.0.render_update_all(update);
+        self.1.render_update_all(update);
+    }
+}
+
+impl<A: WidgetList, B: WidgetList> WidgetList for WidgetListChain<A, B> {
+    fn boxed_widget_all(self) -> WidgetVec {
+        let mut a = self.0.boxed_widget_all();
+        a.extend(self.1.boxed_widget_all());
+        a
+    }
+
     fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
@@ -201,11 +229,6 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
         self.0.render_filtered(|i, s| origin(i, s), frame);
         let offset = self.0.len();
         self.1.render_filtered(|i, s| origin(i + offset, s), frame);
-    }
-
-    fn render_update_all(&self, update: &mut FrameUpdate) {
-        self.0.render_update_all(update);
-        self.1.render_update_all(update);
     }
 
     fn widget_id(&self, index: usize) -> WidgetId {
@@ -245,7 +268,83 @@ impl<A: UiList, B: UiList> UiList for UiListChain<A, B> {
     }
 }
 
-macro_rules! impl_iter {
+/// Two [`UiNodeList`] lists chained.
+///
+/// See [`UiNodeList::chain_nodes`] for more information.
+pub struct UiNodeListChain<A: UiNodeList, B: UiNodeList>(A, B);
+
+impl<A: UiNodeList, B: UiNodeList> UiNodeList for UiNodeListChain<A, B> {
+    fn len(&self) -> usize {
+        self.0.len() + self.1.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty() && self.1.is_empty()
+    }
+
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+        let mut a = self.0.boxed_all();
+        a.extend(self.1.boxed_all());
+        a
+    }
+
+    fn init_all(&mut self, ctx: &mut WidgetContext) {
+        self.0.init_all(ctx);
+        self.1.init_all(ctx);
+    }
+
+    fn deinit_all(&mut self, ctx: &mut WidgetContext) {
+        self.0.deinit_all(ctx);
+        self.1.deinit_all(ctx);
+    }
+
+    fn update_all(&mut self, ctx: &mut WidgetContext) {
+        self.0.update_all(ctx);
+        self.1.update_all(ctx);
+    }
+
+    fn update_hp_all(&mut self, ctx: &mut WidgetContext) {
+        self.0.update_hp_all(ctx);
+        self.1.update_hp_all(ctx);
+    }
+
+    fn measure_all<AS, D>(&mut self, mut available_size: AS, mut desired_size: D, ctx: &mut LayoutContext)
+    where
+        AS: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+        D: FnMut(usize, LayoutSize, &mut LayoutContext),
+    {
+        self.0
+            .measure_all(|i, c| available_size(i, c), |i, l, c| desired_size(i, l, c), ctx);
+        let offset = self.0.len();
+        self.1
+            .measure_all(|i, c| available_size(i + offset, c), |i, l, c| desired_size(i + offset, l, c), ctx);
+    }
+
+    fn arrange_all<F>(&mut self, mut final_size: F, ctx: &mut LayoutContext)
+    where
+        F: FnMut(usize, &mut LayoutContext) -> LayoutSize,
+    {
+        self.0.arrange_all(|i, c| final_size(i, c), ctx);
+        let offset = self.0.len();
+        self.1.arrange_all(|i, c| final_size(i + offset, c), ctx);
+    }
+
+    fn render_all<O>(&self, mut origin: O, frame: &mut FrameBuilder)
+    where
+        O: FnMut(usize) -> LayoutPoint,
+    {
+        self.0.render_all(|i| origin(i), frame);
+        let offset = self.0.len();
+        self.1.render_all(|i| origin(i + offset), frame);
+    }
+
+    fn render_update_all(&self, update: &mut FrameUpdate) {
+        self.0.render_update_all(update);
+        self.1.render_update_all(update);
+    }
+}
+
+macro_rules! impl_iter_node {
     () => {
         #[inline]
         fn init_all(&mut self, ctx: &mut WidgetContext) {
@@ -307,6 +406,17 @@ macro_rules! impl_iter {
             }
         }
 
+        #[inline]
+        fn render_update_all(&self, update: &mut FrameUpdate) {
+            for w in self {
+                w.render_update(update);
+            }
+        }
+    };
+}
+
+macro_rules! impl_iter {
+    () => {
         fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
         where
             O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
@@ -315,13 +425,6 @@ macro_rules! impl_iter {
                 if let Some(origin) = origin(i, w.state()) {
                     frame.push_reference_frame(origin, |frame| w.render(frame));
                 }
-            }
-        }
-
-        #[inline]
-        fn render_update_all(&self, update: &mut FrameUpdate) {
-            for w in self {
-                w.render_update(update);
             }
         }
 
@@ -343,7 +446,7 @@ macro_rules! impl_iter {
     };
 }
 
-impl<W: Widget> UiList for Vec<W> {
+impl<W: UiNode> UiNodeList for Vec<W> {
     #[inline]
     fn len(&self) -> usize {
         self.len()
@@ -353,7 +456,16 @@ impl<W: Widget> UiList for Vec<W> {
         self.is_empty()
     }
     #[inline]
-    fn box_all(self) -> UiVec {
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+        self.into_iter().map(|n| n.boxed()).collect()
+    }
+
+    impl_iter_node! {}
+}
+
+impl<W: Widget> WidgetList for Vec<W> {
+    #[inline]
+    fn boxed_widget_all(self) -> WidgetVec {
         self.into_iter().map(|w| w.boxed_widget()).collect()
     }
 
@@ -362,7 +474,7 @@ impl<W: Widget> UiList for Vec<W> {
 
 macro_rules! impl_arrays {
     ( $($L:tt),+ $(,)?) => {$(
-        impl<W: Widget> UiList for [W; $L] {
+        impl<W: UiNode> UiNodeList for [W; $L] {
             fn len(&self) -> usize {
                 $L
             }
@@ -371,7 +483,15 @@ macro_rules! impl_arrays {
                 $L == 0
             }
 
-            fn box_all(self) -> UiVec {
+            fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+                arrayvec::ArrayVec::from(self).into_iter().map(|w| w.boxed()).collect()
+            }
+
+            impl_iter_node! {}
+        }
+
+        impl<W: Widget> WidgetList for [W; $L] {
+            fn boxed_widget_all(self) -> WidgetVec {
                 arrayvec::ArrayVec::from(self).into_iter().map(|w| w.boxed_widget()).collect()
             }
 
@@ -422,7 +542,7 @@ macro_rules! impl_tuples {
 
     })+};
     ($L:tt => $($n:tt = $W:ident),+) => {
-        impl<$($W: Widget),+> UiList for ($($W,)+) {
+        impl<$($W: UiNode),+> UiNodeList for ($($W,)+) {
             #[inline]
             fn len(&self) -> usize {
                 $L
@@ -434,8 +554,8 @@ macro_rules! impl_tuples {
             }
 
             #[inline]
-            fn box_all(self) -> UiVec {
-                ui_vec![$(self.$n.boxed_widget()),+]
+            fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+                vec![$(self.$n.boxed()),+]
             }
 
             #[inline]
@@ -490,6 +610,18 @@ macro_rules! impl_tuples {
                 )+
             }
 
+            #[inline]
+            fn render_update_all(&self, update: &mut FrameUpdate) {
+                $(self.$n.render_update(update);)+
+            }
+        }
+
+        impl<$($W: Widget),+> WidgetList for ($($W,)+) {
+            #[inline]
+            fn boxed_widget_all(self) -> WidgetVec {
+                ui_vec![$(self.$n.boxed_widget()),+]
+            }
+
             fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
             where
                 O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
@@ -499,11 +631,6 @@ macro_rules! impl_tuples {
                     frame.push_reference_frame(o, |frame| self.$n.render(frame));
                 }
                 )+
-            }
-
-            #[inline]
-            fn render_update_all(&self, update: &mut FrameUpdate) {
-                $(self.$n.render_update(update);)+
             }
 
             fn widget_id(&self, index: usize) -> WidgetId {
@@ -574,7 +701,7 @@ impl_tuples! {
     32 => 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31;
 }
 
-impl UiList for () {
+impl UiNodeList for () {
     #[inline]
     fn len(&self) -> usize {
         0
@@ -585,9 +712,8 @@ impl UiList for () {
         true
     }
 
-    #[inline]
-    fn box_all(self) -> UiVec {
-        ui_vec![]
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+        vec![]
     }
 
     #[inline]
@@ -621,14 +747,21 @@ impl UiList for () {
     {
     }
 
+    #[inline]
+    fn render_update_all(&self, _: &mut FrameUpdate) {}
+}
+
+impl WidgetList for () {
+    #[inline]
+    fn boxed_widget_all(self) -> WidgetVec {
+        ui_vec![]
+    }
+
     fn render_filtered<O>(&self, _: O, _: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>,
     {
     }
-
-    #[inline]
-    fn render_update_all(&self, _: &mut FrameUpdate) {}
 
     fn widget_id(&self, index: usize) -> WidgetId {
         panic!("index {} out of range for length 0", index)

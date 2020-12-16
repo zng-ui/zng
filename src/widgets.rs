@@ -29,7 +29,7 @@ mod build_tests {
     use super::*;
     use crate::prelude::*;
 
-    fn _basic(child: impl UiNode) -> impl UiNode {
+    fn _basic(child: impl Widget) -> impl Widget {
         button! {
             on_click: |_,_|{};
             background_gradient: 90.deg(), [rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
@@ -37,7 +37,7 @@ mod build_tests {
         }
     }
 
-    fn _args(child: impl UiNode) -> impl UiNode {
+    fn _args(child: impl Widget) -> impl Widget {
         button! {
             on_click: {
                 handler: |_,_|{},
@@ -52,7 +52,7 @@ mod build_tests {
         }
     }
 
-    fn _id(child: impl UiNode) -> impl UiNode {
+    fn _id(child: impl Widget) -> impl Widget {
         button! {
             on_click: |_,_|{};
             id: WidgetId::new_unique();
@@ -60,7 +60,7 @@ mod build_tests {
         }
     }
 
-    fn _id_args(child: impl UiNode) -> impl UiNode {
+    fn _id_args(child: impl Widget) -> impl Widget {
         button! {
             on_click: |_,_|{};
             id: {

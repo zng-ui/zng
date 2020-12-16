@@ -29,7 +29,7 @@ impl Iterator for CellsIter {
     }
 }
 
-struct UniformGridNode<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> {
+struct UniformGridNode<U: WidgetList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> {
     children: U,
     columns: C,
     rows: R,
@@ -38,7 +38,7 @@ struct UniformGridNode<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: Va
     cells_iter: CellsIter,
 }
 
-impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<U, C, R, FC, S> {
+impl<U: WidgetList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UniformGridNode<U, C, R, FC, S> {
     /// cells count for `grid_len`.
     fn cells_count(&self) -> f32 {
         match self.children.count_not_collapsed() {
@@ -72,7 +72,7 @@ impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: 
     }
 }
 #[impl_ui_node(children)]
-impl<U: UiList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UiNode
+impl<U: WidgetList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>, S: VarLocal<GridSpacing>> UiNode
     for UniformGridNode<U, C, R, FC, S>
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
@@ -257,6 +257,6 @@ widget! {
 /// This function is just a shortcut for [`uniform_grid!`](module@uniform_grid). Use the full widget
 /// to better configure the grid widget.
 #[inline]
-pub fn uniform_grid(items: impl UiList) -> impl Widget {
+pub fn uniform_grid(items: impl WidgetList) -> impl Widget {
     uniform_grid! { items; }
 }

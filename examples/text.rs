@@ -93,7 +93,7 @@ fn pre_line_break() -> impl Widget {
     )
 }
 
-fn section(header: &'static str, items: impl UiList) -> impl Widget {
+fn section(header: &'static str, items: impl WidgetList) -> impl Widget {
     v_stack! {
         spacing: 5;
         items: [text! {

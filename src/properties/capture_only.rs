@@ -1,6 +1,6 @@
 //! Properties that are only used by widgets directly.
 //!
-//! Setting this properties in a widget that does not reexports then is an error.
+//! Setting these properties in a widget that does not reexport them is an error.
 use crate::core::gesture::Shortcut;
 use crate::core::window::{AutoSize, StartPosition};
 use crate::prelude::new_property::*;
@@ -18,21 +18,29 @@ use crate::widgets::{LineOrientation, LineStyle};
 #[property(capture_only)]
 pub fn widget_id(id: WidgetId) -> ! {}
 
-/// Widget child node.
+/// [`Widget`] child node.
 ///
 /// # Container
 ///
 /// Widgets that contain a single other widget can capture this property in their implementation.
 #[property(capture_only, allowed_in_when: false)]
-pub fn widget_child(child: impl UiNode) -> ! {}
+pub fn widget_child(child: impl Widget) -> ! {}
 
-/// Widget children nodes.
+/// [`UiNode`] child node.
+#[property(capture_only, allowed_in_when: false)]
+pub fn node_child(child: impl UiNode) -> ! {}
+
+/// [`Widget`] children nodes.
 ///
 /// # Layout
 ///
 /// Layout widgets can capture this property in their implementation.
 #[property(capture_only, allowed_in_when: false)]
-pub fn widget_children(children: impl UiList) -> ! {}
+pub fn widget_children(children: impl WidgetList) -> ! {}
+
+/// [`UiNode`] children nodes.
+#[property(capture_only, allowed_in_when: false)]
+pub fn node_children(children: WidgetVec) -> ! {}
 
 /// A [`Length`] spacing.
 #[property(capture_only)]

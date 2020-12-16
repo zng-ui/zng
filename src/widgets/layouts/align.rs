@@ -17,6 +17,6 @@ widget! {
 ///
 /// This is the equivalent of setting [`align`] to [`Alignment::CENTER`], but as a widget.
 #[inline]
-pub fn center(content: impl UiNode) -> impl Widget {
+pub fn center(content: impl Widget) -> impl Widget {
     center! { content; }
 }
