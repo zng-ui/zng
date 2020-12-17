@@ -1,4 +1,6 @@
-//! Mouse events.
+//! Mouse events and service.
+//!
+//! The app extension [`MouseManager`] provides the events and service. It is included in the default application.
 
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use super::WidgetId;
@@ -274,7 +276,7 @@ event! {
     pub MouseCaptureEvent: MouseCaptureArgs;
 }
 
-/// Application extension that provides mouse events.
+/// Application extension that provides mouse events and service.
 ///
 /// # Events
 ///
@@ -660,6 +662,27 @@ fn multi_click_time_ms() -> u32 {
 
 /// Mouse service.
 ///
+/// # Mouse Capture
+///
+/// A mouse is **captured** when mouse events are redirected to a specific target. The user
+/// can still move the cursor outside of the target but the widgets outside do not interact with the cursor.
+///
+/// You can request capture by calling [`capture_widget`](Mouse::capture_widget) or
+/// [`capture_subtree`](Mouse::capture_subtree) with a widget that was pressed by a mouse button. The capture
+/// will last for as long as any of the mouse buttons are pressed, the widget is visible and the window is focused.
+///
+/// Windows capture the mouse by default, this cannot be disabled. For other widgets this is optional.
+///
+/// # Cursor Lock
+///
+/// The cursor is **locked** when it cannot be moved outside of an area. The user can still move the cursor inside
+/// the area but it visually stops at the area boundaries.
+///
+/// You can request lock by calling [`lock_cursor_pt`](Mouse::lock_cursor_pt), [`lock_cursor_widget`](Mouse::lock_cursor_widget),
+/// or one of the other `lock_cursor*` methods.
+///
+/// The cursor will stay locked for as long the target is visible and the window is focused.
+///
 /// # Provider
 ///
 /// This service is provided by the [`MouseManager`] extension.
@@ -714,7 +737,7 @@ impl Mouse {
 
     /// Release the current mouse capture.
     ///
-    /// **Note:** The capture is released automatically when no mouse button is pressed
+    /// **Note:** The capture is released automatically when the mouse buttons are released
     /// or when the window loses focus.
     #[inline]
     pub fn release_capture(&mut self) {
@@ -762,7 +785,7 @@ impl Mouse {
     /// If the widget moves the cursor gets pushed by the sides of the area.
     ///
     /// **NOT IMPLEMENTED**
-    pub fn lock_cursor_wgt(&mut self, window_id: WindowId, area: WidgetId) {
+    pub fn lock_cursor_widget(&mut self, window_id: WindowId, area: WidgetId) {
         todo!("impl lock_cursor_wgt({:?}, {:?})", window_id, area)
     }
 
