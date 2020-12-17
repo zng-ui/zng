@@ -1382,6 +1382,27 @@ impl<'a> WidgetInfo<'a> {
         }
     }
 
+    /// Gets the [`path`](Self::path) if it is different from `old_path`.
+    ///
+    /// Only allocates a new path if needed.
+    ///
+    /// # Panics
+    ///
+    /// If `old_path` does not point to the same widget id as `self`.
+    #[inline]
+    pub fn new_path(self, old_path: &WidgetPath) -> Option<WidgetPath> {
+        assert_eq!(old_path.widget_id(), self.widget_id());
+        if self
+            .ancestors()
+            .zip(old_path.ancestors().iter().rev())
+            .any(|(ancestor, id)| ancestor.widget_id() != *id)
+        {
+            Some(self.path())
+        } else {
+            None
+        }
+    }
+
     /// Widget rectangle in the frame.
     #[inline]
     pub fn bounds(self) -> &'a LayoutRect {
