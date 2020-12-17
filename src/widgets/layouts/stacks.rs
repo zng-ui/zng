@@ -1,4 +1,4 @@
-use crate::{prelude::new_widget::*};
+use crate::prelude::new_widget::*;
 use std::marker::PhantomData;
 
 trait StackDimension: 'static {

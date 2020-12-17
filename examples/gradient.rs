@@ -84,19 +84,33 @@ fn linear_tile() -> impl Widget {
 // TODO
 fn stack_linear() -> impl Widget {
     sample_line((
-        sample("stack 2", z_stack((
-            linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
-            linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
-        ))),
-        sample("stack 3", z_stack((
-            fill_color(colors::WHITE),
-            linear_gradient_to_bottom_left(stops![rgba(255, 0, 0, 1.0), (rgba(255, 0, 0, 0.0), 50.pct())], ExtendMode::Clamp),      
-            linear_gradient_to_right(stops![rgba(0, 255, 0, 1.0), (rgba(0, 255, 0, 0.0), 50.pct())], ExtendMode::Clamp),            
-            linear_gradient_to_top_left( stops![rgba(0, 0, 255, 1.0), (rgba(0, 0, 255, 0.0), 50.pct())], ExtendMode::Clamp),
-        ))),
-        sample("rainbow", z_stack(
-            {
-                let stops = stops![colors::RED, (colors::YELLOW, 0.333.normal()), (colors::GREEN, 0.5.normal()), (colors::CYAN, 0.666.normal()), (colors::BLUE, 0.833.normal()), colors::MAGENTA];
+        sample(
+            "stack 2",
+            z_stack((
+                linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
+                linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
+            )),
+        ),
+        sample(
+            "stack 3",
+            z_stack((
+                fill_color(colors::WHITE),
+                linear_gradient_to_bottom_left(stops![rgba(255, 0, 0, 1.0), (rgba(255, 0, 0, 0.0), 50.pct())], ExtendMode::Clamp),
+                linear_gradient_to_right(stops![rgba(0, 255, 0, 1.0), (rgba(0, 255, 0, 0.0), 50.pct())], ExtendMode::Clamp),
+                linear_gradient_to_top_left(stops![rgba(0, 0, 255, 1.0), (rgba(0, 0, 255, 0.0), 50.pct())], ExtendMode::Clamp),
+            )),
+        ),
+        sample(
+            "rainbow",
+            z_stack({
+                let stops = stops![
+                    colors::RED,
+                    (colors::YELLOW, 0.333.normal()),
+                    (colors::GREEN, 0.5.normal()),
+                    (colors::CYAN, 0.666.normal()),
+                    (colors::BLUE, 0.833.normal()),
+                    colors::MAGENTA
+                ];
                 let mut stops2 = stops.clone();
                 stops2.start.color.alpha = 0.75;
                 for stop in &mut stops2.middle {
@@ -106,11 +120,13 @@ fn stack_linear() -> impl Widget {
                 }
                 stops2.end.color.alpha = 0.75;
 
-                (linear_gradient_to_right(stops, ExtendMode::Clamp), linear_gradient_to_bottom(stops2, ExtendMode::Clamp))
-            }
-        ))
+                (
+                    linear_gradient_to_right(stops, ExtendMode::Clamp),
+                    linear_gradient_to_bottom(stops2, ExtendMode::Clamp),
+                )
+            }),
+        ),
     ))
-    
 }
 
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
