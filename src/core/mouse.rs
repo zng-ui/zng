@@ -1,6 +1,6 @@
 //! Mouse events.
 
-use super::units::LayoutPoint;
+use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use super::WidgetId;
 use crate::core::app::*;
 use crate::core::context::*;
@@ -626,7 +626,7 @@ impl AppExtension for MouseManager {
         r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
         r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());
 
-        r.services.register(Mouse::new(r.events));
+        r.services.register(Mouse::new(r.updates.notifier().clone(), r.events));
     }
 
     fn on_window_event(&mut self, window_id: WindowId, event: &WindowEvent, ctx: &mut AppContext) {
@@ -669,9 +669,10 @@ pub struct Mouse {
     current_capture: Option<(WidgetPath, CaptureMode)>,
     capture_request: Option<(WidgetId, CaptureMode)>,
     release_requested: bool,
+    notifier: UpdateNotifier,
 }
 impl Mouse {
-    fn new(events: &mut Events) -> Self {
+    fn new(notifier: UpdateNotifier, events: &mut Events) -> Self {
         let capture_event = MouseCaptureEvent::emitter();
         events.register::<MouseCaptureEvent>(capture_event.listener());
 
@@ -680,12 +681,11 @@ impl Mouse {
             current_capture: None,
             capture_request: None,
             release_requested: false,
+            notifier,
         }
     }
 
-    /// Gets the current capture target and mode.
-    ///
-    /// Returns if the mouse is not pressed in app window.
+    /// The current capture target and mode.
     #[inline]
     pub fn current_capture(&self) -> Option<(&WidgetPath, CaptureMode)> {
         self.current_capture.as_ref().map(|(p, c)| (p, *c))
@@ -697,7 +697,7 @@ impl Mouse {
     #[inline]
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
-        // TODO self.notifier.update
+        self.notifier.update();
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -709,14 +709,81 @@ impl Mouse {
     #[inline]
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
-        // TODO self.notifier.update
+        self.notifier.update();
     }
 
     /// Release the current mouse capture.
+    ///
+    /// **Note:** The capture is released automatically when no mouse button is pressed
+    /// or when the window loses focus.
     #[inline]
     pub fn release_capture(&mut self) {
         self.release_requested = true;
-        // TODO self.notifier.update
+        self.notifier.update();
+    }
+
+    /// The current cursor lock active.
+    pub fn current_lock(&self) {
+        todo!()
+    }
+
+    /// Locks the cursor in an `area` of the window if the it is focused.
+    ///
+    /// The pointer is moved inside the area to start, the user can only move the cursor inside the area.
+    /// Mouse move events are generated only by move inside the area, you can use the mouse device events
+    /// to monitor attempts to move outside the area.
+    ///
+    /// The area is relative to the window, if the window moves the cursor gets pushed by the sides of the area.
+    ///
+    /// **NOT IMPLEMENTED**
+    pub fn lock_cursor(&mut self, window_id: WindowId, area: LayoutRect) {
+        todo!("impl lockcursor({:?}, {:?})", window_id, area)
+    }
+
+    /// Locks the cursor to a `point` of the window if it is focused.
+    ///
+    /// The pointer is moved to the point to start, the user cannot move the cursor. No mouse move events are
+    /// generated, you can use the mouse device events to monitor attempts to move the mouse.
+    ///
+    /// The point is relative to the window, if the window moves the cursor moves to match the point.
+    ///
+    /// **NOT IMPLEMENTED**
+    #[inline]
+    pub fn lock_cursor_pt(&mut self, window_id: WindowId, point: LayoutPoint) {
+        self.lock_cursor(window_id, LayoutRect::new(point, LayoutSize::new(0.0, 0.0)))
+    }
+
+    /// Locks the cursor to the `area` of a widget in a window that is focused.
+    ///
+    /// The pointer is moved to the point to start, the user can only move the cursor inside the widget area.
+    /// Mouse move events are generated only for the widget, you can use the mouse device events to monitor attempts to move
+    /// outside the area.
+    ///
+    /// If the widget moves the cursor gets pushed by the sides of the area.
+    ///
+    /// **NOT IMPLEMENTED**
+    pub fn lock_cursor_wgt(&mut self, window_id: WindowId, area: WidgetId) {
+        todo!("impl lock_cursor_wgt({:?}, {:?})", window_id, area)
+    }
+
+    /// Locks the cursor to the content area of the window if the window is focused.
+    ///
+    /// The pointer is moved inside the window to start, the user can only move the cursor inside the window area.
+    ///
+    /// If the window moves or is resized the cursor gets pushed by the sides of the window area.
+    ///
+    /// **NOT IMPLEMENTED**
+    pub fn lock_cursor_window(&mut self, window_id: WindowId) {
+        todo!("impl lock_cursor_window({:?}", window_id)
+    }
+
+    /// Release the cursor lock.
+    ///
+    /// **Note:** the cursor lock is released automatically when the window loses focus.
+    ///
+    /// **NOT IMPLEMENTED**
+    pub fn release_lock(&mut self) {
+        todo!()
     }
 
     fn update_capture(&mut self, pressed_window: Option<(&FrameInfo, &FrameHitInfo)>, events: &Events) {
