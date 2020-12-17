@@ -479,7 +479,7 @@ pub mod prelude {
         pub use crate::core::units::{self, *};
         pub use crate::core::var::*;
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, Widget, WidgetId, WidgetList, WidgetVec,
+            impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
             LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::{
@@ -499,7 +499,7 @@ pub mod prelude {
         pub use crate::core::units::*;
         pub use crate::core::var::*;
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, ui_vec, widget, widget_mixin, FillUiNode, UiNode, Widget, WidgetId, WidgetList, WidgetVec,
+            impl_ui_node, is_layout_any_size, ui_vec, widget, widget_mixin, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
             LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::background::{background, *};
