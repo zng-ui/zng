@@ -370,7 +370,7 @@ impl MouseManager {
             LayoutPoint::default()
         };
 
-        let windows = ctx.services.req::<Windows>();
+        let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
         let window = windows.window(window_id).unwrap();
         let hits = window.hit_test(position);
         let frame_info = window.frame_info();
@@ -379,6 +379,23 @@ impl MouseManager {
             (frame_info.find(t.widget_id).unwrap().path(), t.point)
         } else {
             (frame_info.root().path(), position)
+        };
+
+        if state == ElementState::Pressed {
+            mouse.update_capture(Some((frame_info, &hits)), ctx.events);
+        } else {
+            // TODO other button pressed.
+            mouse.update_capture(None, ctx.events);
+        }
+
+        let capture_info = if let Some((capture, mode)) = mouse.current_capture() {
+            Some(CaptureInfo {
+                target: capture.clone(),
+                mode,
+                position, // TODO
+            })
+        } else {
+            None
         };
 
         let args = MouseInputArgs::now(
@@ -390,7 +407,7 @@ impl MouseManager {
             state,
             hits.clone(),
             target.clone(),
-            None, // TODO
+            capture_info,
         );
 
         // on_mouse_input
