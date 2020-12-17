@@ -697,6 +697,7 @@ impl Mouse {
     #[inline]
     pub fn capture_widget(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Widget));
+        // TODO self.notifier.update
     }
 
     /// Set a widget to be the root of a capture subtree.
@@ -708,19 +709,21 @@ impl Mouse {
     #[inline]
     pub fn capture_subtree(&mut self, widget_id: WidgetId) {
         self.capture_request = Some((widget_id, CaptureMode::Subtree));
+        // TODO self.notifier.update
     }
 
     /// Release the current mouse capture.
     #[inline]
     pub fn release_capture(&mut self) {
         self.release_requested = true;
+        // TODO self.notifier.update
     }
 
     fn update_capture(&mut self, pressed_window: Option<(&FrameInfo, &FrameHitInfo)>, events: &Events) {
         let mut new_capture = None;
 
         /* Correct Requests */
-
+        // TODO https://docs.rs/winit/0.24.0/winit/window/struct.Window.html#method.set_cursor_grab
         if let Some((frame, hits)) = pressed_window {
             // mouse pressed in an app window
 

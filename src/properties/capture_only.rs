@@ -40,7 +40,7 @@ pub fn widget_children(children: impl WidgetList) -> ! {}
 
 /// [`UiNode`] children nodes.
 #[property(capture_only, allowed_in_when: false)]
-pub fn node_children(children: WidgetVec) -> ! {}
+pub fn node_children(children: impl UiNodeList) -> ! {}
 
 /// A [`Length`] spacing.
 #[property(capture_only)]

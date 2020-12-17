@@ -13,8 +13,8 @@ fn main() {
                     linear_angle(),
                     linear_points(),
                     linear_tile(),
-                    //title("Stack"),
-                    //stack_linear(),
+                    title("Stack"),
+                    stack_linear(),
                 );
             };
         }
@@ -82,12 +82,36 @@ fn linear_tile() -> impl Widget {
 }
 
 // TODO
-//fn stack_linear() -> impl Widget {
-//    sample("stack 2", z_stack((
-//        linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
-//        linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
-//    )))
-//}
+fn stack_linear() -> impl Widget {
+    sample_line((
+        sample("stack 2", z_stack((
+            linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
+            linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
+        ))),
+        sample("stack 3", z_stack((
+            fill_color(colors::WHITE),
+            linear_gradient_to_bottom_left(stops![rgba(255, 0, 0, 1.0), (rgba(255, 0, 0, 0.0), 50.pct())], ExtendMode::Clamp),      
+            linear_gradient_to_right(stops![rgba(0, 255, 0, 1.0), (rgba(0, 255, 0, 0.0), 50.pct())], ExtendMode::Clamp),            
+            linear_gradient_to_top_left( stops![rgba(0, 0, 255, 1.0), (rgba(0, 0, 255, 0.0), 50.pct())], ExtendMode::Clamp),
+        ))),
+        sample("rainbow", z_stack(
+            {
+                let stops = stops![colors::RED, (colors::YELLOW, 0.333.normal()), (colors::GREEN, 0.5.normal()), (colors::CYAN, 0.666.normal()), (colors::BLUE, 0.833.normal()), colors::MAGENTA];
+                let mut stops2 = stops.clone();
+                stops2.start.color.alpha = 0.75;
+                for stop in &mut stops2.middle {
+                    if let GradientStop::Color(color_stop) = stop {
+                        color_stop.color.alpha = 0.75;
+                    }
+                }
+                stops2.end.color.alpha = 0.75;
+
+                (linear_gradient_to_right(stops, ExtendMode::Clamp), linear_gradient_to_bottom(stops2, ExtendMode::Clamp))
+            }
+        ))
+    ))
+    
+}
 
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
     let name = name.to_text();
@@ -101,5 +125,12 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
                 content: text("");
             }
         );
+    }
+}
+
+fn sample_line(items: impl WidgetList) -> impl Widget {
+    h_stack! {
+        spacing: 5;
+        items;
     }
 }

@@ -1,4 +1,4 @@
-use crate::prelude::new_widget::*;
+use crate::{prelude::new_widget::*};
 use std::marker::PhantomData;
 
 trait StackDimension: 'static {
@@ -246,11 +246,11 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
     }
 }
 
-struct ZStackNode<C: WidgetList> {
+struct ZStackNode<C: UiNodeList> {
     children: C,
 }
 #[impl_ui_node(children)]
-impl<C: WidgetList> UiNode for ZStackNode<C> {}
+impl<C: UiNodeList> UiNode for ZStackNode<C> {}
 
 widget! {
     /// Layering stack layout.
@@ -274,8 +274,8 @@ widget! {
     pub z_stack;
 
     default_child {
-        /// Widget items.
-        items -> widget_children: ();
+        /// UiNode items.
+        items -> node_children: ();
         /// Items margin.
         padding -> margin;
     }
@@ -303,6 +303,6 @@ widget! {
 ///
 /// This function is just a shortcut for [`z_stack!`](module@z_stack). Use the full widget
 /// to better configure the layering stack widget.
-pub fn z_stack(items: impl WidgetList) -> impl Widget {
+pub fn z_stack(items: impl UiNodeList) -> impl Widget {
     z_stack! { items; }
 }
