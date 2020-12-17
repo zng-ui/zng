@@ -69,6 +69,13 @@ impl Rgba {
         self.alpha = clamp_normal(alpha.into().0)
     }
 
+    /// Returns a copy of the color with the alpha set to 0.
+    #[inline]
+    pub fn transparent(mut self) -> Self {
+        self.alpha = 0.0;
+        self
+    }
+
     #[inline]
     pub fn to_hsla(self) -> Hsla {
         self.into()
@@ -1430,16 +1437,6 @@ pub mod colors {
     ///
     /// `rgb(0, 0, 0)`
     pub const BLACK: Rgba = rgb!(0, 0, 0);
-
-    /// Transparent (`#00000000`)
-    ///
-    /// `rgba(0, 0, 0, 0)`
-    pub const TRANSPARENT: Rgba = Rgba {
-        red: 0.0,
-        green: 0.0,
-        blue: 0.0,
-        alpha: 0.0,
-    };
 }
 
 #[test]

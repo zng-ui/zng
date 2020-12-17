@@ -657,14 +657,14 @@ impl GradientStops {
 
     fn start_missing() -> ColorStop {
         ColorStop {
-            color: colors::TRANSPARENT,
+            color: colors::BLACK.transparent(),
             offset: Length::zero(),
         }
     }
 
-    fn end_missing() -> ColorStop {
+    fn end_missing(start_color: Rgba) -> ColorStop {
         ColorStop {
-            color: colors::TRANSPARENT,
+            color: start_color.transparent(),
             offset: 100.pct().into(),
         }
     }
@@ -680,16 +680,17 @@ impl GradientStops {
             GradientStops {
                 start: Self::start_missing(),
                 middle: vec![],
-                end: Self::end_missing(),
+                end: Self::end_missing(colors::BLACK),
             }
         } else if colors.len() == 1 {
+            let color = colors[0].into();
             GradientStops {
                 start: ColorStop {
-                    color: colors[0].into(),
+                    color,
                     offset: Length::zero(),
                 },
                 middle: vec![],
-                end: Self::end_missing(),
+                end: Self::end_missing(color),
             }
         } else {
             let last = colors.len() - 1;
@@ -729,13 +730,14 @@ impl GradientStops {
             GradientStops {
                 start: Self::start_missing(),
                 middle: vec![],
-                end: Self::end_missing(),
+                end: Self::end_missing(colors::BLACK),
             }
         } else if stops.len() == 1 {
+            let start = stops[0].into();
             GradientStops {
-                start: stops[0].into(),
+                start,
                 middle: vec![],
-                end: Self::end_missing(),
+                end: Self::end_missing(start.color),
             }
         } else {
             let last = stops.len() - 1;
