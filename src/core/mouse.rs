@@ -154,11 +154,16 @@ event_args! {
         /// Full path to the top-most hit in [`hits`](MouseInputArgs::hits).
         pub target: WidgetPath,
 
+        /// Current mouse capture.
+        pub capture: Option<CaptureInfo>,
+
         ..
 
-        /// If the widget is in [`targets`](MouseHoverArgs::targets).
+        /// If the widget is in [`targets`](MouseHoverArgs::targets)
+        /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
+            && self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)
         }
     }
 
@@ -198,6 +203,13 @@ impl MouseHoverArgs {
     #[inline]
     pub fn is_widget_move(&self) -> bool {
         self.device_id.is_none()
+    }
+
+    /// If the widget is in [`target`](Self::target)
+    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    #[inline]
+    pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
+        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
     }
 }
 
@@ -564,19 +576,32 @@ impl MouseManager {
             self.mouse_move.notify(ctx.events, args);
 
             // mouse_enter/mouse_leave.
-            self.update_hovered(window_id, Some(device_id), hits, Some(target), ctx.events);
+            self.update_hovered(
+                window_id,
+                Some(device_id),
+                hits,
+                Some(target),
+                ctx.events,
+                ctx.services.req::<Mouse>(),
+            );
         }
     }
 
     fn on_cursor_left(&mut self, window_id: WindowId, device_id: DeviceId, ctx: &mut AppContext) {
         if Some(window_id) == self.pos_window.take() {
             if let Some(target) = self.hovered_target.take() {
+                let capture = ctx.services.req::<Mouse>().current_capture().map(|(path, mode)| CaptureInfo {
+                    target: path.clone(),
+                    mode,
+                    position: self.pos, // TODO
+                });
                 let args = MouseHoverArgs::now(
                     window_id,
                     device_id,
                     LayoutPoint::new(-1., -1.),
                     FrameHitInfo::no_hits(window_id),
                     target,
+                    capture,
                 );
                 self.mouse_leave.notify(ctx.events, args);
             }
@@ -591,10 +616,11 @@ impl MouseManager {
     fn on_new_frame(&mut self, window_id: WindowId, ctx: &mut AppContext) {
         // update hovered
         if self.pos_window == Some(window_id) {
-            let window = ctx.services.req::<Windows>().window(window_id).unwrap();
+            let (windows, mouse) = ctx.services.req_multi::<(Windows, Mouse)>();
+            let window = windows.window(window_id).unwrap();
             let hits = window.hit_test(self.pos);
             let target = hits.target().and_then(|t| window.frame_info().find(t.widget_id)).map(|w| w.path());
-            self.update_hovered(window_id, None, hits, target, ctx.events);
+            self.update_hovered(window_id, None, hits, target, ctx.events, mouse);
         }
         // update capture
         if self.capture_count > 0 {
@@ -612,15 +638,26 @@ impl MouseManager {
         hits: FrameHitInfo,
         new_target: Option<WidgetPath>,
         events: &Events,
+        mouse: &Mouse,
     ) {
         if self.hovered_target != new_target {
             if let Some(old_target) = self.hovered_target.take() {
-                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits.clone(), old_target);
+                let capture = mouse.current_capture().map(|(path, mode)| CaptureInfo {
+                    target: path.clone(),
+                    mode,
+                    position: self.pos, // TODO
+                });
+                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits.clone(), old_target, capture);
                 self.mouse_leave.notify(events, args);
             }
             self.hovered_target = new_target.clone();
             if let Some(new_target) = new_target {
-                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, new_target);
+                let capture = mouse.current_capture().map(|(path, mode)| CaptureInfo {
+                    target: path.clone(),
+                    mode,
+                    position: self.pos, // TODO
+                });
+                let args = MouseHoverArgs::now(window_id, device_id, self.pos, hits, new_target, capture);
                 self.mouse_enter.notify(events, args);
             }
         }
