@@ -1,6 +1,7 @@
 use crate::prelude::new_widget::*;
 use crate::properties::button_theme::*;
 use crate::properties::text_theme::{TextColorDisabledVar, TextColorVar};
+use crate::properties::capture_mouse;
 
 widget! {
     /// A clickable container.
@@ -20,6 +21,11 @@ widget! {
         };
 
         text_color: TextColorVar;
+
+        /// Enabled by default.
+        ///
+        /// Blocks pointer interaction with other widgets while the button is pressed.
+        capture_mouse: true;
     }
 
     default_child {
