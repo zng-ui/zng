@@ -5,6 +5,7 @@ mod attached;
 pub mod background;
 pub mod border;
 pub mod button_theme;
+mod capture_mouse_;
 pub mod capture_only;
 mod clip_to_bounds_;
 mod cursor_;
@@ -26,6 +27,7 @@ mod visibility_;
 
 pub use align_::*;
 pub use attached::*;
+pub use capture_mouse_::*;
 pub use clip_to_bounds_::*;
 pub use cursor_::*;
 pub use enabled_::*;

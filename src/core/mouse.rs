@@ -48,7 +48,7 @@ event_args! {
         /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
-            && self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(true)
+            && self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(true)
         }
     }
 
@@ -87,7 +87,7 @@ event_args! {
         /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
-            && self.capture.as_ref().map(|c|c.allows(ctx)).unwrap_or(true)
+            && self.capture.as_ref().map(|c|c.allows(ctx.path)).unwrap_or(true)
         }
     }
 
@@ -206,7 +206,7 @@ impl MouseMoveArgs {
     /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(false)
+        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
     }
 }
 
@@ -215,7 +215,7 @@ impl MouseInputArgs {
     /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx)).unwrap_or(false)
+        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
     }
 }
 
@@ -540,10 +540,6 @@ impl MouseManager {
                 (frame_info.root().path(), pos)
             };
 
-            // TODO
-            //let capture = frame_info.root().path();
-            //let capture_mode = CaptureMode::Window;
-            //let capture_pos = LayoutPoint::new(position.x as f32 / self.pos_dpi, position.y as f32 / self.pos_dpi);
             let mouse = ctx.services.req::<Mouse>();
             let capture = if let Some((path, mode)) = mouse.current_capture() {
                 Some(CaptureInfo {
@@ -762,7 +758,7 @@ impl Mouse {
         self.notifier.update();
     }
 
-    /// Release the current mouse capture.
+    /// Release the current mouse capture back to window.
     ///
     /// **Note:** The capture is released automatically when the mouse buttons are released
     /// or when the window loses focus.
@@ -937,6 +933,16 @@ impl Default for CaptureMode {
         CaptureMode::Window
     }
 }
+impl_from_and_into_var! {
+    /// Convert `true` to [`CaptureMode::Widget`] and `false` to [`CaptureMode::Window`].
+    fn from(widget: bool) -> CaptureMode {
+        if widget {
+            CaptureMode::Widget
+        } else {
+            CaptureMode::Window
+        }
+    }
+}
 
 /// Information about mouse capture in a mouse event argument.
 #[derive(Debug, Clone, PartialEq)]
@@ -958,11 +964,11 @@ impl CaptureInfo {
     /// | `Subtree`      | All widgets that have the `target` in their path. |
     /// | `Widget`       | Only the `target` widget.                         |
     #[inline]
-    pub fn allows(&self, ctx: &WidgetContext) -> bool {
+    pub fn allows(&self, path: &WidgetContextPath) -> bool {
         match self.mode {
-            CaptureMode::Window => self.target.window_id() == ctx.path.window_id(),
-            CaptureMode::Widget => self.target.widget_id() == ctx.path.widget_id(),
-            CaptureMode::Subtree => ctx.path.contains(self.target.widget_id()),
+            CaptureMode::Window => self.target.window_id() == path.window_id(),
+            CaptureMode::Widget => self.target.widget_id() == path.widget_id(),
+            CaptureMode::Subtree => path.contains(self.target.widget_id()),
         }
     }
 }
