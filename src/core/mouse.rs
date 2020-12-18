@@ -850,7 +850,7 @@ impl Mouse {
         }
 
         // set default capture.
-        self.set_capture(mouse_down, CaptureMode::Window, events);
+        self.set_capture(mouse_down.root_path(), CaptureMode::Window, events);
     }
 
     /// Call after UI update.
