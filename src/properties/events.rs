@@ -510,6 +510,40 @@ fn focus_leave_predicate(ctx: &mut WidgetContext, args: &FocusChangedArgs) -> bo
         && args.new_focus.as_ref().map(|p| !p.contains(ctx.path.widget_id())).unwrap_or(true)
 }
 
+/// Widget got mouse capture.
+#[property(event)]
+pub fn on_got_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_event_filtered(child, MouseCaptureEvent, got_capture_predicate, handler)
+}
+/// Preview, widget got mouse capture.
+#[property(event)]
+pub fn on_preview_got_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_preview_event_filtered(child, MouseCaptureEvent, got_capture_predicate, handler)
+}
+fn got_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
+    args.new_capture
+        .as_ref()
+        .map(|(p, _)| p.widget_id() == ctx.path.widget_id())
+        .unwrap_or_default()
+}
+
+/// Widget got mouse capture.
+#[property(event)]
+pub fn on_lost_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_event_filtered(child, MouseCaptureEvent, lost_capture_predicate, handler)
+}
+/// Preview, widget got mouse capture.
+#[property(event)]
+pub fn on_preview_lost_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_preview_event_filtered(child, MouseCaptureEvent, lost_capture_predicate, handler)
+}
+fn lost_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
+    args.prev_capture
+        .as_ref()
+        .map(|(p, _)| p.widget_id() == ctx.path.widget_id())
+        .unwrap_or_default()
+}
+
 macro_rules! on_ctx_mtd {
     ($( $(#[$outer:meta])* struct $OnCtxMtd:ident { fn $mtd:ident } fn $on_mtd:ident;)+) => {$(
         struct $OnCtxMtd<C: UiNode, F: FnMut(&mut WidgetContext)> {

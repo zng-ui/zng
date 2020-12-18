@@ -1,7 +1,7 @@
 use crate::prelude::new_widget::*;
 use crate::properties::button_theme::*;
-use crate::properties::text_theme::{TextColorDisabledVar, TextColorVar};
 use crate::properties::capture_mouse;
+use crate::properties::text_theme::{TextColorDisabledVar, TextColorVar};
 
 widget! {
     /// A clickable container.
