@@ -722,6 +722,84 @@ impl GradientStops {
         }
     }
 
+    /// Gradient stops from colors forming hardline stripes of same length.
+    pub fn from_stripes<C: Into<Rgba> + Copy>(colors: &[C]) -> Self {
+        if colors.is_empty() {
+            GradientStops {
+                start: Self::start_missing(),
+                middle: vec![],
+                end: Self::end_missing(colors::BLACK),
+            }
+        } else if colors.len() == 1 {
+            let color = colors[0].into();
+            let end = Self::end_missing(color);
+            GradientStops {
+                start: ColorStop {
+                    color,
+                    offset: Length::zero(),
+                },
+                middle: vec![
+                    GradientStop::Color(ColorStop {
+                        color,
+                        offset: Length::Relative(FactorNormal(0.5)),
+                    }),
+                    GradientStop::Color(ColorStop {
+                        color: end.color,
+                        offset: Length::Relative(FactorNormal(0.5)),
+                    }),
+                ],
+                end,
+            }
+        } else {
+            let last = colors.len() - 1;
+            let mut offset = 1.0 / colors.len() as f32;
+            let stripe_width = offset;
+
+            let start = ColorStop {
+                color: colors[0].into(),
+                offset: Length::zero(),
+            };
+            let mut middle = vec![ColorStop {
+                color: start.color,
+                offset: offset.normal().into(),
+            }
+            .into()];
+
+            for &color in &colors[1..last] {
+                let color = color.into();
+                middle.push(
+                    ColorStop {
+                        color,
+                        offset: offset.normal().into(),
+                    }
+                    .into(),
+                );
+                offset += stripe_width;
+                middle.push(
+                    ColorStop {
+                        color,
+                        offset: offset.normal().into(),
+                    }
+                    .into(),
+                );
+            }
+
+            let end = ColorStop {
+                color: colors[last].into(),
+                offset: Length::Relative(FactorNormal(1.0)),
+            };
+            middle.push(
+                ColorStop {
+                    color: end.color,
+                    offset: offset.normal().into(),
+                }
+                .into(),
+            );
+
+            GradientStops { start, middle, end }
+        }
+    }
+
     /// Gradient stops from color stops.
     ///
     /// If less then 2 colors are given, the missing stops are filled with transparent color.

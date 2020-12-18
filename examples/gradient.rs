@@ -81,48 +81,83 @@ fn linear_tile() -> impl Widget {
     }
 }
 
-// TODO
 fn stack_linear() -> impl Widget {
     sample_line((
         sample(
-            "stack 2",
+            "background",
             z_stack((
                 linear_gradient(45.deg(), [colors::RED, colors::GREEN], ExtendMode::Clamp),
                 linear_gradient(135.deg(), [rgba(0, 0, 255, 0.5), rgba(1.0, 1.0, 1.0, 0.5)], ExtendMode::Clamp),
             )),
         ),
         sample(
-            "stack 3",
+            "over color",
             z_stack((
                 fill_color(colors::WHITE),
-                linear_gradient_to_bottom_left(stops![rgba(255, 0, 0, 1.0), (rgba(255, 0, 0, 0.0), 50.pct())], ExtendMode::Clamp),
-                linear_gradient_to_right(stops![rgba(0, 255, 0, 1.0), (rgba(0, 255, 0, 0.0), 50.pct())], ExtendMode::Clamp),
-                linear_gradient_to_top_left(stops![rgba(0, 0, 255, 1.0), (rgba(0, 0, 255, 0.0), 50.pct())], ExtendMode::Clamp),
+                linear_gradient(
+                    0.deg(),
+                    stops![colors::RED, (colors::RED.transparent(), 50.pct())],
+                    ExtendMode::Clamp,
+                ),
+                linear_gradient(
+                    120.deg(),
+                    stops![colors::GREEN, (colors::GREEN.transparent(), 50.pct())],
+                    ExtendMode::Clamp,
+                ),
+                linear_gradient(
+                    240.deg(),
+                    stops![colors::BLUE, (colors::BLUE.transparent(), 50.pct())],
+                    ExtendMode::Clamp,
+                ),
             )),
         ),
         sample(
             "rainbow",
             z_stack({
-                let stops = stops![
+                let rainbow = GradientStops::from_stripes(&[
                     colors::RED,
-                    (colors::YELLOW, 0.333.normal()),
-                    (colors::GREEN, 0.5.normal()),
-                    (colors::CYAN, 0.666.normal()),
-                    (colors::BLUE, 0.833.normal()),
-                    colors::MAGENTA
-                ];
-                let mut stops2 = stops.clone();
-                stops2.start.color.alpha = 0.75;
-                for stop in &mut stops2.middle {
+                    colors::ORANGE,
+                    colors::YELLOW,
+                    colors::GREEN,
+                    colors::DODGER_BLUE,
+                    colors::INDIGO,
+                    colors::BLUE_VIOLET,
+                ]);
+                let mut cross_rainbow = rainbow.clone();
+                cross_rainbow.start.color.alpha = 0.5;
+                for stop in &mut cross_rainbow.middle {
                     if let GradientStop::Color(color_stop) = stop {
-                        color_stop.color.alpha = 0.75;
+                        color_stop.color.alpha = 0.5;
                     }
                 }
-                stops2.end.color.alpha = 0.75;
+                cross_rainbow.end.color.alpha = 0.5;
 
                 (
-                    linear_gradient_to_right(stops, ExtendMode::Clamp),
-                    linear_gradient_to_bottom(stops2, ExtendMode::Clamp),
+                    linear_gradient_to_right(rainbow, ExtendMode::Clamp),
+                    linear_gradient_to_bottom(cross_rainbow, ExtendMode::Clamp),
+                )
+            }),
+        ),
+        sample(
+            "angles",
+            z_stack({
+                fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
+                    color.alpha = 0.3;
+                    let stops = GradientStops::from_stripes(&[color, color.transparent()]);
+                    linear_gradient(angle.deg(), stops, ExtendMode::Clamp)
+                }
+
+                (
+                    fill_color(colors::WHITE),
+                    gradient(0, colors::RED),
+                    gradient(20, colors::RED),
+                    gradient(40, colors::RED),
+                    gradient(120, colors::GREEN),
+                    gradient(140, colors::GREEN),
+                    gradient(160, colors::GREEN),
+                    gradient(240, colors::BLUE),
+                    gradient(260, colors::BLUE),
+                    gradient(280, colors::BLUE),
                 )
             }),
         ),
