@@ -9,7 +9,7 @@ use crate::core::{
 };
 use derive_more as dm;
 use ego_tree::Tree;
-use std::{marker::PhantomData, mem, sync::Arc};
+use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
 macro_rules! debug_assert_aligned {
@@ -1237,6 +1237,17 @@ impl PartialEq for WidgetPath {
     }
 }
 impl Eq for WidgetPath {}
+impl fmt::Display for WidgetPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let window_id = format!("{:?}", self.window_id);
+        let window_id_raw = window_id.trim_start_matches("WindowId(").trim_end_matches(')');
+        write!(f, "win-{}//", window_id_raw)?;
+        for w in self.ancestors() {
+            write!(f, "wgt-{}/", w.get())?;
+        }
+        write!(f, "wgt-{}", self.widget_id().get())
+    }
+}
 impl WidgetPath {
     /// Window the [frame_id](WidgetPath::frame_id) belongs too.
     #[inline]
@@ -1253,7 +1264,7 @@ impl WidgetPath {
     /// Widgets that contain [`widget_id`](WidgetPath::widget_id), root first.
     #[inline]
     pub fn ancestors(&self) -> &[WidgetId] {
-        &self.path[..self.path.len() - 2]
+        &self.path[..self.path.len() - 1]
     }
 
     /// The widget.

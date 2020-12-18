@@ -899,13 +899,16 @@ impl Mouse {
     fn set_capture(&mut self, target: WidgetPath, mode: CaptureMode, events: &Events) {
         let new = Some((target, mode));
         if new != self.current_capture {
+            println!("capture change to: {:?}", new.as_ref().map(|(p, m)| (p.to_string(), m)));
             let prev = self.current_capture.take();
+            self.current_capture = new.clone();
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, new));
         }
     }
 
     fn unset_capture(&mut self, events: &Events) {
         if self.current_capture.is_some() {
+            println!("capture change to: None");
             let prev = self.current_capture.take();
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, None));
         }
