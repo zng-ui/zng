@@ -316,7 +316,6 @@ pub struct MouseManager {
     click_count: u8,
 
     capture_count: u8,
-    capture_down: Option<WidgetPath>,
 
     hovered_target: Option<WidgetPath>,
 
@@ -351,7 +350,6 @@ impl Default for MouseManager {
             hovered_target: None,
 
             capture_count: 0,
-            capture_down: None,
 
             mouse_move: MouseMoveEvent::emitter(),
 
@@ -392,12 +390,12 @@ impl MouseManager {
         if state == ElementState::Pressed {
             self.capture_count += 1;
             if self.capture_count == 1 {
-                self.capture_down = Some(target.clone());
+                mouse.start_window_capture(target.clone(), ctx.events);
             }
         } else {
             self.capture_count = self.capture_count.saturating_sub(1);
             if self.capture_count == 0 {
-                self.capture_down = None;
+                mouse.end_window_capture(ctx.events);
             }
         }
 
@@ -590,7 +588,8 @@ impl MouseManager {
     }
 
     fn on_update(&mut self, ctx: &mut AppContext) {
-        ctx.services.req::<Mouse>().fulfill_requests(self.capture_down.as_ref(), ctx.events);
+        let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+        mouse.fulfill_requests(windows, ctx.events);
     }
 
     fn on_new_frame(&mut self, window_id: WindowId, ctx: &mut AppContext) {
@@ -602,10 +601,10 @@ impl MouseManager {
             self.update_hovered(window_id, None, hits, target, ctx.events);
         }
         // update capture
-        if let Some(capture_down) = &self.capture_down {
-            if capture_down.window_id() == window_id {
-                let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
-                mouse.update_current(windows, ctx.events);
+        if self.capture_count > 0 {
+            let (mouse, windows) = ctx.services.req_multi::<(Mouse, Windows)>();
+            if let Ok(window) = windows.window(window_id) {
+                mouse.continue_capture(window.frame_info(), ctx.events);
             }
         }
     }
@@ -839,62 +838,79 @@ impl Mouse {
         todo!()
     }
 
-    /// Returns if `current_capture` changed.
-    fn fulfill_requests(&mut self, pressed_widget: Option<&WidgetPath>, events: &Events) {
-        let mut prev = None;
-        let mut new = None;
-
-        if mem::take(&mut self.release_requested) {
-            prev = self.current_capture.take();
-        }
+    /// Call when the mouse starts pressing on the window.
+    fn start_window_capture(&mut self, mouse_down: WidgetPath, events: &Events) {
+        self.release_requested = false;
 
         if let Some((target, mode)) = self.capture_request.take() {
-            if let Some(pressed_widget) = pressed_widget {
-                if let Some(target) = pressed_widget.ancestor_path(target) {
-                    // valid request
-                    new = Some((target, mode));
-                    if new != self.current_capture {
-                        prev = self.current_capture.take();
-                        self.current_capture = new.clone();
+            if let Some(target) = mouse_down.ancestor_path(target) {
+                self.set_capture(target, mode, events);
+                return; // fulfilled request at start.
+            }
+        }
+
+        // set default capture.
+        self.set_capture(mouse_down, CaptureMode::Window, events);
+    }
+
+    /// Call after UI update.
+    fn fulfill_requests(&mut self, windows: &Windows, events: &Events) {
+        if let Some((current_target, current_mode)) = &self.current_capture {
+            if let Some((widget_id, mode)) = self.capture_request.take() {
+                if let Ok(window) = windows.window(current_target.window_id()) {
+                    if window.is_active() {
+                        // current window pressed
+                        if let Some(widget) = window.frame_info().find(widget_id) {
+                            // request valid
+                            self.set_capture(widget.path(), mode, events);
+                        }
                     }
+                }
+            } else if mem::take(&mut self.release_requested) && *current_mode != CaptureMode::Window {
+                // release capture (back to default capture).
+                let target = current_target.root_path();
+                self.set_capture(target, CaptureMode::Window, events);
+            }
+        }
+    }
+
+    /// Call after a frame is generated.
+    fn continue_capture(&mut self, frame: &FrameInfo, events: &Events) {
+        if let Some((target, mode)) = &self.current_capture {
+            if frame.window_id() == target.window_id() {
+                // is a frame from the capturing window.
+                if let Some(widget) = frame.get(target) {
+                    if let Some(new_path) = widget.new_path(target) {
+                        // widget moved inside window tree.
+                        let mode = *mode;
+                        self.set_capture(new_path, mode, events);
+                    }
+                } else {
+                    // widget not found. Returns to default capture.
+                    self.set_capture(frame.root().path(), CaptureMode::Window, events);
                 }
             }
         }
-        if prev.is_some() || new.is_some() {
+    }
+
+    /// Call when the mouse stops pressing on the window, or the window loses focus or is closed.
+    fn end_window_capture(&mut self, events: &Events) {
+        self.release_requested = false;
+        self.capture_request = None;
+        self.unset_capture(events);
+    }
+
+    fn set_capture(&mut self, target: WidgetPath, mode: CaptureMode, events: &Events) {
+        let new = Some((target, mode));
+        if new != self.current_capture {
+            let prev = self.current_capture.take();
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, new));
         }
     }
 
-    fn update_current(&mut self, windows: &Windows, events: &Events) {
-        let mut invalid = true;
-        let mut moved_new = None;
-
-        if let Some((target, mode)) = &self.current_capture {
-            if let Ok(window) = windows.window(target.window_id()) {
-                if window.is_active() {
-                    if let Some(wgt) = window.frame_info().get(target) {
-                        invalid = false;
-                        if let Some(new_path) = wgt.new_path(target) {
-                            // still valid but widget moved.
-                            moved_new = Some((new_path, *mode));
-                        }
-                    }
-                }
-            }
-        }
-        if invalid {
+    fn unset_capture(&mut self, events: &Events) {
+        if self.current_capture.is_some() {
             let prev = self.current_capture.take();
-            self.capture_event.notify(events, MouseCaptureArgs::now(prev, None));
-        } else if moved_new.is_some() {
-            let prev = mem::replace(&mut self.current_capture, moved_new.clone());
-            self.capture_event.notify(events, MouseCaptureArgs::now(prev, moved_new));
-        }
-    }
-
-    fn release_current(&mut self, events: &Events) {
-        self.release_requested = false;
-        let prev = self.current_capture.take();
-        if prev.is_some() {
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, None));
         }
     }

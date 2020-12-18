@@ -1311,6 +1311,17 @@ impl WidgetPath {
         }
         None
     }
+
+    /// Gets a path to the root widget of this path.
+    #[inline]
+    pub fn root_path(&self) -> WidgetPath {
+        WidgetPath {
+            node_id: None,
+            window_id: self.window_id,
+            frame_id: self.frame_id,
+            path: Box::new([self.path[0]]),
+        }
+    }
 }
 
 struct WidgetInfoInner {
