@@ -19,14 +19,7 @@ impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self
-            .mouse_down
-            .updates(ctx.events)
-            .iter()
-            .any(|a| a.capture.is_none() && a.concerns_widget(ctx))
-        {
-            // We got the first mouse down:
-
+        if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
             let mouse = ctx.services.req::<Mouse>();
             let widget_id = ctx.path.widget_id();
 
