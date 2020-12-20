@@ -386,14 +386,34 @@ pub fn on_preview_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut Widge
     on_preview_event(child, MouseLeaveEvent, handler)
 }
 
-/// Adds a handler for clicks in the widget.
+/// Adds a handler for clicks in the widget from any mouse button.
 #[property(event)]
-pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+pub fn on_any_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
     on_event(child, ClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+pub fn on_preview_any_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
     on_preview_event(child, ClickEvent, handler)
+}
+
+/// Adds a handler for clicks in the widget from the left mouse button.
+#[property(event)]
+pub fn on_primary_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_event_filtered(
+        child,
+        ClickEvent,
+        |ctx, args| args.concerns_widget(ctx) && args.is_primary(),
+        handler,
+    )
+}
+#[property(event)]
+pub fn on_preview_primary_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_preview_event_filtered(
+        child,
+        ClickEvent,
+        |ctx, args| args.concerns_widget(ctx) && args.is_primary(),
+        handler,
+    )
 }
 
 #[property(event)]

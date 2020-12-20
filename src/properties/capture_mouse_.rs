@@ -30,9 +30,7 @@ impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
                 CaptureMode::Subtree => {
                     mouse.capture_subtree(widget_id);
                 }
-                CaptureMode::Window => {
-                    debug_assert!(mouse.current_capture().is_none());
-                }
+                CaptureMode::Window => (),
             }
         } else if let Some(&new_mode) = self.mode.get_new(ctx.vars) {
             let mouse = ctx.services.req::<Mouse>();

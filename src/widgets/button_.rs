@@ -9,7 +9,7 @@ widget! {
 
     default {
         /// Button click event.
-        on_click;
+        on_click -> on_primary_click;
 
         /// Set to [`ButtonBackgroundVar`].
         background_color: ButtonBackgroundVar;

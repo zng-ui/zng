@@ -125,11 +125,24 @@ impl From<MouseClickArgs> for ClickArgs {
 }
 impl ClickArgs {
     /// If the event counts as a left click.
+    ///
+    /// Returns `true` if the click source is a left mouse button click or a shortcut.
     #[inline]
-    pub fn is_left(&self) -> bool {
+    pub fn is_primary(&self) -> bool {
         match &self.source {
             ClickArgsSource::Mouse { button, .. } => *button == MouseButton::Left,
-            _ => true,
+            ClickArgsSource::Shortcut { .. } => true,
+        }
+    }
+
+    /// If the event counts as a right click.
+    #[inline]
+    pub fn is_right(&self) -> bool {
+        // NOTE: consider https://w3c.github.io/uievents/#event-type-auxclick
+        //       for possible future implementation.
+        match &self.source {
+            ClickArgsSource::Mouse { button, .. } => *button == MouseButton::Right,
+            ClickArgsSource::Shortcut { .. } => false, // TODO: Right click shortcut.
         }
     }
 
@@ -138,7 +151,7 @@ impl ClickArgs {
     pub fn is_repeat(&self) -> bool {
         match &self.source {
             ClickArgsSource::Shortcut { repeat, .. } => *repeat,
-            _ => false,
+            ClickArgsSource::Mouse { .. } => false,
         }
     }
 
@@ -147,7 +160,7 @@ impl ClickArgs {
     pub fn shortcut(&self) -> Option<Shortcut> {
         match &self.source {
             ClickArgsSource::Shortcut { shortcut, .. } => Some(*shortcut),
-            _ => None,
+            ClickArgsSource::Mouse { .. } => None,
         }
     }
 
