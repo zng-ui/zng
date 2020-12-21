@@ -2,6 +2,7 @@
 
 use crate::core::focus::*;
 use crate::core::mouse::*;
+use crate::core::window::{WindowDeactivatedEvent, WindowIsActiveArgs};
 use crate::prelude::new_property::*;
 
 struct IsHoveredNode<C: UiNode> {
@@ -16,6 +17,15 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
         self.child.init(ctx);
         self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
         self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.mouse_enter = MouseEnterEvent::never();
+        self.mouse_leave = MouseEnterEvent::never();
+        self.child.deinit(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -38,18 +48,13 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
             self.state.set(ctx.vars, state);
         }
     }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, false);
-        }
-        self.child.deinit(ctx);
-    }
 }
 
 /// If the mouse pointer is over the widget.
 ///
 /// This is always `false` when the widget is [disabled](IsEnabled).
+///
+/// This TODO cap, use [`is_cap_hovered`] for that.
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHoveredNode {
@@ -60,20 +65,30 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-struct IsPressedNode<C: UiNode> {
+struct IsCapHoveredNode<C: UiNode> {
     child: C,
     state: StateVar,
-    mouse_down: EventListener<MouseInputArgs>,
-    mouse_up: EventListener<MouseInputArgs>,
+    mouse_enter: EventListener<MouseHoverArgs>,
     mouse_leave: EventListener<MouseHoverArgs>,
+    mouse_capture: EventListener<MouseCaptureArgs>,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for IsPressedNode<C> {
+impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        self.mouse_down = ctx.events.listen::<MouseDownEvent>();
-        self.mouse_up = ctx.events.listen::<MouseUpEvent>();
+        self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
         self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
+        self.mouse_capture = ctx.events.listen::<MouseCaptureEvent>();
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.mouse_enter = MouseEnterEvent::never();
+        self.mouse_leave = MouseEnterEvent::never();
+        self.mouse_capture = MouseCaptureEvent::never();
+        self.child.deinit(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -82,11 +97,14 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         let mut state = *self.state.get(ctx.vars);
 
         if IsEnabled::get(ctx.vars) {
-            if self.mouse_up.has_updates(ctx.events) || self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+            if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                 state = false;
             }
-            if self.mouse_down.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+            if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_capture(ctx)) {
                 state = true;
+            }
+            if self.mouse_capture.updates(ctx.events).iter().any(|a| a.is_lost(ctx.path.widget_id())) {
+                state = false;
             }
         } else {
             state = false;
@@ -96,26 +114,115 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
             self.state.set(ctx.vars, state);
         }
     }
+}
+
+/// If the mouse pointer is over the widget or captured by the widget.
+///
+/// This is always `false` when the widget is [disabled](IsEnabled).
+#[property(context)]
+pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
+    IsCapHoveredNode {
+        child,
+        state,
+        mouse_enter: MouseEnterEvent::never(),
+        mouse_leave: MouseLeaveEvent::never(),
+        mouse_capture: MouseCaptureEvent::never(),
+    }
+}
+
+struct IsPressedNode<C: UiNode> {
+    child: C,
+    state: StateVar,
+    is_down: bool,
+    is_over: bool,
+
+    mouse_down: EventListener<MouseInputArgs>,
+    mouse_up: EventListener<MouseInputArgs>,
+    mouse_leave: EventListener<MouseHoverArgs>,
+    mouse_enter: EventListener<MouseHoverArgs>,
+    window_deactivated: EventListener<WindowIsActiveArgs>,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode> UiNode for IsPressedNode<C> {
+    fn init(&mut self, ctx: &mut WidgetContext) {
+        self.child.init(ctx);
+        self.mouse_down = ctx.events.listen::<MouseDownEvent>();
+        self.mouse_up = ctx.events.listen::<MouseUpEvent>();
+        self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
+        self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
+        self.window_deactivated = ctx.events.listen::<WindowDeactivatedEvent>();
+    }
 
     fn deinit(&mut self, ctx: &mut WidgetContext) {
         if *self.state.get(ctx.vars) {
             self.state.set(ctx.vars, false);
         }
+        self.is_down = false;
+        self.is_over = false;
+        self.mouse_down = MouseDownEvent::never();
+        self.mouse_up = MouseUpEvent::never();
+        self.mouse_enter = MouseEnterEvent::never();
+        self.mouse_leave = MouseLeaveEvent::never();
+        self.window_deactivated = WindowDeactivatedEvent::never();
         self.child.deinit(ctx);
+    }
+
+    fn update(&mut self, ctx: &mut WidgetContext) {
+        self.child.update(ctx);
+
+        if IsEnabled::get(ctx.vars) {
+            if self.mouse_up.updates(ctx.events).iter().any(|a| a.is_primary()) {
+                self.is_down = false;
+            }
+            if self
+                .mouse_down
+                .updates(ctx.events)
+                .iter()
+                .any(|a| a.is_primary() && a.concerns_widget(ctx))
+            {
+                self.is_down = true;
+            }
+            if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                self.is_over = false;
+            }
+            if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                self.is_over = true;
+            }
+            if self.window_deactivated.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                self.is_down = false;
+            }
+        } else {
+            self.is_down = false;
+            self.is_over = false;
+        }
+
+        let state = self.is_down && self.is_over;
+        if state != *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, state);
+        }
     }
 }
 
-/// If the mouse pointer is pressed in the widget.
+/// If the pointer is pressed in the widget.
+///
+/// This is `true` when the mouse primary button started pressing in the widget
+/// and the pointer is over the widget and the primary button is still pressed.
 ///
 /// This is always `false` when the widget is [disabled](IsEnabled).
+///
+/// This TODO cap.
 #[property(context)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsPressedNode {
         child,
         state,
+        is_down: false,
+        is_over: false,
         mouse_down: MouseDownEvent::never(),
         mouse_up: MouseUpEvent::never(),
+        mouse_enter: MouseEnterEvent::never(),
         mouse_leave: MouseLeaveEvent::never(),
+        window_deactivated: WindowDeactivatedEvent::never(),
     }
 }
 
@@ -129,6 +236,13 @@ impl<C: UiNode> UiNode for IsFocusedNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
+    }
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.focus_changed = FocusChangedEvent::never();
+        self.child.deinit(ctx);
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
@@ -144,13 +258,6 @@ impl<C: UiNode> UiNode for IsFocusedNode<C> {
             }
         }
         self.child.update(ctx);
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, false);
-        }
-        self.child.deinit(ctx);
     }
 }
 
@@ -182,6 +289,13 @@ impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.focus_changed = FocusChangedEvent::never();
+        self.child.deinit(ctx);
+    }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
@@ -193,13 +307,6 @@ impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
             }
         }
         self.child.update(ctx);
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, false);
-        }
-        self.child.deinit(ctx);
     }
 }
 
@@ -226,6 +333,13 @@ impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.focus_changed = FocusChangedEvent::never();
+        self.child.deinit(ctx);
+    }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
@@ -240,13 +354,6 @@ impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
             }
         }
         self.child.update(ctx);
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, false);
-        }
-        self.child.deinit(ctx);
     }
 }
 
@@ -276,6 +383,13 @@ impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
         self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
         self.child.init(ctx);
     }
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        if *self.state.get(ctx.vars) {
+            self.state.set(ctx.vars, false);
+        }
+        self.focus_changed = FocusChangedEvent::never();
+        self.child.deinit(ctx);
+    }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
         if let Some(u) = self.focus_changed.updates(ctx.events).last() {
@@ -287,13 +401,6 @@ impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
             }
         }
         self.child.update(ctx);
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        if *self.state.get(ctx.vars) {
-            self.state.set(ctx.vars, false);
-        }
-        self.child.deinit(ctx);
     }
 }
 
@@ -327,6 +434,7 @@ impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
         if *self.state.get(ctx.vars) {
             self.state.set(ctx.vars, false);
         }
+        self.return_focus_changed = ReturnFocusChangedEvent::never();
         self.child.deinit(ctx);
     }
 

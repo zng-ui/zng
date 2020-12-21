@@ -34,7 +34,7 @@ widget! {
     }
 
     /// When the pointer device is over this button.
-    when self.is_hovered {
+    when self.is_cap_hovered {
         background_color: ButtonBackgroundHoveredVar;
         border: {
             widths: ButtonBorderWidthsHoveredVar,

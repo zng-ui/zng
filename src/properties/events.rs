@@ -521,10 +521,7 @@ pub fn on_preview_got_capture(child: impl UiNode, handler: impl FnMut(&mut Widge
     on_preview_event_filtered(child, MouseCaptureEvent, got_capture_predicate, handler)
 }
 fn got_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
-    args.new_capture
-        .as_ref()
-        .map(|(p, _)| p.widget_id() == ctx.path.widget_id())
-        .unwrap_or_default()
+    args.is_got(ctx.path.widget_id())
 }
 
 /// Widget got mouse capture.
@@ -538,10 +535,7 @@ pub fn on_preview_lost_capture(child: impl UiNode, handler: impl FnMut(&mut Widg
     on_preview_event_filtered(child, MouseCaptureEvent, lost_capture_predicate, handler)
 }
 fn lost_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
-    args.prev_capture
-        .as_ref()
-        .map(|(p, _)| p.widget_id() == ctx.path.widget_id())
-        .unwrap_or_default()
+    args.is_lost(ctx.path.widget_id())
 }
 
 macro_rules! on_ctx_mtd {

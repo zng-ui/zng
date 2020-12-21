@@ -205,29 +205,47 @@ impl MouseHoverArgs {
         self.device_id.is_none()
     }
 
-    /// If the widget is in [`target`](Self::target)
-    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
+        self.target.contains(ctx.path.widget_id())
+            || self
+                .capture
+                .as_ref()
+                .map(|c| c.target.widget_id() == ctx.path.widget_id())
+                .unwrap_or(false)
     }
 }
 
 impl MouseMoveArgs {
-    /// If the widget is in [`target`](Self::target)
-    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
+        self.target.contains(ctx.path.widget_id())
+            || self
+                .capture
+                .as_ref()
+                .map(|c| c.target.widget_id() == ctx.path.widget_id())
+                .unwrap_or(false)
     }
 }
 
 impl MouseInputArgs {
-    /// If the widget is in [`target`](Self::target)
-    /// or [`capture`](Self::capture) [allows](CaptureInfo::allows) the widget.
+    /// If the widget is in [`target`](Self::target) or is the [`capture`](Self::capture) holder.
     #[inline]
     pub fn concerns_capture(&self, ctx: &mut WidgetContext) -> bool {
-        self.target.contains(ctx.path.widget_id()) || self.capture.as_ref().map(|c| c.allows(ctx.path)).unwrap_or(false)
+        self.target.contains(ctx.path.widget_id())
+            || self
+                .capture
+                .as_ref()
+                .map(|c| c.target.widget_id() == ctx.path.widget_id())
+                .unwrap_or(false)
+    }
+
+    /// If the [`button`](Self::button) is the primary.
+    #[inline]
+    pub fn is_primary(&self) -> bool {
+        self.button == MouseButton::Left
     }
 }
 
@@ -247,6 +265,26 @@ impl MouseCaptureArgs {
         match (&self.prev_capture, &self.new_capture) {
             (Some(prev), Some(new)) => prev.0.widget_id() == new.0.widget_id() && prev.1 != new.1,
             _ => false,
+        }
+    }
+
+    /// If the `widget_id` lost mouse capture with this update.
+    #[inline]
+    pub fn is_lost(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_capture, &self.new_capture) {
+            (None, _) => false,
+            (Some((path, _)), None) => path.widget_id() == widget_id,
+            (Some((prev_path, _)), Some((new_path, _))) => prev_path.widget_id() == widget_id && new_path.widget_id() != widget_id,
+        }
+    }
+
+    /// If the `widget_id` got mouse capture with this update.
+    #[inline]
+    pub fn is_got(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_capture, &self.new_capture) {
+            (_, None) => false,
+            (None, Some((path, _))) => path.widget_id() == widget_id,
+            (Some((prev_path, _)), Some((new_path, _))) => prev_path.widget_id() != widget_id && new_path.widget_id() == widget_id,
         }
     }
 }
