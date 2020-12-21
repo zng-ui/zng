@@ -42,6 +42,12 @@ where
     }
 
     #[UiNode]
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.listener = E::never();
+        self.child.deinit(ctx);
+    }
+
+    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
@@ -96,6 +102,12 @@ where
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.listener = ctx.events.listen::<E>();
         self.child.init(ctx);
+    }
+
+    #[UiNode]
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.listener = E::never();
+        self.child.deinit(ctx);
     }
 
     #[UiNode]
@@ -676,6 +688,11 @@ impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
         self.shortcut_listener = ctx.events.listen::<ShortcutEvent>();
+    }
+
+    fn deinit(&mut self, ctx: &mut WidgetContext) {
+        self.child.deinit(ctx);
+        self.shortcut_listener = ShortcutEvent::never();
     }
 
     fn update(&mut self, ctx: &mut WidgetContext) {
