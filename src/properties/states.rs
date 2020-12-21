@@ -68,6 +68,8 @@ pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 struct IsCapHoveredNode<C: UiNode> {
     child: C,
     state: StateVar,
+    is_hovered: bool,
+    is_captured: bool,
     mouse_enter: EventListener<MouseHoverArgs>,
     mouse_leave: EventListener<MouseHoverArgs>,
     mouse_capture: EventListener<MouseCaptureArgs>,
@@ -85,6 +87,8 @@ impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
         if *self.state.get(ctx.vars) {
             self.state.set(ctx.vars, false);
         }
+        self.is_hovered = false;
+        self.is_captured = false;
         self.mouse_enter = MouseEnterEvent::never();
         self.mouse_leave = MouseEnterEvent::never();
         self.mouse_capture = MouseCaptureEvent::never();
@@ -94,22 +98,26 @@ impl<C: UiNode> UiNode for IsCapHoveredNode<C> {
     fn update(&mut self, ctx: &mut WidgetContext) {
         self.child.update(ctx);
 
-        let mut state = *self.state.get(ctx.vars);
-
         if IsEnabled::get(ctx.vars) {
             if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
-                state = false;
+                self.is_hovered = false;
             }
-            if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_capture(ctx)) {
-                state = true;
+            if self.mouse_enter.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                self.is_hovered = true;
             }
-            if self.mouse_capture.updates(ctx.events).iter().any(|a| a.is_lost(ctx.path.widget_id())) {
-                state = false;
+            for a in self.mouse_capture.updates(ctx.events) {
+                if a.is_lost(ctx.path.widget_id()) {
+                    self.is_captured = false;
+                } else if a.is_got(ctx.path.widget_id()) {
+                    self.is_captured = true;
+                }
             }
         } else {
-            state = false;
+            self.is_hovered = false;
+            self.is_captured = false;
         }
 
+        let state = self.is_hovered || self.is_captured;
         if state != *self.state.get(ctx.vars) {
             self.state.set(ctx.vars, state);
         }
@@ -124,6 +132,8 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsCapHoveredNode {
         child,
         state,
+        is_hovered: false,
+        is_captured: false,
         mouse_enter: MouseEnterEvent::never(),
         mouse_leave: MouseLeaveEvent::never(),
         mouse_capture: MouseCaptureEvent::never(),
