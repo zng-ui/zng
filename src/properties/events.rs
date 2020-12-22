@@ -132,7 +132,7 @@ where
         if self.listener.has_updates(ctx.events) && IsEnabled::get(ctx.vars) {
             for args in self.listener.updates(ctx.events) {
                 if !args.stop_propagation_requested() && (self.filter)(ctx, args) {
-                    profile_scope!("on_preview_event::<{}>", std::any::type_name::<E>());
+                    profile_scope!("on_pre_event::<{}>", std::any::type_name::<E>());
                     (self.handler)(ctx, &args);
                 }
             }
@@ -144,7 +144,7 @@ where
 ///
 /// # Route
 ///
-/// The event is raised after the [preview](on_preview_event) version. If the event targets a path the target
+/// The event is raised after the [preview](on_pre_event) version. If the event targets a path the target
 /// widget is notified first followed by every parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
 /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
 ///
@@ -213,27 +213,22 @@ pub fn on_event_filtered<E: Event>(
 /// # Example
 /// ```
 /// # fn main() { }
-/// use zero_ui::properties::events::on_preview_event;
+/// use zero_ui::properties::events::on_pre_event;
 /// use zero_ui::core::{UiNode, keyboard::{KeyDownEvent, KeyInputArgs}, property};
 /// use zero_ui::core::context::WidgetContext;
 ///
 /// /// Sets an event listener for the [`KeyDownEvent`].
 /// #[property(event)]
-/// pub fn on_preview_key_down(
+/// pub fn on_pre_key_down(
 ///    child: impl UiNode,
 ///    handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static
 /// ) -> impl UiNode {
-///     on_preview_event(child, KeyDownEvent, handler)
+///     on_pre_event(child, KeyDownEvent, handler)
 /// }
 /// ```
 #[inline]
-pub fn on_preview_event<E: Event>(
-    child: impl UiNode,
-    event: E,
-
-    handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static,
-) -> impl UiNode {
-    on_preview_event_filtered(child, event, |ctx, args| args.concerns_widget(ctx), handler)
+pub fn on_pre_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, event, |ctx, args| args.concerns_widget(ctx), handler)
 }
 
 /// Helper for declaring preview event properties with a custom filter.
@@ -246,9 +241,9 @@ pub fn on_preview_event<E: Event>(
 ///
 /// # Route
 ///
-/// The event route is similar to [`on_preview_event`], parent widgets get first chance of handling the event.
+/// The event route is similar to [`on_pre_event`], parent widgets get first chance of handling the event.
 /// In-fact if you use the filter `|ctx, args| args.concerns_widget(ctx)` it will behave exactly the same.
-pub fn on_preview_event_filtered<E: Event>(
+pub fn on_pre_event_filtered<E: Event>(
     child: impl UiNode,
     event: E,
     filter: impl FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
@@ -268,8 +263,8 @@ pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, 
     on_event(child, KeyInputEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, KeyInputEvent, handler)
+pub fn on_pre_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, KeyInputEvent, handler)
 }
 
 #[property(event)]
@@ -277,8 +272,8 @@ pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &
     on_event(child, KeyDownEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, KeyDownEvent, handler)
+pub fn on_pre_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, KeyDownEvent, handler)
 }
 
 #[property(event)]
@@ -286,8 +281,8 @@ pub fn on_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &Ke
     on_event(child, KeyUpEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, KeyUpEvent, handler)
+pub fn on_pre_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, KeyUpEvent, handler)
 }
 
 #[property(event)]
@@ -295,8 +290,8 @@ pub fn on_char_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext,
     on_event(child, CharInputEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_char_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &CharInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, CharInputEvent, handler)
+pub fn on_pre_char_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &CharInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, CharInputEvent, handler)
 }
 
 #[property(event)]
@@ -304,8 +299,8 @@ pub fn on_mouse_move(child: impl UiNode, handler: impl FnMut(&mut WidgetContext,
     on_event(child, MouseMoveEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_move(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseMoveArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseMoveEvent, handler)
+pub fn on_pre_mouse_move(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseMoveArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseMoveEvent, handler)
 }
 
 #[property(event)]
@@ -313,8 +308,8 @@ pub fn on_mouse_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event(child, MouseInputEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseInputEvent, handler)
+pub fn on_pre_mouse_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseInputEvent, handler)
 }
 
 #[property(event)]
@@ -322,8 +317,8 @@ pub fn on_mouse_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext,
     on_event(child, MouseDownEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseDownEvent, handler)
+pub fn on_pre_mouse_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseDownEvent, handler)
 }
 
 #[property(event)]
@@ -331,8 +326,8 @@ pub fn on_mouse_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &
     on_event(child, MouseUpEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseUpEvent, handler)
+pub fn on_pre_mouse_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseInputArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseUpEvent, handler)
 }
 
 #[property(event)]
@@ -340,8 +335,8 @@ pub fn on_mouse_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event(child, MouseClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseClickEvent, handler)
+pub fn on_pre_mouse_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseClickEvent, handler)
 }
 
 #[property(event)]
@@ -349,11 +344,8 @@ pub fn on_mouse_single_click(child: impl UiNode, handler: impl FnMut(&mut Widget
     on_event(child, MouseDoubleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_single_click(
-    child: impl UiNode,
-    handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static,
-) -> impl UiNode {
-    on_preview_event(child, MouseDoubleClickEvent, handler)
+pub fn on_pre_mouse_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseDoubleClickEvent, handler)
 }
 
 #[property(event)]
@@ -361,11 +353,8 @@ pub fn on_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut Widget
     on_event(child, MouseSingleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_double_click(
-    child: impl UiNode,
-    handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static,
-) -> impl UiNode {
-    on_preview_event(child, MouseSingleClickEvent, handler)
+pub fn on_pre_mouse_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseSingleClickEvent, handler)
 }
 
 #[property(event)]
@@ -373,11 +362,8 @@ pub fn on_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut Widget
     on_event(child, MouseTripleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_triple_click(
-    child: impl UiNode,
-    handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static,
-) -> impl UiNode {
-    on_preview_event(child, MouseTripleClickEvent, handler)
+pub fn on_pre_mouse_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseTripleClickEvent, handler)
 }
 
 #[property(event)]
@@ -385,8 +371,8 @@ pub fn on_mouse_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event(child, MouseEnterEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseHoverArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseEnterEvent, handler)
+pub fn on_pre_mouse_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseHoverArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseEnterEvent, handler)
 }
 
 #[property(event)]
@@ -394,8 +380,8 @@ pub fn on_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event(child, MouseLeaveEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseHoverArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, MouseLeaveEvent, handler)
+pub fn on_pre_mouse_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseHoverArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, MouseLeaveEvent, handler)
 }
 
 /// Adds a handler for clicks in the widget from any mouse button.
@@ -404,8 +390,8 @@ pub fn on_any_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, 
     on_event(child, ClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_any_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, ClickEvent, handler)
+pub fn on_pre_any_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, ClickEvent, handler)
 }
 
 /// Adds a handler for clicks in the widget from the left mouse button.
@@ -414,8 +400,8 @@ pub fn on_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &Cli
     on_event_filtered(child, ClickEvent, is_primary_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, ClickEvent, is_primary_predicate, handler)
+pub fn on_pre_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, ClickEvent, is_primary_predicate, handler)
 }
 fn is_primary_predicate(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
     args.concerns_widget(ctx) && args.is_primary()
@@ -426,16 +412,16 @@ pub fn on_any_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetCo
     on_event(child, SingleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_any_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, SingleClickEvent, handler)
+pub fn on_pre_any_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, SingleClickEvent, handler)
 }
 #[property(event)]
 pub fn on_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
     on_event_filtered(child, SingleClickEvent, is_primary_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, SingleClickEvent, is_primary_predicate, handler)
+pub fn on_pre_single_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, SingleClickEvent, is_primary_predicate, handler)
 }
 
 #[property(event)]
@@ -443,16 +429,16 @@ pub fn on_any_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetCo
     on_event(child, DoubleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_any_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, DoubleClickEvent, handler)
+pub fn on_pre_any_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, DoubleClickEvent, handler)
 }
 #[property(event)]
 pub fn on_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
     on_event_filtered(child, DoubleClickEvent, is_primary_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, DoubleClickEvent, is_primary_predicate, handler)
+pub fn on_pre_double_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, DoubleClickEvent, is_primary_predicate, handler)
 }
 
 #[property(event)]
@@ -460,16 +446,16 @@ pub fn on_any_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetCo
     on_event(child, TripleClickEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_any_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, TripleClickEvent, handler)
+pub fn on_pre_any_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, TripleClickEvent, handler)
 }
 #[property(event)]
 pub fn on_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
     on_event_filtered(child, TripleClickEvent, is_primary_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, TripleClickEvent, is_primary_predicate, handler)
+pub fn on_pre_triple_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, TripleClickEvent, is_primary_predicate, handler)
 }
 
 #[property(event)]
@@ -477,8 +463,8 @@ pub fn on_context_click(child: impl UiNode, handler: impl FnMut(&mut WidgetConte
     on_event_filtered(child, SingleClickEvent, is_context_click_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_context_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, SingleClickEvent, is_context_click_predicate, handler)
+pub fn on_pre_context_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, SingleClickEvent, is_context_click_predicate, handler)
 }
 fn is_context_click_predicate(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
     args.concerns_widget(ctx) && args.is_context()
@@ -489,8 +475,8 @@ pub fn on_shortcut(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &
     on_event(child, ShortcutEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_shortcut(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ShortcutArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, ShortcutEvent, handler)
+pub fn on_pre_shortcut(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ShortcutArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, ShortcutEvent, handler)
 }
 
 /// Focus changed in the widget or its descendants.
@@ -499,8 +485,8 @@ pub fn on_focus_changed(child: impl UiNode, handler: impl FnMut(&mut WidgetConte
     on_event(child, FocusChangedEvent, handler)
 }
 #[property(event)]
-pub fn on_preview_focus_changed(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
-    on_preview_event(child, FocusChangedEvent, handler)
+pub fn on_pre_focus_changed(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
+    on_pre_event(child, FocusChangedEvent, handler)
 }
 
 /// Widget got direct keyboard focus.
@@ -509,8 +495,8 @@ pub fn on_focus(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &Foc
     on_event_filtered(child, FocusChangedEvent, focus_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_focus(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, FocusChangedEvent, focus_predicate, handler)
+pub fn on_pre_focus(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, FocusChangedEvent, focus_predicate, handler)
 }
 fn focus_predicate(ctx: &mut WidgetContext, args: &FocusChangedArgs) -> bool {
     args.new_focus
@@ -525,8 +511,8 @@ pub fn on_blur(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &Focu
     on_event_filtered(child, FocusChangedEvent, blur_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_blur(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, FocusChangedEvent, blur_predicate, handler)
+pub fn on_pre_blur(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, FocusChangedEvent, blur_predicate, handler)
 }
 fn blur_predicate(ctx: &mut WidgetContext, args: &FocusChangedArgs) -> bool {
     args.prev_focus
@@ -541,8 +527,8 @@ pub fn on_focus_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event_filtered(child, FocusChangedEvent, focus_enter_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_focus_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, FocusChangedEvent, focus_enter_predicate, handler)
+pub fn on_pre_focus_enter(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, FocusChangedEvent, focus_enter_predicate, handler)
 }
 fn focus_enter_predicate(ctx: &mut WidgetContext, args: &FocusChangedArgs) -> bool {
     // if we are in `new_focus` and are not in `prev_focus`
@@ -559,8 +545,8 @@ pub fn on_focus_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
     on_event_filtered(child, FocusChangedEvent, focus_leave_predicate, handler)
 }
 #[property(event)]
-pub fn on_preview_focus_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, FocusChangedEvent, focus_leave_predicate, handler)
+pub fn on_pre_focus_leave(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &FocusChangedArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, FocusChangedEvent, focus_leave_predicate, handler)
 }
 fn focus_leave_predicate(ctx: &mut WidgetContext, args: &FocusChangedArgs) -> bool {
     // if we are in `prev_focus` and are not in `new_focus`
@@ -578,8 +564,8 @@ pub fn on_got_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext
 }
 /// Preview, widget got mouse capture.
 #[property(event)]
-pub fn on_preview_got_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, MouseCaptureEvent, got_capture_predicate, handler)
+pub fn on_pre_got_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, MouseCaptureEvent, got_capture_predicate, handler)
 }
 fn got_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
     args.is_got(ctx.path.widget_id())
@@ -592,8 +578,8 @@ pub fn on_lost_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContex
 }
 /// Preview, widget got mouse capture.
 #[property(event)]
-pub fn on_preview_lost_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
-    on_preview_event_filtered(child, MouseCaptureEvent, lost_capture_predicate, handler)
+pub fn on_pre_lost_capture(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &MouseCaptureArgs) + 'static) -> impl UiNode {
+    on_pre_event_filtered(child, MouseCaptureEvent, lost_capture_predicate, handler)
 }
 fn lost_capture_predicate(ctx: &mut WidgetContext, args: &MouseCaptureArgs) -> bool {
     args.is_lost(ctx.path.widget_id())
