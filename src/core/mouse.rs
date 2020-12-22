@@ -766,6 +766,7 @@ impl MouseManager {
         if let Some((path, _)) = mouse.current_capture() {
             if path.window_id() == window_id {
                 mouse.end_window_capture(ctx.events);
+                self.capture_count = 0;
             }
         }
     }
@@ -1045,7 +1046,6 @@ impl Mouse {
     fn set_capture(&mut self, target: WidgetPath, mode: CaptureMode, events: &Events) {
         let new = Some((target, mode));
         if new != self.current_capture {
-            println!("capture change to: {:?}", new.as_ref().map(|(p, m)| (p.to_string(), m)));
             let prev = self.current_capture.take();
             self.current_capture = new.clone();
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, new));
@@ -1054,7 +1054,6 @@ impl Mouse {
 
     fn unset_capture(&mut self, events: &Events) {
         if self.current_capture.is_some() {
-            println!("capture change to: None");
             let prev = self.current_capture.take();
             self.capture_event.notify(events, MouseCaptureArgs::now(prev, None));
         }
