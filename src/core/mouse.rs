@@ -766,6 +766,7 @@ impl MouseManager {
         if let Some((path, _)) = mouse.current_capture() {
             if path.window_id() == window_id {
                 mouse.end_window_capture(ctx.events);
+                self.capture_count = 0;
             }
         }
     }
