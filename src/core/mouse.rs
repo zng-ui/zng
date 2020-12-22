@@ -752,6 +752,23 @@ impl MouseManager {
         self.mouse_enter.notify(events, args.clone());
         self.hover_enter_args = Some(args);
     }
+
+    fn on_window_deactivated(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.release_window_capture(window_id, ctx);
+    }
+
+    fn on_window_closed(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        self.release_window_capture(window_id, ctx);
+    }
+
+    fn release_window_capture(&mut self, window_id: WindowId, ctx: &mut AppContext) {
+        let mouse = ctx.services.req::<Mouse>();
+        if let Some((path, _)) = mouse.current_capture() {
+            if path.window_id() == window_id {
+                mouse.end_window_capture(ctx.events);
+            }
+        }
+    }
 }
 
 impl AppExtension for MouseManager {
@@ -781,6 +798,8 @@ impl AppExtension for MouseManager {
             } => self.on_mouse_input(window_id, device_id, state, button, ctx),
             WindowEvent::ModifiersChanged(m) => self.modifiers = m,
             WindowEvent::CursorLeft { device_id } => self.on_cursor_left(window_id, device_id, ctx),
+            WindowEvent::Focused(false) => self.on_window_deactivated(window_id, ctx),
+            WindowEvent::Destroyed => self.on_window_closed(window_id, ctx),
             _ => {}
         }
     }
