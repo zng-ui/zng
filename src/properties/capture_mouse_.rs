@@ -61,15 +61,16 @@ impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
 /// # Example
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::prelude::new_widget::*;
 /// # use zero_ui::properties::capture_mouse;
 /// widget! {
-///     pub button: container;
+///    pub button: container;
 ///
-///     default {
-///         /// Mouse does not interact with other widgets when pressed in a button.
-///         capture_mouse: true; //true == CaptureMode::Widget;
-///     }
+///    default {
+///        /// Mouse does not interact with other widgets when pressed in a button.
+///        capture_mouse: true; //true == CaptureMode::Widget;
+///    }
 /// }
 /// ```
 #[property(context)]

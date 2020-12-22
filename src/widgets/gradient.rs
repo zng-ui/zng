@@ -1147,6 +1147,8 @@ fn gradient_ends_from_rad(rad: AngleRadian, size: LayoutSize) -> (LayoutPoint, L
 ///
 /// ## Example
 /// ```
+/// # use zero_ui::prelude::*;
+/// # use zero_ui::widgets::stops;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 pub use zero_ui_macros::stops;
