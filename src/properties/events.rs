@@ -143,7 +143,8 @@ where
 /// Declare one or more event properties.
 ///
 /// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
-/// calls [`on_pre_event_filtered`], the main event property calls [`on_event_filtered`].
+/// calls [`on_pre_event_filtered`](zero_ui::properties::events::on_pre_event_filtered),
+/// the main event property calls [`on_event_filtered`](zero_ui::properties::events::on_event_filtered).
 ///
 /// # Example
 ///
@@ -160,7 +161,8 @@ where
 /// in contexts where the event is relevant. Some event properties can also specialize further on top
 /// of a more general app event. To implement this you can use a filter predicate.
 ///
-/// First [`on_event_filtered`] filters event that have [stop propagation requested](EventArgs::stop_propagation_requested)
+/// First [`on_event_filtered`](zero_ui::properties::events::on_event_filtered) filters event that
+/// have [stop propagation requested](EventArgs::stop_propagation_requested)
 /// requested and widgets context that are [disabled](IsEnabled). After this the filter predicate is called.
 ///
 /// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`](EventArgs::concerns_widget) is used.
@@ -290,7 +292,7 @@ event_property! {
     ///
     /// # Route
     ///
-    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
     /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
     ///
@@ -298,8 +300,8 @@ event_property! {
     ///
     /// # Keys
     ///
-    /// Any key press/release generates a key input event, including keys that don't map 
-    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead. 
+    /// Any key press/release generates a key input event, including keys that don't map
+    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead.
     /// For key combinations consider using [`on_shortcut`].
     ///
     /// # Underlying Event
@@ -314,7 +316,7 @@ event_property! {
     ///
     /// # Route
     ///
-    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
     /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
     ///
@@ -323,7 +325,7 @@ event_property! {
     /// # Keys
     ///
     /// Any key press generates a key down event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
-    /// for more details. To take text input use [`on_char_input`] instead. 
+    /// for more details. To take text input use [`on_char_input`] instead.
     /// For key combinations consider using [`on_shortcut`].
     ///
     /// # Underlying Event
@@ -338,7 +340,7 @@ event_property! {
     ///
     /// # Route
     ///
-    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused)
     /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
     /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
     ///
@@ -347,7 +349,7 @@ event_property! {
     /// # Keys
     ///
     /// Any key release generates a key up event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
-    /// for more details. To take text input use [`on_char_input`] instead. 
+    /// for more details. To take text input use [`on_char_input`] instead.
     /// For key combinations consider using [`on_shortcut`].
     ///
     /// # Underlying Event
