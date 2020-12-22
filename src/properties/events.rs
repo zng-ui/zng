@@ -473,6 +473,18 @@ pub fn on_preview_triple_click(child: impl UiNode, handler: impl FnMut(&mut Widg
 }
 
 #[property(event)]
+pub fn on_context_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_event_filtered(child, SingleClickEvent, is_context_click_predicate, handler)
+}
+#[property(event)]
+pub fn on_preview_context_click(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ClickArgs) + 'static) -> impl UiNode {
+    on_preview_event_filtered(child, SingleClickEvent, is_context_click_predicate, handler)
+}
+fn is_context_click_predicate(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
+    args.concerns_widget(ctx) && args.is_context()
+}
+
+#[property(event)]
 pub fn on_shortcut(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &ShortcutArgs) + 'static) -> impl UiNode {
     on_event(child, ShortcutEvent, handler)
 }

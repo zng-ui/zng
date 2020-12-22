@@ -137,6 +137,19 @@ impl ClickArgs {
         }
     }
 
+    /// If the event counts as a *context menu* request.
+    ///
+    /// Returns `true` if the [`click_count`](Self::click_count) is `1` and the
+    /// click source is a right mouse button click or the context shortcut. TODO
+    #[inline]
+    pub fn is_context(&self) -> bool {
+        self.click_count.get() == 1
+            && match &self.source {
+                ClickArgsSource::Mouse { button, .. } => *button == MouseButton::Right,
+                ClickArgsSource::Shortcut { .. } => todo!(),
+            }
+    }
+
     /// If the event was caused by a press of `mouse_button`.
     #[inline]
     pub fn is_mouse_btn(&self, mouse_button: MouseButton) -> bool {
