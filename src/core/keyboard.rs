@@ -92,18 +92,38 @@ event_args! {
 
 event! {
     /// Key pressed or released event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyInputEvent: KeyInputArgs;
 
     /// Key pressed or repeat event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyDownEvent: KeyInputArgs;
 
     /// Key released event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
     pub KeyUpEvent: KeyInputArgs;
 
     /// Modifiers state changed event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
     pub ModifiersChangedEvent: ModifiersChangedArgs;
 
     /// Character received event.
+    ///
+    /// # Provider
+    ///
+    /// This event is provided by the [`KeyboardManager`] extension.
     pub CharInputEvent: CharInputArgs;
 }
 
@@ -124,6 +144,16 @@ event! {
 /// Services this extension provides.
 ///
 /// * [Keyboard]
+///
+/// # Default
+///
+/// This extension is included in the [default app](crate::core::app::App::default), events provided by it
+/// are required by multiple other extensions.
+///
+/// # Dependencies
+///
+/// This extension requires the [`Focus`] and [`Windows`] services before the first window event. It does not
+/// require anything for initialization.
 #[derive(Default)]
 pub struct KeyboardManager;
 impl KeyboardManager {

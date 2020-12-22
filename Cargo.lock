@@ -2798,6 +2798,7 @@ dependencies = [
 name = "zero-ui-macros"
 version = "0.1.0"
 dependencies = [
+ "paste",
  "zero-ui-proc-macros",
 ]
 

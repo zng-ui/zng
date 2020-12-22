@@ -680,3 +680,80 @@ macro_rules! stops {
         }
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __event_property {
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path,
+            filter: |$ctx:ident, $args:ident|$filter:expr,
+        }
+    ) => { paste::paste! {
+        $(#[$on_event_attrs])*
+        ///
+        /// # Preview Event
+        ///
+        #[doc = "You can preview this event using [`on_pre_" $event "`]."]
+        #[zero_ui::core::property(event)]
+        $vis fn [<on_ $event>](
+            child: impl zero_ui::core::UiNode,
+            handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
+        ) -> impl zero_ui::core::UiNode {
+            zero_ui::properties::events::on_event_filtered(child, $Event, |$ctx, $args|$filter, handler)
+        }
+
+        #[doc = "Preview [on_" $event "] event."]
+        ///
+        /// # Preview Events
+        ///
+        /// Preview events are fired before the main event, if you stop the propagation of a preview event
+        /// the main event does not run. See [`on_pre_event`](zero_ui::properties::events::on_pre_event) for more details.
+        #[zero_ui::core::property(event)]
+        $vis fn [<on_pre_ $event>](
+            child: impl zero_ui::core::UiNode,
+            handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
+        ) -> impl zero_ui::core::UiNode {
+            zero_ui::properties::events::on_pre_event_filtered(child, $Event, |$ctx, $args|$filter, handler)
+        }
+    } };
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $Event,
+                args: $Args,
+                filter: |ctx, args| zero_ui::core::event::EventArgs::concerns_widget(args, ctx),
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! event_property {
+    ($(
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path,
+            $(filter: |$ctx:ident, $args:ident|$filter:expr,)?
+        }
+    )+) => {$(
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $Event,
+                args: $Args,
+                $(filter: |$ctx, $args|$filter,)?
+            }
+        }
+    )+};
+}

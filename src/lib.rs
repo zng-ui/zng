@@ -22,7 +22,7 @@
 //!     })
 //! }
 //!
-//! fn example() -> impl UiNode {
+//! fn example() -> impl Widget {
 //!     button! {
 //!         on_click: |_,_| {
 //!             println!("Button clicked!");

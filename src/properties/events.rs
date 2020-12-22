@@ -140,6 +140,33 @@ where
     }
 }
 
+/// Declare one or more event properties.
+///
+/// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
+/// calls [`on_pre_event_filtered`], the main event property calls [`on_event_filtered`].
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::properties::events::event_property;
+/// # use zero_ui::core::keyboard::*;
+/// fn test() -> Key { Key::Space }
+
+/// ```
+///
+/// # Filter
+///
+/// App events can be listened from any `UiNode`. An event property must call the event handler only
+/// in contexts where the event is relevant. Some event properties can also specialize further on top
+/// of a more general app event. To implement this you can use a filter predicate.
+///
+/// First [`on_event_filtered`] filters event that have [stop propagation requested](EventArgs::stop_propagation_requested)
+/// requested and widgets context that are [disabled](IsEnabled). After this the filter predicate is called.
+///
+/// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`](EventArgs::concerns_widget) is used.
+/// So if you want to extend the filter and not fully replace it you must call `args.concerns_widget(ctx)` in your custom filter.
+pub use zero_ui_macros::event_property;
+
 /// Helper for declaring event properties.
 ///
 /// # Route
@@ -258,31 +285,78 @@ pub fn on_pre_event_filtered<E: Event>(
     }
 }
 
-#[property(event)]
-pub fn on_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_event(child, KeyInputEvent, handler)
-}
-#[property(event)]
-pub fn on_pre_key_input(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_pre_event(child, KeyInputEvent, handler)
-}
+event_property! {
+    /// Event fired when a keyboard key is pressed or released.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Keys
+    ///
+    /// Any key press/release generates a key input event, including keys that don't map 
+    /// to any virtual key, see [`KeyInputArgs`] for more details. To take text input use [`on_char_input`] instead. 
+    /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`KeyInputEvent`] that is included in the default app.
+    pub fn key_input {
+        event: KeyInputEvent,
+        args: KeyInputArgs,
+    }
 
-#[property(event)]
-pub fn on_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_event(child, KeyDownEvent, handler)
-}
-#[property(event)]
-pub fn on_pre_key_down(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_pre_event(child, KeyDownEvent, handler)
-}
+    /// Event fired when a keyboard key is pressed.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Keys
+    ///
+    /// Any key press generates a key down event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
+    /// for more details. To take text input use [`on_char_input`] instead. 
+    /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`KeyDownEvent`] that is included in the default app.
+    pub fn key_down {
+        event: KeyDownEvent,
+        args: KeyInputArgs,
+    }
 
-#[property(event)]
-pub fn on_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_event(child, KeyUpEvent, handler)
-}
-#[property(event)]
-pub fn on_pre_key_up(child: impl UiNode, handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static) -> impl UiNode {
-    on_pre_event(child, KeyUpEvent, handler)
+    /// Event fired when a keyboard key is released.
+    ///
+    /// # Route
+    ///
+    /// The event is raised in the [keyboard focused](crate::properties::is_focused) 
+    /// widget and then each parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
+    /// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
+    ///
+    /// This route is also called *bubbling*.
+    ///
+    /// # Keys
+    ///
+    /// Any key release generates a key up event, including keys that don't map to any virtual key, see [`KeyInputArgs`]
+    /// for more details. To take text input use [`on_char_input`] instead. 
+    /// For key combinations consider using [`on_shortcut`].
+    ///
+    /// # Underlying Event
+    ///
+    /// This event property uses the [`KeyUpEvent`] that is included in the default app.
+    pub fn key_up {
+        event: KeyUpEvent,
+        args: KeyInputArgs,
+    }
 }
 
 #[property(event)]

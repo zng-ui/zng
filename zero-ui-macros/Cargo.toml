@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
+
+# util
+paste = "1.0.4"
