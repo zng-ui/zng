@@ -743,8 +743,8 @@ macro_rules! event_property {
         $(#[$on_event_attrs:meta])*
         $vis:vis fn $event:ident {
             event: $Event:path,
-            args: $Args:path,
-            $(filter: |$ctx:ident, $args:ident|$filter:expr,)?
+            args: $Args:path $(,
+            filter: |$ctx:ident, $args:ident|$filter:expr)? $(,)?
         }
     )+) => {$(
         $crate::__event_property! {
