@@ -1,4 +1,4 @@
-//! Mouse events, [`on_mouse_move`], [`on_mouse_enter`] and more.
+//! Mouse events, [`on_mouse_move`], [`on_mouse_enter`], [`on_mouse_down`] and more.
 //!
 //! There events are low level and directly tied to a mouse device.
 //! Before using then review the [`gesture`](super::gesture) events, in particular the [`on_click`](super::gesture::on_click) event.

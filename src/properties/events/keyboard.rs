@@ -1,4 +1,4 @@
-//! Keyboard events, [`on_key_down`], [`on_char_input`] and more.
+//! Keyboard events, [`on_key_down`], [`on_key_up`], [`on_char_input`] and more.
 //!
 //! These events are low level and directly tied to a keyboard device.
 //! Before using then review the [`gesture`](super::gesture) events, in particular
