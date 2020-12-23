@@ -36,6 +36,8 @@ macro_rules! widget_context_handler_events {
 
         #[doc = "Event fired during the widget [`" $Ident:snake "`](UiNode::" $Ident:snake ")."]
         ///
+        /// The `handler` is called after the preview event and after the widget children.
+        ///
         /// The `handler` is called even when the widget is [disabled](IsEnabled).
         #[property(event)]
         pub fn [<on_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
