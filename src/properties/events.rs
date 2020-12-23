@@ -402,24 +402,48 @@ event_property! {
         args: MouseInputArgs,
     }
 
+    pub fn mouse_any_click {
+        event: MouseClickEvent,
+        args: MouseClickArgs,
+    }
+
+    pub fn mouse_any_single_click {
+        event: MouseSingleClickEvent,
+        args: MouseClickArgs,
+    }
+
+    pub fn mouse_any_double_click {
+        event: MouseDoubleClickEvent,
+        args: MouseClickArgs,
+    }
+
+    pub fn mouse_any_triple_click {
+        event: MouseTripleClickEvent,
+        args: MouseClickArgs,
+    }
+
     pub fn mouse_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
+        filter: mouse_primary_filter,
     }
 
     pub fn mouse_single_click {
         event: MouseSingleClickEvent,
         args: MouseClickArgs,
+        filter: mouse_primary_filter,
     }
 
     pub fn mouse_double_click {
         event: MouseDoubleClickEvent,
         args: MouseClickArgs,
+        filter: mouse_primary_filter,
     }
 
     pub fn mouse_triple_click {
         event: MouseTripleClickEvent,
         args: MouseClickArgs,
+        filter: mouse_primary_filter,
     }
 
     pub fn mouse_enter {
@@ -449,6 +473,10 @@ event_property! {
         args: MouseCaptureArgs,
     }
 }
+// filter used in mouse_click, mouse_single_click, mouse_double_click and mouse_triple_click.
+fn mouse_primary_filter(ctx: &mut WidgetContext, args: &MouseClickArgs) -> bool {
+    args.concerns_widget(ctx) && args.is_primary()
+}
 
 event_property! {
     /// Adds a handler for clicks in the widget from any mouse button.
@@ -461,7 +489,7 @@ event_property! {
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: is_primary_filter,
+        filter: primary_filter,
     }
 
     pub fn any_single_click {
@@ -472,7 +500,7 @@ event_property! {
     pub fn single_click {
         event: SingleClickEvent,
         args: ClickArgs,
-        filter: is_primary_filter,
+        filter: primary_filter,
     }
 
     pub fn any_double_click {
@@ -483,7 +511,7 @@ event_property! {
     pub fn double_click {
         event: DoubleClickEvent,
         args: ClickArgs,
-        filter: is_primary_filter,
+        filter: primary_filter,
     }
 
     pub fn any_triple_click {
@@ -494,7 +522,7 @@ event_property! {
     pub fn triple_click {
         event: TripleClickEvent,
         args: ClickArgs,
-        filter: is_primary_filter,
+        filter: primary_filter,
     }
 
     pub fn context_click {
@@ -509,7 +537,7 @@ event_property! {
     }
 }
 // filter used in click, single_click, double_click and triple_click.
-fn is_primary_filter(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
+fn primary_filter(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
     args.concerns_widget(ctx) && args.is_primary()
 }
 
@@ -520,47 +548,32 @@ event_property! {
         args: FocusChangedArgs,
     }
 
+    /// Widget got direct keyboard focus.
     pub fn focus {
         event: FocusChangedEvent,
         args: FocusChangedArgs,
-        filter: |ctx, args| args.new_focus
-                .as_ref()
-                .map(|p| p.widget_id() == ctx.path.widget_id())
-                .unwrap_or_default(),
+        filter: |ctx, args| args.is_focus(ctx.path.widget_id()),
     }
 
     /// Widget lost direct keyboard focus.
     pub fn blur {
         event: FocusChangedEvent,
         args: FocusChangedArgs,
-        filter: |ctx, args| args.prev_focus
-                .as_ref()
-                .map(|p| p.widget_id() == ctx.path.widget_id())
-                .unwrap_or_default(),
+        filter: |ctx, args| args.is_blur(ctx.path.widget_id()),
     }
 
     /// Widget or one of its descendants got focus.
     pub fn focus_enter {
         event: FocusChangedEvent,
         args: FocusChangedArgs,
-        // if we are in `new_focus` and are not in `prev_focus`
-        filter: |ctx, args| args.new_focus
-                .as_ref()
-                .map(|p| p.contains(ctx.path.widget_id()))
-                .unwrap_or_default()
-                && args.prev_focus.as_ref().map(|p| !p.contains(ctx.path.widget_id())).unwrap_or(true)
+        filter: |ctx, args| args.is_focus_enter(ctx.path.widget_id())
     }
 
     /// Widget or one of its descendants lost focus.
     pub fn focus_leave {
         event: FocusChangedEvent,
         args: FocusChangedArgs,
-        // if we are in `prev_focus` and are not in `new_focus`
-        filter: |ctx, args| args.prev_focus
-                .as_ref()
-                .map(|p| p.contains(ctx.path.widget_id()))
-                .unwrap_or_default()
-                && args.new_focus.as_ref().map(|p| !p.contains(ctx.path.widget_id())).unwrap_or(true)
+        filter: |ctx, args| args.is_focus_leave(ctx.path.widget_id())
     }
 }
 
@@ -616,6 +629,24 @@ impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnRenderNode<C, F
 #[property(event)]
 pub fn on_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
     OnRenderNode { child, handler }
+}
+
+struct OnPreviewRenderNode<C: UiNode, F: Fn(&mut FrameBuilder)> {
+    child: C,
+    handler: F,
+}
+#[impl_ui_node(child)]
+impl<C: UiNode, F: Fn(&mut FrameBuilder) + 'static> UiNode for OnPreviewRenderNode<C, F> {
+    fn render(&self, frame: &mut FrameBuilder) {
+        (self.handler)(frame);
+        self.child.render(frame);
+    }
+}
+
+/// The `handler` is called even when the widget is [disabled](IsEnabled).
+#[property(event)]
+pub fn on_pre_render(child: impl UiNode, handler: impl Fn(&mut FrameBuilder) + 'static) -> impl UiNode {
+    OnPreviewRenderNode { child, handler }
 }
 
 #[derive(Debug)]

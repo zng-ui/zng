@@ -139,6 +139,44 @@ impl FocusChangedArgs {
     pub fn is_hightlight_changed(&self) -> bool {
         self.prev_focus == self.new_focus
     }
+
+    /// If `widget_id` is the new focus.
+    #[inline]
+    pub fn is_focus(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.widget_id() != widget_id && new.widget_id() == widget_id,
+            (None, Some(new)) => new.widget_id() == widget_id,
+            (_, None) => false,
+        }
+    }
+
+    /// If `widget_id` is the previous focus.
+    #[inline]
+    pub fn is_blur(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.widget_id() == widget_id && new.widget_id() != widget_id,
+            (Some(prev), None) => prev.widget_id() == widget_id,
+            (None, _) => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_focus_enter(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => !prev.contains(widget_id) && new.contains(widget_id),
+            (None, Some(new)) => new.contains(widget_id),
+            (_, None) => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
+        match (&self.prev_focus, &self.new_focus) {
+            (Some(prev), Some(new)) => prev.contains(widget_id) && !new.contains(widget_id),
+            (Some(prev), None) => prev.contains(widget_id),
+            (None, _) => false,
+        }
+    }
 }
 
 impl ReturnFocusChangedArgs {

@@ -249,6 +249,14 @@ impl MouseInputArgs {
     }
 }
 
+impl MouseClickArgs {
+    /// If the [`button`](Self::button) is the primary.
+    #[inline]
+    pub fn is_primary(&self) -> bool {
+        self.button == MouseButton::Left
+    }
+}
+
 impl MouseCaptureArgs {
     /// If the same widget has mouse capture, but the widget path changed.
     #[inline]
