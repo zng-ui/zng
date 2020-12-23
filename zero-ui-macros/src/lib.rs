@@ -689,7 +689,7 @@ macro_rules! __event_property {
         $vis:vis fn $event:ident {
             event: $Event:path,
             args: $Args:path,
-            filter: |$ctx:ident, $args:ident|$filter:expr,
+            filter: $filter:expr,
         }
     ) => { paste::paste! {
         $(#[$on_event_attrs])*
@@ -702,7 +702,7 @@ macro_rules! __event_property {
             child: impl zero_ui::core::UiNode,
             handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
         ) -> impl zero_ui::core::UiNode {
-            zero_ui::properties::events::on_event_filtered(child, $Event, |$ctx, $args|$filter, handler)
+            zero_ui::properties::events::on_event_filtered(child, $Event, $filter, handler)
         }
 
         #[doc = "Preview [on_" $event "] event."]
@@ -716,7 +716,7 @@ macro_rules! __event_property {
             child: impl zero_ui::core::UiNode,
             handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
         ) -> impl zero_ui::core::UiNode {
-            zero_ui::properties::events::on_pre_event_filtered(child, $Event, |$ctx, $args|$filter, handler)
+            zero_ui::properties::events::on_pre_event_filtered(child, $Event, $filter, handler)
         }
     } };
     (
@@ -744,7 +744,7 @@ macro_rules! event_property {
         $vis:vis fn $event:ident {
             event: $Event:path,
             args: $Args:path $(,
-            filter: |$ctx:ident, $args:ident|$filter:expr)? $(,)?
+            filter: $filter:expr)? $(,)?
         }
     )+) => {$(
         $crate::__event_property! {
@@ -752,7 +752,7 @@ macro_rules! event_property {
             $vis fn $event {
                 event: $Event,
                 args: $Args,
-                $(filter: |$ctx, $args|$filter,)?
+                $(filter: $filter,)?
             }
         }
     )+};
