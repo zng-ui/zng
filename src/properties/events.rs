@@ -143,8 +143,8 @@ where
 /// Declare one or more event properties.
 ///
 /// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
-/// calls [`on_pre_event_filtered`](zero_ui::properties::events::on_pre_event_filtered),
-/// the main event property calls [`on_event_filtered`](zero_ui::properties::events::on_event_filtered).
+/// calls [`on_pre_event`](zero_ui::properties::events::on_pre_event),
+/// the main event property calls [`on_event`](zero_ui::properties::events::on_event).
 ///
 /// # Example
 ///
@@ -176,9 +176,9 @@ where
 /// in contexts where the event is relevant. Some event properties can also specialize further on top
 /// of a more general app event. To implement this you can use a filter predicate.
 ///
-/// First [`on_event_filtered`](zero_ui::properties::events::on_event_filtered) filters event that
-/// have [stop propagation requested](EventArgs::stop_propagation_requested)
-/// requested and widgets context that are [disabled](IsEnabled). After this the filter predicate is called.
+/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the 
+/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
+/// widget. If it returns `true` the `handler` closure is called. See [`on_event`] and [`on_pre_event`] for more information.
 ///
 /// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`](EventArgs::concerns_widget) is used.
 /// So if you want to extend the filter and not fully replace it you must call `args.concerns_widget(ctx)` in your custom filter.
@@ -186,49 +186,20 @@ pub use zero_ui_macros::event_property;
 
 /// Helper for declaring event properties.
 ///
-/// # Route
-///
-/// The event is raised after the [preview](on_pre_event) version. If the event targets a path the target
-/// widget is notified first followed by every parent up to the root. If [`stop_propagation`](EventArgs::stop_propagation)
-/// is requested the event is not notified further. If the widget is [disabled](IsEnabled) the event is not notified.
-///
-/// This route is also called *bubbling*.
-///
-/// # Example
-/// ```
-/// # fn main() { }
-/// use zero_ui::properties::events::on_event;
-/// use zero_ui::core::{UiNode, keyboard::{KeyDownEvent, KeyInputArgs}, property};
-/// use zero_ui::core::context::WidgetContext;
-///
-/// /// Sets an event listener for the [`KeyDownEvent`].
-/// #[property(event)]
-/// pub fn on_key_down(
-///    child: impl UiNode,
-///    handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static
-/// ) -> impl UiNode {
-///     on_event(child, KeyDownEvent, handler)
-/// }
-/// ```
-#[inline]
-pub fn on_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static) -> impl UiNode {
-    on_event_filtered(child, event, |ctx, args| args.concerns_widget(ctx), handler)
-}
-
-/// Helper for declaring event properties with a custom event filter.
+/// This function is used by the [`event_property!`] macro.
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested. It
-/// must return `true` if the event arguments are relevant in the context of the widget. If it returns `true`
-/// the `handler` closure is called. If the widget is [disabled](IsEnabled) the event is not notified.
+/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the 
+/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
+/// widget. If it returns `true` the `handler` closure is called.
 ///
 /// # Route
 ///
-/// The event route is similar to [`on_event`], child widgets get first chance of handling the event. In-fact
-/// if you use the filter `|ctx, args| args.concerns_widget(ctx)` it will behave exactly the same.
+/// The event `handler` is called after the [`on_pre_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
 #[inline]
-pub fn on_event_filtered<E: Event>(
+pub fn on_event<E: Event>(
     child: impl UiNode,
     event: E,
     filter: impl FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,
@@ -243,51 +214,21 @@ pub fn on_event_filtered<E: Event>(
     }
 }
 
-/// Helper for declaring preview event properties.
-///
-/// # Preview
-///
-/// Preview events are fired before the main event ([`on_event`]). If the event targets a path the root parent
-/// is notified first, followed by every parent down to the target. If [`stop_propagation`](EventArgs::stop_propagation) is
-/// requested the event is not notified further and the main event handlers are also not notified.
-///  If the widget is [disabled](IsEnabled) the event is not notified.
-///
-/// This route is also called *tunneling* or *capturing*.
-///
-/// # Example
-/// ```
-/// # fn main() { }
-/// use zero_ui::properties::events::on_pre_event;
-/// use zero_ui::core::{UiNode, keyboard::{KeyDownEvent, KeyInputArgs}, property};
-/// use zero_ui::core::context::WidgetContext;
-///
-/// /// Sets an event listener for the [`KeyDownEvent`].
-/// #[property(event)]
-/// pub fn on_pre_key_down(
-///    child: impl UiNode,
-///    handler: impl FnMut(&mut WidgetContext, &KeyInputArgs) + 'static
-/// ) -> impl UiNode {
-///     on_pre_event(child, KeyDownEvent, handler)
-/// }
-/// ```
-#[inline]
-pub fn on_pre_event<E: Event>(child: impl UiNode, event: E, handler: impl FnMut(&mut WidgetContext, &E::Args) + 'static) -> impl UiNode {
-    on_pre_event_filtered(child, event, |ctx, args| args.concerns_widget(ctx), handler)
-}
-
 /// Helper for declaring preview event properties with a custom filter.
+///
+/// This function is used by the [`event_property!`] macro.
 ///
 /// # Filter
 ///
-/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested. It
-/// must return `true` if the event arguments are relevant in the context of the widget. If it returns `true`
-/// the `handler` closure is called.  If the widget is [disabled](IsEnabled) the event is not notified.
+/// The `filter` predicate is called if [`stop_propagation`](EventArgs::stop_propagation) is not requested and the 
+/// widget is [enabled](IsEnabled). It must return `true` if the event arguments are relevant in the context of the
+/// widget. If it returns `true` the `handler` closure is called.
 ///
 /// # Route
 ///
-/// The event route is similar to [`on_pre_event`], parent widgets get first chance of handling the event.
-/// In-fact if you use the filter `|ctx, args| args.concerns_widget(ctx)` it will behave exactly the same.
-pub fn on_pre_event_filtered<E: Event>(
+/// The event `handler` is called before the [`on_event`] equivalent at the same context level. If the event
+/// `filter` allows more then one widget and one widget contains the other, the `handler` is called on the inner widget first.
+pub fn on_pre_event<E: Event>(
     child: impl UiNode,
     event: E,
     filter: impl FnMut(&mut WidgetContext, &E::Args) -> bool + 'static,

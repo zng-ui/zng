@@ -702,7 +702,7 @@ macro_rules! __event_property {
             child: impl zero_ui::core::UiNode,
             handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
         ) -> impl zero_ui::core::UiNode {
-            zero_ui::properties::events::on_event_filtered(child, $Event, $filter, handler)
+            zero_ui::properties::events::on_event(child, $Event, $filter, handler)
         }
 
         #[doc = "Preview [on_" $event "] event."]
@@ -716,7 +716,7 @@ macro_rules! __event_property {
             child: impl zero_ui::core::UiNode,
             handler: impl FnMut(&mut zero_ui::core::context::WidgetContext, &$Args) + 'static
         ) -> impl zero_ui::core::UiNode {
-            zero_ui::properties::events::on_pre_event_filtered(child, $Event, $filter, handler)
+            zero_ui::properties::events::on_pre_event(child, $Event, $filter, handler)
         }
     } };
     (
