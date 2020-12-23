@@ -149,10 +149,25 @@ where
 /// # Example
 ///
 /// ```
+/// # fn main() { }
 /// # use zero_ui::properties::events::event_property;
+/// # use zero_ui::core::event::EventArgs;
 /// # use zero_ui::core::keyboard::*;
-/// fn test() -> Key { Key::Space }
-
+/// event_property! { 
+///     /// on_key_down docs.
+///     pub fn key_down { 
+///         event: KeyDownEvent,
+///         args: KeyInputArgs,
+///         // default filter is |ctx, args| args.concerns_widget(ctx)
+///     }
+///
+///     pub(crate) fn space_down { 
+///         event: KeyDownEvent,
+///         args: KeyInputArgs,
+///         // optional filter:
+///         filter: |ctx, args| args.concerns_widget(ctx) && args.key == Some(Key::Space),
+///     }
+/// }
 /// ```
 ///
 /// # Filter
