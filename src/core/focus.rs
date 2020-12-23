@@ -331,11 +331,15 @@ event! {
 ///
 /// * [Focus]
 ///
-/// # Requirements
+/// # Default
+///
+/// This extension is included in the [default app](crate::core::app::App::default).
+///
+/// # Dependencies
 ///
 /// This extension requires the [`MouseDownEvent`],
 /// [`ShortcutEvent`] and [`WindowIsActiveChangedEvent`]
-///  events to function.
+///  events during initialization to function.
 ///
 /// # About Focus
 ///

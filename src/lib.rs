@@ -451,7 +451,7 @@ pub mod prelude {
 
     pub use crate::properties::background::{background, *};
     pub use crate::properties::border::*;
-    pub use crate::properties::events::*;
+    pub use crate::properties::events::{focus::*, gesture::*, keyboard::*};
     pub use crate::properties::filters::*;
     pub use crate::properties::focus::*;
     pub use crate::properties::foreground::{foreground, *};
@@ -483,7 +483,7 @@ pub mod prelude {
             LAYOUT_ANY_SIZE,
         };
         pub use crate::properties::{
-            events::{on_event, on_pre_event},
+            events::{event_property, on_event, on_pre_event},
             set_widget_state, with_context_var, IsEnabled, WidgetEnabledExt,
         };
     }
@@ -505,7 +505,7 @@ pub mod prelude {
         pub use crate::properties::background::{background, *};
         pub use crate::properties::border::{border, *};
         pub use crate::properties::capture_only::*;
-        pub use crate::properties::events::*;
+        pub use crate::properties::events::{self, event_property, gesture::*, keyboard::*};
         pub use crate::properties::filters::*;
         pub use crate::properties::focus::focusable;
         pub use crate::properties::focus::*;

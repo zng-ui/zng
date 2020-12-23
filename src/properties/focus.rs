@@ -1,5 +1,6 @@
 //! Keyboard focus properties, [`tab_index`], [`focusable`] and more.
 
+use crate::core::event::EventListener;
 use crate::core::focus::*;
 use crate::prelude::new_property::*;
 

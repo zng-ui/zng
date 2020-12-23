@@ -1024,7 +1024,7 @@ pub use zero_ui_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui::core::widget;
-/// # use zero_ui::properties::events::on_click;
+/// # use zero_ui::properties::events::gesture::on_click;
 /// widget! {
 /// # widget_name;
 ///     //..

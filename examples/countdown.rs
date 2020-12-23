@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use enclose::enclose;
 use zero_ui::prelude::*;
+use zero_ui::properties::events::widget::on_update;
 
 fn main() {
     App::default().run_window(|ctx| {
