@@ -8,40 +8,60 @@ use crate::core::render::FrameBuilder;
 use crate::core::units::*;
 use crate::core::*;
 
-macro_rules! on_ctx_mtd {
-    ($( $(#[$outer:meta])* struct $OnCtxMtd:ident { fn $mtd:ident } fn $on_mtd:ident;)+) => {$(
-        struct $OnCtxMtd<C: UiNode, F: FnMut(&mut WidgetContext)> {
+macro_rules! widget_context_handler_events {
+    ($($Ident:ident),+) => {$(paste::paste!{
+        struct [<On $Ident Node>]<C, F> {
             child: C,
-            handler: F
+            handler: F,
         }
-
         #[impl_ui_node(child)]
-        impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for $OnCtxMtd<C, F> {
-            fn $mtd(&mut self, ctx: &mut WidgetContext) {
-                self.child.$mtd(ctx);
+        impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for [<On $Ident Node>]<C, F> {
+            fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
+                self.child.[<$Ident:snake>](ctx);
                 (self.handler)(ctx);
             }
         }
 
-        $(#[$outer])*
+        struct [<OnPreview $Ident Node>]<C, F> {
+            child: C,
+            handler: F,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode, F: FnMut(&mut WidgetContext) + 'static> UiNode for [<OnPreview $Ident Node>]<C, F> {
+            fn [<$Ident:snake>](&mut self, ctx: &mut WidgetContext) {
+                (self.handler)(ctx);
+                self.child.[<$Ident:snake>](ctx);
+            }
+        }
+
+        #[doc = "Event fired during the widget [`" $Ident:snake "`](UiNode::" $Ident:snake ")."]
         ///
         /// The `handler` is called even when the widget is [disabled](IsEnabled).
         #[property(event)]
-        pub fn $on_mtd(child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
-            $OnCtxMtd {
+        pub fn [<on_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
+            [<On $Ident Node>] {
                 child,
                 handler
             }
         }
-    )+};
+
+        #[doc = "Preview [`on_" $Ident:snake "`] event."]
+        ///
+        /// The `handler` is called before the main event and before the widget children.
+        ///
+        /// The `handler` is called even when the widget is [disabled](IsEnabled).
+        #[property(event)]
+        pub fn [<on_pre_ $Ident:snake>](child: impl UiNode, handler: impl FnMut(&mut WidgetContext) + 'static) -> impl UiNode {
+            [<OnPreview $Ident Node>] {
+                child,
+                handler
+            }
+        }
+    })+}
 }
 
-on_ctx_mtd! {
-    /// Called when the widget is initialized.
-    struct OnInitNode { fn init } fn on_init;
-    struct OnDeinitNode { fn deinit } fn on_denit;
-    struct OnUpdateNode { fn update } fn on_update;
-    struct OnUpdateHpNode { fn update_hp } fn on_update_hp;
+widget_context_handler_events! {    
+    Init, Deinit, Update, UpdateHp
 }
 
 struct OnRenderNode<C: UiNode, F: Fn(&mut FrameBuilder)> {
