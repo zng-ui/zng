@@ -31,6 +31,7 @@ fn example() -> impl Widget {
         }};
         on_double_click: |_, _| println!("double click!");
         on_triple_click: |_, _| println!("triple click!");
+        on_context_click: |_, _| println!("context click!");
         content: text(t);
     }
 }

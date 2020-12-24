@@ -255,6 +255,30 @@ impl MouseClickArgs {
     pub fn is_primary(&self) -> bool {
         self.button == MouseButton::Left
     }
+
+    /// If the [`button`](Self::button) is the context (right).
+    #[inline]
+    pub fn is_context(&self) -> bool {
+        self.button == MouseButton::Right
+    }
+
+    /// If the [`click_count`] is `1`.
+    #[inline]
+    pub fn is_single(&self) -> bool {
+        self.click_count.get() == 1
+    }
+
+    /// If the [`click_count`] is `2`.
+    #[inline]
+    pub fn is_double(&self) -> bool {
+        self.click_count.get() == 2
+    }
+
+    /// If the [`click_count`] is `3`.
+    #[inline]
+    pub fn is_triple(&self) -> bool {
+        self.click_count.get() == 3
+    }
 }
 
 impl MouseCaptureArgs {
@@ -315,15 +339,6 @@ event! {
     /// Mouse click event, any [`click_count`](MouseClickArgs::click_count).
     pub MouseClickEvent: MouseClickArgs;
 
-    /// Mouse single-click event (`[click_count](MouseClickArgs::click_count) == 1`).
-    pub MouseSingleClickEvent: MouseClickArgs;
-
-    /// Mouse double-click event (`[click_count](MouseClickArgs::click_count) == 2`).
-    pub MouseDoubleClickEvent: MouseClickArgs;
-
-    /// Mouse triple-click event (`[click_count](MouseClickArgs::click_count) == 3`).
-    pub MouseTripleClickEvent: MouseClickArgs;
-
     /// Mouse enters a widget area event.
     pub MouseEnterEvent: MouseHoverArgs;
 
@@ -345,9 +360,6 @@ event! {
 /// * [MouseDownEvent]
 /// * [MouseUpEvent]
 /// * [MouseClickEvent]
-/// * [MouseSingleClickEvent]
-/// * [MouseDoubleClickEvent]
-/// * [MouseTripleClickEvent]
 /// * [MouseEnterEvent]
 /// * [MouseLeaveEvent]
 /// * [MouseCaptureEvent]
@@ -384,9 +396,6 @@ pub struct MouseManager {
     mouse_up: EventEmitter<MouseInputArgs>,
 
     mouse_click: EventEmitter<MouseClickArgs>,
-    mouse_single_click: EventEmitter<MouseClickArgs>,
-    mouse_double_click: EventEmitter<MouseClickArgs>,
-    mouse_triple_click: EventEmitter<MouseClickArgs>,
 
     mouse_enter: EventEmitter<MouseHoverArgs>,
     mouse_leave: EventEmitter<MouseHoverArgs>,
@@ -416,9 +425,6 @@ impl Default for MouseManager {
             mouse_up: MouseUpEvent::emitter(),
 
             mouse_click: MouseClickEvent::emitter(),
-            mouse_single_click: MouseSingleClickEvent::emitter(),
-            mouse_double_click: MouseDoubleClickEvent::emitter(),
-            mouse_triple_click: MouseTripleClickEvent::emitter(),
 
             mouse_enter: MouseEnterEvent::emitter(),
             mouse_leave: MouseLeaveEvent::emitter(),
@@ -494,7 +500,7 @@ impl MouseManager {
                     && (now - self.last_pressed) < multi_click_time_ms()
                     && self.click_target.as_ref().unwrap() == &target
                 {
-                    // if click_count >= 2 AND the time is in multi-click range, AND is the same exact target.
+                    // if click_count >= 2 AND the time is in multi-click range AND is the same exact target.
 
                     let args = MouseClickArgs::new(
                         now,
@@ -509,14 +515,6 @@ impl MouseManager {
                     );
 
                     // on_mouse_click (click_count > 1)
-
-                    if self.click_count == 2 {
-                        if self.mouse_double_click.has_listeners() {
-                            self.mouse_double_click.notify(ctx.events, args.clone());
-                        }
-                    } else if self.click_count == 3 && self.mouse_triple_click.has_listeners() {
-                        self.mouse_triple_click.notify(ctx.events, args.clone());
-                    }
 
                     self.mouse_click.notify(ctx.events, args);
                 } else {
@@ -547,10 +545,6 @@ impl MouseManager {
                             );
 
                             self.click_target = Some(target);
-
-                            if self.mouse_single_click.has_listeners() {
-                                self.mouse_single_click.notify(ctx.events, args.clone());
-                            }
 
                             // on_mouse_click
                             self.mouse_click.notify(ctx.events, args);
@@ -789,9 +783,6 @@ impl AppExtension for MouseManager {
         r.events.register::<MouseUpEvent>(self.mouse_up.listener());
 
         r.events.register::<MouseClickEvent>(self.mouse_click.listener());
-        r.events.register::<MouseSingleClickEvent>(self.mouse_single_click.listener());
-        r.events.register::<MouseDoubleClickEvent>(self.mouse_double_click.listener());
-        r.events.register::<MouseTripleClickEvent>(self.mouse_triple_click.listener());
 
         r.events.register::<MouseEnterEvent>(self.mouse_enter.listener());
         r.events.register::<MouseLeaveEvent>(self.mouse_leave.listener());

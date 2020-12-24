@@ -16,48 +16,51 @@ event_property! {
         args: ClickArgs,
     }
 
+    pub fn any_single_click {
+        event: ClickEvent,
+        args: ClickArgs,
+        filter: |ctx, args| args.concerns_widget(ctx) && args.is_single(),
+    }
+
+    pub fn any_double_click {
+        event: ClickEvent,
+        args: ClickArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_double(),
+    }
+
+    pub fn any_triple_click {
+        event: ClickEvent,
+        args: ClickArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_triple(),
+    }
+
     /// Adds a handler for clicks in the widget from the left mouse button.
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
-        filter: primary_filter,
-    }
-
-    pub fn any_single_click {
-        event: SingleClickEvent,
-        args: ClickArgs,
+        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary(),
     }
 
     pub fn single_click {
-        event: SingleClickEvent,
+        event: ClickEvent,
         args: ClickArgs,
-        filter: primary_filter,
-    }
-
-    pub fn any_double_click {
-        event: DoubleClickEvent,
-        args: ClickArgs,
+        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_single(),
     }
 
     pub fn double_click {
-        event: DoubleClickEvent,
+        event: ClickEvent,
         args: ClickArgs,
-        filter: primary_filter,
-    }
-
-    pub fn any_triple_click {
-        event: TripleClickEvent,
-        args: ClickArgs,
+        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_double(),
     }
 
     pub fn triple_click {
-        event: TripleClickEvent,
+        event: ClickEvent,
         args: ClickArgs,
-        filter: primary_filter,
+        filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_triple(),
     }
 
     pub fn context_click {
-        event: SingleClickEvent,
+        event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_context(),
     }
@@ -66,10 +69,6 @@ event_property! {
         event: ShortcutEvent,
         args: ShortcutArgs,
     }
-}
-// filter used in click, single_click, double_click and triple_click.
-fn primary_filter(ctx: &mut WidgetContext, args: &ClickArgs) -> bool {
-    args.concerns_widget(ctx) && args.is_primary()
 }
 
 struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {

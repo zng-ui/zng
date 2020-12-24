@@ -1,10 +1,9 @@
 //! Mouse events, [`on_mouse_move`], [`on_mouse_enter`], [`on_mouse_down`] and more.
 //!
 //! There events are low level and directly tied to a mouse device.
-//! Before using then review the [`gesture`](super::gesture) events, in particular the [`on_click`](super::gesture::on_click) event.
+//! Before using them review the [`gesture`](super::gesture) events, in particular the [`on_click`](super::gesture::on_click) event.
 
 use super::event_property;
-use crate::core::context::WidgetContext;
 use crate::core::event::EventArgs;
 use crate::core::mouse::*;
 
@@ -35,42 +34,45 @@ event_property! {
     }
 
     pub fn mouse_any_single_click {
-        event: MouseSingleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_single(),
     }
 
     pub fn mouse_any_double_click {
-        event: MouseDoubleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_double(),
     }
 
     pub fn mouse_any_triple_click {
-        event: MouseTripleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
+        filter: |ctx, args|  args.concerns_widget(ctx) && args.is_triple(),
     }
 
     pub fn mouse_click {
         event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: mouse_primary_filter,
+        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary(),
     }
 
     pub fn mouse_single_click {
-        event: MouseSingleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: mouse_primary_filter,
+        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_single(),
     }
 
     pub fn mouse_double_click {
-        event: MouseDoubleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: mouse_primary_filter,
+        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_double(),
     }
 
     pub fn mouse_triple_click {
-        event: MouseTripleClickEvent,
+        event: MouseClickEvent,
         args: MouseClickArgs,
-        filter: mouse_primary_filter,
+        filter: |ctx, args|args.concerns_widget(ctx) && args.is_primary() && args.is_triple(),
     }
 
     pub fn mouse_enter {
@@ -99,8 +101,4 @@ event_property! {
         event: MouseCaptureEvent,
         args: MouseCaptureArgs,
     }
-}
-// filter used in mouse_click, mouse_single_click, mouse_double_click and mouse_triple_click.
-fn mouse_primary_filter(ctx: &mut WidgetContext, args: &MouseClickArgs) -> bool {
-    args.concerns_widget(ctx) && args.is_primary()
 }
