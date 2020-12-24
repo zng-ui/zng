@@ -29,60 +29,60 @@ fn title(title: &'static str) -> impl Widget {
 }
 
 fn linear_angle() -> impl Widget {
-    h_stack! {
-        spacing: 5;
-        items: (
-            sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
-            sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
-            sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
-            sample("45º 14px", linear_gradient(45.deg(), [(colors::LIME, 14), (colors::GRAY, 14)], ExtendMode::Clamp)),
-        );
-    }
+    sample_line((
+        sample("90º", linear_gradient(90.deg(), [colors::RED, colors::BLUE], ExtendMode::Clamp)),
+        sample("45º", linear_gradient(45.deg(), [colors::GREEN, colors::BLUE], ExtendMode::Clamp)),
+        sample("0º", linear_gradient(0.deg(), [colors::BLACK, colors::GREEN], ExtendMode::Clamp)),
+        sample(
+            "45º 14px",
+            linear_gradient(45.deg(), [(colors::LIME, 14), (colors::GRAY, 14)], ExtendMode::Clamp),
+        ),
+    ))
 }
 
 fn linear_points() -> impl Widget {
-    h_stack! {
-        spacing: 5;
-        items: (
-            sample(
-                "(30, 30) to (90, 90) clamp",
-                linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Clamp)
-            ),
-            sample(
-                "(30, 30) to (90, 90) repeat",
-                linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat)
-            ),
-            sample(
-                "(30, 30) to (90, 90) reflect",
-                linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Reflect)
-            ),
-            sample(
-                "to bottom right",
-                linear_gradient_to_bottom_right(stops![colors::MIDNIGHT_BLUE, 80.pct(), colors::CRIMSON], ExtendMode::Clamp)
-            ),
-        );
-    }
+    sample_line((
+        sample(
+            "(30, 30) to (90, 90) clamp",
+            linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Clamp),
+        ),
+        sample(
+            "(30, 30) to (90, 90) repeat",
+            linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat),
+        ),
+        sample(
+            "(30, 30) to (90, 90) reflect",
+            linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Reflect),
+        ),
+        sample(
+            "to bottom right",
+            linear_gradient_to_bottom_right(stops![colors::MIDNIGHT_BLUE, 80.pct(), colors::CRIMSON], ExtendMode::Clamp),
+        ),
+    ))
 }
 
 fn linear_tile() -> impl Widget {
     let w = 180 / 5;
-    h_stack! {
-        spacing: 5;
-        items: (
-            sample(
-                "tiles",
-                linear_gradient_tile(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0))
+    sample_line((
+        sample(
+            "tiles",
+            linear_gradient_tile(45.deg(), [colors::GREEN, colors::YELLOW], ExtendMode::Clamp, (w, w), (0, 0)),
+        ),
+        sample(
+            "tiles spaced",
+            linear_gradient_tile(45.deg(), [colors::MAGENTA, colors::AQUA], ExtendMode::Clamp, (w + 5, w + 5), (5, 5)),
+        ),
+        sample(
+            "pattern",
+            linear_gradient_tile(
+                45.deg(),
+                [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())],
+                ExtendMode::Clamp,
+                (20, 20),
+                (0, 0),
             ),
-            sample(
-                "tiles spaced",
-                linear_gradient_tile(45.deg(), [colors::MAGENTA, colors::AQUA], ExtendMode::Clamp, (w + 5, w + 5), (5, 5))
-            ),
-            sample(
-                "pattern",
-                linear_gradient_tile(45.deg(), [(colors::BLACK, 50.pct()), (colors::ORANGE, 50.pct())], ExtendMode::Clamp, (20, 20), (0, 0))
-            ),
-        );
-    }
+        ),
+    ))
 }
 
 fn stack_linear() -> impl Widget {
