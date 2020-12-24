@@ -470,6 +470,7 @@ pub mod prelude {
     ///
     /// Use glob import (`*`) to quickly start implementing properties.
     pub mod new_property {
+        pub use crate::core::app::ElementState;
         pub use crate::core::color::{self, *};
         pub use crate::core::context::*;
         pub use crate::core::event::*;

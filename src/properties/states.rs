@@ -1,8 +1,10 @@
 //! Widget state properties, [`is_hovered`], [`is_pressed`], [`is_focused`] and more.
 
-use crate::core::focus::*;
+use std::time::Duration;
+
 use crate::core::mouse::*;
 use crate::core::window::{WindowDeactivatedEvent, WindowIsActiveArgs};
+use crate::core::{focus::*, sync::TimeElapsed};
 use crate::prelude::new_property::*;
 
 struct IsHoveredNode<C: UiNode> {
@@ -145,19 +147,22 @@ struct IsPressedNode<C: UiNode> {
     state: StateVar,
     is_down: bool,
     is_over: bool,
+    is_shortcut_press: bool,
 
-    mouse_down: EventListener<MouseInputArgs>,
-    mouse_up: EventListener<MouseInputArgs>,
+    mouse_input: EventListener<MouseInputArgs>,
+    click: EventListener<ClickArgs>,
     mouse_leave: EventListener<MouseHoverArgs>,
     mouse_enter: EventListener<MouseHoverArgs>,
     window_deactivated: EventListener<WindowIsActiveArgs>,
+
+    // shortcut_release: EventListener<TimeElapsed>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsPressedNode<C> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.child.init(ctx);
-        self.mouse_down = ctx.events.listen::<MouseDownEvent>();
-        self.mouse_up = ctx.events.listen::<MouseUpEvent>();
+        self.mouse_input = ctx.events.listen::<MouseInputEvent>();
+        self.click = ctx.events.listen::<ClickEvent>();
         self.mouse_enter = ctx.events.listen::<MouseEnterEvent>();
         self.mouse_leave = ctx.events.listen::<MouseLeaveEvent>();
         self.window_deactivated = ctx.events.listen::<WindowDeactivatedEvent>();
@@ -169,11 +174,12 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         }
         self.is_down = false;
         self.is_over = false;
-        self.mouse_down = MouseDownEvent::never();
-        self.mouse_up = MouseUpEvent::never();
+        self.mouse_input = MouseInputEvent::never();
+        self.click = ClickEvent::never();
         self.mouse_enter = MouseEnterEvent::never();
         self.mouse_leave = MouseLeaveEvent::never();
         self.window_deactivated = WindowDeactivatedEvent::never();
+        //self.shortcut_release = EventListener::never();
         self.child.deinit(ctx);
     }
 
@@ -181,16 +187,19 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         self.child.update(ctx);
 
         if IsEnabled::get(ctx.vars) {
-            if self.mouse_up.updates(ctx.events).iter().any(|a| a.is_primary()) {
-                self.is_down = false;
-            }
-            if self
-                .mouse_down
-                .updates(ctx.events)
-                .iter()
-                .any(|a| a.is_primary() && a.concerns_widget(ctx))
-            {
-                self.is_down = true;
+            for args in self.mouse_input.updates(ctx.events) {
+                if args.is_primary() {
+                    match args.state {
+                        ElementState::Pressed => {
+                            if args.concerns_capture(ctx) {
+                                self.is_down = true;
+                            }
+                        }
+                        ElementState::Released => {
+                            self.is_down = false;
+                        }
+                    }
+                }
             }
             if self.mouse_leave.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                 self.is_over = false;
@@ -201,12 +210,30 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
             if self.window_deactivated.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
                 self.is_down = false;
             }
+
+            if self
+                .click
+                .updates(ctx.events)
+                .iter()
+                .any(|a| a.concerns_widget(ctx) && a.shortcut().is_some())
+            {
+                let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
+                if duration != Duration::default() {
+                    // TODO hold is_press `true` for the duration.
+                    //self.is_shortcut_press = true;
+                    //self.shortcut_release = ctx.sync.update_after(duration);
+                }
+            }
+
+            //if self.shortcut_release.updates(ctx.events) {
+            //    self.is_shortcut_press = false;
+            //}
         } else {
             self.is_down = false;
             self.is_over = false;
         }
 
-        let state = self.is_down && self.is_over;
+        let state = (self.is_down && self.is_over) || self.is_shortcut_press;
         if state != *self.state.get(ctx.vars) {
             self.state.set(ctx.vars, state);
         }
@@ -228,8 +255,9 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         state,
         is_down: false,
         is_over: false,
-        mouse_down: MouseDownEvent::never(),
-        mouse_up: MouseUpEvent::never(),
+        is_shortcut_press: false,
+        mouse_input: MouseInputEvent::never(),
+        click: ClickEvent::never(),
         mouse_enter: MouseEnterEvent::never(),
         mouse_leave: MouseLeaveEvent::never(),
         window_deactivated: WindowDeactivatedEvent::never(),
