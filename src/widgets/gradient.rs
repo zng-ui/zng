@@ -1,17 +1,28 @@
 use std::ops::Range;
 
+use crate::core::render::RenderExtendMode;
 use crate::prelude::new_widget::*;
 
-/// Gradient extend mode.
-///
-/// # Clamp
-///
-/// The first or last color is used to fill the rest of the widget area.
-///
-/// # Repeat
-///
-/// The gradient is repeated to fill the rest of the widget area.
-pub type ExtendMode = webrender::api::ExtendMode;
+/// Specifies how to draw the gradient outside the first and last stop.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExtendMode {
+    /// Default value. The color values at the ends of the gradient vector fill the remaining space.
+    Clamp,
+    /// The gradient is repeated until the space is filled.
+    Repeat,
+    /// The gradient is repeated alternating direction until the space is filled.
+    Reflect,
+}
+impl From<ExtendMode> for RenderExtendMode {
+    /// `Reflect` is converted to `Repeat`, you need to prepare the color stops to repeat *reflecting*.
+    fn from(mode: ExtendMode) -> Self {
+        match mode {
+            ExtendMode::Clamp => RenderExtendMode::Clamp,
+            ExtendMode::Repeat => RenderExtendMode::Repeat,
+            ExtendMode::Reflect => RenderExtendMode::Repeat,
+        }
+    }
+}
 
 /// Paints a linear gradient with a line defined by angle.
 ///
@@ -223,7 +234,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMod
             self.render_start,
             self.render_end,
             &self.render_stops,
-            *self.extend_mode.get_local(),
+            (*self.extend_mode.get_local()).into(),
         );
     }
 }
@@ -289,7 +300,7 @@ impl<A: VarLocal<Point>, B: VarLocal<Point>, S: VarLocal<GradientStops>, E: VarL
             self.render_start,
             self.render_end,
             &self.render_stops,
-            *self.extend_mode.get_local(),
+            (*self.extend_mode.get_local()).into(),
         );
     }
 }
@@ -373,7 +384,7 @@ impl<A: VarLocal<AngleRadian>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMod
             self.render_start,
             self.render_end,
             &self.render_stops,
-            *self.extend_mode.get_local(),
+            (*self.extend_mode.get_local()).into(),
             self.render_tile_size,
             self.render_tile_spacing,
         );
@@ -471,7 +482,7 @@ impl<
             self.render_start,
             self.render_end,
             &self.render_stops,
-            *self.extend_mode.get_local(),
+            (*self.extend_mode.get_local()).into(),
             self.render_tile_size,
             self.render_tile_spacing,
         );
@@ -864,15 +875,21 @@ impl GradientStops {
         // 1 - Convert all Length values to LayoutLength.
         // 2 - Adjust offsets so they are always after or equal to the previous offset.
         // 3 - Convert GradientStop::ColorHint to RenderColorStop.
-        // 4 - Normalize stop offsets to be all between 0.0..=1.0.
-        // 5 - Return the first and last stop offset in layout units.
+        // 4 - Manually extend a reflection for ExtendMode::Reflect.
+        // 5 - Normalize stop offsets to be all between 0.0..=1.0.
+        // 6 - Return the first and last stop offset in layout units.
 
         fn is_positional(o: f32) -> bool {
             ColorStop::is_layout_positional(o)
         }
 
         render_stops.clear();
-        render_stops.reserve(self.middle.len() + 2);
+
+        if extend_mode == ExtendMode::Reflect {
+            render_stops.reserve((self.middle.len() + 2) * 2);
+        } else {
+            render_stops.reserve(self.middle.len() + 2);
+        }
 
         let mut start = self.start.to_layout(length, ctx); // 1
         if is_positional(start.offset) {
@@ -895,7 +912,7 @@ impl GradientStops {
                         render_stops.push(stop);
                     } else {
                         if stop.offset < prev_offset {
-                            stop.offset = prev_offset;
+                            stop.offset = prev_offset; // 2
                         }
                         prev_offset = stop.offset;
 
@@ -924,7 +941,7 @@ impl GradientStops {
             stop.offset = length.get();
         }
         if stop.offset < prev_offset {
-            stop.offset = prev_offset;
+            stop.offset = prev_offset; // 2
         }
         render_stops.push(stop);
 
@@ -962,20 +979,30 @@ impl GradientStops {
             }
         }
 
+        // 4
+        if extend_mode == ExtendMode::Reflect {
+            let last_offset = render_stops[render_stops.len() - 1].offset;
+            for i in (0..render_stops.len()).rev() {
+                let mut stop = render_stops[i];
+                stop.offset = last_offset + last_offset - stop.offset;
+                render_stops.push(stop);
+            }
+        }
+
         let first = render_stops[0];
         let last = render_stops[render_stops.len() - 1];
 
         let actual_length = last.offset - first.offset;
 
         if actual_length > 0.00001 {
-            // 4
+            // 5
             for stop in render_stops {
                 stop.offset = (stop.offset - first.offset) / actual_length;
             }
 
             (first.offset, last.offset) // 5
         } else {
-            // 4 - all stops are at the same offset
+            // 5 - all stops are at the same offset
             match extend_mode {
                 ExtendMode::Clamp => {
                     // we want the first and last color to fill their side
@@ -991,11 +1018,11 @@ impl GradientStops {
                     render_stops[2].offset = 0.5;
                     render_stops[3].offset = 1.0;
 
-                    // 5 - line starts and ends at the offset point.
+                    // 6 - line starts and ends at the offset point.
                     let offset = last.offset;
                     (offset - 0.5, offset + 0.5)
                 }
-                ExtendMode::Repeat => {
+                ExtendMode::Repeat | ExtendMode::Reflect => {
                     // fill with the average of all colors.
                     let len = render_stops.len() as f32;
                     let color = RenderColor {
@@ -1008,7 +1035,7 @@ impl GradientStops {
                     render_stops.push(RenderColorStop { offset: 0.0, color });
                     render_stops.push(RenderColorStop { offset: 1.0, color });
 
-                    (0.0, 1.0) // 5
+                    (0.0, 1.0) // 6
                 }
             }
         }

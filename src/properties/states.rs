@@ -154,7 +154,6 @@ struct IsPressedNode<C: UiNode> {
     mouse_leave: EventListener<MouseHoverArgs>,
     mouse_enter: EventListener<MouseHoverArgs>,
     window_deactivated: EventListener<WindowIsActiveArgs>,
-
     // shortcut_release: EventListener<TimeElapsed>,
 }
 #[impl_ui_node(child)]
@@ -225,9 +224,9 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
                 }
             }
 
-            //if self.shortcut_release.updates(ctx.events) {
-            //    self.is_shortcut_press = false;
-            //}
+        //if self.shortcut_release.updates(ctx.events) {
+        //    self.is_shortcut_press = false;
+        //}
         } else {
             self.is_down = false;
             self.is_over = false;

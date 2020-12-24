@@ -12,6 +12,12 @@ use ego_tree::Tree;
 use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
 
+/// Gradient extend mode supported by the render.
+///
+/// Note that [`ExtendMode::Reflect`](crate::widgets::ExtendMode::Reflect) is not supported
+/// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
+pub type RenderExtendMode = webrender::api::ExtendMode;
+
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
         #[cfg(debug_assertions)]
@@ -617,7 +623,7 @@ impl FrameBuilder {
         start: LayoutPoint,
         end: LayoutPoint,
         stops: &[crate::widgets::RenderColorStop],
-        extend_mode: ExtendMode,
+        extend_mode: RenderExtendMode,
     ) {
         self.push_linear_gradient_tile(rect, start, end, stops, extend_mode, rect.size, LayoutSize::zero());
     }
@@ -634,7 +640,7 @@ impl FrameBuilder {
         start: LayoutPoint,
         end: LayoutPoint,
         stops: &[crate::widgets::RenderColorStop],
-        extend_mode: ExtendMode,
+        extend_mode: RenderExtendMode,
         tile_size: LayoutSize,
         tile_spacing: LayoutSize,
     ) {

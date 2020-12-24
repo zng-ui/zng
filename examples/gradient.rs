@@ -53,6 +53,10 @@ fn linear_points() -> impl Widget {
                 linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Repeat)
             ),
             sample(
+                "(30, 30) to (90, 90) reflect",
+                linear_gradient_pt((30, 30), (90, 90), [colors::GREEN, colors::RED], ExtendMode::Reflect)
+            ),
+            sample(
                 "to bottom right",
                 linear_gradient_to_bottom_right(stops![colors::MIDNIGHT_BLUE, 80.pct(), colors::CRIMSON], ExtendMode::Clamp)
             ),
