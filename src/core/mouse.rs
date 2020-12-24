@@ -262,19 +262,19 @@ impl MouseClickArgs {
         self.button == MouseButton::Right
     }
 
-    /// If the [`click_count`] is `1`.
+    /// If the [`click_count`](Self::click_count) is `1`.
     #[inline]
     pub fn is_single(&self) -> bool {
         self.click_count.get() == 1
     }
 
-    /// If the [`click_count`] is `2`.
+    /// If the [`click_count`](Self::click_count) is `2`.
     #[inline]
     pub fn is_double(&self) -> bool {
         self.click_count.get() == 2
     }
 
-    /// If the [`click_count`] is `3`.
+    /// If the [`click_count`](Self::click_count) is `3`.
     #[inline]
     pub fn is_triple(&self) -> bool {
         self.click_count.get() == 3
