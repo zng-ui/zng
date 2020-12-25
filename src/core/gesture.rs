@@ -743,7 +743,7 @@ pub struct Gestures {
     /// When a shortcut primary click happens, targeted widgets can indicate that
     /// they are pressed for this duration.
     ///
-    /// Initial value is `300ms`, set to to `0` to deactivate this type of indication.
+    /// Initial value is `50ms`, set to to `0` to deactivate this type of indication.
     pub shortcut_pressed_duration: Duration,
 
     click_shortcut: Vec<(WindowId, WidgetId, ShortcutClick, ShortcutArgs)>,
@@ -753,7 +753,7 @@ impl Gestures {
         Gestures {
             click_focused: [shortcut!(Enter), shortcut!(Space)].into(),
             context_click_focused: [shortcut!(Apps)].into(),
-            shortcut_pressed_duration: Duration::from_millis(300),
+            shortcut_pressed_duration: Duration::from_millis(50),
             click_shortcut: vec![],
         }
     }

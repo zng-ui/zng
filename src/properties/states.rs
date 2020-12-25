@@ -154,7 +154,7 @@ struct IsPressedNode<C: UiNode> {
     mouse_leave: EventListener<MouseHoverArgs>,
     mouse_enter: EventListener<MouseHoverArgs>,
     window_deactivated: EventListener<WindowIsActiveArgs>,
-    // shortcut_release: EventListener<TimeElapsed>,
+    shortcut_release: EventListener<TimeElapsed>,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode> UiNode for IsPressedNode<C> {
@@ -173,12 +173,13 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
         }
         self.is_down = false;
         self.is_over = false;
+        self.is_shortcut_press = false;
         self.mouse_input = MouseInputEvent::never();
         self.click = ClickEvent::never();
         self.mouse_enter = MouseEnterEvent::never();
         self.mouse_leave = MouseLeaveEvent::never();
         self.window_deactivated = WindowDeactivatedEvent::never();
-        //self.shortcut_release = EventListener::never();
+        self.shortcut_release = EventListener::response_never();
         self.child.deinit(ctx);
     }
 
@@ -216,17 +217,21 @@ impl<C: UiNode> UiNode for IsPressedNode<C> {
                 .iter()
                 .any(|a| a.concerns_widget(ctx) && a.shortcut().is_some())
             {
-                let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
-                if duration != Duration::default() {
-                    // TODO hold is_press `true` for the duration.
-                    //self.is_shortcut_press = true;
-                    //self.shortcut_release = ctx.sync.update_after(duration);
+                if self.is_shortcut_press {
+                    self.is_shortcut_press = false;
+                    self.shortcut_release = EventListener::response_never();
+                } else {
+                    let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
+                    if duration != Duration::default() {
+                        self.is_shortcut_press = true;
+                        self.shortcut_release = ctx.sync.update_after(duration);
+                    }
                 }
             }
 
-        //if self.shortcut_release.updates(ctx.events) {
-        //    self.is_shortcut_press = false;
-        //}
+            if self.shortcut_release.has_updates(ctx.events) {
+                self.is_shortcut_press = false;
+            }
         } else {
             self.is_down = false;
             self.is_over = false;
@@ -260,6 +265,7 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
         mouse_enter: MouseEnterEvent::never(),
         mouse_leave: MouseLeaveEvent::never(),
         window_deactivated: WindowDeactivatedEvent::never(),
+        shortcut_release: EventListener::response_never(),
     }
 }
 

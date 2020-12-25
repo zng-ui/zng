@@ -162,6 +162,11 @@ impl<T: 'static> EventListener<T> {
         EventEmitter::new(is_high_pressure).into_listener()
     }
 
+    /// New [`response`](EventEmitter::respone) that never updates.
+    pub fn response_never() -> Self {
+        EventListener::never(false)
+    }
+
     /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)

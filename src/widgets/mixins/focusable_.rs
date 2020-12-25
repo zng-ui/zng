@@ -7,7 +7,7 @@ use crate::properties::{border::BorderDetails, focus::focusable, foreground::for
 context_var! {
     pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);
     pub struct FocusHighlightOffsetsVar: SideOffsets = once SideOffsets::new_all(1.0);
-    pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(0, 255, 255, 1.0));
+    pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(200, 200, 200, 1.0));
 }
 
 widget_mixin! {
