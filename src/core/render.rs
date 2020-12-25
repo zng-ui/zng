@@ -613,32 +613,16 @@ impl FrameBuilder {
         self.display_list.push_rect(&self.common_item_properties(rect), color);
     }
 
-    /// Push a linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
-    ///
-    /// The gradient fills the `rect`.
-    #[inline]
-    pub fn push_linear_gradient(
-        &mut self,
-        rect: LayoutRect,
-        start: LayoutPoint,
-        end: LayoutPoint,
-        stops: &[crate::widgets::RenderColorStop],
-        extend_mode: RenderExtendMode,
-    ) {
-        self.push_linear_gradient_tile(rect, start, end, stops, extend_mode, rect.size, LayoutSize::zero());
-    }
-
     /// Push a repeating linear gradient rectangle using [`common_item_properties`](FrameBuilder::common_item_properties).
     ///
     /// The gradient fills the `tile_size`, the tile is repeated to fill the `rect`.
     /// The `extend_mode` controls how the gradient fills the tile.
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub fn push_linear_gradient_tile(
+    pub fn push_linear_gradient(
         &mut self,
         rect: LayoutRect,
-        start: LayoutPoint,
-        end: LayoutPoint,
+        line: LayoutLine,
         stops: &[crate::widgets::RenderColorStop],
         extend_mode: RenderExtendMode,
         tile_size: LayoutSize,
@@ -663,8 +647,8 @@ impl FrameBuilder {
         self.display_list.push_stops(stops);
 
         let gradient = Gradient {
-            start_point: start,
-            end_point: end,
+            start_point: line.start,
+            end_point: line.end,
             extend_mode,
         };
 

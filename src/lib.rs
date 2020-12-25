@@ -438,8 +438,8 @@ pub mod prelude {
         },
         ui_vec,
         units::{
-            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineHeight, Point, Rect, SideOffsets, Size,
-            TimeUnits,
+            rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, LineFromTuplesBuilder, LineHeight, Point,
+            Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
         window::{AppRunWindow, CursorIcon, StartPosition, Window, Windows},

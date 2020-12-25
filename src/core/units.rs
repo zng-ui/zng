@@ -862,6 +862,109 @@ impl_length_comp_conversions! {
 /// Computed [`Rect`].
 pub type LayoutRect = wr::LayoutRect;
 
+/// 2D line in [`Length`] units.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Line {
+    pub start: Point,
+    pub end: Point,
+}
+impl fmt::Display for Line {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(p) = f.precision() {
+            write!(f, "{:.p$} to {:.p$}", self.start, self.end, p = p)
+        } else {
+            write!(f, "{} to {}", self.start, self.end)
+        }
+    }
+}
+impl Line {
+    pub fn new<S: Into<Point>, E: Into<Point>>(start: S, end: E) -> Self {
+        Line {
+            start: start.into(),
+            end: end.into(),
+        }
+    }
+
+    #[inline]
+    pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+        LayoutLine {
+            start: self.start.to_layout(available_size, ctx),
+            end: self.end.to_layout(available_size, ctx),
+        }
+    }
+}
+
+/// Computed [`Line`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LayoutLine {
+    pub start: LayoutPoint,
+    pub end: LayoutPoint,
+}
+impl LayoutLine {
+    #[inline]
+    pub fn new(start: LayoutPoint, end: LayoutPoint) -> Self {
+        LayoutLine { start, end }
+    }
+
+    /// Line from (0, 0) to (0, 0).
+    #[inline]
+    pub fn zero() -> LayoutLine {
+        LayoutLine::new(LayoutPoint::zero(), LayoutPoint::zero())
+    }
+
+    /// Line length.
+    #[inline]
+    pub fn length(&self) -> LayoutLength {
+        LayoutLength::new(self.start.distance_to(self.end))
+    }
+
+    /// Bounding box that fits the line points.
+    #[inline]
+    pub fn bounds(&self) -> LayoutRect {
+        LayoutRect::from_points(&[self.start, self.end])
+    }
+}
+
+/// Build a [`Line`] using the syntax `(x1, y1).to(x2, y2)`.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # use zero_ui::core::units::Line;
+/// let line = (10, 20).to(100, 120);
+/// assert_eq!(Line::new(Point::new(10, 20), Point::new(100, 120)), line);
+/// ```
+pub trait LineFromTuplesBuilder {
+    /// New [`Line`] from `self` as a start point to `x2, y2` end point.
+    fn to<X2: Into<Length>, Y2: Into<Length>>(self, x2: X2, y2: Y2) -> Line;
+}
+impl<X1: Into<Length>, Y1: Into<Length>> LineFromTuplesBuilder for (X1, Y1) {
+    fn to<X2: Into<Length>, Y2: Into<Length>>(self, x2: X2, y2: Y2) -> Line {
+        Line::new(self, (x2, y2))
+    }
+}
+
+/// Build a [`Rect`] using the syntax `(width, height).at(x, y)`.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// # use zero_ui::core::units::Line;
+/// let rect = (800, 600).at(10, 20);
+/// assert_eq!(Rect::new(Point::new(10, 20), Size::new(800, 600)), rect);
+/// ```
+pub trait RectFromTuplesBuilder {
+    /// New [`Rect`] from `self` as the size placed at the `x, y` origin.
+    fn at<X: Into<Length>, Y: Into<Length>>(self, x: X, y: Y) -> Rect;
+}
+impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
+    fn at<X: Into<Length>, Y: Into<Length>>(self, x: X, y: Y) -> Rect {
+        Rect::new((x, y), self)
+    }
+}
+
 /// 2D size offsets in [`Length`] units.
 #[derive(Copy, Clone, Debug)]
 pub struct SideOffsets {
@@ -1312,6 +1415,15 @@ impl PixelGridExt for LayoutRect {
     #[inline]
     fn is_aligned_to(self, grid: PixelGrid) -> bool {
         self.origin.is_aligned_to(grid) && self.size.is_aligned_to(grid)
+    }
+}
+impl PixelGridExt for LayoutLine {
+    fn snap_to(self, grid: PixelGrid) -> Self {
+        LayoutLine::new(self.start.snap_to(grid), self.end.snap_to(grid))
+    }
+
+    fn is_aligned_to(self, grid: PixelGrid) -> bool {
+        self.start.is_aligned_to(grid) && self.end.is_aligned_to(grid)
     }
 }
 impl PixelGridExt for LayoutSideOffsets {
