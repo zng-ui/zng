@@ -1,3 +1,5 @@
+//! Generate the zero_ui::core::color::colors module.
+
 use serde::Deserialize;
 
 fn main() {
