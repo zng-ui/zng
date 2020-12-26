@@ -417,6 +417,12 @@ impl Length {
         Length::Relative(FactorNormal(1.0))
     }
 
+    /// Length that fills 50% of the available space.
+    #[inline]
+    pub fn half() -> Length {
+        Length::Relative(FactorNormal(0.5))
+    }
+
     /// Exact length in font units.
     #[inline]
     pub fn pt(font_pt: f32) -> Length {
@@ -627,6 +633,54 @@ impl Point {
     #[inline]
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
+    }
+
+    /// Point at the top-middle of the available space.
+    #[inline]
+    pub fn top() -> Self {
+        Self::new(Length::half(), Length::zero())
+    }
+
+    /// Point at the bottom-middle of the available space.
+    #[inline]
+    pub fn bottom() -> Self {
+        Self::new(Length::half(), Length::fill())
+    }
+
+    /// Point at the middle-left of the available space.
+    #[inline]
+    pub fn left() -> Self {
+        Self::new(Length::zero(), Length::half())
+    }
+
+    /// Point at the middle-right of the available space.
+    #[inline]
+    pub fn right() -> Self {
+        Self::new(Length::fill(), Length::half())
+    }
+
+    /// Point at the top-left of the available space.
+    #[inline]
+    pub fn top_left() -> Self {
+        Self::zero()
+    }
+
+    /// Point at the top-right of the available space.
+    #[inline]
+    pub fn top_right() -> Self {
+        Self::new(Length::fill(), Length::zero())
+    }
+
+    /// Point at the bottom-left of the available space.
+    #[inline]
+    pub fn bottom_left() -> Self {
+        Self::new(Length::zero(), Length::fill())
+    }
+
+    /// Point at the bottom-right of the available space.
+    #[inline]
+    pub fn bottom_right() -> Self {
+        Self::new(Length::fill(), Length::fill())
     }
 
     /// Swap `x` and `y`.
@@ -882,6 +936,87 @@ impl Line {
         Line {
             start: start.into(),
             end: end.into(),
+        }
+    }
+
+    /// Line from (0, 0) to (0, 0).
+    #[inline]
+    pub fn zero() -> Line {
+        Line {
+            start: Point::zero(),
+            end: Point::zero(),
+        }
+    }
+
+    /// Line from that fills the available length from [bottom](Point::bottom) to [top](Point::top).
+    #[inline]
+    pub fn to_top() -> Line {
+        Line {
+            start: Point::bottom(),
+            end: Point::top(),
+        }
+    }
+
+    /// Line from that fills the available length from [top](Point::top) to [bottom](Point::bottom).
+    #[inline]
+    pub fn to_bottom() -> Line {
+        Line {
+            start: Point::top(),
+            end: Point::bottom(),
+        }
+    }
+
+    /// Line from that fills the available length from [left](Point::left) to [right](Point::right).
+    #[inline]
+    pub fn to_right() -> Line {
+        Line {
+            start: Point::left(),
+            end: Point::right(),
+        }
+    }
+
+    /// Line from that fills the available length from [right](Point::right) to [left](Point::left).
+    #[inline]
+    pub fn to_left() -> Line {
+        Line {
+            start: Point::right(),
+            end: Point::left(),
+        }
+    }
+
+    /// Line from that fills the available length from [bottom-right](Point::bottom_right) to [top-left](Point::top_left).
+    #[inline]
+    pub fn to_top_left() -> Line {
+        Line {
+            start: Point::bottom_right(),
+            end: Point::top_left(),
+        }
+    }
+
+    /// Line from that fills the available length from [bottom-left](Point::bottom_left) to [top-right](Point::top_right).
+    #[inline]
+    pub fn to_top_right() -> Line {
+        Line {
+            start: Point::bottom_left(),
+            end: Point::top_right(),
+        }
+    }
+
+    /// Line from that fills the available length from [top-right](Point::top_right) to [bottom-left](Point::bottom_left).
+    #[inline]
+    pub fn to_bottom_left() -> Line {
+        Line {
+            start: Point::top_right(),
+            end: Point::bottom_left(),
+        }
+    }
+
+    /// Line from that fills the available length from [top-left](Point::top_left) to [bottom-right](Point::bottom_right).
+    #[inline]
+    pub fn to_bottom_right() -> Line {
+        Line {
+            start: Point::top_left(),
+            end: Point::bottom_right(),
         }
     }
 

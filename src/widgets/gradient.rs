@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Range};
+use std::ops::Range;
 
 use crate::core::render::RenderExtendMode;
 use crate::prelude::new_widget::*;
@@ -24,24 +24,22 @@ impl From<ExtendMode> for RenderExtendMode {
     }
 }
 
-/// Paints a linear gradient with a line defined by angle.
-///
-/// The line is centered in the widget, the start and end points are defined so that
-/// color stops at 0% and 100% are always visible at opposite corners.
-///
-/// If the first color stop is greater then 0% or the last color stop is less then 100% the gradient
-/// is extended using the `extend_mode`.
-pub fn linear_gradient(
-    angle: impl IntoVar<AngleRadian>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-) -> impl UiNode {
-    linear_gradient_ext(angle, stops, extend_mode)
+/// Paints a linear gradient with a line defined by angle or points.
+pub fn linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_ext(axis, stops, ExtendMode::Clamp)
+}
+
+pub fn repeating_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_ext(axis, stops, ExtendMode::Repeat)
+}
+
+pub fn reflecting_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    linear_gradient_ext(axis, stops, ExtendMode::Reflect)
 }
 
 /// Linear gradient with extend mode configurable.
-pub fn linear_gradient_ext<A: LinearGradientAxis>(
-    axis: impl IntoVar<A>,
+pub fn linear_gradient_ext(
+    axis: impl IntoVar<LinearGradientAxis>,
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
 ) -> impl UiNode {
@@ -49,8 +47,8 @@ pub fn linear_gradient_ext<A: LinearGradientAxis>(
 }
 
 /// Linear gradient with all features configurable.
-pub fn linear_gradient_full<A: LinearGradientAxis>(
-    axis: impl IntoVar<A>,
+pub fn linear_gradient_full(
+    axis: impl IntoVar<LinearGradientAxis>,
     stops: impl IntoVar<GradientStops>,
     extend_mode: impl IntoVar<ExtendMode>,
     tile_size: impl IntoVar<Size>,
@@ -65,166 +63,68 @@ pub fn linear_gradient_full<A: LinearGradientAxis>(
     }
 }
 
-/// Paints a linear gradient with a line defined by two points.
-///
-/// The points are relative to the widget area (top-left origin), a color stop at 0% is at the `start` point,
-/// a color stop at 100% is at the `end` point.
-///
-/// The line is logically infinite, the two points define the angle, center and 0-100% range, color stops
-/// can be set outside the range.
-///
-/// If no color stop outside the range fully covers the visible gradient in the widget
-/// area the gradient is extended using the `extend_mode`.
-pub fn linear_gradient_pt(
-    start: impl IntoVar<Point>,
-    end: impl IntoVar<Point>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-) -> impl UiNode {
-    linear_gradient_ext(
-        merge_var!(start.into_var(), end.into_var(), |a, b| Line::new(*a, *b)),
-        stops,
-        extend_mode,
-    )
-}
-
-/// Paints a [`linear_gradient`] to fill the `tile_size` area, the tile is then repeated to fill
-/// the widget area. Space can be added between tiles using `tile_spacing`.
-pub fn linear_gradient_tile(
-    angle: impl IntoVar<AngleRadian>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-    tile_size: impl IntoVar<Size>,
-    tile_spacing: impl IntoVar<Size>,
-) -> impl UiNode {
-    linear_gradient_full(angle, stops, extend_mode, tile_size, tile_spacing)
-}
-
-/// Paints a [`linear_gradient_pt`] to fill the `tile_size` area, the tile is then repeated to fill
-/// the widget area. Space can be added between tiles using `tile_spacing`.
-pub fn linear_gradient_pt_tile(
-    start: impl IntoVar<Point>,
-    end: impl IntoVar<Point>,
-    stops: impl IntoVar<GradientStops>,
-    extend_mode: impl IntoVar<ExtendMode>,
-    tile_size: impl IntoVar<Size>,
-    tile_spacing: impl IntoVar<Size>,
-) -> impl UiNode {
-    linear_gradient_full(
-        merge_var!(start.into_var(), end.into_var(), |a, b| Line::new(*a, *b)),
-        stops,
-        extend_mode,
-        tile_size,
-        tile_spacing,
-    )
-}
-
-/// Linear gradient from bottom to top.
-///
-/// This is equivalent to angle `0.deg()` or points `(0, 100.pct()) to (0, 0)`.
-pub fn linear_gradient_to_top(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((0, 100.pct()), (0, 0), stops, extend_mode)
-}
-
-/// Linear gradient from top to bottom.
-///
-/// This is equivalent to angle `180.deg()` or points `(0, 0), (0, 100.pct())`.
-pub fn linear_gradient_to_bottom(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (0, 100.pct()), stops, extend_mode)
-}
-
-/// Linear gradient from right to left.
-///
-/// This is equivalent to angle `270.deg()` or points `(100.pct(), 0), (0, 0)`.
-pub fn linear_gradient_to_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 0), (0, 0), stops, extend_mode)
-}
-
-/// Linear gradient from left to right.
-///
-/// This is equivalent to angle `90.deg()` or points `(0, 0), (100.pct(), 0)`.
-pub fn linear_gradient_to_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (100.pct(), 0), stops, extend_mode)
-}
-
-/// Linear gradient from bottom-left to top-right.
-///
-/// This is equivalent to points `(0, 100.pct()), (100.pct(), 0)`. There is no angle equivalent.
-pub fn linear_gradient_to_top_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((0, 100.pct()), (100.pct(), 0), stops, extend_mode)
-}
-
-/// Linear gradient from top-left to bottom-right.
-///
-/// This is equivalent to points `(0, 0), (100.pct(), 100.pct())`. There is no angle equivalent.
-pub fn linear_gradient_to_bottom_right(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((0, 0), (100.pct(), 100.pct()), stops, extend_mode)
-}
-
-/// Linear gradient from bottom-right to top-left.
-///
-/// This is equivalent to points `(100.pct(), 100.pct()), (0, 0)`. There is no angle equivalent.
-pub fn linear_gradient_to_top_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 100.pct()), (0, 0), stops, extend_mode)
-}
-
-/// Linear gradient from top-right to bottom-left.
-///
-/// This is equivalent to points `(100.pct(), 0), (0, 100.pct())`. There is no angle equivalent.
-pub fn linear_gradient_to_bottom_left(stops: impl IntoVar<GradientStops>, extend_mode: impl IntoVar<ExtendMode>) -> impl UiNode {
-    linear_gradient_pt((100.pct(), 0), (0, 100.pct()), stops, extend_mode)
-}
-
 /// The [angle](AngleUnits) or [line](crate::core::units::Line) that defines a linear gradient.
 ///
 /// # Example
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// # use zero_ui::widgets::LinearGradientAxis;
-/// fn angle() -> impl LinearGradientAxis {
-///     90.deg() // all angle units supported.
-/// }
-///
-/// fn line() -> impl LinearGradientAxis {
-///     (0, 0).to(100.pct(), 100.pct())
-/// }
+/// # use zero_ui::widgets::linear_gradient;
+/// let angle_gradient = linear_gradient(90.deg, [colors::BLACK, colors::WHITE]);
+/// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
-pub trait LinearGradientAxis: VarValue {
-    fn layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine;
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LinearGradientAxis {
+    Angle(AngleRadian),
+    Line(Line),
 }
-impl<A: Into<AngleRadian> + Copy + VarValue> LinearGradientAxis for A {
-    fn layout(&self, size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
-        let rad = (*self).into();
+impl LinearGradientAxis {
+    /// Compute a [`LayoutLine`].
+    pub fn layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
+        match self {
+            LinearGradientAxis::Angle(rad) => {
+                let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
 
-        let dir = LayoutPoint::new(rad.0.sin(), -rad.0.cos());
+                let line_length = (dir.x * available_size.width).abs() + (dir.y * available_size.height).abs();
 
-        let line_length = (dir.x * size.width).abs() + (dir.y * size.height).abs();
+                let inv_dir_length = 1.0 / (dir.x * dir.x + dir.y * dir.y).sqrt();
 
-        let inv_dir_length = 1.0 / (dir.x * dir.x + dir.y * dir.y).sqrt();
+                let delta = euclid::Vector2D::new(
+                    dir.x * inv_dir_length * line_length / 2.0,
+                    dir.y * inv_dir_length * line_length / 2.0,
+                );
 
-        let delta = euclid::Vector2D::new(
-            dir.x * inv_dir_length * line_length / 2.0,
-            dir.y * inv_dir_length * line_length / 2.0,
-        );
+                let center = LayoutPoint::new(available_size.width / 2.0, available_size.height / 2.0);
 
-        let center = LayoutPoint::new(size.width / 2.0, size.height / 2.0);
+                let line = LayoutLine::new(center - delta, center + delta);
 
-        let line = LayoutLine::new(center - delta, center + delta);
-
-        line.snap_to(ctx.pixel_grid())
+                line.snap_to(ctx.pixel_grid())
+            }
+            LinearGradientAxis::Line(line) => line.to_layout(available_size, ctx),
+        }
     }
 }
-impl LinearGradientAxis for Line {
-    fn layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
-        self.to_layout(available_size, ctx)
+impl_from_and_into_var! {
+    fn from(angle: AngleRadian) -> LinearGradientAxis {
+        LinearGradientAxis::Angle(angle)
+    }
+    fn from(angle: AngleDegree) -> LinearGradientAxis {
+        LinearGradientAxis::Angle(angle.into())
+    }
+    fn from(angle: AngleTurn) -> LinearGradientAxis {
+        LinearGradientAxis::Angle(angle.into())
+    }
+    fn from(angle: AngleGradian) -> LinearGradientAxis {
+        LinearGradientAxis::Angle(angle.into())
+    }
+
+    fn from(line: Line) -> LinearGradientAxis {
+        LinearGradientAxis::Line(line)
     }
 }
 
-struct LinearGradientNode<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
-    _axis_type: PhantomData<A>,
-
-    axis: VA,
+struct LinearGradientNode<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
+    axis: A,
     stops: S,
     extend_mode: E,
 
@@ -234,10 +134,9 @@ struct LinearGradientNode<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<Gr
     final_size: LayoutSize,
 }
 
-impl<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> LinearGradientNode<A, VA, S, E> {
-    fn new(axis: VA, stops: S, extend_mode: E) -> Self {
+impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> LinearGradientNode<A, S, E> {
+    fn new(axis: A, stops: S, extend_mode: E) -> Self {
         Self {
-            _axis_type: PhantomData,
             axis,
             stops,
             extend_mode,
@@ -249,9 +148,7 @@ impl<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<GradientStops>, E: VarL
 }
 
 #[impl_ui_node(none)]
-impl<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> UiNode
-    for LinearGradientNode<A, VA, S, E>
-{
+impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> UiNode for LinearGradientNode<A, S, E> {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.axis.init_local(ctx.vars);
         self.extend_mode.init_local(ctx.vars);
@@ -298,14 +195,13 @@ impl<A: LinearGradientAxis, VA: VarLocal<A>, S: VarLocal<GradientStops>, E: VarL
 }
 
 struct LinearGradientFullNode<
-    A: LinearGradientAxis,
-    VA: VarLocal<A>,
+    A: VarLocal<LinearGradientAxis>,
     S: VarLocal<GradientStops>,
     E: VarLocal<ExtendMode>,
     T: VarLocal<Size>,
     TS: VarLocal<Size>,
 > {
-    g: LinearGradientNode<A, VA, S, E>,
+    g: LinearGradientNode<A, S, E>,
 
     tile_size: T,
     tile_spacing: TS,
@@ -315,14 +211,8 @@ struct LinearGradientFullNode<
 }
 
 #[impl_ui_node(none)]
-impl<
-        A: LinearGradientAxis,
-        VA: VarLocal<A>,
-        S: VarLocal<GradientStops>,
-        E: VarLocal<ExtendMode>,
-        T: VarLocal<Size>,
-        TS: VarLocal<Size>,
-    > UiNode for LinearGradientFullNode<A, VA, S, E, T, TS>
+impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>, T: VarLocal<Size>, TS: VarLocal<Size>> UiNode
+    for LinearGradientFullNode<A, S, E, T, TS>
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.g.init(ctx);
