@@ -21,13 +21,24 @@ macro_rules! ident {
     };
 }
 
-/// returns `zero_ui` or the name used in `Cargo.toml` if the crate was
-/// renamed.
+/// returns `zero_ui` or the name used in `Cargo.toml` if the crate was renamed.
 pub fn zero_ui_crate_ident() -> Ident {
     use once_cell::sync::OnceCell;
+    use proc_macro_crate::crate_name;
     static CRATE: OnceCell<String> = OnceCell::new();
 
-    let crate_ = CRATE.get_or_init(|| proc_macro_crate::crate_name("zero-ui").unwrap_or_else(|_| "zero_ui".to_owned()));
+    let crate_ = CRATE.get_or_init(|| {
+        if let Ok(ident) = crate_name("zero-ui") {
+            // using the main crate.
+            return ident;
+        }
+        if let Ok(ident) = crate_name("zero-ui-core") {
+            // using the core crate only.
+            return ident;
+        }
+        // fallback
+        "zero_ui".to_owned()
+    });
 
     Ident::new(crate_.as_str(), Span::call_site())
 }
