@@ -219,6 +219,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var macros = document.getElementById('macros');
     macros.nextElementSibling.remove();
     macros.remove();
+
+    var side_bar_anchor = document.querySelector("li a[href='#macros']").remove();
  })
 </script>
 */
