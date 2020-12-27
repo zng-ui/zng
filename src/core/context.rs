@@ -161,7 +161,7 @@ impl UpdateNotifier {
 /// A key to a value in a [`StateMap`].
 ///
 /// The type that implements this trait is the key. You
-/// can use the [`state_key!`](macro.state_key.html) macro.
+/// can use the [`state_key!`](zero_ui::core::context::state_key) macro.
 pub trait StateKey: Clone + Copy + 'static {
     /// The value type.
     type Type: 'static;
@@ -181,7 +181,23 @@ pub trait StateKey: Clone + Copy + 'static {
 /// # Naming Convention
 ///
 /// It is recommended that the type name ends with the `Key` suffix.
-pub use zero_ui_macros::state_key;
+#[macro_export]
+macro_rules! state_key {
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty;)+) => {$(
+        $(#[$outer])*
+        /// # StateKey
+        /// This `struct` is a [`StateKey`](zero_ui::core::context::StateKey).
+        #[derive(Clone, Copy)]
+        $vis struct $ident;
+
+        impl $crate::core::context::StateKey for $ident {
+            type Type = $type;
+        }
+    )+};
+}
+
+#[doc(inline)]
+pub use crate::state_key;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.

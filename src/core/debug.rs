@@ -18,6 +18,8 @@ use std::{
 };
 
 /// A location in source-code.
+///
+/// Use [`source_location!`] to construct.
 #[derive(Debug, Clone)]
 pub struct SourceLocation {
     /// [`file!`]
@@ -28,7 +30,19 @@ pub struct SourceLocation {
     pub column: u32,
 }
 
-pub use zero_ui_macros::source_location;
+/// New [`SourceLocation`] that represents the location you call this macro.
+#[macro_export]
+macro_rules! source_location {
+    () => {
+        $crate::core::debug::SourceLocation {
+            file: std::file!(),
+            line: std::line!(),
+            column: std::column!(),
+        }
+    };
+}
+#[doc(inline)]
+pub use crate::source_location;
 
 /// Debug information about a property of a widget instance.
 #[derive(Debug, Clone)]

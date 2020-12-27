@@ -30,7 +30,7 @@ use webrender::api::{self as wr, FilterOp};
 /// assert_eq!(red, hex!(FF_00_00));
 /// ```
 ///
-pub use zero_ui_macros::hex_color as hex;
+pub use zero_ui_proc_macros::hex_color as hex;
 
 /// Webrender RGBA.
 pub type RenderColor = webrender::api::ColorF;

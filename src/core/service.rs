@@ -11,7 +11,7 @@ use std::{
 
 /// Auto implement [`AppService`] trait.
 use fnv::FnvHashSet;
-pub use zero_ui_macros::{AppService, WindowService};
+pub use zero_ui_proc_macros::{AppService, WindowService};
 
 /// Application services with registration access.
 pub struct AppServicesInit {

@@ -117,12 +117,12 @@ event_args! {
 
         /// Full path to the widget that got clicked.
         ///
-        /// A widget is clicked if the [`MouseDown`] and [`MouseUp`] happen
+        /// A widget is clicked if the [`MouseDownEvent`] and [`MouseUpEvent`] happen
         /// in sequence in the same widget. Subsequent clicks (double, triple)
-        /// happen on [`MouseDown`].
+        /// happen on [`MouseDownEvent`].
         ///
-        /// If a [`MouseDown`] happen in a child widget and the pointer is dragged
-        /// to a larger parent widget and then let go ([`MouseUp`]), the click target
+        /// If a [`MouseDownEvent`] happen in a child widget and the pointer is dragged
+        /// to a larger parent widget and then let go ([`MouseUpEvent`]), the click target
         /// is the parent widget.
         ///
         /// Multi-clicks (`[click_count](MouseClickArgs::click_count) > 1`) only happen to
@@ -159,7 +159,7 @@ event_args! {
 
         ..
 
-        /// If the widget is in [`targets`](MouseHoverArgs::targets)
+        /// If the widget is in [`target`](MouseHoverArgs::target)
         /// and is [allowed](CaptureInfo::allows) by the [`capture`](Self::capture).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())

@@ -908,4 +908,14 @@ mod tests {
 /// # use zero_ui::core::text::formatx;
 /// let text = formatx!("Hello {}", "World!");
 /// ```
-pub use zero_ui_macros::formatx;
+#[macro_export]
+macro_rules! formatx {
+    ($str:tt) => {
+        $crate::core::text::Text::borrowed($str)
+    };
+    ($($tt:tt)*) => {
+        $crate::core::text::Text::owned(format!($($tt)*))
+    };
+}
+#[doc(inline)]
+pub use crate::formatx;

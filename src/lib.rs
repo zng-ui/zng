@@ -212,6 +212,17 @@
 //! +---------------------------------------+
 //! ```
 
+/*!
+<script>
+// hide macros from doc root
+document.addEventListener('DOMContentLoaded', function() {
+    var macros = document.getElementById('macros');
+    macros.nextElementSibling.remove();
+    macros.remove();
+ })
+</script>
+*/
+
 // for proc_macros that don't have $self.
 extern crate self as zero_ui;
 
@@ -391,7 +402,7 @@ macro_rules! singleton_assert {
 }
 
 #[doc(hidden)]
-pub use zero_ui_macros::{widget_new, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{widget_new, widget_stage2, widget_stage3};
 
 pub mod core;
 pub mod properties;

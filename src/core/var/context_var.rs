@@ -186,3 +186,145 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
         self.local.with(|l| l.value.replace(value))
     }
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __context_var_inner {
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = const $default:expr;) => {
+        $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
+
+            static DEFAULT: $type = $default;
+            &DEFAULT
+
+        };);
+    };
+
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = once $default:expr;) => {
+        $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
+
+            static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
+            DEFAULT.get_or_init(||{
+                $default
+            })
+
+        };);
+    };
+
+    ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = return $default:expr;) => {
+        $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
+            $default
+        };);
+    };
+
+
+    (gen => $(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $DEFAULT:expr;) => {
+        $(#[$outer])*
+        /// # ContextVar
+        /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
+        #[derive(Debug, Clone, Copy)]
+        $vis struct $ident;
+
+        impl $ident {
+            std::thread_local! {
+                static THREAD_LOCAL_VALUE: $crate::core::var::ContextVarValue<$ident> = $crate::core::var::ContextVarValue::init();
+            }
+
+            /// [`Var`](zero_ui::core::var::Var) that represents this context var.
+            #[inline]
+            pub fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
+                const VAR: $crate::core::var::ContextVarProxy<$ident> = $crate::core::var::ContextVarProxy(std::marker::PhantomData);
+                &VAR
+            }
+
+            /// Default value, used when the variable is not set in a context.
+            #[inline]
+            pub fn default_value() -> &'static $type {
+                $DEFAULT
+            }
+        }
+
+        impl $crate::core::var::ContextVar for $ident {
+            type Type = $type;
+
+            #[inline]
+            fn default_value() -> &'static Self::Type {
+               Self::default_value()
+            }
+
+            #[inline]
+            fn var() -> &'static $crate::core::var::ContextVarProxy<Self> {
+               Self::var()
+            }
+
+            #[inline]
+            fn thread_local_value() -> $crate::core::var::ContextVarLocalKey<Self> {
+                $crate::core::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
+            }
+        }
+
+        impl $crate::core::var::IntoVar<$type> for $ident {
+            type Var = $crate::core::var::ContextVarProxy<Self>;
+            #[inline]
+            fn into_var(self) -> Self::Var {
+                $crate::core::var::ContextVarProxy::default()
+            }
+        }
+    };
+}
+
+/// Declares new [`ContextVar`](crate::core::var::ContextVar) types.
+///
+/// # Examples
+/// ```
+/// # use zero_ui::core::var::context_var;
+/// # #[derive(Debug, Clone)]
+/// # struct NotConst(u8);
+/// # fn init_val() -> NotConst { NotConst(10) }
+/// #
+/// context_var! {
+///     /// A public documented context var.
+///     pub struct FooVar: u8 = const 10;
+///
+///     // A private context var.
+///     struct BarVar: NotConst = once init_val();
+/// }
+/// ```
+///
+/// # Default Value
+///
+/// All context variable have a default fallback value that is used when the variable is not setted in the context.
+///
+/// The default value is a `&'static T` where `T` is the variable value type that must auto-implement [`VarValue`](crate::core::var::VarValue).
+///
+/// There are three different ways of specifying how the default value is stored. The way is selected by a keyword
+/// after the `=` and before the default value expression.
+///
+/// ## `const`
+///
+/// The default expression is evaluated to a `static` item that is referenced when the variable default is requested.
+///
+/// Required a constant expression.
+///
+/// ## `return`
+///
+/// The default expression is returned when the variable default is requested.
+///
+/// Requires an expression of type `&'static T` where `T` is the variable value type.
+///
+/// ## `once`
+///
+/// The default expression is evaluated once during the first request and the value is cached for the lifetime of the process.
+///
+/// Requires an expression of type `T` where `T` is the variable value type.
+///
+/// # Naming Convention
+///
+/// It is recommended that the type name ends with the `Var` suffix.
+#[macro_export]
+macro_rules! context_var {
+    ($($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $mode:ident $default:expr;)+) => {$(
+        $crate::__context_var_inner!($(#[$outer])* $vis struct $ident: $type = $mode $default;);
+    )+};
+}
+#[doc(inline)]
+pub use crate::context_var;

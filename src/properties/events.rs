@@ -140,6 +140,61 @@ where
     }
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __event_property {
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path,
+            filter: $filter:expr,
+        }
+    ) => { paste::paste! {
+        $(#[$on_event_attrs])*
+        ///
+        /// # Preview Event
+        ///
+        #[doc = "You can preview this event using [`on_pre_" $event "`]."]
+        #[$crate::core::property(event)]
+        $vis fn [<on_ $event>](
+            child: impl $crate::core::UiNode,
+            handler: impl FnMut(&mut $crate::core::context::WidgetContext, &$Args) + 'static
+        ) -> impl $crate::core::UiNode {
+            $crate::properties::events::on_event(child, $Event, $filter, handler)
+        }
+
+        #[doc = "Preview [on_" $event "] event."]
+        ///
+        /// # Preview Events
+        ///
+        /// Preview events are fired before the main event, if you stop the propagation of a preview event
+        /// the main event does not run. See [`on_pre_event`](zero_ui::properties::events::on_pre_event) for more details.
+        #[$crate::core::property(event)]
+        $vis fn [<on_pre_ $event>](
+            child: impl $crate::core::UiNode,
+            handler: impl FnMut(&mut $crate::core::context::WidgetContext, &$Args) + 'static
+        ) -> impl $crate::core::UiNode {
+            $crate::properties::events::on_pre_event(child, $Event, $filter, handler)
+        }
+    } };
+    (
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path,
+        }
+    ) => {
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $Event,
+                args: $Args,
+                filter: |ctx, args| $crate::core::event::EventArgs::concerns_widget(args, ctx),
+            }
+        }
+    };
+}
 /// Declare one or more event properties.
 ///
 /// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
@@ -182,7 +237,28 @@ where
 ///
 /// If you don't provide a filter predicate the default [`args.concerns_widget(ctx)`](EventArgs::concerns_widget) is used.
 /// So if you want to extend the filter and not fully replace it you must call `args.concerns_widget(ctx)` in your custom filter.
-pub use zero_ui_macros::event_property;
+#[macro_export]
+macro_rules! event_property {
+    ($(
+        $(#[$on_event_attrs:meta])*
+        $vis:vis fn $event:ident {
+            event: $Event:path,
+            args: $Args:path $(,
+            filter: $filter:expr)? $(,)?
+        }
+    )+) => {$(
+        $crate::__event_property! {
+            $(#[$on_event_attrs])*
+            $vis fn $event {
+                event: $Event,
+                args: $Args,
+                $(filter: $filter,)?
+            }
+        }
+    )+};
+}
+#[doc(inline)]
+pub use crate::event_property;
 
 /// Helper for declaring event properties.
 ///

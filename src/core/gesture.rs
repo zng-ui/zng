@@ -509,6 +509,31 @@ impl KeyInputArgs {
     }
 }
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __shortcut {
+    (-> + $Key:ident) => {
+        $crate::core::gesture::KeyGesture {
+            key: $crate::core::gesture::GestureKey::$Key,
+            modifiers: $crate::core::keyboard::ModifiersState::empty(),
+        }
+    };
+
+    (-> $($MODIFIER:ident)|+ + $Key:ident) => {
+        $crate::core::gesture::KeyGesture {
+            key: $crate::core::gesture::GestureKey::$Key,
+            modifiers: $($crate::core::keyboard::ModifiersState::$MODIFIER)|+,
+        }
+    };
+
+    (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:ident) => {
+        $crate::core::gesture::KeyChord {
+            starter: $crate::__shortcut!(-> $($STARTER_MODIFIER)|* + $StarterKey),
+            complement: $crate::__shortcut!(-> $($COMPLEMENT_MODIFIER)|* + $ComplementKey)
+        }
+    };
+}
+
 /// Creates a [`Shortcut`](zero_ui::core::gesture::Shortcut).
 ///
 /// # Examples
@@ -536,12 +561,63 @@ impl KeyInputArgs {
 ///     shortcut!(Alt)
 /// }
 /// ```
-pub use zero_ui_macros::shortcut;
+#[macro_export]
+macro_rules! shortcut {
+    (Logo) => {
+        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Logo)
+    };
+    (Shift) => {
+        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Shift)
+    };
+    (Ctrl) => {
+        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Ctrl)
+    };
+    (Alt) => {
+        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Alt)
+    };
+
+    ($Key:ident) => {
+        $crate::core::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $Key))
+    };
+    ($($MODIFIER:ident)|+ + $Key:ident) => {
+        $crate::core::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
+    };
+
+    ($StarterKey:ident, $ComplementKey:ident) => {
+        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+            + $StarterKey,
+            + $ComplementKey
+        ))
+    };
+
+    ($StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+            + $StarterKey,
+            $(COMPLEMENT_MODIFIER)|* + $ComplementKey
+        ))
+    };
+
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $ComplementKey:ident) => {
+        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+            $($STARTER_MODIFIER)|* + $StarterKey,
+            + $ComplementKey
+        ))
+    };
+
+    ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
+        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+            $($STARTER_MODIFIER)|* + $StarterKey,
+            $($COMPLEMENT_MODIFIER)|* + $ComplementKey
+        ))
+    };
+}
+#[doc(inline)]
+pub use crate::shortcut;
 
 event! {
     /// Aggregate click event.
     ///
-    /// Can be a mouse click, a [return key](Key::Return) press or a touch tap.
+    /// Can be a mouse click, a shortcut press or a touch tap.
     pub ClickEvent: ClickArgs;
 
     /// Shortcut input event.

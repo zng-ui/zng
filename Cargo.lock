@@ -2791,14 +2791,6 @@ dependencies = [
  "webrender",
  "winapi 0.3.9",
  "xi-unicode",
- "zero-ui-macros",
-]
-
-[[package]]
-name = "zero-ui-macros"
-version = "0.1.0"
-dependencies = [
- "paste",
  "zero-ui-proc-macros",
 ]
 

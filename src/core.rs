@@ -739,7 +739,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///     }
 /// }
 /// ```
-pub use zero_ui_macros::impl_ui_node;
+pub use zero_ui_proc_macros::impl_ui_node;
 
 /// Expands a function to a widget property module.
 ///
@@ -864,7 +864,7 @@ pub use zero_ui_macros::impl_ui_node;
 ///
 /// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
 /// to a new probing variable when used in an widget when condition expression.
-pub use zero_ui_macros::property;
+pub use zero_ui_proc_macros::property;
 
 /// Declares a new widget macro and module.
 ///
@@ -1171,7 +1171,7 @@ pub use zero_ui_macros::property;
 /// # Internals
 ///
 /// TODO details of internal code generated.
-pub use zero_ui_macros::widget;
+pub use zero_ui_proc_macros::widget;
 
 /// Declares a new widget mix-in module.
 ///
@@ -1226,7 +1226,7 @@ pub use zero_ui_macros::widget;
 ///
 /// In the generated module some public but doc-hidden items are generated, this items
 /// are used during widget instantiation.
-pub use zero_ui_macros::widget_mixin;
+pub use zero_ui_proc_macros::widget_mixin;
 
 /// Creates a [`WidgetVec`](zero_ui::core::WidgetVec) containing the arguments.
 ///
@@ -1241,4 +1241,14 @@ pub use zero_ui_macros::widget_mixin;
 /// ];
 /// ```
 /// `ui_vec!` automatically boxes each widget.
-pub use zero_ui_macros::ui_vec;
+#[macro_export]
+macro_rules! ui_vec {
+    () => { $crate::core::WidgetVec::new() };
+    ($($node:expr),+ $(,)?) => {
+        vec![
+            $($crate::core::Widget::boxed_widget($node)),*
+        ]
+    };
+}
+#[doc(inline)]
+pub use crate::ui_vec;

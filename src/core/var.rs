@@ -49,56 +49,6 @@ pub use rc_switch_var::*;
 mod vars;
 pub use vars::*;
 
-/// Declares new [`ContextVar`](crate::core::var::ContextVar) types.
-///
-/// # Examples
-/// ```
-/// # use zero_ui::core::var::context_var;
-/// # #[derive(Debug, Clone)]
-/// # struct NotConst(u8);
-/// # fn init_val() -> NotConst { NotConst(10) }
-/// #
-/// context_var! {
-///     /// A public documented context var.
-///     pub struct FooVar: u8 = const 10;
-///
-///     // A private context var.
-///     struct BarVar: NotConst = once init_val();
-/// }
-/// ```
-///
-/// # Default Value
-///
-/// All context variable have a default fallback value that is used when the variable is not setted in the context.
-///
-/// The default value is a `&'static T` where `T` is the variable value type that must auto-implement [`VarValue`](crate::core::var::VarValue).
-///
-/// There are three different ways of specifying how the default value is stored. The way is selected by a keyword
-/// after the `=` and before the default value expression.
-///
-/// ## `const`
-///
-/// The default expression is evaluated to a `static` item that is referenced when the variable default is requested.
-///
-/// Required a constant expression.
-///
-/// ## `return`
-///
-/// The default expression is returned when the variable default is requested.
-///
-/// Requires an expression of type `&'static T` where `T` is the variable value type.
-///
-/// ## `once`
-///
-/// The default expression is evaluated once during the first request and the value is cached for the lifetime of the process.
-///
-/// Requires an expression of type `T` where `T` is the variable value type.
-///
-/// # Naming Convention
-///
-/// It is recommended that the type name ends with the `Var` suffix.
-pub use zero_ui_macros::context_var;
-
 /// A type that can be a [`Var`](crate::core::var::Var) value.
 ///
 /// # Trait Alias

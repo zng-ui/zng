@@ -228,4 +228,18 @@ pub use profiler_impl::*;
 /// # let thing = "";
 /// profile_scope!("do-{}", thing);
 /// ```
-pub use zero_ui_macros::profile_scope;
+#[macro_export]
+macro_rules! profile_scope {
+    ($name:expr) => {
+        #[cfg(feature = "app_profiler")]
+        let _profile_scope =
+        $crate::core::profiler::ProfileScope::new($name);
+    };
+    ($($args:tt)+) => {
+        #[cfg(feature = "app_profiler")]
+        let _profile_scope =
+        $crate::core::profiler::ProfileScope::new(format!($($args)+));
+    };
+}
+#[doc(inline)]
+pub use crate::profile_scope;

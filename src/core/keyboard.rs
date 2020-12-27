@@ -31,7 +31,7 @@ event_args! {
         /// If the key was pressed or released.
         pub state: ElementState,
 
-        /// Symbolic name of [`scancode`](KeyInputArgs::scancode).
+        /// Symbolic name of [`scan_code`](KeyInputArgs::scan_code).
         pub key: Option<Key>,
 
         /// What modifier keys where pressed when this event happened.

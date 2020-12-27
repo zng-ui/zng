@@ -70,7 +70,7 @@ pub fn linear_gradient_full(
 /// ```
 /// # use zero_ui::prelude::*;
 /// # use zero_ui::widgets::linear_gradient;
-/// let angle_gradient = linear_gradient(90.deg, [colors::BLACK, colors::WHITE]);
+/// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -890,6 +890,74 @@ macro_rules! impl_from_color_arrays {
 }
 impl_from_color_arrays!(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __stops {
+    // match single color stop at the $start, plus $color with 2 stops plus other stops, e.g.:
+    // stops![colors::RED, (colors::GREEN, 14, 20), colors::BLUE]
+    // OR
+    // $next_middle that is a $color with 2 stops, plus other stops, e.g.:
+    // .. (colors::GREEN, 14, 20), colors::BLUE]
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: ($color:expr, $stop0:expr, $stop1:expr), $($stops:tt)+
+    ) => {
+        $crate::__stops! {
+            start: $start,
+            middle: [$($middle,)* ($color, $stop0), ($color, $stop1)],
+            tail: $($stops)+
+        }
+    };
+    // match single color stop at the $start, plus single color stop in the $next_middle, plus other stops, e.g.:
+    // stops![colors::RED, colors::GREEN, colors::BLUE]
+    // OR
+    // $next_middle that is a single color stop, plus other stops, e.g.:
+    // .. colors::GREEN, colors::BLUE]
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: $next_middle:expr, $($stops:tt)+
+    ) => {
+        $crate::__stops! {
+            start: $start,
+            middle: [$($middle,)* $next_middle],
+            tail: $($stops)+
+        }
+    };
+    // match single color stop at the $start, plus single $color with 2 stops, e.g.:
+    // stops![colors::RED, (colors::GREEN, 15, 30)]
+    // OR
+    // match last entry as single $color with 2 stops, e.g.:
+    // .. (colors::BLUE, 20, 30)]
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: ($color:expr, $stop0:expr, $stop1:expr) $(,)?
+    ) => {
+        $crate::__stops! {
+            start: $start,
+            middle: [$($middle,)* ($color, $stop0)],
+            tail: ($color, $stop1)
+        }
+    };
+    // match single color stop at the $start, plus single color stop at the $end, e.g.:
+    // stops![colors::RED, colors::GREEN]
+    // OR
+    // match last entry as single color stop, at the $end, e.g.:
+    // .. colors::GREEN]
+    (
+        start: $start:expr,
+        middle: [$($middle:expr),*],
+        tail: $end:expr $(,)?
+    ) => {
+        $crate::widgets::GradientStops {
+            start: $crate::widgets::ColorStop::from($start),
+            middle: std::vec![$($crate::widgets::GradientStop::from($middle)),*],
+            end: $crate::widgets::ColorStop::from($end),
+        }
+    };
+}
 /// Creates a [`GradientStops`] containing the arguments.
 ///
 /// A minimum of two arguments are required, the first and last argument must be expressions that convert to [`ColorStop`],
@@ -919,7 +987,36 @@ impl_from_color_arrays!(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 
 /// # use zero_ui::widgets::stops;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
-pub use zero_ui_macros::stops;
+#[macro_export]
+macro_rules! stops {
+    // match single entry that is a single color with 2 stops, e.g.:
+    // stops![(colors::RED, 0, 20)]
+    (($color:expr, $stop0:expr, $stop1:expr) $(,)?) => {
+        $crate::__stops! {
+            start: ($color, $stop0),
+            middle: [],
+            tail: ($color, $stop1)
+        }
+    };
+    // match first entry as as single color with 2 stops, plus other stops, e.g:
+    // stops![(colors::RED, 0, 20), colors::WHITE]
+    (($color:expr, $stop0:expr, $stop1:expr), $($stops:tt)+) => {
+        $crate::__stops! {
+            start: ($color, $stop0),
+            middle: [($color, $stop1)],
+            tail: $($stops)+
+        }
+    };
+    ($start:expr, $($stops:tt)+) => {
+        $crate::__stops! {
+            start: $start,
+            middle: [],
+            tail: $($stops)+
+        }
+    };
+}
+#[doc(inline)]
+pub use crate::stops;
 
 #[cfg(test)]
 mod tests {
@@ -944,8 +1041,7 @@ mod tests {
             LayoutLength::new(100.0),
             &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
             ExtendMode::Clamp,
-            &mut LayoutPoint::zero(),
-            &mut LayoutPoint::new(100.0, 100.0),
+            &mut LayoutLine::new(LayoutPoint::zero(), LayoutPoint::new(100.0, 100.0)),
             &mut render_stops,
         );
         render_stops

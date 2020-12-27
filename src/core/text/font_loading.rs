@@ -43,7 +43,7 @@ event_args! {
         ..
 
         /// Concerns all widgets.
-        fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
+        fn concerns_widget(&self, _ctx: &mut WidgetContext) -> bool {
             true
         }
     }

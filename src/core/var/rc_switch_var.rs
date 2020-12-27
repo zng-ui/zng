@@ -23,7 +23,41 @@ use super::*;
 ///
 /// let t = text(switch_var!(index, var0, var1));
 /// ```
-pub use zero_ui_macros::switch_var;
+#[macro_export]
+macro_rules! switch_var {
+    ($index: expr, $v0: expr, $v1: expr) => {
+        $crate::core::var::RcSwitch2Var::new($index, ($v0, $v1))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr) => {
+        $crate::core::var::RcSwitch3Var::new($index, ($v0, $v1, $v2))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr) => {
+        $crate::core::var::RcSwitch4Var::new($index, ($v0, $v1, $v2, $v3))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr) => {
+        $crate::core::var::RcSwitch5Var::new($index, ($v0, $v1, $v2, $v3, $v4))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr) => {
+        $crate::core::var::RcSwitch6Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr) => {
+        $crate::core::var::RcSwitch7Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6))
+    };
+    ($index: expr, $v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr) => {
+        $crate::core::var::RcSwitch8Var::new($index, ($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7))
+    };
+    ($index: expr, $($v:expr),+) => {
+        // we need a builder to have $v be IntoVar and work like the others.
+        $crate::core::var::RcSwitchVarBuilder::new($index)
+        $(.push($v))+
+        .build()
+    };
+    ($($_:tt)*) => {
+        compile_error!("this macro takes 3 or more parameters (initial_index, var0, var1, ..)")
+    };
+}
+#[doc(inline)]
+pub use crate::switch_var;
 
 macro_rules! impl_rc_switch_var {
     ($(

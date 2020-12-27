@@ -78,7 +78,7 @@ impl<E: AppExtension> AppRunWindow for AppExtended<E> {
 }
 
 event_args! {
-    /// [`WindowOpenEvent`], [`WindowCloseEvent`] event args.
+    /// [`WindowOpenEvent`], [`WindowCloseEvent`] args.
     pub struct WindowEventArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -91,7 +91,7 @@ event_args! {
         }
     }
 
-    /// [`WindowIsActiveChanged`], [`WindowActivated`], [`WindowDeactivated`] event args.
+    /// [`WindowIsActiveChangedEvent`], [`WindowActivatedEvent`], [`WindowDeactivatedEvent`] args.
     pub struct WindowIsActiveArgs {
         /// Id of window that was opened or closed.
         pub window_id: WindowId,
@@ -107,7 +107,7 @@ event_args! {
         }
     }
 
-    /// [`WindowResize`] event args.
+    /// [`WindowResizeEvent`] args.
     pub struct WindowResizeArgs {
         pub window_id: WindowId,
         pub new_size: LayoutSize,
@@ -120,7 +120,7 @@ event_args! {
         }
     }
 
-    /// [`WindowMove`] event args.
+    /// [`WindowMoveEvent`] args.
     pub struct WindowMoveArgs {
         pub window_id: WindowId,
         pub new_position: LayoutPoint,
@@ -133,7 +133,7 @@ event_args! {
         }
     }
 
-    /// [`WindowScaleChanged`] event args.
+    /// [`WindowScaleChangedEvent`] args.
     pub struct WindowScaleChangedArgs {
         pub window_id: WindowId,
         pub new_scale_factor: f32,
@@ -148,7 +148,7 @@ event_args! {
     }
 }
 cancelable_event_args! {
-    /// [`WindowCloseRequested`] event args.
+    /// [`WindowCloseRequestedEvent`] args.
     pub struct WindowCloseRequestedArgs {
         pub window_id: WindowId,
         group: CloseTogetherGroup,

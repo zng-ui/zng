@@ -162,7 +162,7 @@ impl<T: 'static> EventListener<T> {
         EventEmitter::new(is_high_pressure).into_listener()
     }
 
-    /// New [`response`](EventEmitter::respone) that never updates.
+    /// New [`response`](EventEmitter::response) that never updates.
     pub fn response_never() -> Self {
         EventListener::never(false)
     }
@@ -474,7 +474,112 @@ impl Events {
 ///     }
 /// }
 /// ```
-pub use zero_ui_macros::event_args;
+#[macro_export]
+macro_rules! event_args {
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+
+            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
+        }
+        impl $Args {
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    stop_propagation: std::rc::Rc::default(),
+                }
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Requests that subsequent handlers skip this event.
+            ///
+            /// Cloned arguments signal stop for all clones.
+            #[inline]
+            pub fn stop_propagation(&self) {
+                <Self as $crate::core::event::EventArgs>::stop_propagation(self)
+            }
+
+            /// If the handler must skip this event.
+            ///
+            /// Note that property level handlers don't need to check this, as those handlers are
+            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            #[inline]
+            pub fn stop_propagation_requested(&self) -> bool {
+                <Self as $crate::core::event::EventArgs>::stop_propagation_requested(self)
+            }
+        }
+        impl zero_ui::core::event::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+
+            #[inline]
+            $(#[$concerns_widget_outer])*
+            fn concerns_widget(&$self, $ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+                $($concerns_widget)+
+            }
+
+            #[inline]
+            fn stop_propagation(&self) {
+                self.stop_propagation.set(true);
+            }
+
+            #[inline]
+            fn stop_propagation_requested(&self) -> bool {
+                self.stop_propagation.get()
+            }
+        }
+    )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        zero_ui::event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
+}
+
+#[doc(inline)]
+pub use crate::event_args;
 
 /// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
 ///
@@ -587,7 +692,139 @@ pub use zero_ui_macros::event_args;
 ///     }
 /// }
 /// ```
-pub use zero_ui_macros::cancelable_event_args;
+#[macro_export]
+macro_rules! cancelable_event_args {
+
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, $ctx:ident: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {$(
+        $(#[$outer])*
+        #[derive(Debug, Clone)]
+        $vis struct $Args {
+            /// When the event happened.
+            pub timestamp: std::time::Instant,
+            $($(#[$arg_outer])* $arg_vis $arg : $arg_ty,)*
+            cancel: std::rc::Rc<std::cell::Cell<bool>>,
+            stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
+        }
+        impl $Args {
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
+                $Args {
+                    timestamp: timestamp.into(),
+                    $($arg: $arg.into(),)*
+                    cancel: std::rc::Rc::default(),
+                    stop_propagation: std::rc::Rc::default(),
+                }
+            }
+
+            /// Arguments for event that happened now (`Instant::now`).
+            #[inline]
+            #[allow(clippy::too_many_arguments)]
+            pub fn now($($arg : impl Into<$arg_ty>),*) -> Self {
+                Self::new(std::time::Instant::now(), $($arg),*)
+            }
+
+            /// Requests that subsequent handlers skip this event.
+            ///
+            /// Cloned arguments signal stop for all clones.
+            #[inline]
+            pub fn stop_propagation(&self) {
+                <Self as $crate::core::event::EventArgs>::stop_propagation(self)
+            }
+
+            /// If the handler must skip this event.
+            ///
+            /// Note that property level handlers don't need to check this, as those handlers are
+            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
+            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            #[inline]
+            pub fn stop_propagation_requested(&self) -> bool {
+                <Self as $crate::core::event::EventArgs>::stop_propagation_requested(self)
+            }
+
+            /// Cancel the originating action.
+            ///
+            /// Cloned arguments signal cancel for all clones.
+            #[inline]
+            pub fn cancel(&self) {
+                <Self as $crate::core::event::CancelableEventArgs>::cancel(self)
+            }
+
+            /// If the originating action must be canceled.
+            #[inline]
+            pub fn cancel_requested(&self) -> bool {
+                <Self as $crate::core::event::CancelableEventArgs>::cancel_requested(self)
+            }
+        }
+        impl $crate::core::event::EventArgs for $Args {
+            #[inline]
+            fn timestamp(&self) -> std::time::Instant {
+                self.timestamp
+            }
+
+            #[inline]
+            $(#[$concerns_widget_outer])*
+            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
+                $($concerns_widget)+
+            }
+
+            #[inline]
+            fn stop_propagation(&self) {
+                self.stop_propagation.set(true);
+            }
+
+            #[inline]
+            fn stop_propagation_requested(&self) -> bool {
+                self.stop_propagation.get()
+            }
+        }
+        impl $crate::core::event::CancelableEventArgs for $Args {
+            #[inline]
+            fn cancel_requested(&self) -> bool {
+                self.cancel.get()
+            }
+
+            #[inline]
+            fn cancel(&self) {
+                self.cancel.set(true);
+            }
+        }
+    )+};
+
+    // match discard WidgetContext in concerns_widget.
+    ($(
+        $(#[$outer:meta])*
+        $vis:vis struct $Args:ident {
+            $($(#[$arg_outer:meta])* $arg_vis:vis $arg:ident : $arg_ty:ty,)*
+            ..
+            $(#[$concerns_widget_outer:meta])*
+            fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
+        }
+    )+) => {
+        $crate::cancelable_event_args! { $(
+
+            $(#[$outer])*
+            $vis struct $Args {
+                $($(#[$arg_outer])* $arg_vis $arg: $arg_ty,)*
+                ..
+                $(#[$concerns_widget_outer])*
+                fn concerns_widget(&$self, _ctx: &mut WidgetContext) -> bool { $($concerns_widget)+ }
+            }
+
+        )+ }
+    };
+}
+
+#[doc(inline)]
+pub use crate::cancelable_event_args;
 
 /// Declares new low-pressure [`Event`](zero_ui::core::event::Event) types.
 ///
@@ -622,7 +859,30 @@ pub use zero_ui_macros::cancelable_event_args;
 ///     type Args = ClickArgs;
 /// }
 /// ```
-pub use zero_ui_macros::event;
+#[macro_export]
+macro_rules! event {
+    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
+        $(#[$outer])*
+        $vis struct $Event;
+        impl $crate::core::event::Event for $Event {
+            type Args = $Args;
+        }
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> $crate::core::event::EventEmitter<$Args> {
+                <Self as $crate::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> $crate::core::event::EventListener<$Args> {
+                <Self as $crate::core::event::Event>::never()
+            }
+        }
+    )+};
+}
+#[doc(inline)]
+pub use crate::event;
 
 /// Declares new high-pressure [`Event`](zero_ui::core::event::Event) types.
 ///
@@ -651,4 +911,29 @@ pub use zero_ui_macros::event;
 ///     const IS_HIGH_PRESSURE: bool = true;
 /// }
 /// ```
-pub use zero_ui_macros::event_hp;
+#[macro_export]
+macro_rules! event_hp {
+    ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
+        $(#[$outer])*
+        $vis struct $Event;
+        impl $crate::core::event::Event for $Event {
+            type Args = $Args;
+            const IS_HIGH_PRESSURE: bool = true;
+        }
+
+        impl $Event {
+            /// New event emitter.
+            #[inline]
+            pub fn emitter() -> $crate::core::event::EventEmitter<$Args> {
+                <Self as $crate::core::event::Event>::emitter()
+            }
+
+            /// New event listener that never updates.
+            pub fn never() -> $crate::core::event::EventListener<$Args> {
+                <Self as $crate::core::event::Event>::never()
+            }
+        }
+    )+};
+}
+#[doc(inline)]
+pub use crate::event_hp;
