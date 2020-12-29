@@ -1,9 +1,9 @@
 //! App startup and app extension API.
 
-use super::event::{cancelable_event_args, EventEmitter, EventListener};
-use super::profiler::*;
-use super::{context::*, service::WindowServicesVisitors};
-use super::{
+use crate::event::{cancelable_event_args, EventEmitter, EventListener};
+use crate::profiler::*;
+use crate::{context::*, service::WindowServicesVisitors};
+use crate::{
     focus::FocusManager,
     gesture::GestureManager,
     keyboard::KeyboardManager,

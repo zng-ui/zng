@@ -10,35 +10,35 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .trim_start_matches("0x")
         .trim_start()
         .replace('_', "");
-    let crate_ = zero_ui_crate_ident();
+    let crate_ = crate_core();
 
     match hex_only.len() {
         // RRGGBB
         6 => {
             let rgb = pair_to_f32(&hex_only);
             quote! {
-                #crate_::core::color::Rgba::new(#rgb 1.0)
+                #crate_::color::Rgba::new(#rgb 1.0)
             }
         }
         // RRGGBBAA
         8 => {
             let rgba = pair_to_f32(&hex_only);
             quote! {
-                #crate_::core::color::Rgba::new(#rgba)
+                #crate_::color::Rgba::new(#rgba)
             }
         }
         // RGB
         3 => {
             let rgb = single_to_f32(&hex_only);
             quote! {
-                #crate_::core::color::Rgba::new(#rgb 1.0)
+                #crate_::color::Rgba::new(#rgb 1.0)
             }
         }
         // RGBA
         4 => {
             let rgba = single_to_f32(&hex_only);
             quote! {
-                #crate_::core::color::Rgba::new(#rgba)
+                #crate_::color::Rgba::new(#rgba)
             }
         }
         // error

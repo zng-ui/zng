@@ -1,5 +1,5 @@
 use super::*;
-use crate::core::context::Updates;
+use crate::context::Updates;
 
 singleton_assert!(SingletonVars);
 
@@ -71,7 +71,7 @@ impl Vars {
         self.pending.borrow_mut().push(change);
     }
 
-    pub(in crate::core) fn apply(&mut self, updates: &mut Updates) {
+    pub(crate) fn apply(&mut self, updates: &mut Updates) {
         self.update_id = self.update_id.wrapping_add(1);
 
         let pending = self.pending.get_mut();

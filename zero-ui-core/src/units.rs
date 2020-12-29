@@ -4,8 +4,8 @@ use derive_more as dm;
 use std::{f32::consts::*, fmt, time::Duration};
 use webrender::api::units as wr;
 
-use super::context::LayoutContext;
-use crate::core::var::{IntoVar, OwnedVar};
+use crate::context::LayoutContext;
+use crate::var::{IntoVar, OwnedVar};
 
 /// Angle in radians.
 ///

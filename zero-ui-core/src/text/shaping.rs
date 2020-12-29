@@ -1,7 +1,7 @@
 use super::{
     font_features::HFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
 };
-use crate::core::units::{LayoutPoint, LayoutSize};
+use crate::units::{LayoutPoint, LayoutSize};
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]

@@ -1,3 +1,5 @@
+use std::{env, path::PathBuf};
+
 use parse::{Parse, ParseStream};
 use proc_macro2::*;
 use punctuated::Punctuated;
@@ -21,26 +23,49 @@ macro_rules! ident {
     };
 }
 
-/// returns `zero_ui` or the name used in `Cargo.toml` if the crate was renamed.
-pub fn zero_ui_crate_ident() -> Ident {
+/// Return `$crate::core` where `$crate` is the zero-ui
+/// crate name in the crate using our proc-macros. Or, returns `$crate` where `$crate`
+/// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
+pub fn crate_core() -> TokenStream {
     use once_cell::sync::OnceCell;
     use proc_macro_crate::crate_name;
     static CRATE: OnceCell<String> = OnceCell::new();
 
-    let crate_ = CRATE.get_or_init(|| {
-        if let Ok(ident) = crate_name("zero-ui") {
-            // using the main crate.
-            return ident;
-        }
-        if let Ok(ident) = crate_name("zero-ui-core") {
-            // using the core crate only.
-            return ident;
-        }
-        // fallback
-        "zero_ui".to_owned()
-    });
+    CRATE
+        .get_or_init(|| {
+            if let Ok(ident) = crate_name("zero-ui") {
+                // using the main crate.
+                let ident = Ident::new(ident.as_str(), Span::call_site());
+                format!("{}::core", ident)
+            } else if let Ok(ident) = crate_name("zero-ui-core") {
+                // using the core crate only.
+                ident
+            } else if let Ok(true) = in_crate_core() {
+                // using in the zero-ui-core crate.
+                "crate".to_owned()
+            } else {
+                // using in the zero-ui crate.
+                "crate::core".to_owned()
+            }
+        })
+        .parse()
+        .unwrap()
+}
 
-    Ident::new(crate_.as_str(), Span::call_site())
+fn in_crate_core() -> std::result::Result<bool, ()> {
+    use std::io::Read;
+
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|_| ())?;
+
+    let cargo_toml_path = PathBuf::from(manifest_dir).join("Cargo.toml");
+
+    let mut content = String::new();
+    std::fs::File::open(cargo_toml_path)
+        .map_err(|_| ())?
+        .read_to_string(&mut content)
+        .map_err(|_| ())?;
+
+    Ok(content.contains(r#"name = "zero-ui-core""#))
 }
 
 /// Same as `parse_quote` but with an `expect` message.

@@ -1,9 +1,9 @@
 //! Frame render and metadata API.
 
 use super::color::{RenderColor, RenderFilter};
-use crate::core::context::LazyStateMap;
-use crate::core::units::*;
-use crate::core::{
+use crate::context::LazyStateMap;
+use crate::units::*;
+use crate::{
     window::{CursorIcon, WindowId},
     UiNode, WidgetId,
 };
@@ -697,8 +697,8 @@ impl FrameBuilder {
             self.push_color(rect, c);
         };
 
-        centered_rect(offset, 8.0, crate::prelude::colors::BLACK.into());
-        centered_rect(offset, 6.0, crate::prelude::colors::WHITE.into());
+        centered_rect(offset, 8.0, crate::color::colors::BLACK.into());
+        centered_rect(offset, 6.0, crate::color::colors::WHITE.into());
         centered_rect(offset, 4.0, color.into());
     }
 

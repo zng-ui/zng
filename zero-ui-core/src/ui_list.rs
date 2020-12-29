@@ -4,8 +4,36 @@ use super::UiNode;
 use super::{
     context::{LayoutContext, LazyStateMap, WidgetContext},
     render::{FrameBuilder, FrameUpdate},
-    ui_vec, Widget, WidgetId, WidgetVec,
+    Widget, WidgetId,
 };
+
+/// A mixed vector of [`Widget`] types.
+pub type WidgetVec = Vec<Box<dyn Widget>>;
+
+/// Creates a [`WidgetVec`](zero_ui::core::WidgetVec) containing the arguments.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::core::ui_vec;
+/// # use zero_ui::widgets::text::text;
+/// let widgets = [
+///     text("Hello"),
+///     text("World!")
+/// ];
+/// ```
+/// `ui_vec!` automatically boxes each widget.
+#[macro_export]
+macro_rules! ui_vec {
+    () => { $crate::WidgetVec::new() };
+    ($($node:expr),+ $(,)?) => {
+        vec![
+            $($crate::Widget::boxed_widget($node)),*
+        ]
+    };
+}
+#[doc(inline)]
+pub use crate::ui_vec;
 
 /// A generic view over a list of [`UiNode`] items.
 pub trait UiNodeList: 'static {
@@ -536,7 +564,7 @@ impl_arrays! {
 }
 
 macro_rules! impl_tuples {
-    ($($L:tt => $($n:tt),+;)+) => {$(paste::paste! {
+    ($($L:tt => $($n:tt),+;)+) => {$(paste! {
 
         impl_tuples! { $L => $($n = [<W $n>]),+ }
 

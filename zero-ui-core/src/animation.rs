@@ -1,6 +1,6 @@
 //! Animation API.
 
-use crate::core::var::VarValue;
+use crate::var::VarValue;
 use std::fmt::Debug;
 use std::{
     ops::{Add, Mul, Sub},

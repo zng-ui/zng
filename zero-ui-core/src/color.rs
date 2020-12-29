@@ -1,6 +1,6 @@
 //! Color types.
 
-use super::{context::LayoutContext, render::FrameBinding, units::*};
+use crate::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
 use webrender::api::{self as wr, FilterOp};
 

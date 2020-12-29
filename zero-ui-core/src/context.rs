@@ -190,7 +190,7 @@ macro_rules! state_key {
         #[derive(Clone, Copy)]
         $vis struct $ident;
 
-        impl $crate::core::context::StateKey for $ident {
+        impl $crate::context::StateKey for $ident {
             type Type = $type;
         }
     )+};

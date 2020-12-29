@@ -637,7 +637,7 @@ mod analysis {
 mod output {
     use crate::{
         property::input::Priority,
-        util::{zero_ui_crate_ident, Errors},
+        util::{crate_core, Errors},
         widget_stage3::input::{PropertyArgs, PropertyFields},
         widget_stage3::output::{WhenConditionExpr, WhenPropertyRef},
     };
@@ -738,10 +738,10 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_args", self.property);
             let property = &self.property;
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let mod_ = self.widget.as_ref().map(|widget| quote!(#widget::properties::));
 
-            tokens.extend(quote! {let #var_name = #mod_#property::args(#crate_::core::var::state_var());})
+            tokens.extend(quote! {let #var_name = #mod_#property::args(#crate_::var::state_var());})
         }
     }
 
@@ -798,9 +798,9 @@ mod output {
 
         #[cfg(debug_assertions)]
         fn debug_info_tokens(&self) -> TokenStream {
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let var_name = self.var_name();
-            let var_clone = quote! { #crate_::core::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
+            let var_clone = quote! { #crate_::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
 
             match &self.condition {
                 WhenCondition::Inherited { widget, index, .. } => {
@@ -809,7 +809,7 @@ mod output {
                     quote! {
                         #widget::whens::#fn_name(
                             #var_clone,
-                            #crate_::core::debug::source_location!()
+                            #crate_::debug::source_location!()
                         )
                     }
                 }
@@ -818,12 +818,12 @@ mod output {
                 } => {
                     let props_str = property_sets.iter().map(|p| p.to_string());
                     quote! {
-                        #crate_::core::debug::WhenInfoV1 {
+                        #crate_::debug::WhenInfoV1 {
                             condition_expr: #expr_str,
                             condition_var: Some(#var_clone),
                             properties: vec![#(#props_str),*],
-                            decl_location: #crate_::core::debug::source_location!(),
-                            instance_location: #crate_::core::debug::source_location!(),
+                            decl_location: #crate_::debug::source_location!(),
+                            instance_location: #crate_::debug::source_location!(),
                             user_declared: true,
                         }
                     }
@@ -912,19 +912,19 @@ mod output {
                 WhenConditionExpr::Map(let_name, expr) => {
                     let name = let_name.name();
                     let let_name = let_name.to_local_tokens(widget, widget_properties);
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     tokens.extend(quote! {
                         #let_name
-                        #crate_::core::var::Var::into_map(#name, |#name|{#expr})
+                        #crate_::var::Var::into_map(#name, |#name|{#expr})
                     })
                 }
                 WhenConditionExpr::Merge(let_names, expr) => {
                     let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     let let_names = let_names.iter().map(|l| l.to_local_tokens(widget, widget_properties));
                     tokens.extend(quote! {
                         #(#let_names)*
-                        #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
+                        #crate_::var::merge_var!(#(#names, )* |#(#names),*|{
                             #expr
                         })
                     })
@@ -936,7 +936,7 @@ mod output {
 
     impl WhenPropertyRef {
         fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>) -> TokenStream {
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let mod_ = if widget_properties.contains(&self.property) {
                 Some(quote! {#widget::properties::})
             } else {
@@ -947,7 +947,7 @@ mod output {
             let arg = &self.arg;
             let name = self.name();
             quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
+                let #name = #crate_::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
             }
         }
     }
@@ -960,16 +960,16 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_index", self.property);
 
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             if self.whens.len() == 1 {
                 let wn = ident!("local_w{}", self.whens[0].index);
                 if self.whens[0].can_move {
                     tokens.extend(quote! {
-                        let #var_name = #crate_::core::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                        let #var_name = #crate_::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
                     });
                 } else {
                     tokens.extend(quote! {
-                        let #var_name = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                        let #var_name = #crate_::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
                     });
                 }
             } else {
@@ -979,7 +979,7 @@ mod output {
                 let wns_rev = wns.iter().rev();
                 let wns_i = (1..=wns.len()).rev();
                 tokens.extend(quote! {
-                    let #var_name = #crate_::core::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
+                    let #var_name = #crate_::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
                         #(if #wns_rev { #wns_i })else*
                         else { 0usize }
                     });
@@ -1078,11 +1078,11 @@ mod output {
                 let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
                 let p_assig = &self.properties_user_assigned;
                 let args = args.clone();
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
 
                 tokens.extend(quote! {
                     let mut debug_captured_new_child = {
-                        use #crate_::core::debug::*;
+                        use #crate_::debug::*;
                         vec![#(
                             CapturedPropertyV1 {
                                 property_name: #p_names,
@@ -1100,10 +1100,10 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
                 tokens.extend(quote! {
-                    let node = #crate_::core::debug::NewChildMarkerNode::new_v1(
-                        #crate_::core::UiNode::boxed(node)
+                    let node = #crate_::debug::NewChildMarkerNode::new_v1(
+                        #crate_::UiNode::boxed(node)
                     );
                 });
             }
@@ -1204,7 +1204,7 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
                 let name_str = name.to_string();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
@@ -1214,10 +1214,10 @@ mod output {
 
                 tokens.extend(quote! {
                     let node = {
-                        use #crate_::core::debug::*;
+                        use #crate_::debug::*;
 
                         WidgetInstanceInfoNode::new_v1(
-                            #crate_::core::UiNode::boxed(node),
+                            #crate_::UiNode::boxed(node),
                             #name_str,
                             #name::decl_location(),
                             source_location!(),

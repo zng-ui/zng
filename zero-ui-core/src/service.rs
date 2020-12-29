@@ -1,6 +1,6 @@
 //! Services API.
 
-use super::context::{AlreadyRegistered, WindowContext};
+use crate::context::{AlreadyRegistered, WindowContext};
 use std::{
     any::*,
     cell::{Cell, RefCell},

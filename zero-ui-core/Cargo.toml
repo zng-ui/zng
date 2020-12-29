@@ -1,0 +1,37 @@
+[package]
+name = "zero-ui-core"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2018"
+
+[dependencies]
+# local
+zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
+
+# windowing
+glutin = "0.26.0"
+winapi = "0.3.9"
+
+# text
+font-kit = "0.10.0"
+unicode-script = "0.5.2"
+
+# render
+webrender = "0.61.0"
+euclid = "0.20.7" #version required by webrender
+gleam = "0.6.17" #version required by webrender
+
+# sync
+flume = "0.10.0"
+rayon = "1.5.0"
+async-global-executor = "2.0.1"
+
+# util
+bitflags = "1.2.1"
+paste = "1.0.4"
+fnv = "1.0.7"
+colored = "2.0.0"
+arrayvec = "0.5.2"
+derive_more = "0.99.11"
+ego-tree = "0.6.2"
+retain_mut = "0.1.1"

@@ -266,7 +266,7 @@ pub mod input {
 mod analysis {
     use super::input::{MacroArgs, Prefix, PropertyFn};
     use super::output::*;
-    use crate::util::{zero_ui_crate_ident, Attributes, Errors, PatchSuperPath};
+    use crate::util::{crate_core, Attributes, Errors, PatchSuperPath};
     use heck::CamelCase;
     use proc_macro2::Ident;
     use std::{
@@ -356,15 +356,15 @@ mod analysis {
             patch_super.visit_type_mut(&mut *arg.ty);
         }
 
-        let crate_ = zero_ui_crate_ident();
+        let crate_ = crate_core();
 
         // fix args to continue validation, this errors where already added during prefix validation.
         if args.is_empty() {
-            args.push(parse_quote!(_missing_child: impl #crate_::core::UiNode));
+            args.push(parse_quote!(_missing_child: impl #crate_::UiNode));
         }
         if args.len() == 1 {
             if priority.is_capture_only() {
-                args.insert(0, parse_quote!(__: impl #crate_::core::UiNode));
+                args.insert(0, parse_quote!(__: impl #crate_::UiNode));
             } else {
                 args.push(parse_quote!(_missing_value: ()));
             }
@@ -663,7 +663,7 @@ mod analysis {
 
 mod output {
     use super::input::{Prefix, Priority, PropertyArg};
-    use crate::util::{docs_with_first_line_js, uuid, zero_ui_crate_ident, Errors};
+    use crate::util::{crate_core, docs_with_first_line_js, uuid, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::fmt;
@@ -1005,13 +1005,13 @@ mod output {
                 }
             });
             if !self.is_capture_only {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
                 let input_name = ident_spanned!(child.ty.span()=> "input");
                 let message_ty = ident!("{}_must_support_any_UiNode", child_name);
 
                 tokens.extend(quote! {
                     struct AssertInput<A>(A);
-                    impl<#message_ty: #crate_::core::UiNode> AssertInput<#message_ty> {
+                    impl<#message_ty: #crate_::UiNode> AssertInput<#message_ty> {
                         fn assert_input(#input_name: #message_ty) {
                             fn t #generics (#child) { let _ = #child_name; }
                             t(#input_name)
@@ -1021,7 +1021,7 @@ mod output {
                 let output_name = quote_spanned! {output.span()=> output};
                 tokens.extend(quote! {
                     fn assert_output #generics (#output_name: #output) {
-                        fn impl_UiNode(_: impl #crate_::core::UiNode) {}
+                        fn impl_UiNode(_: impl #crate_::UiNode) {}
                         impl_UiNode(#output_name)
                     }
                 })
@@ -1029,7 +1029,7 @@ mod output {
 
             #[cfg(debug_assertions)]
             {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
 
                 let priority = match self.priority {
                     Priority::Context(_) => quote!(Context),
@@ -1042,8 +1042,8 @@ mod output {
 
                 let debug_args = if self.allowed_in_when {
                     quote! {
-                        use #crate_::core::var::IntoVar;
-                        use #crate_::core::debug::debug_var;
+                        use #crate_::var::IntoVar;
+                        use #crate_::debug::debug_var;
                         use std::clone::Clone;
                         Box::new([#(debug_var(IntoVar::into_var(Clone::clone(ArgsNamed::#args(args))))),*])
                     }
@@ -1058,7 +1058,7 @@ mod output {
                 tokens.extend(quote! {
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
-                    pub fn debug_args(args: &impl Args) -> #crate_::core::debug::DebugArgs {
+                    pub fn debug_args(args: &impl Args) -> #crate_::debug::DebugArgs {
                         #debug_args
                     }
 
@@ -1071,18 +1071,18 @@ mod output {
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
                     pub fn debug_info(
-                        node: Box<dyn #crate_::core::UiNode>,
-                        debug_args: #crate_::core::debug::DebugArgs,
+                        node: Box<dyn #crate_::UiNode>,
+                        debug_args: #crate_::debug::DebugArgs,
                         property_name: &'static str,
-                        instance_location: #crate_::core::debug::SourceLocation,
+                        instance_location: #crate_::debug::SourceLocation,
                         user_assigned: bool
                     )
-                    -> #crate_::core::debug::PropertyInfoNode {
-                        #crate_::core::debug::PropertyInfoNode::new_v1(
+                    -> #crate_::debug::PropertyInfoNode {
+                        #crate_::debug::PropertyInfoNode::new_v1(
                             node,
-                            #crate_::core::debug::PropertyPriority::#priority,
+                            #crate_::debug::PropertyPriority::#priority,
                             #property_name,
-                            #crate_::core::debug::source_location!(),
+                            #crate_::debug::source_location!(),
                             property_name,
                             instance_location,
                             arg_names(),
@@ -1229,7 +1229,7 @@ mod output {
             } else {
                 #[cfg(debug_assertions)]
                 {
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     Some(quote! {
                         (#priority, $property_path:path, $property_name:path, $node:ident, $args:ident, $user_assigned:tt) => {
                             let $node = {
@@ -1240,7 +1240,7 @@ mod output {
                                     Box::new($node),
                                     dbg_args,
                                     stringify!($property_name),
-                                    #crate_::core::debug::source_location!(),
+                                    #crate_::debug::source_location!(),
                                     $user_assigned
                                 )
                             };
@@ -1328,7 +1328,7 @@ mod output {
 
             // switch_args!
             let switch_args_ident = ident!("switch_args_{}", pid);
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let arg_idents = &self.arg_idents;
             let arg_n: Vec<_> = if arg_idents.len() == 1 {
                 // we don't have a tuple for single arguments.
@@ -1353,7 +1353,7 @@ mod output {
 
                         $(let $arg = ArgsUnwrap::unwrap($arg);)*
 
-                        #(let #arg_idents = #crate_::core::var::switch_var!($idx#idx_clone, $($arg#arg_n),*);)*
+                        #(let #arg_idents = #crate_::var::switch_var!($idx#idx_clone, $($arg#arg_n),*);)*
 
                         args(#(#arg_idents),*)
                     }};
@@ -1392,10 +1392,10 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self.prefix {
                 Prefix::State => {
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     tokens.extend(quote! {
                         #[allow(unused)]
-                        fn assert_is_state(args: impl ArgsUnwrap) -> #crate_::core::var::StateVar {
+                        fn assert_is_state(args: impl ArgsUnwrap) -> #crate_::var::StateVar {
                             args.unwrap()
                         }
                     })

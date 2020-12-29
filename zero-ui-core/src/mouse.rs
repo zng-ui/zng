@@ -4,13 +4,13 @@
 
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use super::WidgetId;
-use crate::core::app::*;
-use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::keyboard::ModifiersState;
-use crate::core::render::*;
-use crate::core::service::*;
-use crate::core::window::{WindowEvent, WindowId, Windows};
+use crate::app::*;
+use crate::context::*;
+use crate::event::*;
+use crate::keyboard::ModifiersState;
+use crate::render::*;
+use crate::service::*;
+use crate::window::{WindowEvent, WindowId, Windows};
 use std::time::*;
 use std::{mem, num::NonZeroU8};
 

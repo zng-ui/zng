@@ -406,7 +406,9 @@ macro_rules! singleton_assert {
 #[doc(hidden)]
 pub use zero_ui_proc_macros::{widget_new, widget_stage2, widget_stage3};
 
-pub mod core;
+#[doc(inline)]
+pub use zero_ui_core as core;
+
 pub mod properties;
 pub mod widgets;
 

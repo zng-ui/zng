@@ -1,14 +1,14 @@
 //! Aggregate events.
 
 use super::{service::AppService, units::LayoutPoint, WidgetId};
-use crate::core::app::*;
-use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::focus::Focus;
-use crate::core::keyboard::*;
-use crate::core::mouse::*;
-use crate::core::render::*;
-use crate::core::window::{WindowEvent, WindowId, Windows};
+use crate::app::*;
+use crate::context::*;
+use crate::event::*;
+use crate::focus::Focus;
+use crate::keyboard::*;
+use crate::mouse::*;
+use crate::render::*;
+use crate::window::{WindowEvent, WindowId, Windows};
 use std::num::NonZeroU32;
 use std::{
     convert::{TryFrom, TryInto},
@@ -513,21 +513,21 @@ impl KeyInputArgs {
 #[macro_export]
 macro_rules! __shortcut {
     (-> + $Key:ident) => {
-        $crate::core::gesture::KeyGesture {
-            key: $crate::core::gesture::GestureKey::$Key,
-            modifiers: $crate::core::keyboard::ModifiersState::empty(),
+        $crate::gesture::KeyGesture {
+            key: $crate::gesture::GestureKey::$Key,
+            modifiers: $crate::keyboard::ModifiersState::empty(),
         }
     };
 
     (-> $($MODIFIER:ident)|+ + $Key:ident) => {
-        $crate::core::gesture::KeyGesture {
-            key: $crate::core::gesture::GestureKey::$Key,
-            modifiers: $($crate::core::keyboard::ModifiersState::$MODIFIER)|+,
+        $crate::gesture::KeyGesture {
+            key: $crate::gesture::GestureKey::$Key,
+            modifiers: $($crate::keyboard::ModifiersState::$MODIFIER)|+,
         }
     };
 
     (=> $($STARTER_MODIFIER:ident)|* + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|* + $ComplementKey:ident) => {
-        $crate::core::gesture::KeyChord {
+        $crate::gesture::KeyChord {
             starter: $crate::__shortcut!(-> $($STARTER_MODIFIER)|* + $StarterKey),
             complement: $crate::__shortcut!(-> $($COMPLEMENT_MODIFIER)|* + $ComplementKey)
         }
@@ -564,48 +564,48 @@ macro_rules! __shortcut {
 #[macro_export]
 macro_rules! shortcut {
     (Logo) => {
-        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Logo)
+        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Logo)
     };
     (Shift) => {
-        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Shift)
+        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Shift)
     };
     (Ctrl) => {
-        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Ctrl)
+        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Ctrl)
     };
     (Alt) => {
-        $crate::core::gesture::Shortcut::Modifier($crate::core::gesture::ModifierGesture::Alt)
+        $crate::gesture::Shortcut::Modifier($crate::gesture::ModifierGesture::Alt)
     };
 
     ($Key:ident) => {
-        $crate::core::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $Key))
+        $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> + $Key))
     };
     ($($MODIFIER:ident)|+ + $Key:ident) => {
-        $crate::core::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
+        $crate::gesture::Shortcut::Gesture($crate::__shortcut!(-> $($MODIFIER)|+ + $Key))
     };
 
     ($StarterKey:ident, $ComplementKey:ident) => {
-        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+        $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             + $ComplementKey
         ))
     };
 
     ($StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
-        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+        $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             + $StarterKey,
             $(COMPLEMENT_MODIFIER)|* + $ComplementKey
         ))
     };
 
     ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $ComplementKey:ident) => {
-        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+        $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             + $ComplementKey
         ))
     };
 
     ($($STARTER_MODIFIER:ident)|+ + $StarterKey:ident, $($COMPLEMENT_MODIFIER:ident)|+ + $ComplementKey:ident) => {
-        $crate::core::gesture::Shortcut::Chord($crate::__shortcut!(=>
+        $crate::gesture::Shortcut::Chord($crate::__shortcut!(=>
             $($STARTER_MODIFIER)|* + $StarterKey,
             $($COMPLEMENT_MODIFIER)|* + $ComplementKey
         ))

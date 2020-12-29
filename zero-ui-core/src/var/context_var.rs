@@ -226,13 +226,13 @@ macro_rules! __context_var_inner {
 
         impl $ident {
             std::thread_local! {
-                static THREAD_LOCAL_VALUE: $crate::core::var::ContextVarValue<$ident> = $crate::core::var::ContextVarValue::init();
+                static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$ident> = $crate::var::ContextVarValue::init();
             }
 
             /// [`Var`](zero_ui::core::var::Var) that represents this context var.
             #[inline]
-            pub fn var() -> &'static zero_ui::core::var::ContextVarProxy<Self> {
-                const VAR: $crate::core::var::ContextVarProxy<$ident> = $crate::core::var::ContextVarProxy(std::marker::PhantomData);
+            pub fn var() -> &'static $crate::var::ContextVarProxy<Self> {
+                const VAR: $crate::var::ContextVarProxy<$ident> = $crate::var::ContextVarProxy(std::marker::PhantomData);
                 &VAR
             }
 
@@ -243,7 +243,7 @@ macro_rules! __context_var_inner {
             }
         }
 
-        impl $crate::core::var::ContextVar for $ident {
+        impl $crate::var::ContextVar for $ident {
             type Type = $type;
 
             #[inline]
@@ -252,21 +252,21 @@ macro_rules! __context_var_inner {
             }
 
             #[inline]
-            fn var() -> &'static $crate::core::var::ContextVarProxy<Self> {
+            fn var() -> &'static $crate::var::ContextVarProxy<Self> {
                Self::var()
             }
 
             #[inline]
-            fn thread_local_value() -> $crate::core::var::ContextVarLocalKey<Self> {
-                $crate::core::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
+            fn thread_local_value() -> $crate::var::ContextVarLocalKey<Self> {
+                $crate::var::ContextVarLocalKey::new(&Self::THREAD_LOCAL_VALUE)
             }
         }
 
-        impl $crate::core::var::IntoVar<$type> for $ident {
-            type Var = $crate::core::var::ContextVarProxy<Self>;
+        impl $crate::var::IntoVar<$type> for $ident {
+            type Var = $crate::var::ContextVarProxy<Self>;
             #[inline]
             fn into_var(self) -> Self::Var {
-                $crate::core::var::ContextVarProxy::default()
+                $crate::var::ContextVarProxy::default()
             }
         }
     };

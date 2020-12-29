@@ -4,13 +4,13 @@
 //! is included in the [default app](crate::core::app::App::default) and provides the [`Keyboard`] service
 //! and keyboard input events.
 
-use crate::core::app::*;
-use crate::core::context::*;
-use crate::core::event::*;
-use crate::core::focus::Focus;
-use crate::core::render::WidgetPath;
-use crate::core::service::*;
-use crate::core::window::{WindowEvent, WindowId, Windows};
+use crate::app::*;
+use crate::context::*;
+use crate::event::*;
+use crate::focus::Focus;
+use crate::render::WidgetPath;
+use crate::service::*;
+use crate::window::{WindowEvent, WindowId, Windows};
 
 pub use glutin::event::{KeyboardInput, ModifiersState, ScanCode};
 

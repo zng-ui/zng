@@ -12,12 +12,12 @@ use font_kit::properties::Weight;
 use webrender::api::RenderApi;
 
 use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
-use crate::core::app::AppExtension;
-use crate::core::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
-use crate::core::event::{event, event_args, EventEmitter, EventListener};
-use crate::core::service::AppService;
-use crate::core::units::{layout_to_pt, LayoutLength};
-use crate::core::window::{WindowEventArgs, WindowOpenEvent, Windows};
+use crate::app::AppExtension;
+use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
+use crate::event::{event, event_args, EventEmitter, EventListener};
+use crate::service::AppService;
+use crate::units::{layout_to_pt, LayoutLength};
+use crate::window::{WindowEventArgs, WindowOpenEvent, Windows};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give

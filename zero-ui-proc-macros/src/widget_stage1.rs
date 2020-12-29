@@ -20,7 +20,7 @@ use syn::{parse::*, punctuated::Punctuated, *};
 pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // 1
     let mut wgt = parse_macro_input!(input as WidgetDeclaration);
-    let crate_ = util::zero_ui_crate_ident();
+    let crate_ = util::crate_core();
     if !mixin {
         // 2 - include `implicit_mixin` only for widgets.
         if wgt.header.inherit_start.is_none() {

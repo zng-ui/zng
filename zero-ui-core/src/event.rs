@@ -1,7 +1,7 @@
 //! App event API.
 
-use super::context::{AlreadyRegistered, UpdateRequest, Updates, WidgetContext};
-use super::AnyMap;
+use crate::context::{AlreadyRegistered, UpdateRequest, Updates, WidgetContext};
+use crate::AnyMap;
 use std::any::*;
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::fmt::Debug;
@@ -517,7 +517,7 @@ macro_rules! event_args {
             /// Cloned arguments signal stop for all clones.
             #[inline]
             pub fn stop_propagation(&self) {
-                <Self as $crate::core::event::EventArgs>::stop_propagation(self)
+                <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
 
             /// If the handler must skip this event.
@@ -527,10 +527,10 @@ macro_rules! event_args {
             /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
-                <Self as $crate::core::event::EventArgs>::stop_propagation_requested(self)
+                <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
         }
-        impl zero_ui::core::event::EventArgs for $Args {
+        impl $crate::event::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
@@ -538,7 +538,7 @@ macro_rules! event_args {
 
             #[inline]
             $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+            fn concerns_widget(&$self, $ctx: &mut $crate::context::WidgetContext) -> bool {
                 $($concerns_widget)+
             }
 
@@ -564,7 +564,7 @@ macro_rules! event_args {
             fn concerns_widget(&$self:ident, _: &mut WidgetContext) -> bool { $($concerns_widget:tt)+ }
         }
     )+) => {
-        zero_ui::event_args! { $(
+        $crate::event_args! { $(
 
             $(#[$outer])*
             $vis struct $Args {
@@ -737,7 +737,7 @@ macro_rules! cancelable_event_args {
             /// Cloned arguments signal stop for all clones.
             #[inline]
             pub fn stop_propagation(&self) {
-                <Self as $crate::core::event::EventArgs>::stop_propagation(self)
+                <Self as $crate::event::EventArgs>::stop_propagation(self)
             }
 
             /// If the handler must skip this event.
@@ -747,7 +747,7 @@ macro_rules! cancelable_event_args {
             /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
-                <Self as $crate::core::event::EventArgs>::stop_propagation_requested(self)
+                <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
             }
 
             /// Cancel the originating action.
@@ -755,16 +755,16 @@ macro_rules! cancelable_event_args {
             /// Cloned arguments signal cancel for all clones.
             #[inline]
             pub fn cancel(&self) {
-                <Self as $crate::core::event::CancelableEventArgs>::cancel(self)
+                <Self as $crate::event::CancelableEventArgs>::cancel(self)
             }
 
             /// If the originating action must be canceled.
             #[inline]
             pub fn cancel_requested(&self) -> bool {
-                <Self as $crate::core::event::CancelableEventArgs>::cancel_requested(self)
+                <Self as $crate::event::CancelableEventArgs>::cancel_requested(self)
             }
         }
-        impl $crate::core::event::EventArgs for $Args {
+        impl $crate::event::EventArgs for $Args {
             #[inline]
             fn timestamp(&self) -> std::time::Instant {
                 self.timestamp
@@ -772,7 +772,7 @@ macro_rules! cancelable_event_args {
 
             #[inline]
             $(#[$concerns_widget_outer])*
-            fn concerns_widget(&$self, $ctx: &mut $crate::core::context::WidgetContext) -> bool {
+            fn concerns_widget(&$self, $ctx: &mut $crate::context::WidgetContext) -> bool {
                 $($concerns_widget)+
             }
 
@@ -786,7 +786,7 @@ macro_rules! cancelable_event_args {
                 self.stop_propagation.get()
             }
         }
-        impl $crate::core::event::CancelableEventArgs for $Args {
+        impl $crate::event::CancelableEventArgs for $Args {
             #[inline]
             fn cancel_requested(&self) -> bool {
                 self.cancel.get()
@@ -864,19 +864,19 @@ macro_rules! event {
     ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
         $(#[$outer])*
         $vis struct $Event;
-        impl $crate::core::event::Event for $Event {
+        impl $crate::event::Event for $Event {
             type Args = $Args;
         }
         impl $Event {
             /// New event emitter.
             #[inline]
-            pub fn emitter() -> $crate::core::event::EventEmitter<$Args> {
-                <Self as $crate::core::event::Event>::emitter()
+            pub fn emitter() -> $crate::event::EventEmitter<$Args> {
+                <Self as $crate::event::Event>::emitter()
             }
 
             /// New event listener that never updates.
-            pub fn never() -> $crate::core::event::EventListener<$Args> {
-                <Self as $crate::core::event::Event>::never()
+            pub fn never() -> $crate::event::EventListener<$Args> {
+                <Self as $crate::event::Event>::never()
             }
         }
     )+};
@@ -916,7 +916,7 @@ macro_rules! event_hp {
     ($($(#[$outer:meta])* $vis:vis $Event:ident : $Args:path;)+) => {$(
         $(#[$outer])*
         $vis struct $Event;
-        impl $crate::core::event::Event for $Event {
+        impl $crate::event::Event for $Event {
             type Args = $Args;
             const IS_HIGH_PRESSURE: bool = true;
         }
@@ -924,13 +924,13 @@ macro_rules! event_hp {
         impl $Event {
             /// New event emitter.
             #[inline]
-            pub fn emitter() -> $crate::core::event::EventEmitter<$Args> {
-                <Self as $crate::core::event::Event>::emitter()
+            pub fn emitter() -> $crate::event::EventEmitter<$Args> {
+                <Self as $crate::event::Event>::emitter()
             }
 
             /// New event listener that never updates.
-            pub fn never() -> $crate::core::event::EventListener<$Args> {
-                <Self as $crate::core::event::Event>::never()
+            pub fn never() -> $crate::event::EventListener<$Args> {
+                <Self as $crate::event::Event>::never()
             }
         }
     )+};

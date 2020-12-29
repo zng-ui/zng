@@ -8,18 +8,18 @@ pub fn derive(item: proc_macro::TokenStream, trait_: Ident) -> proc_macro::Token
     let entry = ident!("{}Entry", trait_);
     let static_ = ident!("TL_{}_ENTRY", trait_.to_string().to_uppercase());
     let ident = &service.ident;
-    let crate_ = crate::util::zero_ui_crate_ident();
+    let crate_ = crate::util::crate_core();
     let r = quote! {
         impl #ident {
             std::thread_local! {
-                static #static_: #crate_::core::service::#value<#ident> = #crate_::core::service::#value::init();
+                static #static_: #crate_::service::#value<#ident> = #crate_::service::#value::init();
             }
         }
 
-        impl #crate_::core::service::#trait_ for #ident {
+        impl #crate_::service::#trait_ for #ident {
             #[inline]
-            fn thread_local_entry() -> #crate_::core::service::#entry<Self> {
-                #crate_::core::service::#entry::new(&Self::#static_)
+            fn thread_local_entry() -> #crate_::service::#entry<Self> {
+                #crate_::service::#entry::new(&Self::#static_)
             }
         }
     };
