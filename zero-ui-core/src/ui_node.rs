@@ -1,4 +1,5 @@
 use crate::context::*;
+use crate::render::{FrameBuilder, FrameUpdate};
 use crate::units::*;
 
 /// Generates default implementations of [`UiNode`](zero_ui::core::UiNode) methods.
@@ -611,7 +612,7 @@ impl<T: UiNode> UiNode for WidgetNode<T> {
         #[cfg(debug_assertions)]
         {
             fn valid_measure(f: f32) -> bool {
-                f.is_finite() || is_layout_any_size(f)
+                f.is_finite() || crate::is_layout_any_size(f)
             }
 
             if !valid_measure(available_size.width) || !valid_measure(available_size.height) {

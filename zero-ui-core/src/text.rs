@@ -774,7 +774,7 @@ impl<T: ToString> ToText for T {
     }
 }
 
-pub use crate::core::render::FontSynthesis;
+pub use crate::render::FontSynthesis;
 
 /// An offset in a text.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]

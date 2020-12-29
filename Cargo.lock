@@ -2861,6 +2861,7 @@ dependencies = [
 name = "zero-ui-core"
 version = "0.1.0"
 dependencies = [
+ "array-init",
  "arrayvec",
  "async-global-executor 2.0.1",
  "bitflags",
@@ -2873,12 +2874,16 @@ dependencies = [
  "font-kit",
  "gleam",
  "glutin",
+ "harfbuzz_rs",
+ "image",
  "paste",
  "rayon",
  "retain_mut",
+ "unicase",
  "unicode-script",
  "webrender",
  "winapi 0.3.9",
+ "xi-unicode",
  "zero-ui-proc-macros",
 ]
 
