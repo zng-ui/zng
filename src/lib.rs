@@ -523,3 +523,12 @@ pub mod prelude {
         pub use crate::widgets::mixins::*;
     }
 }
+
+// see test-crates/no-direct-deps
+#[doc(hidden)]
+pub fn crate_reference_called() -> bool { true }
+#[doc(hidden)]
+#[macro_export]
+macro_rules! crate_reference_call {
+    () => { $crate::crate_reference_called() };
+}

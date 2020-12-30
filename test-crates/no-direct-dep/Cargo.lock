@@ -601,13 +601,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "custom-widget"
-version = "0.1.0"
-dependencies = [
- "zero-ui",
-]
-
-[[package]]
 name = "darling"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -681,6 +674,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "direct-dep"
+version = "0.1.0"
+dependencies = [
+ "zero-ui",
 ]
 
 [[package]]
@@ -1493,6 +1493,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "no-direct-dep"
+version = "0.1.0"
+dependencies = [
+ "direct-dep",
+]
+
+[[package]]
 name = "nom"
 version = "6.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2226,13 +2233,6 @@ dependencies = [
  "quote",
  "syn",
  "unicode-xid",
-]
-
-[[package]]
-name = "test-widget-no-direct-dep"
-version = "0.1.0"
-dependencies = [
- "custom-widget",
 ]
 
 [[package]]
