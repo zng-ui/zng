@@ -23,25 +23,25 @@ use super::*;
 #[macro_export]
 macro_rules! merge_var {
     ($v0: expr, $v1: expr, $merge: expr) => {
-        $crate::core::var::RcMerge2Var::new(($v0, $v1), $merge)
+        $crate::var::RcMerge2Var::new(($v0, $v1), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $merge: expr) => {
-        $crate::core::var::RcMerge3Var::new(($v0, $v1, $v2), $merge)
+        $crate::var::RcMerge3Var::new(($v0, $v1, $v2), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $merge: expr) => {
-        $crate::core::var::RcMerge4Var::new(($v0, $v1, $v2, $v3), $merge)
+        $crate::var::RcMerge4Var::new(($v0, $v1, $v2, $v3), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $merge: expr) => {
-        $crate::core::var::RcMerge5Var::new(($v0, $v1, $v2, $v3, $v4), $merge)
+        $crate::var::RcMerge5Var::new(($v0, $v1, $v2, $v3, $v4), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $merge: expr) => {
-        $crate::core::var::RcMerge6Var::new(($v0, $v1, $v2, $v3, $v4, $v5), $merge)
+        $crate::var::RcMerge6Var::new(($v0, $v1, $v2, $v3, $v4, $v5), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $merge: expr) => {
-        $crate::core::var::RcMerge7Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6), $merge)
+        $crate::var::RcMerge7Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $merge: expr) => {
-        $crate::core::var::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
+        $crate::var::RcMerge8Var::new(($v0, $v1, $v2, $v3, $v4, $v5, $v6, $v7), $merge)
     };
     ($v0: expr, $v1: expr, $v2: expr, $v3: expr, $v4: expr, $v5: expr, $v6: expr, $v7: expr, $v8: expr, $($more_args:tt)+) => {
         compile_error!("merge_var is only implemented to a maximum of 8 variables")

@@ -9,7 +9,7 @@ mod profiler_impl {
     use lazy_static::*;
     use serde_json::*;
 
-    use crate::core::text::Text;
+    use crate::text::Text;
     use std::cell::RefCell;
     use std::fs::File;
     use std::io::BufWriter;
@@ -155,7 +155,6 @@ mod profiler_impl {
         name: Text,
         t0: u64,
     }
-
     impl ProfileScope {
         /// Starts a new profile scope, the start time is when this method is called.
         pub fn new(name: impl Into<Text>) -> ProfileScope {
@@ -163,7 +162,6 @@ mod profiler_impl {
             ProfileScope { name: name.into(), t0 }
         }
     }
-
     impl Drop for ProfileScope {
         /// When the `ProfileScope` is dropped it records the
         /// length of time it was alive for and records it
@@ -233,12 +231,12 @@ macro_rules! profile_scope {
     ($name:expr) => {
         #[cfg(feature = "app_profiler")]
         let _profile_scope =
-        $crate::core::profiler::ProfileScope::new($name);
+        $crate::profiler::ProfileScope::new($name);
     };
     ($($args:tt)+) => {
         #[cfg(feature = "app_profiler")]
         let _profile_scope =
-        $crate::core::profiler::ProfileScope::new(format!($($args)+));
+        $crate::profiler::ProfileScope::new(format!($($args)+));
     };
 }
 #[doc(inline)]

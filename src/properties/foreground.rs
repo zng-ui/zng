@@ -2,8 +2,9 @@
 
 use super::border::{border, BorderDetails};
 use super::margin;
+use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
-use crate::widgets::{fill_color, linear_gradient, GradientStops, LinearGradientAxis};
+use crate::widgets::{fill_color, linear_gradient};
 
 struct ForegroundNode<T: UiNode, B: UiNode> {
     child: T,

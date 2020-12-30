@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
+[features]
+app_profiler = ["serde_json", "lazy_static"]
+
 [dependencies]
 # local
 zero-ui-proc-macros = { path = "../zero-ui-proc-macros" }
@@ -26,7 +29,7 @@ gleam = "0.6.17" #version required by webrender
 image = "0.23.12"
 
 # sync
-flume = "0.10.0"
+flume = "0.10.1"
 rayon = "1.5.0"
 async-global-executor = "2.0.1"
 
@@ -40,3 +43,7 @@ arrayvec = "0.5.2"
 derive_more = "0.99.11"
 ego-tree = "0.6.2"
 retain_mut = "0.1.1"
+
+# app_profiler only
+serde_json = { version = "1.0", optional = true }
+lazy_static = { version = "1", optional = true }

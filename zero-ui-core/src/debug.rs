@@ -34,7 +34,7 @@ pub struct SourceLocation {
 #[macro_export]
 macro_rules! source_location {
     () => {
-        $crate::core::debug::SourceLocation {
+        $crate::debug::SourceLocation {
             file: std::file!(),
             line: std::line!(),
             column: std::column!(),

@@ -9,7 +9,6 @@ app_profiler = ["serde_json", "lazy_static"]
 
 [dependencies]
 # local
-zero-ui-proc-macros = { path = "zero-ui-proc-macros" }
 zero-ui-core = { path = "zero-ui-core" }
 
 # core

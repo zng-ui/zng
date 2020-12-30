@@ -1,3 +1,9 @@
+#![warn(unused_extern_crates)]
+// examples of `widget! { .. }` and `#[property(..)]` need to be declared
+// outside the main function, because they generate a `mod` with `use super::*;`
+// that does not import `use` clauses declared inside the parent function.
+#![allow(clippy::needless_doctest_main)]
+
 //! Core infrastructure required for creating components and running an app.
 
 #[macro_use]
@@ -29,6 +35,7 @@ pub mod text;
 pub mod units;
 pub mod var;
 pub mod visibility;
+pub mod widget_base;
 pub mod window;
 
 mod ui_node;

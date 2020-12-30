@@ -1515,7 +1515,7 @@ pub mod output {
         ///     // inherit branch, present in widget and mix-ins, calls the [`widget_stage2!`]
         ///     // including this widgets information so it can be inherited.
         ///     (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-        ///         zero_ui::widget_stage2! {
+        ///         zero_ui::core::widget_stage2! {
         ///             // continuation of the inheritance recursive calls.
         ///             => {
         ///                 $stage3_entry;
@@ -1733,7 +1733,7 @@ pub mod output {
         /// #docs // see [`WidgetDocs`], includes header docs
         /// #vis mod #widget_name {
         ///     use super::*;
-        ///     use zero_ui::widgets::mixins::implicit_mixin;
+        ///     use zero_ui::core::widget_base::implicit_mixin;
         ///
         ///     #new // see [`NewFn`]
         ///     #new_child
@@ -1753,7 +1753,7 @@ pub mod output {
             let crate_ = crate_core();
 
             let some_mixin = if self.is_mixin { None } else { Some(()) };
-            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::mixins::implicit_mixin; ));
+            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widget_base::implicit_mixin; ));
             let new = some_mixin.map(|_| self.new.new_tokens(widget_name));
             let new_child = some_mixin.map(|_| self.new_child.new_child_tokens(widget_name));
 
@@ -2014,7 +2014,7 @@ pub mod output {
                         #(#[doc=#fn_docs])*
                         #[inline]
                         pub fn new(child: impl #crate_::UiNode, id: impl properties::id::Args) -> impl #crate_::Widget {
-                            #crate_::default_widget_new(child, id)
+                            #crate_::widget_base::default_widget_new(child, id)
                         }
                     )
                 }
@@ -2058,7 +2058,7 @@ pub mod output {
                         #(#[doc=#fn_docs])*
                         #[inline]
                         pub fn new_child() -> impl #crate_::UiNode {
-                            #crate_::default_widget_new_child()
+                            #crate_::widget_base::default_widget_new_child()
                         }
                     )
                 }

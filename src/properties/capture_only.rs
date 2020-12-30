@@ -6,18 +6,6 @@ use crate::core::window::{AutoSize, StartPosition};
 use crate::prelude::new_property::*;
 use crate::widgets::{LineOrientation, LineStyle};
 
-/// Widget id.
-///
-/// # Implicit
-///
-/// All widgets automatically inherit from [`implicit_mixin`] that defines an `id`
-/// property that maps to this property and sets a default value of `WidgetId::new_unique()`.
-///
-/// The default widget `new` function captures this `id` property and uses in the default
-/// [`Widget`](crate::core::Widget) implementation.
-#[property(capture_only)]
-pub fn widget_id(id: WidgetId) -> ! {}
-
 /// [`Widget`] child node.
 ///
 /// # Container

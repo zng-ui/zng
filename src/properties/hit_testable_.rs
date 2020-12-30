@@ -107,11 +107,6 @@ impl WidgetHitTestableExt for LazyStateMap {
         self.get(HitTestableState).copied().unwrap_or(true)
     }
 }
-impl<W: Widget> WidgetHitTestableExt for W {
-    fn hit_testable(&self) -> bool {
-        self.state().hit_testable()
-    }
-}
 impl<'a> WidgetHitTestableExt for WidgetInfo<'a> {
     fn hit_testable(&self) -> bool {
         self.meta().hit_testable() && self.parent().map(|p| p.hit_testable()).unwrap_or(true)

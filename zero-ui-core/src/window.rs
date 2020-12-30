@@ -232,7 +232,7 @@ impl Default for WindowManager {
                 .thread_name(|idx| format!("UI#{}", idx))
                 .start_handler(|_| {
                     #[cfg(feature = "app_profiler")]
-                    crate::core::profiler::register_thread_with_profiler();
+                    crate::profiler::register_thread_with_profiler();
                 })
                 .build()
                 .unwrap(),
