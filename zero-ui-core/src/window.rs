@@ -1,23 +1,20 @@
 //! App windows manager.
-
-use crate::properties::Visibility;
-
-use super::{
-    app::{self, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
+use crate::{
+    app::{self, AppExtended, AppExtension, AppProcess, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
     color::Rgba,
     context::*,
-    render::FrameId,
-    render::{FrameBuilder, FrameHitInfo, FrameInfo},
+    event::*,
+    profiler::profile_scope,
+    render::{FrameBuilder, FrameHitInfo, FrameId, FrameInfo, FrameUpdate, WidgetTransformKey},
     service::WindowServicesVisitors,
     service::{AppService, WindowServices},
     text::Text,
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj, Vars},
+    visibility::Visibility,
     UiNode, WidgetId,
 };
-use super::{event::*, render::FrameUpdate};
-use super::{profiler::profile_scope, render::WidgetTransformKey};
-use app::{AppExtended, AppExtension, AppProcess};
+
 use fnv::FnvHashMap;
 use gleam::gl;
 use glutin::{
@@ -25,13 +22,13 @@ use glutin::{
     Api, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::cell::RefCell;
-use std::num::NonZeroU16;
-use std::{mem, rc::Rc, sync::Arc};
+use std::{cell::RefCell, mem, num::NonZeroU16, rc::Rc, sync::Arc};
 use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
 
-pub use glutin::event::WindowEvent;
-pub use glutin::window::{CursorIcon, WindowId};
+pub use glutin::{
+    event::WindowEvent,
+    window::{CursorIcon, WindowId},
+};
 
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
 type CloseTogetherGroup = Option<NonZeroU16>;
@@ -1541,7 +1538,7 @@ impl OwnedWindowContext {
             ctx.widget_context(root.id, &mut root.meta, |ctx| {
                 if vis_collapsed {
                     ctx.vars
-                        .with_context_var(crate::properties::VisibilityVar, &Visibility::Collapsed, vis_new, vis_ver, || {
+                        .with_context_var(crate::visibility::VisibilityVar, &Visibility::Collapsed, vis_new, vis_ver, || {
                             f(child, ctx)
                         });
                 } else {

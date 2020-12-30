@@ -2,6 +2,7 @@
 
 use super::color::{RenderColor, RenderFilter};
 use crate::context::LazyStateMap;
+use crate::gradient::{RenderExtendMode, RenderGradientStop};
 use crate::units::*;
 use crate::{
     window::{CursorIcon, WindowId},
@@ -11,12 +12,6 @@ use derive_more as dm;
 use ego_tree::Tree;
 use std::{fmt, marker::PhantomData, mem, sync::Arc};
 use webrender::api::*;
-
-/// Gradient extend mode supported by the render.
-///
-/// Note that [`ExtendMode::Reflect`](crate::widgets::ExtendMode::Reflect) is not supported
-/// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
-pub type RenderExtendMode = webrender::api::ExtendMode;
 
 macro_rules! debug_assert_aligned {
     ($value:expr, $grid: expr) => {
@@ -623,7 +618,7 @@ impl FrameBuilder {
         &mut self,
         rect: LayoutRect,
         line: LayoutLine,
-        stops: &[crate::widgets::RenderColorStop],
+        stops: &[RenderGradientStop],
         extend_mode: RenderExtendMode,
         tile_size: LayoutSize,
         tile_spacing: LayoutSize,

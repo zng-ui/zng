@@ -41,10 +41,10 @@
 
 use crate::app::{AppExtension, DeviceEvent, DeviceId};
 use crate::context::*;
+use crate::enabled::WidgetEnabledExt;
 use crate::event::*;
 use crate::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
 use crate::mouse::{MouseDownEvent, MouseInputArgs};
-use crate::properties::WidgetEnabledExt;
 use crate::render::DescendantFilter;
 use crate::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::service::AppService;
