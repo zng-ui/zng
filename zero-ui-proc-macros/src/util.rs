@@ -29,27 +29,30 @@ macro_rules! ident {
 pub fn crate_core() -> TokenStream {
     use once_cell::sync::OnceCell;
     use proc_macro_crate::crate_name;
-    static CRATE: OnceCell<String> = OnceCell::new();
+    static CRATE: OnceCell<(String, bool)> = OnceCell::new();
 
-    CRATE
-        .get_or_init(|| {
-            if let Ok(ident) = crate_name("zero-ui") {
-                // using the main crate.
-                let ident = Ident::new(ident.as_str(), Span::call_site());
-                format!("{}::core", ident)
-            } else if let Ok(ident) = crate_name("zero-ui-core") {
-                // using the core crate only.
-                ident
-            } else if let Ok(true) = in_crate_core() {
-                // using in the zero-ui-core crate.
-                "crate".to_owned()
-            } else {
-                // using in the zero-ui crate.
-                "crate::core".to_owned()
-            }
-        })
-        .parse()
-        .unwrap()
+    let (ident, core) = CRATE.get_or_init(|| {
+        if let Ok(ident) = crate_name("zero-ui") {
+            // using the main crate.
+            (ident, true)
+        } else if let Ok(ident) = crate_name("zero-ui-core") {
+            // using the core crate only.
+            (ident, false)
+        } else if let Ok(true) = in_crate_core() {
+            // using in the zero-ui-core crate.
+            ("crate".to_owned(), false)
+        } else {
+            // using in the zero-ui crate.
+            ("crate".to_owned(), true)
+        }
+    });
+
+    let ident = Ident::new(ident, Span::call_site());
+    if *core {
+        quote! { #ident::core }
+    } else {
+        ident.to_token_stream()
+    }
 }
 
 fn in_crate_core() -> std::result::Result<bool, ()> {
