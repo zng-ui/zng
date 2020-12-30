@@ -944,8 +944,7 @@ mod tests {
             LayoutLength::new(100.0),
             &LayoutContext::new(20.0, LayoutSize::new(100.0, 100.0), PixelGrid::new(1.0)),
             ExtendMode::Clamp,
-            &mut LayoutPoint::zero(),
-            &mut LayoutPoint::new(100.0, 100.0),
+            &mut LayoutLine::new(LayoutPoint::zero(), LayoutPoint::new(100.0, 100.0)),
             &mut render_stops,
         );
         render_stops
