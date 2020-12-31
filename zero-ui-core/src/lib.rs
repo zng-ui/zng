@@ -10,17 +10,16 @@
 extern crate bitflags;
 
 #[macro_use]
-extern crate paste;
-
-#[macro_use]
 mod crate_macros;
+
+#[doc(hidden)]
+pub use paste::paste;
 
 pub mod animation;
 pub mod app;
 pub mod color;
 pub mod context;
 pub mod debug;
-pub mod enabled;
 pub mod event;
 pub mod focus;
 pub mod gesture;
@@ -34,7 +33,6 @@ pub mod sync;
 pub mod text;
 pub mod units;
 pub mod var;
-pub mod visibility;
 pub mod widget_base;
 pub mod window;
 

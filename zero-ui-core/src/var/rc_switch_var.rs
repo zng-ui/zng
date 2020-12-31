@@ -63,7 +63,7 @@ macro_rules! impl_rc_switch_var {
     ($(
         $len:tt => $($n:tt),+;
     )+) => {$(
-        paste::paste!{
+        $crate::paste!{
             impl_rc_switch_var!{
                 Var: [<RcSwitch $len Var>];// RcSwitch2Var
                 Data: [<RcSwitch $len VarData>];// RcSwitch2VarData

@@ -1,6 +1,4 @@
-use std::ops::Range;
-
-use crate::core::render::RenderExtendMode;
+use crate::core::gradient::*;
 use crate::prelude::new_widget::*;
 
 /// Paints a linear gradient with a line defined by angle or points.
@@ -48,7 +46,7 @@ struct LinearGradientNode<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientS
     extend_mode: E,
 
     render_line: LayoutLine,
-    render_stops: Vec<RenderColorStop>,
+    render_stops: Vec<RenderGradientStop>,
 
     final_size: LayoutSize,
 }

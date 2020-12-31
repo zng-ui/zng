@@ -387,14 +387,12 @@ pub mod prelude {
         pub use crate::core::text::Text;
         pub use crate::core::units::{self, *};
         pub use crate::core::var::*;
+        pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
         pub use crate::core::{
             impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
             LAYOUT_ANY_SIZE,
         };
-        pub use crate::properties::{
-            events::{event_property, on_event, on_pre_event},
-            set_widget_state, with_context_var, IsEnabled, WidgetEnabledExt,
-        };
+        pub use crate::properties::{set_widget_state, with_context_var};
     }
 
     /// All the types you need to declare a new widget or widget mix-in.
@@ -414,7 +412,7 @@ pub mod prelude {
         pub use crate::properties::background::{background, *};
         pub use crate::properties::border::{border, *};
         pub use crate::properties::capture_only::*;
-        pub use crate::properties::events::{self, event_property, gesture::*, keyboard::*};
+        pub use crate::properties::events::{self, gesture::*, keyboard::*};
         pub use crate::properties::filters::*;
         pub use crate::properties::focus::focusable;
         pub use crate::properties::focus::*;

@@ -940,6 +940,7 @@ impl WidgetContextPath {
 
     /// Ancestor widgets, parent first.
     #[inline]
+    #[allow(clippy::needless_lifetimes)] // clippy bug
     pub fn ancestors<'s>(&'s self) -> impl Iterator<Item = WidgetId> + 's {
         let max = self.widget_ids.len() - 1;
         self.widget_ids[0..max].iter().copied().rev()

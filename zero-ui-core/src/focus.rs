@@ -41,7 +41,6 @@
 
 use crate::app::{AppExtension, DeviceEvent, DeviceId};
 use crate::context::*;
-use crate::enabled::WidgetEnabledExt;
 use crate::event::*;
 use crate::gesture::{shortcut, ShortcutArgs, ShortcutEvent};
 use crate::mouse::{MouseDownEvent, MouseInputArgs};
@@ -49,6 +48,7 @@ use crate::render::DescendantFilter;
 use crate::render::{FrameInfo, WidgetInfo, WidgetPath};
 use crate::service::AppService;
 use crate::units::LayoutPoint;
+use crate::widget_base::WidgetEnabledExt;
 use crate::window::{WindowId, WindowIsActiveArgs, WindowIsActiveChangedEvent, Windows};
 use crate::WidgetId;
 use fnv::FnvHashMap;

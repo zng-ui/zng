@@ -366,7 +366,7 @@ mod protected {
     }
 }
 macro_rules! impl_multi_tuple {
-    ($Trait:ident, $Tuple:ident => $( ( $($n:tt),+ ) ),+  $(,)?) => {$(paste::paste!{
+    ($Trait:ident, $Tuple:ident => $( ( $($n:tt),+ ) ),+  $(,)?) => {$($crate::paste!{
         impl_multi_tuple! {
             impl $Trait, $Tuple $([<_borrowed $n>], [<ptr $n>] = [<S $n>]),+
         }
@@ -407,7 +407,7 @@ macro_rules! service_types {
     ($(
         $(#[$doc:meta])*
         pub trait $Trait:ident { }
-    )+) => {$(paste::paste! {
+    )+) => {$($crate::paste! {
         $(#[$doc])*
         ///
         /// # Derive

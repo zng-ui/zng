@@ -564,7 +564,7 @@ impl_arrays! {
 }
 
 macro_rules! impl_tuples {
-    ($($L:tt => $($n:tt),+;)+) => {$(paste! {
+    ($($L:tt => $($n:tt),+;)+) => {$($crate::paste! {
 
         impl_tuples! { $L => $($n = [<W $n>]),+ }
 

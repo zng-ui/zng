@@ -11,12 +11,13 @@ use crate::{
     text::Text,
     units::{LayoutPoint, LayoutRect, LayoutSize, PixelGrid, Point, Size},
     var::{BoxedLocalVar, BoxedVar, IntoVar, VarLocal, VarObj, Vars},
-    visibility::Visibility,
     UiNode, WidgetId,
 };
 
 use fnv::FnvHashMap;
+
 use gleam::gl;
+
 use glutin::{
     window::{Window as GlutinWindow, WindowBuilder},
     Api, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
@@ -694,7 +695,7 @@ pub struct Window {
     auto_size: BoxedLocalVar<AutoSize>,
     resizable: BoxedVar<bool>,
     clear_color: BoxedLocalVar<Rgba>,
-    visibility: BoxedLocalVar<Visibility>,
+    visible: BoxedLocalVar<bool>,
     child: Box<dyn UiNode>,
 }
 
@@ -709,7 +710,7 @@ impl Window {
         auto_size: impl IntoVar<AutoSize>,
         resizable: impl IntoVar<bool>,
         clear_color: impl IntoVar<Rgba>,
-        visibility: impl IntoVar<Visibility>,
+        visible: impl IntoVar<bool>,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -722,7 +723,7 @@ impl Window {
             auto_size: auto_size.into_local().boxed_local(),
             resizable: resizable.into_var().boxed(),
             clear_color: clear_color.into_local().boxed_local(),
-            visibility: visibility.into_local().boxed_local(),
+            visible: visible.into_local().boxed_local(),
             child: child.boxed(),
         }
     }
@@ -1158,9 +1159,8 @@ impl OpenWindow {
         }
 
         // visibility
-        if let Some(&vis) = wn_ctx.root.visibility.update_local(vars) {
+        if let Some(&vis) = wn_ctx.root.visible.update_local(vars) {
             if !self.first_draw {
-                let vis = vis == Visibility::Visible;
                 window.set_visible(vis);
                 if vis {
                     updates.layout();
@@ -1195,11 +1195,6 @@ impl OpenWindow {
 
         if ctx.update == UpdateDisplayRequest::Layout {
             profile_scope!("window::layout");
-
-            if Visibility::Visible != *ctx.root.visibility.get_local() {
-                ctx.update = UpdateDisplayRequest::None;
-                return;
-            }
 
             ctx.update = UpdateDisplayRequest::Render;
 
@@ -1240,10 +1235,6 @@ impl OpenWindow {
             profile_scope!("window::render");
 
             ctx.update = UpdateDisplayRequest::None;
-
-            if Visibility::Visible != *ctx.root.visibility.get_local() {
-                return;
-            }
 
             let frame_id = Epoch({
                 let mut next = self.frame_info.frame_id().0.wrapping_add(1);
@@ -1351,7 +1342,7 @@ impl OpenWindow {
             self.redraw();
 
             // apply user initial visibility
-            if Visibility::Visible == *self.wn_ctx.borrow().root.visibility.get_local() {
+            if *self.wn_ctx.borrow().root.visible.get_local() {
                 self.gl_ctx.borrow().window().set_visible(true);
             }
         } else {
@@ -1529,21 +1520,10 @@ impl OwnedWindowContext {
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
-        let vis_collapsed = Visibility::Visible != *root.visibility.get(ctx.vars);
-        let vis_new = root.visibility.is_new(ctx.vars);
-        let vis_ver = root.visibility.version(ctx.vars);
-
         ctx.window_context(self.window_id, &mut self.state, &mut self.services, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.meta, |ctx| {
-                if vis_collapsed {
-                    ctx.vars
-                        .with_context_var(crate::visibility::VisibilityVar, &Visibility::Collapsed, vis_new, vis_ver, || {
-                            f(child, ctx)
-                        });
-                } else {
-                    f(child, ctx);
-                }
+                f(child, ctx);
             });
         })
     }
@@ -1554,7 +1534,7 @@ impl OwnedWindowContext {
 
         self.root.title.init_local(ctx.vars);
         self.root.clear_color.init_local(ctx.vars);
-        self.root.visibility.init_local(ctx.vars);
+        self.root.visible.init_local(ctx.vars);
         self.root.auto_size.init_local(ctx.vars);
 
         let update = self.root_context(ctx, |root, ctx| {
