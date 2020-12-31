@@ -331,6 +331,7 @@ pub mod prelude {
         context::WidgetContext,
         focus::{DirectionalNav, Focus, TabIndex, TabNav},
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
+        gradient::{stops, ExtendMode, GradientStop, GradientStops},
         keyboard::{Key, ModifiersState},
         mouse::MouseButton,
         render::WidgetPath,

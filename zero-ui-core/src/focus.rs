@@ -202,7 +202,8 @@ impl ReturnFocusChangedArgs {
 }
 
 state_key! {
-    pub(crate) struct FocusInfoKey: FocusInfoBuilder;
+    /// Reference to the [`FocusInfoBuilder`] in the widget state of a frame.
+    pub struct FocusInfoKey: FocusInfoBuilder;
 }
 
 /// Widget tab navigation position within a focus scope.
@@ -1874,16 +1875,23 @@ impl FocusInfo {
     }
 }
 
+/// Builder for [`FocusInfo`] accessible in a [`FrameBuilder`](crate::render::FrameBuilder).
+///
+/// Use the [`FocusInfoKey`] to access the builder for the widget state in a frame.
 #[derive(Default)]
-pub(crate) struct FocusInfoBuilder {
+pub struct FocusInfoBuilder {
     pub focusable: Option<bool>,
+
     pub scope: Option<bool>,
+    pub alt_scope: bool,
+    pub on_focus: FocusScopeOnFocus,
+
     pub tab_index: Option<TabIndex>,
     pub tab_nav: Option<TabNav>,
     pub directional_nav: Option<DirectionalNav>,
-    pub alt_scope: bool,
+
     pub skip_directional: Option<bool>,
-    pub on_focus: FocusScopeOnFocus,
+
 }
 impl FocusInfoBuilder {
     #[inline]

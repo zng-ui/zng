@@ -911,10 +911,10 @@ mod tests {
 #[macro_export]
 macro_rules! formatx {
     ($str:tt) => {
-        $crate::core::text::Text::borrowed($str)
+        $crate::text::Text::borrowed($str)
     };
     ($($tt:tt)*) => {
-        $crate::core::text::Text::owned(format!($($tt)*))
+        $crate::text::Text::owned(format!($($tt)*))
     };
 }
 #[doc(inline)]
