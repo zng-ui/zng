@@ -1566,7 +1566,6 @@ pub mod output {
         /// pub use #widget_name_GUID as #widget_name;
         /// ```
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let crate_ = crate_core();
             let name = &self.widget_name;
             let is_mixin = self.is_mixin;
 
@@ -1577,8 +1576,8 @@ pub mod output {
             let new_child = &self.new_child;
 
             let inherit_arm = quote! {
-                (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-                    #crate_::widget_stage2! {
+                (-> inherit { $stage3_entry:ident; $named_as:path; $local_stage2:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+                    $local_stage2! {
                         => {
                             $stage3_entry;
                             $($inherit_next)*
@@ -1609,7 +1608,7 @@ pub mod output {
 
                 Some(quote! {
                     ($($input:tt)*) => {
-                        #crate_::widget_new! {
+                        #name::widget_new! {
                             #name
                             default { #(#default),* }
                             default_child { #(#default_child),* }
@@ -1769,6 +1768,9 @@ pub mod output {
                 #vis mod #widget_name {
                     use super::*;
                     #use_implicit_mixin
+
+                    #[doc(hidden)]
+                    pub use #crate_::{widget_stage2, widget_new};
 
                     // new functions.
                     #new

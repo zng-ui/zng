@@ -68,6 +68,7 @@ pub fn expand(mixin: bool, input: proc_macro::TokenStream) -> proc_macro::TokenS
             -> inherit {
                 #stage3_entry;
                 #first_inherit;
+                #first_inherit::widget_stage2;
                 // inherits[1..]
                 #inherits
             }
