@@ -1608,6 +1608,10 @@ pub mod output {
 
                 Some(quote! {
                     ($($input:tt)*) => {
+                        // TODO #name here only works if the user imports the #name
+                        // a call like: some_path::#name!{ } will not find #name
+                        // we need to find if a path was used for the call to find the widget mod,
+                        // maybe use std::file!() and std::line!()?
                         #name::widget_new! {
                             #name
                             default { #(#default),* }
