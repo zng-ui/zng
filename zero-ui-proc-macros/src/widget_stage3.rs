@@ -710,7 +710,7 @@ pub mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WidgetDeclaration, WidgetItem};
     use super::output::*;
     use crate::{
-        property::input::Prefix as PropertyPrefix,
+        property::Prefix as PropertyPrefix,
         util::{Attributes, Errors, PatchSuperPath},
     };
     use input::{PropertyAssign, PropertyValue, WgtItemWhen};
@@ -2169,16 +2169,16 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let tt = match self {
                 WidgetPropertyUse::Mod(ident) => quote! {
-                    #ident::if_export!(pub use #ident::export as #ident;);
+                    #ident::code_gen!(if export=> pub use #ident::export as #ident;);
                 },
                 WidgetPropertyUse::Alias { ident, original } => quote! {
-                    #original::if_export!(pub use #original::export as #ident;);
+                    #original::code_gen!(if export=> pub use #original::export as #ident;);
                 },
                 WidgetPropertyUse::Inherited { widget, ident } => quote! {
-                    #widget::properties::#ident::if_export!(pub use #widget::properties::#ident::export as #ident;);
+                    #widget::properties::#ident::code_gen!(if export=> pub use #widget::properties::#ident::export as #ident;);
                 },
                 WidgetPropertyUse::AliasInherited { ident, widget, original } => quote! {
-                    #widget::properties::#original::if_export!(pub use #widget::properties::#original::export as #ident;);
+                    #widget::properties::#original::code_gen!(if export=> pub use #widget::properties::#original::export as #ident;);
                 },
             };
             tokens.extend(tt);
@@ -2235,7 +2235,7 @@ pub mod output {
                 }
                 FinalPropertyDefaultValue::Args(a) => {
                     let args = &a.0;
-                    quote!(properties::#property::args(#args))
+                    quote!(properties::#property::ArgsImpl::new(#args))
                 }
                 FinalPropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
                 FinalPropertyDefaultValue::WhenInherited(widget, index) => {

@@ -167,7 +167,7 @@ mod analysis {
         output::*,
     };
     use crate::widget_stage3::input::WgtItemWhen;
-    use crate::{property::input::Prefix, util::Errors, widget_stage3::analysis::*};
+    use crate::{property::Prefix, util::Errors, widget_stage3::analysis::*};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
@@ -636,7 +636,7 @@ mod analysis {
 
 mod output {
     use crate::{
-        property::input::Priority,
+        property::Priority,
         util::{crate_core, Errors},
         widget_stage3::input::{PropertyArgs, PropertyFields},
         widget_stage3::output::{WhenConditionExpr, WhenPropertyRef},
@@ -700,7 +700,7 @@ mod output {
                 PropertyValue::Args(args) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::args(#args);
+                        let #var_name = #property_path::ArgsImpl::new(#args);
                     }
                 }
                 PropertyValue::Fields(fields) => {
@@ -741,7 +741,7 @@ mod output {
             let crate_ = crate_core();
             let mod_ = self.widget.as_ref().map(|widget| quote!(#widget::properties::));
 
-            tokens.extend(quote! {let #var_name = #mod_#property::args(#crate_::var::state_var());})
+            tokens.extend(quote! {let #var_name = #mod_#property::ArgsImpl::new(#crate_::var::state_var());})
         }
     }
 
@@ -888,7 +888,7 @@ mod output {
                         };
 
                         tokens.extend(quote! {
-                            #mod_#property::assert!(allowed_in_when, #not_allowed_msg);
+                            #mod_#property::code_gen!(assert allowed_in_when=> #not_allowed_msg);
                         });
                     }
                     expr.to_local_tokens(widget, widget_properties, tokens)
@@ -1014,7 +1014,7 @@ mod output {
             let when_var_inits = self.whens.iter().map(|w| match &w.value {
                 PropertyValue::Args(a) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
-                    quote! { #widget#property::args(#a) }
+                    quote! { #widget#property::ArgsImpl::new(#a) }
                 }
                 PropertyValue::Fields(fields) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
@@ -1041,10 +1041,17 @@ mod output {
             } else {
                 property.to_token_stream()
             };
+
+            let crate_core = crate_core();
+
             tokens.extend(quote! {
                 let #var_name = {
                     #(let #when_var_names = #when_var_inits;)*
-                    #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_var_names),*)
+                    #property_path::code_gen!(switch #property_path,
+                        #crate_core::var::switch_var,
+                        #index_var_name,
+                        #(#when_var_names),*
+                    )
                 };
             })
         }
@@ -1087,7 +1094,7 @@ mod output {
                             CapturedPropertyV1 {
                                 property_name: #p_names,
                                 instance_location: #p_locs,
-                                arg_names:#name::properties::#p::arg_names(),
+                                arg_names: #name::properties::#p::arg_names(),
                                 arg_debug_vars: #name::properties::#p::debug_args(&#args),
                                 user_assigned: #p_assig,
                             }
@@ -1140,7 +1147,7 @@ mod output {
             for (_, ident, property, _) in &properties {
                 let msg = format!("cannot set capture_only property `{}`", ident);
                 tokens.extend(quote! {
-                    #property::assert!(!capture_only, #msg);
+                    #property::code_gen!(assert !capture_only=> #msg);
                 });
             }
 
@@ -1149,12 +1156,22 @@ mod output {
                 #[cfg(debug_assertions)]
                 for (args_ident, property_name, property, user_assigned) in &properties {
                     if self.debug_enabled {
+                        let crate_core = crate_core();
                         tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::set_args!(#priority, #property, #property_name, node, #args_ident, #user_assigned);
+                            #property::code_gen!(set #priority,
+                                node,
+                                #args_ident,
+                                #property_name,
+                                #crate_core::debug::source_location!(),
+                                #user_assigned
+                            );
                         });
                     } else {
                         tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::set_args!(#priority, #property, node, #args_ident);
+                            #property::code_gen!(set #priority,
+                                node,
+                                #args_ident
+                            );
                         });
                     }
                 }
@@ -1162,7 +1179,7 @@ mod output {
                 #[cfg(not(debug_assertions))]
                 for (args_ident, _, property, _) in &properties {
                     tokens.extend(quote_spanned! {args_ident.span()=>
-                        #property::set_args!(#priority, #property, node, #args_ident);
+                        #property::code_gen!(set #priority, node, #args_ident);
                     });
                 }
             }
@@ -1175,7 +1192,7 @@ mod output {
     }
     impl Priority {
         pub fn all_settable() -> [Self; 5] {
-            use crate::property::input::keyword::*;
+            use crate::property::keyword::*;
             [
                 Priority::Inner(inner::default()),
                 Priority::Size(size::default()),

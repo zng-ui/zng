@@ -1891,7 +1891,6 @@ pub struct FocusInfoBuilder {
     pub directional_nav: Option<DirectionalNav>,
 
     pub skip_directional: Option<bool>,
-
 }
 impl FocusInfoBuilder {
     #[inline]

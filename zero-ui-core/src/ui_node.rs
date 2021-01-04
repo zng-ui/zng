@@ -482,7 +482,7 @@ pub trait UiNode: 'static {
     /// Box this node, unless it is already `Box<dyn UiNode>`.
     fn boxed(self) -> Box<dyn UiNode>
     where
-        Self: Sized + 'static,
+        Self: Sized,
     {
         Box::new(self)
     }
@@ -507,7 +507,7 @@ pub trait Widget: UiNode {
     /// Box this widget node, unless it is already `Box<dyn Widget>`.
     fn boxed_widget(self) -> Box<dyn Widget>
     where
-        Self: Sized + 'static,
+        Self: Sized,
     {
         Box::new(self)
     }

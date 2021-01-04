@@ -49,7 +49,7 @@ mod build_tests {
     }
 
     #[property(event)]
-    fn basic_event(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {
+    fn on_event(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {
         let _arg = arg;
         child
     }
@@ -61,17 +61,21 @@ mod build_tests {
     }
 
     fn _basic_gen() {
-        use basic_context::{args, ArgsNamed, ArgsUnwrap};
-        let a = args(1);
-        let _ar = a.arg();
-        let _a = a.unwrap();
+        use basic_context::{code_gen, Args, ArgsImpl};
+        let a = ArgsImpl::new(1);
+        let a = code_gen! { named_new basic_context { arg: 1 } };
+        let _n = a.args().unwrap();
     }
 
     #[property(context)]
     fn phantom_gen<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: impl IntoVar<A>) -> impl UiNode {
         println!("{:?}", a.into_local().get_local());
         println!("{:?}", b.into_local().get_local());
-        let _args = phantom_gen::args(TestInput, TestInput);
+        let _args = phantom_gen::ArgsImpl {
+            a: TestInput,
+            b: TestInput,
+            _phantom: std::marker::PhantomData,
+        };
         child
     }
 
@@ -79,35 +83,37 @@ mod build_tests {
     struct TestInput;
 
     #[property(context)]
-    fn no_phantom_required<A: VarValue>(child: impl UiNode, a: Vec<A>) -> impl UiNode {
+    fn no_phantom_required(child: impl UiNode, a: Vec<TestInput>) -> impl UiNode {
         println!("{:?}", a);
-        let _args = no_phantom_required::args(vec![TestInput, TestInput]);
+        let _args = no_phantom_required::ArgsImpl {
+            a: vec![TestInput, TestInput],
+        };
         child
     }
 
     #[property(context)]
     fn not_arg_gen<C: UiNode>(child: C, arg: impl IntoVar<u8>) -> C {
         let _arg = arg;
-        let _arg = not_arg_gen::args(1);
+        let _arg = not_arg_gen::ArgsImpl::new(1);
         child
     }
 
     #[property(context, allowed_in_when: false)]
     fn no_bounds<A>(child: impl UiNode, a: A) -> impl UiNode {
-        let _a = no_bounds::args(a);
+        let _a = no_bounds::ArgsImpl::new(a);
         child
     }
 
     #[property(context, allowed_in_when: false)]
     fn no_bounds_phantom<A, B: Into<A>>(child: impl UiNode, b: B) -> impl UiNode {
-        let _b = no_bounds_phantom::args(b);
+        let _b = no_bounds_phantom::ArgsImpl::new(b);
         child
     }
 
     #[property(context, allowed_in_when: false)]
-    fn no_bounds_not_arg<A: UiNode, B>(_child: A, b: B) -> impl UiNode {
-        let _b = no_bounds_not_arg::args(b);
-        crate::widgets::text::text("")
+    fn no_bounds_not_arg<A: UiNode, B>(child: A, b: B) -> impl UiNode {
+        let _b = no_bounds_not_arg::ArgsImpl::new(b);
+        child
     }
 
     #[property(context)]
