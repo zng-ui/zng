@@ -63,8 +63,8 @@ pub fn foreground_highlight(
     widths: impl IntoVar<SideOffsets>,
     details: impl IntoVar<BorderDetails>,
 ) -> impl UiNode {
-    let border = border::set(crate::core::FillUiNode, widths, details);
-    foreground::set(child, margin::set(border, offsets))
+    let border = border(crate::core::FillUiNode, widths, details);
+    foreground(child, margin(border, offsets))
 }
 
 /// Fill color overlay property.
@@ -72,7 +72,7 @@ pub fn foreground_highlight(
 /// This property applies a [`fill_color`] as [`foreground`].
 #[property(inner)]
 pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
-    foreground::set(child, fill_color(color))
+    foreground(child, fill_color(color))
 }
 
 /// Linear gradient overlay property.
@@ -80,5 +80,5 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 /// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`](ExtendMode::Clamp) extend mode.
 #[property(inner)]
 pub fn foreground_gradient(child: impl UiNode, angle: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    foreground::set(child, linear_gradient(angle, stops))
+    foreground(child, linear_gradient(angle, stops))
 }

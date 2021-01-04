@@ -706,11 +706,9 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::named_args! {
-                            #property_path: {
-                                #fields
-                            }
-                        };
+                        let #var_name = #property_path::code_gen! { named_new #property_path {
+                            #fields
+                        }};
                     }
                 }
                 PropertyValue::Inherited => {
@@ -1019,11 +1017,9 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
                     quote! {
-                        #widget#property::named_args! {
-                            #widget#property: {
-                                #fields
-                            }
-                        }
+                        #widget#property::code_gen! { named_new #widget#property {
+                            #fields
+                        } }
                     }
                 }
                 PropertyValue::Inherited => {
@@ -1042,13 +1038,10 @@ mod output {
                 property.to_token_stream()
             };
 
-            let crate_core = crate_core();
-
             tokens.extend(quote! {
                 let #var_name = {
                     #(let #when_var_names = #when_var_inits;)*
                     #property_path::code_gen!(switch #property_path,
-                        #crate_core::var::switch_var,
                         #index_var_name,
                         #(#when_var_names),*
                     )
@@ -1091,14 +1084,8 @@ mod output {
                     let mut debug_captured_new_child = {
                         use #crate_::debug::*;
                         vec![#(
-                            CapturedPropertyV1 {
-                                property_name: #p_names,
-                                instance_location: #p_locs,
-                                arg_names: #name::properties::#p::arg_names(),
-                                arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                user_assigned: #p_assig,
-                            }
-                        ),*]
+                            #name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig),
+                        )*]
                     };
                 });
             }
@@ -1159,7 +1146,8 @@ mod output {
                         let crate_core = crate_core();
                         tokens.extend(quote_spanned! {args_ident.span()=>
                             #property::code_gen!(set #priority,
-                                node,
+                                #crate_core::UiNode::boxed(node),
+                                #property,
                                 #args_ident,
                                 #property_name,
                                 #crate_core::debug::source_location!(),
@@ -1170,6 +1158,7 @@ mod output {
                         tokens.extend(quote_spanned! {args_ident.span()=>
                             #property::code_gen!(set #priority,
                                 node,
+                                #property,
                                 #args_ident
                             );
                         });
@@ -1240,13 +1229,7 @@ mod output {
                             source_location!(),
                             debug_captured_new_child,
                             vec![#(
-                                CapturedPropertyV1 {
-                                    property_name: #p_names,
-                                    instance_location: #p_locs,
-                                    arg_names:#name::properties::#p::arg_names(),
-                                    arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                    user_assigned: #p_assig,
-                                }
+                                #name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig),
                             ),*],
                             debug_whens
                         )

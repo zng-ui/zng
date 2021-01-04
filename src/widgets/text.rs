@@ -95,7 +95,7 @@ widget! {
     #[inline]
     fn new_child(text) -> impl UiNode {
         let text = TextNode::new(text.unwrap().into_var());
-        font_weight::set(text, FontWeight::BOLD)
+        font_weight(text, FontWeight::BOLD)
     }
 }
 
@@ -118,7 +118,7 @@ widget! {
     #[inline]
     fn new_child(text) -> impl UiNode {
         let text = TextNode::new(text.unwrap().into_var());
-        font_style::set(text, FontStyle::Italic)
+        font_style(text, FontStyle::Italic)
     }
 }
 

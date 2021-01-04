@@ -9,7 +9,7 @@ widget! {
 
     #[inline]
     fn new_child(content) -> impl UiNode {
-        align::set(content.unwrap(), Alignment::CENTER)
+        align(content.unwrap(), Alignment::CENTER)
     }
 }
 

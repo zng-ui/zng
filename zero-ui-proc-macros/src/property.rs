@@ -9,7 +9,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let tokens = output.to_token_stream();
 
-    // println!("\n\n========================\n\n{}\n\n=================", tokens);
+    //println!("\n\n========================\n\n{}\n\n=================", tokens);
 
     tokens.into()
 }
@@ -417,6 +417,14 @@ mod analysis {
             fn_.attrs.push(parse_quote! { #[allow(unused_variables)] });
         }
 
+        let allowed_in_when = match args.allowed_in_when {
+            Some(b) => b.3.value,
+            None => match prefix {
+                Prefix::State | Prefix::None => true,
+                Prefix::Event => false,
+            },
+        };
+
         let macro_ident = ident!("{}_{}", fn_.sig.ident, util::uuid());
 
         output::Output {
@@ -430,6 +438,7 @@ mod analysis {
                 cfg: attrs.cfg.clone(),
                 ident: fn_.sig.ident.clone(),
                 generics: generic_types,
+                allowed_in_when,
                 phantom_idents: phantom_idents.clone(),
                 arg_idents: arg_idents.clone(),
                 priority: args.priority,
@@ -437,28 +446,23 @@ mod analysis {
                 assoc_types,
                 arg_return_types,
             },
-            macro_: output::OutputMacro {
-                cfg: attrs.cfg.clone(),
-                macro_ident: macro_ident.clone(),
-                export: !matches!(fn_.vis, syn::Visibility::Inherited),
-                priority: args.priority,
-                allowed_in_when: match args.allowed_in_when {
-                    Some(b) => b.3.value,
-                    None => match prefix {
-                        Prefix::State | Prefix::None => true,
-                        Prefix::Event => false,
-                    },
-                },
-                phantom_idents,
-                arg_idents,
-            },
             mod_: output::OutputMod {
-                cfg: attrs.cfg,
+                cfg: attrs.cfg.clone(),
                 vis: fn_.vis.clone(),
                 ident: fn_.sig.ident.clone(),
-                macro_ident,
+                is_capture_only: args.priority.is_capture_only(),
+                macro_ident: macro_ident.clone(),
                 args_ident: ident!("{}_Args", fn_.sig.ident),
                 args_impl_ident: ident!("{}_ArgsImpl", fn_.sig.ident),
+            },
+            macro_: output::OutputMacro {
+                cfg: attrs.cfg,
+                macro_ident,
+                export: !matches!(fn_.vis, syn::Visibility::Inherited),
+                priority: args.priority,
+                allowed_in_when,
+                phantom_idents,
+                arg_idents,
             },
             fn_,
         }
@@ -560,6 +564,7 @@ mod output {
         pub ident: Ident,
 
         pub priority: Priority,
+        pub allowed_in_when: bool,
 
         pub generics: Vec<TypeParam>,
         pub phantom_idents: Vec<Ident>,
@@ -585,6 +590,7 @@ mod output {
             } = self;
             let args_impl_ident = ident!("{}_ArgsImpl", self.ident);
             let args_ident = ident!("{}_Args", self.ident);
+            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
             let crate_core = crate_core();
 
             let (phantom_decl, phantom_init) = if self.phantom_idents.is_empty() {
@@ -592,7 +598,7 @@ mod output {
             } else {
                 (
                     quote! {
-                        _phantom: std::marker::PhantomData<( #(#phantom),* )>,
+                        pub _phantom: std::marker::PhantomData<( #(#phantom),* )>,
                     },
                     quote! {
                         _phantom: std::marker::PhantomData,
@@ -618,9 +624,33 @@ mod output {
                 co
             };
 
+            #[cfg(debug_assertions)]
+            let arg_debug_vars = if self.allowed_in_when {
+                quote! {
+                    let arg_debug_vars = {
+                        let ( #(#arg_locals),* ) = self_.unwrap_ref();
+                        Box::new([
+                        #(
+                            #crate_core::debug::debug_var(
+                                #crate_core::var::IntoVar::into_var(
+                                    std::clone::Clone::clone(#arg_locals)
+                                )
+                            ),
+                        )*
+                        ])
+                    };
+                }
+            } else {
+                quote! {
+                    let arg_debug_vars = Box::new([]);
+                }
+            };
+
             let set = if self.priority.is_capture_only() {
                 TokenStream::new()
             } else {
+                let set_ident = ident!("__{}_set", ident);
+                let set_debug_ident = ident!("__{}_set_debug", ident);
                 #[cfg(debug_assertions)]
                 {
                     let ident_str = ident.to_string();
@@ -633,37 +663,29 @@ mod output {
                         Priority::Inner(_) => quote!(Inner),
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
                     };
-
                     quote! {
                         #[inline]
-                        pub fn set(self, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
-                            #ident(child, #( self.#arg_idents ),*)
+                        pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                            let ( #(#arg_locals),* ) = self_.unwrap();
+                            #ident(child, #( #arg_locals ),*)
                         }
 
                         #[inline]
-                        pub fn set_debug(
-                            self,
+                        pub fn #set_debug_ident(
+                            self_: impl #args_ident,
                             child: std::boxed::Box<dyn #crate_core::UiNode>,
                             property_name: &'static str,
-                            instance_location: crate::debug::SourceLocation,
+                            instance_location: #crate_core::debug::SourceLocation,
                             user_assigned: bool
-                        ) -> crate::debug::PropertyInfoNode {
-                            let dbg_args = Box::new([
-                                #(
-                                    #crate_core::debug::debug_var(
-                                        #crate_core::var::IntoVar::into_var(
-                                            std::clone::Clone::clone(&self.#arg_idents)
-                                        )
-                                    ),
-                                )*
-                            ]);
+                        ) -> #crate_core::debug::PropertyInfoNode {
+                            #arg_debug_vars
 
-                            fn box_fix(node: impl crate::UiNode) -> Box<dyn #crate_core::UiNode> {
+                            fn box_fix(node: impl #crate_core::UiNode) -> Box<dyn #crate_core::UiNode> {
                                 #crate_core::UiNode::boxed(node)
                             }
-                            let node = box_fix(self.set(child));
+                            let node = box_fix(#set_ident(self_, child));
 
-                            crate::debug::PropertyInfoNode::new_v1(
+                            #crate_core::debug::PropertyInfoNode::new_v1(
                                 node,
                                 #crate_core::debug::PropertyPriority::#priority,
                                 #ident_str,
@@ -671,7 +693,7 @@ mod output {
                                 property_name,
                                 instance_location,
                                 &[#( #arg_idents_str ),*],
-                                dbg_args,
+                                arg_debug_vars,
                                 user_assigned
                             )
                         }
@@ -681,17 +703,47 @@ mod output {
                 #[cfg(not(debug_assertions))]
                 quote! {
                     #[inline]
-                    pub fn set(self, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
-                        #ident(child, #( self.#arg_idents ),*)
+                    pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                        let ( #(#arg_locals),* ) = self_.unwrap();
+                        #ident(child, #( #arg_locals ),*)
                     }
                 }
             };
 
+            let cap_debug = {
+                #[cfg(debug_assertions)]
+                {
+                    let cap_ident = ident!("__{}_captured_debug", ident);
+                    let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
+
+                    quote! {
+                        #[inline]
+                        pub fn #cap_ident(
+                            self_: &impl #args_ident,
+                            property_name: &'static str,
+                            instance_location: #crate_core::debug::SourceLocation,
+                            user_assigned: bool
+                        ) -> #crate_core::debug::CapturedPropertyV1 {
+                            #arg_debug_vars
+                            #crate_core::debug::CapturedPropertyV1 {
+                                property_name,
+                                instance_location,
+                                arg_names: &[#( #arg_idents_str ),*],
+                                arg_debug_vars,
+                                user_assigned,
+                            }
+                        }
+                    }
+                }
+                #[cfg(not(debug_assertions))]
+                TokenStream::new()
+            };
+
             let (unwrap_ty, unwrap_expr) = if arg_return_types.len() == 1 {
-                (arg_return_types[0].to_token_stream(), {
-                    let single_arg = &arg_idents[0];
-                    quote! { self.#single_arg }
-                })
+                let ty = arg_return_types[0].to_token_stream();
+                let single_arg = &arg_idents[0];
+                let expr = quote! { self.#single_arg };
+                (ty, expr)
             } else {
                 (
                     quote! {
@@ -702,6 +754,18 @@ mod output {
                     },
                 )
             };
+            let (unwrap_ty_ref, unwrap_expr_ref) = if arg_return_types.len() == 1 {
+                let single_ty = &arg_return_types[0];
+                let ty = quote! { &#single_ty };
+                let single_arg = &arg_idents[0];
+                let expr = quote! { &self.#single_arg };
+                (ty, expr)
+            } else {
+                (quote! { ( #( &#arg_return_types ),* ) }, quote! { ( #( &self.#arg_idents ),* ) })
+            };
+
+            let named_arg_mtds: Vec<_> = arg_idents.iter().map(|a| ident!("__{}", a)).collect();
+            let numbered_arg_mtds: Vec<_> = (0..arg_idents.len()).map(|a| ident!("__{}", a)).collect();
 
             tokens.extend(quote! {
                 #cfg
@@ -709,7 +773,7 @@ mod output {
                 #[allow(non_camel_case_types)]
                 pub struct #args_impl_ident #generic_decl {
                     #phantom_decl
-                    #(#arg_idents: #arg_types,)*
+                    #(pub #arg_idents: #arg_types,)*
                 }
 
                 #cfg
@@ -718,7 +782,13 @@ mod output {
                 pub trait #args_ident {
                     #(#assoc_types)*
 
+                    #(
+                        fn #named_arg_mtds(&self) -> &#arg_return_types;
+                        fn #numbered_arg_mtds(&self) -> &#arg_return_types;
+                    )*
+
                     fn unwrap(self) -> #unwrap_ty;
+                    fn unwrap_ref(&self) -> #unwrap_ty_ref;
                 }
 
                 #cfg
@@ -732,8 +802,6 @@ mod output {
                         }
                     }
 
-                    #set
-
                     #[inline]
                     pub fn args(self) -> impl #args_ident {
                         self
@@ -745,11 +813,31 @@ mod output {
                 impl #generic_decl #args_ident for #args_impl_ident #generic_use {
                     #assoc_connect
 
+                    #(
+                        #[inline]
+                        fn #named_arg_mtds(&self) -> &#arg_return_types {
+                            &self.#arg_idents
+                        }
+
+                        #[inline]
+                        fn #numbered_arg_mtds(&self) -> &#arg_return_types {
+                            &self.#arg_idents
+                        }
+                    )*
+
                     #[inline]
                     fn unwrap(self) -> #unwrap_ty {
                         #unwrap_expr
                     }
+
+                    #[inline]
+                    fn unwrap_ref(&self) -> #unwrap_ty_ref {
+                        #unwrap_expr_ref
+                    }
                 }
+
+                #set
+                #cap_debug
             })
         }
     }
@@ -803,18 +891,28 @@ mod output {
             } else {
                 #[cfg(debug_assertions)]
                 quote! {
-                    (set #priority, $node:ident, $args:ident, $property_name:expr, $source_location:expr, $user_assigned:tt) => {
-                        let $node = $args.set_debug($node, $property_name, $source_location, $user_assigned);
+                    (set #priority, $node:ident, $property_path: path, $args:ident,
+                        $property_name:expr, $source_location:expr, $user_assigned:tt) => {
+                            let $node = {
+                                use $property_path::{set_debug as __set};
+                                __set($args, $node, $property_name, $source_location, $user_assigned);
+                            };
                     };
-                    (set #priority, $node:ident, $args:ident) => {
-                        let $node = $args.set($node);
+                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                        let $node = {
+                            use $property_path::{set as __set};
+                            __set($args, $node)
+                        };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
                 }
                 #[cfg(not(debug_assertions))]
                 quote! {
-                    (set #priority, $node:ident, $args:ident) => {
-                        let $node = $args.set($node);
+                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                        let $node = {
+                            use $property_path::{set as __set};
+                            __set($args, $node)
+                        };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
                 }
@@ -856,15 +954,17 @@ mod output {
                 }
             };
 
-            let switches = if arg_idents.len() == 1 {
-                let arg = &arg_idents[0];
+            let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
+
+            let switches = if arg_locals.len() == 1 {
+                let arg = &arg_locals[0];
                 quote! {
-                    let #arg = $switch_var!($idx, $($arg_for_i),+);
+                    let #arg = __switch_var!($idx, $($arg_for_i),+);
                 }
             } else {
-                let n = 0..arg_idents.len();
+                let n = (0..arg_locals.len()).map(syn::Index::from);
                 quote! {
-                    #( let #arg_idents = $switch_var!($idx, $($arg_for_i.#n),+); )*
+                    #(let #arg_locals = __switch_var!(std::clone::Clone::clone(&$idx), $($arg_for_i.#n),+) ;)*
                 }
             };
 
@@ -875,8 +975,8 @@ mod output {
                 macro_rules! #macro_ident {
                     (named_new $property_path:path { $($fields:tt)+ }) => {
                         {
-                            use $property_path::{ArgsImpl};
-                            ArgsImpl {
+                            use $property_path::{ArgsImpl as __ArgsImpl};
+                            __ArgsImpl {
                                 #phantom
                                 $($fields)+
                             }
@@ -891,11 +991,12 @@ mod output {
 
                     #if_pub
 
-                    (switch $property_path:path, $switch_var:path, $idx:ident, $($arg_for_i:ident),+) => {
+                    (switch $property_path:path, $idx:ident, $($arg_for_i:ident),+) => {
                         {
-                            $(let $arg_for_i = $arg_for_i.unwrap();)+
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, switch_var as __switch_var};
+                            $(let $arg_for_i = __Args::unwrap($arg_for_i);)+
                             #switches
-                            $property_path::new(#(#arg_idents),*)
+                            __ArgsImpl::new(#(#arg_locals),*)
                         }
                     };
                 }
@@ -906,6 +1007,7 @@ mod output {
     pub struct OutputMod {
         pub cfg: Option<Attribute>,
         pub vis: Visibility,
+        pub is_capture_only: bool,
         pub ident: Ident,
         pub macro_ident: Ident,
         pub args_ident: Ident,
@@ -920,7 +1022,41 @@ mod output {
                 macro_ident,
                 args_ident,
                 args_impl_ident,
+                ..
             } = self;
+
+            let crate_core = crate_core();
+
+            let set_export = if self.is_capture_only {
+                TokenStream::new()
+            } else {
+                let set_ident = ident!("__{}_set", ident);
+                let set_dbg_ident = ident!("__{}_set_debug", ident);
+
+                #[cfg(debug_assertions)]
+                {
+                    quote! {
+                        #set_ident as set,
+                        #set_dbg_ident as set_debug,
+                    }
+                }
+                #[cfg(not(debug_assertions))]
+                quote! {
+                    #set_ident as set,
+                }
+            };
+
+            let cap_export = {
+                #[cfg(debug_assertions)]
+                {
+                    let cap_ident = ident!("__{}_captured_debug", ident);
+                    quote! {
+                        #cap_ident as captured_debug,
+                    }
+                }
+                #[cfg(not(debug_assertions))]
+                TokenStream::new()
+            };
 
             tokens.extend(quote! {
                 #cfg
@@ -932,8 +1068,11 @@ mod output {
                     pub use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
+                        #set_export
+                        #cap_export
                     };
                     pub use #macro_ident as code_gen;
+                    pub use #crate_core::var::switch_var;
                 }
             })
         }

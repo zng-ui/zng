@@ -2226,8 +2226,8 @@ pub mod output {
                 FinalPropertyDefaultValue::Fields(f) => {
                     let fields = &f.fields;
                     quote! {
-                        properties::#property::named_args! {
-                            properties::#property: {
+                        properties::#property::code_gen! { named_new
+                            properties::#property {
                                 #fields
                             }
                         }
@@ -2319,7 +2319,7 @@ pub mod output {
             let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
 
             tokens.extend(quote! {
-                #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
+                #(properties::#p::code_gen!(assert allowed_in_when=> #not_allowed_msg);)*
 
                 #[inline]
                 pub fn #fn_ident(#(#p: &impl properties::#p::Args),*) -> impl #crate_::var::Var<bool> {
@@ -2480,10 +2480,13 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
                 WhenPropertyRefArg::Index(idx) => {
-                    let ident = ident!("arg{}", idx);
-                    tokens.extend(quote! {ArgsNumbered::#ident})
+                    let ident = ident!("__{}", idx);
+                    tokens.extend(quote! {Args::#ident})
                 }
-                WhenPropertyRefArg::Named(ident) => tokens.extend(quote! {ArgsNamed::#ident}),
+                WhenPropertyRefArg::Named(ident) => {
+                    let ident = ident!("__{}", ident);
+                    tokens.extend(quote! {Args::#ident})
+                }
             }
         }
     }
