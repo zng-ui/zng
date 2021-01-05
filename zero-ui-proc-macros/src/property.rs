@@ -673,7 +673,7 @@ mod output {
                         #[inline]
                         pub fn #set_debug_ident(
                             self_: impl #args_ident,
-                            child: std::boxed::Box<dyn #crate_core::UiNode>,
+                            child: impl #crate_core::UiNode,
                             property_name: &'static str,
                             instance_location: #crate_core::debug::SourceLocation,
                             user_assigned: bool
@@ -895,10 +895,10 @@ mod output {
                         $property_name:expr, $source_location:expr, $user_assigned:tt) => {
                             let $node = {
                                 use $property_path::{set_debug as __set};
-                                __set($args, $node, $property_name, $source_location, $user_assigned);
+                                __set($args, $node, $property_name, $source_location, $user_assigned)
                             };
                     };
-                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                    (set #priority, $node:expr, $property_path: path, $args:ident) => {
                         let $node = {
                             use $property_path::{set as __set};
                             __set($args, $node)
@@ -908,7 +908,7 @@ mod output {
                 }
                 #[cfg(not(debug_assertions))]
                 quote! {
-                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                    (set #priority, $node:expr, $property_path: path, $args:ident) => {
                         let $node = {
                             use $property_path::{set as __set};
                             __set($args, $node)

@@ -1139,11 +1139,12 @@ mod output {
             for priority in &Priority::all_settable() {
                 #[cfg(debug_assertions)]
                 for (args_ident, property_name, property, user_assigned) in &properties {
+                    let property_name = property_name.to_string();
                     if self.debug_enabled {
                         let crate_core = crate_core();
                         tokens.extend(quote_spanned! {args_ident.span()=>
                             #property::code_gen!(set #priority,
-                                #crate_core::UiNode::boxed(node),
+                                node,
                                 #property,
                                 #args_ident,
                                 #property_name,
