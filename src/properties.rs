@@ -79,7 +79,6 @@ mod build_tests {
         child
     }
 
-
     #[property(context)]
     fn no_phantom_required(child: impl UiNode, a: Vec<u8>) -> impl UiNode {
         println!("{:?}", a);

@@ -595,11 +595,19 @@ mod output {
                 doc.to_tokens(tokens);
             }
             tokens.extend(quote! {
+                /// </div>
+                /// <h2 id='prop_fn' class='small-section-header'>Function<a href='#prop_fn' class='anchor'></a></h2>
+                /// <pre id='ffn' class='rust fn'></pre>
+                /// <div class='docblock'>
                 ///
-                /// # Property
+                /// Each property is a function that can be called directly. 
                 ///
-                /// This function is a property TODO.
+                ///
+                /// The property is ***set*** around the first input [`UiNode`](zero_ui::core::UiNode), 
+                /// the other inputs are the property arguments. The function output if a new [`UiNode`](zero_ui::core::UiNode) that
+                /// includes the property behavior.
             });
+            doc_extend!(tokens, "<script>{}</script>", js!("property_full.js"));
             self.inline.to_tokens(tokens);
             self.cfg.to_tokens(tokens);
         }
@@ -711,12 +719,14 @@ mod output {
                         Priority::CaptureOnly(_) => quote!(CaptureOnly),
                     };
                     quote! {
+                        #[doc(hidden)]
                         #[inline]
                         pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
                             let ( #(#arg_locals),* ) = self_.unwrap();
                             #ident(child, #( #arg_locals ),*)
                         }
 
+                        #[doc(hidden)]
                         #[inline]
                         pub fn #set_debug_ident(
                             self_: impl #args_ident,
@@ -749,6 +759,7 @@ mod output {
 
                 #[cfg(not(debug_assertions))]
                 quote! {
+                    #[doc(hidden)]
                     #[inline]
                     pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
                         let ( #(#arg_locals),* ) = self_.unwrap();
@@ -764,6 +775,7 @@ mod output {
                     let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
 
                     quote! {
+                        #[doc(hidden)]
                         #[inline]
                         pub fn #cap_ident(
                             self_: &impl #args_ident,
