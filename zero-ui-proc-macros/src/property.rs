@@ -108,8 +108,10 @@ mod input {
 }
 
 mod analysis {
+    use std::collections::HashSet;
+
     use proc_macro2::Ident;
-    use syn::{parse_quote, spanned::Spanned, visit_mut::VisitMut, TypeParam};
+    use syn::{parse_quote, spanned::Spanned, visit::Visit, visit_mut::VisitMut, TypeParam};
 
     use crate::util::{self, crate_core, Attributes, Errors};
 
@@ -249,14 +251,25 @@ mod analysis {
                                 // T : bounds
                                 if let Some(gen) = generic_types.iter_mut().find(|t| &t.ident == t_ident) {
                                     // found T
-                                    let bounds = &pt.bounds;
-                                    *gen = parse_quote!( #t_ident : #bounds );
+                                    gen.bounds.extend(pt.bounds.clone());
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+
+        if !args.priority.is_capture_only() {
+            // remove generics used only in the first `child` input.
+            let used = {
+                let mut cleanup = CleanupGenerics::new(&generic_types);
+                for input in fn_.sig.inputs.iter().skip(1) {
+                    cleanup.visit_fn_arg(input);
+                }
+                cleanup.used
+            };
+            generic_types.retain(|t| used.contains(&t.ident));
         }
 
         // validate input patterns and collect arg_idents and arg_types and impl_types (for generic_types):
@@ -271,6 +284,7 @@ mod analysis {
         } else {
             fn_.sig.inputs.iter().skip(1)
         };
+
         let mut invalid_n = 0;
         let mut invalid_idents = move || {
             let next = ident!("_invalid{}", invalid_n);
@@ -504,6 +518,31 @@ mod analysis {
 
             // else
             syn::visit_mut::visit_type_mut(self, i);
+        }
+    }
+
+    struct CleanupGenerics<'g> {
+        generics: &'g [TypeParam],
+        used: HashSet<Ident>,
+    }
+    impl<'g> CleanupGenerics<'g> {
+        fn new(generics: &'g [TypeParam]) -> Self {
+            CleanupGenerics {
+                used: HashSet::new(),
+                generics,
+            }
+        }
+    }
+    impl<'g, 'v> Visit<'v> for CleanupGenerics<'g> {
+        fn visit_type(&mut self, i: &'v syn::Type) {
+            if let syn::Type::Path(tp) = i {
+                if let Some(ident) = tp.path.get_ident() {
+                    if self.generics.iter().any(|g| &g.ident == ident) {
+                        self.used.insert(ident.clone());
+                    }
+                }
+            }
+            syn::visit::visit_type(self, i);
         }
     }
 }
