@@ -174,10 +174,6 @@ pub fn uuid() -> impl std::fmt::Display {
     uuid::Uuid::new_v4().to_simple()
 }
 
-/// Parse a `Punctuated` from a `TokenStream`.
-pub fn parse_terminated2<T: Parse, P: Parse>(tokens: TokenStream) -> parse::Result<Punctuated<T, P>> {
-    parse2::<PunctParser<T, P>>(tokens).map(|p| p.0)
-}
 struct PunctParser<T, P>(Punctuated<T, P>);
 impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
     fn parse(input: ParseStream) -> Result<Self> {
