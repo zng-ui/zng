@@ -25,6 +25,9 @@ use super::*;
 /// ```
 #[macro_export]
 macro_rules! switch_var {
+    ($index: expr $(, $v0: expr)? $(,)?) => {
+        compile_error!{"switch_var requires at least 2 variables"}
+    };
     ($index: expr, $v0: expr, $v1: expr) => {
         $crate::var::RcSwitch2Var::new($index, ($v0, $v1))
     };

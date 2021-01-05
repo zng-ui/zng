@@ -1073,19 +1073,16 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
+                let crate_ = crate_core();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
+                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
                 let p_assig = &self.properties_user_assigned;
                 let args = args.clone();
-                let crate_ = crate_core();
 
                 tokens.extend(quote! {
                     let mut debug_captured_new_child = {
-                        use #crate_::debug::*;
-                        vec![#(
-                            #name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig),
-                        )*]
+                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*]
                     };
                 });
             }
@@ -1214,26 +1211,20 @@ mod output {
                 let name_str = name.to_string();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
+                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
                 let p_assig = &self.properties_user_assigned;
                 let args = args.clone();
 
                 tokens.extend(quote! {
-                    let node = {
-                        use #crate_::debug::*;
-
-                        WidgetInstanceInfoNode::new_v1(
-                            #crate_::UiNode::boxed(node),
-                            #name_str,
-                            #name::decl_location(),
-                            source_location!(),
-                            debug_captured_new_child,
-                            vec![#(
-                                #name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig),
-                            ),*],
-                            debug_whens
-                        )
-                    };
+                    let node = #crate_::debug::WidgetInstanceInfoNode::new_v1(
+                        #crate_::UiNode::boxed(node),
+                        #name_str,
+                        #name::decl_location(),
+                        #crate_::debug::source_location!(),
+                        debug_captured_new_child,
+                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*],
+                        debug_whens
+                    );
                 });
             }
 
