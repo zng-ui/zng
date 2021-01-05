@@ -1112,7 +1112,7 @@ mod output {
                     #vis use super::{
                         #ident as export,
                     };
-                    #vis use super::{
+                    pub use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
                         #set_export
