@@ -267,8 +267,10 @@ mod analysis {
                 for input in fn_.sig.inputs.iter().skip(1) {
                     cleanup.visit_fn_arg(input);
                 }
+
                 cleanup.used
             };
+
             generic_types.retain(|t| used.contains(&t.ident));
         }
 
@@ -537,8 +539,14 @@ mod analysis {
         fn visit_type(&mut self, i: &'v syn::Type) {
             if let syn::Type::Path(tp) = i {
                 if let Some(ident) = tp.path.get_ident() {
-                    if self.generics.iter().any(|g| &g.ident == ident) {
-                        self.used.insert(ident.clone());
+                    if let Some(gen) = self.generics.iter().find(|g| &g.ident == ident) {
+                        // uses generic.
+                        if self.used.insert(ident.clone()) {
+                            // because of this it uses the generic bounds too.
+                            for bound in gen.bounds.iter() {
+                                self.visit_type_param_bound(bound);
+                            }
+                        }
                     }
                 }
             }
@@ -1104,7 +1112,7 @@ mod output {
                     #vis use super::{
                         #ident as export,
                     };
-                    pub use super::{
+                    #vis use super::{
                         #args_impl_ident as ArgsImpl,
                         #args_ident as Args,
                         #set_export

@@ -37,6 +37,7 @@ pub use visibility_::*;
 
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
+#[allow(dead_code)] // if it builds it passes.
 mod build_tests {
     use crate::core::property;
     use crate::core::var::*;
@@ -60,11 +61,15 @@ mod build_tests {
         child
     }
 
-    fn _basic_gen() {
+    #[test]
+    fn basic_gen() {
         use basic_context::{code_gen, Args, ArgsImpl};
         let a = ArgsImpl::new(1);
-        let a = code_gen! { named_new basic_context { arg: 1 } };
-        let _n = a.args().unwrap();
+        let b = code_gen! { named_new basic_context { arg: 2 } };
+        let a = a.args().unwrap().into_local();
+        let b = b.args().unwrap().into_local();
+        assert_eq!(1, *a.get_local());
+        assert_eq!(2, *b.get_local());
     }
 
     #[property(context)]
