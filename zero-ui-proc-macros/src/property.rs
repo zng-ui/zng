@@ -93,6 +93,7 @@ mod input {
         }
     }
 
+    /// An [`ItemFn`] with outer attributes detached.
     pub struct PropertyFn {
         pub attrs: Vec<Attribute>,
         pub fn_: ItemFn,
@@ -449,6 +450,7 @@ mod analysis {
                 docs: attrs.docs,
                 inline: attrs.inline,
                 cfg: attrs.cfg.clone(),
+                attrs: attrs.others,
             },
             types: output::OutputTypes {
                 cfg: attrs.cfg.clone(),
@@ -587,6 +589,7 @@ mod output {
         pub docs: Vec<Attribute>,
         pub inline: Option<Attribute>,
         pub cfg: Option<Attribute>,
+        pub attrs: Vec<Attribute>,
     }
 
     impl ToTokens for OutputAttributes {
@@ -596,7 +599,7 @@ mod output {
             }
             tokens.extend(quote! {
                 /// </div>
-                /// <h2 id='prop_fn' class='small-section-header'>Function<a href='#prop_fn' class='anchor'></a></h2>
+                /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
                 /// <pre id='ffn' class='rust fn'></pre>
                 /// <div class='docblock'>
                 ///
@@ -604,12 +607,15 @@ mod output {
                 ///
                 ///
                 /// The property is ***set*** around the first input [`UiNode`](zero_ui::core::UiNode), 
-                /// the other inputs are the property arguments. The function output if a new [`UiNode`](zero_ui::core::UiNode) that
+                /// the other inputs are the property arguments. The function output is a new [`UiNode`](zero_ui::core::UiNode) that
                 /// includes the property behavior.
             });
             doc_extend!(tokens, "<script>{}</script>", js!("property_full.js"));
             self.inline.to_tokens(tokens);
             self.cfg.to_tokens(tokens);
+            for attr in &self.attrs {
+                attr.to_tokens(tokens);
+            }
         }
     }
 
