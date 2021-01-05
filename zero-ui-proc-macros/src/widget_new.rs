@@ -1043,7 +1043,7 @@ mod output {
                     #(let #when_var_names = #when_var_inits;)*
                     #property_path::code_gen!(switch #property_path,
                         #index_var_name,
-                        #(#when_var_names),*
+                        #var_name, #(#when_var_names),*
                     )
                 };
             })
