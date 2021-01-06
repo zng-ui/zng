@@ -562,7 +562,7 @@ mod output {
     use quote::ToTokens;
     use syn::{Attribute, ItemFn, TraitItemType, Type, TypeParam, Visibility};
 
-    use crate::util::{crate_core, Errors};
+    use crate::util::{crate_core, docs_with_first_line_js, Errors};
 
     use super::input::Priority;
 
@@ -594,19 +594,17 @@ mod output {
 
     impl ToTokens for OutputAttributes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            for doc in &self.docs {
-                doc.to_tokens(tokens);
-            }
+            docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
             tokens.extend(quote! {
                 /// </div>
                 /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
                 /// <pre id='ffn' class='rust fn'></pre>
                 /// <div class='docblock'>
                 ///
-                /// Each property is a function that can be called directly. 
+                /// Each property is a function that can be called directly.
                 ///
                 ///
-                /// The property is ***set*** around the first input [`UiNode`](zero_ui::core::UiNode), 
+                /// The property is ***set*** around the first input [`UiNode`](zero_ui::core::UiNode),
                 /// the other inputs are the property arguments. The function output is a new [`UiNode`](zero_ui::core::UiNode) that
                 /// includes the property behavior.
             });

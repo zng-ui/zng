@@ -24,3 +24,5 @@ To circumvent this issue load the extra content using `iframe` elements and use 
 
 Use `'` instead of `"`, rust-doc incorrectly escapes `"` with `&quot;`. Escaped quotes works in most browsers, but
 prints errors to the console.
+
+If you need to use `"` inside a string replace it with `\u0022`.

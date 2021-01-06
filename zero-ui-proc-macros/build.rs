@@ -25,6 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let js_str = fs::read_to_string(&file)?;
             let js_str = js::minify(&js_str);
+
             fs::write(out_file, js_str)?;
         }
     }
