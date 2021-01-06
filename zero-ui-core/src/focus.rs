@@ -273,7 +273,7 @@ impl Default for TabIndex {
 
 /// Tab navigation configuration of a focus scope.
 ///
-/// See the [module level](zero_ui::core::focus#tab-navigation) for an overview of tab navigation.
+/// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TabNav {
     /// Tab does not move the focus inside the scope.
@@ -290,7 +290,7 @@ pub enum TabNav {
 
 /// Directional navigation configuration of a focus scope.
 ///
-/// See the [module level](zero_ui::core::focus#directional-navigation) for an overview of directional navigation.
+/// See the [module level](crate::focus#directional-navigation) for an overview of directional navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DirectionalNav {
     /// Arrows does not move the focus inside the scope.
@@ -344,7 +344,7 @@ event! {
 ///
 /// # About Focus
 ///
-/// See the [module level](zero_ui::core::focus) documentation for an overview of the keyboard
+/// See the [module level](crate::focus) documentation for an overview of the keyboard
 /// focus concepts implemented by this app extension.
 pub struct FocusManager {
     focus_changed: EventEmitter<FocusChangedArgs>,

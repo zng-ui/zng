@@ -25,11 +25,11 @@ impl<T: UiNode, C: VarLocal<CursorIcon>> UiNode for CursorNode<T, C> {
     }
 }
 
-/// Widget property that sets the [`CursorIcon`](zero_ui::core::types::CursorIcon) displayed when hovering the widget.
+/// Widget property that sets the [`CursorIcon`](crate::core::types::CursorIcon) displayed when hovering the widget.
 ///
 /// # Example
 /// ```
-/// # use zero_ui::prelude::*;
+/// # use crate::prelude::*;
 /// container! {
 ///     cursor: CursorIcon::Hand;
 ///     content: text("Mouse over this text shows the hand cursor");

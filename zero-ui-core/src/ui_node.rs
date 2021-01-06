@@ -2,7 +2,7 @@ use crate::context::*;
 use crate::render::{FrameBuilder, FrameUpdate};
 use crate::units::*;
 
-/// Generates default implementations of [`UiNode`](zero_ui::core::UiNode) methods.
+/// Generates default implementations of [`UiNode`](crate::UiNode) methods.
 ///
 /// # Arguments
 ///
@@ -50,7 +50,7 @@ use crate::units::*;
 ///
 /// Given an UI node `struct`:
 /// ```
-/// # use zero_ui::core::units::LayoutSize;
+/// # use crate::units::LayoutSize;
 /// struct FillColorNode<C> {
 ///     color: C,
 ///     final_size: LayoutSize,
@@ -60,7 +60,7 @@ use crate::units::*;
 /// In an `UiNode` trait impl block, annotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
@@ -74,7 +74,7 @@ use crate::units::*;
 /// Or, in a inherent impl, annotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -104,7 +104,7 @@ use crate::units::*;
 /// * Render: Does nothing, blank implementation.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -122,7 +122,7 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
 ///     pub fn new(color: C) -> Self {
@@ -130,33 +130,33 @@ use crate::units::*;
 ///     }
 /// }
 ///
-/// impl<C: VarLocal<Rgba>> zero_ui::core::UiNode for FillColorNode<C> {
+/// impl<C: VarLocal<Rgba>> crate::UiNode for FillColorNode<C> {
 ///     #[inline]
-///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
+///     fn init(&mut self, ctx: &mut crate::context::WidgetContext) { }
 ///
 ///     #[inline]
-///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
+///     fn update(&mut self, ctx: &mut crate::context::WidgetContext) { }
 ///
 ///     #[inline]
-///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
+///     fn update_hp(&mut self, ctx: &mut crate::context::WidgetContext) { }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
+///     fn measure(&mut self, available_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) -> crate::units::LayoutSize {
 ///         let mut size = available_size;
-///         if zero_ui::core::is_layout_any_size(size.width) {
+///         if crate::is_layout_any_size(size.width) {
 ///             size.width = 0.0;
 ///         }
-///         if zero_ui::core::is_layout_any_size(size.height) {
+///         if crate::is_layout_any_size(size.height) {
 ///             size.height = 0.0;
 ///         }
 ///         size
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) { }
+///     fn arrange(&mut self, final_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) { }
 ///
 ///     #[inline]
-///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///     fn render(&self, frame: &mut crate::render::FrameBuilder) {
 ///         // empty here when you don't implement render.
 ///
 ///         let area = LayoutRect::from_size(self.final_size);
@@ -164,10 +164,10 @@ use crate::units::*;
 ///     }
 ///
 ///     #[inline]
-///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) { }
+///     fn render_update(&self, update: &mut crate::render::FrameUpdate) { }
 ///
 ///     #[inline]
-///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
+///     fn deinit(&mut self, ctx: &mut crate::context::WidgetContext) { }
 /// }
 /// ```
 ///
@@ -183,7 +183,7 @@ use crate::units::*;
 /// * Render: Delegates to child render.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// struct DelegateChildNode<C: UiNode> { child: C }
 ///
 /// #[impl_ui_node(child)]
@@ -193,53 +193,53 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct DelegateChildNode<C: UiNode> { child: C }
 /// impl<C: UiNode> UiNode for DelegateChildNode<C> {
 ///     #[inline]
-///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let child = { &mut self.child };
 ///         child.init(ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let child = { &mut self.child };
 ///         child.update(ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update_hp(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let child = { &mut self.child };
 ///         child.update_hp(ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
+///     fn measure(&mut self, available_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) -> crate::units::LayoutSize {
 ///         let child = { &mut self.child };
 ///         child.measure(available_size, ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
+///     fn arrange(&mut self, final_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) {
 ///         let child = { &mut self.child };
 ///         child.arrange(final_size, ctx)
 ///     }
 ///
 ///     #[inline]
-///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///     fn render(&self, frame: &mut crate::render::FrameBuilder) {
 ///         let child = { &self.child };
 ///         child.render(frame)
 ///     }
 ///
 ///     #[inline]
-///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///     fn render_update(&self, update: &mut crate::render::FrameUpdate) {
 ///         let child = { &self.child };
 ///         child.render_update(update)
 ///     }
 ///
 ///     #[inline]
-///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn deinit(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let child = { &mut self.child };
 ///         child.deinit(ctx)
 ///     }
@@ -258,7 +258,7 @@ use crate::units::*;
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// struct DelegateChildrenNode<C: WidgetList> {
 ///     children: C,
 /// }
@@ -269,31 +269,31 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
-///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let children = { &mut self.children };
 ///         children.init_all(ctx);
 ///     }
 ///
 ///     #[inline]
-///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let children = { &mut self.children };
 ///         children.update_all(ctx);
 ///     }
 ///
 ///     #[inline]
-///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update_hp(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let children = { &mut self.children };
 ///         children.update_hp_all(ctx);
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
+///     fn measure(&mut self, available_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) -> crate::units::LayoutSize {
 ///         let children = { &mut self.children };
-///         let mut size = zero_ui::core::units::LayoutSize::zero();
+///         let mut size = crate::units::LayoutSize::zero();
 ///         children.measure_all(|_, _|available_size, |_, desired_size, _| {
 ///             size = size.max(desired_size);
 ///         }, ctx);
@@ -301,25 +301,25 @@ use crate::units::*;
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
+///     fn arrange(&mut self, final_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) {
 ///         let children = { &mut self.children };
 ///         children.arrange_all(|_, _|final_size, ctx);
 ///     }
 ///
 ///     #[inline]
-///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///     fn render(&self, frame: &mut crate::render::FrameBuilder) {
 ///         let children = { &self.children };
-///         children.render_all(|_|zero_ui::core::units::LayoutPoint::zero(), frame);
+///         children.render_all(|_|crate::units::LayoutPoint::zero(), frame);
 ///     }
 ///
 ///     #[inline]
-///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///     fn render_update(&self, update: &mut crate::render::FrameUpdate) {
 ///         let children = { &self.children };
 ///         children.render_update_all(update);
 ///     }
 ///
 ///     #[inline]
-///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn deinit(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         let children = { &mut self.children };
 ///         children.deinit_all(ctx);
 ///     }
@@ -339,7 +339,7 @@ use crate::units::*;
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// struct DelegateChildrenNode {
 ///     children: WidgetVec,
 /// }
@@ -350,33 +350,33 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::prelude::new_property::*;
+/// # use crate::prelude::new_property::*;
 /// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
-///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn init(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         for child in { self.children.iter_mut() } {
 ///             child.init(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         for child in { self.children.iter_mut() } {
 ///             child.update(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn update_hp(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         for child in { self.children.iter_mut() } {
 ///             child.update_hp(ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
-///         let mut size = zero_ui::core::units::LayoutSize::zero();
+///     fn measure(&mut self, available_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) -> crate::units::LayoutSize {
+///         let mut size = crate::units::LayoutSize::zero();
 ///         for child in { self.children.iter_mut() } {
 ///            size = child.measure(available_size, ctx).max(size);
 ///         }
@@ -384,28 +384,28 @@ use crate::units::*;
 ///     }
 ///
 ///     #[inline]
-///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
+///     fn arrange(&mut self, final_size: crate::units::LayoutSize, ctx: &mut crate::context::LayoutContext) {
 ///         for child in { self.children.iter_mut() } {
 ///             child.arrange(final_size, ctx)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
+///     fn render(&self, frame: &mut crate::render::FrameBuilder) {
 ///         for child in { self.children.iter() } {
 ///             child.render(frame)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
+///     fn render_update(&self, update: &mut crate::render::FrameUpdate) {
 ///         for child in { self.children.iter() } {
 ///             child.render_update(update)
 ///         }
 ///     }
 ///
 ///     #[inline]
-///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
+///     fn deinit(&mut self, ctx: &mut crate::context::WidgetContext) {
 ///         for child in { self.children.iter_mut() } {
 ///             child.deinit(ctx)
 ///         }

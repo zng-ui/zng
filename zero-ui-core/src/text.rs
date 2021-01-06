@@ -905,7 +905,7 @@ mod tests {
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::text::formatx;
+/// # use crate::text::formatx;
 /// let text = formatx!("Hello {}", "World!");
 /// ```
 #[macro_export]

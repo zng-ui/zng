@@ -152,7 +152,7 @@ impl SegmentedText {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui::core::text::SegmentedText;
+    /// # use crate::text::SegmentedText;
     /// for (sub_str, segment_kind) in SegmentedText::new("Foo bar!\nBaz.").iter() {
     ///     println!("s: {:?} is a `{:?}`", sub_str, segment_kind);
     /// }

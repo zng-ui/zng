@@ -13,7 +13,7 @@ widget! {
     /// # Example
     ///
     /// ```no_run
-    /// use zero_ui::prelude::*;
+    /// use crate::prelude::*;
     ///
     /// App::default().run_window(|_| {
     ///     window! {

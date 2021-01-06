@@ -220,7 +220,7 @@ macro_rules! __context_var_inner {
     (gen => $(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = $DEFAULT:expr;) => {
         $(#[$outer])*
         /// # ContextVar
-        /// This `struct` is a [`ContextVar`](zero_ui::core::var::ContextVar).
+        /// This `struct` is a [`ContextVar`](crate::var::ContextVar).
         #[derive(Debug, Clone, Copy)]
         $vis struct $ident;
 
@@ -229,7 +229,7 @@ macro_rules! __context_var_inner {
                 static THREAD_LOCAL_VALUE: $crate::var::ContextVarValue<$ident> = $crate::var::ContextVarValue::init();
             }
 
-            /// [`Var`](zero_ui::core::var::Var) that represents this context var.
+            /// [`Var`](crate::var::Var) that represents this context var.
             #[inline]
             pub fn var() -> &'static $crate::var::ContextVarProxy<Self> {
                 const VAR: $crate::var::ContextVarProxy<$ident> = $crate::var::ContextVarProxy(std::marker::PhantomData);
@@ -276,7 +276,7 @@ macro_rules! __context_var_inner {
 ///
 /// # Examples
 /// ```
-/// # use zero_ui::core::var::context_var;
+/// # use crate::var::context_var;
 /// # #[derive(Debug, Clone)]
 /// # struct NotConst(u8);
 /// # fn init_val() -> NotConst { NotConst(10) }

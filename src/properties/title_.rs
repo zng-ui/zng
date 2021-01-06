@@ -15,7 +15,7 @@ impl<C: UiNode, T: Var<Text>> UiNode for TitleNode<C, T> {
 
 /// Short informational text about the widget.
 ///
-/// By default this property shows a tool-tip with the text, the [`window`](zero_ui::widgets::window) widget
+/// By default this property shows a tool-tip with the text, the [`window`](crate::widgets::window) widget
 /// captures this value and uses it for the window title, some other custom widgets may also override the default behavior.
 #[property(context)]
 pub fn title(child: impl UiNode, title: impl IntoVar<Text>) -> impl UiNode {

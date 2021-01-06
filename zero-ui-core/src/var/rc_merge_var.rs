@@ -12,9 +12,9 @@ use super::*;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::var::merge_var;
-/// # use zero_ui::prelude::{var_from, text, formatx, Text};
-/// # use zero_ui::core::var::RcVar;
+/// # use crate::var::merge_var;
+/// # use crate::prelude::{var_from, text, formatx, Text};
+/// # use crate::var::RcVar;
 /// let var0: RcVar<Text> = var_from("Hello");
 /// let var1: RcVar<Text> = var_from("World");
 ///

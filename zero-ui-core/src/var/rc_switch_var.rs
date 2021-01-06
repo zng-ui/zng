@@ -15,8 +15,8 @@ use super::*;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::var::switch_var;
-/// # use zero_ui::prelude::{var, text, ToText};
+/// # use crate::var::switch_var;
+/// # use crate::prelude::{var, text, ToText};
 /// let index = var(0);
 /// let var0 = var("Read-write".to_text());
 /// let var1 = "Read-only";

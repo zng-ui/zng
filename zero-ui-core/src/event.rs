@@ -25,8 +25,8 @@ pub trait EventArgs: Debug + Clone + 'static {
     /// If the handler must skip this event.
     ///
     /// Note that property level handlers don't need to check this, as those handlers are
-    /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
-    /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+    /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
+    /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
     fn stop_propagation_requested(&self) -> bool;
 }
 
@@ -370,8 +370,8 @@ impl Events {
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::event::event_args;
-/// use zero_ui::core::render::WidgetPath;
+/// # use crate::event::event_args;
+/// use crate::render::WidgetPath;
 ///
 /// event_args! {
 ///     /// My event arguments.
@@ -397,8 +397,8 @@ impl Events {
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::core::event::event_args;
-/// # use zero_ui::core::render::WidgetPath;
+/// # use crate::event::event_args;
+/// # use crate::render::WidgetPath;
 /// #
 /// /// My event arguments.
 /// #[derive(Debug, Clone)]
@@ -439,21 +439,21 @@ impl Events {
 ///     /// Cloned arguments signal stop for all clones.
 ///     #[inline]
 ///     pub fn stop_propagation(&self) {
-///         <Self as zero_ui::core::event::EventArgs>::stop_propagation(self)
+///         <Self as crate::event::EventArgs>::stop_propagation(self)
 ///     }
 ///     
 ///     /// If the handler must skip this event.
 ///     ///
 ///     /// Note that property level handlers don't need to check this, as those handlers are
-///     /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
-///     /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+///     /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
+///     /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
 ///     #[inline]
 ///     pub fn stop_propagation_requested(&self) -> bool {
-///         <Self as zero_ui::core::event::EventArgs>::stop_propagation_requested(self)
+///         <Self as crate::event::EventArgs>::stop_propagation_requested(self)
 ///     }
 /// }
 ///
-/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+/// impl crate::event::EventArgs for MyEventArgs {
 ///     #[inline]
 ///     fn timestamp(&self) -> std::time::Instant {
 ///         self.timestamp
@@ -461,7 +461,7 @@ impl Events {
 ///
 ///     #[inline]
 ///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///     fn concerns_widget(&self, ctx: &mut crate::context::WidgetContext) -> bool {
 ///         self.target.contains(ctx.path.widget_id())
 ///     }
 ///
@@ -525,8 +525,8 @@ macro_rules! event_args {
             /// If the handler must skip this event.
             ///
             /// Note that property level handlers don't need to check this, as those handlers are
-            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
-            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
+            /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
@@ -589,8 +589,8 @@ pub use crate::event_args;
 ///
 /// # Example
 /// ```
-/// # use zero_ui::core::event::cancelable_event_args;
-/// # use zero_ui::core::render::WidgetPath;
+/// # use crate::event::cancelable_event_args;
+/// # use crate::render::WidgetPath;
 /// cancelable_event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
@@ -615,8 +615,8 @@ pub use crate::event_args;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::core::event::event_args;
-/// # use zero_ui::core::render::WidgetPath;
+/// # use crate::event::event_args;
+/// # use crate::render::WidgetPath;
 /// #
 /// /// My event arguments.
 /// #[derive(Debug, Clone)]
@@ -655,7 +655,7 @@ pub use crate::event_args;
 ///     }
 /// }
 ///
-/// impl zero_ui::core::event::EventArgs for MyEventArgs {
+/// impl crate::event::EventArgs for MyEventArgs {
 ///     #[inline]
 ///     fn timestamp(&self) -> std::time::Instant {
 ///         self.timestamp
@@ -663,7 +663,7 @@ pub use crate::event_args;
 ///
 ///     #[inline]
 ///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut zero_ui::core::context::WidgetContext) -> bool {
+///     fn concerns_widget(&self, ctx: &mut crate::context::WidgetContext) -> bool {
 ///         self.target.contains(ctx.path.widget_id())
 ///     }
 ///
@@ -678,7 +678,7 @@ pub use crate::event_args;
 ///     }
 /// }
 ///
-/// impl zero_ui::core::event::CancelableEventArgs for MyEventArgs {
+/// impl crate::event::CancelableEventArgs for MyEventArgs {
 ///     /// If a listener canceled the action.
 ///     #[inline]
 ///     fn cancel_requested(&self) -> bool {
@@ -745,8 +745,8 @@ macro_rules! cancelable_event_args {
             /// If the handler must skip this event.
             ///
             /// Note that property level handlers don't need to check this, as those handlers are
-            /// already not called when this is `true`. [`UiNode`](zero_ui::core::UiNode) and
-            /// [`AppExtension`](zero_ui::core::app::AppExtension) implementers must check if this is `true`.
+            /// already not called when this is `true`. [`UiNode`](crate::UiNode) and
+            /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
             #[inline]
             pub fn stop_propagation_requested(&self) -> bool {
                 <Self as $crate::event::EventArgs>::stop_propagation_requested(self)
@@ -828,13 +828,13 @@ macro_rules! cancelable_event_args {
 #[doc(inline)]
 pub use crate::cancelable_event_args;
 
-/// Declares new low-pressure [`Event`](zero_ui::core::event::Event) types.
+/// Declares new low-pressure [`Event`](crate::event::Event) types.
 ///
 /// # Example
 ///
 /// ```
-/// # use zero_ui::core::event::event;
-/// # use zero_ui::core::gesture::ClickArgs;
+/// # use crate::event::event;
+/// # use crate::gesture::ClickArgs;
 /// event! {
 ///     /// Event docs.
 ///     pub ClickEvent: ClickArgs;
@@ -847,17 +847,17 @@ pub use crate::cancelable_event_args;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::core::event::event;
-/// # use zero_ui::core::gesture::ClickArgs;
+/// # use crate::event::event;
+/// # use crate::gesture::ClickArgs;
 /// /// Event docs
 /// pub struct ClickEvent;
-/// impl zero_ui::core::event::Event for ClickEvent {
+/// impl crate::event::Event for ClickEvent {
 ///     type Args = ClickArgs;
 /// }
 ///
 /// /// Other event docs
 /// pub struct DoubleClickEvent;
-/// impl zero_ui::core::event::Event for DoubleClickEvent {
+/// impl crate::event::Event for DoubleClickEvent {
 ///     type Args = ClickArgs;
 /// }
 /// ```
@@ -886,15 +886,15 @@ macro_rules! event {
 #[doc(inline)]
 pub use crate::event;
 
-/// Declares new high-pressure [`Event`](zero_ui::core::event::Event) types.
+/// Declares new high-pressure [`Event`](crate::event::Event) types.
 ///
-/// Same syntax as [`event!`](macro.event.html) but the event is marked [high-pressure](zero_ui::core::event::Event::IS_HIGH_PRESSURE).
+/// Same syntax as [`event!`](macro.event.html) but the event is marked [high-pressure](crate::event::Event::IS_HIGH_PRESSURE).
 ///
 /// # Example
 ///
 /// ```
-/// # use zero_ui::core::event::event_hp;
-/// # use zero_ui::core::mouse::MouseMoveArgs;
+/// # use crate::event::event_hp;
+/// # use crate::mouse::MouseMoveArgs;
 /// event_hp! {
 ///     /// Event docs.
 ///     pub MouseMoveEvent: MouseMoveArgs;
@@ -904,11 +904,11 @@ pub use crate::event;
 /// Expands to:
 ///
 /// ```
-/// # use zero_ui::core::event::event_hp;
-/// # use zero_ui::core::mouse::MouseMoveArgs;
+/// # use crate::event::event_hp;
+/// # use crate::mouse::MouseMoveArgs;
 /// /// Event docs
 /// pub struct MouseMoveEvent;
-/// impl zero_ui::core::event::Event for MouseMoveEvent {
+/// impl crate::event::Event for MouseMoveEvent {
 ///     type Args = MouseMoveArgs;
 ///     const IS_HIGH_PRESSURE: bool = true;
 /// }
@@ -1097,7 +1097,7 @@ macro_rules! __event_property {
         /// # Preview Events
         ///
         /// Preview events are fired before the main event, if you stop the propagation of a preview event
-        /// the main event does not run. See [`on_pre_event`](zero_ui::properties::events::on_pre_event) for more details.
+        /// the main event does not run. See [`on_pre_event`](crate::properties::events::on_pre_event) for more details.
         #[$crate::property(event)]
         $vis fn [<on_pre_ $event>](
             child: impl $crate::UiNode,
@@ -1126,16 +1126,16 @@ macro_rules! __event_property {
 /// Declare one or more event properties.
 ///
 /// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
-/// calls [`on_pre_event`](zero_ui::properties::events::on_pre_event),
-/// the main event property calls [`on_event`](zero_ui::properties::events::on_event).
+/// calls [`on_pre_event`](crate::properties::events::on_pre_event),
+/// the main event property calls [`on_event`](crate::properties::events::on_event).
 ///
 /// # Example
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::properties::events::event_property;
-/// # use zero_ui::core::event::EventArgs;
-/// # use zero_ui::core::keyboard::*;
+/// # use crate::properties::events::event_property;
+/// # use crate::event::EventArgs;
+/// # use crate::keyboard::*;
 /// event_property! {
 ///     /// on_key_down docs.
 ///     pub fn key_down {

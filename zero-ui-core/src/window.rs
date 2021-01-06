@@ -41,7 +41,7 @@ pub trait AppRunWindow {
     /// # Example
     ///
     /// ```no_run
-    /// use zero_ui::prelude::*;
+    /// use crate::prelude::*;
     ///
     /// App::default().run_window(|_| {
     ///     window! {
@@ -53,7 +53,7 @@ pub trait AppRunWindow {
     ///
     /// Which is a shortcut for:
     /// ```no_run
-    /// use zero_ui::prelude::*;
+    /// use crate::prelude::*;
     ///
     /// App::default().run(|ctx| {
     ///     ctx.services.req::<Windows>().open(|_| {

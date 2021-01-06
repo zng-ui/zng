@@ -19,7 +19,7 @@ use webrender::api::{self as wr, FilterOp};
 /// # Examples
 ///
 /// ```
-/// # use zero_ui::core::color::hex;
+/// # use crate::color::hex;
 /// let red = hex!(#FF0000);
 /// let green = hex!(#00FF00);
 /// let blue = hex!(#0000FF);
@@ -432,7 +432,7 @@ fn clamp_normal(i: f32) -> f32 {
 ///
 /// # Example
 /// ```
-/// use zero_ui::core::color::rgb;
+/// use crate::color::rgb;
 ///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
@@ -452,7 +452,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 ///
 /// # Example
 /// ```
-/// use zero_ui::core::color::rgba;
+/// use crate::color::rgba;
 ///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
@@ -479,8 +479,8 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// # Example
 ///
 /// ```
-/// use zero_ui::core::color::hsl;
-/// use zero_ui::core::units::*;
+/// use crate::color::hsl;
+/// use crate::units::*;
 ///
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
@@ -501,8 +501,8 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, l
 /// # Example
 ///
 /// ```
-/// use zero_ui::core::color::hsla;
-/// use zero_ui::core::units::*;
+/// use crate::color::hsla;
+/// use crate::units::*;
 ///
 /// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());

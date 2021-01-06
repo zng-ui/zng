@@ -85,13 +85,13 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ### Normal Properties
 ///
-/// Normal properties must take at least two arguments, the first argument is the child [`UiNode`](zero_ui::core::UiNode), the other argument(s)
+/// Normal properties must take at least two arguments, the first argument is the child [`UiNode`](crate::UiNode), the other argument(s)
 /// are the property values. The function must return a type that implements `UiNode`. The first argument must support any type that implements
 /// `UiNode`. All of these requirements are validated at compile time.
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
+/// use crate::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
 ///
 /// struct MyNode<C, V> { child: C, value: V }
 /// #[impl_ui_node(child)]
@@ -116,7 +116,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # fn main() { }
-/// use zero_ui::core::{property, var::IntoVar, text::Text};
+/// use crate::{property, var::IntoVar, text::Text};
 ///
 /// /// Property docs.
 /// #[property(capture_only)]
@@ -138,7 +138,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// The property name follows some conventions that are enforced at compile time.
 ///
 /// * `on_` prefix: Can only be used for `event` or `capture_only` properties and must take only a single event handler value.
-/// * `is_` prefix: Can only take a single [`StateVar`](zero_ui::core::var::StateVar) value.
+/// * `is_` prefix: Can only take a single [`StateVar`](crate::var::StateVar) value.
 ///
 /// # Priority
 ///
@@ -149,19 +149,19 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// The property is applied after all other so that they can setup information associated with the widget that the other properties
 /// can use. Context variables and widget state use this priority.
 ///
-/// You can easily implement this properties using [`with_context_var`](zero_ui::properties::with_context_var)
-/// and [`set_widget_state`](zero_ui::properties::set_widget_state).
+/// You can easily implement this properties using [`with_context_var`](crate::properties::with_context_var)
+/// and [`set_widget_state`](crate::properties::set_widget_state).
 ///
 /// ## `event`
 ///
 /// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
 /// widget context properties but also have access to the widget visual they contain.
 ///
-/// It is strongly encouraged that the event handler signature matches the one from [`on_event`](zero_ui::properties::events::on_event).
+/// It is strongly encouraged that the event handler signature matches the one from [`on_event`](crate::properties::events::on_event).
 ///
 /// ## `outer`
 ///
-/// Properties that shape the visual outside of the widget, the [`margin`](zero_ui::properties::margin) property is an example.
+/// Properties that shape the visual outside of the widget, the [`margin`](crate::properties::margin) property is an example.
 ///
 /// ## `size`
 ///
@@ -194,8 +194,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
-/// # use zero_ui::widgets::{container, mixins::focusable_mixin};
+/// # use crate::widget;
+/// # use crate::widgets::{container, mixins::focusable_mixin};
 /// widget! {
 ///     /// Widget documentation.
 ///     pub button: container + focusable_mixin;
@@ -208,7 +208,7 @@ pub use zero_ui_proc_macros::property;
 /// Extra documentation about the widget properties is auto-generated and added to the module as well.
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # use crate::widget;
 /// widget! {
 ///     /// Widget documentation.
 ///     #[cfg(debug_assertions)]
@@ -221,7 +221,7 @@ pub use zero_ui_proc_macros::property;
 /// The visibility is transferred to the widget module and macro and supports all visibility configurations.
 ///
 /// ```
-/// # use zero_ui::core::widget;
+/// # use crate::widget;
 /// widget! {
 ///     pub(crate) widget_name;
 /// }
@@ -233,8 +233,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
-/// # use zero_ui::widgets::{container, mixins};
+/// # use crate::widget;
+/// # use crate::widgets::{container, mixins};
 /// widget! {
 ///     pub foo: container;
 /// }
@@ -245,7 +245,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget.
-/// All widgets automatically inherit from [`implicit_mixin`](mod@zero_ui::widgets::mixins::implicit_mixin) (after all other inherits).
+/// All widgets automatically inherit from [`implicit_mixin`](mod@crate::widgets::mixins::implicit_mixin) (after all other inherits).
 ///
 /// ### Conflict Resolution
 ///
@@ -259,8 +259,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
-/// # use zero_ui::properties::margin;
+/// # use crate::widget;
+/// # use crate::properties::margin;
 /// widget! {
 ///     pub foo;
 ///
@@ -287,7 +287,7 @@ pub use zero_ui_proc_macros::property;
 /// ### Name Resolution
 ///
 /// If a property with the same name is inherited that is the property, if not then is is assumed that a
-/// [`property`](zero_ui::core::property) module is with the same name is imported.
+/// [`property`](crate::property) module is with the same name is imported.
 ///
 /// You can only use single names, module paths are not allowed. You can only declare a property with the same name once,
 ///
@@ -298,7 +298,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar};
+/// # use crate::{widget, property, UiNode, var::IntoVar};
 /// # #[property(context)]
 /// # fn other_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
 /// widget! {
@@ -318,7 +318,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, property, UiNode, var::IntoVar, text::Text};
+/// # use crate::{widget, property, UiNode, var::IntoVar, text::Text};
 /// # #[property(context)]
 /// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode { child }
 /// widget! {
@@ -340,8 +340,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::widget;
-/// # use zero_ui::properties::events::gesture::on_click;
+/// # use crate::widget;
+/// # use crate::properties::events::gesture::on_click;
 /// widget! {
 /// # widget_name;
 ///     //..
@@ -361,12 +361,12 @@ pub use zero_ui_proc_macros::property;
 /// # When Blocks
 ///
 /// When blocks assign properties when a condition is true, the condition references properties and is always updated
-/// if the referenced values are [vars](zero_ui::core::var::Var).
+/// if the referenced values are [vars](crate::var::Var).
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, color::rgb};
-/// # use zero_ui::properties::{background::background_color, states::is_pressed};
+/// # use crate::{widget, color::rgb};
+/// # use crate::properties::{background::background_color, states::is_pressed};
 /// widget! {
 /// # widget_name;
 /// # default { background_color: rgb(0, 0, 0); }
@@ -387,8 +387,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, color::rgb};
-/// # use zero_ui::properties::{background::background_color, title, states::is_pressed};
+/// # use crate::{widget, color::rgb};
+/// # use crate::properties::{background::background_color, title, states::is_pressed};
 /// widget! {
 /// # widget_name;
 /// # default { title: "value"; background_color: rgb(0, 0, 0); }
@@ -400,9 +400,9 @@ pub use zero_ui_proc_macros::property;
 /// }
 /// ```
 ///
-/// If the property arguments are [vars](zero_ui::core::var::Var) the when condition is reevaluated after any variable changes.
+/// If the property arguments are [vars](crate::var::Var) the when condition is reevaluated after any variable changes.
 ///
-/// The referenced properties must have a default value, be [`required`](#required) or be a [state property](zero_ui::core::property#state-probing).
+/// The referenced properties must have a default value, be [`required`](#required) or be a [state property](crate::property#state-probing).
 /// If the user [unsets](#unset) a referenced property the whole when block is not instantiated.
 ///
 /// ## Assigns
@@ -422,8 +422,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, UiNode};
-/// # use zero_ui::properties::capture_only::widget_child;
+/// # use crate::{widget, UiNode};
+/// # use crate::properties::capture_only::widget_child;
 /// widget! {
 ///     pub container;
 ///     
@@ -437,11 +437,11 @@ pub use zero_ui_proc_macros::property;
 /// }
 /// ```
 ///
-/// The function must return a type that implements [`UiNode`](zero_ui::core::UiNode). It has no required arguments but
+/// The function must return a type that implements [`UiNode`](crate::UiNode). It has no required arguments but
 /// can [capture](#property-capturing) property arguments.
 ///
 /// If omitted the left-most inherited widget `new_child` is used, if the widget only inherits from mix-ins
-/// [`default_widget_new_child`](zero_ui::core::default_widget_new_child) is used.
+/// [`default_widget_new_child`](crate::default_widget_new_child) is used.
 ///
 /// ## `new`
 ///
@@ -449,11 +449,11 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::core::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
-/// # use zero_ui::properties::title;
-/// # use zero_ui::properties::background::background_color;
-/// # use zero_ui::widgets::container;
-/// # pub struct Window { } impl Window { pub fn new(child: impl zero_ui::core::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
+/// # use crate::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
+/// # use crate::properties::title;
+/// # use crate::properties::background::background_color;
+/// # use crate::widgets::container;
+/// # pub struct Window { } impl Window { pub fn new(child: impl crate::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
 /// widget! {
 ///     pub window: container;
 ///     
@@ -468,7 +468,7 @@ pub use zero_ui_proc_macros::property;
 /// }
 /// ```
 ///
-/// The function can return any type, but if the type does not implement [`Widget`](zero_ui::core::Widget)
+/// The function can return any type, but if the type does not implement [`Widget`](crate::Widget)
 /// it cannot be the content of most other container widgets.
 ///
 /// The first argument is required, it can have any name but the type is `impl UiNode`,
@@ -476,7 +476,7 @@ pub use zero_ui_proc_macros::property;
 /// After the first argument it can [capture](#property-capturing) property arguments.
 ///
 /// If omitted the left-most inherited widget `new` is used, if the widget only inherits from mix-ins
-/// [`default_widget_new`](zero_ui::core::default_widget_new) is used.
+/// [`default_widget_new`](crate::default_widget_new) is used.
 ///
 /// ## Property Capturing
 ///
@@ -501,8 +501,8 @@ pub use zero_ui_proc_macros::widget;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
-/// # use zero_ui::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
+/// # use crate::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
+/// # use crate::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
 /// widget_mixin! {
 ///     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
 ///     /// highlight border.
@@ -537,7 +537,7 @@ pub use zero_ui_proc_macros::widget;
 ///
 /// All documentation is incorporated into specially formatted HTML that uses the
 /// rust-doc stylesheets to present the widget mix-in as a first class item. See
-/// [`focusable_mixin`](mod@zero_ui::widgets::mixins::focusable_mixin) for an example.
+/// [`focusable_mixin`](mod@crate::widgets::mixins::focusable_mixin) for an example.
 ///
 /// ## Internals
 ///

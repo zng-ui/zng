@@ -770,7 +770,7 @@ mod output {
 
             doc_extend!(
                 tokens,
-                "This module is a widget [`{0}`](zero_ui::core::property#{0}) property. It {1} be used in widget `when` condition expressions.",
+                "This module is a widget [`{0}`](crate::core::property#{0}) property. It {1} be used in widget `when` condition expressions.",
                 self.priority,
                 if self.allowed_in_when { "can also" } else { "cannot" }
             );

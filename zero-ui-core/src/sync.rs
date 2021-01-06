@@ -140,7 +140,7 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui::core::{context::WidgetContext, event::EventListener};
+    /// # use crate::{context::WidgetContext, event::EventListener};
     /// # struct SomeStruct { sum_listener: EventListener<usize> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {
@@ -172,7 +172,7 @@ impl Sync {
     /// # Example
     ///
     /// ```
-    /// # use zero_ui::core::{context::WidgetContext, event::EventListener};
+    /// # use crate::{context::WidgetContext, event::EventListener};
     /// # struct SomeStruct { file_listener: EventListener<Vec<u8>> }
     /// # impl SomeStruct {
     /// fn on_event(&mut self, ctx: &mut WidgetContext) {

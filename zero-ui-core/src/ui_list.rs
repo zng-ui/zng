@@ -10,13 +10,13 @@ use super::{
 /// A mixed vector of [`Widget`] types.
 pub type WidgetVec = Vec<Box<dyn Widget>>;
 
-/// Creates a [`WidgetVec`](zero_ui::core::WidgetVec) containing the arguments.
+/// Creates a [`WidgetVec`](crate::WidgetVec) containing the arguments.
 ///
 /// # Example
 ///
 /// ```
-/// # use zero_ui::core::ui_vec;
-/// # use zero_ui::widgets::text::text;
+/// # use crate::ui_vec;
+/// # use crate::widgets::text::text;
 /// let widgets = [
 ///     text("Hello"),
 ///     text("World!")

@@ -1515,7 +1515,7 @@ pub mod output {
         ///     // inherit branch, present in widget and mix-ins, calls the [`widget_stage2!`]
         ///     // including this widgets information so it can be inherited.
         ///     (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-        ///         zero_ui::core::widget_stage2! {
+        ///         crate::core::widget_stage2! {
         ///             // continuation of the inheritance recursive calls.
         ///             => {
         ///                 $stage3_entry;
@@ -1539,7 +1539,7 @@ pub mod output {
         ///     // instantiate branch, present only for full widgets, not mix-ins. Calls [`widget_new!`]
         ///     // including all the information needed to instantiate the widget
         ///     ($($input:tt)*) => {
-        ///         zero_ui::widget_new! {
+        ///         crate::widget_new! {
         ///             #widget_name
         ///             
         ///             // these are the same types used in inherited_tokens
@@ -1736,7 +1736,7 @@ pub mod output {
         /// #docs // see [`WidgetDocs`], includes header docs
         /// #vis mod #widget_name {
         ///     use super::*;
-        ///     use zero_ui::core::widget_base::implicit_mixin;
+        ///     use crate::core::widget_base::implicit_mixin;
         ///
         ///     #new // see [`NewFn`]
         ///     #new_child
@@ -1916,7 +1916,7 @@ pub mod output {
                         r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##
                     );
                     //generate link to properties module (needs to be separate and in between \n)
-                    doc_extend!(tokens, "\n[<span class='mod'>*</span>](zero_ui::properties)\n");
+                    doc_extend!(tokens, "\n[<span class='mod'>*</span>](crate::properties)\n");
                     doc_extend!(
                         tokens,
                         r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##

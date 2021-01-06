@@ -208,7 +208,7 @@ pub use profiler_impl::*;
 /// If compiled with the `app_profiler` feature, this will register a "do-things" scope
 /// that starts when the macro was called and has the duration of the block.
 /// ```
-/// # use zero_ui::core::profiler::profile_scope;
+/// # use crate::profiler::profile_scope;
 /// # fn main()
 /// {
 /// # fn do_thing() { }
@@ -222,7 +222,7 @@ pub use profiler_impl::*;
 ///
 /// You can also format strings:
 /// ```
-/// # use zero_ui::core::profiler::profile_scope;
+/// # use crate::profiler::profile_scope;
 /// # let thing = "";
 /// profile_scope!("do-{}", thing);
 /// ```

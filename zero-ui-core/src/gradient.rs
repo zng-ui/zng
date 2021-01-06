@@ -37,8 +37,8 @@ pub type RenderExtendMode = webrender::api::ExtendMode;
 /// # Example
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # use zero_ui::widgets::linear_gradient;
+/// # use crate::prelude::*;
+/// # use crate::widgets::linear_gradient;
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
@@ -808,8 +808,8 @@ macro_rules! __stops {
 /// # Example
 ///
 /// ```
-/// # use zero_ui::prelude::*;
-/// # use zero_ui::widgets::stops;
+/// # use crate::prelude::*;
+/// # use crate::widgets::stops;
 /// // green 0%, red 30%, blue 100%.
 /// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
 ///
@@ -825,8 +825,8 @@ macro_rules! __stops {
 ///
 /// ## Example
 /// ```
-/// # use zero_ui::prelude::*;
-/// # use zero_ui::widgets::stops;
+/// # use crate::prelude::*;
+/// # use crate::widgets::stops;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 #[macro_export]

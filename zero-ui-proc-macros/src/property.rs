@@ -604,8 +604,8 @@ mod output {
                 /// Each property is a function that can be called directly.
                 ///
                 ///
-                /// The property is ***set*** around the first input [`UiNode`](zero_ui::core::UiNode),
-                /// the other inputs are the property arguments. The function output is a new [`UiNode`](zero_ui::core::UiNode) that
+                /// The property is ***set*** around the first input [`UiNode`](crate::core::UiNode),
+                /// the other inputs are the property arguments. The function output is a new [`UiNode`](crate::core::UiNode) that
                 /// includes the property behavior.
             });
             doc_extend!(tokens, "<script>{}</script>", js!("property_full.js"));

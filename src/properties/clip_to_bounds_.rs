@@ -42,7 +42,7 @@ impl<T: UiNode, S: VarLocal<bool>> UiNode for ClipToBoundsNode<T, S> {
 ///
 /// # Example
 /// ```
-/// use zero_ui::prelude::*;
+/// use crate::prelude::*;
 ///
 /// container! {
 ///     background_color: rgb(255, 0, 0);

@@ -534,12 +534,12 @@ macro_rules! __shortcut {
     };
 }
 
-/// Creates a [`Shortcut`](zero_ui::core::gesture::Shortcut).
+/// Creates a [`Shortcut`](crate::gesture::Shortcut).
 ///
 /// # Examples
 ///
 /// ```
-/// use zero_ui::core::gesture::{Shortcut, shortcut};
+/// use crate::gesture::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {
 ///     shortcut!(Enter)
