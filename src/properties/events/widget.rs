@@ -1,7 +1,7 @@
-//! Widget events, [`on_init`], [`on_update`], [`on_render`] and more.
+//! Widget events, [`on_init`](fn@on_init), [`on_update`](fn@on_update), [`on_render`](fn@on_render) and more.
 //!
 //! These events map very close to the [`UiNode`] methods. The event handler have non-standard signatures
-//! and the event does not respects widget [`enabled`](crate::properties::IsEnabled) status.
+//! and the event does not respects widget [`enabled`](crate::core::widget_base::IsEnabled) status.
 
 use crate::core::render::FrameBuilder;
 use crate::core::units::*;

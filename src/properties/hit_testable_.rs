@@ -58,14 +58,14 @@ impl<U: UiNode, H: VarLocal<bool>> UiNode for HitTestableNode<U, H> {
 /// If the widget and its descendants are visible during hit-testing.
 ///
 /// This property sets the hit-test visibility of the widget, to probe the state in `when` clauses
-/// use [`is_hit_testable`]. To probe from inside the implementation of widgets use [`IsHitTestable::get`].
+/// use [`is_hit_testable`](fn@is_hit_testable). To probe from inside the implementation of widgets use [`IsHitTestable::get`].
 /// To probe the widget state use [`WidgetHitTestableExt`].
 ///
 /// # Events
 ///
 /// Events that use hit-testing to work are effectively disabled by setting this to `false`. That includes
 /// all mouse and touch events. Because of this properties that use mouse events to work,
-/// like [`cursor`](super::cursor) get disabled too.
+/// like [`cursor`](fn@super::cursor) get disabled too.
 #[property(context)]
 pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
     HitTestableNode {
@@ -78,7 +78,7 @@ context_var! {
     struct IsHitTestableVar: bool = return &true;
 }
 
-/// Contextual [`hit_testable`] accessor.
+/// Contextual [`hit_testable`](fn@hit_testable) accessor.
 pub struct IsHitTestable;
 impl IsHitTestable {
     /// Gets the hit-testable state in the current `vars` context.
@@ -91,7 +91,7 @@ state_key! {
     struct HitTestableState: bool;
 }
 
-/// Extension method for accessing the [`hit_testable`] state of widgets.
+/// Extension method for accessing the [`hit_testable`](fn@hit_testable) state of widgets.
 pub trait WidgetHitTestableExt {
     /// Gets the widget hit-test visibility.
     ///

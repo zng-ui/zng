@@ -1,5 +1,5 @@
-//! Event handler properties, [`on_click`](gesture::on_click), [`on_key_down`](keyboard::on_key_down),
-//! [`on_focus`](focus::on_focus) and more.
+//! Event handler properties, [`on_click`](fn@gesture::on_click), [`on_key_down`](fn@keyboard::on_key_down),
+//! [`on_focus`](fn@focus::on_focus) and more.
 
 use crate::core::event::*;
 

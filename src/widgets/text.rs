@@ -57,8 +57,8 @@ widget! {
 ///
 /// # Configure
 ///
-/// Text spans can be configured by setting [`font_family`](crate::properties::text_theme::font_family),
-/// [`font_size`](crate::properties::text_theme::font_size) or [`text_color`](crate::properties::text_theme::text_color)
+/// Text spans can be configured by setting [`font_family`](crate::properties::text_theme::font_family()),
+/// [`font_size`](fn@crate::properties::text_theme::font_size) or [`text_color`](fn@crate::properties::text_theme::text_color)
 /// in parent widgets.
 ///
 /// # Example

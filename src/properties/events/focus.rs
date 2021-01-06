@@ -1,4 +1,4 @@
-//! Focus events, [`on_focus`], [`on_blur`], [`on_focus_enter`] and more.
+//! Focus events, [`on_focus`](fn@on_focus), [`on_blur`](fn@on_blur), [`on_focus_enter`](fn@on_focus_enter) and more.
 //!
 //! These events observe changes in keyboard focus and is closely tied to the [`FocusManager`](crate::core::focus::FocusManager) extension.
 

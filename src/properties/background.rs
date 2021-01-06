@@ -1,4 +1,4 @@
-//! Background properties, [`background_color`], [`background_gradient`] and more.
+//! Background properties, [`background_color`](fn@background_color), [`background_gradient`](fn@background_gradient) and more.
 
 use crate::core::gradient::{GradientStops, LinearGradientAxis};
 use crate::prelude::new_property::*;
@@ -57,7 +57,7 @@ pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
 
 /// Single color background property.
 ///
-/// This property applies a [`fill_color`] as [`background`].
+/// This property applies a [`fill_color`] as [`background`](fn@background).
 #[property(inner)]
 pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode {
     background(child, fill_color(color))
@@ -65,7 +65,7 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 
 /// Linear gradient background property.
 ///
-/// This property applies a [`linear_gradient`] as [`background`] using the [`Clamp`](ExtendMode::Clamp) extend mode.
+/// This property applies a [`linear_gradient`] as [`background`](fn@background).
 #[property(inner)]
 pub fn background_gradient(child: impl UiNode, angle: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     background(child, linear_gradient(angle, stops))

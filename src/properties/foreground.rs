@@ -1,4 +1,4 @@
-//! Foreground/overlay properties, [`foreground_highlight`] and more.
+//! Foreground/overlay properties, [`foreground_highlight`](fn@foreground_highlight) and more.
 
 use super::border::{border, BorderDetails};
 use super::margin;

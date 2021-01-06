@@ -1,4 +1,4 @@
-//! Manually sizing properties, [`min_size`], [`max_size`] and more.
+//! Manually sizing properties, [`min_size`](fn@min_size), [`max_size`](fn@max_size) and more.
 
 use crate::prelude::new_property::*;
 
