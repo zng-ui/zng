@@ -449,6 +449,7 @@ mod analysis {
                 inline: attrs.inline,
                 cfg: attrs.cfg.clone(),
                 attrs: attrs.others,
+                is_capture_only: args.priority.is_capture_only(),
             },
             types: output::OutputTypes {
                 cfg: attrs.cfg.clone(),
@@ -588,6 +589,7 @@ mod output {
         pub inline: Option<Attribute>,
         pub cfg: Option<Attribute>,
         pub attrs: Vec<Attribute>,
+        pub is_capture_only: bool,
     }
 
     impl ToTokens for OutputAttributes {
@@ -606,7 +608,12 @@ mod output {
                 /// the other inputs are the property arguments. The function output is a new [`UiNode`](crate::core::UiNode) that
                 /// includes the property behavior.
             });
-            doc_extend!(tokens, "<script>{}</script>", js!("property_full.js"));
+            doc_extend!(
+                tokens,
+                "<script>{}property({})</script>",
+                js!("property_full.js"),
+                self.is_capture_only
+            );
             self.inline.to_tokens(tokens);
             self.cfg.to_tokens(tokens);
             for attr in &self.attrs {

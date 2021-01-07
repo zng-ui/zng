@@ -1,6 +1,6 @@
 // Script inserted in each property function's full page after the user docs.
 // It changes the page to highlight the widget property aspects.
-(function () {
+function property(capture_only) {
 
     // change title.
     let title = document.getElementsByTagName('h1')[0];
@@ -15,7 +15,15 @@
     fn.innerText = fn.innerText
                     .replace(/.*fn /s, '')
                     .replace(/(?!<[^>]*)\((?![^<]*>)\s*/s, ': {\n    ')
-                    .replace(/(?!<[^>]*)\s*\)\s+->(?![^<]*>).*/s, '\n}');
+                    .replace(/(?!<[^>]*)\s*\)\s+->(?![^<]*>).*/s, '}')
+                    .replace(/,\s*/sg, ', ');
+    
+    if (!capture_only) {
+        fn.innerText = fn.innerText.replace(/(.*?: {\n {4})((?!<[^>]*).*?, (?![^<]*>))(.*)/s, '$1$3');
+    }
+
+    fn.innerText = fn.innerText.replace(/(?!<[^>]*),\s*(?![^<]*>)/gs, ',\n    ').replace(/\s*}/s, '\n}');
+    
     let set = new Set();
     for (let a of ffn.getElementsByTagName('a')) {
          if (!set.has(a.innerText)) {
@@ -23,5 +31,4 @@
             set.add(a.innerText)
         }
     }
-
-})()
+}
