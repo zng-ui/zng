@@ -1,4 +1,4 @@
-// Script inserted in each property functions full page after the user docs.
+// Script inserted in each property function's full page after the user docs.
 // It changes the page to highlight the widget property aspects.
 (function () {
 
