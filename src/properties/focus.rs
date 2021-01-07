@@ -1,4 +1,4 @@
-//! Keyboard focus properties, [`tab_index`], [`focusable`] and more.
+//! Keyboard focus properties, [`tab_index`](fn@tab_index), [`focusable`](fn@focusable) and more.
 
 use crate::core::event::EventListener;
 use crate::core::focus::*;

@@ -9,7 +9,7 @@ app_profiler = ["serde_json", "lazy_static"]
 
 [dependencies]
 # local
-zero-ui-macros = { path = "zero-ui-macros" }
+zero-ui-core = { path = "zero-ui-core" }
 
 # core
 raw-window-handle = "0.3.3"
@@ -51,7 +51,7 @@ enclose = "1.1.8"
 meval = "0.2.0"
 
 [workspace]
-members = ["zero-ui-proc-macros", "zero-ui-macros"]
+members = ["zero-ui-proc-macros", "zero-ui-core"]
 
 #[[bench]]
 #name = "value_changed"

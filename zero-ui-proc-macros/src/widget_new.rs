@@ -167,7 +167,7 @@ mod analysis {
         output::*,
     };
     use crate::widget_stage3::input::WgtItemWhen;
-    use crate::{property::input::Prefix, util::Errors, widget_stage3::analysis::*};
+    use crate::{property::Prefix, util::Errors, widget_stage3::analysis::*};
     use proc_macro2::{Ident, Span};
     use std::collections::{HashMap, HashSet};
     use syn::{parse_quote, spanned::Spanned};
@@ -636,8 +636,8 @@ mod analysis {
 
 mod output {
     use crate::{
-        property::input::Priority,
-        util::{zero_ui_crate_ident, Errors},
+        property::Priority,
+        util::{crate_core, Errors},
         widget_stage3::input::{PropertyArgs, PropertyFields},
         widget_stage3::output::{WhenConditionExpr, WhenPropertyRef},
     };
@@ -700,17 +700,15 @@ mod output {
                 PropertyValue::Args(args) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::args(#args);
+                        let #var_name = #property_path::ArgsImpl::new(#args);
                     }
                 }
                 PropertyValue::Fields(fields) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::named_args! {
-                            #property_path: {
-                                #fields
-                            }
-                        };
+                        let #var_name = #property_path::code_gen! { named_new #property_path {
+                            #fields
+                        }};
                     }
                 }
                 PropertyValue::Inherited => {
@@ -738,10 +736,10 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_args", self.property);
             let property = &self.property;
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let mod_ = self.widget.as_ref().map(|widget| quote!(#widget::properties::));
 
-            tokens.extend(quote! {let #var_name = #mod_#property::args(#crate_::core::var::state_var());})
+            tokens.extend(quote! {let #var_name = #mod_#property::ArgsImpl::new(#crate_::var::state_var());})
         }
     }
 
@@ -798,9 +796,9 @@ mod output {
 
         #[cfg(debug_assertions)]
         fn debug_info_tokens(&self) -> TokenStream {
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let var_name = self.var_name();
-            let var_clone = quote! { #crate_::core::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
+            let var_clone = quote! { #crate_::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
 
             match &self.condition {
                 WhenCondition::Inherited { widget, index, .. } => {
@@ -809,7 +807,7 @@ mod output {
                     quote! {
                         #widget::whens::#fn_name(
                             #var_clone,
-                            #crate_::core::debug::source_location!()
+                            #crate_::debug::source_location!()
                         )
                     }
                 }
@@ -818,12 +816,12 @@ mod output {
                 } => {
                     let props_str = property_sets.iter().map(|p| p.to_string());
                     quote! {
-                        #crate_::core::debug::WhenInfoV1 {
+                        #crate_::debug::WhenInfoV1 {
                             condition_expr: #expr_str,
                             condition_var: Some(#var_clone),
                             properties: vec![#(#props_str),*],
-                            decl_location: #crate_::core::debug::source_location!(),
-                            instance_location: #crate_::core::debug::source_location!(),
+                            decl_location: #crate_::debug::source_location!(),
+                            instance_location: #crate_::debug::source_location!(),
                             user_declared: true,
                         }
                     }
@@ -888,7 +886,7 @@ mod output {
                         };
 
                         tokens.extend(quote! {
-                            #mod_#property::assert!(allowed_in_when, #not_allowed_msg);
+                            #mod_#property::code_gen!(assert allowed_in_when=> #not_allowed_msg);
                         });
                     }
                     expr.to_local_tokens(widget, widget_properties, tokens)
@@ -912,19 +910,19 @@ mod output {
                 WhenConditionExpr::Map(let_name, expr) => {
                     let name = let_name.name();
                     let let_name = let_name.to_local_tokens(widget, widget_properties);
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     tokens.extend(quote! {
                         #let_name
-                        #crate_::core::var::Var::into_map(#name, |#name|{#expr})
+                        #crate_::var::Var::into_map(#name, |#name|{#expr})
                     })
                 }
                 WhenConditionExpr::Merge(let_names, expr) => {
                     let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     let let_names = let_names.iter().map(|l| l.to_local_tokens(widget, widget_properties));
                     tokens.extend(quote! {
                         #(#let_names)*
-                        #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
+                        #crate_::var::merge_var!(#(#names, )* |#(#names),*|{
                             #expr
                         })
                     })
@@ -936,7 +934,7 @@ mod output {
 
     impl WhenPropertyRef {
         fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>) -> TokenStream {
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let mod_ = if widget_properties.contains(&self.property) {
                 Some(quote! {#widget::properties::})
             } else {
@@ -947,7 +945,7 @@ mod output {
             let arg = &self.arg;
             let name = self.name();
             quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
+                let #name = #crate_::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
             }
         }
     }
@@ -960,16 +958,16 @@ mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let var_name = ident!("{}_index", self.property);
 
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             if self.whens.len() == 1 {
                 let wn = ident!("local_w{}", self.whens[0].index);
                 if self.whens[0].can_move {
                     tokens.extend(quote! {
-                        let #var_name = #crate_::core::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                        let #var_name = #crate_::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
                     });
                 } else {
                     tokens.extend(quote! {
-                        let #var_name = #crate_::core::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
+                        let #var_name = #crate_::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
                     });
                 }
             } else {
@@ -979,7 +977,7 @@ mod output {
                 let wns_rev = wns.iter().rev();
                 let wns_i = (1..=wns.len()).rev();
                 tokens.extend(quote! {
-                    let #var_name = #crate_::core::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
+                    let #var_name = #crate_::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
                         #(if #wns_rev { #wns_i })else*
                         else { 0usize }
                     });
@@ -1014,16 +1012,14 @@ mod output {
             let when_var_inits = self.whens.iter().map(|w| match &w.value {
                 PropertyValue::Args(a) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
-                    quote! { #widget#property::args(#a) }
+                    quote! { #widget#property::ArgsImpl::new(#a) }
                 }
                 PropertyValue::Fields(fields) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
                     quote! {
-                        #widget#property::named_args! {
-                            #widget#property: {
-                                #fields
-                            }
-                        }
+                        #widget#property::code_gen! { named_new #widget#property {
+                            #fields
+                        } }
                     }
                 }
                 PropertyValue::Inherited => {
@@ -1041,10 +1037,14 @@ mod output {
             } else {
                 property.to_token_stream()
             };
+
             tokens.extend(quote! {
                 let #var_name = {
                     #(let #when_var_names = #when_var_inits;)*
-                    #property_path::switch_args!(#property_path, #index_var_name, #var_name, #(#when_var_names),*)
+                    #property_path::code_gen!(switch #property_path,
+                        #index_var_name,
+                        #var_name, #(#when_var_names),*
+                    )
                 };
             })
         }
@@ -1073,25 +1073,16 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
+                let crate_ = crate_core();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
+                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
                 let p_assig = &self.properties_user_assigned;
                 let args = args.clone();
-                let crate_ = zero_ui_crate_ident();
 
                 tokens.extend(quote! {
                     let mut debug_captured_new_child = {
-                        use #crate_::core::debug::*;
-                        vec![#(
-                            CapturedPropertyV1 {
-                                property_name: #p_names,
-                                instance_location: #p_locs,
-                                arg_names:#name::properties::#p::arg_names(),
-                                arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                user_assigned: #p_assig,
-                            }
-                        ),*]
+                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*]
                     };
                 });
             }
@@ -1100,10 +1091,10 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
                 tokens.extend(quote! {
-                    let node = #crate_::core::debug::NewChildMarkerNode::new_v1(
-                        #crate_::core::UiNode::boxed(node)
+                    let node = #crate_::debug::NewChildMarkerNode::new_v1(
+                        #crate_::UiNode::boxed(node)
                     );
                 });
             }
@@ -1140,7 +1131,7 @@ mod output {
             for (_, ident, property, _) in &properties {
                 let msg = format!("cannot set capture_only property `{}`", ident);
                 tokens.extend(quote! {
-                    #property::assert!(!capture_only, #msg);
+                    #property::code_gen!(assert !capture_only=> #msg);
                 });
             }
 
@@ -1148,13 +1139,26 @@ mod output {
             for priority in &Priority::all_settable() {
                 #[cfg(debug_assertions)]
                 for (args_ident, property_name, property, user_assigned) in &properties {
+                    let property_name = property_name.to_string();
                     if self.debug_enabled {
+                        let crate_core = crate_core();
                         tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::set_args!(#priority, #property, #property_name, node, #args_ident, #user_assigned);
+                            #property::code_gen!(set #priority,
+                                node,
+                                #property,
+                                #args_ident,
+                                #property_name,
+                                #crate_core::debug::source_location!(),
+                                #user_assigned
+                            );
                         });
                     } else {
                         tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::set_args!(#priority, #property, node, #args_ident);
+                            #property::code_gen!(set #priority,
+                                node,
+                                #property,
+                                #args_ident
+                            );
                         });
                     }
                 }
@@ -1162,7 +1166,7 @@ mod output {
                 #[cfg(not(debug_assertions))]
                 for (args_ident, _, property, _) in &properties {
                     tokens.extend(quote_spanned! {args_ident.span()=>
-                        #property::set_args!(#priority, #property, node, #args_ident);
+                        #property::code_gen!(set #priority, node, #args_ident);
                     });
                 }
             }
@@ -1175,7 +1179,7 @@ mod output {
     }
     impl Priority {
         pub fn all_settable() -> [Self; 5] {
-            use crate::property::input::keyword::*;
+            use crate::property::keyword::*;
             [
                 Priority::Inner(inner::default()),
                 Priority::Size(size::default()),
@@ -1204,36 +1208,24 @@ mod output {
 
             #[cfg(debug_assertions)]
             if self.debug_enabled {
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
                 let name_str = name.to_string();
                 let p = &self.properties;
                 let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> source_location!()));
+                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
                 let p_assig = &self.properties_user_assigned;
                 let args = args.clone();
 
                 tokens.extend(quote! {
-                    let node = {
-                        use #crate_::core::debug::*;
-
-                        WidgetInstanceInfoNode::new_v1(
-                            #crate_::core::UiNode::boxed(node),
-                            #name_str,
-                            #name::decl_location(),
-                            source_location!(),
-                            debug_captured_new_child,
-                            vec![#(
-                                CapturedPropertyV1 {
-                                    property_name: #p_names,
-                                    instance_location: #p_locs,
-                                    arg_names:#name::properties::#p::arg_names(),
-                                    arg_debug_vars: #name::properties::#p::debug_args(&#args),
-                                    user_assigned: #p_assig,
-                                }
-                            ),*],
-                            debug_whens
-                        )
-                    };
+                    let node = #crate_::debug::WidgetInstanceInfoNode::new_v1(
+                        #crate_::UiNode::boxed(node),
+                        #name_str,
+                        #name::decl_location(),
+                        #crate_::debug::source_location!(),
+                        debug_captured_new_child,
+                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*],
+                        debug_whens
+                    );
                 });
             }
 

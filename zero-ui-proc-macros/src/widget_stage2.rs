@@ -37,6 +37,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 -> inherit {
                     #stage3_name;
                     #next_inherit;
+                    #next_inherit::widget_stage2;
                     #inherits
                 }
                 #rest

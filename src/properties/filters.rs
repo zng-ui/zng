@@ -54,22 +54,22 @@ pub fn filter(child: impl UiNode, filter: impl IntoVar<Filter>) -> impl UiNode {
 /// This property is a shorthand way of setting [`filter`] to [`color::invert(amount)`](color::invert) using variable merging.
 #[property(context)]
 pub fn invert_color(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::invert(a)))
+    filter(child, amount.into_var().map(|&a| color::invert(a)))
 }
 
 #[property(context)]
 pub fn blur(child: impl UiNode, radius: impl IntoVar<Length>) -> impl UiNode {
-    filter::set(child, radius.into_var().map(|&r| color::blur(r)))
+    filter(child, radius.into_var().map(|&r| color::blur(r)))
 }
 
 #[property(context)]
 pub fn sepia(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::sepia(a)))
+    filter(child, amount.into_var().map(|&a| color::sepia(a)))
 }
 
 #[property(context)]
 pub fn grayscale(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::grayscale(a)))
+    filter(child, amount.into_var().map(|&a| color::grayscale(a)))
 }
 
 #[property(context)]
@@ -79,7 +79,7 @@ pub fn drop_shadow(
     blur_radius: impl IntoVar<Length>,
     color: impl IntoVar<Rgba>,
 ) -> impl UiNode {
-    filter::set(
+    filter(
         child,
         merge_var!(offset.into_var(), blur_radius.into_var(), color.into_var(), |&o, &r, &c| {
             color::drop_shadow(o, r, c)
@@ -89,22 +89,22 @@ pub fn drop_shadow(
 
 #[property(context)]
 pub fn brightness(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::brightness(a)))
+    filter(child, amount.into_var().map(|&a| color::brightness(a)))
 }
 
 #[property(context)]
 pub fn contrast(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::contrast(a)))
+    filter(child, amount.into_var().map(|&a| color::contrast(a)))
 }
 
 #[property(context)]
 pub fn saturate(child: impl UiNode, amount: impl IntoVar<FactorNormal>) -> impl UiNode {
-    filter::set(child, amount.into_var().map(|&a| color::saturate(a)))
+    filter(child, amount.into_var().map(|&a| color::saturate(a)))
 }
 
 #[property(context)]
 pub fn hue_rotate(child: impl UiNode, angle: impl IntoVar<AngleDegree>) -> impl UiNode {
-    filter::set(child, angle.into_var().map(|&a| color::hue_rotate(a)))
+    filter(child, angle.into_var().map(|&a| color::hue_rotate(a)))
 }
 
 struct OpacityNode<C: UiNode, A: VarLocal<FactorNormal>> {

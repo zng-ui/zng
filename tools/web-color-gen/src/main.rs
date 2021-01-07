@@ -1,4 +1,4 @@
-//! Generate the zero_ui::core::color::colors module.
+//! Generate the crate::core::color::colors module.
 
 use serde::Deserialize;
 

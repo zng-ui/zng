@@ -1,4 +1,4 @@
-//! Widget state properties, [`is_hovered`], [`is_pressed`], [`is_focused`] and more.
+//! Widget state properties, [`is_hovered`](fn@is_hovered), [`is_pressed`](fn@is_pressed), [`is_focused`](fn@is_focused) and more.
 
 use std::time::Duration;
 
@@ -56,7 +56,7 @@ impl<C: UiNode> UiNode for IsHoveredNode<C> {
 ///
 /// This is always `false` when the widget is [disabled](IsEnabled).
 ///
-/// This TODO cap, use [`is_cap_hovered`] for that.
+/// This TODO cap, use [`is_cap_hovered`](fn@is_cap_hovered) for that.
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsHoveredNode {

@@ -710,7 +710,7 @@ pub mod analysis {
     use super::input::{self, BuiltPropertyKind, DefaultTarget, NewTarget, PropertyDefaultValue, WidgetDeclaration, WidgetItem};
     use super::output::*;
     use crate::{
-        property::input::Prefix as PropertyPrefix,
+        property::Prefix as PropertyPrefix,
         util::{Attributes, Errors, PatchSuperPath},
     };
     use input::{PropertyAssign, PropertyValue, WgtItemWhen};
@@ -1471,7 +1471,7 @@ pub mod analysis {
 /// The root type is [`output::WidgetOutput`].
 pub mod output {
     use super::input::{keyword, BuiltPropertyKind, NewTarget, PropertyArgs, PropertyFields, WgtItemNew};
-    use crate::util::{docs_with_first_line_js, uuid, zero_ui_crate_ident, Errors};
+    use crate::util::{crate_core, docs_with_first_line_js, uuid, Errors};
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
     use std::{collections::HashSet, fmt};
@@ -1515,7 +1515,7 @@ pub mod output {
         ///     // inherit branch, present in widget and mix-ins, calls the [`widget_stage2!`]
         ///     // including this widgets information so it can be inherited.
         ///     (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-        ///         zero_ui::widget_stage2! {
+        ///         crate::core::widget_stage2! {
         ///             // continuation of the inheritance recursive calls.
         ///             => {
         ///                 $stage3_entry;
@@ -1539,7 +1539,7 @@ pub mod output {
         ///     // instantiate branch, present only for full widgets, not mix-ins. Calls [`widget_new!`]
         ///     // including all the information needed to instantiate the widget
         ///     ($($input:tt)*) => {
-        ///         zero_ui::widget_new! {
+        ///         crate::widget_new! {
         ///             #widget_name
         ///             
         ///             // these are the same types used in inherited_tokens
@@ -1566,7 +1566,6 @@ pub mod output {
         /// pub use #widget_name_GUID as #widget_name;
         /// ```
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let crate_ = zero_ui_crate_ident();
             let name = &self.widget_name;
             let is_mixin = self.is_mixin;
 
@@ -1577,8 +1576,8 @@ pub mod output {
             let new_child = &self.new_child;
 
             let inherit_arm = quote! {
-                (-> inherit { $stage3_entry:ident; $named_as:path; $($inherit_next:tt)* } $($rest:tt)*) => {
-                    #crate_::widget_stage2! {
+                (-> inherit { $stage3_entry:ident; $named_as:path; $local_stage2:path; $($inherit_next:tt)* } $($rest:tt)*) => {
+                    $local_stage2! {
                         => {
                             $stage3_entry;
                             $($inherit_next)*
@@ -1609,7 +1608,11 @@ pub mod output {
 
                 Some(quote! {
                     ($($input:tt)*) => {
-                        #crate_::widget_new! {
+                        // TODO #name here only works if the user imports the #name
+                        // a call like: some_path::#name!{ } will not find #name
+                        // we need to find if a path was used for the call to find the widget mod,
+                        // maybe use std::file!() and std::line!()?
+                        #name::widget_new! {
                             #name
                             default { #(#default),* }
                             default_child { #(#default_child),* }
@@ -1733,7 +1736,7 @@ pub mod output {
         /// #docs // see [`WidgetDocs`], includes header docs
         /// #vis mod #widget_name {
         ///     use super::*;
-        ///     use zero_ui::widgets::mixins::implicit_mixin;
+        ///     use crate::core::widget_base::implicit_mixin;
         ///
         ///     #new // see [`NewFn`]
         ///     #new_child
@@ -1750,10 +1753,10 @@ pub mod output {
             let docs = &self.docs;
             let vis = &self.vis;
             let widget_name = &self.widget_name;
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
 
             let some_mixin = if self.is_mixin { None } else { Some(()) };
-            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widgets::mixins::implicit_mixin; ));
+            let use_implicit_mixin = some_mixin.map(|_| quote!( use #crate_::widget_base::implicit_mixin; ));
             let new = some_mixin.map(|_| self.new.new_tokens(widget_name));
             let new_child = some_mixin.map(|_| self.new_child.new_child_tokens(widget_name));
 
@@ -1769,6 +1772,9 @@ pub mod output {
                 #vis mod #widget_name {
                     use super::*;
                     #use_implicit_mixin
+
+                    #[doc(hidden)]
+                    pub use #crate_::{widget_stage2, widget_new};
 
                     // new functions.
                     #new
@@ -1910,7 +1916,7 @@ pub mod output {
                         r##"<h3 id="wgall" class="method"><code><a href="#wgall" class="fnname">*</a> -> <span title="applied to self">self</span>.<span class='wgprop'>"##
                     );
                     //generate link to properties module (needs to be separate and in between \n)
-                    doc_extend!(tokens, "\n[<span class='mod'>*</span>](zero_ui::properties)\n");
+                    doc_extend!(tokens, "\n[<span class='mod'>*</span>](crate::properties)\n");
                     doc_extend!(
                         tokens,
                         r##"<ul style='display:none;'></ul></span></code></h3><div class="docblock">Widgets are open-ended, all properties are accepted.</div>"##
@@ -2004,7 +2010,7 @@ pub mod output {
         fn new_tokens(&self, widget_name: &Ident) -> TokenStream {
             let r = match self {
                 NewFn::None => {
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     let fn_doc = format!(
                         "Initializes a new [`{}`](self).\n\nThis calls the [`default_widget_new`]({}::core::default_widget_new) function.",
                         widget_name, crate_
@@ -2013,8 +2019,8 @@ pub mod output {
                     quote!(
                         #(#[doc=#fn_docs])*
                         #[inline]
-                        pub fn new(child: impl #crate_::core::UiNode, id: impl properties::id::Args) -> impl #crate_::core::Widget {
-                            #crate_::core::default_widget_new(child, id)
+                        pub fn new(child: impl #crate_::UiNode, id: impl properties::id::Args) -> impl #crate_::Widget {
+                            #crate_::widget_base::default_widget_new(child, id)
                         }
                     )
                 }
@@ -2029,13 +2035,13 @@ pub mod output {
             #[cfg(debug_assertions)]
             {
                 let mut r = r;
-                let crate_ = zero_ui_crate_ident();
+                let crate_ = crate_core();
 
                 r.extend(quote! {
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
-                    pub fn decl_location() -> #crate_::core::debug::SourceLocation {
-                        #crate_::core::debug::source_location!()
+                    pub fn decl_location() -> #crate_::debug::SourceLocation {
+                        #crate_::debug::source_location!()
                     }
                 });
 
@@ -2048,7 +2054,7 @@ pub mod output {
         fn new_child_tokens(&self, widget_name: &Ident) -> TokenStream {
             match self {
                 NewFn::None => {
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     let fn_doc = format!(
                         "Initializes a new [`{}`](self) content.\n\n[`default_widget_new_child`]({}::core::default_widget_new_child) function.",
                         widget_name, crate_
@@ -2057,8 +2063,8 @@ pub mod output {
                     quote!(
                         #(#[doc=#fn_docs])*
                         #[inline]
-                        pub fn new_child() -> impl #crate_::core::UiNode {
-                            #crate_::core::default_widget_new_child()
+                        pub fn new_child() -> impl #crate_::UiNode {
+                            #crate_::widget_base::default_widget_new_child()
                         }
                     )
                 }
@@ -2094,9 +2100,8 @@ pub mod output {
             match &self.target {
                 NewTarget::New(_) => {
                     let child = self.inputs.first().unwrap();
-                    let mut crate_ = zero_ui_crate_ident();
-                    crate_.set_span(child.span());
-                    let child = quote_spanned! {child.span()=> #child: impl #crate_::core::UiNode};
+                    let crate_ = crate_core();
+                    let child = quote_spanned! {child.span()=> #child: impl #crate_::UiNode};
                     let args = self
                         .inputs
                         .iter()
@@ -2164,16 +2169,16 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let tt = match self {
                 WidgetPropertyUse::Mod(ident) => quote! {
-                    #ident::if_export!(pub use #ident::export as #ident;);
+                    #ident::code_gen!(if export=> pub use #ident::export as #ident;);
                 },
                 WidgetPropertyUse::Alias { ident, original } => quote! {
-                    #original::if_export!(pub use #original::export as #ident;);
+                    #original::code_gen!(if export=> pub use #original::export as #ident;);
                 },
                 WidgetPropertyUse::Inherited { widget, ident } => quote! {
-                    #widget::properties::#ident::if_export!(pub use #widget::properties::#ident::export as #ident;);
+                    #widget::properties::#ident::code_gen!(if export=> pub use #widget::properties::#ident::export as #ident;);
                 },
                 WidgetPropertyUse::AliasInherited { ident, widget, original } => quote! {
-                    #widget::properties::#original::if_export!(pub use #widget::properties::#original::export as #ident;);
+                    #widget::properties::#original::code_gen!(if export=> pub use #widget::properties::#original::export as #ident;);
                 },
             };
             tokens.extend(tt);
@@ -2221,8 +2226,8 @@ pub mod output {
                 FinalPropertyDefaultValue::Fields(f) => {
                     let fields = &f.fields;
                     quote! {
-                        properties::#property::named_args! {
-                            properties::#property: {
+                        properties::#property::code_gen! { named_new
+                            properties::#property {
                                 #fields
                             }
                         }
@@ -2230,7 +2235,7 @@ pub mod output {
                 }
                 FinalPropertyDefaultValue::Args(a) => {
                     let args = &a.0;
-                    quote!(properties::#property::args(#args))
+                    quote!(properties::#property::ArgsImpl::new(#args))
                 }
                 FinalPropertyDefaultValue::Inherited(widget) => quote!(#widget::defaults::#property()),
                 FinalPropertyDefaultValue::WhenInherited(widget, index) => {
@@ -2308,16 +2313,16 @@ pub mod output {
     impl ToTokens for WhenCondition {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             let fn_ident = when_fn_name(self.index);
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let p = &self.properties;
             let expr = &self.expr;
             let not_allowed_msg = p.iter().map(|p| format!("property `{}` is not allowed in when condition", p));
 
             tokens.extend(quote! {
-                #(properties::#p::assert!(allowed_in_when, #not_allowed_msg);)*
+                #(properties::#p::code_gen!(assert allowed_in_when=> #not_allowed_msg);)*
 
                 #[inline]
-                pub fn #fn_ident(#(#p: &impl properties::#p::Args),*) -> impl #crate_::core::var::Var<bool> {
+                pub fn #fn_ident(#(#p: &impl properties::#p::Args),*) -> impl #crate_::var::Var<bool> {
                     #expr
                 }
             });
@@ -2328,11 +2333,11 @@ pub mod output {
                 let info = if let Some(expr_str) = &self.expr_str {
                     let props_str = self.property_sets.iter().map(|p| p.to_string());
                     quote! {
-                        #crate_::core::debug::WhenInfoV1 {
+                        #crate_::debug::WhenInfoV1 {
                             condition_expr: #expr_str,
                             condition_var: Some(condition_var),
                             properties:  vec![#(#props_str),*],
-                            decl_location: #crate_::core::debug::source_location!(),
+                            decl_location: #crate_::debug::source_location!(),
                             instance_location,
                             user_declared: false,
                         }
@@ -2345,9 +2350,9 @@ pub mod output {
                     #[doc(hidden)]
                     #[cfg(debug_assertions)]
                     pub fn #fn_info_ident(
-                        condition_var: #crate_::core::var::BoxedVar<bool>,
-                        instance_location: #crate_::core::debug::SourceLocation)
-                    -> #crate_::core::debug::WhenInfoV1 {
+                        condition_var: #crate_::var::BoxedVar<bool>,
+                        instance_location: #crate_::debug::SourceLocation)
+                    -> #crate_::debug::WhenInfoV1 {
                         #info
                     }
                 });
@@ -2384,19 +2389,19 @@ pub mod output {
                 }
                 WhenConditionExpr::Map(let_name, expr) => {
                     let name = let_name.name();
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     tokens.extend(quote! {
                         #let_name
-                        #crate_::core::var::Var::into_map(#name, |#name|{#expr})
+                        #crate_::var::Var::into_map(#name, |#name|{#expr})
                     })
                 }
                 WhenConditionExpr::Merge(let_names, expr) => {
                     let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
-                    let crate_ = zero_ui_crate_ident();
+                    let crate_ = crate_core();
                     let let_names = let_names.iter();
                     tokens.extend(quote! {
                         #(#let_names)*
-                        #crate_::core::var::merge_var!(#(#names, )* |#(#names),*|{
+                        #crate_::var::merge_var!(#(#names, )* |#(#names),*|{
                             #expr
                         })
                     })
@@ -2446,12 +2451,12 @@ pub mod output {
 
     impl ToTokens for WhenPropertyRef {
         fn to_tokens(&self, tokens: &mut TokenStream) {
-            let crate_ = zero_ui_crate_ident();
+            let crate_ = crate_core();
             let property = &self.property;
             let arg = &self.arg;
             let name = self.name();
             tokens.extend(quote! {
-                let #name = #crate_::core::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(#property)));
+                let #name = #crate_::var::IntoVar::into_var(std::clone::Clone::clone(properties::#property::#arg(#property)));
             });
         }
     }
@@ -2475,10 +2480,13 @@ pub mod output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
                 WhenPropertyRefArg::Index(idx) => {
-                    let ident = ident!("arg{}", idx);
-                    tokens.extend(quote! {ArgsNumbered::#ident})
+                    let ident = ident!("__{}", idx);
+                    tokens.extend(quote! {Args::#ident})
                 }
-                WhenPropertyRefArg::Named(ident) => tokens.extend(quote! {ArgsNamed::#ident}),
+                WhenPropertyRefArg::Named(ident) => {
+                    let ident = ident!("__{}", ident);
+                    tokens.extend(quote! {Args::#ident})
+                }
             }
         }
     }

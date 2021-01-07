@@ -1,4 +1,4 @@
-//! Gesture events, [`on_click`], [`on_shortcut`], [`on_context_click`] and more.
+//! Gesture events, [`on_click`](fn@on_click), [`on_shortcut`](fn@on_shortcut), [`on_context_click`](fn@on_context_click) and more.
 //!
 //! These events aggregate multiple lower-level events to represent a user interaction.
 //! Prefer using these events over the events directly tied to an input device.

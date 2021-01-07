@@ -9,13 +9,13 @@ widget! {
 
     #[inline]
     fn new_child(content) -> impl UiNode {
-        align::set(content.unwrap(), Alignment::CENTER)
+        align(content.unwrap(), Alignment::CENTER)
     }
 }
 
 /// Centralizes the content in the available space.
 ///
-/// This is the equivalent of setting [`align`] to [`Alignment::CENTER`], but as a widget.
+/// This is the equivalent of setting [`align`](fn@align) to [`Alignment::CENTER`], but as a widget.
 #[inline]
 pub fn center(content: impl Widget) -> impl Widget {
     center! { content; }

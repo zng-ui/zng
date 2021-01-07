@@ -57,8 +57,8 @@ widget! {
 ///
 /// # Configure
 ///
-/// Text spans can be configured by setting [`font_family`](crate::properties::text_theme::font_family),
-/// [`font_size`](crate::properties::text_theme::font_size) or [`text_color`](crate::properties::text_theme::text_color)
+/// Text spans can be configured by setting [`font_family`](crate::properties::text_theme::font_family()),
+/// [`font_size`](fn@crate::properties::text_theme::font_size) or [`text_color`](fn@crate::properties::text_theme::text_color)
 /// in parent widgets.
 ///
 /// # Example
@@ -95,7 +95,7 @@ widget! {
     #[inline]
     fn new_child(text) -> impl UiNode {
         let text = TextNode::new(text.unwrap().into_var());
-        font_weight::set(text, FontWeight::BOLD)
+        font_weight(text, FontWeight::BOLD)
     }
 }
 
@@ -118,7 +118,7 @@ widget! {
     #[inline]
     fn new_child(text) -> impl UiNode {
         let text = TextNode::new(text.unwrap().into_var());
-        font_style::set(text, FontStyle::Italic)
+        font_style(text, FontStyle::Italic)
     }
 }
 

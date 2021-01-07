@@ -57,7 +57,7 @@ pub fn transform(child: impl UiNode, transform: impl IntoVar<Transform>) -> impl
 /// This property does not affect layout, the widget is rotated only during rendering.
 #[property(context)]
 pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform::set(child, angle.into_var().map(|&a| units::rotate(a)))
+    transform(child, angle.into_var().map(|&a| units::rotate(a)))
 }
 
 /// Scale transform.
@@ -67,7 +67,7 @@ pub fn rotate(child: impl UiNode, angle: impl IntoVar<AngleRadian>) -> impl UiNo
 /// This property does not affect layout, the widget is scaled only during rendering.
 #[property(context)]
 pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
-    transform::set(child, s.into_var().map(|&x| units::scale(x)))
+    transform(child, s.into_var().map(|&x| units::scale(x)))
 }
 
 /// Scale X and Y transform.
@@ -77,7 +77,7 @@ pub fn scale(child: impl UiNode, s: impl IntoVar<FactorNormal>) -> impl UiNode {
 /// This property does not affect layout, the widget is scaled only during rendering.
 #[property(context)]
 pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoVar<FactorNormal>) -> impl UiNode {
-    transform::set(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
+    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::scale_xy(x, y)))
 }
 
 /// Scale X transform.
@@ -87,7 +87,7 @@ pub fn scale_xy(child: impl UiNode, x: impl IntoVar<FactorNormal>, y: impl IntoV
 /// This property does not affect layout, the widget is scaled only during rendering.
 #[property(context)]
 pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode {
-    transform::set(child, x.into_var().map(|&x| units::scale_x(x)))
+    transform(child, x.into_var().map(|&x| units::scale_x(x)))
 }
 
 /// Scale Y transform.
@@ -97,7 +97,7 @@ pub fn scale_x(child: impl UiNode, x: impl IntoVar<FactorNormal>) -> impl UiNode
 /// This property does not affect layout, the widget is scaled only during rendering.
 #[property(context)]
 pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode {
-    transform::set(child, y.into_var().map(|&y| units::scale_y(y)))
+    transform(child, y.into_var().map(|&y| units::scale_y(y)))
 }
 
 /// Skew transform.
@@ -107,7 +107,7 @@ pub fn scale_y(child: impl UiNode, y: impl IntoVar<FactorNormal>) -> impl UiNode
 /// This property does not affect layout, the widget is skewed only during rendering.
 #[property(context)]
 pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform::set(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::skew(x, y)))
+    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::skew(x, y)))
 }
 
 /// Skew X transform.
@@ -117,7 +117,7 @@ pub fn skew(child: impl UiNode, x: impl IntoVar<AngleRadian>, y: impl IntoVar<An
 /// This property does not affect layout, the widget is skewed only during rendering.
 #[property(context)]
 pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform::set(child, x.into_var().map(|&x| units::skew_x(x)))
+    transform(child, x.into_var().map(|&x| units::skew_x(x)))
 }
 
 /// Skew Y transform.
@@ -127,7 +127,7 @@ pub fn skew_x(child: impl UiNode, x: impl IntoVar<AngleRadian>) -> impl UiNode {
 /// This property does not affect layout, the widget is skewed only during rendering.
 #[property(context)]
 pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
-    transform::set(child, y.into_var().map(|&y| units::skew_y(y)))
+    transform(child, y.into_var().map(|&y| units::skew_y(y)))
 }
 
 /// Translate transform.
@@ -137,7 +137,7 @@ pub fn skew_y(child: impl UiNode, y: impl IntoVar<AngleRadian>) -> impl UiNode {
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context)]
 pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Length>) -> impl UiNode {
-    transform::set(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::translate(x, y)))
+    transform(child, merge_var!(x.into_var(), y.into_var(), |&x, &y| units::translate(x, y)))
 }
 
 /// Translate X transform.
@@ -147,7 +147,7 @@ pub fn translate(child: impl UiNode, x: impl IntoVar<Length>, y: impl IntoVar<Le
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context)]
 pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
-    transform::set(child, x.into_var().map(|&x| units::translate_x(x)))
+    transform(child, x.into_var().map(|&x| units::translate_x(x)))
 }
 
 /// Translate Y transform.
@@ -157,7 +157,7 @@ pub fn translate_x(child: impl UiNode, x: impl IntoVar<Length>) -> impl UiNode {
 /// This property does not affect layout, the widget is moved only during rendering.
 #[property(context)]
 pub fn translate_y(child: impl UiNode, y: impl IntoVar<Length>) -> impl UiNode {
-    transform::set(child, y.into_var().map(|&y| units::translate_y(y)))
+    transform(child, y.into_var().map(|&y| units::translate_y(y)))
 }
 
 struct TransformOriginNode<C: UiNode, O: VarLocal<Point>> {
