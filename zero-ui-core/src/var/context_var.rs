@@ -187,6 +187,10 @@ impl<V: ContextVar> ContextVarLocalKey<V> {
     }
 }
 
+// used by context_var macro expansion.
+#[doc(hidden)]
+pub use once_cell::sync::OnceCell;
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! __context_var_inner {
@@ -202,7 +206,7 @@ macro_rules! __context_var_inner {
     ($(#[$outer:meta])* $vis:vis struct $ident:ident: $type: ty = once $default:expr;) => {
         $crate::__context_var_inner!(gen => $(#[$outer])* $vis struct $ident: $type = {
 
-            static DEFAULT: once_cell::sync::OnceCell<$type> = once_cell::sync::OnceCell::new();
+            static DEFAULT: $crate::var::OnceCell<$type> = $crate::var::OnceCell::new();
             DEFAULT.get_or_init(||{
                 $default
             })

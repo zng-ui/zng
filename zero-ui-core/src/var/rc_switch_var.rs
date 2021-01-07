@@ -15,8 +15,9 @@ use super::*;
 ///
 /// # Example
 /// ```
-/// # use zero_ui_core::var::switch_var;
-/// # use zero_ui_core::prelude::{var, text, ToText};
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::text::*;
+/// # fn text(text: impl IntoVar<Text>) { }
 /// let index = var(0);
 /// let var0 = var("Read-write".to_text());
 /// let var1 = "Read-only";

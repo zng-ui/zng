@@ -41,8 +41,9 @@ pub trait AppRunWindow {
     /// # Example
     ///
     /// ```no_run
-    /// use zero_ui_core::prelude::*;
-    ///
+    /// # use zero_ui_core::app::App;
+    /// # use zero_ui_core::window::AppRunWindow;
+    /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run_window(|_| {
     ///     window! {
     ///         title: "Window 1";
@@ -53,8 +54,9 @@ pub trait AppRunWindow {
     ///
     /// Which is a shortcut for:
     /// ```no_run
-    /// use zero_ui_core::prelude::*;
-    ///
+    /// # use zero_ui_core::app::App;
+    /// # use zero_ui_core::window::{AppRunWindow, Windows};
+    /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run(|ctx| {
     ///     ctx.services.req::<Windows>().open(|_| {
     ///         window! {

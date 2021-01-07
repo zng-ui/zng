@@ -2897,6 +2897,7 @@ dependencies = [
  "harfbuzz_rs",
  "image",
  "lazy_static",
+ "once_cell",
  "paste",
  "rayon",
  "retain_mut",

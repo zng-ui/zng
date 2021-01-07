@@ -1065,8 +1065,7 @@ impl LayoutLine {
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::prelude::*;
-/// # use zero_ui_core::units::Line;
+/// # use zero_ui_core::units::*;
 /// let line = (10, 20).to(100, 120);
 /// assert_eq!(Line::new(Point::new(10, 20), Point::new(100, 120)), line);
 /// ```
@@ -1085,8 +1084,7 @@ impl<X1: Into<Length>, Y1: Into<Length>> LineFromTuplesBuilder for (X1, Y1) {
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::prelude::*;
-/// # use zero_ui_core::units::Line;
+/// # use zero_ui_core::units::*;
 /// let rect = (800, 600).at(10, 20);
 /// assert_eq!(Rect::new(Point::new(10, 20), Size::new(800, 600)), rect);
 /// ```
@@ -1587,7 +1585,7 @@ impl PixelGridExt for LayoutSideOffsets {
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::prelude::*;
+/// # use zero_ui_core::units::*;
 /// let rotate_then_move = rotate(10.deg()).translate(50.0, 30.0);
 /// ```
 #[derive(Clone, Default, Debug)]

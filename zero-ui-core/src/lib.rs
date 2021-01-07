@@ -334,7 +334,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 /// # fn main() { }
 /// # use zero_ui_core::widget;
-/// # use zero_ui_core::properties::events::gesture::on_click;
+/// # use zero_ui_core::widget_base::enabled as on_click;
 /// widget! {
 /// # widget_name;
 ///     //..
@@ -358,8 +358,9 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{widget, color::rgb};
-/// # use zero_ui_core::properties::{background::background_color, states::is_pressed};
+/// # use zero_ui_core::{widget, UiNode, property, color::{rgb, Rgba}, var::{IntoVar, StateVar}};
+/// # #[property(inner)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(context)] pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode { child }
 /// widget! {
 /// # widget_name;
 /// # default { background_color: rgb(0, 0, 0); }
@@ -380,8 +381,10 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use zero_ui_core::{widget, color::rgb};
-/// # use zero_ui_core::properties::{background::background_color, title, states::is_pressed};
+/// # use zero_ui_core::{widget, UiNode, property, color::{rgb, Rgba}, text::Text, var::{IntoVar, StateVar}};
+/// # #[property(inner)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
+/// # #[property(inner)] pub fn title(child: impl UiNode, title: impl IntoVar<Text>) -> impl UiNode { child }
+/// # #[property(context)] pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode { child }
 /// widget! {
 /// # widget_name;
 /// # default { title: "value"; background_color: rgb(0, 0, 0); }
