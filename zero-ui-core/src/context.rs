@@ -172,7 +172,7 @@ pub trait StateKey: Clone + Copy + 'static {
 /// # Example
 ///
 /// ```
-/// # use crate::context::state_key;
+/// # use zero_ui_core::context::state_key;
 /// state_key! {
 ///     /// Key docs.
 ///     pub struct FooKey: u32;

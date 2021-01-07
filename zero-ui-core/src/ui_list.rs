@@ -15,8 +15,8 @@ pub type WidgetVec = Vec<Box<dyn Widget>>;
 /// # Example
 ///
 /// ```
-/// # use crate::ui_vec;
-/// # use crate::widgets::text::text;
+/// # use zero_ui_core::ui_vec;
+/// # use zero_ui_core::widgets::text::text;
 /// let widgets = [
 ///     text("Hello"),
 ///     text("World!")

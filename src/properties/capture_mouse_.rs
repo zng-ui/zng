@@ -62,8 +62,8 @@ impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::prelude::new_widget::*;
-/// # use crate::properties::capture_mouse;
+/// # use zero_ui::prelude::new_widget::*;
+/// # use zero_ui::properties::capture_mouse;
 /// widget! {
 ///    pub button: container;
 ///

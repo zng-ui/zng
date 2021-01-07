@@ -1,16 +1,33 @@
-use crate::util::*;
 use proc_macro2::{Span, TokenStream};
-use syn::LitInt;
+use syn::{parse::Parse, parse_macro_input, LitInt, Path, Token};
+
+struct Input {
+    crate_: Path,
+    #[allow(unused)]
+    comma: Token![,],
+    hex: TokenStream,
+}
+impl Parse for Input {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Input {
+            crate_: input.parse()?,
+            comma: input.parse()?,
+            hex: input.parse()?,
+        })
+    }
+}
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input_str: String = input.to_string();
+    let Input { crate_, hex, .. } = parse_macro_input!(input as Input);
+
+    let input_str: String = hex.to_string();
+
     let hex_only = input_str
         .trim()
         .trim_start_matches('#')
         .trim_start_matches("0x")
         .trim_start()
         .replace('_', "");
-    let crate_ = crate_core();
 
     match hex_only.len() {
         // RRGGBB

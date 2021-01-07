@@ -35,8 +35,8 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 /// # Example
 /// ```
 /// # fn main() -> () { }
-/// use crate::properties::with_context_var;
-/// use crate::core::{UiNode, var::{IntoVar, context_var}, property};
+/// use zero_ui::properties::with_context_var;
+/// use zero_ui::core::{UiNode, var::{IntoVar, context_var}, property};
 ///
 /// context_var! {
 ///     pub struct FontSizeVar: u32 = const 14;
@@ -96,8 +96,8 @@ where
 /// # Example
 /// ```
 /// # fn main() -> () { }
-/// use crate::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};
-/// use crate::properties::set_widget_state;
+/// use zero_ui::core::{property, context::{state_key, WidgetContext}, var::IntoVar, UiNode, Widget};
+/// use zero_ui::properties::set_widget_state;
 ///
 /// state_key! {
 ///     pub struct FooKey: u32;

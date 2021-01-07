@@ -539,7 +539,7 @@ macro_rules! __shortcut {
 /// # Examples
 ///
 /// ```
-/// use crate::gesture::{Shortcut, shortcut};
+/// use zero_ui_core::gesture::{Shortcut, shortcut};
 ///
 /// fn single_key() -> Shortcut {
 ///     shortcut!(Enter)

@@ -9,8 +9,6 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
     let tokens = output.to_token_stream();
 
-    //println!("\n\n========================\n\n{}\n\n=================", tokens);
-
     tokens.into()
 }
 

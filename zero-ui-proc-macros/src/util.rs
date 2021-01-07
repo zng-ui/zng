@@ -40,7 +40,7 @@ pub fn crate_core() -> TokenStream {
             (ident, false)
         } else if let Ok(true) = in_crate_core() {
             // using in the zero-ui-core crate.
-            ("crate".to_owned(), false)
+            ("zero_ui_core".to_owned(), false)
         } else {
             // using in the zero-ui crate.
             ("crate".to_owned(), true)

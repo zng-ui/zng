@@ -19,7 +19,7 @@ use webrender::api::{self as wr, FilterOp};
 /// # Examples
 ///
 /// ```
-/// # use crate::color::hex;
+/// # use zero_ui_core::color::hex;
 /// let red = hex!(#FF0000);
 /// let green = hex!(#00FF00);
 /// let blue = hex!(#0000FF);
@@ -30,7 +30,17 @@ use webrender::api::{self as wr, FilterOp};
 /// assert_eq!(red, hex!(FF_00_00));
 /// ```
 ///
-pub use zero_ui_proc_macros::hex_color as hex;
+#[macro_export]
+macro_rules! hex {
+    ($($tt:tt)+) => {
+        $crate::color::hex_color!{$crate, $($tt)*}
+    };
+}
+#[doc(inline)]
+pub use crate::hex;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::hex_color;
 
 /// Webrender RGBA.
 pub type RenderColor = webrender::api::ColorF;
@@ -432,7 +442,7 @@ fn clamp_normal(i: f32) -> f32 {
 ///
 /// # Example
 /// ```
-/// use crate::color::rgb;
+/// use zero_ui_core::color::rgb;
 ///
 /// let red = rgb(1.0, 0.0, 0.0);
 /// let green = rgb(0, 255, 0);
@@ -452,7 +462,7 @@ pub fn rgb<C: Into<RgbaComponent>>(red: C, green: C, blue: C) -> Rgba {
 ///
 /// # Example
 /// ```
-/// use crate::color::rgba;
+/// use zero_ui_core::color::rgba;
 ///
 /// let half_red = rgba(255, 0, 0, 0.5);
 /// let green = rgba(0.0, 1.0, 0.0, 1.0);
@@ -479,8 +489,8 @@ pub fn rgba<C: Into<RgbaComponent>, A: Into<RgbaComponent>>(red: C, green: C, bl
 /// # Example
 ///
 /// ```
-/// use crate::color::hsl;
-/// use crate::units::*;
+/// use zero_ui_core::color::hsl;
+/// use zero_ui_core::units::*;
 ///
 /// let red = hsl(0.deg(), 100.pct(), 50.pct());
 /// let green = hsl(115.deg(), 1.0, 0.5);
@@ -501,8 +511,8 @@ pub fn hsl<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, l
 /// # Example
 ///
 /// ```
-/// use crate::color::hsla;
-/// use crate::units::*;
+/// use zero_ui_core::color::hsla;
+/// use zero_ui_core::units::*;
 ///
 /// let red = hsla(0.deg(), 100.pct(), 50.pct(), 1.0);
 /// let green = hsla(115.deg(), 1.0, 0.5, 100.pct());

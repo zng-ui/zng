@@ -9,7 +9,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// use crate::prelude::text;
+    /// use zero_ui::prelude::text;
     ///
     /// let hello_txt = text! {
     ///     font_family: "Arial";
@@ -64,8 +64,8 @@ widget! {
 /// # Example
 /// ```
 /// # fn main() -> () {
-/// use crate::widgets::{container, text::text};
-/// use crate::properties::text_theme::{font_family, font_size};
+/// use zero_ui::widgets::{container, text::text};
+/// use zero_ui::properties::text_theme::{font_family, font_size};
 ///
 /// let hello_txt = container! {
 ///     font_family: "Arial";

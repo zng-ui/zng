@@ -310,7 +310,7 @@ pub mod widgets;
 /// Use glob import (`*`) to quickly start implementing an application.
 ///
 /// ```no_run
-/// use crate::prelude::*;
+/// use zero_ui::prelude::*;
 ///
 /// App::default().run_window(|_| {
 ///     todo!()

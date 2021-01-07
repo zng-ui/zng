@@ -370,8 +370,8 @@ impl Events {
 ///
 /// # Example
 /// ```
-/// # use crate::event::event_args;
-/// use crate::render::WidgetPath;
+/// # use zero_ui_core::event::event_args;
+/// use zero_ui_core::render::WidgetPath;
 ///
 /// event_args! {
 ///     /// My event arguments.
@@ -397,8 +397,8 @@ impl Events {
 /// Expands to:
 ///
 /// ```
-/// # use crate::event::event_args;
-/// # use crate::render::WidgetPath;
+/// # use zero_ui_core::event::event_args;
+/// # use zero_ui_core::render::WidgetPath;
 /// #
 /// /// My event arguments.
 /// #[derive(Debug, Clone)]
@@ -439,7 +439,7 @@ impl Events {
 ///     /// Cloned arguments signal stop for all clones.
 ///     #[inline]
 ///     pub fn stop_propagation(&self) {
-///         <Self as crate::event::EventArgs>::stop_propagation(self)
+///         <Self as zero_ui_core::event::EventArgs>::stop_propagation(self)
 ///     }
 ///     
 ///     /// If the handler must skip this event.
@@ -449,11 +449,11 @@ impl Events {
 ///     /// [`AppExtension`](crate::app::AppExtension) implementers must check if this is `true`.
 ///     #[inline]
 ///     pub fn stop_propagation_requested(&self) -> bool {
-///         <Self as crate::event::EventArgs>::stop_propagation_requested(self)
+///         <Self as zero_ui_core::event::EventArgs>::stop_propagation_requested(self)
 ///     }
 /// }
 ///
-/// impl crate::event::EventArgs for MyEventArgs {
+/// impl zero_ui_core::event::EventArgs for MyEventArgs {
 ///     #[inline]
 ///     fn timestamp(&self) -> std::time::Instant {
 ///         self.timestamp
@@ -461,7 +461,7 @@ impl Events {
 ///
 ///     #[inline]
 ///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut crate::context::WidgetContext) -> bool {
+///     fn concerns_widget(&self, ctx: &mut zero_ui_core::context::WidgetContext) -> bool {
 ///         self.target.contains(ctx.path.widget_id())
 ///     }
 ///
@@ -589,8 +589,8 @@ pub use crate::event_args;
 ///
 /// # Example
 /// ```
-/// # use crate::event::cancelable_event_args;
-/// # use crate::render::WidgetPath;
+/// # use zero_ui_core::event::cancelable_event_args;
+/// # use zero_ui_core::render::WidgetPath;
 /// cancelable_event_args! {
 ///     /// My event arguments.
 ///     pub struct MyEventArgs {
@@ -615,8 +615,8 @@ pub use crate::event_args;
 /// Expands to:
 ///
 /// ```
-/// # use crate::event::event_args;
-/// # use crate::render::WidgetPath;
+/// # use zero_ui_core::event::event_args;
+/// # use zero_ui_core::render::WidgetPath;
 /// #
 /// /// My event arguments.
 /// #[derive(Debug, Clone)]
@@ -655,7 +655,7 @@ pub use crate::event_args;
 ///     }
 /// }
 ///
-/// impl crate::event::EventArgs for MyEventArgs {
+/// impl zero_ui_core::event::EventArgs for MyEventArgs {
 ///     #[inline]
 ///     fn timestamp(&self) -> std::time::Instant {
 ///         self.timestamp
@@ -663,7 +663,7 @@ pub use crate::event_args;
 ///
 ///     #[inline]
 ///     /// If `ctx.path.widget_id()` is in the `self.target` path.
-///     fn concerns_widget(&self, ctx: &mut crate::context::WidgetContext) -> bool {
+///     fn concerns_widget(&self, ctx: &mut zero_ui_core::context::WidgetContext) -> bool {
 ///         self.target.contains(ctx.path.widget_id())
 ///     }
 ///
@@ -678,7 +678,7 @@ pub use crate::event_args;
 ///     }
 /// }
 ///
-/// impl crate::event::CancelableEventArgs for MyEventArgs {
+/// impl zero_ui_core::event::CancelableEventArgs for MyEventArgs {
 ///     /// If a listener canceled the action.
 ///     #[inline]
 ///     fn cancel_requested(&self) -> bool {
@@ -833,8 +833,8 @@ pub use crate::cancelable_event_args;
 /// # Example
 ///
 /// ```
-/// # use crate::event::event;
-/// # use crate::gesture::ClickArgs;
+/// # use zero_ui_core::event::event;
+/// # use zero_ui_core::gesture::ClickArgs;
 /// event! {
 ///     /// Event docs.
 ///     pub ClickEvent: ClickArgs;
@@ -847,17 +847,17 @@ pub use crate::cancelable_event_args;
 /// Expands to:
 ///
 /// ```
-/// # use crate::event::event;
-/// # use crate::gesture::ClickArgs;
+/// # use zero_ui_core::event::event;
+/// # use zero_ui_core::gesture::ClickArgs;
 /// /// Event docs
 /// pub struct ClickEvent;
-/// impl crate::event::Event for ClickEvent {
+/// impl zero_ui_core::event::Event for ClickEvent {
 ///     type Args = ClickArgs;
 /// }
 ///
 /// /// Other event docs
 /// pub struct DoubleClickEvent;
-/// impl crate::event::Event for DoubleClickEvent {
+/// impl zero_ui_core::event::Event for DoubleClickEvent {
 ///     type Args = ClickArgs;
 /// }
 /// ```
@@ -893,8 +893,8 @@ pub use crate::event;
 /// # Example
 ///
 /// ```
-/// # use crate::event::event_hp;
-/// # use crate::mouse::MouseMoveArgs;
+/// # use zero_ui_core::event::event_hp;
+/// # use zero_ui_core::mouse::MouseMoveArgs;
 /// event_hp! {
 ///     /// Event docs.
 ///     pub MouseMoveEvent: MouseMoveArgs;
@@ -904,11 +904,11 @@ pub use crate::event;
 /// Expands to:
 ///
 /// ```
-/// # use crate::event::event_hp;
-/// # use crate::mouse::MouseMoveArgs;
+/// # use zero_ui_core::event::event_hp;
+/// # use zero_ui_core::mouse::MouseMoveArgs;
 /// /// Event docs
 /// pub struct MouseMoveEvent;
-/// impl crate::event::Event for MouseMoveEvent {
+/// impl zero_ui_core::event::Event for MouseMoveEvent {
 ///     type Args = MouseMoveArgs;
 ///     const IS_HIGH_PRESSURE: bool = true;
 /// }
@@ -1133,9 +1133,8 @@ macro_rules! __event_property {
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::properties::events::event_property;
-/// # use crate::event::EventArgs;
-/// # use crate::keyboard::*;
+/// # use zero_ui_core::event::{event_property, EventArgs};
+/// # use zero_ui_core::keyboard::*;
 /// event_property! {
 ///     /// on_key_down docs.
 ///     pub fn key_down {

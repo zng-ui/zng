@@ -14,7 +14,7 @@ use std::{fmt, mem};
 /// # Example
 ///
 /// ```
-/// # use crate::text::font_features::FontFeatureName;
+/// # use zero_ui_core::text::font_features::FontFeatureName;
 /// let historical_lig: FontFeatureName = b"hlig";
 /// ```
 pub type FontFeatureName = &'static [u8; 4];
@@ -147,7 +147,7 @@ fn name_to_str(name: FontFeatureName) -> &'static str {
 /// # Example
 ///
 /// ```
-/// # use crate::text::FontFeatures;
+/// # use zero_ui_core::text::FontFeatures;
 /// let features = FontFeatures::builder().kerning(false).build();
 /// ```
 #[derive(Default)]

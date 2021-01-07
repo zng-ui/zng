@@ -9,6 +9,9 @@
 #[macro_use]
 extern crate bitflags;
 
+#[doc(hidden)]
+extern crate self as zero_ui_core;
+
 #[macro_use]
 mod crate_macros;
 
@@ -91,7 +94,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # fn main() { }
-/// use crate::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
+/// use zero_ui_core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
 ///
 /// struct MyNode<C, V> { child: C, value: V }
 /// #[impl_ui_node(child)]
@@ -116,8 +119,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 ///
 /// ```
 /// # fn main() { }
-/// use crate::{property, var::IntoVar, text::Text};
-///
+/// # use zero_ui_core::{property, var::IntoVar, text::Text};
 /// /// Property docs.
 /// #[property(capture_only)]
 /// pub fn my_property(value: impl IntoVar<Text>) -> ! { }
@@ -194,11 +196,11 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::widget;
-/// # use crate::widgets::{container, mixins::focusable_mixin};
+/// # use zero_ui_core::widget;
+/// # // use zero_ui_core::widgets::{container, mixins::focusable_mixin};
 /// widget! {
 ///     /// Widget documentation.
-///     pub button: container + focusable_mixin;
+///     pub button;//: container + focusable_mixin;
 /// }
 /// ```
 ///
@@ -208,7 +210,7 @@ pub use zero_ui_proc_macros::property;
 /// Extra documentation about the widget properties is auto-generated and added to the module as well.
 ///
 /// ```
-/// # use crate::widget;
+/// # use zero_ui_core::widget;
 /// widget! {
 ///     /// Widget documentation.
 ///     #[cfg(debug_assertions)]
@@ -221,7 +223,7 @@ pub use zero_ui_proc_macros::property;
 /// The visibility is transferred to the widget module and macro and supports all visibility configurations.
 ///
 /// ```
-/// # use crate::widget;
+/// # use zero_ui_core::widget;
 /// widget! {
 ///     pub(crate) widget_name;
 /// }
@@ -233,14 +235,9 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::widget;
-/// # use crate::widgets::{container, mixins};
+/// # use zero_ui_core::widget;
 /// widget! {
-///     pub foo: container;
-/// }
-///
-/// widget! {
-///     pub bar: container + mixins::focusable_mixin;
+///     pub foo;
 /// }
 /// ```
 ///
@@ -259,16 +256,12 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::widget;
-/// # use crate::properties::margin;
+/// # use zero_ui_core::widget;
 /// widget! {
 ///     pub foo;
 ///
 ///     default {
-///         margin: 2.0;
-///     }
-///     default_child {
-///         padding -> margin: 5.0;
+///         enabled: false;
 ///     }
 /// }
 /// ```
@@ -298,7 +291,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, property, UiNode, var::IntoVar};
+/// # use zero_ui_core::{widget, property, UiNode, var::IntoVar};
 /// # #[property(context)]
 /// # fn other_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
 /// widget! {
@@ -318,7 +311,7 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, property, UiNode, var::IntoVar, text::Text};
+/// # use zero_ui_core::{widget, property, UiNode, var::IntoVar, text::Text};
 /// # #[property(context)]
 /// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode { child }
 /// widget! {
@@ -340,8 +333,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::widget;
-/// # use crate::properties::events::gesture::on_click;
+/// # use zero_ui_core::widget;
+/// # use zero_ui_core::properties::events::gesture::on_click;
 /// widget! {
 /// # widget_name;
 ///     //..
@@ -365,8 +358,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, color::rgb};
-/// # use crate::properties::{background::background_color, states::is_pressed};
+/// # use zero_ui_core::{widget, color::rgb};
+/// # use zero_ui_core::properties::{background::background_color, states::is_pressed};
 /// widget! {
 /// # widget_name;
 /// # default { background_color: rgb(0, 0, 0); }
@@ -387,8 +380,8 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, color::rgb};
-/// # use crate::properties::{background::background_color, title, states::is_pressed};
+/// # use zero_ui_core::{widget, color::rgb};
+/// # use zero_ui_core::properties::{background::background_color, title, states::is_pressed};
 /// widget! {
 /// # widget_name;
 /// # default { title: "value"; background_color: rgb(0, 0, 0); }
@@ -422,19 +415,18 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, UiNode};
-/// # use crate::properties::capture_only::widget_child;
-/// widget! {
-///     pub container;
-///     
-///     default_child {
-///         content -> widget_child: required!;
-///     }
-///     
-///     fn new_child(content) -> impl UiNode {
-///         content.unwrap()
-///     }
-/// }
+/// # use zero_ui_core::{widget, UiNode};
+/// // widget! {
+/// //     pub container;
+/// //     
+/// //     default_child {
+/// //         content -> widget_child: required!;
+/// //     }
+/// //     
+/// //     fn new_child(content) -> impl UiNode {
+/// //         content.unwrap()
+/// //     }
+/// // }
 /// ```
 ///
 /// The function must return a type that implements [`UiNode`](crate::UiNode). It has no required arguments but
@@ -449,23 +441,23 @@ pub use zero_ui_proc_macros::property;
 ///
 /// ```
 /// # fn main() { }
-/// # use crate::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
-/// # use crate::properties::title;
-/// # use crate::properties::background::background_color;
-/// # use crate::widgets::container;
-/// # pub struct Window { } impl Window { pub fn new(child: impl crate::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
-/// widget! {
-///     pub window: container;
-///     
-///     default {
-///         title: "New Window";
-///         background_color: rgb(1.0, 1.0, 1.0);
-///     }
-///     
-///     fn new(child, id, title, background_color) -> Window {
-///         Window::new(child, id.unwrap(), title.unwrap(), background_color.unwrap())
-///     }
-/// }
+/// # // use zero_ui_core::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
+/// # // use zero_ui_core::properties::title;
+/// # // use zero_ui_core::properties::background::background_color;
+/// # // use zero_ui_core::widgets::container;
+/// # // pub struct Window { } impl Window { pub fn new(child: impl crate::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
+/// // widget! {
+/// //     pub window: container;
+/// //     
+/// //     default {
+/// //         title: "New Window";
+/// //         background_color: rgb(1.0, 1.0, 1.0);
+/// //     }
+/// //     
+/// //     fn new(child, id, title, background_color) -> Window {
+/// //         Window::new(child, id.unwrap(), title.unwrap(), background_color.unwrap())
+/// //     }
+/// // }
 /// ```
 ///
 /// The function can return any type, but if the type does not implement [`Widget`](crate::Widget)
@@ -500,35 +492,35 @@ pub use zero_ui_proc_macros::widget;
 /// you cannot write the `new` and `new_child` functions.
 ///
 /// ```
-/// # fn main() { }
-/// # use crate::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
-/// # use crate::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
-/// widget_mixin! {
-///     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
-///     /// highlight border.
-///     pub focusable_mixin;
-///
-///     default {
-///
-///         /// Enables keyboard focusing in the widget.
-///         focusable: true;
-///
-///         /// A border overlay that is visible when the widget is focused.
-///         focus_highlight -> foreground_highlight: {
-///             widths: SideOffsets::new_all(0.0),
-///             offsets: SideOffsets::new_all(0.0),
-///             details: FocusHighlightDetailsVar
-///         };
-///     }
-///
-///     when self.is_focused_hgl {
-///         focus_highlight: {
-///             widths: FocusHighlightWidthsVar,
-///             offsets: FocusHighlightOffsetsVar,
-///             details: FocusHighlightDetailsVar
-///         };
-///     }
-/// }
+/// # // fn main() { }
+/// # // use zero_ui_core::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
+/// # // use zero_ui_core::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
+/// // widget_mixin! {
+/// //     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
+/// //     /// highlight border.
+/// //     pub focusable_mixin;
+/////
+/// //     default {
+/////
+/// //         /// Enables keyboard focusing in the widget.
+/// //         focusable: true;
+/////
+/// //         /// A border overlay that is visible when the widget is focused.
+/// //         focus_highlight -> foreground_highlight: {
+/// //             widths: SideOffsets::new_all(0.0),
+/// //             offsets: SideOffsets::new_all(0.0),
+/// //             details: FocusHighlightDetailsVar
+/// //         };
+/// //     }
+/////
+/// //     when self.is_focused_hgl {
+/// //         focus_highlight: {
+/// //             widths: FocusHighlightWidthsVar,
+/// //             offsets: FocusHighlightOffsetsVar,
+/// //             details: FocusHighlightDetailsVar
+/// //         };
+/// //     }
+/// // }
 /// ```
 ///
 /// # Expands to

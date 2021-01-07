@@ -154,7 +154,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// # use crate::prelude::*;
+    /// # use zero_ui::prelude::*;
     /// let grid = uniform_grid!{
     ///     columns: 3;
     ///     rows: 2;
@@ -190,7 +190,7 @@ widget! {
         /// # Example
         ///
         /// ```
-        /// # use crate::prelude::*;
+        /// # use zero_ui::prelude::*;
         /// let grid = uniform_grid!{
         ///     columns: 3;
         ///     rows: 2;
@@ -238,7 +238,7 @@ widget! {
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
+/// # use zero_ui::prelude::*;
 /// let grid = uniform_grid([
 ///     text("0,0"), text("1,0"),
 ///     text("0,1"), text("1,1"),

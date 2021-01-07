@@ -50,7 +50,7 @@ use crate::units::*;
 ///
 /// Given an UI node `struct`:
 /// ```
-/// # use crate::units::LayoutSize;
+/// # use zero_ui_core::units::LayoutSize;
 /// struct FillColorNode<C> {
 ///     color: C,
 ///     final_size: LayoutSize,
@@ -60,7 +60,9 @@ use crate::units::*;
 /// In an `UiNode` trait impl block, annotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
@@ -74,7 +76,10 @@ use crate::units::*;
 /// Or, in a inherent impl, annotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::color::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -104,7 +109,10 @@ use crate::units::*;
 /// * Render: Does nothing, blank implementation.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::color::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -122,7 +130,11 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::color::*;
+/// # use zero_ui_core::context::*;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
 /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
 ///     pub fn new(color: C) -> Self {
@@ -183,7 +195,9 @@ use crate::units::*;
 /// * Render: Delegates to child render.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
 /// struct DelegateChildNode<C: UiNode> { child: C }
 ///
 /// #[impl_ui_node(child)]
@@ -193,7 +207,10 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::context::*;
 /// # struct DelegateChildNode<C: UiNode> { child: C }
 /// impl<C: UiNode> UiNode for DelegateChildNode<C> {
 ///     #[inline]
@@ -258,7 +275,10 @@ use crate::units::*;
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::context::*;
 /// struct DelegateChildrenNode<C: WidgetList> {
 ///     children: C,
 /// }
@@ -269,7 +289,10 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::context::*;
 /// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]
@@ -339,7 +362,10 @@ use crate::units::*;
 /// * Render: Z-stacks the children. Last child on top.
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::context::*;
 /// struct DelegateChildrenNode {
 ///     children: WidgetVec,
 /// }
@@ -350,7 +376,10 @@ use crate::units::*;
 /// Expands to:
 ///
 /// ```
-/// # use crate::prelude::new_property::*;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::impl_ui_node;
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::context::*;
 /// # struct DelegateChildrenNode { children: WidgetVec }
 /// impl UiNode for DelegateChildrenNode {
 ///     #[inline]

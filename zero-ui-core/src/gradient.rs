@@ -37,8 +37,10 @@ pub type RenderExtendMode = webrender::api::ExtendMode;
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
-/// # use crate::widgets::linear_gradient;
+/// # use zero_ui_core::units::*;
+/// # use zero_ui_core::color::colors;
+/// # use zero_ui_core::gradient::*;
+/// # fn linear_gradient(axis: impl Into<LinearGradientAxis>, stops: impl Into<GradientStops>) { /* TODO move gradient nodes to core? */ }
 /// let angle_gradient = linear_gradient(90.deg(), [colors::BLACK, colors::WHITE]);
 /// let line_gradient = linear_gradient((0, 0).to(50, 30), [colors::BLACK, colors::WHITE]);
 /// ```
@@ -808,8 +810,9 @@ macro_rules! __stops {
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
-/// # use crate::widgets::stops;
+/// # use zero_ui_core::gradient::stops;
+/// # use zero_ui_core::color::colors;
+/// # use zero_ui_core::units::*;
 /// // green 0%, red 30%, blue 100%.
 /// let stops = stops![colors::GREEN, (colors::RED, 30.pct()), colors::BLUE];
 ///
@@ -825,8 +828,9 @@ macro_rules! __stops {
 ///
 /// ## Example
 /// ```
-/// # use crate::prelude::*;
-/// # use crate::widgets::stops;
+/// # use zero_ui_core::gradient::stops;
+/// # use zero_ui_core::color::colors;
+/// # use zero_ui_core::units::*;
 /// let zebra_stops = stops![(colors::WHITE, 0, 20), (colors::BLACK, 20, 40)];
 /// ```
 #[macro_export]

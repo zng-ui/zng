@@ -276,7 +276,7 @@ macro_rules! __context_var_inner {
 ///
 /// # Examples
 /// ```
-/// # use crate::var::context_var;
+/// # use zero_ui_core::var::context_var;
 /// # #[derive(Debug, Clone)]
 /// # struct NotConst(u8);
 /// # fn init_val() -> NotConst { NotConst(10) }

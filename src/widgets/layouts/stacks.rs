@@ -135,7 +135,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// # use crate::prelude::*;
+    /// # use zero_ui::prelude::*;
     /// let text = v_stack! {
     ///     spacing: 5.0;
     ///     items: [
@@ -172,7 +172,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// # use crate::prelude::*;
+    /// # use zero_ui::prelude::*;
     /// let text = h_stack! {
     ///     spacing: 5.0;
     ///     items: [
@@ -207,7 +207,7 @@ widget! {
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
+/// # use zero_ui::prelude::*;
 /// let text = h_stack([
 ///     text("Hello "),
 ///     text("World"),
@@ -229,7 +229,7 @@ pub fn h_stack(items: impl WidgetList) -> impl Widget {
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
+/// # use zero_ui::prelude::*;
 /// let text = v_stack([
 ///     text("1. Hello"),
 ///     text("2. World"),
@@ -258,7 +258,7 @@ widget! {
     /// # Example
     ///
     /// ```
-    /// # use crate::prelude::*;
+    /// # use zero_ui::prelude::*;
     /// let text = z_stack! {
     ///     padding: 5.0;
     ///     items: [
@@ -292,7 +292,7 @@ widget! {
 /// # Example
 ///
 /// ```
-/// # use crate::prelude::*;
+/// # use zero_ui::prelude::*;
 /// let text = z_stack([
 ///     text("under"),
 ///     text("over"),

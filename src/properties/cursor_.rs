@@ -29,7 +29,7 @@ impl<T: UiNode, C: VarLocal<CursorIcon>> UiNode for CursorNode<T, C> {
 ///
 /// # Example
 /// ```
-/// # use crate::prelude::*;
+/// # use zero_ui::prelude::*;
 /// container! {
 ///     cursor: CursorIcon::Hand;
 ///     content: text("Mouse over this text shows the hand cursor");
