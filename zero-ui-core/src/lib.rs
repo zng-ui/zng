@@ -9,7 +9,9 @@
 #[macro_use]
 extern crate bitflags;
 
+// to make the proc-macro $crate substitute work in doc-tests.
 #[doc(hidden)]
+#[allow(unused_extern_crates)]
 extern crate self as zero_ui_core;
 
 #[macro_use]

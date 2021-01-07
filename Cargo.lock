@@ -102,19 +102,6 @@ dependencies = [
 
 [[package]]
 name = "async-global-executor"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73079b49cd26b8fd5a15f68fc7707fc78698dc2a3d61430f2a7a9430230dfa04"
-dependencies = [
- "async-executor",
- "async-io",
- "futures-lite",
- "num_cpus",
- "once_cell",
-]
-
-[[package]]
-name = "async-global-executor"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3273e48a4746e5dd9ff8dcb8e1dd14d34c6634ec6ff80f1c066b7d85254a2813"
@@ -2017,9 +2004,9 @@ dependencies = [
 
 [[package]]
 name = "retain_mut"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e005d658ad26eacc2b6c506dfde519f4e277e328d0eb3379ca61647d70a8f531"
+checksum = "53552c6c49e1e13f1a203ef0080ab3bbef0beb570a528993e83df057a9d9bba1"
 
 [[package]]
 name = "rust-argon2"
@@ -2318,9 +2305,9 @@ checksum = "8fb1df15f412ee2e9dfc1c504260fa695c1c3f10fe9f4a6ee2d2184d7d6450e2"
 
 [[package]]
 name = "syn"
-version = "1.0.55"
+version = "1.0.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a571a711dddd09019ccc628e1b17fe87c59b09d513c06c026877aa708334f37a"
+checksum = "cc60a3d73ea6594cd712d830cc1f0390fd71542d8c8cd24e70cc54cdfd5e05d5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2845,7 +2832,7 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "arrayvec",
- "async-global-executor 1.4.3",
+ "async-global-executor",
  "backtrace",
  "bencher",
  "bitflags",
@@ -2883,7 +2870,7 @@ version = "0.1.0"
 dependencies = [
  "array-init",
  "arrayvec",
- "async-global-executor 2.0.1",
+ "async-global-executor",
  "bitflags",
  "colored",
  "derive_more",

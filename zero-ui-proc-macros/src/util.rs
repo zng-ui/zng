@@ -39,11 +39,11 @@ pub fn crate_core() -> TokenStream {
             // using the core crate only.
             (ident, false)
         } else if let Ok(true) = in_crate_core() {
-            // using in the zero-ui-core crate.
+            // using in the zero-ui-core crate, it re-exports self as zero_ui_core to work in examples.
             ("zero_ui_core".to_owned(), false)
         } else {
-            // using in the zero-ui crate.
-            ("crate".to_owned(), true)
+            // using in the zero-ui-core crate, it re-exports self as zero_ui to work in examples.
+            ("zero_ui".to_owned(), true)
         }
     });
 

@@ -225,6 +225,11 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 */
 
+// to make the proc-macro $crate substitute work in doc-tests.
+#[doc(hidden)]
+#[allow(unused_extern_crates)]
+extern crate self as zero_ui;
+
 /// Calls `eprintln!("error: {}", format_args!($))` with `error` colored bright red and bold.
 #[allow(unused)]
 macro_rules! error_println {
@@ -433,9 +438,13 @@ pub mod prelude {
 
 // see test-crates/no-direct-deps
 #[doc(hidden)]
-pub fn crate_reference_called() -> bool { true }
+pub fn crate_reference_called() -> bool {
+    true
+}
 #[doc(hidden)]
 #[macro_export]
 macro_rules! crate_reference_call {
-    () => { $crate::crate_reference_called() };
+    () => {
+        $crate::crate_reference_called()
+    };
 }
