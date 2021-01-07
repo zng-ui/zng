@@ -1,7 +1,7 @@
 //! Border property and types.
 
 use crate::prelude::new_property::*;
-use webrender::api as w_api;
+use webrender_api as w_api;
 
 pub use w_api::BorderRadius;
 

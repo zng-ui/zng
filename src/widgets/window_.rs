@@ -1,8 +1,9 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::widget_base::enabled;
 use crate::core::window::{StartPosition, Window};
 use crate::prelude::new_widget::*;
+
+use crate::core::widget_base::enabled;
 
 widget! {
     /// A window container.

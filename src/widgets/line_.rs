@@ -1,6 +1,6 @@
 use crate::prelude::new_widget::*;
 use crate::properties::capture_only::color;
-use webrender::api as w_api;
+use webrender_api as w_api;
 
 pub use w_api::LineOrientation;
 
