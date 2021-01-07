@@ -2,9 +2,12 @@
 
 use crate::context::{state_key, LayoutContext, LazyStateMap, WidgetContext};
 use crate::render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey};
-use crate::units::{LayoutSize, PixelGridExt};
+use crate::units::LayoutSize;
 use crate::var::{context_var, IntoVar, VarLocal, Vars};
 use crate::{impl_ui_node, property, widget_mixin, NilUiNode, UiNode, Widget, WidgetId};
+
+#[cfg(debug_assertions)]
+use crate::units::PixelGridExt;
 
 /// Widget id.
 ///

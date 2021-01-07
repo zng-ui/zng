@@ -714,9 +714,9 @@ mod output {
                 TokenStream::new()
             } else {
                 let set_ident = ident!("__{}_set", ident);
-                let set_debug_ident = ident!("__{}_set_debug", ident);
                 #[cfg(debug_assertions)]
                 {
+                    let set_debug_ident = ident!("__{}_set_debug", ident);
                     let ident_str = ident.to_string();
                     let arg_idents_str = arg_idents.iter().map(|i| i.to_string());
                     let priority = match self.priority {
@@ -1099,10 +1099,10 @@ mod output {
                 TokenStream::new()
             } else {
                 let set_ident = ident!("__{}_set", ident);
-                let set_dbg_ident = ident!("__{}_set_debug", ident);
-
+                
                 #[cfg(debug_assertions)]
                 {
+                    let set_dbg_ident = ident!("__{}_set_debug", ident);
                     quote! {
                         #set_ident as set,
                         #set_dbg_ident as set_debug,
