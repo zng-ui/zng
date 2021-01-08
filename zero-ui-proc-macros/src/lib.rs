@@ -18,7 +18,9 @@ mod hex_color;
 mod impl_ui_node;
 pub(crate) mod property;
 
-mod widget;
+mod widget_0_attr;
+mod widget_1_inherit;
+mod widget_2_declare;
 
 pub(crate) mod widget_new;
 mod widget_stage1;

@@ -1099,7 +1099,7 @@ mod output {
                 TokenStream::new()
             } else {
                 let set_ident = ident!("__{}_set", ident);
-                
+
                 #[cfg(debug_assertions)]
                 {
                     let set_dbg_ident = ident!("__{}_set_debug", ident);
