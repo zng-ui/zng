@@ -1,8 +1,8 @@
-#![allow(unused)]// TODO remove after expand is called in lib.rs.
+#![allow(unused)] // TODO remove after expand is called in lib.rs.
 
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
-use syn::{Item, ItemFn, ItemMacro, ItemMod, Path, Token, parse::Parse, parse2, parse_macro_input, spanned::Spanned};
+use syn::{parse::Parse, parse2, parse_macro_input, spanned::Spanned, Item, ItemFn, ItemMacro, ItemMod, Path, Token};
 
 use crate::util::{self, Attributes, Errors};
 
@@ -29,20 +29,26 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let vis = mod_.vis;
     let ident = mod_.ident;
 
-    let WidgetItems { inherits, properties, new_child_fn, new_fn, others } = WidgetItems::new(items, &mut errors);
+    let WidgetItems {
+        inherits,
+        properties,
+        new_child_fn,
+        new_fn,
+        others,
+    } = WidgetItems::new(items, &mut errors);
 
-    let inherits = inherits.into_iter().map(|i|i.path);
+    let inherits = inherits.into_iter().map(|i| i.path);
 
     let crate_core = util::crate_core();
 
     let r = quote! {
-        // __inherit! will include an `inherited { .. }` block with the widget data after the 
+        // __inherit! will include an `inherited { .. }` block with the widget data after the
         // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
         // a call to `widget_declare!` is made.
         #crate_core::widget_base::implicit_mixin::__inherit! {
             inherit { #(#inherits;)* }
-            
+
             new {
                 docs { #(#docs)* }
                 ident { #ident }
@@ -63,7 +69,7 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
                         #(#others)*
                     }
                 }
-            }            
+            }
         }
     };
 
@@ -108,7 +114,7 @@ impl WidgetItems {
             let mut known_macro = None;
             enum KnownFn {
                 New,
-                NewChild
+                NewChild,
             }
             let mut known_fn = None;
             match item {
@@ -138,14 +144,16 @@ impl WidgetItems {
                     }
                 }
                 // match fn new(..) or fn new_child(..).
-                Item::Fn(fn_) if {
-                    if fn_.sig.ident == "new" {
-                        known_fn = Some(KnownFn::New);
-                    } else if fn_.sig.ident == "new_child" {
-                        known_fn = Some(KnownFn::NewChild);
-                    }
-                    known_fn.is_some()
-                } => {
+                Item::Fn(fn_)
+                    if {
+                        if fn_.sig.ident == "new" {
+                            known_fn = Some(KnownFn::New);
+                        } else if fn_.sig.ident == "new_child" {
+                            known_fn = Some(KnownFn::NewChild);
+                        }
+                        known_fn.is_some()
+                    } =>
+                {
                     match known_fn {
                         Some(KnownFn::New) => {
                             new_fn = Some(fn_);
@@ -153,9 +161,9 @@ impl WidgetItems {
                         Some(KnownFn::NewChild) => {
                             new_child_fn = Some(fn_);
                         }
-                        None => unreachable!()
+                        None => unreachable!(),
                     }
-                },
+                }
                 // other user items.
                 item => others.push(item),
             }
@@ -176,9 +184,7 @@ struct Inherit {
 }
 impl Parse for Inherit {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        Ok(Inherit {
-            path: input.parse()?
-        })
+        Ok(Inherit { path: input.parse()? })
     }
 }
 
@@ -188,7 +194,7 @@ struct Properties {
 impl Properties {
     fn flatten(self) -> (Vec<ItemProperty>, Vec<ItemWhen>) {
         todo!()
-    } 
+    }
 }
 impl Parse for Properties {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -199,7 +205,7 @@ impl Parse for Properties {
 enum PropertyItem {
     Property(ItemProperty),
     When(ItemWhen),
-    Child(Vec<ItemProperty>)
+    Child(Vec<ItemProperty>),
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -207,12 +213,12 @@ impl Parse for PropertyItem {
     }
 }
 
-struct ItemProperty { 
+struct ItemProperty {
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
     pub type_: Option<(Token![:], PropertyType)>,
     pub value: Option<(Token![=], ItemPropertyValue)>,
-    pub semi: Option<Token![;]>
+    pub semi: Option<Token![;]>,
 }
 impl Parse for ItemProperty {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -222,7 +228,7 @@ impl Parse for ItemProperty {
 
 enum PropertyType {
     Unamed,
-    Named,   
+    Named,
 }
 
 enum ItemPropertyValue {
@@ -232,7 +238,7 @@ enum ItemPropertyValue {
     Required,
 }
 
-struct ItemWhen { }
+struct ItemWhen {}
 impl Parse for ItemWhen {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         todo!()
@@ -248,5 +254,4 @@ enum PriorityGroup {
 struct Property {
     pub priority: PriorityGroup,
     pub ident: Ident,
-
 }

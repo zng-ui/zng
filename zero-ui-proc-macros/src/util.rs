@@ -158,6 +158,16 @@ pub fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffe
     inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
 
+/// Like [`non_user_braced`] but reads an `ident` first.
+#[track_caller]
+pub fn non_user_braced_id<'i, 's>(input: syn::parse::ParseStream<'i>, ident: &'s str) -> syn::parse::ParseBuffer<'i> {
+    let id: Ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
+    if id != ident {
+        non_user_error!(format!("expected `{}`", ident));
+    }
+    non_user_braced(input)
+}
+
 /// Does a `parenthesized!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
 pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
     fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
