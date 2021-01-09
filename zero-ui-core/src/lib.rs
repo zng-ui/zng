@@ -49,7 +49,7 @@ pub use ui_list::*;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{widget_new, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{widget_declare, widget_inherit, widget_new, widget_stage2, widget_stage3};
 
 /// Gets if the value indicates that any size is available during layout (positive infinity)
 #[inline]
@@ -504,12 +504,12 @@ pub use zero_ui_proc_macros::widget;
 /// //     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
 /// //     /// highlight border.
 /// //     pub focusable_mixin;
-/////
+/// //
 /// //     default {
-/////
+/// //
 /// //         /// Enables keyboard focusing in the widget.
 /// //         focusable: true;
-/////
+/// //
 /// //         /// A border overlay that is visible when the widget is focused.
 /// //         focus_highlight -> foreground_highlight: {
 /// //             widths: SideOffsets::new_all(0.0),
@@ -517,7 +517,7 @@ pub use zero_ui_proc_macros::widget;
 /// //             details: FocusHighlightDetailsVar
 /// //         };
 /// //     }
-/////
+/// //
 /// //     when self.is_focused_hgl {
 /// //         focus_highlight: {
 /// //             widths: FocusHighlightWidthsVar,
@@ -541,3 +541,6 @@ pub use zero_ui_proc_macros::widget;
 /// In the generated module some public but doc-hidden items are generated, this items
 /// are used during widget instantiation.
 pub use zero_ui_proc_macros::widget_mixin;
+
+pub use zero_ui_proc_macros::widget2;
+pub use zero_ui_proc_macros::widget_mixin2;

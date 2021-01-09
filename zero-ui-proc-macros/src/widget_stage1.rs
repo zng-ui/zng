@@ -7,11 +7,11 @@ use syn::{parse::*, punctuated::Punctuated, *};
 ///
 /// ## In Stage 1:
 ///
-/// 1 - Parse header, `$(#[$attr:meta])* $vis:vis $name:ident $(: $($inherited:path)++)? ;`.
-/// 2 - Include `implicit_mixin` inheritance for widgets.
-/// 3 - Generate warnings for header.
-/// 4 - Generate a `mod` that uses the inherits to validate that they are imported modules.
-/// 5 - Generate call to the first widget to include its internals.
+/// 1. Parse header, `$(#[$attr:meta])* $vis:vis $name:ident $(: $($inherited:path)++)? ;`.
+/// 2. Include `implicit_mixin` inheritance for widgets.
+/// 3. Generate warnings for header.
+/// 4. Generate a `mod` that uses the inherits to validate that they are imported modules.
+/// 5. Generate call to the first widget to include its internals.
 ///     This widget call is the start of **Stage 2**.
 ///
 /// Because macros only expand from outermost first, we need to make the inherited

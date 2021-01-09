@@ -9,7 +9,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     for inherited in inherited {}
 
-    todo!()
+    todo!("`widget_declare` macro expansion\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
 }
 
 struct Items {
@@ -19,6 +19,9 @@ struct Items {
 impl Parse for Items {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut inherited = vec![];
+
+        assert!(util::non_user_braced_id(input, "inherit").is_empty());
+
         while !input.is_empty() {
             match input.parse::<DeclareItem>().unwrap_or_else(|e| non_user_error!(e)) {
                 DeclareItem::Inherited(i) => inherited.push(i),

@@ -4,7 +4,7 @@ use crate::context::{state_key, LayoutContext, LazyStateMap, WidgetContext};
 use crate::render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey};
 use crate::units::LayoutSize;
 use crate::var::{context_var, IntoVar, VarLocal, Vars};
-use crate::{impl_ui_node, property, widget_mixin, NilUiNode, UiNode, Widget, WidgetId};
+use crate::{impl_ui_node, property, widget_mixin, widget_mixin2, NilUiNode, UiNode, Widget, WidgetId};
 
 #[cfg(debug_assertions)]
 use crate::units::PixelGridExt;
@@ -29,6 +29,23 @@ widget_mixin! {
         /// Widget id. Set to  a [unique id](WidgetId::new_unique()) by default.
         id -> widget_id: WidgetId::new_unique();
 
+        /// If events are enabled in the widget and descendants, `true` by default.
+        enabled;
+    }
+}
+
+// TODO: Change name to implicit_mixin when the new widget_mixin is completed.
+/// Mix-in inherited implicitly by all [widgets](widget!).
+#[widget_mixin2]
+pub mod implicit_mixin2 {
+    use super::{enabled, widget_id, WidgetId};
+
+    properties! {
+        /// Widget id. Set to  a [unique id](WidgetId::new_unique()) by default.
+        widget_id as id = WidgetId::new_unique();
+    }
+
+    properties! {
         /// If events are enabled in the widget and descendants, `true` by default.
         enabled;
     }

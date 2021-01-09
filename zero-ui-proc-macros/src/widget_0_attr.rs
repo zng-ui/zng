@@ -6,7 +6,7 @@ use syn::{parse::Parse, parse2, parse_macro_input, spanned::Spanned, Item, ItemF
 
 use crate::util::{self, Attributes, Errors};
 
-pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
     if mod_.content.is_none() {
@@ -21,7 +21,11 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let mut errors = Errors::default();
 
     // a `$crate` path to the widget module.
-    let mod_path = parse_mod_path(args.into(), &mut errors);
+    let mod_path = if mixin {
+        TokenStream::new()
+    } else {
+        parse_mod_path(args.into(), &mut errors)
+    };
 
     let Attributes {
         docs, cfg, others: attrs, ..
@@ -32,21 +36,43 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
     let WidgetItems {
         inherits,
         properties,
-        new_child_fn,
-        new_fn,
+        mut new_child_fn,
+        mut new_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
 
-    let inherits = inherits.into_iter().map(|i| i.path);
+    if mixin {
+        if let Some(child_fn_) = new_child_fn.take() {
+            errors.push("widget mixins do not have a `new_child` function", child_fn_.span())
+        }
 
+        if let Some(fn_) = new_fn.take() {
+            errors.push("widget mixins do not have a `new` function", fn_.span())
+        }
+    }
+
+    let mut inherits = inherits.into_iter().map(|i| i.path);
     let crate_core = util::crate_core();
+
+    let stage_path = if mixin {
+        if let Some(first) = inherits.next() {
+            quote!(#first::__inherit!)
+        } else {
+            quote!(#crate_core::widget_declare!)
+        }
+    } else {
+        // TODO change this back to implicit_mixin after testing
+        quote!(#crate_core::widget_base::implicit_mixin2::__inherit!)
+    };
 
     let r = quote! {
         // __inherit! will include an `inherited { .. }` block with the widget data after the
         // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
         // a call to `widget_declare!` is made.
-        #crate_core::widget_base::implicit_mixin::__inherit! {
+        #stage_path {
+            mixin { #mixin }
+
             inherit { #(#inherits;)* }
 
             new {
@@ -78,17 +104,13 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
 
 fn parse_mod_path(args: TokenStream, errors: &mut Errors) -> TokenStream {
     let args_span = args.span();
-    let (mod_path, valid) = match syn::parse2::<Path>(args) {
-        Ok(path) => {
-            let valid = path.segments.len() > 1 && path.segments[0].ident == "$crate";
-            (path.to_token_stream(), valid)
+    match syn::parse2::<Path>(args) {
+        Ok(path) if path.segments.len() > 1 && path.segments[0].ident == "$crate" => path.to_token_stream(),
+        _ => {
+            errors.push("expected a macro_rules `$crate` path to this widget mod", args_span);
+            quote! { $crate::missing_widget_mod_path }
         }
-        Err(_) => (quote! { $crate::missing_widget_mod_path }, false),
-    };
-    if !valid {
-        errors.push("expected a macro_rules `$crate` path to this widget mod", args_span);
     }
-    mod_path
 }
 
 struct WidgetItems {
@@ -193,12 +215,12 @@ struct Properties {
 }
 impl Properties {
     fn flatten(self) -> (Vec<ItemProperty>, Vec<ItemWhen>) {
-        todo!()
+        todo!("flattening of multiple properties! \"macro calls\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
     }
 }
 impl Parse for Properties {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!()
+        todo!("parsing of the properties! \"macro call\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
     }
 }
 
@@ -209,7 +231,7 @@ enum PropertyItem {
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!()
+        todo!("parsing of properties! items\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
     }
 }
 
@@ -222,7 +244,7 @@ struct ItemProperty {
 }
 impl Parse for ItemProperty {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!()
+        todo!("parsing of widget properties\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
     }
 }
 
@@ -241,7 +263,7 @@ enum ItemPropertyValue {
 struct ItemWhen {}
 impl Parse for ItemWhen {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!()
+        todo!("parsing of whens\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
     }
 }
 

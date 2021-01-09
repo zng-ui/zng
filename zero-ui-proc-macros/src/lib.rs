@@ -79,3 +79,23 @@ pub fn derive_app_service(item: TokenStream) -> TokenStream {
 pub fn derive_window_service(item: TokenStream) -> TokenStream {
     derive_service::derive(item, ident!("WindowService"))
 }
+
+#[proc_macro_attribute]
+pub fn widget2(args: TokenStream, input: TokenStream) -> TokenStream {
+    widget_0_attr::expand(false, args, input)
+}
+
+#[proc_macro_attribute]
+pub fn widget_mixin2(args: TokenStream, input: TokenStream) -> TokenStream {
+    widget_0_attr::expand(true, args, input)
+}
+
+#[proc_macro]
+pub fn widget_inherit(input: TokenStream) -> TokenStream {
+    widget_1_inherit::expand(input)
+}
+
+#[proc_macro]
+pub fn widget_declare(input: TokenStream) -> TokenStream {
+    widget_2_declare::expand(input)
+}
