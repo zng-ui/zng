@@ -283,7 +283,7 @@ pub struct When {
 }
 impl When {
     /// Call only if peeked `when`.
-    fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
+    pub fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
         let mut any_error = false;
         let mut push_error = |e| {
             errors.push_syn(e);

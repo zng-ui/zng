@@ -1,8 +1,17 @@
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::{parse::Parse, parse2, parse_macro_input, spanned::Spanned, Item, ItemFn, ItemMacro, ItemMod, Path, Token};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse2, parse_macro_input,
+    spanned::Spanned,
+    Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token,
+};
+use util::non_user_braced_id;
 
-use crate::util::{self, Attributes, Errors};
+use crate::{
+    util::{self, Attributes, Errors},
+    widget_new2::{PropertyValue, When},
+};
 
 pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // the widget mod declaration.
@@ -152,10 +161,7 @@ impl WidgetItems {
                     } =>
                 {
                     match known_macro {
-                        Some(KnownMacro::Properties) => match parse2::<Properties>(mac.tokens) {
-                            Ok(ps) => properties.push(ps),
-                            Err(e) => errors.push_syn(e),
-                        },
+                        Some(KnownMacro::Properties) => properties.push(Properties::parse(&mac.tokens, &mut errors)),
                         Some(KnownMacro::Inherit) => match parse2::<Inherit>(mac.tokens) {
                             Ok(ps) => inherits.push(ps),
                             Err(e) => errors.push_syn(e),
@@ -203,45 +209,59 @@ struct Inherit {
     path: Path,
 }
 impl Parse for Inherit {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Inherit { path: input.parse()? })
     }
 }
 
 struct Properties {
-    items: Vec<PropertyItem>,
+    child_properties: Vec<ItemProperty>,
+    properties: Vec<ItemProperty>,
+    whens: Vec<When>,
 }
 impl Properties {
-    fn flatten(self) -> (Vec<ItemProperty>, Vec<ItemWhen>) {
+    fn flatten(self) -> (Vec<ItemProperty>, Vec<When>) {
         todo!(
             "flattening of multiple properties! \"macro calls\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
             file!(),
             line!()
         )
     }
-}
-impl Parse for Properties {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!(
-            "parsing of the properties! \"macro call\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
-            file!(),
-            line!()
-        )
-    }
-}
 
-enum PropertyItem {
-    Property(ItemProperty),
-    When(ItemWhen),
-    Child(Vec<ItemProperty>),
-}
-impl Parse for PropertyItem {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!(
-            "parsing of properties! items\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
-            file!(),
-            line!()
-        )
+    fn parse(input: ParseStream, errors: &mut Errors) -> Self {
+        let mut child_properties = vec![];
+        let mut properties = vec![];
+        let mut whens = vec![];
+        while !input.is_empty() {
+            if input.peek(keyword::when) {
+                if let Some(when) = When::parse(input, &mut errors) {
+                    whens.push(when);
+                }
+            } else if input.peek(keyword::child) && input.peek2(syn::token::Brace) {
+                let input = non_user_braced_id(input, "child");
+                while !input.is_empty() {
+                    match input.parse() {
+                        Ok(p) => child_properties.push(p),
+                        Err(e) => errors.push_syn(e),
+                    }
+                }
+            } else if input.peek(Ident) {
+                // peek ident or path.
+                match input.parse() {
+                    Ok(p) => properties.push(p),
+                    Err(e) => errors.push_syn(e),
+                }
+            } else {
+                errors.push("expected `when`, `child` or a property declaration", input.span());
+                break;
+            }
+        }
+
+        Properties {
+            child_properties,
+            properties,
+            whens,
+        }
     }
 }
 
@@ -249,11 +269,11 @@ struct ItemProperty {
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
     pub type_: Option<(Token![:], PropertyType)>,
-    pub value: Option<(Token![=], ItemPropertyValue)>,
+    pub value: Option<(Token![=], PropertyValue)>,
     pub semi: Option<Token![;]>,
 }
 impl Parse for ItemProperty {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         todo!(
             "parsing of widget properties\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
             file!(),
@@ -267,24 +287,6 @@ enum PropertyType {
     Named,
 }
 
-enum ItemPropertyValue {
-    Unamed,
-    Named,
-    Unset,
-    Required,
-}
-
-struct ItemWhen {}
-impl Parse for ItemWhen {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!(
-            "parsing of whens\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
-            file!(),
-            line!()
-        )
-    }
-}
-
 /// Property priority group in a widget.
 enum PriorityGroup {
     Normal,
@@ -294,4 +296,9 @@ enum PriorityGroup {
 struct Property {
     pub priority: PriorityGroup,
     pub ident: Ident,
+}
+
+mod keyword {
+    pub use crate::widget_new2::keyword::when;
+    syn::custom_keyword!(child);
 }

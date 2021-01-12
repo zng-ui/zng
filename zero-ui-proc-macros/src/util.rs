@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, marker::PhantomData, path::PathBuf};
 
 use parse::{Parse, ParseStream};
 use proc_macro2::*;
@@ -54,7 +54,6 @@ pub fn crate_core() -> TokenStream {
         ident.to_token_stream()
     }
 }
-
 fn in_crate_core() -> std::result::Result<bool, ()> {
     use std::io::Read;
 
@@ -196,7 +195,6 @@ impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
 pub struct Errors {
     tokens: TokenStream,
 }
-
 impl Errors {
     pub fn push(&mut self, error: impl ToString, span: Span) {
         let error = error.to_string();
@@ -220,7 +218,6 @@ impl Errors {
     }
     */
 }
-
 impl ToTokens for Errors {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(self.tokens.clone().into_iter())
@@ -240,7 +237,6 @@ pub struct Attributes {
     pub cfg: Option<Attribute>,
     pub others: Vec<Attribute>,
 }
-
 impl Attributes {
     pub fn new(attrs: Vec<Attribute>) -> Self {
         let mut docs = vec![];
