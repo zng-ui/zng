@@ -22,6 +22,8 @@ mod widget_0_attr;
 mod widget_1_inherit;
 mod widget_2_declare;
 
+mod widget_new2;
+
 pub(crate) mod widget_new;
 mod widget_stage1;
 mod widget_stage2;
@@ -98,4 +100,9 @@ pub fn widget_inherit(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn widget_declare(input: TokenStream) -> TokenStream {
     widget_2_declare::expand(input)
+}
+
+#[proc_macro]
+pub fn widget_new2(input: TokenStream) -> TokenStream {
+    widget_new2::expand(input)
 }

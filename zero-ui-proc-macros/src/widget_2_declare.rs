@@ -1,5 +1,3 @@
-#![allow(unused)] // TODO remove after expand is called in lib.rs.
-
 use syn::parse::Parse;
 
 use crate::util;
@@ -9,7 +7,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     for inherited in inherited {}
 
-    todo!("`widget_declare` macro expansion\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+    todo!(
+        "`widget_declare` macro expansion\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+        file!(),
+        line!()
+    )
 }
 
 struct Items {

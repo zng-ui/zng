@@ -1,5 +1,3 @@
-#![allow(unused)] // TODO remove after expand is called in lib.rs.
-
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use syn::{parse::Parse, parse2, parse_macro_input, spanned::Spanned, Item, ItemFn, ItemMacro, ItemMod, Path, Token};
@@ -215,12 +213,20 @@ struct Properties {
 }
 impl Properties {
     fn flatten(self) -> (Vec<ItemProperty>, Vec<ItemWhen>) {
-        todo!("flattening of multiple properties! \"macro calls\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+        todo!(
+            "flattening of multiple properties! \"macro calls\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+            file!(),
+            line!()
+        )
     }
 }
 impl Parse for Properties {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!("parsing of the properties! \"macro call\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+        todo!(
+            "parsing of the properties! \"macro call\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+            file!(),
+            line!()
+        )
     }
 }
 
@@ -231,7 +237,11 @@ enum PropertyItem {
 }
 impl Parse for PropertyItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!("parsing of properties! items\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+        todo!(
+            "parsing of properties! items\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+            file!(),
+            line!()
+        )
     }
 }
 
@@ -244,7 +254,11 @@ struct ItemProperty {
 }
 impl Parse for ItemProperty {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!("parsing of widget properties\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+        todo!(
+            "parsing of widget properties\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+            file!(),
+            line!()
+        )
     }
 }
 
@@ -263,7 +277,11 @@ enum ItemPropertyValue {
 struct ItemWhen {}
 impl Parse for ItemWhen {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!("parsing of whens\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)", file!(), line!())
+        todo!(
+            "parsing of whens\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
+            file!(),
+            line!()
+        )
     }
 }
 
