@@ -1,3 +1,5 @@
+use std::mem;
+
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
@@ -161,7 +163,13 @@ impl WidgetItems {
                     } =>
                 {
                     match known_macro {
-                        Some(KnownMacro::Properties) => properties.push(Properties::parse(&mac.tokens, &mut errors)),
+                        Some(KnownMacro::Properties) => match syn::parse2::<Properties>(mac.tokens) {
+                            Ok(mut p) => {
+                                errors.extend(mem::take(&mut p.errors));
+                                properties.push(p)
+                            }
+                            Err(e) => errors.push_syn(e),
+                        },
                         Some(KnownMacro::Inherit) => match parse2::<Inherit>(mac.tokens) {
                             Ok(ps) => inherits.push(ps),
                             Err(e) => errors.push_syn(e),
@@ -215,6 +223,7 @@ impl Parse for Inherit {
 }
 
 struct Properties {
+    errors: Errors,
     child_properties: Vec<ItemProperty>,
     properties: Vec<ItemProperty>,
     whens: Vec<When>,
@@ -227,8 +236,10 @@ impl Properties {
             line!()
         )
     }
-
-    fn parse(input: ParseStream, errors: &mut Errors) -> Self {
+}
+impl Parse for Properties {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut errors = Errors::default();
         let mut child_properties = vec![];
         let mut properties = vec![];
         let mut whens = vec![];
@@ -257,11 +268,12 @@ impl Properties {
             }
         }
 
-        Properties {
+        Ok(Properties {
+            errors,
             child_properties,
             properties,
             whens,
-        }
+        })
     }
 }
 

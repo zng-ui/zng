@@ -1,4 +1,4 @@
-use std::{env, marker::PhantomData, path::PathBuf};
+use std::{env, path::PathBuf};
 
 use parse::{Parse, ParseStream};
 use proc_macro2::*;
@@ -208,15 +208,13 @@ impl Errors {
         self.push(error, span)
     }
 
-    /*
     pub fn extend(&mut self, errors: Errors) {
         self.tokens.extend(errors.tokens)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
-    }
-    */
+    // pub fn is_empty(&self) -> bool {
+    //     self.tokens.is_empty()
+    // }
 }
 impl ToTokens for Errors {
     fn to_tokens(&self, tokens: &mut TokenStream) {
