@@ -130,6 +130,7 @@ pub mod widget_expanded {
         use crate::properties::*;
         
         pub const BACKGROUND: Rgba = colors::GRAY;
+        pub const BACKGROUND_FOCUSED: Rgba = colors::LIGHT_GRAY;
 
         // and so do the custom new functions.
 
@@ -284,7 +285,7 @@ pub mod widget_expanded {
 
         // reexports with local paths too.
         #[doc(inline)]
-        pub use blink as __p_blink;
+        pub use background_color as __p_background_color;
 
         // declares custom properties with the same name format.
         #[doc(hidden)]
@@ -306,6 +307,11 @@ pub mod widget_expanded {
             }}
         }
 
+        #[doc(hidden)]
+        pub fn __d_background_color() -> impl self::__p_background_color::Args {
+            self::__p_background_color::ArgsImpl::new(BACKGROUND)
+        }
+
         // when condition expressions become functions with the `__w#i_#expr_as_str` format.
         // we also do the allowed_in_when asserts.
 
@@ -314,6 +320,11 @@ pub mod widget_expanded {
         pub fn __w0_is_focused(__self_is_focused: impl self::__p_is_focused::Args) -> impl zero_ui::core::var::Var<bool> {
             // # the expression converted to var return, map or merge.
             __self_is_focused.unwrap()
+        }
+
+        #[doc(hidden)]
+        pub fn __w0_d_background_color() -> impl self::__p_background_color::Args {
+            self::__p_background_color::ArgsImpl::new(BACKGROUND_FOCUSED)
         }
 
         // new functions are wrapped in a call that unwraps the args and validates the types.
@@ -368,25 +379,25 @@ pub fn widget_user_instantiation() -> impl Widget {
 
 pub fn widget_instantiation_expanded() -> impl Widget {
     {
-        let id = path::button::__defaults::id();
-        let padding = path::button::__defaults::padding();
-        let custom = path::button::__defaults::custom();
-        let content = path::button::__properties::content::NamedArgs::new(text("click me!"));
-        let text_color = {
-            let s0 = text_color::NamedArgs::new(colors::LIGHT_BLUE);
-            let s1 = text_color::NamedArgs::new(colors::GRAY);// OR path::button::__whens::w0::text_color();
-            let w0 = when_expr_var!(same as before);
-            let idx = w0.map(|b| if b { 0 } else { 1 });
+        let __id = path::button::__d_id();
+        let __padding = path::button::__d_padding();
+        let __custom = path::button::__d_custom();
+        let __content = path::button::__p_content::ArgsImpl::new(text("click me!"));
+        let __text_color = {
+            let __s0 = text_color::ArgsImpl::new(colors::LIGHT_BLUE);
+            let __s1 = text_color::ArgsImpl::new(colors::GRAY);// OR path::button::__w0_d_text_color();
+            let __w0 = when_expr_var!(same as before);
+            let __idx = __w0.map(|b| if b { 0 } else { 1 });
             // (switch $property_path:path, $idx:ident, $($arg_n:ident),+) => {
-            text_color::code_gen!(switch text_color, idx, s0, s1) 
+            text_color::code_gen!(switch text_color, __idx, __s0, __s1) 
         };     
-        let on_click = path::button::__properties::on_click::NamedArgs::new(|ctx, args| println!("button clicked!"));
+        let __on_click = path::button::__p_on_click::ArgsImpl::new(|ctx, args| println!("button clicked!"));
         
-        let node = path::button::new_child(content, custom);
-        let node = padding.set(node);
+        let node__ = path::button::__new_child(__content, __custom);
+        let node__ = __padding.set(node__);
 
-        let node = text_color.set(node);
-        let node = on_click.set(node);
-        path::button::new(node, id, custom_multi)
+        let node__ = text_color.set(node__);
+        let node__ = on_click.set(node__);
+        path::button::new(node__, __id, __custom_multi)
     }
 }
