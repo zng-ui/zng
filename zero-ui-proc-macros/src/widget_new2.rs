@@ -11,7 +11,7 @@ use syn::{
 use crate::util::{non_user_braced, non_user_braced_id, non_user_parenthesized, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = match syn::parse::<Input>(input) {
+    let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
         Ok(i) => i,
         Err(e) => non_user_error!(e),
     };
@@ -20,14 +20,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 struct Input {
-    mod_path: Path,
     widget_data: WidgetData,
     user_input: UserInput,
 }
 impl Parse for Input {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Input {
-            mod_path: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             widget_data: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             // user errors go into UserInput::errors field.
             user_input: input.parse().unwrap_or_else(|e| non_user_error!(e)),
@@ -36,6 +34,7 @@ impl Parse for Input {
 }
 
 struct WidgetData {
+    mod_path: Path,
     child_properties: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
@@ -45,6 +44,9 @@ struct WidgetData {
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let input = non_user_braced_id(input, "widget");
+
+        let mod_path_tks = non_user_braced_id(&input, "module");
+        let mod_path = mod_path_tks.parse().unwrap_or_else(|e| non_user_error!(e));
 
         let mut child_properties = vec![];
         let child_props = non_user_braced_id(&input, "properties_child");
@@ -79,6 +81,7 @@ impl Parse for WidgetData {
         }
 
         Ok(WidgetData {
+            mod_path,
             child_properties,
             properties,
             whens,
@@ -124,16 +127,17 @@ struct BuiltWhen {
 impl Parse for BuiltWhen {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced(input);
 
         let mut expr_properties = vec![];
-        let expr = non_user_parenthesized(input);
+        let expr = non_user_braced_id(&input, "inputs");
         while !expr.is_empty() {
             expr_properties.push(expr.parse().unwrap_or_else(|e| non_user_error!(e)));
             expr.parse::<Token![,]>().ok();
         }
 
         let mut set_properties = vec![];
-        let set = non_user_braced(input);
+        let set = non_user_braced_id(&input, "assigns");
         while !set.is_empty() {
             set_properties.push(set.parse().unwrap_or_else(|e| non_user_error!(e)));
             set.parse::<Token![,]>().ok();
@@ -154,13 +158,15 @@ struct UserInput {
 }
 impl Parse for UserInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let input = non_user_braced_id(input, "user");
+
         let mut errors = Errors::default();
         let mut properties = vec![];
         let mut whens = vec![];
 
         while !input.is_empty() {
             if input.peek(keyword::when) {
-                if let Some(when) = When::parse(input, &mut errors) {
+                if let Some(when) = When::parse(&input, &mut errors) {
                     whens.push(when);
                 }
             } else if input.peek(Ident) {
@@ -221,9 +227,16 @@ pub enum PropertyValue {
     Named(syn::token::Brace, Punctuated<FieldValue, Token![,]>),
 }
 impl PropertyValue {
-    pub fn is_unset(&self) -> bool {
+    pub fn is_special_eq(&self, keyword: &str) -> bool {
         match self {
-            PropertyValue::Special(sp, _) => sp == "unset",
+            PropertyValue::Special(sp, _) => sp == keyword,
+            _ => false,
+        }
+    }
+
+    pub fn is_special_not_eq(&self, keyword: &str) -> bool {
+        match self {
+            PropertyValue::Special(sp, _) => sp != keyword,
             _ => false,
         }
     }

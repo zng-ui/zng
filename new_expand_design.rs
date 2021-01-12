@@ -86,11 +86,13 @@ pub mod widget_user_declaration {
         // will be applied to the return node, then normal properties, then that goes to
         // the `new` function that build the widget outer wrap.
         //
-        // This function must return `impl UiNode`, you don't need to import `UiNode`.
+        // This function must return `impl UiNode`.
         //
         // This function is not required, if missing, the new_child of the last inherited widget is used.
         // If not widget is inherited the `zero_ui::core::widget_base::default_new_child` is used.
-        pub fn new_child(content: impl Widget, custom: impl IntoVar<bool>) -> impl UiNode {
+        //
+        // The function does not need to be public, you can decide if it will show in the docs or not.
+        fn new_child(content: impl Widget, custom: impl IntoVar<bool>) -> impl UiNode {
             SomeUiNode {
                 custom,
                 custom_multi
@@ -119,92 +121,6 @@ pub mod widget_user_declaration {
 }
 
 pub mod widget_expanded {
-    #[macro_export]
-    macro_rules! button_df18a4960c9c4924b503e192adb095ca {
-        // widget inherit! branch.
-        (=> inherit { $widget_path:path; $($inherit_next:tt)* } $($already_inherited:tt)*) => {
-            $crate::zero_ui_macros::widget_stage2! {
-                => { $($inherit_next:tt)* }
-
-                // tokens already inherited by the widget deriving from button!.
-                // implicit_mixin! at least is already in here.
-                $($already_inherited:tt)*
-                
-                // append our own tokens.
-                button {
-                    // full path to module.
-                    module: $widget_path; 
-                    // we are not mixin, if this is true the `new_child` and `new` functions are not included
-                    // the rest is the same,
-                    mixin: false;
-                    
-                    properties_child {
-                        /// padding docs.
-                        padding = default,
-                        // + all child properties in order of appearance.
-                    }
-                    properties {
-                        /// background_color docs.
-                        background_color = default,
-                        content = required,
-                        on_click,
-                        is_focused, // when state properties are reexported.
-                        // + all normal properties in order of appearance.
-                    }
-                    whens {
-                        /// when docs.
-                        (is_focused) { background_color }
-                    }
-
-                    // captured properties for each new function.
-                    new_child(content, custom),
-                    new(id, custom_multi)
-                }
-            }
-        };
-        // widget new branch. widget_mixins don't have this branch.
-        ($($tt:tt)*) => {
-            /// every crate that exports widgets must call something in their lib.rs to generate zero_ui_macros.
-            $crate::zero_ui_macros::widget_new! {
-                widget_tt {
-                    /// path to the module path in the declaration.
-                    $crate::path::to::button;
-
-                    properties_child {
-                        // no docs here.
-                        padding = default,
-                        // + all child properties in order of appearance.
-                    }
-                    properties {
-                        // no docs here.
-                        background_color = default,
-                        content = required,
-                        on_click,
-                        is_focused, // when state properties are reexported.
-                        // + all normal properties in order of appearance.
-                    }
-
-                    whens {
-                        // no docs here.
-                        // first when, (<comma separated list of properties used in the expression>)
-                        (is_focused) {
-                            // comma separated list of properties affected by the when.
-                            background_color,
-                        }
-                        // + all other when clauses in order of appearance.
-                    }
-                    // captured properties for each new function.
-                    new_child(content, custom),
-                    new(id, custom_multi)
-                }
-                new_tt {
-                    $($tt)*
-                }
-            }
-        };
-    }
-    pub use crate::button_df18a4960c9c4924b503e192adb095ca as button;
-
     /// widget attributes.
     /// custom widget sections docs.
     pub mod button {
@@ -215,90 +131,16 @@ pub mod widget_expanded {
         
         pub const BACKGROUND: Rgba = colors::GRAY;
 
-        // reexport each property as their name in widget.
-        #[doc(hidden)]
-        pub mod __properties {
-            use super::*;
+        // and so do the custom new functions.
 
-            pub use crate::layout::margin::export as padding;
-            pub use background_color::export as background_color;
-
-            // inherited, the path comes from the inherit! clause.
-            pub use crate::widget_base::implicit_mixin::__properties::id;
-
-            pub use on_click::export as on_click;
-
-            pub use is_focused::export as is_focused;// when state properties are also reexported.
-
-            // custom capture properties are declared here.
-
-            #[zero_ui_path::property(capture_only)]
-            pub fn custom(arg0: impl IntoVar<bool>) -> !;
-        }
-
-        // default values for properties.
-        #[doc(hidden)]
-        pub mod __defaults {
-            use super::*;
-
-            #[inline]
-            pub fn background_color() -> impl __properties::background_color::Args {
-                __properties::background_color::NamedArgs::new(BACKGROUND)
-
-                // OR
-
-                //__properties::background_color::code_gen! {
-                //    named_new __properties::background_color { 
-                //        field0: "default0",
-                //        field1: "default1",
-                //     }
-                //}
-            }
-
-            #[inline]
-            pub fn id() -> impl __properties::id::Args {
-                // default inherited.
-                crate::widget_base::implicit_mixin::__defaults::id()
-            }
-        }
-
-        #[doc(hidden)]
-        pub mod __whens {
-            use super::*;
-
-            pub fn w0(is_focused: &impl __properties::is_focused::Args) -> impl zero_ui::var::Var<bool> {
-                todo!("same transform as current widget!")
-            }
-
-            // first when block assign values.
-            pub mod w0 {
-                use super::*;
-
-                pub fn background_color() -> impl __properties::background_color::Args {
-                    __properties::background_color::NamedArgs::new(BACKGROUND_FOCUSED)
-                }
-            }
-
-            #[cfg(debug_assertions)]
-            pub fn w0_info(condition_var:
-                                   zero_ui_core::var::BoxedVar<bool>,
-                               instance_location:
-                                   zero_ui_core::debug::SourceLocation) -> zero_ui_core::debug::WhenInfoV1 
-            {
-                todo!("same as before")
-            }
-        }
-
-        #[doc(hidden)]
-        pub fn new_child(content: impl Widget, custom: impl IntoVar<bool>) -> impl zero_ui_path::UiNode {
+        fn new_child(content: impl Widget, custom: impl IntoVar<bool>) -> impl UiNode {
             SomeUiNode {
                 custom,
                 custom_multi
             }
         }
 
-        #[doc(hidden)]
-        pub fn new(child: impl zero_ui_path::UiNode, id: WidgetId, custom_multi: (impl IntoVar<bool>, impl IntoVar<u8>)) -> Buttom {
+        pub fn new(child: impl UiNode, id: WidgetId, custom_multi: (impl IntoVar<bool>, impl IntoVar<u8>)) -> Buttom {
             Button {
                 child,
                 id,
@@ -306,11 +148,203 @@ pub mod widget_expanded {
             }
         }
 
-        // doc inline so we have the default help for properties that are not documented in the widget.
-        // a script should remove this before it is visible.
+        // macros uses in macro_rules are reexported here.
+        #[doc(hidden)]
+        pub use zero_ui::widget_inherit as __widget_inherit;    
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! button_inherit_df18a4960c9c4924b503e192adb095ca {
+            ( 
+                mixin { $mixin:tt } 
+                inherit { $($inherit:path;)* }
+                $($rest:tt)+
+            ) => {
+                $crate::widgets::button::__widget_inherit! {
+                    // if the widget that is inheriting this is a mixin.
+                    mixin { $mixin }
+                    // other inherited widgets to be processed after this.
+                    inherit { $($inherit;)* }
+                    // inherit data from this widget.
+                    inherited { 
+                        module { $crate::widgets::button }
+                        mixin { false }
+                        properties_child {
+                            /// padding docs.
+                            padding {
+                                default true, // has default value
+                                required false // not required, can `unset!`.
+                            }
+    
+                            // .. + all child properties
+                        }
+                        properties {
+                            /// background_color docs.
+                            background_color {
+                                default true
+                                required false
+                            }
+                            content {
+                                default false
+                                required true // content is required, cannot `unset!`.
+                            }
+                            on_click {
+                                default false
+                                required false
+                            }
+                            is_focused { // when state properties are reexported.
+                                // they don't have a default value defined in the widget
+                                // but will be initialized automatically for the when expression.
+                                default false 
+                                // they are also not required, can they be `unset!`?
+                                required false
+                            }
+    
+                            // .. + all normal properties
+                        }
+                        whens {
+                            /// w0_is_focused docs.
+                            __w0_is_focused { // auto generated name tries to convert to expression to text.
+                                // properties used in the when expression.
+                                inputs { is_focused }
+                                // properties set by the when block.
+                                assigns { background_color }
+                            }
+                        }
+    
+                        // captured properties for each new function.
+                        // these two entries are not present when `mixin { true }`
+                        new_child { content custom }
+                        new { id custom_multi }
+                    }
+                    $($rest)*
+                }
+            };
+        }
+        #[doc(hidden)]
+        pub use crate::button_inherit_df18a4960c9c4924b503e192adb095ca as __inherit;
+
+        // widget::__new!(..) is only generated if the widget is not a mixin.
+        #[doc(hidden)]
+        pub use zero_ui::widget_new as __widget_new;    
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! button_new_df18a4960c9c4924b503e192adb095ca {
+            ($($tt:tt)*) => {
+                $crate::widgets::button::__widget_new!  {
+                    widget {
+                        module { $crate::widgets::button }
+                        
+                        // no mixin section.
+
+                        properties_child {
+                            // no property docs in new
+                            padding {
+                                default true,
+                                required false 
+                            }
+                        }
+                        properties {
+                            // same as inherit but without the docs.
+                        }
+    
+                        whens {
+                            // no docs here.
+                            __w0_is_focused { // auto generated name tries to convert to expression to text.
+                                // properties used in the when expression.
+                                inputs { is_focused }
+                                // properties set by the when block.
+                                assigns { background_color }
+                            }
+                        }
+                        // captured properties for each new function.
+                        // these two entries are required in new.
+                        new_child { content custom }
+                        new { id custom_multi }
+                    }
+                    user {
+                        // user tokens.
+                        $($tt)*
+                    }
+                }
+            };
+        }
+        #[doc(hidden)]
+        pub use crate::button_new_df18a4960c9c4924b503e192adb095ca as __new_macro;
+
+        // properties are reexported using the `__p_#ident` format.  
+        // #[doc(inline)] so we have the default docs for properties without docs, the docs are hidden
+        // before they actually show in screen, properties with defined docs are doc(hidden) from the start.      
+
+        #[doc(inline)] 
+        pub use crate::layout::margin as __p_padding;
+
+        // reexports inherited properties.
         #[doc(inline)]
-        pub use __properties::is_focused as __doc_is_focused;
+        pub use zero_ui::core::widget_base::implicit_mixin::__p_enabled;
+
+        // reexports with local paths too.
+        #[doc(inline)]
+        pub use blink as __p_blink;
+
+        // declares custom properties with the same name format.
+        #[doc(hidden)]
+        #[zero_ui::core::property(capture_only)]
+        pub fn __p_custom(custom: impl IntoVar<bool>) -> !;
+
+        // default values are functions with the `__d_#ident` format.
+
+        #[doc(hidden)]
+        pub fn __d_padding() -> impl self::__p_padding::Args {
+            self::__p_padding::ArgsImpl::new(10)
+        }
+
+        #[doc(hidden)]
+        pub fn __d_multi() -> impl self::__p_multi::Args {
+            self::__p_multi::code_gen! {named_new self::__p_multi {
+                field0: false,
+                field1: 200,
+            }}
+        }
+
+        // when condition expressions become functions with the `__w#i_#expr_as_str` format.
+        // we also do the allowed_in_when asserts.
+
+        self::__p_is_focused::code_gen!{assert allowed_in_when=> "property `is_focused` is not allowed in when condition"}
+        #[doc(hidden)]
+        pub fn __w0_is_focused(__self_is_focused: impl self::__p_is_focused::Args) -> impl zero_ui::core::var::Var<bool> {
+            // # the expression converted to var return, map or merge.
+            __self_is_focused.unwrap()
+        }
+
+        // new functions are wrapped in a call that unwraps the args and validates the types.
+
+        // can also be a reexport of an inherited __new_child.
+        #[doc(hidden)]
+        pub fn __new_child(
+            content: impl self::__p_content::Args, 
+            custom: impl self::__p_custom::Args
+        ) -> impl zero_ui::core::UiNode {
+            // type validation is done by rustc here.
+            self::new_child(
+                self::__p_content::Args::unwrap(content),
+                self::__p_custom::Args::unwrap(custom)
+            )
+        }
+
+        #[doc(hidden)]
+        pub fn __new(child: impl zero_ui::core::UiNode, 
+            id: impl self::__p_id::Args, 
+            custom_multi: impl self::__p_custom_multi::Args)
+         -> Buttom {// the return type is copied from the function `new`.
+            self::new(child, 
+                self::__p_id::Args::unwrap(id),
+                self::__p_custom_multi::Args::unwrap(custom_multi)
+            )
+        }
     }
+    // if widget is not a mixin.
+    #[doc(hidden)]
+    pub use button::__new_macro as button;
 }
 
 /*
