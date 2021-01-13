@@ -28,10 +28,7 @@ impl Parse for Items {
                 DeclareItem::Inherited(i) => inherited.push(i),
                 DeclareItem::Widget(widget) => {
                     assert!(input.is_empty());
-                    return Ok(Items {
-                        inherited,
-                        widget,
-                    });
+                    return Ok(Items { inherited, widget });
                 }
             }
         }

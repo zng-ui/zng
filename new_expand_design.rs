@@ -384,12 +384,12 @@ pub fn widget_instantiation_expanded() -> impl Widget {
         let __custom = path::button::__d_custom();
         let __content = path::button::__p_content::ArgsImpl::new(text("click me!"));
         let __text_color = {
-            let __s0 = text_color::ArgsImpl::new(colors::LIGHT_BLUE);
-            let __s1 = text_color::ArgsImpl::new(colors::GRAY);// OR path::button::__w0_d_text_color();
-            let __w0 = when_expr_var!(same as before);
-            let __idx = __w0.map(|b| if b { 0 } else { 1 });
+            let s0__ = text_color::ArgsImpl::new(colors::LIGHT_BLUE);
+            let s1__ = text_color::ArgsImpl::new(colors::GRAY);// OR path::button::__w0_d_text_color();
+            let w0__ = when_expr_var!(same as before);
+            let idx__ = w0__.map(|b| if b { 0 } else { 1 });
             // (switch $property_path:path, $idx:ident, $($arg_n:ident),+) => {
-            text_color::code_gen!(switch text_color, __idx, __s0, __s1) 
+            text_color::code_gen!(switch text_color, idx__, s0__, s1__) 
         };     
         let __on_click = path::button::__p_on_click::ArgsImpl::new(|ctx, args| println!("button clicked!"));
         

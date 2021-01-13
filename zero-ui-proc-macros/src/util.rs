@@ -374,3 +374,8 @@ impl syn::visit_mut::VisitMut for PatchSuperPath {
         self.mod_depth -= 1;
     }
 }
+
+/// Convert a [`Path`] to a formatted [`String`].
+pub fn display_path(path: &Path) -> String {
+    path.to_token_stream().to_string().replace(" ", "")
+}

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
@@ -5,10 +7,11 @@ use syn::{
     parse::{discouraged::Speculative, Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
+    spanned::Spanned,
     Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{non_user_braced, non_user_braced_id, non_user_parenthesized, Errors};
+use crate::util::{display_path, non_user_braced, non_user_braced_id, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -16,7 +19,150 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Err(e) => non_user_error!(e),
     };
 
-    todo!()
+    let widget_mod = widget_data.mod_path;
+
+    let mut errors = Errors::default();
+
+    let mut child_ps_init = inherited_inits(&widget_mod, widget_data.child_properties);
+    let mut wgt_ps_init = inherited_inits(&widget_mod, widget_data.properties);
+    let mut user_ps_init = vec![];
+    let mut user_assigns = HashSet::new();
+
+    for p in user_input.properties {
+        if !user_assigns.insert(p.path.clone()) {
+            errors.push(&format!("property `{}` already assigned", display_path(&p.path)), p.path.span());
+            continue;
+        }
+
+        // does `unset!`
+        if let PropertyValue::Special(sp, _) = p.value {
+            if sp == "unset" {
+                if let Some(p_ident) = p.path.get_ident() {
+                    let mut required = false;
+                    if let Some(i) = child_ps_init.iter().position(|(id, _, _)| id == p_ident) {
+                        required = child_ps_init[i].2;
+                        if !required {
+                            child_ps_init.remove(i);
+                            user_assigns.remove(&p.path); // so the user can set a custom property with the same name after?
+                            continue; // done
+                        }
+                    }
+                    if let Some(i) = wgt_ps_init.iter().position(|(id, _, _)| id == p_ident) {
+                        required = child_ps_init[i].2;
+                        if !required {
+                            wgt_ps_init.remove(i);
+                            user_assigns.remove(&p.path);
+                            continue; // done
+                        }
+                    }
+
+                    if required {
+                        errors.push(
+                            &format!("cannot unset property `{}` because it is required", p_ident),
+                            p_ident.span(),
+                        );
+                        continue; // skip invalid
+                    }
+                }
+                // else property not previously set:
+                errors.push(
+                    &format!("cannot unset property `{}` because it is not set", display_path(&p.path)),
+                    p.path.span(),
+                );
+                continue; // skip invalid
+            } else {
+                errors.push(&format!("value `{}` is not valid in this context", sp), sp.span());
+                continue; // skip invalid
+            }
+        }
+
+        if let Some(ident) = p.path.get_ident() {
+            let target = child_ps_init
+                .iter_mut()
+                .find(|(id, _, _)| id == ident)
+                .or_else(|| wgt_ps_init.iter_mut().find(|(id, _, _)| id == ident));
+            if let Some((_, existing, _)) = target {
+                let var_ident = ident!("__{}", ident);
+                let p_ident = ident!("__p_{}", ident);
+
+                // replace default value.
+                *existing = match p.value {
+                    PropertyValue::Unnamed(args) => quote! {
+                        let #var_ident = #widget_mod::#p_ident::ArgsImpl::new(#args);
+                    },
+                    PropertyValue::Named(_, fields) => {
+                        let property_path = quote! { #widget_mod::#p_ident };
+                        quote! {
+                            let #var_ident = #property_path::code_gen! { named_new #property_path {
+                                #fields
+                            }};
+                        }
+                    }
+                    PropertyValue::Special(_, _) => unreachable!(),
+                };
+                continue; // replaced existing.
+            }
+        }
+
+        // else is custom property.
+        let var_ident = ident!("__{}", display_path(&p.path).replace("::", "__"));
+        let property_path = p.path;
+        user_ps_init.push(match p.value {
+            PropertyValue::Unnamed(args) => quote! {
+                let #var_ident = #property_path::ArgsImpl::new(#args);
+            },
+            PropertyValue::Named(_, fields) => quote! {
+                let #var_ident = #property_path::code_gen!{ named_new #property_path { #fields } };
+            },
+            PropertyValue::Special(_, _) => unreachable!(),
+        });
+    }
+
+    // add errors for missing required.
+    for (ident, value, required) in child_ps_init.iter().chain(wgt_ps_init.iter()) {
+        if *required && value.is_empty() {
+            errors.push(&format!("required property `{}` not set", ident), ident.span());
+        }
+    }
+
+    // property initializers in order they must be called.
+    let properties_init = child_ps_init
+        .into_iter()
+        .map(|(_, init, _)| init)
+        .chain(wgt_ps_init.into_iter().map(|(_, init, _)| init)) // widget properties, child target first.
+        .filter(|tt| !tt.is_empty()) // - without default value.
+        .chain(user_ps_init); // + custom user properties.
+
+    let r = quote! {
+        #errors
+        #(#properties_init)*
+        //#whens
+        //#new_child
+        //#child_assigns
+        //#wgt_assigns
+        //#new
+    };
+
+    r.into()
+}
+
+/// Returns (property_ident, default_value, is_required)
+fn inherited_inits(widget_mod: &Path, properties: Vec<BuiltProperty>) -> Vec<(Ident, TokenStream, bool)> {
+    let mut inits = Vec::with_capacity(properties.len());
+    for p in properties {
+        let init = if p.has_default {
+            let var_ident = ident!("__{}", p.ident);
+            let default_ident = ident!("__d_{}", p.ident);
+            quote! {
+                let #var_ident = #widget_mod::#default_ident();
+            }
+        } else {
+            TokenStream::default()
+        };
+
+        inits.push((p.ident, init, p.is_required));
+    }
+    inits
 }
 
 struct Input {
