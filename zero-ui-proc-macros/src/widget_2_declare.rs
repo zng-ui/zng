@@ -3,7 +3,7 @@ use syn::{parse::Parse, Attribute, Ident, LitBool};
 use crate::{util, widget_new2::BuiltWhen};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let Items { mixin, inherited, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
+    let Items { inherited, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
 
     for inherited in inherited {}
 
