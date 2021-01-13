@@ -119,10 +119,10 @@ impl Parse for BuiltProperty {
     }
 }
 
-struct BuiltWhen {
-    ident: Ident,
-    expr_properties: Vec<Ident>,
-    set_properties: Vec<Ident>,
+pub struct BuiltWhen {
+    pub ident: Ident,
+    pub inputs: Vec<Ident>,
+    pub assigns: Vec<Ident>,
 }
 impl Parse for BuiltWhen {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -145,8 +145,8 @@ impl Parse for BuiltWhen {
 
         Ok(BuiltWhen {
             ident,
-            expr_properties,
-            set_properties,
+            inputs: expr_properties,
+            assigns: set_properties,
         })
     }
 }
@@ -228,16 +228,13 @@ pub enum PropertyValue {
 }
 impl PropertyValue {
     pub fn is_special_eq(&self, keyword: &str) -> bool {
-        match self {
-            PropertyValue::Special(sp, _) => sp == keyword,
-            _ => false,
-        }
+        matches!(self, PropertyValue::Special(sp, _) if sp == keyword)
     }
 
-    pub fn is_special_not_eq(&self, keyword: &str) -> bool {
+    pub fn incorrect_special(&self, expected: &str) -> Option<&Ident> {
         match self {
-            PropertyValue::Special(sp, _) => sp != keyword,
-            _ => false,
+            PropertyValue::Special(sp, _) if sp != expected => Some(sp),
+            _ => None,
         }
     }
 }

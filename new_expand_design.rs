@@ -277,7 +277,7 @@ pub mod widget_expanded {
         // before they actually show in screen, properties with defined docs are doc(hidden) from the start.      
 
         #[doc(inline)] 
-        pub use crate::layout::margin as __p_padding;
+        pub use crate::layout::margin::export as __p_padding;
 
         // reexports inherited properties.
         #[doc(inline)]
@@ -285,7 +285,7 @@ pub mod widget_expanded {
 
         // reexports with local paths too.
         #[doc(inline)]
-        pub use background_color as __p_background_color;
+        pub use background_color::export as __p_background_color;
 
         // declares custom properties with the same name format.
         #[doc(hidden)]

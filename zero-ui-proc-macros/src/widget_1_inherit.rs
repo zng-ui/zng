@@ -7,13 +7,11 @@ use crate::util;
 /// If the `inherit` section is empty calls `widget_declare!`.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse::<Input>(input).unwrap_or_else(|e| non_user_error!(e));
-    let mixin = input.mixin;
     let rest = input.rest;
     let r = if let Some((inherit, _)) = input.inherit.next_path {
         let inherit_rest = input.inherit.rest;
         quote! {
             #inherit::__inherit! {
-                mixin { #mixin }
                 inherit { #inherit_rest }
                 #rest
             }
@@ -22,7 +20,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let crate_core = util::crate_core();
         quote! {
             #crate_core::widget_declare! {
-                mixin { #mixin }
                 inherit { }
                 #rest
             }
@@ -33,15 +30,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 struct Input {
-    mixin: bool,
     inherit: Inherit,
     rest: TokenStream,
 }
 impl Parse for Input {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Input {
-            // mixin { #LitBool }
-            mixin: util::non_user_braced_id(input, "mixin").parse::<syn::LitBool>()?.value,
             // inherit { #( #Path ; )* }, only the first path is parsed.
             inherit: util::non_user_braced_id(input, "inherit").parse()?,
             // inherited and new widget data without parsing.

@@ -74,19 +74,30 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         quote!(#crate_core::widget_base::implicit_mixin2::__inherit!)
     };
 
+    let new_child = todo!("\n 'let new_child = todo!'\nin:\n {}:{}\n", file!(), line!());
+    let new = todo!("\n 'let new = todo!'\nin:\n {}:{}\n", file!(), line!());
+    // TODO notes:
+    //
+    // - Implement the new/new_child function validations found in
+    //   property.rs:283 and property.rs:408 , property.rs:223 might
+    //   be relevant as well.
+    //
+    // - Validate it in a separate function that handles errors and
+    //   returns the new and new_child information we want?
+
     let r = quote! {
         // __inherit! will include an `inherited { .. }` block with the widget data after the
         // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
         // a call to `widget_declare!` is made.
         #stage_path {
-            mixin { #mixin }
 
             inherit { #(#inherits;)* }
 
-            new {
+            widget {
                 docs { #(#docs)* }
                 ident { #ident }
+                mixin { #mixin }
 
                 properties {
 
@@ -94,14 +105,16 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 whens {
 
                 }
-                new_child { #new_child_fn }
-                new { #new_fn }
+                new_child { } // { #(#new_child)* }
+                new { } // { #(#new)* }
 
                 mod {
                     #(#attrs)*
                     #cfg
                     #vis mod #ident {
                         #(#others)*
+                        #new_child_fn
+                        #new_fn
                     }
                 }
             }
