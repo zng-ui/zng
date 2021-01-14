@@ -2,15 +2,8 @@ use std::{collections::HashSet, mem};
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
-use syn::{
-    braced,
-    parse::{Parse, ParseStream},
-    parse2, parse_macro_input,
-    punctuated::Punctuated,
-    spanned::Spanned,
-    token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token, TypeTuple,
-};
-use util::non_user_braced_id;
+use syn::{Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token, TypeTuple, braced, parse::{Parse, ParseBuffer, ParseStream}, parse2, parse_macro_input, punctuated::Punctuated, spanned::Spanned, token};
+use util::{non_user_braced_id, parse2_punctuated};
 
 use crate::{
     util::{self, Attributes, Errors},
@@ -465,7 +458,7 @@ impl Parse for PropertyType {
                 }
                 input.parse::<TokenTree>().unwrap().to_tokens(&mut unnamed);
             }
-            todo!("parse unnamed");
+            Ok(PropertyType::Unnamed(parse2_punctuated(unnamed)?))
         }
     }
 }

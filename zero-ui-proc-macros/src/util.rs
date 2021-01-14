@@ -190,6 +190,11 @@ impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
     }
 }
 
+/// [`Punctuated::parse_terminated`] from a token stream.
+pub fn parse2_punctuated<T: Parse, P: Parse>(input: TokenStream) -> Result<Punctuated<T, P>> {
+    syn::parse2::<PunctParser<T, P>>(input).map(|r|r.0)
+}
+
 /// Collection of compile errors.
 #[derive(Default)]
 pub struct Errors {
