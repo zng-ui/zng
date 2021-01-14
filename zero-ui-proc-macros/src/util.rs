@@ -4,6 +4,7 @@ use parse::{Parse, ParseStream};
 use proc_macro2::*;
 use punctuated::Punctuated;
 use quote::ToTokens;
+use regex::Regex;
 use syn::*;
 
 /// `Ident` with custom span.
@@ -192,7 +193,7 @@ impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
 
 /// [`Punctuated::parse_terminated`] from a token stream.
 pub fn parse2_punctuated<T: Parse, P: Parse>(input: TokenStream) -> Result<Punctuated<T, P>> {
-    syn::parse2::<PunctParser<T, P>>(input).map(|r|r.0)
+    syn::parse2::<PunctParser<T, P>>(input).map(|r| r.0)
 }
 
 /// Collection of compile errors.
@@ -383,4 +384,20 @@ impl syn::visit_mut::VisitMut for PatchSuperPath {
 /// Convert a [`Path`] to a formatted [`String`].
 pub fn display_path(path: &Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
+}
+
+pub fn expr_to_ident_str(expr: &Expr) -> String {
+    let expr = expr.to_token_stream().to_string()[..20]
+        .replace(".", " ")
+        .replace("!", "not")
+        .replace("&&", "and")
+        .replace("||", "or")
+        .replace("(", "p")
+        .replace(")", "b")
+        .replace("==", "eq");
+
+    let expr = Regex::new(r"\s+").unwrap().replace_all(&expr, "_"); // space sequences to `_`
+    let expr = Regex::new(r"\W").unwrap().replace_all(&expr, ""); // remove non-word chars
+
+    expr.to_string()
 }

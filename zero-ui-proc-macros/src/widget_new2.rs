@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt};
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
@@ -8,10 +8,11 @@ use syn::{
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
+    visit_mut::{self, VisitMut},
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{display_path, non_user_braced, non_user_braced_id, Errors};
+use crate::util::{display_path, expr_to_ident_str, non_user_braced, non_user_braced_id, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -133,14 +134,55 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|tt| !tt.is_empty()) // - without default value.
         .chain(user_ps_init); // + custom user properties.
 
+    // when condition initializers and properties used in when reassign.
+    let mut whens_init = TokenStream::default();
+    let mut when_props_init = TokenStream::default();
+    for when in widget_data.whens {
+        let ident = when.ident;
+        let inputs = when.inputs.into_iter().map(|id| ident!("__{}", id));
+        // TODO skip whens with unset inputs.
+        whens_init.extend(quote! {
+            let #ident = #widget_mod::#ident(#(#inputs),*);
+        });
+        // TODO when_props_init
+    }
+    for (i, when) in user_input.whens.into_iter().enumerate() {
+        let ident = when.make_ident(i);
+        let (_, init) = when.make_init();
+        whens_init.extend(quote! {
+            let #ident = #init;
+        });
+    }
+
+    // new_child call.
+    let new_child_inputs = widget_data.new_child_caps.into_iter().map(|id| ident!("__{}", id));
+    let new_child = quote! {
+        let node__ = #widget_mod::__new_child(#(#new_child_inputs),*);
+    };
+
+    // child assigns.
+    // TODO
+
+    // normal assigns.
+    // TODO
+
+    // new call.
+    let new_inputs = widget_data.new_caps.into_iter().map(|id| ident!("__{}", id));
+    let new = quote! {
+        #widget_mod::__new(node__, #(#new_inputs),*)
+    };
+
     let r = quote! {
+        {
         #errors
         #(#properties_init)*
-        //#whens
-        //#new_child
+        #whens_init
+        #when_props_init
+        #new_child
         //#child_assigns
         //#wgt_assigns
-        //#new
+        #new
+        }
     };
 
     r.into()
@@ -481,6 +523,109 @@ impl When {
                 brace_token,
                 assigns,
             })
+        }
+    }
+
+    /// Returns an ident `__w{i}_{expr_to_str}`
+    pub fn make_ident(&self, i: usize) -> Ident {
+        ident!("__w{}_{}", i, expr_to_ident_str(&self.condition_expr))
+    }
+
+    pub fn make_init(&self) -> (HashSet<Ident>, TokenStream) {
+        let mut visitor = WhenConditionVisitor::default();
+        let mut expr = self.condition_expr.clone();
+        visitor.visit_expr_mut(&mut expr);
+        todo!()
+    }
+}
+
+#[derive(Default)]
+struct WhenConditionVisitor {
+    properties: HashSet<WhenPropertyRef>,
+    found_mult_exprs: bool,
+}
+impl VisitMut for WhenConditionVisitor {
+    //visit expressions like:
+    // self.is_hovered
+    // self.is_hovered.0
+    // self.is_hovered.state
+    fn visit_expr_mut(&mut self, expr: &mut Expr) {
+        //get self or child
+        fn is_self(expr_path: &syn::ExprPath) -> bool {
+            if let Some(ident) = expr_path.path.get_ident() {
+                return ident == &ident!("self");
+            }
+            false
+        }
+
+        let mut found = None;
+
+        if let Expr::Field(expr_field) = expr {
+            match &mut *expr_field.base {
+                // self.is_hovered
+                Expr::Path(expr_path) => {
+                    if let (true, syn::Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
+                        found = Some(WhenPropertyRef {
+                            property,
+                            arg: WhenPropertyRefArg::Index(0),
+                        })
+                    }
+                }
+                // self.is_hovered.0
+                // self.is_hovered.state
+                Expr::Field(i_expr_field) => {
+                    if let Expr::Path(expr_path) = &mut *i_expr_field.base {
+                        if let (true, syn::Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
+                            found = Some(WhenPropertyRef {
+                                property,
+                                arg: expr_field.member.clone().into(),
+                            })
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(p) = found {
+            let replacement = p.name();
+            *expr = parse_quote!((*#replacement));
+            self.properties.insert(p);
+        } else {
+            self.found_mult_exprs = true;
+            visit_mut::visit_expr_mut(self, expr);
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct WhenPropertyRef {
+    pub property: Ident,
+    pub arg: WhenPropertyRefArg,
+}
+impl WhenPropertyRef {
+    fn name(&self) -> Ident {
+        ident!("__self_{}_{}", &self.property, &self.arg)
+    }
+}
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum WhenPropertyRefArg {
+    Index(u32),
+    Named(Ident),
+}
+impl From<syn::Member> for WhenPropertyRefArg {
+    fn from(member: syn::Member) -> Self {
+        match member {
+            syn::Member::Named(ident) => WhenPropertyRefArg::Named(ident),
+            syn::Member::Unnamed(i) => WhenPropertyRefArg::Index(i.index),
+        }
+    }
+}
+impl fmt::Display for WhenPropertyRefArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WhenPropertyRefArg::Index(i) => fmt::Display::fmt(&i, f),
+            WhenPropertyRefArg::Named(n) => fmt::Display::fmt(&n, f),
         }
     }
 }
