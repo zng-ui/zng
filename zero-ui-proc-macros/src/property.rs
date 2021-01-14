@@ -295,7 +295,7 @@ mod analysis {
         for input in inputs {
             match input {
                 syn::FnArg::Typed(t) => {
-                    // any pat : pat
+                    // any pat : ty
                     match &*t.pat {
                         syn::Pat::Ident(ident_pat) => {
                             if let Some(subpat) = &ident_pat.subpat {

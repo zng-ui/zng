@@ -8,7 +8,7 @@ use syn::{
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Expr, FieldValue, Ident, LitBool, Path, Token,
+    Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
 use crate::util::{display_path, non_user_braced, non_user_braced_id, Errors};
@@ -432,13 +432,14 @@ impl Parse for PropertyValue {
 }
 
 pub struct When {
+    pub attrs: Vec<Attribute>,
     pub when: keyword::when,
     pub condition_expr: Expr,
     pub brace_token: syn::token::Brace,
     pub assigns: Vec<PropertyAssign>,
 }
 impl When {
-    /// Call only if peeked `when`.
+    /// Call only if peeked `when`. Parse outer attribute before calling.
     pub fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
         let mut any_error = false;
         let mut push_error = |e| {
@@ -474,6 +475,7 @@ impl When {
             None
         } else {
             Some(When {
+                attrs: vec![], // must be parsed before.
                 when,
                 condition_expr,
                 brace_token,

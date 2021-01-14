@@ -1,12 +1,14 @@
-use std::mem;
+use std::{collections::HashSet, mem};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
+    braced,
     parse::{Parse, ParseStream},
     parse2, parse_macro_input,
+    punctuated::Punctuated,
     spanned::Spanned,
-    Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token,
+    token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token, TypeTuple,
 };
 use util::non_user_braced_id;
 
@@ -74,18 +76,62 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         quote!(#crate_core::widget_base::implicit_mixin2::__inherit!)
     };
 
-    let new_child = todo!("\n 'let new_child = todo!'\nin:\n {}:{}\n", file!(), line!());
-    let new = todo!("\n 'let new = todo!'\nin:\n {}:{}\n", file!(), line!());
-    // TODO notes:
-    //
-    // - Implement the new/new_child function validations found in
-    //   property.rs:283 and property.rs:408 , property.rs:223 might
-    //   be relevant as well.
-    //
-    // - Validate it in a separate function that handles errors and
-    //   returns the new and new_child information we want?
+    // Does some validation of `new_child` and `new` signatures.
+    // Further type validation is done by `rustc` when we call the function
+    // in the generated `__new_child` and `__new` functions.
+    if let Some(fn_) = &new_child_fn {
+        validate_new_fn(fn_, &mut errors);
+        if let syn::ReturnType::Default = &fn_.sig.output {
+            errors.push("`new_child` must return a type that implements `UiNode`", fn_.sig.output.span())
+        }
+    }
+    if let Some(fn_) = &new_fn {
+        validate_new_fn(fn_, &mut errors);
+        if fn_.sig.inputs.is_empty() {
+            errors.push("`new` must take at least one input that implements `UiNode`", fn_.sig.inputs.span())
+        }
+    }
+
+    // collects name of captured properties and validates inputs.
+    let new_child = new_child_fn
+        .as_ref()
+        .map(|f| new_fn_captures(f.sig.inputs.iter(), &mut errors))
+        .unwrap_or_default();
+    let new = new_fn
+        .as_ref()
+        .map(|f| new_fn_captures(f.sig.inputs.iter().skip(1), &mut errors))
+        .unwrap_or_default();
+    let mut captures = HashSet::new();
+    for capture in new_child.iter().chain(&new) {
+        if !captures.insert(capture) {
+            errors.push(format!("property `{}` already captured", capture), capture.span());
+        }
+    }
+
+    // generate `__new_child` and `__new` if new functions are defined in the widget.
+    let new_child__ = new_child_fn.as_ref().map(|_| {
+        let p_new_child = new_child.iter().map(|id| ident!("__p_{}", id));
+        quote! {
+            #[doc(hidden)]
+            pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> impl #crate_core::UiNode {
+                self::new_child(#(#new_child),*)
+            }
+        }
+    });
+    let new__ = new_fn.as_ref().map(|f| {
+        let p_new = new.iter().map(|id| ident!("__p_{}", id));
+        let output = &f.sig.output;
+        quote! {
+            #[doc(hidden)]
+            pub fn __new(__child: impl #crate_core::UiNode, #(#new: impl self::#p_new::Args),*) #output {
+                self::new(__child, #(#new_child),*)
+            }
+        }
+    });
 
     let r = quote! {
+        #errors
+
         // __inherit! will include an `inherited { .. }` block with the widget data after the
         // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
@@ -105,8 +151,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 whens {
 
                 }
-                new_child { } // { #(#new_child)* }
-                new { } // { #(#new)* }
+
+                new_child { #(#new_child)* }
+                new { #(#new)* }
 
                 mod {
                     #(#attrs)*
@@ -115,6 +162,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                         #(#others)*
                         #new_child_fn
                         #new_fn
+
+                        #new_child__
+                        #new__
                     }
                 }
             }
@@ -132,6 +182,73 @@ fn parse_mod_path(args: TokenStream, errors: &mut Errors) -> TokenStream {
             errors.push("expected a macro_rules `$crate` path to this widget mod", args_span);
             quote! { $crate::missing_widget_mod_path }
         }
+    }
+}
+
+// TODO notes:
+//
+// - Implement the new/new_child function validations found in
+//   property.rs:283 and property.rs:408 , property.rs:223 might
+//   be relevant as well.
+//
+// - Validate it in a separate function that handles errors and
+//   returns the new and new_child information we want?
+fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> Vec<Ident> {
+    let mut r = vec![];
+    for input in fn_inputs {
+        match input {
+            syn::FnArg::Typed(t) => {
+                // any pat : ty
+                match &*t.pat {
+                    syn::Pat::Ident(ident_pat) => {
+                        if let Some(subpat) = &ident_pat.subpat {
+                            // ident @ sub_pat : type
+                            errors.push(
+                                "only `field: T` pattern can be property captures, found sub-pattern",
+                                subpat.0.span(),
+                            );
+                        } else if ident_pat.ident == "self" {
+                            // self : type
+                            errors.push(
+                                "only `field: T` pattern can be property captures, found `self`",
+                                ident_pat.ident.span(),
+                            );
+                        } else {
+                            // VALID
+                            // ident: type
+                            r.push(ident_pat.ident.clone());
+                        }
+                    }
+                    invalid => {
+                        errors.push("only `field: T` pattern can be property captures", invalid.span());
+                    }
+                }
+            }
+
+            syn::FnArg::Receiver(invalid) => {
+                // `self`
+                errors.push("only `field: T` pattern can be property captures, found `self`", invalid.span())
+            }
+        }
+    }
+    r
+}
+
+fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
+    if let Some(async_) = &fn_.sig.asyncness {
+        errors.push(format!("`{}` cannot be `async`", fn_.sig.ident), async_.span());
+    }
+    if let Some(unsafe_) = &fn_.sig.unsafety {
+        errors.push(format!("`{}` cannot be `unsafe`", fn_.sig.ident), unsafe_.span());
+    }
+    if let Some(abi) = &fn_.sig.abi {
+        errors.push(format!("`{}` cannot be `extern`", fn_.sig.ident), abi.span());
+    }
+    if let Some(lifetime) = fn_.sig.generics.lifetimes().next() {
+        errors.push(format!("`{}` cannot declare lifetimes", fn_.sig.ident), lifetime.span());
+    }
+    if let Some(const_) = fn_.sig.generics.const_params().next() {
+        errors.push(format!("`{}` does not support `const` generics", fn_.sig.ident), const_.span());
     }
 }
 
@@ -241,38 +358,45 @@ struct Properties {
     properties: Vec<ItemProperty>,
     whens: Vec<When>,
 }
-impl Properties {
-    fn flatten(self) -> (Vec<ItemProperty>, Vec<When>) {
-        todo!(
-            "flattening of multiple properties! \"macro calls\"\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
-            file!(),
-            line!()
-        )
-    }
-}
 impl Parse for Properties {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut errors = Errors::default();
         let mut child_properties = vec![];
         let mut properties = vec![];
         let mut whens = vec![];
+
         while !input.is_empty() {
+            let attrs = Attribute::parse_outer(input).unwrap_or_else(|e| {
+                errors.push_syn(e);
+                vec![]
+            });
             if input.peek(keyword::when) {
-                if let Some(when) = When::parse(input, &mut errors) {
+                if let Some(mut when) = When::parse(input, &mut errors) {
+                    when.attrs = attrs;
                     whens.push(when);
                 }
             } else if input.peek(keyword::child) && input.peek2(syn::token::Brace) {
                 let input = non_user_braced_id(input, "child");
                 while !input.is_empty() {
-                    match input.parse() {
-                        Ok(p) => child_properties.push(p),
+                    let attrs = Attribute::parse_outer(&input).unwrap_or_else(|e| {
+                        errors.push_syn(e);
+                        vec![]
+                    });
+                    match input.parse::<ItemProperty>() {
+                        Ok(mut p) => {
+                            p.attrs = attrs;
+                            child_properties.push(p);
+                        }
                         Err(e) => errors.push_syn(e),
                     }
                 }
             } else if input.peek(Ident) {
                 // peek ident or path.
-                match input.parse() {
-                    Ok(p) => properties.push(p),
+                match input.parse::<ItemProperty>() {
+                    Ok(mut p) => {
+                        p.attrs = attrs;
+                        properties.push(p);
+                    }
                     Err(e) => errors.push_syn(e),
                 }
             } else {
@@ -291,6 +415,7 @@ impl Parse for Properties {
 }
 
 struct ItemProperty {
+    pub attrs: Vec<Attribute>,
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
     pub type_: Option<(Token![:], PropertyType)>,
@@ -299,28 +424,65 @@ struct ItemProperty {
 }
 impl Parse for ItemProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        todo!(
-            "parsing of widget properties\n\ngo to file:\n{}:{}\n(ctrl + e) (tripple click to select path)",
-            file!(),
-            line!()
-        )
+        macro_rules! peek_parse {
+            ($token:tt) => {
+                if input.peek(Token![$token]) {
+                    Some((input.parse()?, input.parse()?))
+                } else {
+                    None
+                }
+            };
+        }
+
+        Ok(ItemProperty {
+            attrs: vec![],
+            path: input.parse()?,
+            alias: peek_parse![as],
+            type_: peek_parse![:],
+            value: peek_parse![=],
+            semi: if input.peek(Token![;]) { Some(input.parse()?) } else { None },
+        })
     }
 }
 
 enum PropertyType {
-    Unamed,
-    Named,
+    /// `{ name: u32 }` OR `{ name: impl IntoVar<u32> }` OR `{ name0: .., name1: .. }`
+    Named(token::Brace, Punctuated<NamedField, Token![,]>),
+    /// `impl IntoVar<bool>, impl IntoVar<u32>`
+    Unnamed(Punctuated<syn::Type, Token![,]>),
+}
+impl Parse for PropertyType {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(token::Brace) {
+            let named;
+            let brace = braced!(named in input);
+            Ok(PropertyType::Named(brace, Punctuated::parse_terminated(&named)?))
+        } else {
+            let mut unnamed = TokenStream::default();
+            while !input.is_empty() {
+                if input.peek(Token![=]) || input.peek(Token![;]) {
+                    break;
+                }
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut unnamed);
+            }
+            todo!("parse unnamed");
+        }
+    }
 }
 
-/// Property priority group in a widget.
-enum PriorityGroup {
-    Normal,
-    Child,
+struct NamedField {
+    ident: Ident,
+    colon: Token![:],
+    ty: syn::Type,
 }
-
-struct Property {
-    pub priority: PriorityGroup,
-    pub ident: Ident,
+impl Parse for NamedField {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(NamedField {
+            ident: input.parse()?,
+            colon: input.parse()?,
+            ty: input.parse()?,
+        })
+    }
 }
 
 mod keyword {

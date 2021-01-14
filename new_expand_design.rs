@@ -45,7 +45,7 @@ pub mod widget_user_declaration {
             custom_multi: { 
                 field0: impl IntoVar<bool>, 
                 field1: impl IntoVar<u8> 
-            } = (true, 255);
+            } = true, 255;
 
             /// positional assign for multi.
             multi = false, 200;
