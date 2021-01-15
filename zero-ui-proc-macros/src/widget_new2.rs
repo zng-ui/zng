@@ -12,7 +12,7 @@ use syn::{
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{display_path, expr_to_ident_str, non_user_braced, non_user_braced_id, Errors};
+use crate::util::{crate_core, display_path, expr_to_ident_str, non_user_braced, non_user_braced_id, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -27,6 +27,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut child_ps_init = inherited_inits(&widget_mod, widget_data.child_properties);
     let mut wgt_ps_init = inherited_inits(&widget_mod, widget_data.properties);
     let mut user_ps_init = vec![];
+
+    let widget_properties: HashSet<Ident> = child_ps_init.iter().chain(wgt_ps_init.iter()).map(|(p, ..)| p.clone()).collect();
+
     let mut user_assigns = HashSet::new();
 
     for p in user_input.properties {
@@ -119,12 +122,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
-    // add errors for missing required.
+    let mut assigns = user_assigns.clone();
+    let user_assigns = user_assigns;
+
     for (ident, value, required) in child_ps_init.iter().chain(wgt_ps_init.iter()) {
-        if *required && value.is_empty() {
-            errors.push(&format!("required property `{}` not set", ident), ident.span());
+        if value.is_empty() {
+            if *required {
+                // add errors for missing required.
+                errors.push(&format!("required property `{}` not set", ident), ident.span());
+            }
+        } else {
+            // add widget assigns.
+            assigns.insert(parse_quote! { #ident });
         }
     }
+    let assigns = assigns;
 
     // property initializers in order they must be called.
     let properties_init = child_ps_init
@@ -136,23 +148,74 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // when condition initializers and properties used in when reassign.
     let mut whens_init = TokenStream::default();
-    let mut when_props_init = TokenStream::default();
+    // linear map of [(property, [(assign_ident, assign_property_value)])]
+    let mut when_props_assigns = Vec::<(syn::Path, Vec<(Ident, TokenStream)>)>::new();
+    let mut push_when_assign = |property: syn::Path, when_ident: Ident, when_prop_value: TokenStream| {
+        if let Some((_, entry)) = when_props_assigns.iter_mut().find(|(id, _)| id == &property) {
+            entry.push((when_ident.clone(), when_prop_value));
+        } else {
+            when_props_assigns.push((property, vec![(when_ident.clone(), when_prop_value)]));
+        }
+    };
     for when in widget_data.whens {
-        let ident = when.ident;
+        if !when.inputs.iter().all(|id| user_assigns.contains(&parse_quote! { #id })) {
+            // skip, not all properties used in the when condition are assigned.
+            continue;
+        }
+
+        let w_assigns: Vec<_> = when
+            .assigns
+            .into_iter()
+            // when can only assign properties that have an initial value.
+            .filter(|id| user_assigns.contains(&parse_quote! { #id }))
+            .collect();
+        if w_assigns.is_empty() {
+            // skip, when does not assign any property.
+            continue;
+        }
+
+        let when_ident = when.ident;
         let inputs = when.inputs.into_iter().map(|id| ident!("__{}", id));
-        // TODO skip whens with unset inputs.
+
         whens_init.extend(quote! {
-            let #ident = #widget_mod::#ident(#(#inputs),*);
+            let #when_ident = #widget_mod::#when_ident(#(std::clone::Clone::clone(&#inputs)),*);
         });
-        // TODO when_props_init
+
+        for w_assign in w_assigns {
+            let d_ident = ident!("{}_d_{}", when_ident, w_assign);
+            let value = quote! { #widget_mod::#d_ident() };
+
+            let w_assign: syn::Path = parse_quote! { #w_assign };
+            push_when_assign(w_assign, when_ident.clone(), value);
+        }
     }
     for (i, when) in user_input.whens.into_iter().enumerate() {
-        let ident = when.make_ident(i);
-        let (_, init) = when.make_init();
+        let w_assigns: Vec<_> = when.assigns.iter().filter(|id| user_assigns.contains(&id.path)).collect();
+        if w_assigns.is_empty() {
+            // skip, when does not assign any property.
+            continue;
+        }
+        let (input_properties, init) = when.make_init(&widget_mod, &widget_properties);
+        if !user_assigns.is_superset(&input_properties) {
+            // skip, not all properties used in the when condition are assigned.
+            continue;
+        }
+
+        let when_ident = when.make_ident(i);
         whens_init.extend(quote! {
-            let #ident = #init;
+            let #when_ident = #init;
         });
+
+        for w_assign in w_assigns {
+            // TODO assign to value.
+            let value = quote! {};
+            push_when_assign(w_assign.path.clone(), when_ident.clone(), value);
+        }
     }
+
+    // generate when switches for when affected properties.
+    let mut when_props_init = TokenStream::default();
+    //TODO
 
     // new_child call.
     let new_child_inputs = widget_data.new_child_caps.into_iter().map(|id| ident!("__{}", id));
@@ -531,11 +594,45 @@ impl When {
         ident!("__w{}_{}", i, expr_to_ident_str(&self.condition_expr))
     }
 
-    pub fn make_init(&self) -> (HashSet<Ident>, TokenStream) {
+    /// Returns a set of properties used in the condition and the condition transformed to new var.
+    pub fn make_init(&self, widget_path: &Path, widget_properties: &HashSet<Ident>) -> (HashSet<syn::Path>, TokenStream) {
         let mut visitor = WhenConditionVisitor::default();
         let mut expr = self.condition_expr.clone();
         visitor.visit_expr_mut(&mut expr);
-        todo!()
+
+        let crate_core = crate_core();
+        let init = if visitor.properties.is_empty() {
+            // does not reference any property, just eval into_var.
+            quote! {
+                #crate_core::var::IntoVar::into_var({ #expr })
+            }
+        } else if visitor.properties.len() == 1 {
+            let p_0 = visitor.properties.drain().next().unwrap();
+
+            let var = p_0.into_var_tokens(widget_path, widget_properties);
+
+            if visitor.found_mult_exprs {
+                // references a single property but does something with the value.
+                let ident_in_expr = p_0.ident_in_expr();
+                quote! {
+                    #crate_core::var::Var::into_map(#var, |#ident_in_expr|#expr)
+                }
+            } else {
+                // references a single property.
+                var
+            }
+        } else {
+            // references multiple properties.
+            let idents = visitor.properties.iter().map(|p| p.ident_in_expr());
+            let vars = visitor.properties.iter().map(|p| p.into_var_tokens(widget_path, widget_properties));
+            quote! {
+                #crate_core::var::merge_var! { #(#vars),* , |#(#idents),*|#expr }
+            }
+        };
+
+        let properties = visitor.properties.into_iter().map(|p| p.property).collect();
+
+        (properties, init)
     }
 }
 
@@ -566,7 +663,7 @@ impl VisitMut for WhenConditionVisitor {
                 Expr::Path(expr_path) => {
                     if let (true, syn::Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
                         found = Some(WhenPropertyRef {
-                            property,
+                            property: parse_quote! { #property },
                             arg: WhenPropertyRefArg::Index(0),
                         })
                     }
@@ -577,7 +674,7 @@ impl VisitMut for WhenConditionVisitor {
                     if let Expr::Path(expr_path) = &mut *i_expr_field.base {
                         if let (true, syn::Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
                             found = Some(WhenPropertyRef {
-                                property,
+                                property: parse_quote! { #property },
                                 arg: expr_field.member.clone().into(),
                             })
                         }
@@ -588,7 +685,7 @@ impl VisitMut for WhenConditionVisitor {
         }
 
         if let Some(p) = found {
-            let replacement = p.name();
+            let replacement = p.ident_in_expr();
             *expr = parse_quote!((*#replacement));
             self.properties.insert(p);
         } else {
@@ -600,12 +697,35 @@ impl VisitMut for WhenConditionVisitor {
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct WhenPropertyRef {
-    pub property: Ident,
+    pub property: syn::Path,
     pub arg: WhenPropertyRefArg,
 }
 impl WhenPropertyRef {
-    fn name(&self) -> Ident {
-        ident!("__self_{}_{}", &self.property, &self.arg)
+    fn ident_in_expr(&self) -> Ident {
+        ident!("__self_{}_{}", display_path(&self.property), &self.arg)
+    }
+    fn into_var_tokens(&self, widget_path: &Path, widget_properties: &HashSet<Ident>) -> TokenStream {
+        let ident = ident!("__{}", display_path(&self.property));
+        let mtd_ident = match &self.arg {
+            WhenPropertyRefArg::Index(i) => ident!("__{}", i),
+            WhenPropertyRefArg::Named(name) => ident!("__{}", name),
+        };
+        let args_path = if let Some(id) = self.property.get_ident().and_then(|id| widget_properties.get(id)) {
+            let p_ident = ident!("__p_{}", id);
+            quote! {
+                #widget_path::#p_ident::Args
+            }
+        } else {
+            self.property.to_token_stream()
+        };
+        let crate_core = crate_core();
+        quote! {
+            #crate_core::var::IntoVar::into_var(
+                std::clone::Clone::clone(
+                    #args_path.#mtd_ident(&#ident)
+                )
+            )
+        }
     }
 }
 #[derive(Clone, PartialEq, Eq, Hash)]
