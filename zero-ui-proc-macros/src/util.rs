@@ -179,6 +179,17 @@ pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::Par
     inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
 
+/// Does a `bracketed!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
+pub fn non_user_bracketed(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
+    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
+        let inner;
+        // this macro inserts a return Err(..) but we want to panic
+        bracketed!(inner in input);
+        Ok(inner)
+    }
+    inner(input).unwrap_or_else(|e| non_user_error!(e))
+}
+
 pub fn uuid() -> impl std::fmt::Display {
     // could also be format!("{:?}", Span::call_site()).splitn(2, ' ').next().unwrap()[1..].to_string();
     uuid::Uuid::new_v4().to_simple()
@@ -402,6 +413,22 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     tokens.to_string()
 }
 
-pub fn token_stream_eq(a: &TokenStream, b: &TokenStream) -> bool {
-    todo!("token_stream_eq")
+/// Returns `true` if `a` and `b` have the same tokens in the same order (ignoring span).
+pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
+    let mut a = a.into_iter();
+    let mut b = b.into_iter();
+    use TokenTree::*;
+    loop {
+        match (a.next(), b.next()) {
+            (Some(a), Some(b)) => match (a, b) {
+                (Group(a), Group(b)) if a.delimiter() == b.delimiter() && token_stream_eq(a.stream(), b.stream()) => continue,
+                (Ident(a), Ident(b)) if a == b => continue,
+                (Punct(a), Punct(b)) if a.as_char() == b.as_char() && a.spacing() == b.spacing() => continue,
+                (Literal(a), Literal(b)) if a.to_string() == b.to_string() => continue,
+                _ => return false,
+            },
+            (None, None) => return true,
+            _ => return false,
+        }
+    }
 }
