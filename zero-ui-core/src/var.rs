@@ -295,7 +295,7 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///
 /// # Interpolation
 ///
-/// Other variables can be interpolated by quoting the var with `v!(..)`. When
+/// Other variables can be interpolated by quoting the var with `v{..}`. When
 /// an expression contains other interpolated vars the expression var updates when
 /// any of the interpolated vars update.
 ///
@@ -305,9 +305,9 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// # use zero_ui_core::var::*;
 /// let var_a = var(10);
 /// let var_b = var(10);
-/// let var_eq = var_expr! { 
-///     let eq = v!(var_a) == v!(var_b);
-///     println!("var_expr updated: {} == {}: {}", v!(var_a), v!(var_b), eq);
+/// let var_eq = var_expr! {
+///     let eq = v{var_a} == v{var_b};
+///     println!("var_expr updated: {} == {}: {}", v{var_a}, v{var_b}, eq);
 ///     eq
 /// };
 /// ```
@@ -322,9 +322,9 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///
 /// # Interpolation
 ///
-/// Variable interpolation is done by quoting the variable with `v!(<var-expr>)`. The parenthesis are required
-/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `v!(var_a.clone())` `var_a`
-/// will still be available after the `var_expr` call. 
+/// Variable interpolation is done by quoting the variable with `v{<var-expr>}`. The braces are required
+/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `v{var_a.clone()}` `var_a`
+/// will still be available after the `var_expr` call.
 ///
 /// # Expansion
 ///
@@ -345,8 +345,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 #[macro_export]
 macro_rules! var_expr {
     ($expr:expr) => {
-        $crate::var::__var_expr { $crate::var, $expr }
-    }
+        $crate::var::__var_expr! { $crate::var, $expr }
+    };
 }
 #[doc(inline)]
 pub use crate::var_expr;

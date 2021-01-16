@@ -12,7 +12,7 @@ use syn::{
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{crate_core, display_path, expr_to_ident_str, non_user_braced, non_user_braced_id, Errors};
+use crate::util::{crate_core, display_path, non_user_braced, non_user_braced_id, tokens_to_ident_str, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -591,7 +591,7 @@ impl When {
 
     /// Returns an ident `__w{i}_{expr_to_str}`
     pub fn make_ident(&self, i: usize) -> Ident {
-        ident!("__w{}_{}", i, expr_to_ident_str(&self.condition_expr))
+        ident!("__w{}_{}", i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
 
     /// Returns a set of properties used in the condition and the condition transformed to new var.

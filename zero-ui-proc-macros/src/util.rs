@@ -386,8 +386,8 @@ pub fn display_path(path: &Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
 }
 
-pub fn expr_to_ident_str(expr: &Expr) -> String {
-    let expr = expr.to_token_stream().to_string()[..20]
+pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
+    let tokens = tokens.to_string()[..20]
         .replace(".", " ")
         .replace("!", "not")
         .replace("&&", "and")
@@ -396,8 +396,12 @@ pub fn expr_to_ident_str(expr: &Expr) -> String {
         .replace(")", "b")
         .replace("==", "eq");
 
-    let expr = Regex::new(r"\s+").unwrap().replace_all(&expr, "_"); // space sequences to `_`
-    let expr = Regex::new(r"\W").unwrap().replace_all(&expr, ""); // remove non-word chars
+    let tokens = Regex::new(r"\s+").unwrap().replace_all(&tokens, "_"); // space sequences to `_`
+    let tokens = Regex::new(r"\W").unwrap().replace_all(&tokens, ""); // remove non-word chars
 
-    expr.to_string()
+    tokens.to_string()
+}
+
+pub fn token_stream_eq(a: &TokenStream, b: &TokenStream) -> bool {
+    todo!("token_stream_eq")
 }
