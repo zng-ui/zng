@@ -309,7 +309,7 @@ impl<T: VarValue> IntoVar<T> for RcVar<T> {
     }
 }
 
-/// new [`RcVar`].
+/// New [`RcVar`].
 pub fn var<V: VarValue>(value: V) -> RcVar<V> {
     RcVar::new(value)
 }

@@ -290,3 +290,66 @@ pub trait IntoVar<T: VarValue>: Clone {
         self.into_var().as_local()
     }
 }
+
+/// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.
+///
+/// # Interpolation
+///
+/// Other variables can be interpolated by quoting the var with `v!(..)`. When
+/// an expression contains other interpolated vars the expression var updates when
+/// any of the interpolated vars update.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui_core::var::*;
+/// let var_a = var(10);
+/// let var_b = var(10);
+/// let var_eq = var_expr! { 
+///     let eq = v!(var_a) == v!(var_b);
+///     println!("var_expr updated: {} == {}: {}", v!(var_a), v!(var_b), eq);
+///     eq
+/// };
+/// ```
+///
+/// In the example a `var_eq` of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
+/// the value of `var_eq` is updated on the next read.
+///
+/// # Capture Mode
+///
+/// The expression operates like a closure that captures by `move`. Both the interpolated variables and any
+/// other `let` binding referenced from the scope are moved into the resulting variable.
+///
+/// # Interpolation
+///
+/// Variable interpolation is done by quoting the variable with `v!(<var-expr>)`. The parenthesis are required
+/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `v!(var_a.clone())` `var_a`
+/// will still be available after the `var_expr` call. 
+///
+/// # Expansion
+///
+/// The expression is transformed into different types of vars depending on the number of interpolated variables.
+///
+/// ## No Variables
+///
+/// An expression with no interpolation is simply evaluated into a var using [`IntoVar`].
+///
+/// # Single Variable
+///
+/// An expression with a single variable is transformed in a [`map`](Var::map) operation, unless the expression
+/// is only the variable without any extra operation.
+///
+/// # Multiple Variables
+///
+/// An expression with multiple variables is transformed into a [`merge_var!`] call.
+#[macro_export]
+macro_rules! var_expr {
+    ($expr:expr) => {
+        $crate::var::__var_expr { $crate::var, $expr }
+    }
+}
+#[doc(inline)]
+pub use crate::var_expr;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::var_expr as __var_expr;
