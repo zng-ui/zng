@@ -2,6 +2,8 @@ use super::*;
 
 /// Initializes a new switch var.
 ///
+/// A switch var updates when the *index* var updates or when the *indexed* var updates.  
+///
 /// # Arguments
 ///
 /// All arguments are separated by comma like a function call.
@@ -14,6 +16,7 @@ use super::*;
 /// All arguments are [`IntoVar`](crate::core::var::RcSwitchVar).
 ///
 /// # Example
+///
 /// ```
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::text::*;
@@ -22,8 +25,10 @@ use super::*;
 /// let var0 = var("Read-write".to_text());
 /// let var1 = "Read-only";
 ///
-/// let t = text(switch_var!(index, var0, var1));
+/// let t = text(switch_var!(index.clone(), var0.clone(), var1));
 /// ```
+///
+/// In the example if `index` or `var0` are modified afterwards the text updates.
 #[macro_export]
 macro_rules! switch_var {
     ($index: expr $(, $v0: expr)? $(,)?) => {
@@ -507,7 +512,7 @@ impl<O: VarValue, VI: Var<usize>> RcSwitchVarBuilder<O, VI> {
     pub fn new(index: VI) -> Self {
         RcSwitchVarBuilder {
             index,
-            vars: Vec::with_capacity(9),
+            vars: vec![],
         }
     }
 

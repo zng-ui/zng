@@ -46,6 +46,9 @@ pub use rc_merge_var::*;
 mod rc_switch_var;
 pub use rc_switch_var::*;
 
+mod rc_when_var;
+pub use rc_when_var::*;
+
 mod vars;
 pub use vars::*;
 
