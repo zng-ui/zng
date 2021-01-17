@@ -223,29 +223,34 @@ macro_rules! impl_rc_when_var {
                 }
             }
             fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+                let mut condition_is_new = false;
                 $(
-                    // TODO fix
+                    condition_is_new |= self.0.conditions.$n.is_new(vars);
                     if *self.0.conditions.$n.get(vars) {
-                        if self.0.conditions.$n.is_new(vars) {
+                        return if condition_is_new {
                             Some(self.0.values.$n.get(vars))
                         } else {
                             self.0.values.$n.get_new(vars)
-                        }
+                        };
                     }
-                )else+
-                else {
+                )+
+
+                if condition_is_new {
+                    Some(self.0.default_value.get(vars))
+                } else {
                     self.0.default_value.get_new(vars)
                 }
             }
             fn is_new(&self, vars: &Vars) -> bool {
+                let mut condition_is_new = false;
+
                 $(
+                    condition_is_new |= self.0.conditions.$n.is_new(vars);
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.conditions.$n.is_new(vars) || self.0.values.$n.is_new(vars)
+                        return condition_is_new || self.0.values.$n.is_new(vars);
                     }
-                )else+
-                else {
-                    self.0.default_value.is_new(vars)
-                }
+                )+
+                condition_is_new || self.0.default_value.is_new(vars)
             }
             fn version(&self, vars: &Vars) -> u32 {
                 let mut changed = false;
@@ -445,25 +450,35 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
     }
 
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
+        let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
+            condition_is_new |= c.is_new(vars);
             if *c.get(vars) {
-                if c.is_new(vars) {
-                    return Some(v.get(vars));
+                return if condition_is_new {
+                    // a higher priority condition is new `false` of the current condition is new `true`.
+                    Some(v.get(vars))
                 } else {
-                    return v.get_new(vars);
-                }
+                    v.get_new(vars)
+                };
             }
         }
-        self.0.default_.get_new(vars)
+
+        if condition_is_new {
+            Some(self.0.default_.get(vars))
+        } else {
+            self.0.default_.get_new(vars)
+        }
     }
 
     fn is_new(&self, vars: &Vars) -> bool {
+        let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
+            condition_is_new |= c.is_new(vars);
             if *c.get(vars) {
-                return c.is_new(vars) || v.is_new(vars);
+                return condition_is_new || v.is_new(vars);
             }
         }
-        self.0.default_.is_new(vars)
+        condition_is_new || self.0.default_.is_new(vars)
     }
 
     fn version(&self, vars: &Vars) -> u32 {
