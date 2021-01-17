@@ -539,27 +539,15 @@ impl Parse for PropertyValue {
 pub struct When {
     pub attrs: Vec<Attribute>,
     pub when: keyword::when,
-    pub condition_expr: Expr,
+    pub condition_expr: TokenStream,
     pub brace_token: syn::token::Brace,
     pub assigns: Vec<PropertyAssign>,
 }
 impl When {
     /// Call only if peeked `when`. Parse outer attribute before calling.
     pub fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
-        let mut any_error = false;
-        let mut push_error = |e| {
-            errors.push_syn(e);
-            any_error = true;
-        };
-
         let when = input.parse().unwrap_or_else(|e| non_user_error!(e));
-        let condition_expr = match Expr::parse_without_eager_brace(input) {
-            Ok(x) => x,
-            Err(e) => {
-                push_error(e);
-                parse_quote! { false }
-            }
-        };
+        let condition_expr = crate::expr_var::parse_without_eager_brace(input);
 
         let (brace_token, assigns) = if input.peek(syn::token::Brace) {
             let brace = syn::group::parse_braces(input).unwrap();
@@ -576,7 +564,7 @@ impl When {
             return None;
         };
 
-        if any_error {
+        if assigns.is_empty() {
             None
         } else {
             Some(When {
@@ -596,157 +584,7 @@ impl When {
 
     /// Returns a set of properties used in the condition and the condition transformed to new var.
     pub fn make_init(&self, widget_path: &Path, widget_properties: &HashSet<Ident>) -> (HashSet<syn::Path>, TokenStream) {
-        let mut visitor = WhenConditionVisitor::default();
-        let mut expr = self.condition_expr.clone();
-        visitor.visit_expr_mut(&mut expr);
-
-        let crate_core = crate_core();
-        let init = if visitor.properties.is_empty() {
-            // does not reference any property, just eval into_var.
-            quote! {
-                #crate_core::var::IntoVar::into_var({ #expr })
-            }
-        } else if visitor.properties.len() == 1 {
-            let p_0 = visitor.properties.drain().next().unwrap();
-
-            let var = p_0.into_var_tokens(widget_path, widget_properties);
-
-            if visitor.found_mult_exprs {
-                // references a single property but does something with the value.
-                let ident_in_expr = p_0.ident_in_expr();
-                quote! {
-                    #crate_core::var::Var::into_map(#var, |#ident_in_expr|#expr)
-                }
-            } else {
-                // references a single property.
-                var
-            }
-        } else {
-            // references multiple properties.
-            let idents = visitor.properties.iter().map(|p| p.ident_in_expr());
-            let vars = visitor.properties.iter().map(|p| p.into_var_tokens(widget_path, widget_properties));
-            quote! {
-                #crate_core::var::merge_var! { #(#vars),* , |#(#idents),*|#expr }
-            }
-        };
-
-        let properties = visitor.properties.into_iter().map(|p| p.property).collect();
-
-        (properties, init)
-    }
-}
-
-#[derive(Default)]
-struct WhenConditionVisitor {
-    properties: HashSet<WhenPropertyRef>,
-    found_mult_exprs: bool,
-}
-impl VisitMut for WhenConditionVisitor {
-    //visit expressions like:
-    // self.is_hovered
-    // self.is_hovered.0
-    // self.is_hovered.state
-    fn visit_expr_mut(&mut self, expr: &mut Expr) {
-        //get self or child
-        fn is_self(expr_path: &syn::ExprPath) -> bool {
-            if let Some(ident) = expr_path.path.get_ident() {
-                return ident == &ident!("self");
-            }
-            false
-        }
-
-        let mut found = None;
-
-        if let Expr::Field(expr_field) = expr {
-            match &mut *expr_field.base {
-                // self.is_hovered
-                Expr::Path(expr_path) => {
-                    if let (true, syn::Member::Named(property)) = (is_self(expr_path), expr_field.member.clone()) {
-                        found = Some(WhenPropertyRef {
-                            property: parse_quote! { #property },
-                            arg: WhenPropertyRefArg::Index(0),
-                        })
-                    }
-                }
-                // self.is_hovered.0
-                // self.is_hovered.state
-                Expr::Field(i_expr_field) => {
-                    if let Expr::Path(expr_path) = &mut *i_expr_field.base {
-                        if let (true, syn::Member::Named(property)) = (is_self(expr_path), i_expr_field.member.clone()) {
-                            found = Some(WhenPropertyRef {
-                                property: parse_quote! { #property },
-                                arg: expr_field.member.clone().into(),
-                            })
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if let Some(p) = found {
-            let replacement = p.ident_in_expr();
-            *expr = parse_quote!((*#replacement));
-            self.properties.insert(p);
-        } else {
-            self.found_mult_exprs = true;
-            visit_mut::visit_expr_mut(self, expr);
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct WhenPropertyRef {
-    pub property: syn::Path,
-    pub arg: WhenPropertyRefArg,
-}
-impl WhenPropertyRef {
-    fn ident_in_expr(&self) -> Ident {
-        ident!("__self_{}_{}", display_path(&self.property), &self.arg)
-    }
-    fn into_var_tokens(&self, widget_path: &Path, widget_properties: &HashSet<Ident>) -> TokenStream {
-        let ident = ident!("__{}", display_path(&self.property));
-        let mtd_ident = match &self.arg {
-            WhenPropertyRefArg::Index(i) => ident!("__{}", i),
-            WhenPropertyRefArg::Named(name) => ident!("__{}", name),
-        };
-        let args_path = if let Some(id) = self.property.get_ident().and_then(|id| widget_properties.get(id)) {
-            let p_ident = ident!("__p_{}", id);
-            quote! {
-                #widget_path::#p_ident::Args
-            }
-        } else {
-            self.property.to_token_stream()
-        };
-        let crate_core = crate_core();
-        quote! {
-            #crate_core::var::IntoVar::into_var(
-                std::clone::Clone::clone(
-                    #args_path.#mtd_ident(&#ident)
-                )
-            )
-        }
-    }
-}
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum WhenPropertyRefArg {
-    Index(u32),
-    Named(Ident),
-}
-impl From<syn::Member> for WhenPropertyRefArg {
-    fn from(member: syn::Member) -> Self {
-        match member {
-            syn::Member::Named(ident) => WhenPropertyRefArg::Named(ident),
-            syn::Member::Unnamed(i) => WhenPropertyRefArg::Index(i.index),
-        }
-    }
-}
-impl fmt::Display for WhenPropertyRefArg {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WhenPropertyRefArg::Index(i) => fmt::Display::fmt(&i, f),
-            WhenPropertyRefArg::Named(n) => fmt::Display::fmt(&n, f),
-        }
+        todo!()
     }
 }
 

@@ -135,13 +135,32 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     let mut when_conditions = TokenStream::default();
     for (i, when) in whens.into_iter().enumerate() {
+        let condition = match syn::parse2::<WhenExprToVar>(when.condition_expr.to_token_stream()) {
+            Ok(c) => c,
+            Err(e) => {
+                errors.push_syn(e);
+                continue;
+            }
+        };
+        let unique_props: HashSet<_> = condition.properties.iter().map(|(p, _)| p).collect();
+
         let ident = when.make_ident(i);
+
+        let input_idents = unique_props.iter().map(|p| ident!("__{}", p));
+        let prop_idents = unique_props.iter().map(|p| ident!("__p_{}", p));
+
+        let fields = condition.properties.iter().map(|(p, m)| ident!("__{}{}", p, m));
+        let input_ident_per_field = condition.properties.iter().map(|(p, _)| ident!("__{}", p));
+        let members = condition.properties.iter().map(|(_, m)| m);
+
+        let expr = condition.expr;
 
         when_conditions.extend(quote! {
             #[doc(hidden)]
-            pub fn #ident() -> impl #crate_core::var::Var<bool> {
+            pub fn #ident(#(#input_idents : &impl self::#prop_idents::Args),*) -> impl #crate_core::var::Var<bool> {
+                #(let #fields = #crate_core::var::IntoVar::into_var(std::clone::Clone::clone(#input_ident_per_field.#members())))*
                 #crate_core::var::expr_var! {
-
+                    #expr
                 }
             }
         });
@@ -510,21 +529,17 @@ mod keyword {
     syn::custom_keyword!(child);
 }
 
-fn when_condition_to_expr_var(condition: TokenStream) -> TokenStream {
-    todo!()
-}
-
 struct WhenExprToVar {
-    properties: HashSet<Ident>,
-    expr_var: TokenStream,
+    properties: HashSet<(Ident, Ident)>,
+    expr: TokenStream,
 }
 impl Parse for WhenExprToVar {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut vars = TokenStream::default();
+        let mut properties = HashSet::new();
         let mut expr = TokenStream::default();
 
         while !input.is_empty() {
-            // look for `self.property(.member)?` and replace with `v{__property__member}`
+            // look for `self.property(.member)?` and replace with `#{__property__member}`
             if input.peek(Token![self]) && input.peek2(Token![.]) {
                 input.parse::<Token![self]>().unwrap();
                 input.parse::<Token![.]>().unwrap();
@@ -543,30 +558,29 @@ impl Parse for WhenExprToVar {
                     ident!("__0")
                 };
 
-                let property_arg_ident = ident!("__{}", property);
                 let var_ident = ident!("__{}{}", property, member_ident);
-                let crate_core = crate_core();
-
-                vars.extend(quote! {
-                    let #var_ident = #crate_core::var::IntoVar::into_var(std::clone::Clone::clone(#property_arg_ident.#member_ident()));
-                });
 
                 expr.extend(quote! {
-                    v{#var_ident}
+                    #{#var_ident}
                 });
+
+                properties.insert((property, member_ident));
             }
             // recursive parse groups:
             else if input.peek(token::Brace) {
                 let inner = WhenExprToVar::parse(&non_user_braced(input))?;
-                let inner = inner.expr_var;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
                 expr.extend(quote! { { #inner } });
             } else if input.peek(token::Paren) {
                 let inner = WhenExprToVar::parse(&non_user_parenthesized(input))?;
-                let inner = inner.expr_var;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
                 expr.extend(quote! { ( #inner ) });
             } else if input.peek(token::Bracket) {
                 let inner = WhenExprToVar::parse(&non_user_bracketed(input))?;
-                let inner = inner.expr_var;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
                 expr.extend(quote! { [ #inner ] });
             }
             // keep other tokens the same:
@@ -576,6 +590,6 @@ impl Parse for WhenExprToVar {
             }
         }
 
-        todo!()
+        Ok(WhenExprToVar { properties, expr })
     }
 }

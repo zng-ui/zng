@@ -298,7 +298,7 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///
 /// # Interpolation
 ///
-/// Other variables can be interpolated by quoting the var with `v{..}`. When
+/// Other variables can be interpolated by quoting the var with `#{..}`. When
 /// an expression contains other interpolated vars the expression var updates when
 /// any of the interpolated vars update.
 ///
@@ -308,15 +308,16 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// # use zero_ui_core::var::*;
 /// let var_a = var(10);
 /// let var_b = var(10);
+/// let name = "var_eq";
 /// let var_eq = var_expr! {
-///     let eq = v{var_a} == v{var_b};
-///     println!("var_expr updated: {} == {}: {}", v{var_a}, v{var_b}, eq);
+///     let eq = #{var_a} == #{var_b};
+///     println!("{} updated: {} == {}: {}", name, #{var_a}, #{var_b}, eq);
 ///     eq
 /// };
 /// ```
 ///
 /// In the example a `var_eq` of type `impl Var<bool>` is created. When either `var_a` or `var_b` are set
-/// the value of `var_eq` is updated on the next read.
+/// the value of `var_eq` is updated on the next read. Normal variables like `name` are moved in, like a closure capture.
 ///
 /// # Capture Mode
 ///
@@ -325,8 +326,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///
 /// # Interpolation
 ///
-/// Variable interpolation is done by quoting the variable with `v{<var-expr>}`. The braces are required
-/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `v{var_a.clone()}` `var_a`
+/// Variable interpolation is done by quoting the variable with `#{<var-expr>}`. The braces are required
+/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
 /// will still be available after the `var_expr` call.
 ///
 /// # Expansion

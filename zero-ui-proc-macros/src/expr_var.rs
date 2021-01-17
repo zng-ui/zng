@@ -60,9 +60,9 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
     let mut expr = TokenStream::default();
 
     while !input.is_empty() {
-        // look for variable interpolation `v{<block>}` :
-        if input.peek(keyword::v) && input.peek2(token::Brace) {
-            input.parse::<keyword::v>().unwrap();
+        // look for variable interpolation `#{<block>}` :
+        if input.peek(Token![#]) && input.peek2(token::Brace) {
+            input.parse::<Token![#]>().unwrap();
             let var = input.parse::<Group>().unwrap().stream();
             if let Some((var_ident, _)) = vars.iter().find(|(_, v)| token_stream_eq(v.clone(), var.clone())) {
                 var_ident.to_tokens(&mut expr)
@@ -93,6 +93,158 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
     expr
 }
 
-mod keyword {
-    syn::custom_keyword!(v);
+/// Like [`syn::Expr::parse_without_eager_brace`] but does not actually parse anything and includes
+/// the braces of interpolation.
+pub fn parse_without_eager_brace(input: ParseStream) -> TokenStream {
+    let mut r = TokenStream::default();
+    let mut is_start = true;
+    while !input.is_empty() {
+        if input.peek2(token::Brace) {
+            if input.cursor().punct().is_some() {
+                // #{} or ={}
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut r);
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut r);
+            } else {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                break; // found { } after expr or Struct { }
+            }
+        } else if !is_start && input.peek(token::Brace) {
+            break; // found { } after expr
+        } else {
+            let tt = input.parse::<TokenTree>().unwrap();
+            tt.to_tokens(&mut r);
+        }
+        is_start = false;
+    }
+    r
+}
+
+#[cfg(test)]
+mod tests {
+    use proc_macro2::TokenStream;
+    use syn::parse::Parse;
+
+    macro_rules! assert_tt_eq {
+        ($expected:expr, $actual:expr) => {{
+            let expected = $expected;
+            let actual = $actual;
+            assert!(
+                $crate::util::token_stream_eq(expected.clone(), actual.clone()),
+                "\n\nexpected: `{}`\n  actual: `{}`\n\n",
+                expected,
+                actual
+            );
+        }};
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_a() {
+        let input = quote! {
+            // if
+            a == self.b {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            a == self.b
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_b() {
+        let input = quote! {
+            // if
+            (a == self.b) {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            (a == self.b)
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_c() {
+        let input = quote! {
+            // if
+            a == ( A { } ) {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            a == ( A { } )
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_d() {
+        let input = quote! {
+            // if
+            a == A { } {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            a == A
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_e() {
+        let input = quote! {
+            // if
+            a == { true } {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            a == { true }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_with_interpolation() {
+        let input = quote! {
+            // if
+            a == #{b} {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            a == #{b}
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    struct ParseWithoutEagerBrace(TokenStream);
+    impl Parse for ParseWithoutEagerBrace {
+        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+            let l_expr = super::parse_without_eager_brace(input);
+            let _: TokenStream = input.parse()?;
+            Ok(ParseWithoutEagerBrace(l_expr))
+        }
+    }
+
+    fn test_parse(input: TokenStream) -> TokenStream {
+        syn::parse2::<ParseWithoutEagerBrace>(input).unwrap().0
+    }
 }

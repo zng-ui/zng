@@ -13,7 +13,7 @@ use proc_macro::TokenStream;
 mod util;
 
 mod derive_service;
-mod expr_var;
+pub(crate) mod expr_var;
 mod hex_color;
 
 mod impl_ui_node;
