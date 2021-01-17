@@ -20,7 +20,7 @@ use super::*;
 /// # fn text(text: impl IntoVar<Text>) { }
 /// let condition = var(true);
 /// let when_false = var("condition: false".to_text());
-/// 
+///
 /// let t = text(when_var! {
 ///     condition.clone() => "condition: true".to_text(),
 ///     default => when_false.clone(),
@@ -31,14 +31,14 @@ use super::*;
 #[macro_export]
 macro_rules! when_var {
     (
-        $condition:expr => $value:expr, 
+        $condition:expr => $value:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen1Var::new($default, $condition, $value)
     };
     (
         $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr, 
+        $condition1:expr => $value1:expr,
         default => $default:expr$(,)?
     ) => {
         $crate::var::RcWhen2Var::new($default, ($condition0, $condition1), ($value0, $value1))
@@ -50,88 +50,88 @@ macro_rules! when_var {
         default => $default:expr  $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2), 
+            $default,
+            ($condition0, $condition1, $condition2),
             ($value0, $value1, $value2)
         )
     };
     (
         $condition0:expr => $value0:expr,
         $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr, 
-        $condition3:expr => $value3:expr, 
+        $condition2:expr => $value2:expr,
+        $condition3:expr => $value3:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2, $condition3), 
+            $default,
+            ($condition0, $condition1, $condition2, $condition3),
             ($value0, $value1, $value2, $value3)
         )
     };
     (
         $condition0:expr => $value0:expr,
         $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr, 
-        $condition3:expr => $value3:expr, 
-        $condition4:expr => $value4:expr, 
+        $condition2:expr => $value2:expr,
+        $condition3:expr => $value3:expr,
+        $condition4:expr => $value4:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2, $condition3, $condition4), 
+            $default,
+            ($condition0, $condition1, $condition2, $condition3, $condition4),
             ($value0, $value1, $value2, $value3, , $value4)
         )
     };
     (
         $condition0:expr => $value0:expr,
         $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr, 
-        $condition3:expr => $value3:expr, 
+        $condition2:expr => $value2:expr,
+        $condition3:expr => $value3:expr,
         $condition4:expr => $value4:expr,
         $condition5:expr => $value5:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5), 
+            $default,
+            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5),
             ($value0, $value1, $value2, $value3, , $value4, $value5)
         )
     };
     (
         $condition0:expr => $value0:expr,
         $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr, 
-        $condition3:expr => $value3:expr, 
+        $condition2:expr => $value2:expr,
+        $condition3:expr => $value3:expr,
         $condition4:expr => $value4:expr,
         $condition5:expr => $value5:expr,
         $condition6:expr => $value6:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6), 
+            $default,
+            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6),
             ($value0, $value1, $value2, $value3, , $value4, $value5, $value6)
         )
     };
     (
         $condition0:expr => $value0:expr,
         $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr, 
-        $condition3:expr => $value3:expr, 
+        $condition2:expr => $value2:expr,
+        $condition3:expr => $value3:expr,
         $condition4:expr => $value4:expr,
         $condition5:expr => $value5:expr,
         $condition7:expr => $value7:expr,
         default => $default:expr $(,)?
     ) => {
         $crate::var::RcWhen2Var::new(
-            $default, 
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6, $condition7), 
+            $default,
+            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6, $condition7),
             ($value0, $value1, $value2, $value3, , $value4, $value5, $value6, $value7)
         )
     };
     (
         $condition0:expr => $value0:expr,
-        $($condition:expr => $value:expr,)+ 
+        $($condition:expr => $value:expr,)+
         default => $default:expr$(,)?
     ) => {
         // we need a builder to have $value be IntoVar and work like the others.
@@ -170,7 +170,7 @@ macro_rules! impl_rc_when_var {
         pub struct $RcMergeVar<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+>(Rc<$RcMergeVarData<O, D, $($C),+ , $($V),+>>);
         struct $RcMergeVarData<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> {
             _o: PhantomData<O>,
-            
+
             default_value: D,
             default_version: Cell<u32>,
 
@@ -196,7 +196,7 @@ macro_rules! impl_rc_when_var {
 
                         values: ($(values.$n.into_var(),)+),
                         value_versions: array_init::array_init(|_|Cell::new(0)),
-                        
+
                         self_version: Cell::new(0),
                     })
                 )
@@ -210,12 +210,12 @@ macro_rules! impl_rc_when_var {
                 Self(Rc::clone(&self.0))
             }
         }
-        
+
         impl<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> VarObj<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
                 $(
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.get(vars)    
+                        self.0.values.$n.get(vars)
                     }
                 )else+
                 else {
@@ -257,7 +257,7 @@ macro_rules! impl_rc_when_var {
                         self.0.condition_versions[$n].set(version);
                     }
                 )+
-                
+
                 $(
                     let version = self.0.values.$n.version(vars);
                     if version != self.0.value_versions[$n].get() {
@@ -281,7 +281,7 @@ macro_rules! impl_rc_when_var {
             fn is_read_only(&self, vars: &Vars) -> bool {
                 $(
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.is_read_only(vars)    
+                        self.0.values.$n.is_read_only(vars)
                     }
                 )else+
                 else {
@@ -297,7 +297,7 @@ macro_rules! impl_rc_when_var {
             fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
                 $(
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.set(vars, new_value)    
+                        self.0.values.$n.set(vars, new_value)
                     }
                 )else+
                 else {
@@ -307,7 +307,7 @@ macro_rules! impl_rc_when_var {
             fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
                 $(
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.modify_boxed(vars, change)    
+                        self.0.values.$n.modify_boxed(vars, change)
                     }
                 )else+
                 else {
@@ -315,37 +315,37 @@ macro_rules! impl_rc_when_var {
                 }
             }
         }
-        impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {            
+        impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> Var<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
             type AsReadOnly = ForceReadOnlyVar<O, Self>;
             type AsLocal = CloningLocalVar<O, Self>;
 
             fn modify<F: FnOnce(&mut O) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly> {
                 $(
                     if *self.0.conditions.$n.get(vars) {
-                        self.0.values.$n.modify(vars, change)    
+                        self.0.values.$n.modify(vars, change)
                     }
                 )else+
                 else {
                     self.0.default_value.modify(vars, change)
                 }
             }
-        
+
             fn as_read_only(self) -> Self::AsReadOnly {
                ForceReadOnlyVar::new(self)
             }
-        
+
             fn as_local(self) -> Self::AsLocal {
                 CloningLocalVar::new(self)
             }
-        
+
             fn map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(&self, map: F) -> RcMapVar<O, O2, Self, F> {
                 self.clone().into_map(map)
             }
-        
+
             fn map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(&self, map: F) -> MapRefVar<O, O2, Self, F> {
                 self.clone().into_map_ref(map)
             }
-        
+
             fn map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
                 &self,
                 map: F,
@@ -353,7 +353,7 @@ macro_rules! impl_rc_when_var {
             ) -> RcMapBidiVar<O, O2, Self, F, G> {
                 self.clone().into_map_bidi(map, map_back)
             }
-        
+
             fn map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
                 &self,
                 map: F,
@@ -361,15 +361,15 @@ macro_rules! impl_rc_when_var {
             ) -> MapBidiRefVar<O, O2, Self, F, G> {
                 self.clone().into_map_bidi_ref(map, map_mut)
             }
-        
+
             fn into_map<O2: VarValue, F: FnMut(&O) -> O2 + 'static>(self, map: F) -> RcMapVar<O, O2, Self, F> {
                 RcMapVar::new(self, map)
             }
-        
+
             fn into_map_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static>(self, map: F) -> MapRefVar<O, O2, Self, F> {
                 MapRefVar::new(self, map)
             }
-        
+
             fn into_map_bidi<O2: VarValue, F: FnMut(&O) -> O2 + 'static, G: FnMut(O2) -> O + 'static>(
                 self,
                 map: F,
@@ -377,7 +377,7 @@ macro_rules! impl_rc_when_var {
             ) -> RcMapBidiVar<O, O2, Self, F, G> {
                 RcMapBidiVar::new(self, map, map_back)
             }
-        
+
             fn into_map_bidi_ref<O2: VarValue, F: Fn(&O) -> &O2 + Clone + 'static, G: Fn(&mut O) -> &mut O2 + Clone + 'static>(
                 self,
                 map: F,
@@ -421,14 +421,14 @@ impl<O: VarValue> RcWhenVar<O> {
             default_,
             default_version: Cell::new(0),
 
-            when_versions: whens.iter().map(|_|(Cell::new(0), Cell::new(0))).collect(),
+            when_versions: whens.iter().map(|_| (Cell::new(0), Cell::new(0))).collect(),
             whens,
-            
+
             self_version: Cell::new(0),
         }))
     }
 }
-impl<O: VarValue> protected::Var for RcWhenVar<O> { }
+impl<O: VarValue> protected::Var for RcWhenVar<O> {}
 impl<O: VarValue> Clone for RcWhenVar<O> {
     fn clone(&self) -> Self {
         Self(Rc::clone(&self.0))
@@ -505,7 +505,7 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
     }
 
     fn always_read_only(&self) -> bool {
-        self.0.whens.iter().all(|(_, v)|v.always_read_only())
+        self.0.whens.iter().all(|(_, v)| v.always_read_only())
     }
 
     fn can_update(&self) -> bool {
@@ -539,7 +539,7 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 
     fn as_read_only(self) -> Self::AsReadOnly {
-       ForceReadOnlyVar::new(self)
+        ForceReadOnlyVar::new(self)
     }
 
     fn as_local(self) -> Self::AsLocal {
@@ -598,13 +598,13 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
 #[doc(hidden)]
 pub struct RcWhenVarBuilder<O: VarValue> {
     default_: BoxedVar<O>,
-    whens: Vec<(BoxedVar<bool>, BoxedVar<O>)>
+    whens: Vec<(BoxedVar<bool>, BoxedVar<O>)>,
 }
 impl<O: VarValue> RcWhenVarBuilder<O> {
-    pub fn new<D: IntoVar<O>, C0: Var<bool>, V0: IntoVar<O>>(default_ : D, condition0: C0, value0: V0) -> Self {
+    pub fn new<D: IntoVar<O>, C0: Var<bool>, V0: IntoVar<O>>(default_: D, condition0: C0, value0: V0) -> Self {
         Self {
             default_: default_.into_var().boxed(),
-            whens: vec![(condition0.boxed(), value0.into_var().boxed())]
+            whens: vec![(condition0.boxed(), value0.into_var().boxed())],
         }
     }
 

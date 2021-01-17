@@ -510,10 +510,7 @@ pub struct RcSwitchVarBuilder<O: VarValue, VI: Var<usize>> {
 }
 impl<O: VarValue, VI: Var<usize>> RcSwitchVarBuilder<O, VI> {
     pub fn new(index: VI) -> Self {
-        RcSwitchVarBuilder {
-            index,
-            vars: vec![],
-        }
+        RcSwitchVarBuilder { index, vars: vec![] }
     }
 
     pub fn push<IO: IntoVar<O>>(mut self, var: IO) -> Self {

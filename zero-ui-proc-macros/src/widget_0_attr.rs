@@ -8,12 +8,12 @@ use syn::{
     parse2, parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token, TypeTuple,
+    token, visit_mut, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token, TypeTuple,
 };
 use util::{non_user_braced_id, parse2_punctuated};
 
 use crate::{
-    util::{self, Attributes, Errors},
+    util::{self, crate_core, non_user_braced, non_user_bracketed, non_user_parenthesized, Attributes, Errors},
     widget_new2::{PropertyValue, When},
 };
 
@@ -46,11 +46,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     let WidgetItems {
         inherits,
-        properties,
+        mut properties,
         mut new_child_fn,
         mut new_fn,
         others,
     } = WidgetItems::new(items, &mut errors);
+
+    let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
+    let child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
+    let properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
         if let Some(child_fn_) = new_child_fn.take() {
@@ -129,6 +133,20 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         }
     });
 
+    let mut when_conditions = TokenStream::default();
+    for (i, when) in whens.into_iter().enumerate() {
+        let ident = when.make_ident(i);
+
+        when_conditions.extend(quote! {
+            #[doc(hidden)]
+            pub fn #ident() -> impl #crate_core::var::Var<bool> {
+                #crate_core::var::expr_var! {
+
+                }
+            }
+        });
+    }
+
     let r = quote! {
         #errors
 
@@ -165,6 +183,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                         #new_child__
                         #new__
+
+                        #when_conditions
                     }
                 }
             }
@@ -488,4 +508,74 @@ impl Parse for NamedField {
 mod keyword {
     pub use crate::widget_new2::keyword::when;
     syn::custom_keyword!(child);
+}
+
+fn when_condition_to_expr_var(condition: TokenStream) -> TokenStream {
+    todo!()
+}
+
+struct WhenExprToVar {
+    properties: HashSet<Ident>,
+    expr_var: TokenStream,
+}
+impl Parse for WhenExprToVar {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut vars = TokenStream::default();
+        let mut expr = TokenStream::default();
+
+        while !input.is_empty() {
+            // look for `self.property(.member)?` and replace with `v{__property__member}`
+            if input.peek(Token![self]) && input.peek2(Token![.]) {
+                input.parse::<Token![self]>().unwrap();
+                input.parse::<Token![.]>().unwrap();
+
+                let property = input.parse::<Ident>()?; // parse::<Path> in widget_new.
+                let member_ident = if input.peek(Token![.]) {
+                    input.parse::<Token![.]>().unwrap();
+                    if input.peek(Ident) {
+                        let member = input.parse::<Ident>().unwrap();
+                        ident!("__{}", member)
+                    } else {
+                        let index = input.parse::<syn::Index>().unwrap();
+                        ident!("__{}", index.index)
+                    }
+                } else {
+                    ident!("__0")
+                };
+
+                let property_arg_ident = ident!("__{}", property);
+                let var_ident = ident!("__{}{}", property, member_ident);
+                let crate_core = crate_core();
+
+                vars.extend(quote! {
+                    let #var_ident = #crate_core::var::IntoVar::into_var(std::clone::Clone::clone(#property_arg_ident.#member_ident()));
+                });
+
+                expr.extend(quote! {
+                    v{#var_ident}
+                });
+            }
+            // recursive parse groups:
+            else if input.peek(token::Brace) {
+                let inner = WhenExprToVar::parse(&non_user_braced(input))?;
+                let inner = inner.expr_var;
+                expr.extend(quote! { { #inner } });
+            } else if input.peek(token::Paren) {
+                let inner = WhenExprToVar::parse(&non_user_parenthesized(input))?;
+                let inner = inner.expr_var;
+                expr.extend(quote! { ( #inner ) });
+            } else if input.peek(token::Bracket) {
+                let inner = WhenExprToVar::parse(&non_user_bracketed(input))?;
+                let inner = inner.expr_var;
+                expr.extend(quote! { [ #inner ] });
+            }
+            // keep other tokens the same:
+            else {
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut expr)
+            }
+        }
+
+        todo!()
+    }
 }

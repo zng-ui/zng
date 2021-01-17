@@ -13,8 +13,8 @@ use proc_macro::TokenStream;
 mod util;
 
 mod derive_service;
+mod expr_var;
 mod hex_color;
-mod var_expr;
 
 mod impl_ui_node;
 pub(crate) mod property;
@@ -109,6 +109,6 @@ pub fn widget_new2(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn var_expr(input: TokenStream) -> TokenStream {
-    var_expr::expand(input)
+pub fn expr_var(input: TokenStream) -> TokenStream {
+    expr_var::expand(input)
 }
