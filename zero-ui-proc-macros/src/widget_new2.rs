@@ -488,6 +488,25 @@ impl PropertyValue {
             _ => None,
         }
     }
+
+    /// Convert this value to an expr. Panics if `self` is [`Special`].
+    pub fn expr_tokens(&self, property_path: &TokenStream) -> TokenStream {
+        match self {
+            PropertyValue::Unnamed(args) => {
+                quote! {
+                    #property_path::ArgsImpl::new(#args)
+                }
+            }
+            PropertyValue::Named(_, fields) => {
+                quote! {
+                    #property_path::code_gen! { named_new #property_path {
+                        #fields
+                    }}
+                }
+            }
+            PropertyValue::Special(_, _) => panic!("cannot expand special"),
+        }
+    }
 }
 impl Parse for PropertyValue {
     fn parse(input: ParseStream) -> syn::Result<Self> {

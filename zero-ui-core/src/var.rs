@@ -99,14 +99,16 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// References the current value.
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a T;
 
-    /// References the current value if it is new.
+    /// References the current value if it [is new](Self::is_new).
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
 
-    /// If [`set`](Self::set) or [`modify`](Var::modify) was called in the previous update.
+    /// If [`set`](Self::set) or [`modify`](Var::modify) where called in the previous update.
     ///
     /// When you set the variable, the new value is only applied after the UI tree finishes
     /// the current update. The value is then applied causing a new update to happen, in the new
     /// update this method returns `true`. After the new update it returns `false` again.
+    ///
+    /// The new value can still be equal to the previous value, the variable does not check equality on assign.
     fn is_new(&self, vars: &Vars) -> bool;
 
     /// Version of the current value.
@@ -133,6 +135,9 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     ///
     /// Variables are not changed immediately, the full UI tree gets a chance to see the current value,
     /// after the current UI update, the values set here are applied.
+    ///
+    /// If the result is `Ok` the variable will be flagged as [new](Self::is_new) in the next update. Value
+    /// equality is not checked, setting to an equal value still flags a *new*.
     ///
     /// ### Error
     ///
@@ -201,6 +206,9 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     ///
     /// This is a variation of the [`set`](VarObj::set) method that does not require
     /// an entire new value to be instantiated.
+    ///
+    /// If the result is `Ok` the variable will be flagged as [new](Self::is_new) in the next update,
+    /// even if `change` does not do anything.
     fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly>;
 
     /// Returns the variable as a type that is [`always_read_only`](VarObj::always_read_only).
@@ -326,9 +334,12 @@ pub trait IntoVar<T: VarValue>: Clone {
 ///
 /// # Interpolation
 ///
-/// Variable interpolation is done by quoting the variable with `#{<var-expr>}`. The braces are required
-/// and the `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
-/// will still be available after the `var_expr` call.
+/// Variable interpolation is done by quoting the variable with `#{<var-expr>}`, the braces are required.
+///
+/// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
+/// will still be available after the `var_expr` call. Equal `<var-expr>` only evaluate once.
+///
+/// The interpolation result value is the [`Var::get`] return value.
 ///
 /// # Expansion
 ///
