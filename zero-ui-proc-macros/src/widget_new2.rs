@@ -12,7 +12,7 @@ use syn::{
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{crate_core, display_path, non_user_braced, non_user_braced_id, tokens_to_ident_str, Errors};
+use crate::util::{Errors, crate_core, display_path, non_user_braced, non_user_braced_id, parse_all, tokens_to_ident_str};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -167,7 +167,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .assigns
             .into_iter()
             // when can only assign properties that have an initial value.
-            .filter(|id| user_assigns.contains(&parse_quote! { #id }))
+            .filter(|a| {
+                let id = &a.property;
+                user_assigns.contains(&parse_quote! { #id })
+            })
             .collect();
         if w_assigns.is_empty() {
             // skip, when does not assign any property.
@@ -182,10 +185,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         for w_assign in w_assigns {
-            let d_ident = ident!("{}_d_{}", when_ident, w_assign);
+            let p_ident = &w_assign.property;
+            let d_ident = ident!("{}_d_{}", when_ident,p_ident);
             let value = quote! { #widget_mod::#d_ident() };
 
-            let w_assign: syn::Path = parse_quote! { #w_assign };
+            let w_assign: syn::Path = parse_quote! { #p_ident };
             push_when_assign(w_assign, when_ident.clone(), value);
         }
     }
@@ -372,33 +376,40 @@ impl Parse for BuiltProperty {
 
 pub struct BuiltWhen {
     pub ident: Ident,
+    pub docs: TokenStream,
+    pub cfg: TokenStream,
     pub inputs: Vec<Ident>,
-    pub assigns: Vec<Ident>,
+    pub assigns: Vec<BuiltWhenAssign>,
 }
 impl Parse for BuiltWhen {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced(input);
 
-        let mut expr_properties = vec![];
-        let expr = non_user_braced_id(&input, "inputs");
-        while !expr.is_empty() {
-            expr_properties.push(expr.parse().unwrap_or_else(|e| non_user_error!(e)));
-            expr.parse::<Token![,]>().ok();
-        }
-
-        let mut set_properties = vec![];
-        let set = non_user_braced_id(&input, "assigns");
-        while !set.is_empty() {
-            set_properties.push(set.parse().unwrap_or_else(|e| non_user_error!(e)));
-            set.parse::<Token![,]>().ok();
-        }
-
-        Ok(BuiltWhen {
+        let r = Ok(BuiltWhen {
             ident,
-            inputs: expr_properties,
-            assigns: set_properties,
-        })
+            docs: non_user_braced_id(&input, "docs").parse().unwrap(),
+            cfg: non_user_braced_id(&input, "cfg").parse().unwrap(),
+            inputs: parse_all(&non_user_braced_id(&input, "inputs")).unwrap_or_else(|e|non_user_error!(e)),
+            assigns: parse_all(&non_user_braced_id(&input, "assigns")).unwrap_or_else(|e|non_user_error!(e)),
+        });
+        r
+    }
+}
+
+pub struct BuiltWhenAssign {
+    pub property: Ident,
+    pub cfg: TokenStream,
+}
+impl Parse for BuiltWhenAssign {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let property = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced(input);
+        let r = Ok(BuiltWhenAssign {
+            property,
+            cfg: non_user_braced_id(&input, "cfg").parse().unwrap()
+        });
+        r
     }
 }
 
