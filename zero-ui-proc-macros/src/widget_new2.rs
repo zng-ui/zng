@@ -12,7 +12,7 @@ use syn::{
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{Errors, crate_core, display_path, non_user_braced, non_user_braced_id, parse_all, tokens_to_ident_str};
+use crate::util::{crate_core, display_path, non_user_braced, non_user_braced_id, parse_all, tokens_to_ident_str, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -186,7 +186,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         for w_assign in w_assigns {
             let p_ident = &w_assign.property;
-            let d_ident = ident!("{}_d_{}", when_ident,p_ident);
+            let d_ident = ident!("{}_d_{}", when_ident, p_ident);
             let value = quote! { #widget_mod::#d_ident() };
 
             let w_assign: syn::Path = parse_quote! { #p_ident };
@@ -390,8 +390,8 @@ impl Parse for BuiltWhen {
             ident,
             docs: non_user_braced_id(&input, "docs").parse().unwrap(),
             cfg: non_user_braced_id(&input, "cfg").parse().unwrap(),
-            inputs: parse_all(&non_user_braced_id(&input, "inputs")).unwrap_or_else(|e|non_user_error!(e)),
-            assigns: parse_all(&non_user_braced_id(&input, "assigns")).unwrap_or_else(|e|non_user_error!(e)),
+            inputs: parse_all(&non_user_braced_id(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
+            assigns: parse_all(&non_user_braced_id(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
         });
         r
     }
@@ -407,7 +407,7 @@ impl Parse for BuiltWhenAssign {
         let input = non_user_braced(input);
         let r = Ok(BuiltWhenAssign {
             property,
-            cfg: non_user_braced_id(&input, "cfg").parse().unwrap()
+            cfg: non_user_braced_id(&input, "cfg").parse().unwrap(),
         });
         r
     }

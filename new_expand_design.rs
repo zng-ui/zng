@@ -149,9 +149,10 @@ pub mod widget_expanded {
             }
         }
 
-        // macros uses in macro_rules are reexported here.
+        // reexports crate_core so that macros can use the core types knowing only the widget module path. 
         #[doc(hidden)]
-        pub use zero_ui::widget_inherit as __widget_inherit;    
+        pub use zero_ui::core as __core;
+
         #[doc(hidden)]
         #[macro_export]
         macro_rules! button_inherit_df18a4960c9c4924b503e192adb095ca {
@@ -160,7 +161,7 @@ pub mod widget_expanded {
                 inherit { $($inherit:path;)* }
                 $($rest:tt)+
             ) => {
-                $crate::widgets::button::__widget_inherit! {
+                $crate::widgets::button::__core::widget_inherit! {
                     // if the widget that is inheriting this is a mixin.
                     mixin { $mixin }
                     // other inherited widgets to be processed after this.
@@ -172,6 +173,8 @@ pub mod widget_expanded {
                         properties_child {
                             /// padding docs.
                             padding {
+                                docs { }
+                                cfg { }
                                 default true, // has default value
                                 required false // not required, can `unset!`.
                             }
@@ -213,7 +216,7 @@ pub mod widget_expanded {
                                     /// w0_is_focused docs.
                                 }
                                 cfg {
-                                    // #[cfg(..)] or the when block
+                                    // #[cfg(..)] of the when block
                                 }
                                 // properties used in the when expression.
                                 inputs {
@@ -243,36 +246,46 @@ pub mod widget_expanded {
         pub use crate::button_inherit_df18a4960c9c4924b503e192adb095ca as __inherit;
 
         // widget::__new!(..) is only generated if the widget is not a mixin.
-        #[doc(hidden)]
-        pub use zero_ui::widget_new as __widget_new;    
+
         #[doc(hidden)]
         #[macro_export]
         macro_rules! button_new_df18a4960c9c4924b503e192adb095ca {
             ($($tt:tt)*) => {
-                $crate::widgets::button::__widget_new!  {
+                $crate::widgets::button::__core::widget_new!  {
                     widget {
                         module { $crate::widgets::button }
                         
                         // no mixin section.
 
                         properties_child {
-                            // no property docs in new
+                            
                             padding {
+                                docs { } // no property docs in new but we have the empty group
+                                cfg { #[cfg(..)] }
                                 default true,
                                 required false 
                             }
                         }
                         properties {
-                            // same as inherit but without the docs.
+                            // same as inherit but with docs empty
                         }
     
                         whens {
-                            // no docs here.
                             __w0_is_focused { // auto generated name tries to convert to expression to text.
+                                docs { } // empty docs group.
+                                cfg {
+                                    // #[cfg(..)] of the when block
+                                }
                                 // properties used in the when expression.
                                 inputs { is_focused }
                                 // properties set by the when block.
-                                assigns { background_color { cfg {} } }
+                                assigns { 
+                                    background_color { 
+                                       cfg {
+                                           // #[cfg(..)] of the assign
+                                       }
+                                    } 
+                                }
                             }
                         }
                         // captured properties for each new function.
@@ -335,7 +348,7 @@ pub mod widget_expanded {
 
         self::__p_is_focused::code_gen!{assert allowed_in_when=> "property `is_focused` is not allowed in when condition"}
         #[doc(hidden)]
-        pub fn __w0_is_focused(__self_is_focused: impl self::__p_is_focused::Args) -> impl zero_ui::core::var::Var<bool> {
+        pub fn __w0_self_is_focused(__self_is_focused: impl self::__p_is_focused::Args) -> impl zero_ui::core::var::Var<bool> {
             // # the expression converted to var return, map or merge.
             __self_is_focused.unwrap()
         }
@@ -373,6 +386,7 @@ pub mod widget_expanded {
     }
     // if widget is not a mixin.
     #[doc(hidden)]
+    // #[cfg] of mod
     pub use button::__new_macro as button;
 }
 
@@ -397,25 +411,81 @@ pub fn widget_user_instantiation() -> impl Widget {
 
 pub fn widget_instantiation_expanded() -> impl Widget {
     {
-        let __id = path::button::__d_id();
+        // 1 - Initializes property values in this order:
+        // 1.a - Child properties default values in the order declared in the widget module.
+        // 1.b - Properties default values in the order declared in widget module.
+        // 1.c - Properties set in this instance in the order the user sets then.
+        // 1.d - State properties used only in when conditions. 
+        //
+        // 2 - Initializes when conditions in this order:
+        // 2.a - Built-in when conditions in the order they are declared in the widget module.
+        // 2.b - When condition declared in the instance in the order they are declared.
+        //
+        // 3 - Initializes when assign values in this order:
+        // 3.a - Built-in when assign values in the order they are declared in the widget module.
+        // 3.b - Instance when assigns in the order they are set.
+        //
+        // 4 - Replaces properties with *when_vars* in the same order as the when conditions.
+        //
+        // 5 - Call the *new_child()* function.
+        // 6 - Call `set` for each child properties in the same order the values where initialized.
+        // 7 - Call `set` for each properties in the same order the values where initialized.
+        //
+        // 8 - Call the *new()* function. 
+
         let __padding = path::button::__d_padding();
+        
+        let __id = path::button::__d_id();
+        // #[cfg(..)] of property defined in widget
         let __custom = path::button::__d_custom();
+
+        let __text_color = path::button::__p_text_color::ArgsImpl::new(colors::LIGHT_BLUE);
+        // #[cfg(..)] and lint attributes of property set for this instance
         let __content = path::button::__p_content::ArgsImpl::new(text("click me!"));
-        let __text_color = {
-            let s0__ = text_color::ArgsImpl::new(colors::LIGHT_BLUE);
-            let s1__ = text_color::ArgsImpl::new(colors::GRAY);// OR path::button::__w0_d_text_color();
-            let w0__ = when_expr_var!(same as before);
-            let idx__ = w0__.map(|b| if b { 0 } else { 1 });
-            // (switch $property_path:path, $idx:ident, $($arg_n:ident),+) => {
-            text_color::code_gen!(switch text_color, idx__, s0__, s1__) 
-        };     
+
         let __on_click = path::button::__p_on_click::ArgsImpl::new(|ctx, args| println!("button clicked!"));
+
+        let __is_focused = path::button::__p_is_focused::ArgsImpl::new(path::button::__core::var::state_var());
+        let __is_enabled = path::button::__p_is_enabled::ArgsImpl::new(path::button::__core::var::state_var());
+
+        // #[cfg(..)] set in the when block in widget.
+        let __c__w0_self_is_focused = path::button::__w0_self_is_focused(&__is_focused);
+
+        // #[cfg(..)] and lint attributes set in the when block in instance.
+        let __c_uw0_not_self_is_enabled = {
+            // clone the property args used in the condition expression.
+            let __is_enabled__0 = path::button::__core::var::IntoVar::into_var(
+                std::clone::Clone::clone(
+                    path::button::__p_is_enabled::Args::__0(&__is_enabled)
+                )
+            );
+            // Expands the expression.
+            path::button::__core::var::expr_var!( ! #{__is_enabled__0} )
+        };
+
+        // #[cfg(..)] set in the when assign in widget, already combined with the when block cfg.
+        let __w0_d_text_color = path::button::__w0_d_text_color();
+        // #[cfg(..)] and lint attributes set in the when assign, combined with the when block cfg + lints set in the when block.
+        let __uw0_d_text_color = path::button::__p_text_color::ArgsImpl::new(colors::GRAY);
+
+        // #[cfg(..)] set in the property default.
+        let __text_color = path::button::__p_text_color::when_property! {
+            // #[cfg(..)] same as in the `__w0_d_text_color` value. 
+            __c_not_self_is_enabled => __w0_d_text_color,
+            // #[cfg(..)] ..
+            __c_not_self_is_enabled => __uw0_d_text_color,
+            default => __text_color
+        };
         
         let node__ = path::button::__new_child(__content, __custom);
+
         let node__ = __padding.set(node__);
 
-        let node__ = text_color.set(node__);
+        // #[cfg(..)] set in the property default.
+        let node__ = __text_color.set(node__);
+        // .. all property assigns.
         let node__ = on_click.set(node__);
+        
         path::button::new(node__, __id, __custom_multi)
     }
 }

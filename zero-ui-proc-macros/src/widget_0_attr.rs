@@ -423,6 +423,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                         #when_conditions
                         #when_defaults
+
+                        #[doc(hidden)]
+                        pub use #crate_core as __core;
                     }
                 }
             }

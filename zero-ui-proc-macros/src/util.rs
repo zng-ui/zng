@@ -456,7 +456,13 @@ pub fn merge_cfg_attr(a: Option<Attribute>, b: Option<Attribute>) -> Option<Toke
         (None, Some(b)) => Some(b.to_token_stream()),
         (Some(a), None) => Some(a.to_token_stream()),
         (Some(a), Some(b)) => match (syn::parse2::<CfgCondition>(a.tokens), syn::parse2::<CfgCondition>(b.tokens)) {
-            (Ok(a), Ok(b)) => Some(quote! { #[cfg(all(#a, #b))] }),
+            (Ok(a), Ok(b)) => {
+                if token_stream_eq(a.tokens.clone(), b.tokens.clone()) {
+                    Some(quote! { #[cfg(#a)] })
+                } else {
+                    Some(quote! { #[cfg(all(#a, #b))] })
+                }
+            }
             (Ok(a), Err(_)) => Some(quote! { #[cfg(#a)] }),
             (Err(_), Ok(b)) => Some(quote! { #[cfg(#b)] }),
             (Err(_), Err(_)) => None,
