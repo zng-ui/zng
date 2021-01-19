@@ -240,8 +240,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             #p_ident {
                 docs { #(#docs)* }
                 cfg { #cfg }
-                default #default,
-                required #required
+                default { #default }
+                required { #required }
             }
         });
     }

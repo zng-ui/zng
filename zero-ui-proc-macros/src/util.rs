@@ -190,6 +190,16 @@ pub fn non_user_bracketed(input: syn::parse::ParseStream) -> syn::parse::ParseBu
     inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
 
+pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>> {
+    let mut result = vec![];
+
+    while !input.is_empty() {
+        result.push(input.parse()?)
+    }
+
+    Ok(result)
+}
+
 pub fn uuid() -> impl std::fmt::Display {
     // could also be format!("{:?}", Span::call_site()).splitn(2, ' ').next().unwrap()[1..].to_string();
     uuid::Uuid::new_v4().to_simple()
