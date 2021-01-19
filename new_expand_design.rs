@@ -178,9 +178,14 @@ pub mod widget_expanded {
     
                             // .. + all child properties
                         }
-                        properties {
-                            /// background_color docs.
+                        properties {                            
                             background_color {
+                                docs { 
+                                    /// background_color docs.
+                                }
+                                cfg {
+                                    // #[cfg(..)]
+                                }
                                 default true
                                 required false
                             }
@@ -202,13 +207,26 @@ pub mod widget_expanded {
     
                             // .. + all normal properties
                         }
-                        whens {
-                            /// w0_is_focused docs.
+                        whens {                            
                             __w0_is_focused { // auto generated name tries to convert to expression to text.
+                                docs {
+                                    /// w0_is_focused docs.
+                                }
+                                cfg {
+                                    // #[cfg(..)] or the when block
+                                }
                                 // properties used in the when expression.
-                                inputs { is_focused }
+                                inputs {
+                                    is_focused
+                                }
                                 // properties set by the when block.
-                                assigns { background_color }
+                                assigns { 
+                                    background_color { 
+                                       cfg {
+                                           // #[cfg(..)] of the assign
+                                       }
+                                    } 
+                                }
                             }
                         }
     
@@ -254,7 +272,7 @@ pub mod widget_expanded {
                                 // properties used in the when expression.
                                 inputs { is_focused }
                                 // properties set by the when block.
-                                assigns { background_color }
+                                assigns { background_color { cfg {} } }
                             }
                         }
                         // captured properties for each new function.

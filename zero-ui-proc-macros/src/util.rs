@@ -250,6 +250,7 @@ pub struct Attributes {
     pub docs: Vec<Attribute>,
     pub inline: Option<Attribute>,
     pub cfg: Option<Attribute>,
+    pub lints: Vec<Attribute>,
     pub others: Vec<Attribute>,
 }
 impl Attributes {
@@ -257,21 +258,20 @@ impl Attributes {
         let mut docs = vec![];
         let mut inline = None;
         let mut cfg = None;
+        let mut lints = vec![];
         let mut others = vec![];
-
-        let doc_ident = ident!("doc");
-        let inline_ident = ident!("inline");
-        let cfg_ident = ident!("cfg");
 
         for attr in attrs {
             if let Some(ident) = attr.path.get_ident() {
-                if ident == &doc_ident {
+                if ident == "doc" {
                     docs.push(attr);
                     continue;
-                } else if ident == &inline_ident {
+                } else if ident == "inline" {
                     inline = Some(attr);
-                } else if ident == &cfg_ident {
+                } else if ident == "cfg" {
                     cfg = Some(attr);
+                } else if ident == "allow" || ident == "warn" || ident == "deny" || ident == "forbid" {
+                    lints.push(attr);
                 } else {
                     others.push(attr);
                 }
@@ -280,7 +280,13 @@ impl Attributes {
             }
         }
 
-        Attributes { docs, inline, cfg, others }
+        Attributes {
+            docs,
+            inline,
+            cfg,
+            lints,
+            others,
+        }
     }
 }
 
@@ -430,5 +436,35 @@ pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
             (None, None) => return true,
             _ => return false,
         }
+    }
+}
+
+/// Merges both `#[cfg]` attributes
+pub fn merge_cfg_attr(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
+    match (a, b) {
+        (None, None) => None,
+        (None, Some(b)) => Some(b.to_token_stream()),
+        (Some(a), None) => Some(a.to_token_stream()),
+        (Some(a), Some(b)) => match (syn::parse2::<CfgCondition>(a.tokens), syn::parse2::<CfgCondition>(b.tokens)) {
+            (Ok(a), Ok(b)) => Some(quote! { #[cfg(all(#a, #b))] }),
+            (Ok(a), Err(_)) => Some(quote! { #[cfg(#a)] }),
+            (Err(_), Ok(b)) => Some(quote! { #[cfg(#b)] }),
+            (Err(_), Err(_)) => None,
+        },
+    }
+}
+struct CfgCondition {
+    tokens: TokenStream,
+}
+impl Parse for CfgCondition {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let inner;
+        parenthesized!(inner in input);
+        Ok(CfgCondition { tokens: inner.parse()? })
+    }
+}
+impl ToTokens for CfgCondition {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.tokens.to_tokens(tokens);
     }
 }

@@ -437,6 +437,7 @@ impl Parse for UserInput {
 }
 
 pub struct PropertyAssign {
+    pub attrs: Vec<Attribute>,
     pub path: Path,
     pub eq: Token![=],
     pub value: PropertyValue,
@@ -444,6 +445,7 @@ pub struct PropertyAssign {
 }
 impl Parse for PropertyAssign {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attrs = Attribute::parse_outer(input)?;
         let path = input.parse()?;
         let eq = input.parse()?;
 
@@ -461,6 +463,7 @@ impl Parse for PropertyAssign {
         }
 
         Ok(PropertyAssign {
+            attrs,
             path,
             eq,
             value: syn::parse2(value_stream)?,

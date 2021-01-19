@@ -39,8 +39,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     };
 
     let Attributes {
-        docs, cfg, others: attrs, ..
+        docs: wgt_docs,
+        cfg: wgt_cfg,
+        lints,
+        others: mut wgt_attrs,
+        ..
     } = Attributes::new(mod_.attrs);
+    wgt_attrs.extend(lints);
+
     let vis = mod_.vis;
     let ident = mod_.ident;
 
@@ -53,8 +59,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     } = WidgetItems::new(items, &mut errors);
 
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
-    let child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
-    let properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
+    let mut child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
+    let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
     if mixin {
         if let Some(child_fn_) = new_child_fn.take() {
@@ -140,8 +146,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut built_properties = TokenStream::default();
     let mut property_defaults = TokenStream::default();
     let mut property_declarations = TokenStream::default();
+    let mut property_declared_idents = TokenStream::default();
     let mut property_unsets = TokenStream::default();
-    for property in child_properties.iter().chain(properties.iter()) {
+    for property in child_properties.iter_mut().chain(&mut properties) {
+        let attrs = Attributes::new(mem::take(&mut property.attrs));
+        for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
+            errors.push(
+                "only `doc`, `cfg` and lint attributes are allowed in properties",
+                invalid_attr.span(),
+            );
+        }
+
         let p_ident = property.ident();
         if !declared_properties.insert(p_ident) {
             errors.push(format_args!("property `{}` is already declared", p_ident), p_ident.span());
@@ -167,6 +182,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 #[#crate_core::property(capture_only)]
                 pub fn #p_mod_ident(#inputs) -> ! { }
             });
+
+            // so "widget_2_declare.rs" skips reexporting this one.
+            p_ident.to_tokens(&mut property_declared_idents);
         }
 
         let mut default = false;
@@ -192,10 +210,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 }
             } else {
                 default = true;
+                let cfg = &attrs.cfg;
+                let lints = attrs.lints;
                 let fn_ident = ident!("__d_{}", p_ident);
                 let p_mod_ident = ident!("__p_{}", p_ident);
                 let expr = default_value.expr_tokens(&quote! { self::#p_mod_ident });
+
                 property_defaults.extend(quote! {
+                    #cfg
+                    #(#lints)*
                     #[doc(hidden)]
                     pub fn #fn_ident() -> impl self::#p_mod_ident::Args {
                         #expr
@@ -210,9 +233,13 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // widget is inheriting *new* functions.
         required |= captures.contains(p_ident);
 
+        let docs = attrs.docs;
+        let cfg = attrs.cfg;
+
         built_properties.extend(quote! {
-            // TODO docs, cfg
             #p_ident {
+                docs { #(#docs)* }
+                cfg { #cfg }
                 default #default,
                 required #required
             }
@@ -225,6 +252,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut when_conditions = TokenStream::default();
     let mut when_defaults = TokenStream::default();
     for (i, when) in whens.into_iter().enumerate() {
+        // when ident, `__w{i}_{condition_expr_to_str}`
+        let ident = when.make_ident(i);
+
+        let attrs = Attributes::new(when.attrs);
+        for invalid_attr in attrs.others.into_iter().chain(attrs.inline) {
+            errors.push("only `doc`, `cfg` and lint attributes are allowed in when", invalid_attr.span());
+        }
+        let cfg = attrs.cfg;
+        let docs = attrs.docs;
+        let when_lints = attrs.lints;
+
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
         let condition = match syn::parse2::<WhenExprToVar>(when.condition_expr.to_token_stream()) {
             Ok(c) => c,
@@ -234,16 +272,19 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         };
 
-        // when ident, `__w{i}_{condition_expr_to_str}`
-        let ident = when.make_ident(i);
-
-        let mut assigns = vec![];
+        let mut assigns = HashSet::new();
+        let mut assigns_tokens = TokenStream::default();
         for assign in when.assigns {
             // property default value validation happens "widget_2_declare.rs"
 
             if let Some(property) = assign.path.get_ident() {
+                let attrs = Attributes::new(assign.attrs);
+                for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+                    errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
+                }
+
                 // validate property only assigned once in the when block.
-                if assigns.iter().any(|p| p == property) {
+                if !assigns.insert(property.clone()) {
                     errors.push(
                         format_args!("property `{}` already assigned in this `when` block", property),
                         property.span(),
@@ -261,11 +302,21 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 // ident of the property value function.
                 let fn_ident = ident!("{}__{}", ident, property);
 
-                assigns.push(property.clone());
+                let cfg = util::merge_cfg_attr(attrs.cfg, cfg.clone());
+
+                assigns_tokens.extend(quote! {
+                    #property {
+                        cfg { #cfg }
+                    }
+                });
 
                 let expr = assign.value.expr_tokens(&quote!(self::#prop_ident));
+                let lints = attrs.lints;
 
                 when_defaults.extend(quote! {
+                    #cfg
+                    #(#when_lints)*
+                    #(#lints)*
                     #[doc(hidden)]
                     pub fn #fn_ident() -> impl self::#prop_ident::Args {
                         #expr
@@ -296,6 +347,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let expr = condition.expr;
 
         when_conditions.extend(quote! {
+            #cfg
+            #(#when_lints)*
             #[doc(hidden)]
             pub fn #ident(#(#input_idents : &impl self::#prop_idents::Args),*) -> impl #crate_core::var::Var<bool> {
                 #(let #field_idents = #crate_core::var::IntoVar::into_var(std::clone::Clone::clone(#input_ident_per_field.#members())))*
@@ -307,13 +360,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         let inputs = inputs.iter();
         built_whens.extend(quote! {
-            // TODO attributes
             #ident {
+                docs { #(#docs)* }
+                cfg { #cfg }
                 inputs {
                     #(#inputs),*
                 }
                 assigns {
-                    #(#assigns),*
+                    #assigns_tokens
                 }
             }
         });
@@ -332,12 +386,16 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             widget {
                 module { #mod_path }
-                docs { #(#docs)* }
+                docs { #(#wgt_docs)* }
+                cfg { #wgt_cfg }
                 ident { #ident }
                 mixin { #mixin }
 
-                unset_properties {
+                properties_unset {
                     #property_unsets
+                }
+                properties_declared {
+                    #property_declared_idents
                 }
 
                 properties {
@@ -351,8 +409,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 new { #(#new)* }
 
                 mod {
-                    #(#attrs)*
-                    #cfg
+                    #(#wgt_attrs)*
+                    #wgt_cfg
                     #vis mod #ident {
                         #(#others)*
                         #new_child_fn
