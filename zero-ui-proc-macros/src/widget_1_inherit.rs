@@ -37,7 +37,7 @@ impl Parse for Input {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Input {
             // inherit { #( #Path ; )* }, only the first path is parsed.
-            inherit: util::non_user_braced_id(input, "inherit").parse()?,
+            inherit: non_user_braced!(input, "inherit").parse()?,
             // inherited and new widget data without parsing.
             rest: input.parse()?,
         })

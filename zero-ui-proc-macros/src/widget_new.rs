@@ -10,9 +10,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 mod input {
-    pub use crate::{
-        util::{non_user_braced, non_user_parenthesized},
-        widget_stage3::input::{InheritedProperty, InheritedWhen, PropertyAssign, PropertyBlock, PropertyValue as InputPropertyValue},
+    pub use crate::widget_stage3::input::{
+        InheritedProperty, InheritedWhen, PropertyAssign, PropertyBlock, PropertyValue as InputPropertyValue,
     };
     use proc_macro2::Ident;
     use syn::{
@@ -39,7 +38,7 @@ mod input {
         fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
             fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
                 input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
-                let inner = non_user_braced(input);
+                let inner = non_user_braced!(input);
                 Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e))
             }
 
@@ -61,7 +60,7 @@ mod input {
     impl Parse for UserInput {
         fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
             input.parse::<keyword::user_input>().unwrap_or_else(|e| non_user_error!(e));
-            let input = non_user_braced(input);
+            let input = non_user_braced!(input);
 
             let mut items = vec![];
 

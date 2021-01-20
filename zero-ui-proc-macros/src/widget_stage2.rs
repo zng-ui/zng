@@ -56,7 +56,7 @@ impl Parse for WidgetInheriting {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![=>]>().unwrap_or_else(|e| non_user_error!(e));
 
-        let inner = util::non_user_braced(input);
+        let inner = non_user_braced!(input);
 
         let stage3_name = inner.parse().unwrap_or_else(|e| non_user_error!(e));
         inner.parse::<Token![;]>().unwrap_or_else(|e| non_user_error!(e));

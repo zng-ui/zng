@@ -147,47 +147,51 @@ macro_rules! js_tag {
     };
 }
 
-/// Does a `braced!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
-pub fn non_user_braced(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
-    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
-        let inner;
-        // this macro inserts a return Err(..) but we want to panic
-        braced!(inner in input);
-        Ok(inner)
+macro_rules! non_user_group {
+    ($group_kind:ident, $input:expr) => {
+        {
+            fn inner(input: syn::parse::ParseStream) -> syn::Result<syn::parse::ParseBuffer> {
+                let inner;
+                // this macro inserts a return Err(..) but we want to panic
+                syn::$group_kind!(inner in input);
+                Ok(inner)
+            }
+            inner($input).unwrap_or_else(|e| non_user_error!(e))
+        }
+    };
+    ($group_kind:ident, $input:expr, $ident:expr) => {
+        {
+            let id: syn::Ident = $input.parse().unwrap_or_else(|e| non_user_error!(e));
+            let ident = $ident;
+            if id != ident {
+                non_user_error!(format!("expected `{}`", ident));
+            }
+            non_user_group! { $group_kind, $input }
+        }
     }
-    inner(input).unwrap_or_else(|e| non_user_error!(e))
 }
-
-/// Like [`non_user_braced`] but reads an `ident` first.
-#[track_caller]
-pub fn non_user_braced_id<'i, 's>(input: syn::parse::ParseStream<'i>, ident: &'s str) -> syn::parse::ParseBuffer<'i> {
-    let id: Ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
-    if id != ident {
-        non_user_error!(format!("expected `{}`", ident));
-    }
-    non_user_braced(input)
+/// Does a `braced!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
+macro_rules! non_user_braced {
+    ($input:expr) => {
+        non_user_group! { braced, $input }
+    };
+    ($input:expr, $ident:expr) => {
+        non_user_group! { braced, $input, $ident }
+    };
 }
 
 /// Does a `parenthesized!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
-pub fn non_user_parenthesized(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
-    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
-        let inner;
-        // this macro inserts a return Err(..) but we want to panic
-        parenthesized!(inner in input);
-        Ok(inner)
-    }
-    inner(input).unwrap_or_else(|e| non_user_error!(e))
+macro_rules! non_user_parenthesized {
+    ($input:expr) => {
+        non_user_group! { parenthesized, $input }
+    };
 }
 
 /// Does a `bracketed!` parse but panics with [`non_user_error!()`](non_user_error) if the parsing fails.
-pub fn non_user_bracketed(input: syn::parse::ParseStream) -> syn::parse::ParseBuffer {
-    fn inner(input: syn::parse::ParseStream) -> Result<syn::parse::ParseBuffer> {
-        let inner;
-        // this macro inserts a return Err(..) but we want to panic
-        bracketed!(inner in input);
-        Ok(inner)
-    }
-    inner(input).unwrap_or_else(|e| non_user_error!(e))
+macro_rules! non_user_bracketed {
+    ($input:expr) => {
+        non_user_group! { bracketed, $input }
+    };
 }
 
 pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>> {

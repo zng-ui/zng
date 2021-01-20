@@ -5,7 +5,7 @@ use syn::{
     parse_macro_input, token, Ident, Path, Token,
 };
 
-use crate::util::{non_user_braced, non_user_bracketed, non_user_parenthesized, token_stream_eq, tokens_to_ident_str};
+use crate::util::{token_stream_eq, tokens_to_ident_str};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let VarExpr { mod_, vars, expr } = parse_macro_input!(input as VarExpr);
@@ -74,13 +74,13 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
         }
         // recursive parse groups:
         else if input.peek(token::Brace) {
-            let inner = parse_replace_expr(&non_user_braced(input), vars);
+            let inner = parse_replace_expr(&non_user_braced!(input), vars);
             expr.extend(quote! { { #inner } });
         } else if input.peek(token::Paren) {
-            let inner = parse_replace_expr(&non_user_parenthesized(input), vars);
+            let inner = parse_replace_expr(&non_user_parenthesized!(input), vars);
             expr.extend(quote! { ( #inner ) });
         } else if input.peek(token::Bracket) {
-            let inner = parse_replace_expr(&non_user_bracketed(input), vars);
+            let inner = parse_replace_expr(&non_user_bracketed!(input), vars);
             expr.extend(quote! { [ #inner ] });
         }
         // keep other tokens the same:

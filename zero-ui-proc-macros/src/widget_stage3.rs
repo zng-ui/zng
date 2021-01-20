@@ -22,7 +22,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 pub mod input {
     #![allow(unused)]
 
-    use crate::util::{non_user_braced, non_user_parenthesized};
     use crate::widget_stage1::WidgetHeader;
     use proc_macro2::{TokenStream, TokenTree};
     use quote::ToTokens;
@@ -148,14 +147,14 @@ pub mod input {
         fn parse(input: ParseStream) -> Result<Self> {
             fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
                 input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
-                let inner = non_user_braced(input);
+                let inner = non_user_braced!(input);
                 Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e))
             }
 
             input.parse::<Token![=>]>().unwrap_or_else(|e| non_user_error!(e));
             input.parse::<keyword::inherited_tokens>().unwrap_or_else(|e| non_user_error!(e));
 
-            let input = non_user_braced(input);
+            let input = non_user_braced!(input);
 
             Ok(InheritItem {
                 ident: input.parse().unwrap_or_else(|e| non_user_error!(e)),
@@ -248,8 +247,8 @@ pub mod input {
         fn parse(input: ParseStream) -> Result<Self> {
             Ok(InheritedWhen {
                 docs: Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e)),
-                args: Punctuated::parse_terminated(&non_user_parenthesized(input)).unwrap_or_else(|e| non_user_error!(e)),
-                sets: Punctuated::parse_terminated(&non_user_braced(input)).unwrap_or_else(|e| non_user_error!(e)),
+                args: Punctuated::parse_terminated(&non_user_parenthesized!(input)).unwrap_or_else(|e| non_user_error!(e)),
+                sets: Punctuated::parse_terminated(&non_user_braced!(input)).unwrap_or_else(|e| non_user_error!(e)),
             })
         }
     }

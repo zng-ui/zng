@@ -12,7 +12,7 @@ use syn::{
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{crate_core, display_path, non_user_braced, non_user_braced_id, parse_all, tokens_to_ident_str, Errors};
+use crate::util::{crate_core, display_path, parse_all, tokens_to_ident_str, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -298,38 +298,38 @@ struct WidgetData {
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let input = non_user_braced_id(input, "widget");
+        let input = non_user_braced!(input, "widget");
 
-        let mod_path_tks = non_user_braced_id(&input, "module");
+        let mod_path_tks = non_user_braced!(&input, "module");
         let mod_path = mod_path_tks.parse().unwrap_or_else(|e| non_user_error!(e));
 
         let mut child_properties = vec![];
-        let child_props = non_user_braced_id(&input, "properties_child");
+        let child_props = non_user_braced!(&input, "properties_child");
         while !child_props.is_empty() {
             child_properties.push(child_props.parse().unwrap_or_else(|e| non_user_error!(e)));
         }
 
         let mut properties = vec![];
-        let props = non_user_braced_id(&input, "properties");
+        let props = non_user_braced!(&input, "properties");
         while !props.is_empty() {
             properties.push(props.parse().unwrap_or_else(|e| non_user_error!(e)));
         }
 
         let mut whens = vec![];
-        let ws = non_user_braced_id(&input, "whens");
+        let ws = non_user_braced!(&input, "whens");
         while !ws.is_empty() {
             whens.push(ws.parse().unwrap_or_else(|e| non_user_error!(e)));
         }
 
         let mut new_child_caps = vec![];
-        let new_child_cs = non_user_braced_id(&input, "new_child");
+        let new_child_cs = non_user_braced!(&input, "new_child");
         while !new_child_cs.is_empty() {
             new_child_caps.push(new_child_cs.parse().unwrap_or_else(|e| non_user_error!(e)));
             new_child_cs.parse::<Token![,]>().ok();
         }
 
         let mut new_caps = vec![];
-        let new_cs = non_user_braced_id(&input, "new");
+        let new_cs = non_user_braced!(&input, "new");
         while !new_cs.is_empty() {
             new_caps.push(new_cs.parse().unwrap_or_else(|e| non_user_error!(e)));
             new_cs.parse::<Token![,]>().unwrap_or_else(|e| non_user_error!(e));
@@ -354,7 +354,7 @@ struct BuiltProperty {
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
-        let input = non_user_braced(input);
+        let input = non_user_braced!(input);
 
         let flag = |ident| {
             let id: Ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
@@ -384,14 +384,14 @@ pub struct BuiltWhen {
 impl Parse for BuiltWhen {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
-        let input = non_user_braced(input);
+        let input = non_user_braced!(input);
 
         let r = Ok(BuiltWhen {
             ident,
-            docs: non_user_braced_id(&input, "docs").parse().unwrap(),
-            cfg: non_user_braced_id(&input, "cfg").parse().unwrap(),
-            inputs: parse_all(&non_user_braced_id(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
-            assigns: parse_all(&non_user_braced_id(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
+            docs: non_user_braced!(&input, "docs").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
+            assigns: parse_all(&non_user_braced!(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
         });
         r
     }
@@ -404,10 +404,10 @@ pub struct BuiltWhenAssign {
 impl Parse for BuiltWhenAssign {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let property = input.parse().unwrap_or_else(|e| non_user_error!(e));
-        let input = non_user_braced(input);
+        let input = non_user_braced!(input);
         let r = Ok(BuiltWhenAssign {
             property,
-            cfg: non_user_braced_id(&input, "cfg").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
         });
         r
     }
@@ -420,7 +420,7 @@ struct UserInput {
 }
 impl Parse for UserInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let input = non_user_braced_id(input, "user");
+        let input = non_user_braced!(input, "user");
 
         let mut errors = Errors::default();
         let mut properties = vec![];

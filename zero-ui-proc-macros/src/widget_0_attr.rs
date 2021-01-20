@@ -10,10 +10,9 @@ use syn::{
     spanned::Spanned,
     token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token,
 };
-use util::{non_user_braced_id, parse2_punctuated};
 
 use crate::{
-    util::{self, non_user_braced, non_user_bracketed, non_user_parenthesized, Attributes, Errors},
+    util::{self, parse2_punctuated, Attributes, Errors},
     widget_new2::{PropertyValue, When},
 };
 
@@ -39,13 +38,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     };
 
     let Attributes {
-        docs: wgt_docs,
         cfg: wgt_cfg,
+        docs,
         lints,
         others: mut wgt_attrs,
         ..
     } = Attributes::new(mod_.attrs);
     wgt_attrs.extend(lints);
+    wgt_attrs.extend(docs);
+    let wgt_attrs = wgt_attrs;
 
     let vis = mod_.vis;
     let ident = mod_.ident;
@@ -235,11 +236,13 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         let docs = attrs.docs;
         let cfg = attrs.cfg;
+        let path = &property.path;
 
         built_properties.extend(quote! {
             #p_ident {
                 docs { #(#docs)* }
                 cfg { #cfg }
+                path { #path }
                 default { #default }
                 required { #required }
             }
@@ -386,8 +389,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             widget {
                 module { #mod_path }
-                docs { #(#wgt_docs)* }
+                attrs { #(#wgt_attrs)* }
                 cfg { #wgt_cfg }
+                vis { #vis }
                 ident { #ident }
                 mixin { #mixin }
 
@@ -408,26 +412,26 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 new_child { #(#new_child)* }
                 new { #(#new)* }
 
-                mod {
-                    #(#wgt_attrs)*
-                    #wgt_cfg
-                    #vis mod #ident {
-                        #(#others)*
-                        #new_child_fn
-                        #new_fn
+                mod_items {
+                    #(#others)*
+                    #new_child_fn
+                    #new_fn
 
-                        #new_child__
-                        #new__
+                    #new_child__
+                    #new__
 
-                        #property_defaults
+                    #property_defaults
 
-                        #when_conditions
-                        #when_defaults
+                    #when_conditions
+                    #when_defaults
 
-                        #[doc(hidden)]
-                        pub use #crate_core as __core;
+                    #[doc(hidden)]
+                    pub mod __core {
+                        pub use #crate_core::widget_new;
+                        pub use #crate_core::var;
                     }
                 }
+
             }
         }
     };
@@ -637,7 +641,7 @@ impl Parse for Properties {
                     whens.push(when);
                 }
             } else if input.peek(keyword::child) && input.peek2(syn::token::Brace) {
-                let input = non_user_braced_id(input, "child");
+                let input = non_user_braced!(input, "child");
                 while !input.is_empty() {
                     let attrs = Attribute::parse_outer(&input).unwrap_or_else(|e| {
                         errors.push_syn(e);
@@ -700,7 +704,18 @@ impl Parse for ItemProperty {
             path: input.parse()?,
             alias: peek_parse![as],
             type_: peek_parse![:],
-            value: peek_parse![=],
+            value: if input.peek(Token![=]) {
+                Some((input.parse()?, {
+                    let mut value_stream = TokenStream::new();
+                    while !input.is_empty() && !input.peek(Token![;]) {
+                        let tt: TokenTree = input.parse().unwrap();
+                        tt.to_tokens(&mut value_stream);
+                    }
+                    syn::parse2(value_stream)?
+                }))
+            } else {
+                None
+            },
             semi: if input.peek(Token![;]) { Some(input.parse()?) } else { None },
         })
     }
@@ -821,17 +836,17 @@ impl Parse for WhenExprToVar {
             }
             // recursive parse groups:
             else if input.peek(token::Brace) {
-                let inner = WhenExprToVar::parse(&non_user_braced(input))?;
+                let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote! { { #inner } });
             } else if input.peek(token::Paren) {
-                let inner = WhenExprToVar::parse(&non_user_parenthesized(input))?;
+                let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote! { ( #inner ) });
             } else if input.peek(token::Bracket) {
-                let inner = WhenExprToVar::parse(&non_user_bracketed(input))?;
+                let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote! { [ #inner ] });
