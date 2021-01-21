@@ -31,10 +31,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut errors = Errors::default();
 
     // a `$crate` path to the widget module.
-    let mod_path = if mixin {
-        TokenStream::new()
-    } else {
-        parse_mod_path(args.into(), &mut errors)
+    let mod_path = match syn::parse::<ArgPath>(args) {
+            Ok(a) => a.path,
+            Err(e) => {
+                errors.push_syn(e);
+                quote! { $crate::missing_widget_path}
+            }
     };
 
     let Attributes {
@@ -427,8 +429,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                     #[doc(hidden)]
                     pub mod __core {
-                        pub use #crate_core::widget_new;
-                        pub use #crate_core::var;
+                        pub use #crate_core::{widget_inherit, widget_new2, var};
                     }
                 }
 
@@ -439,25 +440,25 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     r.into()
 }
 
-fn parse_mod_path(args: TokenStream, errors: &mut Errors) -> TokenStream {
-    let args_span = args.span();
-    match syn::parse2::<Path>(args) {
-        Ok(path) if path.segments.len() > 1 && path.segments[0].ident == "$crate" => path.to_token_stream(),
-        _ => {
-            errors.push("expected a macro_rules `$crate` path to this widget mod", args_span);
-            quote! { $crate::missing_widget_mod_path }
+struct ArgPath {
+    path: TokenStream,
+}
+
+impl Parse for ArgPath {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Token![$]) && input.peek2(Token![crate]) && input.peek3(Token![::]) {
+            Ok(ArgPath {
+                path: input.parse().unwrap(),
+            })
+        } else {
+            Err(syn::Error::new(
+                input.span(),
+                "expected a macro_rules `$crate` path to this widget mod",
+            ))
         }
     }
 }
 
-// TODO notes:
-//
-// - Implement the new/new_child function validations found in
-//   property.rs:283 and property.rs:408 , property.rs:223 might
-//   be relevant as well.
-//
-// - Validate it in a separate function that handles errors and
-//   returns the new and new_child information we want?
 fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> Vec<Ident> {
     let mut r = vec![];
     for input in fn_inputs {

@@ -49,7 +49,7 @@ pub use ui_list::*;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{widget_declare, widget_inherit, widget_new, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{widget_declare, widget_inherit, widget_new, widget_new2, widget_stage2, widget_stage3};
 
 /// Gets if the value indicates that any size is available during layout (positive infinity)
 #[inline]
@@ -545,13 +545,12 @@ pub use zero_ui_proc_macros::widget_mixin;
 pub use zero_ui_proc_macros::widget2;
 pub use zero_ui_proc_macros::widget_mixin2;
 
-
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
 #[allow(dead_code)] // if it builds it passes.
 mod property_tests {
-    use crate::{property, UiNode};
     use crate::var::*;
+    use crate::{property, UiNode};
 
     #[property(context)]
     fn basic_context(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {
@@ -642,10 +641,10 @@ mod property_tests {
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
-    use crate::{widget2, widget_mixin2, WidgetId, Widget};
+    use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
     #[widget2($crate::tests::empty_wgt)]
-    pub mod empty_wgt { }
+    pub mod empty_wgt {}
 
     #[test]
     pub fn implicit_inherited() {

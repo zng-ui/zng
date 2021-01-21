@@ -155,15 +155,12 @@ pub mod widget_expanded {
 
         #[doc(hidden)]
         #[macro_export]
-        macro_rules! button_inherit_df18a4960c9c4924b503e192adb095ca {
+        macro_rules! inherit_button_df18a4960c9c4924b503e192adb095ca {
             ( 
-                mixin { $mixin:tt } 
                 inherit { $($inherit:path;)* }
                 $($rest:tt)+
             ) => {
                 $crate::widgets::button::__core::widget_inherit! {
-                    // if the widget that is inheriting this is a mixin.
-                    mixin { $mixin }
                     // other inherited widgets to be processed after this.
                     inherit { $($inherit;)* }
                     // inherit data from this widget.
@@ -231,8 +228,8 @@ pub mod widget_expanded {
                                     } 
                                 }
                             }
-                        }
-    
+                        }    
+
                         // captured properties for each new function.
                         // these two entries are not present when `mixin { true }`
                         new_child { content custom }
@@ -243,13 +240,13 @@ pub mod widget_expanded {
             };
         }
         #[doc(hidden)]
-        pub use crate::button_inherit_df18a4960c9c4924b503e192adb095ca as __inherit;
+        pub use crate::inherit_button_df18a4960c9c4924b503e192adb095ca as __inherit;
 
         // widget::__new!(..) is only generated if the widget is not a mixin.
 
         #[doc(hidden)]
         #[macro_export]
-        macro_rules! button_new_df18a4960c9c4924b503e192adb095ca {
+        macro_rules! new_button_df18a4960c9c4924b503e192adb095ca {
             ($($tt:tt)*) => {
                 $crate::widgets::button::__core::widget_new!  {
                     widget {
@@ -301,7 +298,7 @@ pub mod widget_expanded {
             };
         }
         #[doc(hidden)]
-        pub use crate::button_new_df18a4960c9c4924b503e192adb095ca as __new_macro;
+        pub use crate::new_button_df18a4960c9c4924b503e192adb095ca as __new_macro;
 
         // properties are reexported using the `__p_#ident` format.  
         // #[doc(inline)] so we have the default docs for properties without docs, the docs are hidden

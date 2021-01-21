@@ -36,7 +36,7 @@ widget_mixin! {
 
 // TODO: Change name to implicit_mixin when the new widget_mixin is completed.
 /// Mix-in inherited implicitly by all [widgets](widget!).
-#[widget_mixin2]
+#[widget_mixin2($crate::widget_base::implicit_mixin2)]
 pub mod implicit_mixin2 {
     use super::{enabled, widget_id, WidgetId};
 

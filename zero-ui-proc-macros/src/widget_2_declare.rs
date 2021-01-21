@@ -44,15 +44,38 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let uuid = util::uuid();
 
-    let widget_new_macro_ident = ident!("{}_{}", ident, uuid);
+    let inherit_macro_ident = ident!("inherit_{}_{}", ident, uuid);
+    let inherit_macro = quote! {
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #inherit_macro_ident {
+            (
+                inherit { $($inherit:path;)* }
+                $($rest:tt)+
+            ) => { 
+                #module::__core::widget_inherit! {
+                    inherit { $($inherit;)* }
+                    inherited { 
+                        //TODO
+                    }
+                    $($rest)*
+                }
+            };
+        }
 
-    let widget_new = if mixin {
-        TokenStream::default()
+        #[doc(hidden)]
+        pub use #inherit_macro_ident as __inherit;
+    };
+
+    let (new_macro, new_macro_reexport) = if mixin {
+        (TokenStream::default(), TokenStream::default())
     } else {
-        quote! {
+        let new_macro_ident = ident!("new_{}_{}", ident, uuid);
+
+        let new = quote! {
             #[doc(hidden)]
             #[macro_export]
-            macro_rules! #widget_new_macro_ident {
+            macro_rules! #new_macro_ident {
                 ($($tt:tt)*) => {
                     #module::__core::widget_new! {
                         // TODO
@@ -60,17 +83,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
             }
             #[doc(hidden)]
-            pub use #widget_new_macro_ident as __new_macro;
-        }
-    };
-    let widget_new_reexport = if mixin {
-        TokenStream::default()
-    } else {
-        quote! {
+            pub use #new_macro_ident as __new_macro;
+        };
+        let reexport = quote! {
             #cfg
             #[doc(hidden)]
             #vis use #ident::__new_macro as #ident;
-        }
+        };
+
+        (new, reexport)
     };
 
     let r = quote! {
@@ -82,9 +103,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             #property_reexports
 
-            #widget_new
+            #new_macro
+
+            #inherit_macro
         }
-        #widget_new_reexport
+        #new_macro_reexport
     };
 
     r.into()
