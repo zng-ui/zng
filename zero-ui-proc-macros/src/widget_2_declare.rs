@@ -3,7 +3,7 @@ use syn::{parse::Parse, Attribute, Ident, ItemMod, LitBool, Visibility};
 
 use crate::{
     util::{self, parse_all},
-    widget_new2::BuiltWhen,
+    widget_new2::{BuiltProperty, BuiltWhen},
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -19,15 +19,54 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         properties_declared,
         properties,
         whens,
-        new_child,
-        new,
+        new_child_declared,
+        mut new_child,
+        new_declared,
+        mut new,
         mod_items,
     } = widget;
 
+    // inherits `new_child` and `new`.
+    let last_not_mixin = inherited.iter().filter(|i| !i.mixin).last();
+    let mut new_child_reexport = TokenStream::default();
+    let mut new_reexport = TokenStream::default();
+    if !new_child_declared {
+        if let Some(source) = last_not_mixin {
+            let source_mod = &source.module;
+            new_child_reexport = quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new_child;
+            };
+            new_child = source.new_child.clone();
+        } else {
+            // zero_ui::core::widget_base::default_widget_new_child()
+            new_child_reexport = quote! {
+                #[doc(hidden)]
+                pub use #module::__core::widget_base::default_widget_new_child as __new_child;
+            };
+            assert!(new_child.is_empty());
+        }
+    }
+    if !new_declared {
+        if let Some(source) = last_not_mixin {
+            let source_mod = &source.module;
+            new_reexport = quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new;
+            };
+            new = source.new.clone();
+        } else {
+            // zero_ui::core::widget_base::default_widget_new(id)
+            new_child_reexport = quote! {
+                #[doc(hidden)]
+                pub use #module::__core::widget_base::default_widget_new as __new;
+            };
+            new = vec![ident!("id")];
+        }
+    }
+    let _ = last_not_mixin;
+
     let mut property_reexports = TokenStream::default();
-
-    for inherited in inherited {}
-
     for p in properties {
         let cfg = p.cfg;
         let path = p.path;
@@ -52,11 +91,27 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             (
                 inherit { $($inherit:path;)* }
                 $($rest:tt)+
-            ) => { 
+            ) => {
                 #module::__core::widget_inherit! {
                     inherit { $($inherit;)* }
-                    inherited { 
-                        //TODO
+                    inherited {
+                        module { #module }
+                        mixin { #mixin }
+                        properties_child {
+                            // TODO
+                        }
+                        properties {
+                            // TODO
+                        }
+                        whens {
+                            // TODO
+                        }
+                        new_child {
+                            #(#new_child)*
+                        }
+                        new {
+                            #(#new)*
+                        }
                     }
                     $($rest)*
                 }
@@ -103,6 +158,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             #property_reexports
 
+            #new_child_reexport
+            #new_reexport
+
             #new_macro
 
             #inherit_macro
@@ -141,10 +199,29 @@ impl Parse for Items {
 }
 
 /// Inherited widget or mixin data.
-struct InheritedItem {}
+struct InheritedItem {
+    module: TokenStream,
+    mixin: bool,
+    properties_child: Vec<BuiltProperty>,
+    properties: Vec<BuiltProperty>,
+    whens: Vec<BuiltWhen>,
+    new_child: Vec<Ident>,
+    new: Vec<Ident>,
+}
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        todo!("InheritedItem")
+        Ok(InheritedItem {
+            module: non_user_braced!(input, "module").parse().unwrap(),
+            mixin: non_user_braced!(input, "mixin")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
+            properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
+            whens: parse_all(&non_user_braced!(input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
+            new_child: parse_all(&non_user_braced!(input, "new_child")).unwrap_or_else(|e| non_user_error!(e)),
+            new: parse_all(&non_user_braced!(input, "new")).unwrap_or_else(|e| non_user_error!(e)),
+        })
     }
 }
 
@@ -163,7 +240,9 @@ struct WidgetItem {
     properties: Vec<PropertyItem>,
     whens: Vec<BuiltWhen>,
 
+    new_child_declared: bool,
     new_child: Vec<Ident>,
+    new_declared: bool,
     new: Vec<Ident>,
 
     mod_items: TokenStream,
@@ -192,7 +271,15 @@ impl Parse for WidgetItem {
             properties: parse_all(&named_braces!("properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 
+            new_child_declared: named_braces!("new_child_declared")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
             new_child: parse_all(&named_braces!("new_child")).unwrap_or_else(|e| non_user_error!(e)),
+            new_declared: named_braces!("new_declared")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
 
             mod_items: named_braces!("mod_items").parse().unwrap(),

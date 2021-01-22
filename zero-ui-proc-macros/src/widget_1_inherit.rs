@@ -11,6 +11,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let r = if let Some((inherit, _)) = input.inherit.next_path {
         let inherit_rest = input.inherit.rest;
         quote! {
+            // TODO support #[cfg(..)] in inherit!(..).
             #inherit::__inherit! {
                 inherit { #inherit_rest }
                 #rest

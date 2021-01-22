@@ -123,6 +123,7 @@ pub mod widget_user_declaration {
 pub mod widget_expanded {
     /// widget attributes.
     /// custom widget sections docs.
+    #[cfg(user_config)]
     pub mod button {
         /// custom items get copied here.
         
@@ -172,8 +173,8 @@ pub mod widget_expanded {
                             padding {
                                 docs { }
                                 cfg { }
-                                default true, // has default value
-                                required false // not required, can `unset!`.
+                                default { true }, // has default value
+                                required { false } // not required, can `unset!`.
                             }
     
                             // .. + all child properties
@@ -231,7 +232,7 @@ pub mod widget_expanded {
                         }    
 
                         // captured properties for each new function.
-                        // these two entries are not present when `mixin { true }`
+                        // these two entries are empty when `mixin { true }`
                         new_child { content custom }
                         new { id custom_multi }
                     }
@@ -286,7 +287,6 @@ pub mod widget_expanded {
                             }
                         }
                         // captured properties for each new function.
-                        // these two entries are required in new.
                         new_child { content custom }
                         new { id custom_multi }
                     }

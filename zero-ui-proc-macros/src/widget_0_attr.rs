@@ -32,11 +32,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // a `$crate` path to the widget module.
     let mod_path = match syn::parse::<ArgPath>(args) {
-            Ok(a) => a.path,
-            Err(e) => {
-                errors.push_syn(e);
-                quote! { $crate::missing_widget_path}
-            }
+        Ok(a) => a.path,
+        Err(e) => {
+            errors.push_syn(e);
+            quote! { $crate::missing_widget_path}
+        }
     };
 
     let Attributes {
@@ -106,10 +106,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
 
     // collects name of captured properties and validates inputs.
+    let new_child_declared = new_child_fn.is_some();
     let new_child = new_child_fn
         .as_ref()
         .map(|f| new_fn_captures(f.sig.inputs.iter(), &mut errors))
         .unwrap_or_default();
+    let new_declared = new_fn.is_some();
     let new = new_fn
         .as_ref()
         .map(|f| new_fn_captures(f.sig.inputs.iter().skip(1), &mut errors))
@@ -411,7 +413,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #built_whens
                 }
 
+                new_child_declared { #new_child_declared }
                 new_child { #(#new_child)* }
+                new_declared { #new_declared }
                 new { #(#new)* }
 
                 mod_items {

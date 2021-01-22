@@ -346,31 +346,32 @@ impl Parse for WidgetData {
     }
 }
 
-struct BuiltProperty {
-    ident: Ident,
-    has_default: bool,
-    is_required: bool,
+pub struct BuiltProperty {
+    pub ident: Ident,
+    pub docs: TokenStream,
+    pub cfg: TokenStream,
+    pub has_default: bool,
+    pub is_required: bool,
 }
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
         let input = non_user_braced!(input);
 
-        let flag = |ident| {
-            let id: Ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
-            if id != ident {
-                non_user_error!(format!("expected `{}`", ident));
-            }
-            let flag: LitBool = input.parse().unwrap_or_else(|e| non_user_error!(e));
-            input.parse::<Token![,]>().ok();
-            flag.value
-        };
-
-        Ok(BuiltProperty {
+        let r = Ok(BuiltProperty {
             ident,
-            has_default: flag("default"),
-            is_required: flag("required"),
-        })
+            docs: non_user_braced!(&input, "docs").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            has_default: non_user_braced!(&input, "default")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            is_required: non_user_braced!(&input, "required")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+        });
+        r
     }
 }
 
