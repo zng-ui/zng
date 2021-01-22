@@ -28,116 +28,99 @@ use super::*;
 /// ```
 ///
 /// In the example if `condition` or `when_false` are modified the text updates.
+///
+/// # `cfg`
+///
+/// Every condition can be annotated with attributes, including `#[cfg(..)]`.
+///
+/// ```
+/// # use zero_ui_core::var::*;
+/// # use zero_ui_core::text::*;
+/// # fn text(text: impl IntoVar<Text>) { }
+/// # let condition0 = var(true);
+/// # let condition1 = var(true);
+/// let t = text(when_var! {
+///     #[cfg(some_flag)]
+///     condition0 => "is condition 0".to_text(),
+///     #[cfg(not(some_flag))]
+///     condition1 => "is condition 1".to_text(),
+///     default => "is default".to_text(),
+/// });
+/// ```
+///
+/// In the example above only one of the conditions will be compiled, the generated variable is the same
+/// type as if you had written a single condition.
 #[macro_export]
 macro_rules! when_var {
+    // 8.. conditions always uses the dynamic builder, even if some conditions are excluded using #[cfg(..)]
     (
-        $condition:expr => $value:expr,
-        default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen1Var::new($default, $condition, $value)
-    };
-    (
+        $(#[$meta0:meta])*
         $condition0:expr => $value0:expr,
+        $(#[$meta1:meta])*
         $condition1:expr => $value1:expr,
-        default => $default:expr$(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new($default, ($condition0, $condition1), ($value0, $value1))
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
+        $(#[$meta2:meta])*
         $condition2:expr => $value2:expr,
-        default => $default:expr  $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2),
-            ($value0, $value1, $value2)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr,
+        $(#[$meta3:meta])*
         $condition3:expr => $value3:expr,
-        default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2, $condition3),
-            ($value0, $value1, $value2, $value3)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr,
-        $condition3:expr => $value3:expr,
+        $(#[$meta4:meta])*
         $condition4:expr => $value4:expr,
-        default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2, $condition3, $condition4),
-            ($value0, $value1, $value2, $value3, , $value4)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr,
-        $condition3:expr => $value3:expr,
-        $condition4:expr => $value4:expr,
+        $(#[$meta5:meta])*
         $condition5:expr => $value5:expr,
-        default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5),
-            ($value0, $value1, $value2, $value3, , $value4, $value5)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr,
-        $condition3:expr => $value3:expr,
-        $condition4:expr => $value4:expr,
-        $condition5:expr => $value5:expr,
-        $condition6:expr => $value6:expr,
-        default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6),
-            ($value0, $value1, $value2, $value3, , $value4, $value5, $value6)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $condition1:expr => $value1:expr,
-        $condition2:expr => $value2:expr,
-        $condition3:expr => $value3:expr,
-        $condition4:expr => $value4:expr,
-        $condition5:expr => $value5:expr,
+        $(#[$meta6:meta])*
         $condition7:expr => $value7:expr,
+        $(#[$meta7:meta])*
+        $(
+            $(#[$meta8plus:meta])*
+            $condition8plus:expr => $value8pus:expr,
+        )+
+        $(#[$meta_default:meta])*
         default => $default:expr $(,)?
-    ) => {
-        $crate::var::RcWhen2Var::new(
-            $default,
-            ($condition0, $condition1, $condition2, $condition3, $condition4, $condition5, $condition6, $condition7),
-            ($value0, $value1, $value2, $value3, , $value4, $value5, $value6, $value7)
-        )
-    };
-    (
-        $condition0:expr => $value0:expr,
-        $($condition:expr => $value:expr,)+
-        default => $default:expr$(,)?
     ) => {
         // we need a builder to have $value be IntoVar and work like the others.
-        $crate::var::RcWhenVarBuilder::new($default, $condition0, $value0)
-        $(.push($condition, $value))+
-        .build()
+        $(#[$meta_default])*
+        {
+            let b = $crate::var::WhenVarBuilderDyn::new($default);
+            $(#[$meta0])*
+            let b = b.push($condition0, $value0);
+            $(#[$meta1])*
+            let b = b.push($condition1, $value1);
+            $(#[$meta2])*
+            let b = b.push($condition2, $value2);
+            $(#[$meta3])*
+            let b = b.push($condition3, $value3);
+            $(#[$meta4])*
+            let b = b.push($condition4, $value4);
+            $(#[$meta5])*
+            let b = b.push($condition5, $value5);
+            $(#[$meta6])*
+            let b = b.push($condition6, $value6);
+            $(#[$meta7])*
+            let b = b.push($condition7, $value7);
+            $(
+                $(#[$meta8plus:meta])*
+                let b = b.push($condition8plus, $value8pus);
+            )+
+            b.build()
+        }
+    };
+    // 1..=7 conditions use the generic builder
+    (
+        $(
+            $(#[$meta_c:meta])*
+            $condition:expr => $value:expr,
+        )+
+        $(#[$meta_default:meta])*
+        default => $default:expr$(,)?
+    ) => {
+        $(#[$meta_default:meta])*
+        {
+            let b = $crate::var::WhenVarBuilder::new($default);
+            $(
+                $(#[$meta_c])*
+                let b = b.push($condition, $value);
+            )+
+            b.build()
+        }
     };
 }
 
@@ -152,7 +135,6 @@ macro_rules! impl_rc_when_var {
                 len: $len;//2
                 C: $([<C $n>]),+;// C0, C1
                 V: $([<V $n>]),+;// V0, V1
-                IV: $([<IV $n>]),+;// IV0, IV1
                 n: $($n),+; // 0, 1
             }
         }
@@ -163,7 +145,6 @@ macro_rules! impl_rc_when_var {
         len: $len:tt;
         C: $($C:ident),+;
         V: $($V:ident),+;
-        IV: $($IV:ident),+;
         n: $($n:tt),+;
     ) => {
         #[doc(hidden)]
@@ -183,18 +164,18 @@ macro_rules! impl_rc_when_var {
             self_version: Cell<u32>,
         }
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> $RcMergeVar<O, D, $($C),+ , $($V),+> {
-            pub fn new<ID: IntoVar<O, Var=D>, $($IV : IntoVar<O, Var=$V>),+>(default_: ID, conditions: ($($C,)+), values: ($($IV,)+)) -> Self {
+            pub fn new(default_value: D, conditions: ($($C,)+), values: ($($V,)+)) -> Self {
                 Self(
                     Rc::new($RcMergeVarData {
                         _o: PhantomData,
 
-                        default_value: default_.into_var(),
+                        default_value,
                         default_version: Cell::new(0),
 
                         conditions,
                         condition_versions: array_init::array_init(|_|Cell::new(0)),
 
-                        values: ($(values.$n.into_var(),)+),
+                        values: ($(values.$n,)+),
                         value_versions: array_init::array_init(|_|Cell::new(0)),
 
                         self_version: Cell::new(0),
@@ -610,16 +591,17 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
     }
 }
 
+/// Builder used in [`when_var!`] when there is more then 8 conditions. Boxes the variables.
 #[doc(hidden)]
-pub struct RcWhenVarBuilder<O: VarValue> {
+pub struct WhenVarBuilderDyn<O: VarValue> {
     default_: BoxedVar<O>,
     whens: Vec<(BoxedVar<bool>, BoxedVar<O>)>,
 }
-impl<O: VarValue> RcWhenVarBuilder<O> {
-    pub fn new<D: IntoVar<O>, C0: Var<bool>, V0: IntoVar<O>>(default_: D, condition0: C0, value0: V0) -> Self {
+impl<O: VarValue> WhenVarBuilderDyn<O> {
+    pub fn new<D: IntoVar<O>>(default_: D) -> Self {
         Self {
             default_: default_.into_var().boxed(),
-            whens: vec![(condition0.boxed(), value0.into_var().boxed())],
+            whens: vec![],
         }
     }
 
@@ -631,4 +613,110 @@ impl<O: VarValue> RcWhenVarBuilder<O> {
     pub fn build(self) -> RcWhenVar<O> {
         RcWhenVar::new(self.default_, self.whens.into_boxed_slice())
     }
+}
+
+/// Builder used in [`when_var!`], designed to support #[cfg(..)] attributes in conditions.
+#[doc(hidden)]
+pub struct WhenVarBuilder<O: VarValue, D: Var<O>> {
+    _v: PhantomData<O>,
+    default_value: D,
+}
+impl<O: VarValue, D: Var<O>> WhenVarBuilder<O, D> {
+    /// Start the builder with the last item, it is the only *condition* that cannot be excluded by #[cfg(..)].
+    pub fn new<ID: IntoVar<O, Var = D>>(default_value: ID) -> Self {
+        Self {
+            _v: PhantomData,
+            default_value: default_value.into_var(),
+        }
+    }
+
+    pub fn push<C0: Var<bool>, IV0: IntoVar<O>>(self, condition: C0, value: IV0) -> WhenVarBuilder1<O, D, C0, IV0::Var> {
+        WhenVarBuilder1 {
+            _v: self._v,
+            default_value: self.default_value,
+            condition: (condition,),
+            value: (value.into_var(),),
+        }
+    }
+
+    /// Only default condition included, if [`when_var!`] is implemented correctly other conditions where typed
+    /// but are excluded by #[cfg(..)].
+    pub fn build(self) -> D {
+        self.default_value
+    }
+}
+macro_rules! impl_when_var_builder {
+    ($(
+        $len:tt => $($n:tt),+ => $next_len:tt ;
+    )+) => {$(
+        $crate::paste!{
+            impl_when_var_builder!{
+                Builder: [<WhenVarBuilder $len>];// WhenVarBuilder2
+                Var: [<RcWhen $len Var>];// RcWhen2Var
+                C: $([<C $n>]),+;// C0, C1
+                V: $([<V $n>]),+;// V0, V1
+                n: $($n),+; // 0, 1
+                BuilderNext: [<WhenVarBuilder $next_len>];//WhenVarBuilder3
+            }
+        }
+    )+};
+    (
+        Builder: $Builder:ident;
+        Var: $Var:ident;
+        C: $($C:ident),+;
+        V: $($V:ident),+;
+        n: $($n:tt),+;
+        BuilderNext: $BuilderNext:ident;
+    ) => {
+        #[doc(hidden)]
+        pub struct $Builder<
+            O: VarValue,
+            D: Var<O>,
+            $($C: Var<bool>,)*
+            $($V: Var<O>,)*
+        > {
+            _v: PhantomData<O>,
+            default_value: D,
+            condition: ($($C,)*),
+            value: ($($V,)*),
+        }
+        impl<
+            O: VarValue,
+            D: Var<O>,
+            $($C: Var<bool>,)*
+            $($V: Var<O>,)*
+        > $Builder<O, D, $($C,)* $($V),*> {
+            pub fn push<C: Var<bool>, IV: IntoVar<O>>(self, condition: C, value: IV) -> $BuilderNext<O, D, $($C,)* C, $($V,)* IV::Var> {
+                $BuilderNext {
+                    _v: self._v,
+                    default_value: self.default_value,
+                    condition: ( $(self.condition.$n,)* condition),
+                    value: ( $(self.value.$n,)* value.into_var()),
+                }
+            }
+
+            pub fn build(self) -> $Var<O, D, $($C,)* $($V,)*> {
+                $Var::new(self.default_value, self.condition, self.value)
+            }
+        }
+    }
+}
+impl_when_var_builder! {
+    1 => 0 => 2;
+    2 => 0, 1 => 3;
+    3 => 0, 1, 2 => 4;
+    4 => 0, 1, 2, 3 => 5;
+    5 => 0, 1, 2, 3, 4 => 6;
+    6 => 0, 1, 2, 3, 4, 5 => 7;
+    7 => 0, 1, 2, 3, 4, 5, 6 => 8;
+    8 => 0, 1, 2, 3, 4, 5, 6, 7 => 9;
+}
+/// Generic builder stops at WhenVarBuilder8, this only type
+/// exists because of the nature of the [`impl_when_var_builder`] code.
+#[doc(hidden)]
+struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2, V3, V4, V5, V6, V7, V8> {
+    _v: PhantomData<O>,
+    default_value: D,
+    condition: (C0, C1, C2, C3, C4, C5, C6, C7, C8),
+    value: (V0, V1, V2, V3, V4, V5, V6, V7, V8),
 }

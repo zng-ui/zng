@@ -1024,6 +1024,7 @@ mod output {
 
             let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
 
+            // TODO remove when widget_new2 finished and in use.
             let switches = if arg_locals.len() == 1 {
                 let arg = &arg_locals[0];
                 quote! {
@@ -1033,6 +1034,31 @@ mod output {
                 let n = (0..arg_locals.len()).map(syn::Index::from);
                 quote! {
                     #(let #arg_locals = __switch_var!(std::clone::Clone::clone(&$idx), $($arg_for_i.#n),+) ;)*
+                }
+            };
+            let whens = if arg_locals.len() == 1 {
+                let arg = &arg_locals[0];
+                quote! {
+                    let #arg = __when_var! {
+                        $(
+                            $(#[$meta])*
+                            std::clone::Clone::clone(&$condition) => $args,
+                        )*
+                        default => $default_args,
+                    };
+                }
+            } else {
+                let n = (0..arg_locals.len()).map(syn::Index::from);
+                quote! {
+                    #(
+                        let #arg_locals = __when_var! {
+                            $(
+                                $(#[$meta])*
+                                std::clone::Clone::clone(&$condition) => $args.#n,
+                            )*
+                            default => $default_args.#n,
+                        };
+                    )*
                 }
             };
 
@@ -1059,9 +1085,29 @@ mod output {
 
                     #if_pub
 
+                    (when $property_path:path {
+                        $(
+                            $(#[$meta:meta])*
+                            $condition:ident => $args:ident,
+                        )+,
+                        default => $default_args:ident,
+                    }) => {
+                        {
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
+                            $(
+                                $(#[$meta])*
+                                let $args = __Args::unwrap($args);
+                            )+
+                            let $default_args = __Args::unwrap($default_args);
+                            #whens
+                            __ArgsImpl::new(#(#arg_locals),*)
+                        }
+                    };
+
+                    // TODO remove when widget_new2 finished and in use.
                     (switch $property_path:path, $idx:ident, $($arg_for_i:ident),+) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, switch_var as __switch_var};
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
                             $(let $arg_for_i = __Args::unwrap($arg_for_i);)+
                             #switches
                             __ArgsImpl::new(#(#arg_locals),*)
@@ -1140,7 +1186,7 @@ mod output {
                         #cap_export
                     };
                     pub use #macro_ident as code_gen;
-                    pub use #crate_core::var::switch_var;
+                    pub use #crate_core::var::when_var;
                 }
             })
         }
