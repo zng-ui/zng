@@ -1107,7 +1107,7 @@ mod output {
                     // TODO remove when widget_new2 finished and in use.
                     (switch $property_path:path, $idx:ident, $($arg_for_i:ident),+) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};
+                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, switch_var as __switch_var};
                             $(let $arg_for_i = __Args::unwrap($arg_for_i);)+
                             #switches
                             __ArgsImpl::new(#(#arg_locals),*)
@@ -1186,7 +1186,7 @@ mod output {
                         #cap_export
                     };
                     pub use #macro_ident as code_gen;
-                    pub use #crate_core::var::when_var;
+                    pub use #crate_core::var::{when_var, switch_var};
                 }
             })
         }

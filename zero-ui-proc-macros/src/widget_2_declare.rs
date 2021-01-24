@@ -26,42 +26,46 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mod_items,
     } = widget;
 
+    let crate_core = util::crate_core();
+
     // inherits `new_child` and `new`.
     let last_not_mixin = inherited.iter().filter(|i| !i.mixin).last();
     let mut new_child_reexport = TokenStream::default();
     let mut new_reexport = TokenStream::default();
-    if !new_child_declared {
-        if let Some(source) = last_not_mixin {
-            let source_mod = &source.module;
-            new_child_reexport = quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new_child;
-            };
-            new_child = source.new_child.clone();
-        } else {
-            // zero_ui::core::widget_base::default_widget_new_child()
-            new_child_reexport = quote! {
-                #[doc(hidden)]
-                pub use #module::__core::widget_base::default_widget_new_child as __new_child;
-            };
-            assert!(new_child.is_empty());
+    if !mixin {
+        if !new_child_declared {
+            if let Some(source) = last_not_mixin {
+                let source_mod = &source.module;
+                new_child_reexport = quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::__new_child;
+                };
+                new_child = source.new_child.clone();
+            } else {
+                // zero_ui::core::widget_base::default_widget_new_child()
+                new_child_reexport = quote! {
+                    #[doc(hidden)]
+                    pub use #crate_core::widget_base::default_widget_new_child as __new_child;
+                };
+                assert!(new_child.is_empty());
+            }
         }
-    }
-    if !new_declared {
-        if let Some(source) = last_not_mixin {
-            let source_mod = &source.module;
-            new_reexport = quote! {
-                #[doc(hidden)]
-                pub use #source_mod::__new;
-            };
-            new = source.new.clone();
-        } else {
-            // zero_ui::core::widget_base::default_widget_new(id)
-            new_child_reexport = quote! {
-                #[doc(hidden)]
-                pub use #module::__core::widget_base::default_widget_new as __new;
-            };
-            new = vec![ident!("id")];
+        if !new_declared {
+            if let Some(source) = last_not_mixin {
+                let source_mod = &source.module;
+                new_reexport = quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::__new;
+                };
+                new = source.new.clone();
+            } else {
+                // zero_ui::core::widget_base::default_widget_new(id)
+                new_reexport = quote! {
+                    #[doc(hidden)]
+                    pub use #crate_core::widget_base::default_widget_new as __new;
+                };
+                new = vec![ident!("id")];
+            }
         }
     }
     let _ = last_not_mixin;
@@ -133,7 +137,27 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             macro_rules! #new_macro_ident {
                 ($($tt:tt)*) => {
                     #module::__core::widget_new! {
-                        // TODO
+                        widget {
+                            module { #module }
+                            properties_child {
+                                // TODO
+                            }
+                            properties {
+                                // TODO
+                            }
+                            whens {
+                                // TODO
+                            }
+                            new_child {
+                                #(#new_child)*
+                            }
+                            new {
+                                #(#new)*
+                            }
+                        }
+                        user {
+                            $($tt)*
+                        }
                     }
                 };
             }

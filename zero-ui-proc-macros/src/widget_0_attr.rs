@@ -433,7 +433,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                     #[doc(hidden)]
                     pub mod __core {
-                        pub use #crate_core::{widget_inherit, widget_new2, var};
+                        // TODO: Update widget_new2 to widget_new when it's ready.
+                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var};
                     }
                 }
 

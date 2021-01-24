@@ -643,7 +643,7 @@ mod property_tests {
 mod widget_tests {
     use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
-    #[widget2($crate::tests::empty_wgt)]
+    #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
 
     #[test]

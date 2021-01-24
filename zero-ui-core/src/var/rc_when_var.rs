@@ -123,7 +123,8 @@ macro_rules! when_var {
         }
     };
 }
-
+#[doc(inline)]
+pub use crate::when_var;
 macro_rules! impl_rc_when_var {
     ($(
         $len:tt => $($n:tt),+;
@@ -714,7 +715,8 @@ impl_when_var_builder! {
 /// Generic builder stops at WhenVarBuilder8, this only type
 /// exists because of the nature of the [`impl_when_var_builder`] code.
 #[doc(hidden)]
-struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2, V3, V4, V5, V6, V7, V8> {
+#[allow(unused)]
+pub struct WhenVarBuilder9<O, D, C0, C1, C2, C3, C4, C5, C6, C7, C8, V0, V1, V2, V3, V4, V5, V6, V7, V8> {
     _v: PhantomData<O>,
     default_value: D,
     condition: (C0, C1, C2, C3, C4, C5, C6, C7, C8),

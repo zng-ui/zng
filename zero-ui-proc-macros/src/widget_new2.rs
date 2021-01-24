@@ -20,12 +20,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Err(e) => non_user_error!(e),
     };
 
-    let widget_mod = widget_data.mod_path;
+    let module = widget_data.module;
 
     let mut errors = Errors::default();
 
-    let mut child_ps_init = inherited_inits(&widget_mod, widget_data.child_properties);
-    let mut wgt_ps_init = inherited_inits(&widget_mod, widget_data.properties);
+    let mut child_ps_init = inherited_inits(&module, widget_data.properties_child);
+    let mut wgt_ps_init = inherited_inits(&module, widget_data.properties);
     let mut user_ps_init = vec![];
 
     let widget_properties: HashSet<Ident> = child_ps_init.iter().chain(wgt_ps_init.iter()).map(|(p, ..)| p.clone()).collect();
@@ -92,10 +92,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // replace default value.
                 *existing = match p.value {
                     PropertyValue::Unnamed(args) => quote! {
-                        let #var_ident = #widget_mod::#p_ident::ArgsImpl::new(#args);
+                        let #var_ident = #module::#p_ident::ArgsImpl::new(#args);
                     },
                     PropertyValue::Named(_, fields) => {
-                        let property_path = quote! { #widget_mod::#p_ident };
+                        let property_path = quote! { #module::#p_ident };
                         quote! {
                             let #var_ident = #property_path::code_gen! { named_new #property_path {
                                 #fields
@@ -181,13 +181,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let inputs = when.inputs.into_iter().map(|id| ident!("__{}", id));
 
         whens_init.extend(quote! {
-            let #when_ident = #widget_mod::#when_ident(#(std::clone::Clone::clone(&#inputs)),*);
+            let #when_ident = #module::#when_ident(#(std::clone::Clone::clone(&#inputs)),*);
         });
 
         for w_assign in w_assigns {
             let p_ident = &w_assign.property;
             let d_ident = ident!("{}_d_{}", when_ident, p_ident);
-            let value = quote! { #widget_mod::#d_ident() };
+            let value = quote! { #module::#d_ident() };
 
             let w_assign: syn::Path = parse_quote! { #p_ident };
             push_when_assign(w_assign, when_ident.clone(), value);
@@ -199,7 +199,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // skip, when does not assign any property.
             continue;
         }
-        let (input_properties, init) = when.make_init(&widget_mod, &widget_properties);
+        let (input_properties, init) = when.make_init(&module, &widget_properties);
         if !user_assigns.is_superset(&input_properties) {
             // skip, not all properties used in the when condition are assigned.
             continue;
@@ -222,9 +222,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     //TODO
 
     // new_child call.
-    let new_child_inputs = widget_data.new_child_caps.into_iter().map(|id| ident!("__{}", id));
+    let new_child_inputs = widget_data.new_child.into_iter().map(|id| ident!("__{}", id));
     let new_child = quote! {
-        let node__ = #widget_mod::__new_child(#(#new_child_inputs),*);
+        let node__ = #module::__new_child(#(#new_child_inputs),*);
     };
 
     // child assigns.
@@ -234,9 +234,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // TODO
 
     // new call.
-    let new_inputs = widget_data.new_caps.into_iter().map(|id| ident!("__{}", id));
+    let new_inputs = widget_data.new.into_iter().map(|id| ident!("__{}", id));
     let new = quote! {
-        #widget_mod::__new(node__, #(#new_inputs),*)
+        #module::__new(node__, #(#new_inputs),*)
     };
 
     let r = quote! {
@@ -256,14 +256,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 /// Returns (property_ident, default_value, is_required)
-fn inherited_inits(widget_mod: &Path, properties: Vec<BuiltProperty>) -> Vec<(Ident, TokenStream, bool)> {
+fn inherited_inits(module: &TokenStream, properties: Vec<BuiltProperty>) -> Vec<(Ident, TokenStream, bool)> {
     let mut inits = Vec::with_capacity(properties.len());
     for p in properties {
         let init = if p.has_default {
             let var_ident = ident!("__{}", p.ident);
             let default_ident = ident!("__d_{}", p.ident);
             quote! {
-                let #var_ident = #widget_mod::#default_ident();
+                let #var_ident = #module::#default_ident();
             }
         } else {
             TokenStream::default()
@@ -289,60 +289,26 @@ impl Parse for Input {
 }
 
 struct WidgetData {
-    mod_path: Path,
-    child_properties: Vec<BuiltProperty>,
+    module: TokenStream,
+    properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
-    new_child_caps: Vec<Ident>,
-    new_caps: Vec<Ident>,
+    new_child: Vec<Ident>,
+    new: Vec<Ident>,
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let input = non_user_braced!(input, "widget");
+        let r = Ok(Self {
+            module: non_user_braced!(&input, "module").parse().unwrap(),
+            properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
+            properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
+            whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
+            new_child: parse_all(&non_user_braced!(&input, "new_child")).unwrap_or_else(|e| non_user_error!(e)),
+            new: parse_all(&non_user_braced!(&input, "new")).unwrap_or_else(|e| non_user_error!(e)),
+        });
 
-        let mod_path_tks = non_user_braced!(&input, "module");
-        let mod_path = mod_path_tks.parse().unwrap_or_else(|e| non_user_error!(e));
-
-        let mut child_properties = vec![];
-        let child_props = non_user_braced!(&input, "properties_child");
-        while !child_props.is_empty() {
-            child_properties.push(child_props.parse().unwrap_or_else(|e| non_user_error!(e)));
-        }
-
-        let mut properties = vec![];
-        let props = non_user_braced!(&input, "properties");
-        while !props.is_empty() {
-            properties.push(props.parse().unwrap_or_else(|e| non_user_error!(e)));
-        }
-
-        let mut whens = vec![];
-        let ws = non_user_braced!(&input, "whens");
-        while !ws.is_empty() {
-            whens.push(ws.parse().unwrap_or_else(|e| non_user_error!(e)));
-        }
-
-        let mut new_child_caps = vec![];
-        let new_child_cs = non_user_braced!(&input, "new_child");
-        while !new_child_cs.is_empty() {
-            new_child_caps.push(new_child_cs.parse().unwrap_or_else(|e| non_user_error!(e)));
-            new_child_cs.parse::<Token![,]>().ok();
-        }
-
-        let mut new_caps = vec![];
-        let new_cs = non_user_braced!(&input, "new");
-        while !new_cs.is_empty() {
-            new_caps.push(new_cs.parse().unwrap_or_else(|e| non_user_error!(e)));
-            new_cs.parse::<Token![,]>().unwrap_or_else(|e| non_user_error!(e));
-        }
-
-        Ok(WidgetData {
-            mod_path,
-            child_properties,
-            properties,
-            whens,
-            new_child_caps,
-            new_caps,
-        })
+        r
     }
 }
 
@@ -617,7 +583,7 @@ impl When {
     }
 
     /// Returns a set of properties used in the condition and the condition transformed to new var.
-    pub fn make_init(&self, widget_path: &Path, widget_properties: &HashSet<Ident>) -> (HashSet<syn::Path>, TokenStream) {
+    pub fn make_init(&self, widget_path: &TokenStream, widget_properties: &HashSet<Ident>) -> (HashSet<syn::Path>, TokenStream) {
         todo!()
     }
 }
