@@ -1,0 +1,1 @@
+cargo expand %* -p "zero-ui-core" --lib --tests
