@@ -570,6 +570,12 @@ mod property_tests {
         child
     }
 
+    #[property(context)]
+    fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
+        let _ = state;
+        child
+    }
+
     #[test]
     fn basic_gen() {
         use basic_context::{code_gen, Args, ArgsImpl};
@@ -579,6 +585,45 @@ mod property_tests {
         let b = b.args().unwrap().into_local();
         assert_eq!(1, *a.get_local());
         assert_eq!(2, *b.get_local());
+    }
+
+    #[test]
+    fn default_value() {
+        use is_state::{code_gen, Args, ArgsImpl};
+        let _ = ArgsImpl::default().unwrap();
+        let mut is_default = false;
+        let mut is_not_default = false;
+        code_gen! {
+            if default=> {
+                is_default = true;
+            }
+        };
+        code_gen! {
+            if !default=> {
+                is_not_default = true;
+            }
+        };
+        assert!(is_default);
+        assert!(!is_not_default);
+    }
+
+    #[test]
+    fn not_default_value() {
+        use basic_context::code_gen;
+        let mut is_default = false;
+        let mut is_not_default = false;
+        code_gen! {
+            if default=> {
+                is_default = true;
+            }
+        };
+        code_gen! {
+            if !default=> {
+                is_not_default = true;
+            }
+        };
+        assert!(!is_default);
+        assert!(is_not_default);
     }
 
     #[property(context)]
@@ -643,16 +688,16 @@ mod property_tests {
 mod widget_tests {
     use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
-    #[widget2($crate::widget_tests::empty_wgt)]
+    //#[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
 
-    #[test]
-    pub fn implicit_inherited() {
-        let expected = WidgetId::new_unique();
-        let wgt = empty_wgt! {
-            id = expected;
-        };
-        let actual = wgt.id();
-        assert_eq!(expected, actual);
-    }
+    //#[test]
+    //pub fn implicit_inherited() {
+    //    let expected = WidgetId::new_unique();
+    //    let wgt = empty_wgt! {
+    //        id = expected;
+    //    };
+    //    let actual = wgt.id();
+    //    assert_eq!(expected, actual);
+    //}
 }

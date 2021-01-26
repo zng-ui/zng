@@ -109,7 +109,7 @@ mod input {
 mod analysis {
     use std::collections::HashSet;
 
-    use proc_macro2::Ident;
+    use proc_macro2::{Ident, TokenStream};
     use syn::{parse_quote, spanned::Spanned, visit::Visit, visit_mut::VisitMut, TypeParam};
 
     use crate::util::{self, crate_core, Attributes, Errors};
@@ -440,6 +440,18 @@ mod analysis {
             },
         };
 
+        let has_default_value = allowed_in_when && matches!(prefix, Prefix::State);
+        let default_value = if has_default_value {
+            let crate_core = util::crate_core();
+            quote! {
+                Self::new(
+                    #crate_core::var::state_var()
+                )
+            }
+        } else {
+            TokenStream::default()
+        };
+
         let macro_ident = ident!("{}_{}", fn_.sig.ident, util::uuid());
 
         output::Output {
@@ -462,6 +474,7 @@ mod analysis {
                 arg_types,
                 assoc_types,
                 arg_return_types,
+                default_value,
             },
             mod_: output::OutputMod {
                 cfg: attrs.cfg.clone(),
@@ -480,6 +493,7 @@ mod analysis {
                 allowed_in_when,
                 phantom_idents,
                 arg_idents,
+                has_default_value,
             },
             fn_,
         }
@@ -638,6 +652,8 @@ mod output {
 
         pub assoc_types: Vec<TraitItemType>,
         pub arg_return_types: Vec<Type>,
+
+        pub default_value: TokenStream,
     }
     impl ToTokens for OutputTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -650,6 +666,7 @@ mod output {
                 arg_idents,
                 arg_types,
                 arg_return_types,
+                default_value,
                 ..
             } = self;
             let args_impl_ident = ident!("{}_ArgsImpl", self.ident);
@@ -835,6 +852,17 @@ mod output {
             let named_arg_mtds: Vec<_> = arg_idents.iter().map(|a| ident!("__{}", a)).collect();
             let numbered_arg_mtds: Vec<_> = (0..arg_idents.len()).map(|a| ident!("__{}", a)).collect();
 
+            let default_mtd = if default_value.is_empty() {
+                TokenStream::default()
+            } else {
+                quote! {
+                    #[inline]
+                    pub fn default() -> Self {
+                        #default_value
+                    }
+                }
+            };
+
             tokens.extend(quote! {
                 #cfg
                 #[doc(hidden)]
@@ -869,6 +897,8 @@ mod output {
                             #(#arg_idents,)*
                         }
                     }
+
+                    #default_mtd
 
                     #[inline]
                     pub fn args(self) -> impl #args_ident {
@@ -936,6 +966,8 @@ mod output {
         pub allowed_in_when: bool,
 
         pub arg_idents: Vec<Ident>,
+
+        pub has_default_value: bool,
     }
     impl ToTokens for OutputMacro {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -1022,6 +1054,22 @@ mod output {
                 }
             };
 
+            let if_default = if self.has_default_value {
+                quote! {
+                    (if default=> $($tt:tt)*) => {
+                        $($tt)*
+                    };
+                    (if !default=> $($tt:tt)*) => { };
+                }
+            } else {
+                quote! {
+                    (if default=> $($tt:tt)*) => { };
+                    (if !default=> $($tt:tt)*) => {
+                        $($tt)*
+                    };
+                }
+            };
+
             let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
 
             // TODO remove when widget_new2 finished and in use.
@@ -1085,6 +1133,8 @@ mod output {
 
                     #if_pub
 
+                    #if_default
+
                     (when $property_path:path {
                         $(
                             $(#[$meta:meta])*
@@ -1103,6 +1153,7 @@ mod output {
                             __ArgsImpl::new(#(#arg_locals),*)
                         }
                     };
+
 
                     // TODO remove when widget_new2 finished and in use.
                     (switch $property_path:path, $idx:ident, $($arg_for_i:ident),+) => {
