@@ -148,12 +148,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // process properties
     let mut declared_properties = HashSet::new();
+    let mut built_properties_child = TokenStream::default();
     let mut built_properties = TokenStream::default();
     let mut property_defaults = TokenStream::default();
     let mut property_declarations = TokenStream::default();
     let mut property_declared_idents = TokenStream::default();
     let mut property_unsets = TokenStream::default();
-    for property in child_properties.iter_mut().chain(&mut properties) {
+    for (property, is_child_property) in child_properties
+        .iter_mut()
+        .map(|p| (p, true))
+        .chain(properties.iter_mut().map(|p| (p, false)))
+    {
         let attrs = Attributes::new(mem::take(&mut property.attrs));
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
@@ -242,6 +247,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let cfg = attrs.cfg;
         let path = &property.path;
 
+        let built_properties = if is_child_property {
+            &mut built_properties_child
+        } else {
+            &mut built_properties
+        };
         built_properties.extend(quote! {
             #p_ident {
                 docs { #(#docs)* }
@@ -406,6 +416,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #property_declared_idents
                 }
 
+                properties_child {
+                    #built_properties_child
+                }
                 properties {
                     #built_properties
                 }

@@ -1,3 +1,8 @@
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
+
 use proc_macro2::TokenStream;
 use syn::{parse::Parse, Attribute, Ident, ItemMod, LitBool, Visibility};
 
@@ -17,6 +22,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mixin,
         properties_unset,
         properties_declared,
+        properties_child,
         properties,
         whens,
         new_child_declared,
@@ -25,14 +31,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mut new,
         mod_items,
     } = widget;
+    let properties_unset: HashSet<_> = properties_unset.into_iter().collect();
+    let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
     let crate_core = util::crate_core();
 
     // inherits `new_child` and `new`.
-    let last_not_mixin = inherited.iter().filter(|i| !i.mixin).last();
     let mut new_child_reexport = TokenStream::default();
     let mut new_reexport = TokenStream::default();
     if !mixin {
+        let last_not_mixin = inherited.iter().filter(|i| !i.mixin).last();
         if !new_child_declared {
             if let Some(source) = last_not_mixin {
                 let source_mod = &source.module;
@@ -68,14 +76,73 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     }
-    let _ = last_not_mixin;
 
+    // collect inherited properties. Late inherits of the same ident overrides early inherits.
+    let mut inherited_properties = HashMap::new();
+    let mut inherited_props_child = vec![];
+    let mut inherited_props = vec![];
+    for inherited in inherited.iter().rev() {
+        for p_child in inherited.properties_child.iter().rev() {
+            if !properties_unset.contains(&p_child.ident) && inherited_properties.insert(&p_child.ident, &inherited.module).is_none() {
+                inherited_props_child.push(p_child);
+            }
+        }
+        for p in inherited.properties.iter().rev() {
+            if !properties_unset.contains(&p.ident) && inherited_properties.insert(&p.ident, &inherited.module).is_none() {
+                inherited_props.push(p);
+            }
+        }
+    }
+    inherited_props_child.reverse();
+    inherited_props.reverse();
+    let inherited_properties = inherited_properties;
+    let inherited_props_child = inherited_props_child;
+    let inherited_props = inherited_props;
+
+    // properties that are assigned or declared in the new widget.
+    let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
+
+    // re-export property modules used inherited and/or used in the widget.
     let mut property_reexports = TokenStream::default();
-    for p in properties {
-        let cfg = p.cfg;
-        let path = p.path;
+    for ip in inherited_props_child.iter().chain(&inherited_props) {
+        if !wgt_used_properties.contains(&ip.ident) {
+            let cfg = &ip.cfg;
+            let path = inherited_properties.get(&ip.ident).unwrap();
+            let p_ident = ident!("__p_{}", ip.ident);
+            property_reexports.extend(quote! {
+                #cfg
+                #[doc(inline)]
+                pub use #path::#p_ident;
+            });
+        }
+    }
+    for p in properties_child.iter().chain(&properties) {
+        if properties_declared.contains(&p.ident) {
+            // new capture_only property already is public in the `self` module.
+            continue;
+        }
+
+        let cfg = &p.cfg;
+        let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
 
+        // if property was declared `some_property_ident as new_ident;`.
+        if let Some(maybe_inherited) = p.get_path_ident() {
+            // if `some_property_ident` was inherited.
+            if inherited_properties.contains_key(&maybe_inherited) {
+                // re-exports: `pub use self::__p_some_property_ident as __p_new_ident;`
+                let inherited_p_ident = ident!("__p_{}", maybe_inherited);
+                property_reexports.extend(quote! {
+                    #cfg
+                    #[doc(inline)]
+                    pub use self::#inherited_p_ident as #p_ident;
+                });
+                // done;
+                continue;
+            }
+        }
+        // else
+        let path = inherited_properties.get(&p.ident).unwrap_or(&path);
         property_reexports.extend(quote! {
             #cfg
             #[doc(inline)]
@@ -84,6 +151,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let gen_docs = TokenStream::default();
+
+    let built_data = quote! {
+        module { #module }
+        properties_child {
+            // TODO
+        }
+        properties {
+            // TODO
+        }
+        whens {
+            // TODO
+        }
+        new_child {
+            #(#new_child)*
+        }
+        new {
+            #(#new)*
+        }
+    };
 
     let uuid = util::uuid();
 
@@ -99,23 +185,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #module::__core::widget_inherit! {
                     inherit { $($inherit;)* }
                     inherited {
-                        module { #module }
                         mixin { #mixin }
-                        properties_child {
-                            // TODO
-                        }
-                        properties {
-                            // TODO
-                        }
-                        whens {
-                            // TODO
-                        }
-                        new_child {
-                            #(#new_child)*
-                        }
-                        new {
-                            #(#new)*
-                        }
+
+                        #built_data
                     }
                     $($rest)*
                 }
@@ -138,22 +210,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 ($($tt:tt)*) => {
                     #module::__core::widget_new! {
                         widget {
-                            module { #module }
-                            properties_child {
-                                // TODO
-                            }
-                            properties {
-                                // TODO
-                            }
-                            whens {
-                                // TODO
-                            }
-                            new_child {
-                                #(#new_child)*
-                            }
-                            new {
-                                #(#new)*
-                            }
+                            #built_data
                         }
                         user {
                             $($tt)*
@@ -224,8 +281,8 @@ impl Parse for Items {
 
 /// Inherited widget or mixin data.
 struct InheritedItem {
-    module: TokenStream,
     mixin: bool,
+    module: TokenStream,
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
     whens: Vec<BuiltWhen>,
@@ -235,11 +292,11 @@ struct InheritedItem {
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(InheritedItem {
-            module: non_user_braced!(input, "module").parse().unwrap(),
             mixin: non_user_braced!(input, "mixin")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
+            module: non_user_braced!(input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&non_user_braced!(input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
@@ -261,6 +318,7 @@ struct WidgetItem {
     properties_unset: Vec<Ident>,
     properties_declared: Vec<Ident>,
 
+    properties_child: Vec<PropertyItem>,
     properties: Vec<PropertyItem>,
     whens: Vec<BuiltWhen>,
 
@@ -292,6 +350,7 @@ impl Parse for WidgetItem {
             properties_unset: parse_all(&named_braces!("properties_unset")).unwrap_or_else(|e| non_user_error!(e)),
             properties_declared: parse_all(&named_braces!("properties_declared")).unwrap_or_else(|e| non_user_error!(e)),
 
+            properties_child: parse_all(&named_braces!("properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&named_braces!("properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 
@@ -345,6 +404,12 @@ impl Parse for PropertyItem {
         };
 
         Ok(property_item)
+    }
+}
+impl PropertyItem {
+    /// Gets `self.path` as [`Ident`] if it is a single ident.
+    pub fn get_path_ident(&self) -> Option<Ident> {
+        syn::parse2::<Ident>(self.path.clone()).ok()
     }
 }
 
