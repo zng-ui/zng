@@ -76,6 +76,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
     }
+    let new_child = new_child;
+    let new = new;
+
+    let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
+
+    let mut wgt_properties_child = TokenStream::default();
+    let mut wgt_properties = TokenStream::default();
 
     // collect inherited properties. Late inherits of the same ident overrides early inherits.
     let mut inherited_properties = HashMap::new();
@@ -104,25 +111,70 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // re-export property modules used inherited and/or used in the widget.
     let mut property_reexports = TokenStream::default();
-    for ip in inherited_props_child.iter().chain(&inherited_props) {
-        if !wgt_used_properties.contains(&ip.ident) {
-            let cfg = &ip.cfg;
-            let path = inherited_properties.get(&ip.ident).unwrap();
-            let p_ident = ident!("__p_{}", ip.ident);
-            property_reexports.extend(quote! {
-                #cfg
-                #[doc(inline)]
-                pub use #path::#p_ident;
-            });
+    for (ip, is_child) in inherited_props_child
+        .iter()
+        .map(|ip| (ip, true))
+        .chain(inherited_props.iter().map(|ip| (ip, false)))
+    {
+        if wgt_used_properties.contains(&ip.ident) {
+            continue;
         }
+
+        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
+        let &BuiltProperty {
+            ident,
+            docs,
+            cfg,
+            default,
+            required,
+        } = ip;
+        let required = *required || captured_properties.contains(ident);
+        wgt_props.extend(quote! {
+            #ident {
+                docs { #docs }
+                cfg { #cfg }
+                default { #default }
+                required { #required }
+            }
+        });
+
+        let path = inherited_properties.get(&ip.ident).unwrap();
+        let p_ident = ident!("__p_{}", ip.ident);
+        property_reexports.extend(quote! {
+            #cfg
+            #[doc(inline)]
+            pub use #path::#p_ident;
+        });
     }
-    for p in properties_child.iter().chain(&properties) {
+    for (p, is_child) in properties_child
+        .iter()
+        .map(|p| (p, true))
+        .chain(properties.iter().map(|p| (p, false)))
+    {
+        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
+        let PropertyItem {
+            ident,
+            docs,
+            cfg,
+            default,
+            required,
+            ..
+        } = p;
+        let required = *required || captured_properties.contains(ident);
+        wgt_props.extend(quote! {
+            #ident {
+                docs { #docs }
+                cfg { #cfg }
+                default { #default }
+                required { #required }
+            }
+        });
+
         if properties_declared.contains(&p.ident) {
             // new capture_only property already is public in the `self` module.
             continue;
         }
 
-        let cfg = &p.cfg;
         let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
 
@@ -155,10 +207,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let built_data = quote! {
         module { #module }
         properties_child {
-            // TODO
+            #wgt_properties_child
         }
         properties {
-            // TODO
+            #wgt_properties
         }
         whens {
             // TODO

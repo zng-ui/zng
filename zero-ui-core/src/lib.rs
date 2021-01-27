@@ -591,8 +591,8 @@ mod property_tests {
     fn default_value() {
         use is_state::{code_gen, Args, ArgsImpl};
         let _ = ArgsImpl::default().unwrap();
-        let mut is_default = false;
-        let mut is_not_default = false;
+        let is_default;
+        let is_not_default = false;
         code_gen! {
             if default=> {
                 is_default = true;
@@ -610,8 +610,8 @@ mod property_tests {
     #[test]
     fn not_default_value() {
         use basic_context::code_gen;
-        let mut is_default = false;
-        let mut is_not_default = false;
+        let is_default = false;
+        let is_not_default;
         code_gen! {
             if default=> {
                 is_default = true;
@@ -688,16 +688,16 @@ mod property_tests {
 mod widget_tests {
     use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
-    //#[widget2($crate::widget_tests::empty_wgt)]
+    #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
 
-    //#[test]
-    //pub fn implicit_inherited() {
-    //    let expected = WidgetId::new_unique();
-    //    let wgt = empty_wgt! {
-    //        id = expected;
-    //    };
-    //    let actual = wgt.id();
-    //    assert_eq!(expected, actual);
-    //}
+    #[test]
+    pub fn implicit_inherited() {
+        let expected = WidgetId::new_unique();
+        let wgt = empty_wgt! {
+            id = expected;
+        };
+        let actual = wgt.id();
+        assert_eq!(expected, actual);
+    }
 }

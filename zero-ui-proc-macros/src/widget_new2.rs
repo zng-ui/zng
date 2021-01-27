@@ -259,7 +259,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 fn inherited_inits(module: &TokenStream, properties: Vec<BuiltProperty>) -> Vec<(Ident, TokenStream, bool)> {
     let mut inits = Vec::with_capacity(properties.len());
     for p in properties {
-        let init = if p.has_default {
+        let init = if p.default {
             let var_ident = ident!("__{}", p.ident);
             let default_ident = ident!("__d_{}", p.ident);
             quote! {
@@ -269,7 +269,7 @@ fn inherited_inits(module: &TokenStream, properties: Vec<BuiltProperty>) -> Vec<
             TokenStream::default()
         };
 
-        inits.push((p.ident, init, p.is_required));
+        inits.push((p.ident, init, p.required));
     }
     inits
 }
@@ -316,8 +316,8 @@ pub struct BuiltProperty {
     pub ident: Ident,
     pub docs: TokenStream,
     pub cfg: TokenStream,
-    pub has_default: bool,
-    pub is_required: bool,
+    pub default: bool,
+    pub required: bool,
 }
 impl Parse for BuiltProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -328,11 +328,11 @@ impl Parse for BuiltProperty {
             ident,
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
-            has_default: non_user_braced!(&input, "default")
+            default: non_user_braced!(&input, "default")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
-            is_required: non_user_braced!(&input, "required")
+            required: non_user_braced!(&input, "required")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,

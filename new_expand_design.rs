@@ -173,7 +173,7 @@ pub mod widget_expanded {
                             padding {
                                 docs { }
                                 cfg { }
-                                default { true }, // has default value
+                                default { true } // has default value
                                 required { false } // not required, can `unset!`.
                             }
     
@@ -187,23 +187,23 @@ pub mod widget_expanded {
                                 cfg {
                                     // #[cfg(..)]
                                 }
-                                default true
-                                required false
+                                default { true }
+                                required { false }
                             }
                             content {
-                                default false
-                                required true // content is required, cannot `unset!`.
+                                default { false }
+                                required { true } // content is required, cannot `unset!`.
                             }
                             on_click {
-                                default false
-                                required false
+                                default { false }
+                                required { false }
                             }
                             is_focused { // when state properties are reexported.
                                 // they don't have a default value defined in the widget
                                 // but will be initialized automatically for the when expression.
-                                default false 
+                                default { false } 
                                 // they are also not required, can they be `unset!`?
-                                required false
+                                required { false }
                             }
     
                             // .. + all normal properties
@@ -258,10 +258,10 @@ pub mod widget_expanded {
                         properties_child {
                             
                             padding {
-                                docs { } // no property docs in new but we have the empty group
+                                docs { #[doc = ".."] }
                                 cfg { #[cfg(..)] }
-                                default true,
-                                required false 
+                                default { true }
+                                required { false } 
                             }
                         }
                         properties {
