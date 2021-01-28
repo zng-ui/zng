@@ -1,4 +1,5 @@
 use proc_macro2::TokenStream;
+use quote::ToTokens;
 use syn::{parse::Parse, Ident, Path, Token};
 
 use crate::util;
@@ -8,11 +9,15 @@ use crate::util;
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse::<Input>(input).unwrap_or_else(|e| non_user_error!(e));
     let rest = input.rest;
-    let r = if let Some((inherit, _)) = input.inherit.next_path {
+    let r = if let Some(inherit) = input.inherit.next_inherit {
         let inherit_rest = input.inherit.rest;
+        let path = inherit.path;
+        let cfg = inherit.cfg;
+        let not_cfg = util::negate_cfg_attr(cfg.clone());
         quote! {
-            // TODO support #[cfg(..)] in inherit!(..).
-            #inherit::__inherit! {
+            #path::__inherit! {
+                cfg { #cfg }
+                not_cfg { #not_cfg }
                 inherit { #inherit_rest }
                 #rest
             }
@@ -21,7 +26,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let crate_core = util::crate_core();
         quote! {
             #crate_core::widget_declare! {
-                inherit { }
                 #rest
             }
         }
@@ -47,27 +51,47 @@ impl Parse for Input {
 
 struct Inherit {
     /// First inherit path.
-    next_path: Option<(Path, Token![;])>,
+    next_inherit: Option<InheritItem>,
     /// Other inherit paths without parsing.
     rest: TokenStream,
 }
 
 impl Parse for Inherit {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(Ident) {
-            // peeked a path segment.
+        if input.peek(Token![#]) || input.peek(Ident) {
+            // peeked an inherit item.
             Ok(Inherit {
-                next_path: Some((input.parse()?, input.parse()?)),
+                next_inherit: Some(input.parse()?),
                 rest: input.parse()?,
             })
         } else {
-            // did not peeked a path segment, assert it is empty.
+            // did not peeked an inherit item, assert it is empty.
             let r = Inherit {
-                next_path: None,
+                next_inherit: None,
                 rest: input.parse()?,
             };
             assert!(r.rest.is_empty());
             Ok(r)
         }
+    }
+}
+
+struct InheritItem {
+    cfg: Option<syn::Attribute>,
+    path: Path,
+    semi: Token![;],
+}
+impl Parse for InheritItem {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut attrs = syn::Attribute::parse_outer(input)?;
+        let cfg = attrs.pop();
+        if !attrs.is_empty() {
+            non_user_error!("expected none or single #[cfg(..)] attribute")
+        }
+        Ok(InheritItem {
+            cfg,
+            path: input.parse()?,
+            semi: input.parse()?,
+        })
     }
 }

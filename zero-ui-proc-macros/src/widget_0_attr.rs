@@ -30,6 +30,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     // accumulate the most errors as possible before returning.
     let mut errors = Errors::default();
 
+    let crate_core = util::crate_core();
+
     // a `$crate` path to the widget module.
     let mod_path = match syn::parse::<ArgPath>(args) {
         Ok(a) => a.path,
@@ -74,20 +76,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             errors.push("widget mixins do not have a `new` function", fn_.span())
         }
     }
-
-    let mut inherits = inherits.into_iter().map(|i| i.path);
-    let crate_core = util::crate_core();
-
-    let stage_path = if mixin {
-        if let Some(first) = inherits.next() {
-            quote!(#first::__inherit!)
-        } else {
-            quote!(#crate_core::widget_declare!)
-        }
-    } else {
-        // TODO change this back to implicit_mixin after testing
-        quote!(#crate_core::widget_base::implicit_mixin2::__inherit!)
-    };
 
     // Does some validation of `new_child` and `new` signatures.
     // Further type validation is done by `rustc` when we call the function
@@ -385,6 +373,58 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         });
     }
 
+    // prepare stage call
+    let stage_path;
+    let stage_extra;
+
+    // [(cfg, path)]
+    let inherits: Vec<_> = inherits
+        .into_iter()
+        .map(|inh| {
+            let attrs = Attributes::new(inh.attrs);
+            (attrs.cfg, inh.path)
+        })
+        .collect();
+    let mut cfgs = inherits.iter().map(|(c, _)| c);
+    let mut paths = inherits.iter().map(|(_, p)| p);
+
+    if mixin {
+        // mixins don't inherit the implicit_mixin so we go directly to stage_2_declare or to the first inherit.
+        if inherits.is_empty() {
+            stage_path = quote!(#crate_core::widget_declare!);
+            stage_extra = TokenStream::default();
+        } else {
+            let cfg = cfgs.next().unwrap();
+            let not_cfg = util::negate_cfg_attr(cfg.clone());
+            let path = paths.next().unwrap();
+            stage_path = quote!(#path::__inherit!);
+            stage_extra = quote! {
+                cfg { #cfg }
+                not_cfg { #not_cfg }
+                inherit {
+                    #(
+                        #cfgs
+                        #paths
+                    )*
+                }
+            }
+        }
+    } else {
+        // not-mixins inherit from the implicit_mixin first so we call __inherit for that:
+        // TODO rename implicit_mixin2 to implicit_mixin
+        stage_path = quote!(#crate_core::widget_base::implicit_mixin2::__inherit!);
+        stage_extra = quote! {
+            cfg { }
+            not_cfg { #[cfg(zero_ui_never_set)] }
+            inherit {
+                #(
+                    #cfgs
+                    #paths
+                )*
+             }
+        };
+    }
+
     let r = quote! {
         #errors
 
@@ -393,8 +433,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
         // a call to `widget_declare!` is made.
         #stage_path {
-
-            inherit { #(#inherits;)* }
+            #stage_extra
 
             widget {
                 module { #mod_path }
@@ -623,11 +662,15 @@ impl WidgetItems {
 }
 
 struct Inherit {
+    attrs: Vec<Attribute>,
     path: Path,
 }
 impl Parse for Inherit {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Inherit { path: input.parse()? })
+        Ok(Inherit {
+            attrs: Attribute::parse_outer(input)?,
+            path: input.parse()?,
+        })
     }
 }
 

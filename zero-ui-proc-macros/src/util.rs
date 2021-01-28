@@ -1,11 +1,16 @@
 use std::{env, path::PathBuf};
 
-use parse::{Parse, ParseStream};
 use proc_macro2::*;
-use punctuated::Punctuated;
-use quote::ToTokens;
+use quote::{quote_spanned, ToTokens};
 use regex::Regex;
-use syn::*;
+use syn::{
+    self,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    Attribute, Token,
+};
 
 /// `Ident` with custom span.
 macro_rules! ident_spanned {
@@ -211,13 +216,13 @@ pub fn uuid() -> impl std::fmt::Display {
 
 struct PunctParser<T, P>(Punctuated<T, P>);
 impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         Punctuated::<T, P>::parse_terminated(input).map(Self)
     }
 }
 
 /// [`Punctuated::parse_terminated`] from a token stream.
-pub fn parse2_punctuated<T: Parse, P: Parse>(input: TokenStream) -> Result<Punctuated<T, P>> {
+pub fn parse2_punctuated<T: Parse, P: Parse>(input: TokenStream) -> syn::Result<Punctuated<T, P>> {
     syn::parse2::<PunctParser<T, P>>(input).map(|r| r.0)
 }
 
@@ -334,10 +339,10 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
 pub fn normalize_docs(docs: &[Attribute]) -> Vec<Attribute> {
     let mut r = Vec::with_capacity(docs.len());
     for a in docs {
-        if let AttrStyle::Inner(_) = a.style {
+        if let syn::AttrStyle::Inner(_) = a.style {
             r.push(a.clone());
         } else {
-            let doc: DocArgs = parse2(a.tokens.clone()).unwrap();
+            let doc: DocArgs = syn::parse2(a.tokens.clone()).unwrap();
             for line in doc.str_.value().lines() {
                 r.push(parse_quote!( #[doc=#line] ));
             }
@@ -348,10 +353,10 @@ pub fn normalize_docs(docs: &[Attribute]) -> Vec<Attribute> {
 
 struct DocArgs {
     _eq: Token![=],
-    str_: LitStr,
+    str_: syn::LitStr,
 }
 impl Parse for DocArgs {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(DocArgs {
             _eq: input.parse()?,
             str_: input.parse()?,
@@ -405,7 +410,7 @@ impl syn::visit_mut::VisitMut for PatchSuperPath {
         }
     }
 
-    fn visit_item_mod_mut(&mut self, i: &mut ItemMod) {
+    fn visit_item_mod_mut(&mut self, i: &mut syn::ItemMod) {
         self.mod_depth += 1;
         syn::visit_mut::visit_item_mod_mut(self, i);
         self.mod_depth -= 1;
@@ -413,7 +418,7 @@ impl syn::visit_mut::VisitMut for PatchSuperPath {
 }
 
 /// Convert a [`Path`] to a formatted [`String`].
-pub fn display_path(path: &Path) -> String {
+pub fn display_path(path: &syn::Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
 }
 
@@ -475,13 +480,34 @@ pub fn merge_cfg_attr(a: Option<Attribute>, b: Option<Attribute>) -> Option<Toke
         },
     }
 }
+/// Returns an `#[cfg(..)]` stream that is the inverse of the `cfg` condition.
+///
+/// It the `cfg` is `None` returns a cfg match to a feature that is never set.
+pub fn negate_cfg_attr(cfg: Option<Attribute>) -> TokenStream {
+    match cfg {
+        Some(cfg) => {
+            if !cfg.path.get_ident().map(|id| id == "cfg").unwrap_or_default() {
+                non_user_error!("not an cfg attribute")
+            } else {
+                let span = cfg.span();
+                let condition = cfg.tokens;
+                quote_spanned! {span=>
+                    #[cfg(not(#condition))]
+                }
+            }
+        }
+        None => quote! {
+            #[cfg(zero_ui_never_set)]
+        },
+    }
+}
 struct CfgCondition {
     tokens: TokenStream,
 }
 impl Parse for CfgCondition {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let inner;
-        parenthesized!(inner in input);
+        syn::parenthesized!(inner in input);
         Ok(CfgCondition { tokens: inner.parse()? })
     }
 }

@@ -158,9 +158,14 @@ pub mod widget_expanded {
         #[macro_export]
         macro_rules! inherit_button_df18a4960c9c4924b503e192adb095ca {
             ( 
+                cfg { $(#[$cfg:meta])? }
+                not_cfg { #[$not_cfg:meta] }
                 inherit { $($inherit:path;)* }
                 $($rest:tt)+
             ) => {
+                // call with valid cfg, will include this widget inherit data in a
+                // new `inherited { .. }` block.
+                $(#[$cfg])?
                 $crate::widgets::button::__core::widget_inherit! {
                     // other inherited widgets to be processed after this.
                     inherit { $($inherit;)* }
@@ -239,6 +244,13 @@ pub mod widget_expanded {
                         new_child { content custom }
                         new { id custom_multi }
                     }
+                    $($rest)*
+                }
+                // 
+                #[$not_cfg]
+                $crate::widgets::button::__core::widget_inherit! {
+                    inherit { $($inherit;)* }
+                    // don't include this inherit data
                     $($rest)*
                 }
             };

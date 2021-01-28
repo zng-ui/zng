@@ -347,9 +347,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[macro_export]
         macro_rules! #inherit_macro_ident {
             (
+                cfg { $(#[$cfg:meta])? }
+                not_cfg { #[$not_cfg:meta] }
                 inherit { $($inherit:path;)* }
                 $($rest:tt)+
             ) => {
+                $(#[$cfg])?
                 #module::__core::widget_inherit! {
                     inherit { $($inherit;)* }
                     inherited {
@@ -357,6 +360,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                         #built_data
                     }
+                    $($rest)*
+                }
+                #[$not_cfg]
+                #module::__core::widget_inherit! {
+                    inherit { $($inherit;)* }
                     $($rest)*
                 }
             };
@@ -428,7 +436,6 @@ struct Items {
 impl Parse for Items {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut inherits = vec![];
-        assert!(non_user_braced!(input, "inherit").is_empty());
 
         while !input.is_empty() {
             if input.peek(keyword::inherited) {
