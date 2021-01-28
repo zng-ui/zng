@@ -1,13 +1,10 @@
-use std::{
-    collections::{HashMap, HashSet},
-    mem,
-};
+use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
-use syn::{parse::Parse, Attribute, Ident, ItemMod, LitBool, Visibility};
+use syn::{parse::Parse, Ident, LitBool};
 
 use crate::{
-    util::{self, parse_all, Errors},
+    util::{self, parse_all},
     widget_new2::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
@@ -35,7 +32,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
     let crate_core = util::crate_core();
-    let mut errors = Errors::default();
 
     // inherits `new_child` and `new`.
     let mut new_child_reexport = TokenStream::default();
