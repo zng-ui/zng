@@ -237,12 +237,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         }
 
-        // all captures are required
-        //
-        // note: a property can become required in "widget_2_declare.rs" if the
-        // widget is inheriting *new* functions.
-        required |= captures.contains(p_ident);
-
         let docs = attrs.docs;
         let cfg = attrs.cfg;
         let path = &property.path;
@@ -324,6 +318,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 assigns_tokens.extend(quote! {
                     #property {
                         cfg { #cfg }
+                        value_fn { #fn_ident }
                     }
                 });
 

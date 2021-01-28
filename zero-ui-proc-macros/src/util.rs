@@ -417,9 +417,11 @@ pub fn display_path(path: &Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
 }
 
+/// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string()[..20]
         .replace(".", " ")
+        .replace(":", " ")
         .replace("!", "not")
         .replace("&&", "and")
         .replace("||", "or")

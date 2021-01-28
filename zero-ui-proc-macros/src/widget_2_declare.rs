@@ -7,12 +7,12 @@ use proc_macro2::TokenStream;
 use syn::{parse::Parse, Attribute, Ident, ItemMod, LitBool, Visibility};
 
 use crate::{
-    util::{self, parse_all},
-    widget_new2::{BuiltProperty, BuiltWhen},
+    util::{self, parse_all, Errors},
+    widget_new2::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let Items { inherited, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
+    let Items { inherits, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
     let WidgetItem {
         module,
         attrs,
@@ -35,12 +35,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
     let crate_core = util::crate_core();
+    let mut errors = Errors::default();
 
     // inherits `new_child` and `new`.
     let mut new_child_reexport = TokenStream::default();
     let mut new_reexport = TokenStream::default();
     if !mixin {
-        let last_not_mixin = inherited.iter().filter(|i| !i.mixin).last();
+        let last_not_mixin = inherits.iter().filter(|i| !i.mixin).last();
         if !new_child_declared {
             if let Some(source) = last_not_mixin {
                 let source_mod = &source.module;
@@ -81,14 +82,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
 
-    let mut wgt_properties_child = TokenStream::default();
-    let mut wgt_properties = TokenStream::default();
-
     // collect inherited properties. Late inherits of the same ident overrides early inherits.
     let mut inherited_properties = HashMap::new();
     let mut inherited_props_child = vec![];
     let mut inherited_props = vec![];
-    for inherited in inherited.iter().rev() {
+    for inherited in inherits.iter().rev() {
         for p_child in inherited.properties_child.iter().rev() {
             if !properties_unset.contains(&p_child.ident) && inherited_properties.insert(&p_child.ident, &inherited.module).is_none() {
                 inherited_props_child.push(p_child);
@@ -106,21 +104,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let inherited_props_child = inherited_props_child;
     let inherited_props = inherited_props;
 
-    // properties that are assigned or declared in the new widget.
+    // properties that are assigned (not in when blocks) or declared in the new widget.
     let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
-
-    // re-export property modules used inherited and/or used in the widget.
+    // properties data for widget macros.
+    let mut wgt_properties_child = TokenStream::default();
+    let mut wgt_properties = TokenStream::default();
+    // property pub uses.
     let mut property_reexports = TokenStream::default();
+
+    // collect inherited re-exports and property data for macros.
     for (ip, is_child) in inherited_props_child
         .iter()
         .map(|ip| (ip, true))
         .chain(inherited_props.iter().map(|ip| (ip, false)))
     {
         if wgt_used_properties.contains(&ip.ident) {
+            // property was re-assigned in the widget, we will deal with then later.
             continue;
         }
 
-        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
         let &BuiltProperty {
             ident,
             docs,
@@ -128,7 +130,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             default,
             required,
         } = ip;
-        let required = *required || captured_properties.contains(ident);
+
+        // collect property data for macros.
+        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
         wgt_props.extend(quote! {
             #ident {
                 docs { #docs }
@@ -138,6 +142,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         });
 
+        // generate re-export.
         let path = inherited_properties.get(&ip.ident).unwrap();
         let p_ident = ident!("__p_{}", ip.ident);
         property_reexports.extend(quote! {
@@ -146,12 +151,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             pub use #path::#p_ident;
         });
     }
+    // collect property re-exports and data for macros.
     for (p, is_child) in properties_child
         .iter()
         .map(|p| (p, true))
         .chain(properties.iter().map(|p| (p, false)))
     {
-        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
         let PropertyItem {
             ident,
             docs,
@@ -161,6 +166,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ..
         } = p;
         let required = *required || captured_properties.contains(ident);
+
+        // collect property data for macros.
+        let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
         wgt_props.extend(quote! {
             #ident {
                 docs { #docs }
@@ -175,21 +183,22 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue;
         }
 
+        // re-export property
         let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
 
-        // if property was declared `some_property_ident as new_ident;`.
+        // if property was declared `some_ident as new_ident;`.
         if let Some(maybe_inherited) = p.get_path_ident() {
-            // if `some_property_ident` was inherited.
+            // if `some_ident` was inherited.
             if inherited_properties.contains_key(&maybe_inherited) {
-                // re-exports: `pub use self::__p_some_property_ident as __p_new_ident;`
+                // re-exports: `pub use self::__p_some_ident as __p_new_ident;`
                 let inherited_p_ident = ident!("__p_{}", maybe_inherited);
                 property_reexports.extend(quote! {
                     #cfg
                     #[doc(inline)]
                     pub use self::#inherited_p_ident as #p_ident;
                 });
-                // done;
+                // done.
                 continue;
             }
         }
@@ -199,6 +208,117 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #cfg
             #[doc(inline)]
             pub use #path::export as #p_ident;
+        });
+    }
+    let property_reexports = property_reexports;
+    let wgt_properties_child = wgt_properties_child;
+    let wgt_properties = wgt_properties;
+
+    // when data for macros.
+    let mut wgt_whens = TokenStream::default();
+    // inherited whens pub uses.
+    let mut when_reexports = TokenStream::default();
+
+    for inherited in &inherits {
+        //inherited.module
+        for BuiltWhen {
+            ident,
+            docs,
+            cfg,
+            inputs,
+            assigns,
+        } in &inherited.whens
+        {
+            let module = &inherited.module;
+            let module_id_str = util::tokens_to_ident_str(module);
+            let new_ident = ident!("__{}{}", module_id_str, ident);
+
+            let mut assigns_tt = TokenStream::default();
+            let mut defaults_tt = TokenStream::default();
+            for BuiltWhenAssign { property, cfg, value_fn } in assigns {
+                if properties_unset.contains(&property) {
+                    continue; // inherited removed by unset!.
+                }
+
+                let new_value_fn = ident!("__{}{}", module_id_str, value_fn);
+
+                assigns_tt.extend(quote! {
+                    #property { cfg { #cfg } value_fn { #new_value_fn } }
+                });
+
+                defaults_tt.extend(quote! {
+                    #[doc(hidden)]
+                    #cfg
+                    pub use #module::#value_fn as #new_value_fn;
+                });
+            }
+            if assigns_tt.is_empty() {
+                continue; // all properties unset!, remove when block.
+            }
+            wgt_whens.extend(quote! {
+                #new_ident {
+                    docs { #docs }
+                    cfg { #cfg }
+                    inputs { #(#inputs)* }
+                    assigns { #assigns_tt }
+                }
+            });
+            when_reexports.extend(quote! {
+
+                #[doc(hidden)]
+                #cfg
+                pub use #module::#ident as #new_ident;
+                #defaults_tt
+            });
+        }
+    }
+
+    let wgt_captures: HashSet<_> = new_child.iter().chain(new.iter()).collect();
+    let wgt_properties_with_value: HashSet<_> = inherited_props_child
+        .iter()
+        .chain(inherited_props.iter())
+        .filter(|p| p.default || p.required || wgt_captures.contains(&p.ident))
+        .map(|p| &p.ident)
+        .chain(
+            properties_child
+                .iter()
+                .chain(properties.iter())
+                .filter(|p| p.default || p.required || wgt_captures.contains(&p.ident))
+                .map(|p| &p.ident),
+        )
+        .collect();
+
+    for BuiltWhen {
+        ident,
+        docs,
+        cfg,
+        inputs,
+        assigns,
+    } in whens
+    {
+        let mut assigns_tt = TokenStream::default();
+        for BuiltWhenAssign { property, cfg, value_fn } in assigns {
+            if wgt_properties_with_value.contains(&property) {
+                assigns_tt.extend(quote! {
+                    #property { cfg { #cfg } value_fn { #value_fn } }
+                });
+            } else {
+                let p_ident = ident!("__p_{}", ident);
+                let error = format!("property `{}` cannot be assigned in `when` because it has no default value", ident);
+                assigns_tt.extend(quote_spanned! {ident.span()=>
+                    self::#p_ident::code_gen! {
+                        if !default=> std::compile_error!{ #error }
+                    }
+                });
+            }
+        }
+        wgt_whens.extend(quote! {
+            #ident {
+                docs { #docs }
+                cfg { #cfg }
+                inputs { #(#inputs)* }
+                assigns {#assigns_tt }
+            }
         });
     }
 
@@ -213,7 +333,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #wgt_properties
         }
         whens {
-            // TODO
+            #wgt_whens
         }
         new_child {
             #(#new_child)*
@@ -290,6 +410,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #mod_items
 
             #property_reexports
+            #when_reexports
 
             #new_child_reexport
             #new_reexport
@@ -305,24 +426,24 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 struct Items {
-    inherited: Vec<InheritedItem>,
+    inherits: Vec<InheritedItem>,
     widget: WidgetItem,
 }
 impl Parse for Items {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut inherited = vec![];
+        let mut inherits = vec![];
         assert!(non_user_braced!(input, "inherit").is_empty());
 
         while !input.is_empty() {
             if input.peek(keyword::inherited) {
-                inherited.push(non_user_braced!(input, "inherited").parse().unwrap_or_else(|e| non_user_error!(e)))
+                inherits.push(non_user_braced!(input, "inherited").parse().unwrap_or_else(|e| non_user_error!(e)))
             } else if input.peek(keyword::widget) {
                 let widget = non_user_braced!(input, "widget").parse().unwrap_or_else(|e| non_user_error!(e));
 
                 if !input.is_empty() {
                     non_user_error!("expected `widget { .. }` to be the last item");
                 }
-                return Ok(Items { inherited, widget });
+                return Ok(Items { inherits, widget });
             } else {
                 non_user_error!("expected `inherited { .. }` or `widget { .. }`")
             }

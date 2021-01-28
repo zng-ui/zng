@@ -192,7 +192,10 @@ pub mod widget_expanded {
                             }
                             content {
                                 default { false }
-                                required { true } // content is required, cannot `unset!`.
+                                // content is `required!`, cannot `unset!`.
+                                // if content was captured it is not marked as required here but widget_new
+                                // treats it as required.
+                                required { true } 
                             }
                             on_click {
                                 default { false }
@@ -279,9 +282,12 @@ pub mod widget_expanded {
                                 // properties set by the when block.
                                 assigns { 
                                     background_color { 
-                                       cfg {
-                                           // #[cfg(..)] of the assign
-                                       }
+                                        cfg {
+                                            // #[cfg(..)] of the assign
+                                        }
+                                        value_fn {
+                                            __w0_d_background_color
+                                        }
                                     } 
                                 }
                             }

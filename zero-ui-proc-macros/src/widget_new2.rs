@@ -367,6 +367,7 @@ impl Parse for BuiltWhen {
 pub struct BuiltWhenAssign {
     pub property: Ident,
     pub cfg: TokenStream,
+    pub value_fn: Ident,
 }
 impl Parse for BuiltWhenAssign {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -375,6 +376,7 @@ impl Parse for BuiltWhenAssign {
         let r = Ok(BuiltWhenAssign {
             property,
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            value_fn: non_user_braced!(&input, "value_fn").parse().unwrap_or_else(|e| non_user_error!(e)),
         });
         r
     }
