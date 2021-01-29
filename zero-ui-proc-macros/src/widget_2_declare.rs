@@ -349,12 +349,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             (
                 cfg { $(#[$cfg:meta])? }
                 not_cfg { #[$not_cfg:meta] }
-                inherit { $($inherit:path;)* }
+                inherit { $(
+                    $(#[$inh_cfg:meta])?
+                    $inherit:path;
+                )* }
                 $($rest:tt)+
             ) => {
                 $(#[$cfg])?
                 #module::__core::widget_inherit! {
-                    inherit { $($inherit;)* }
+                    inherit {
+                        $(
+                            $(#[$inh_cfg])?
+                            $inherit;
+                        )*
+                    }
                     inherited {
                         mixin { #mixin }
 
@@ -364,7 +372,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 #[$not_cfg]
                 #module::__core::widget_inherit! {
-                    inherit { $($inherit;)* }
+                    inherit {
+                        $(
+                            $(#[$inh_cfg])?
+                            $inherit;
+                        )*
+                    }
                     $($rest)*
                 }
             };
