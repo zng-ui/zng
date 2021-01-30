@@ -681,15 +681,32 @@ mod property_tests {
         let _ = c;
         child
     }
+
+    #[property(context)]
+    fn not_var_input(child: impl UiNode, input: &'static str) -> impl UiNode {
+        let _ = input;
+        child
+    }
 }
 
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
-    use crate::{widget2, widget_mixin2, Widget, WidgetId};
+    use std::collections::HashSet;
+
+    use crate::{property, state_key, var::Var, widget2, widget_mixin2, UiNode, Widget, WidgetId};
 
     #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
+
+    state_key! {
+        struct TraceKey: HashSet<&'static str>;
+    }
+
+    #[property(context)]
+    fn trace(child: impl UiNode, trace: impl Var<&'static str>) -> impl UiNode {
+        child
+    }
 
     #[test]
     pub fn implicit_inherited() {

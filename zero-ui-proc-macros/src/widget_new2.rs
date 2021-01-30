@@ -107,7 +107,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut user_prop_set_calls = vec![];
     let mut unset_properties = HashSet::new();
     let mut user_properties = HashSet::new();
-    
+
     // for each property assigned in the widget instantiation call (excluding when blocks).
     for up in &user_input.properties {
         let p_name = util::display_path(&up.path);
@@ -143,7 +143,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 errors.push(format_args!("unknown value `{}!`", sp), sp.span());
             }
         }
-        
+
         if !user_properties.insert(&up.path) {
             errors.push(format_args!("property `{}` already set", p_name), up.path.span());
             continue;
@@ -250,7 +250,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         wgt_properties
             .get(&parse_quote! {#p})
             .unwrap_or_else(|| non_user_error!("captured property is unknown"))
-    });  
+    });
     let new_caps = widget_data.new.iter().map(|p| {
         wgt_properties
             .get(&parse_quote! {#p})
@@ -258,7 +258,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     });
     let new_child_call = quote! {
         let node__ = #module::__new_child(#(#new_child_caps),*);
-    };  
+    };
     let new_call = quote! {
         #module::__new(node__, #(#new_caps),*)
     };
