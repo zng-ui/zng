@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fmt};
+use std::collections::{HashMap, HashSet};
 
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
@@ -8,11 +8,10 @@ use syn::{
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    visit_mut::{self, VisitMut},
     Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{crate_core, display_path, parse_all, tokens_to_ident_str, Errors};
+use crate::util::{self, parse_all, tokens_to_ident_str, Attributes, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -22,256 +21,220 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let module = widget_data.module;
 
-    let mut errors = Errors::default();
+    let mut errors = user_input.errors;
 
-    let mut child_ps_init = inherited_inits(&module, widget_data.properties_child);
-    let mut wgt_ps_init = inherited_inits(&module, widget_data.properties);
-    let mut user_ps_init = vec![];
+    let inherited_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .map(|p| &p.ident)
+        .collect();
+    // inherited properties that are assigned by the user.
+    let overriden_properties: HashSet<_> = user_input
+        .properties
+        .iter()
+        .filter_map(|p| p.path.get_ident())
+        .filter(|p_id| inherited_properties.contains(p_id))
+        .collect();
+    // properties that must be assigned by the user.
+    let required_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .filter(|p| p.required)
+        .map(|p| &p.ident)
+        .collect();
+    let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
+    // all widget properties that will be set (property_path, property_var).
+    let mut wgt_properties = HashMap::<syn::Path, Ident>::new();
 
-    let widget_properties: HashSet<Ident> = child_ps_init.iter().chain(wgt_ps_init.iter()).map(|(p, ..)| p.clone()).collect();
+    let mut property_inits = TokenStream::default();
+    let mut child_prop_set_calls = vec![];
+    let mut prop_set_calls = vec![];
 
-    let mut user_assigns = HashSet::new();
+    // for each inherited property that has a default value and is not overridden by the user:
+    for (ip, is_child) in widget_data
+        .properties_child
+        .iter()
+        .map(|ip| (ip, true))
+        .chain(widget_data.properties.iter().map(|ip| (ip, true)))
+        .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
+    {
+        let ident = &ip.ident;
+        let p_mod_ident = ident!("__p_{}", ident);
+        let p_default_fn_ident = ident!("__d_{}", ident);
+        let p_var_ident = ident!("__{}", ident);
+        let cfg = &ip.cfg;
 
-    for p in user_input.properties {
-        if !user_assigns.insert(p.path.clone()) {
-            errors.push(&format!("property `{}` already assigned", display_path(&p.path)), p.path.span());
-            continue;
+        wgt_properties.insert(parse_quote! { #ident }, p_var_ident.clone());
+
+        // generate call to default args.
+        property_inits.extend(quote! {
+            #cfg
+            let #p_var_ident = #module::#p_default_fn_ident();
+        });
+
+        if captured_properties.contains(ident) {
+            continue; // we don't set captured properties.
         }
 
-        // does `unset!`
-        if let PropertyValue::Special(sp, _) = p.value {
-            if sp == "unset" {
-                if let Some(p_ident) = p.path.get_ident() {
-                    let mut required = false;
-                    if let Some(i) = child_ps_init.iter().position(|(id, _, _)| id == p_ident) {
-                        required = child_ps_init[i].2;
-                        if !required {
-                            child_ps_init.remove(i);
-                            user_assigns.remove(&p.path); // so the user can set a custom property with the same name after?
-                            continue; // done
-                        }
-                    }
-                    if let Some(i) = wgt_ps_init.iter().position(|(id, _, _)| id == p_ident) {
-                        required = child_ps_init[i].2;
-                        if !required {
-                            wgt_ps_init.remove(i);
-                            user_assigns.remove(&p.path);
-                            continue; // done
-                        }
-                    }
+        // register data for the set call generation.
+        let property_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
+        #[cfg(debug_assertions)]
+        property_set_calls.push((
+            quote! { #module::#p_mod_ident },
+            p_var_ident,
+            ip.ident.to_string(),
+            {
+                let p_source_loc_ident = ident!("__loc_{}", ip.ident);
+                quote! { #module::#p_source_loc_ident() }
+            },
+            cfg.clone(),
+            /*user_assigned: */ false,
+        ));
+        #[cfg(not(debug_assertions))]
+        delayed_assigns.push((quote! { #module::#p_mod_ident }, p_var_ident, cfg.clone()));
+    }
 
-                    if required {
-                        errors.push(
-                            &format!("cannot unset property `{}` because it is required", p_ident),
-                            p_ident.span(),
-                        );
-                        continue; // skip invalid
+    let mut user_prop_set_calls = vec![];
+    let mut unset_properties = HashSet::new();
+
+    // for each property assigned in the widget instantiation call (excluding when blocks).
+    for up in &user_input.properties {
+        // validates and skips `unset!`.
+        if let PropertyValue::Special(sp, _) = &up.value {
+            if sp == "unset" {
+                if let Some(inherited) = up.path.get_ident() {
+                    if required_properties.contains(inherited) || captured_properties.contains(inherited) {
+                        errors.push(format_args!("cannot unset required property `{}`", inherited), inherited.span());
+                    } else {
+                        unset_properties.insert(inherited);
                     }
                 }
-                // else property not previously set:
-                errors.push(
-                    &format!("cannot unset property `{}` because it is not set", display_path(&p.path)),
-                    p.path.span(),
-                );
-                continue; // skip invalid
             } else {
-                errors.push(&format!("value `{}` is not valid in this context", sp), sp.span());
-                continue; // skip invalid
+                errors.push(format_args!("unknown value `{}!`", sp), sp.span());
+            }
+            continue;
+        }
+
+        let p_name = util::display_path(&up.path);
+        let p_mod = match up.path.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                let p_ident = ident!("__p_{}", maybe_inherited);
+                quote! { #module::#p_ident }
+            }
+            _ => up.path.to_token_stream()
+        };
+        let p_var_ident = ident!("__u_{}", p_name.replace("::", "_"));
+        let attrs = Attributes::new(up.attrs.clone());
+        let cfg = attrs.cfg;
+        let lints = attrs.lints;
+
+        wgt_properties.insert(up.path.clone(), p_var_ident.clone());
+
+        let init_expr = up.value.expr_tokens(&p_mod);
+        property_inits.extend(quote! {
+            #cfg
+            #(#lints)*
+            let #p_var_ident = #init_expr;
+        });
+
+        if let Some(maybe_inherited) = up.path.get_ident() {
+            if captured_properties.contains(maybe_inherited) {
+                continue;
             }
         }
 
-        if let Some(ident) = p.path.get_ident() {
-            let target = child_ps_init
-                .iter_mut()
-                .find(|(id, _, _)| id == ident)
-                .or_else(|| wgt_ps_init.iter_mut().find(|(id, _, _)| id == ident));
-            if let Some((_, existing, _)) = target {
-                let var_ident = ident!("__{}", ident);
-                let p_ident = ident!("__p_{}", ident);
+        // register data for the set call generation.
+        #[cfg(debug_assertions)]
+        user_prop_set_calls.push((
+            p_mod.to_token_stream(),
+            p_var_ident,
+            p_name,
+            quote_spanned! {up.path.span()=>
+                #module::__core::source_location!()
+            },
+            cfg.to_token_stream(),
+            /*user_assigned: */ true,
+        ));
+        #[cfg(not(debug_assertions))]
+        delayed_assigns_user.push((p_mod.to_token_stream(), p_var_ident, p_name, cfg.to_token_stream()));
+    }
+    let unset_properties = unset_properties;
+    let wgt_properties = wgt_properties;
 
-                // replace default value.
-                *existing = match p.value {
-                    PropertyValue::Unnamed(args) => quote! {
-                        let #var_ident = #module::#p_ident::ArgsImpl::new(#args);
-                    },
-                    PropertyValue::Named(_, fields) => {
-                        let property_path = quote! { #module::#p_ident };
-                        quote! {
-                            let #var_ident = #property_path::code_gen! { named_new #property_path {
-                                #fields
-                            }};
-                        }
+    // generate property assigns.
+    let mut property_set_calls = TokenStream::default();
+    for delayed_assigns in vec![child_prop_set_calls, prop_set_calls, user_prop_set_calls] {
+        for priority in &crate::property::Priority::all_settable() {
+            #[cfg(debug_assertions)]
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &delayed_assigns {
+                property_set_calls.extend(quote! {
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
                     }
-                    PropertyValue::Special(_, _) => unreachable!(),
-                };
-                continue; // replaced existing.
+                });
+            }
+            #[cfg(not(debug_assertions))]
+            for (p_mod, p_var_ident, cfg) in delayed_assigns {
+                property_assigns.extend(quote! {
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, node__, #p_mod, #p_var_ident
+                    }
+                });
             }
         }
-
-        // else is custom property.
-        let var_ident = ident!("__{}", display_path(&p.path).replace("::", "__"));
-        let property_path = p.path;
-        user_ps_init.push(match p.value {
-            PropertyValue::Unnamed(args) => quote! {
-                let #var_ident = #property_path::ArgsImpl::new(#args);
-            },
-            PropertyValue::Named(_, fields) => quote! {
-                let #var_ident = #property_path::code_gen!{ named_new #property_path { #fields } };
-            },
-            PropertyValue::Special(_, _) => unreachable!(),
-        });
     }
+    let property_set_calls = property_set_calls;
 
-    let mut assigns = user_assigns.clone();
-    let user_assigns = user_assigns;
-
-    for (ident, value, required) in child_ps_init.iter().chain(wgt_ps_init.iter()) {
-        if value.is_empty() {
-            if *required {
-                // add errors for missing required.
-                errors.push(&format!("required property `{}` not set", ident), ident.span());
-            }
-        } else {
-            // add widget assigns.
-            assigns.insert(parse_quote! { #ident });
+    // validate required properties.
+    for required in required_properties {
+        if !wgt_properties.contains_key(&parse_quote! { #required }) {
+            errors.push(format!("missing required property `{}`", required), Span::call_site());
         }
     }
-    let assigns = assigns;
 
-    // property initializers in order they must be called.
-    let properties_init = child_ps_init
-        .into_iter()
-        .map(|(_, init, _)| init)
-        .chain(wgt_ps_init.into_iter().map(|(_, init, _)| init)) // widget properties, child target first.
-        .filter(|tt| !tt.is_empty()) // - without default value.
-        .chain(user_ps_init); // + custom user properties.
-
-    // when condition initializers and properties used in when reassign.
-    let mut whens_init = TokenStream::default();
-    // linear map of [(property, [(assign_ident, assign_property_value)])]
-    let mut when_props_assigns = Vec::<(syn::Path, Vec<(Ident, TokenStream)>)>::new();
-    let mut push_when_assign = |property: syn::Path, when_ident: Ident, when_prop_value: TokenStream| {
-        if let Some((_, entry)) = when_props_assigns.iter_mut().find(|(id, _)| id == &property) {
-            entry.push((when_ident.clone(), when_prop_value));
-        } else {
-            when_props_assigns.push((property, vec![(when_ident.clone(), when_prop_value)]));
+    // generate whens.
+    let mut when_inits = TokenStream::default();
+    for iw in widget_data.whens {
+        if iw.inputs.iter().any(|p| unset_properties.contains(p)) {
+            // deactivate when block because user unset one of the inputs.
+            continue;
         }
+
+        let assigns: Vec<_> = iw.assigns.into_iter().filter(|a| !unset_properties.contains(&a.property)).collect();
+        if assigns.is_empty() {
+            // deactivate when block because user unset all of the properties assigned.
+            continue;
+        }
+
+        when_inits.extend(quote! {});
+    }
+    for w in user_input.whens {}
+
+    // generate new function calls.
+    let new_child_caps = widget_data.new_child.iter().map(|p| wgt_properties.get(&parse_quote!{#p}).unwrap_or(p));
+    let new_child_call = quote! {
+        let node__ = #module::__new_child(#(#new_child_caps),*);
     };
-    for when in widget_data.whens {
-        if !when.inputs.iter().all(|id| user_assigns.contains(&parse_quote! { #id })) {
-            // skip, not all properties used in the when condition are assigned.
-            continue;
-        }
-
-        let w_assigns: Vec<_> = when
-            .assigns
-            .into_iter()
-            // when can only assign properties that have an initial value.
-            .filter(|a| {
-                let id = &a.property;
-                user_assigns.contains(&parse_quote! { #id })
-            })
-            .collect();
-        if w_assigns.is_empty() {
-            // skip, when does not assign any property.
-            continue;
-        }
-
-        let when_ident = when.ident;
-        let inputs = when.inputs.into_iter().map(|id| ident!("__{}", id));
-
-        whens_init.extend(quote! {
-            let #when_ident = #module::#when_ident(#(std::clone::Clone::clone(&#inputs)),*);
-        });
-
-        for w_assign in w_assigns {
-            let p_ident = &w_assign.property;
-            let d_ident = ident!("{}_d_{}", when_ident, p_ident);
-            let value = quote! { #module::#d_ident() };
-
-            let w_assign: syn::Path = parse_quote! { #p_ident };
-            push_when_assign(w_assign, when_ident.clone(), value);
-        }
-    }
-    for (i, when) in user_input.whens.into_iter().enumerate() {
-        let w_assigns: Vec<_> = when.assigns.iter().filter(|id| user_assigns.contains(&id.path)).collect();
-        if w_assigns.is_empty() {
-            // skip, when does not assign any property.
-            continue;
-        }
-        let (input_properties, init) = when.make_init(&module, &widget_properties);
-        if !user_assigns.is_superset(&input_properties) {
-            // skip, not all properties used in the when condition are assigned.
-            continue;
-        }
-
-        let when_ident = when.make_ident(i);
-        whens_init.extend(quote! {
-            let #when_ident = #init;
-        });
-
-        for w_assign in w_assigns {
-            // TODO assign to value.
-            let value = quote! {};
-            push_when_assign(w_assign.path.clone(), when_ident.clone(), value);
-        }
-    }
-
-    // generate when switches for when affected properties.
-    let mut when_props_init = TokenStream::default();
-    //TODO
-
-    // new_child call.
-    let new_child_inputs = widget_data.new_child.into_iter().map(|id| ident!("__{}", id));
-    let new_child = quote! {
-        let node__ = #module::__new_child(#(#new_child_inputs),*);
-    };
-
-    // child assigns.
-    // TODO
-
-    // normal assigns.
-    // TODO
-
-    // new call.
-    let new_inputs = widget_data.new.into_iter().map(|id| ident!("__{}", id));
-    let new = quote! {
-        #module::__new(node__, #(#new_inputs),*)
+    let new_caps = widget_data.new.iter().map(|p| wgt_properties.get(&parse_quote!{#p}).unwrap_or(p));
+    let new_call = quote! {
+        #module::__new(node__, #(#new_caps),*)
     };
 
     let r = quote! {
         {
-        #errors
-        #(#properties_init)*
-        #whens_init
-        #when_props_init
-        #new_child
-        //#child_assigns
-        //#wgt_assigns
-        #new
+            #errors
+            #property_inits
+            #when_inits
+            #new_child_call
+            #property_set_calls
+            #new_call
         }
     };
-
     r.into()
-}
-
-/// Returns (property_ident, default_value, is_required)
-fn inherited_inits(module: &TokenStream, properties: Vec<BuiltProperty>) -> Vec<(Ident, TokenStream, bool)> {
-    let mut inits = Vec::with_capacity(properties.len());
-    for p in properties {
-        let init = if p.default {
-            let var_ident = ident!("__{}", p.ident);
-            let default_ident = ident!("__d_{}", p.ident);
-            quote! {
-                let #var_ident = #module::#default_ident();
-            }
-        } else {
-            TokenStream::default()
-        };
-
-        inits.push((p.ident, init, p.required));
-    }
-    inits
 }
 
 struct Input {
@@ -382,6 +345,7 @@ impl Parse for BuiltWhenAssign {
     }
 }
 
+/// The content of the widget macro call.
 struct UserInput {
     errors: Errors,
     properties: Vec<PropertyAssign>,
@@ -416,6 +380,7 @@ impl Parse for UserInput {
     }
 }
 
+/// Property assign in a widget instantiation or when block.
 pub struct PropertyAssign {
     pub attrs: Vec<Attribute>,
     pub path: Path,
@@ -452,6 +417,7 @@ impl Parse for PropertyAssign {
     }
 }
 
+/// Value [assigned](PropertyAssign) to a property.
 pub enum PropertyValue {
     /// `unset!` or `required!`.
     Special(Ident, Token![!]),
@@ -461,17 +427,6 @@ pub enum PropertyValue {
     Named(syn::token::Brace, Punctuated<FieldValue, Token![,]>),
 }
 impl PropertyValue {
-    pub fn is_special_eq(&self, keyword: &str) -> bool {
-        matches!(self, PropertyValue::Special(sp, _) if sp == keyword)
-    }
-
-    pub fn incorrect_special(&self, expected: &str) -> Option<&Ident> {
-        match self {
-            PropertyValue::Special(sp, _) if sp != expected => Some(sp),
-            _ => None,
-        }
-    }
-
     /// Convert this value to an expr. Panics if `self` is [`Special`].
     pub fn expr_tokens(&self, property_path: &TokenStream) -> TokenStream {
         match self {
@@ -538,6 +493,7 @@ impl Parse for PropertyValue {
     }
 }
 
+/// When block in a widget instantiation or declaration.
 pub struct When {
     pub attrs: Vec<Attribute>,
     pub when: keyword::when,
@@ -582,11 +538,6 @@ impl When {
     /// Returns an ident `__w{i}_{expr_to_str}`
     pub fn make_ident(&self, i: usize) -> Ident {
         ident!("__w{}_{}", i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
-    }
-
-    /// Returns a set of properties used in the condition and the condition transformed to new var.
-    pub fn make_init(&self, widget_path: &TokenStream, widget_properties: &HashSet<Ident>) -> (HashSet<syn::Path>, TokenStream) {
-        todo!()
     }
 }
 
