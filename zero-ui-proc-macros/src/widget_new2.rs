@@ -44,6 +44,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|p| p.required)
         .map(|p| &p.ident)
         .collect();
+    // properties that have a default value.
+    let default_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .filter(|p| p.default)
+        .map(|p| &p.ident)
+        .collect();
     let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
     // all widget properties that will be set (property_path, property_var).
     let mut wgt_properties = HashMap::<syn::Path, Ident>::new();
@@ -61,7 +69,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
     {
         let ident = &ip.ident;
-        let p_mod_ident = ident!("__p_{}", ident);
         let p_default_fn_ident = ident!("__d_{}", ident);
         let p_var_ident = ident!("__{}", ident);
         let cfg = &ip.cfg;
@@ -78,6 +85,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue; // we don't set captured properties.
         }
 
+        let p_mod_ident = ident!("__p_{}", ident);
         // register data for the set call generation.
         let property_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
         #[cfg(debug_assertions)]
@@ -98,32 +106,55 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut user_prop_set_calls = vec![];
     let mut unset_properties = HashSet::new();
-
+    let mut user_properties = HashSet::new();
+    
     // for each property assigned in the widget instantiation call (excluding when blocks).
     for up in &user_input.properties {
+        let p_name = util::display_path(&up.path);
+
         // validates and skips `unset!`.
         if let PropertyValue::Special(sp, _) = &up.value {
             if sp == "unset" {
-                if let Some(inherited) = up.path.get_ident() {
-                    if required_properties.contains(inherited) || captured_properties.contains(inherited) {
-                        errors.push(format_args!("cannot unset required property `{}`", inherited), inherited.span());
+                if let Some(maybe_inherited) = up.path.get_ident() {
+                    if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
+                        errors.push(
+                            format_args!("cannot unset required property `{}`", maybe_inherited),
+                            maybe_inherited.span(),
+                        );
+                    } else if !default_properties.contains(maybe_inherited) {
+                        errors.push(
+                            format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
+                            maybe_inherited.span(),
+                        );
                     } else {
-                        unset_properties.insert(inherited);
+                        unset_properties.insert(maybe_inherited);
+                        continue;
                     }
+                } else {
+                    errors.push(
+                        format_args!(
+                            "cannot unset `{}` because it is not set by the widget",
+                            util::display_path(&up.path)
+                        ),
+                        up.path.span(),
+                    );
                 }
             } else {
                 errors.push(format_args!("unknown value `{}!`", sp), sp.span());
             }
+        }
+        
+        if !user_properties.insert(&up.path) {
+            errors.push(format_args!("property `{}` already set", p_name), up.path.span());
             continue;
         }
 
-        let p_name = util::display_path(&up.path);
         let p_mod = match up.path.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
                 let p_ident = ident!("__p_{}", maybe_inherited);
                 quote! { #module::#p_ident }
             }
-            _ => up.path.to_token_stream()
+            _ => up.path.to_token_stream(),
         };
         let p_var_ident = ident!("__u_{}", p_name.replace("::", "_"));
         let attrs = Attributes::new(up.attrs.clone());
@@ -165,10 +196,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // generate property assigns.
     let mut property_set_calls = TokenStream::default();
-    for delayed_assigns in vec![child_prop_set_calls, prop_set_calls, user_prop_set_calls] {
+    for set_calls in vec![child_prop_set_calls, prop_set_calls, user_prop_set_calls] {
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &delayed_assigns {
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
                 property_set_calls.extend(quote! {
                     #cfg
                     #p_mod::code_gen! {
@@ -190,7 +221,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let property_set_calls = property_set_calls;
 
     // validate required properties.
-    for required in required_properties {
+    for required in required_properties.into_iter().chain(captured_properties) {
         if !wgt_properties.contains_key(&parse_quote! { #required }) {
             errors.push(format!("missing required property `{}`", required), Span::call_site());
         }
@@ -215,11 +246,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for w in user_input.whens {}
 
     // generate new function calls.
-    let new_child_caps = widget_data.new_child.iter().map(|p| wgt_properties.get(&parse_quote!{#p}).unwrap_or(p));
+    let new_child_caps = widget_data.new_child.iter().map(|p| {
+        wgt_properties
+            .get(&parse_quote! {#p})
+            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+    });  
+    let new_caps = widget_data.new.iter().map(|p| {
+        wgt_properties
+            .get(&parse_quote! {#p})
+            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+    });
     let new_child_call = quote! {
         let node__ = #module::__new_child(#(#new_child_caps),*);
-    };
-    let new_caps = widget_data.new.iter().map(|p| wgt_properties.get(&parse_quote!{#p}).unwrap_or(p));
+    };  
     let new_call = quote! {
         #module::__new(node__, #(#new_caps),*)
     };
