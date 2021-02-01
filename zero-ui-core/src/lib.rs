@@ -683,6 +683,12 @@ mod property_tests {
     }
 
     #[property(context)]
+    fn not_into_var_input(child: impl UiNode, input: impl Var<&'static str>) -> impl UiNode {
+        let _ = input;
+        child
+    }
+
+    #[property(context)]
     fn not_var_input(child: impl UiNode, input: &'static str) -> impl UiNode {
         let _ = input;
         child
@@ -692,21 +698,11 @@ mod property_tests {
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
-    use std::collections::HashSet;
 
-    use crate::{property, state_key, var::Var, widget2, widget_mixin2, UiNode, Widget, WidgetId};
+    use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
     #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
-
-    state_key! {
-        struct TraceKey: HashSet<&'static str>;
-    }
-
-    #[property(context)]
-    fn trace(child: impl UiNode, trace: impl Var<&'static str>) -> impl UiNode {
-        child
-    }
 
     #[test]
     pub fn implicit_inherited() {
@@ -716,5 +712,39 @@ mod widget_tests {
         };
         let actual = wgt.id();
         assert_eq!(expected, actual);
+    }
+
+    mod util {
+        use std::collections::HashSet;
+
+        use crate::{context::WidgetContext, impl_ui_node, property, state_key, UiNode, Widget};
+
+        /// Insert `trace` in the widget state. Can be probed using [`traced`].
+        #[property(context)]
+        pub fn trace(child: impl UiNode, trace: &'static str) -> impl UiNode {
+            TraceNode { child, trace }
+        }
+
+        /// Probe for a [`trace`] in the widget state.
+        pub fn traced(wgt: &impl Widget, trace: &'static str) -> bool {
+            wgt.state().get(TraceKey).map(|t| t.contains(trace)).unwrap_or_default()
+        }
+
+        state_key! {
+            struct TraceKey: HashSet<&'static str>;
+        }
+
+        struct TraceNode<C: UiNode> {
+            child: C,
+            trace: &'static str,
+        }
+
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for TraceNode<C> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                ctx.widget_state.entry(TraceKey).or_default().insert(self.trace);
+            }
+        }
     }
 }

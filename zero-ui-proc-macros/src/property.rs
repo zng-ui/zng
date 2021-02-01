@@ -711,13 +711,7 @@ mod output {
                     let arg_debug_vars = {
                         let ( #(#arg_locals),* ) = self_.unwrap_ref();
                         Box::new([
-                            #(// TODO: If the value is not a var the compiler requires a type hint here. See `not_var_input` test.
-                            #crate_core::debug::debug_var(
-                                #crate_core::var::IntoVar::into_var(
-                                    std::clone::Clone::clone(#arg_locals)
-                                )
-                            ),
-                        )*
+                            #(#crate_core::debug::debug_var!(#arg_locals),)*
                         ])
                     };
                 }

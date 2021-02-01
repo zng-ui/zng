@@ -594,9 +594,48 @@ impl UiNode for NewChildMarkerNode {
 }
 
 #[doc(hidden)]
-pub fn debug_var<T: VarValue, V: Var<T>>(var: V) -> BoxedVar<String> {
-    var.into_map(|t| format!("{:?}", t)).boxed()
+pub mod debug_var_util {
+    use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
+
+    pub struct Wrap<T>(pub T);
+
+    pub trait FromIntoVar<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    }
+    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for Wrap<V> {
+        fn debug_var(&self) -> BoxedVar<String> {
+            self.0.clone().into_var().into_map(|t| format!("{:?}", t)).boxed()
+        }
+    }
+
+    pub trait FromVar<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    }
+    impl<T: VarValue, V: Var<T>> FromVar<T> for &Wrap<V> {
+        fn debug_var(&self) -> BoxedVar<String> {
+            self.0.map(|t| format!("{:?}", t)).boxed()
+        }
+    }
+
+    pub trait FromValue {
+        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    }
+    impl<T: std::fmt::Debug> FromValue for &&Wrap<T> {
+        fn debug_var(&self) -> crate::var::BoxedVar<String> {
+            OwnedVar(format!("{:?}", &self.0)).boxed()
+        }
+    }
 }
+#[doc(hidden)]
+#[macro_export]
+macro_rules! debug_var {
+    ($var:expr) => {{
+        use $crate::debug::debug_var_util::*;
+        (&&&Wrap(std::clone::Clone::clone($var))).debug_var()
+    }};
+}
+#[doc(hidden)]
+pub use debug_var;
 
 #[doc(hidden)]
 pub type DebugArgs = Box<[BoxedVar<String>]>;
