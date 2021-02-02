@@ -7,7 +7,7 @@ use super::{
     impl_ui_node,
     render::{FrameBuilder, FrameInfo, FrameUpdate, WidgetInfo},
     units::LayoutSize,
-    var::{context_var, BoxedVar, Var, VarObj, VarValue},
+    var::{context_var, BoxedVar, VarObj},
     UiNode,
 };
 use std::{

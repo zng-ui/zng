@@ -264,6 +264,11 @@ impl StateMap {
         let _ = key;
         self.map.contains_key(&TypeId::of::<S>())
     }
+
+    /// If no state is set.
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
 }
 
 /// A view into a single entry in a state map, which may either be vacant or occupied.
@@ -356,6 +361,11 @@ impl LazyStateMap {
     pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
         self.get(key).is_some()
     }
+
+    /// If no state is set.
+    pub fn is_empty(&self) -> bool {
+        self.m.as_ref().map(|m| m.is_empty()).unwrap_or(true)
+    }
 }
 
 /// Executor access to [`Updates`].
@@ -385,11 +395,16 @@ impl OwnedUpdates {
     pub fn take_updates(&mut self) -> (UpdateRequest, UpdateDisplayRequest) {
         (mem::take(&mut self.0.update), mem::take(&mut self.0.display_update))
     }
+
+    /// Reference the [`Updates`].
+    pub fn updates(&mut self) -> &mut Updates {
+        &mut self.0
+    }
 }
 
 /// Schedule of actions to apply after an update.
 ///
-/// An instance of this struct can be build by [`OwnedUpdates`].
+/// An instance of this struct can be built by [`OwnedUpdates`].
 pub struct Updates {
     notifier: UpdateNotifier,
     update: UpdateRequest,
@@ -837,6 +852,66 @@ impl<'a> WindowContext<'a> {
 
             updates: self.updates,
         });
+    }
+}
+
+/// A mock [`WidgetContext`] for testing.
+#[cfg(test)]
+pub struct TestWidgetContext {
+    /// WARNING: Default value is [`WindowId::dummy()`] which is unsafe.
+    pub window_id: WindowId,
+    pub root_id: WidgetId,
+    pub app_state: StateMap,
+    pub window_state: StateMap,
+    pub event_state: StateMap,
+    pub services: AppServicesInit,
+    pub event_loop: crate::app::EventLoop,
+    pub updates: OwnedUpdates,
+    pub vars: Vars,
+    pub events: Events,
+    pub window_services: WindowServices,
+    pub sync: Sync,
+}
+
+#[cfg(test)]
+impl Default for TestWidgetContext {
+    fn default() -> Self {
+        let event_loop = crate::app::EventLoop::new(true);
+        let updates = OwnedUpdates::new(event_loop.create_proxy());
+        let update_notifier = updates.0.notifier().clone();
+        Self {
+            // SAFETY: this is test only code and we have documentation warning users.
+            window_id: unsafe { WindowId::dummy() },
+            root_id: WidgetId::new_unique(),
+            app_state: StateMap::default(),
+            window_state: StateMap::default(),
+            event_state: StateMap::default(),
+            services: AppServicesInit::default(),
+            event_loop,
+            updates,
+            vars: Vars::instance(),
+            events: Events::instance(),
+            window_services: WindowServices::new(),
+            sync: Sync::new(update_notifier),
+        }
+    }
+}
+#[cfg(test)]
+impl TestWidgetContext {
+    pub fn widget_context<R>(&mut self, widget_state: &mut LazyStateMap, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
+        action(&mut WidgetContext {
+            path: &mut WidgetContextPath::new(self.window_id, self.root_id),
+            app_state: &mut self.app_state,
+            window_state: &mut self.window_state,
+            widget_state,
+            event_state: &mut self.event_state,
+            vars: &mut self.vars,
+            events: &mut self.events,
+            services: self.services.services(),
+            window_services: &mut self.window_services,
+            sync: &mut self.sync,
+            updates: self.updates.updates(),
+        })
     }
 }
 

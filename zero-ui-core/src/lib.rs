@@ -698,11 +698,30 @@ mod property_tests {
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
-
     use crate::{widget2, widget_mixin2, Widget, WidgetId};
 
     #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
+
+    #[widget_mixin2($crate::widget_tests::foo_mixin)]
+    pub mod foo_mixin {
+        use super::util;
+
+        properties! {
+            util::trace as foo_trace = "foo_mixin";
+        }
+    }
+
+    #[widget2($crate::widget_tests::bar_wgt)]
+    pub mod bar_wgt {
+        use super::{foo_mixin, util};
+
+        inherit!(foo_mixin);
+
+        properties! {
+            util::trace as bar_trace = "bar_wgt";
+        }
+    }
 
     #[test]
     pub fn implicit_inherited() {
@@ -712,6 +731,33 @@ mod widget_tests {
         };
         let actual = wgt.id();
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    pub fn basic_widget_with_mixin_default_values() {
+        let mut default = bar_wgt!();
+        default.test_init();
+
+        // test default values used.
+        assert!(util::traced(&default, "foo_mixin"));
+        assert!(util::traced(&default, "bar_wgt"));
+    }
+
+    #[test]
+    pub fn basic_widget_with_mixin_assign_values() {
+        let mut default = bar_wgt! {
+            foo_trace = "foo!";
+            bar_trace = "bar!";
+        };
+        default.test_init();
+
+        // test new values used.
+        assert!(util::traced(&default, "foo!"));
+        assert!(util::traced(&default, "bar!"));
+
+        // test default values not used.
+        assert!(!util::traced(&default, "foo_mixin"));
+        assert!(!util::traced(&default, "bar_wgt"));
     }
 
     mod util {

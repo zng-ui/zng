@@ -1,5 +1,4 @@
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 use syn::{parse::Parse, Ident, Path, Token};
 
 use crate::util;
@@ -79,7 +78,6 @@ impl Parse for Inherit {
 struct InheritItem {
     cfg: Option<syn::Attribute>,
     path: Path,
-    semi: Token![;],
 }
 impl Parse for InheritItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -88,10 +86,6 @@ impl Parse for InheritItem {
         if !attrs.is_empty() {
             non_user_error!("expected none or single #[cfg(..)] attribute")
         }
-        Ok(InheritItem {
-            cfg,
-            path: input.parse()?,
-            semi: input.parse()?,
-        })
+        Ok(InheritItem { cfg, path: input.parse()? })
     }
 }

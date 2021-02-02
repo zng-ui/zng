@@ -19,6 +19,7 @@ use crate::{
 pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
+
     if mod_.content.is_none() {
         return syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
             .to_compile_error()
@@ -222,6 +223,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                         #expr
                     }
                 });
+
+                #[cfg(debug_assertions)]
+                {
+                    let loc_ident = ident!("__loc_{}", p_ident);
+                    property_defaults.extend(quote_spanned! {p_ident.span()=>
+                        #[doc(hidden)]
+                        pub fn #loc_ident() -> #crate_core::debug::SourceLocation {
+                            #crate_core::debug::source_location!()
+                        }
+                    });
+                }
             }
         }
 
@@ -421,7 +433,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #cfgs
                     #paths
                 )*
-             }
+            }
         };
     }
 
@@ -481,7 +493,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #[doc(hidden)]
                     pub mod __core {
                         // TODO: Update widget_new2 to widget_new when it's ready.
-                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var};
+                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var, debug::source_location};
                     }
                 }
 

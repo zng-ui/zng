@@ -541,6 +541,18 @@ pub trait Widget: UiNode {
     {
         Box::new(self)
     }
+
+    /// Run [`UiNode::init`] using the [`TestWidgetContext`].
+    #[cfg(test)]
+    fn test_init(&mut self) {
+        let mut t = TestWidgetContext::default();
+        let mut state = std::mem::take(self.state_mut());
+        t.widget_context(&mut state, |ctx| {
+            self.init(ctx);
+        });
+        assert!(self.state().is_empty(), "dummy widget state used");
+        *self.state_mut() = state;
+    }
 }
 #[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
 impl UiNode for Box<dyn Widget> {}

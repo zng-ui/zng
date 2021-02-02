@@ -146,6 +146,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #[doc(inline)]
             pub use #path::#p_ident;
         });
+
+        // generate values re-export.
+        if ip.default {
+            // default value.
+            let d_ident = ident!("__d_{}", ip.ident);
+            property_reexports.extend(quote! {
+                #cfg
+                #[doc(hidden)]
+                pub use #path::#d_ident;
+            });
+
+            // source location reexport.
+            #[cfg(debug_assertions)]
+            {
+                let loc_ident = ident!("__loc_{}", ip.ident);
+                property_reexports.extend(quote! {
+                    #cfg
+                    #[doc(hidden)]
+                    pub use #path::#loc_ident;
+                });
+            }
+        }
     }
     // collect property re-exports and data for macros.
     for (p, is_child) in properties_child
@@ -351,7 +373,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 not_cfg { #[$not_cfg:meta] }
                 inherit { $(
                     $(#[$inh_cfg:meta])?
-                    $inherit:path;
+                    $inherit:path
                 )* }
                 $($rest:tt)+
             ) => {
@@ -360,7 +382,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     inherit {
                         $(
                             $(#[$inh_cfg])?
-                            $inherit;
+                            $inherit
                         )*
                     }
                     inherited {
@@ -375,7 +397,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     inherit {
                         $(
                             $(#[$inh_cfg])?
-                            $inherit;
+                            $inherit
                         )*
                     }
                     $($rest)*
