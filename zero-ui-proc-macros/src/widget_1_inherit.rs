@@ -1,5 +1,5 @@
 use proc_macro2::TokenStream;
-use syn::{parse::Parse, Ident, Path, Token};
+use syn::{ext::IdentExt, parse::Parse, Ident, Path, Token};
 
 use crate::util;
 
@@ -14,7 +14,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let cfg = inherit.cfg;
         let not_cfg = util::negate_cfg_attr(cfg.clone());
         quote! {
-            #path::__inherit! {
+            #path! {
                 cfg { #cfg }
                 not_cfg { #not_cfg }
                 inherit { #inherit_rest }
@@ -57,7 +57,8 @@ struct Inherit {
 
 impl Parse for Inherit {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(Token![#]) || input.peek(Ident) {
+        // peek an attribute #[cfg(..)] or the first ident of a path or the first keyword of a path (super, self).
+        if input.peek(Token![#]) || input.peek(Ident::peek_any) {
             // peeked an inherit item.
             Ok(Inherit {
                 next_inherit: Some(input.parse()?),
@@ -69,7 +70,7 @@ impl Parse for Inherit {
                 next_inherit: None,
                 rest: input.parse()?,
             };
-            assert!(r.rest.is_empty());
+            assert!(r.rest.is_empty(), "expected r.rest.is_empty() but was: `{}`", r.rest);
             Ok(r)
         }
     }

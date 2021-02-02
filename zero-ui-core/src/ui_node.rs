@@ -546,12 +546,9 @@ pub trait Widget: UiNode {
     #[cfg(test)]
     fn test_init(&mut self) {
         let mut t = TestWidgetContext::default();
-        let mut state = std::mem::take(self.state_mut());
-        t.widget_context(&mut state, |ctx| {
+        t.widget_context(&mut LazyStateMap::default(), |ctx| {
             self.init(ctx);
         });
-        assert!(self.state().is_empty(), "dummy widget state used");
-        *self.state_mut() = state;
     }
 }
 #[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]

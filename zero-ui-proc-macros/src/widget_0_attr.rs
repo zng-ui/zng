@@ -8,7 +8,7 @@ use syn::{
     parse2, parse_macro_input,
     punctuated::Punctuated,
     spanned::Spanned,
-    token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, Path, Token,
+    token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, ItemUse, Path, Token,
 };
 
 use crate::{
@@ -57,6 +57,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let ident = mod_.ident;
 
     let WidgetItems {
+        uses,
         inherits,
         mut properties,
         mut new_child_fn,
@@ -398,7 +399,30 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         })
         .collect();
     let mut cfgs = inherits.iter().map(|(c, _)| c);
-    let mut paths = inherits.iter().map(|(_, p)| p);
+    let paths = inherits.iter().map(|(_, p)| p);
+    let mut inherit_names = paths.clone().map(|p| ident!("__{}", util::display_path(p).replace("::", "_")));
+
+    // module that exports the inherited items
+    let inherits_mod_ident = ident!("__{}_inherit", ident);
+    let inherit_reexports = cfgs
+        .clone()
+        .zip(paths.clone())
+        .zip(inherit_names.clone())
+        .map(|((cfg, path), name)| {
+            quote! {
+                #cfg
+                pub use #path::__inherit as #name;
+            }
+        });
+
+    // inherited mods are only used in the inherit mod, this can cause
+    // lints for unused imports in the widget module.
+    let disable_unused_warnings_for_inherits = quote! {
+        #[allow(unused)]
+        fn __use_inherits() {
+            #(use #paths;)*
+        }
+    };
 
     if mixin {
         // mixins don't inherit the implicit_mixin so we go directly to stage_2_declare or to the first inherit.
@@ -408,15 +432,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         } else {
             let cfg = cfgs.next().unwrap();
             let not_cfg = util::negate_cfg_attr(cfg.clone());
-            let path = paths.next().unwrap();
-            stage_path = quote!(#path::__inherit!);
+            let next_path = inherit_names.next().unwrap();
+            stage_path = quote!(#inherits_mod_ident::#next_path!);
             stage_extra = quote! {
                 cfg { #cfg }
                 not_cfg { #not_cfg }
                 inherit {
                     #(
                         #cfgs
-                        #paths
+                        #inherits_mod_ident::#inherit_names
                     )*
                 }
             }
@@ -431,7 +455,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             inherit {
                 #(
                     #cfgs
-                    #paths
+                    #inherits_mod_ident::#inherit_names
                 )*
             }
         };
@@ -439,6 +463,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     let r = quote! {
         #errors
+
+        #[allow(unused)]
+        mod #inherits_mod_ident {
+            #(#uses)*
+            #(#inherit_reexports)*
+        }
 
         // __inherit! will include an `inherited { .. }` block with the widget data after the
         // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
@@ -478,6 +508,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 new { #(#new)* }
 
                 mod_items {
+                    #(#uses)*
                     #(#others)*
                     #new_child_fn
                     #new_fn
@@ -495,8 +526,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                         // TODO: Update widget_new2 to widget_new when it's ready.
                         pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var, debug::source_location};
                     }
-                }
 
+                    #disable_unused_warnings_for_inherits
+                }
             }
         }
     };
@@ -583,6 +615,7 @@ fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {
 }
 
 struct WidgetItems {
+    uses: Vec<ItemUse>,
     inherits: Vec<Inherit>,
     properties: Vec<Properties>,
     new_child_fn: Option<ItemFn>,
@@ -591,6 +624,7 @@ struct WidgetItems {
 }
 impl WidgetItems {
     fn new(items: Vec<Item>, errors: &mut Errors) -> Self {
+        let mut uses = vec![];
         let mut inherits = vec![];
         let mut properties = vec![];
         let mut new_child_fn = None;
@@ -609,6 +643,9 @@ impl WidgetItems {
             }
             let mut known_fn = None;
             match item {
+                Item::Use(use_) => {
+                    uses.push(use_);
+                }
                 // match properties! or inherit!.
                 Item::Macro(ItemMacro { mac, ident: None, .. })
                     if {
@@ -664,6 +701,7 @@ impl WidgetItems {
         }
 
         WidgetItems {
+            uses,
             inherits,
             properties,
             new_child_fn,
