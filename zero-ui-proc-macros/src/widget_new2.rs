@@ -8,7 +8,7 @@ use syn::{
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
+    token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
 use crate::util::{self, parse_all, tokens_to_ident_str, Attributes, Errors};
@@ -241,9 +241,55 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue;
         }
 
-        when_inits.extend(quote! {});
+        when_inits.extend(quote! {
+            // TODO
+        });
     }
-    for w in user_input.whens {}
+    for w in user_input.whens {
+        let condition = match w.expand_condition() {
+            Ok(c) => c,
+            Err(e) => {
+                errors.push_syn(e);
+                continue;
+            }
+        };
+        let input_props: HashSet<_> = condition.properties.keys().map(|(p, _)| p).collect();
+
+        let mut assigns = HashSet::new();
+        for assign in w.assigns {
+            let attrs = Attributes::new(assign.attrs);
+            for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+                errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
+            }
+
+            let mut skip = false;
+
+            if !assigns.insert(assign.path.clone()) {
+                errors.push(
+                    format_args!(
+                        "property `{}` already assigned in this `when` block",
+                        util::display_path(&assign.path)
+                    ),
+                    assign.path.span(),
+                );
+                skip = true;
+            }
+
+            if let PropertyValue::Special(sp, _) = assign.value {
+                errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
+                skip = true;
+            }
+
+            if skip {
+                continue;
+            }
+
+            // TODO
+        }
+        when_inits.extend(quote! {
+            // TODO
+        });
+    }
 
     // generate new function calls.
     let new_child_caps = widget_data.new_child.iter().map(|p| {
@@ -578,8 +624,81 @@ impl When {
     pub fn make_ident(&self, i: usize) -> Ident {
         ident!("__w{}_{}", i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
+
+    /// Analyzes the [`Self::condition_expr`], collects all property member accesses and replaces then with `expr_var!` placeholders.
+    pub fn expand_condition(&self) -> syn::Result<WhenExprToVar> {
+        syn::parse2::<WhenExprToVar>(self.condition_expr.clone())
+    }
 }
 
 pub mod keyword {
     syn::custom_keyword!(when);
+}
+
+/// See [`When::expand_condition`].
+pub struct WhenExprToVar {
+    /// Map of `(property_path, member_method) => var_name`, example: `(id, __0) => __id__0`
+    pub properties: HashMap<(syn::Path, Ident), Ident>,
+    ///The [input expression](When::condition_expr) with all properties replaced with `expr_var!` placeholders.
+    pub expr: TokenStream,
+}
+impl Parse for WhenExprToVar {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut properties = HashMap::new();
+        let mut expr = TokenStream::default();
+
+        while !input.is_empty() {
+            // look for `self.property(.member)?` and replace with `#{__property__member}`
+            if input.peek(Token![self]) && input.peek2(Token![.]) {
+                input.parse::<Token![self]>().unwrap();
+                input.parse::<Token![.]>().unwrap();
+
+                let property = input.parse::<Path>()?;
+                let member_ident = if input.peek(Token![.]) {
+                    input.parse::<Token![.]>().unwrap();
+                    if input.peek(Ident) {
+                        let member = input.parse::<Ident>().unwrap();
+                        ident!("__{}", member)
+                    } else {
+                        let index = input.parse::<syn::Index>().unwrap();
+                        ident!("__{}", index.index)
+                    }
+                } else {
+                    ident!("__0")
+                };
+
+                let var_ident = ident!("__{}{}", util::display_path(&property).replace("::", "_"), member_ident);
+
+                expr.extend(quote! {
+                    #{#var_ident}
+                });
+
+                properties.insert((property, member_ident), var_ident);
+            }
+            // recursive parse groups:
+            else if input.peek(token::Brace) {
+                let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote! { { #inner } });
+            } else if input.peek(token::Paren) {
+                let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote! { ( #inner ) });
+            } else if input.peek(token::Bracket) {
+                let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote! { [ #inner ] });
+            }
+            // keep other tokens the same:
+            else {
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut expr)
+            }
+        }
+
+        Ok(WhenExprToVar { properties, expr })
+    }
 }

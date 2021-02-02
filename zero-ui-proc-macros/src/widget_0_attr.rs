@@ -276,7 +276,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let when_lints = attrs.lints;
 
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
-        let condition = match syn::parse2::<WhenExprToVar>(when.condition_expr.to_token_stream()) {
+        let condition = match syn::parse2::<WhenExprToVar>(when.condition_expr) {
             Ok(c) => c,
             Err(e) => {
                 errors.push_syn(e);
