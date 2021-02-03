@@ -15,6 +15,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let not_cfg = util::negate_cfg_attr(cfg.clone());
         quote! {
             #path! {
+                inherit=>
                 cfg { #cfg }
                 not_cfg { #not_cfg }
                 inherit { #inherit_rest }

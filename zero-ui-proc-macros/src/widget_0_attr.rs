@@ -410,8 +410,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         .zip(inherit_names.clone())
         .map(|((cfg, path), name)| {
             quote! {
-                #cfg
-                pub use #path::__inherit as #name;
+                #path! {
+                    reexport=> #name #cfg
+                }
             }
         });
 
@@ -435,6 +436,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             let next_path = inherit_names.next().unwrap();
             stage_path = quote!(#inherits_mod_ident::#next_path!);
             stage_extra = quote! {
+                inherit=>
                 cfg { #cfg }
                 not_cfg { #not_cfg }
                 inherit {
@@ -446,10 +448,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         }
     } else {
-        // not-mixins inherit from the implicit_mixin first so we call __inherit for that:
+        // not-mixins inherit from the implicit_mixin first so we call inherit=> for that:
         // TODO rename implicit_mixin2 to implicit_mixin
-        stage_path = quote!(#crate_core::widget_base::implicit_mixin2::__inherit!);
+        stage_path = quote!(#crate_core::widget_base::implicit_mixin2!);
         stage_extra = quote! {
+            inherit=>
             cfg { }
             not_cfg { #[cfg(zero_ui_never_set)] }
             inherit {
@@ -470,8 +473,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             #(#inherit_reexports)*
         }
 
-        // __inherit! will include an `inherited { .. }` block with the widget data after the
-        // `inherit { .. }` block and take the next `inherit` path turn that into an `__inherit!` call.
+        // inherit=> will include an `inherited { .. }` block with the widget data after the
+        // `inherit { .. }` block and take the next `inherit` path turn that into an `inherit=>` call.
         // This way we "eager" expand the inherited data recursively, when there no more path to inherit
         // a call to `widget_declare!` is made.
         #stage_path {

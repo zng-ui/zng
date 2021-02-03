@@ -1,4 +1,3 @@
-use crate::util;
 use proc_macro2::TokenStream;
 use syn::{parse::*, punctuated::Punctuated, *};
 

@@ -361,84 +361,60 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let uuid = util::uuid();
-
-    let inherit_macro_ident = ident!("inherit_{}_{}", ident, uuid);
+    let macro_ident = ident!("{}_{}", ident, util::uuid());
     let inherit_macro = quote! {
-        #[doc(hidden)]
-        #[macro_export]
-        macro_rules! #inherit_macro_ident {
-            (
-                cfg { $(#[$cfg:meta])? }
-                not_cfg { #[$not_cfg:meta] }
-                inherit { $(
-                    $(#[$inh_cfg:meta])?
-                    $inherit:path
-                )* }
-                $($rest:tt)+
-            ) => {
-                $(#[$cfg])?
-                #module::__core::widget_inherit! {
-                    inherit {
-                        $(
-                            $(#[$inh_cfg])?
-                            $inherit
-                        )*
-                    }
-                    inherited {
-                        mixin { #mixin }
+        (
+            inherit=>
+            cfg { $(#[$cfg:meta])? }
+            not_cfg { #[$not_cfg:meta] }
+            inherit { $(
+                $(#[$inh_cfg:meta])?
+                $inherit:path
+            )* }
+            $($rest:tt)+
+        ) => {
+            $(#[$cfg])?
+            #module::__core::widget_inherit! {
+                inherit {
+                    $(
+                        $(#[$inh_cfg])?
+                        $inherit
+                    )*
+                }
+                inherited {
+                    mixin { #mixin }
 
+                    #built_data
+                }
+                $($rest)*
+            }
+            #[$not_cfg]
+            #module::__core::widget_inherit! {
+                inherit {
+                    $(
+                        $(#[$inh_cfg])?
+                        $inherit
+                    )*
+                }
+                $($rest)*
+            }
+        };
+    };
+    let new_macro = if mixin {
+        TokenStream::default()
+    } else {
+        quote! {
+            ($($tt:tt)*) => {
+                #module::__core::widget_new! {
+                    widget {
                         #built_data
                     }
-                    $($rest)*
-                }
-                #[$not_cfg]
-                #module::__core::widget_inherit! {
-                    inherit {
-                        $(
-                            $(#[$inh_cfg])?
-                            $inherit
-                        )*
+                    user {
+                        $($tt)*
                     }
-                    $($rest)*
                 }
             };
         }
-
-        #[doc(hidden)]
-        pub use #inherit_macro_ident as __inherit;
-    };
-
-    let (new_macro, new_macro_reexport) = if mixin {
-        (TokenStream::default(), TokenStream::default())
-    } else {
-        let new_macro_ident = ident!("new_{}_{}", ident, uuid);
-
-        let new = quote! {
-            #[doc(hidden)]
-            #[macro_export]
-            macro_rules! #new_macro_ident {
-                ($($tt:tt)*) => {
-                    #module::__core::widget_new! {
-                        widget {
-                            #built_data
-                        }
-                        user {
-                            $($tt)*
-                        }
-                    }
-                };
-            }
-            #[doc(hidden)]
-            pub use #new_macro_ident as __new_macro;
-        };
-        let reexport = quote! {
-            #cfg
-            #[doc(hidden)]
-            #vis use #ident::__new_macro as #ident;
-        };
-
-        (new, reexport)
     };
 
     let r = quote! {
@@ -453,12 +429,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             #new_child_reexport
             #new_reexport
-
-            #new_macro
-
-            #inherit_macro
         }
-        #new_macro_reexport
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #macro_ident {
+            (reexport=> $as_ident:ident $(#[$cfg:meta])?) => {
+                $(#[$cfg])?
+                pub use #module as $as_ident;
+            };
+            #inherit_macro
+            #new_macro
+        }
+        #[doc(hidden)]
+        pub use #macro_ident as #ident;
     };
 
     r.into()
