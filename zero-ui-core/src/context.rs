@@ -856,6 +856,8 @@ impl<'a> WindowContext<'a> {
 }
 
 /// A mock [`WidgetContext`] for testing.
+///
+/// Only a single instance of this type exists at a time, see [`Self::wait_new`] for details.
 #[cfg(test)]
 pub struct TestWidgetContext {
     /// WARNING: Default value is [`WindowId::dummy()`] which is unsafe.
@@ -871,11 +873,18 @@ pub struct TestWidgetContext {
     pub events: Events,
     pub window_services: WindowServices,
     pub sync: Sync,
+    _lock: std::sync::MutexGuard<'static, ()>,
 }
 
 #[cfg(test)]
-impl Default for TestWidgetContext {
-    fn default() -> Self {
+static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(||std::sync::Mutex::new(()));
+
+#[cfg(test)]
+impl TestWidgetContext {
+    /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
+    /// **blocks until the other instance is dropped**.
+    pub fn wait_new() -> Self {
+        let lock = TEST_CONTEXT_LOCK.lock().unwrap();
         let event_loop = crate::app::EventLoop::new(true);
         let updates = OwnedUpdates::new(event_loop.create_proxy());
         let update_notifier = updates.0.notifier().clone();
@@ -893,6 +902,7 @@ impl Default for TestWidgetContext {
             events: Events::instance(),
             window_services: WindowServices::new(),
             sync: Sync::new(update_notifier),
+            _lock: lock,
         }
     }
 }

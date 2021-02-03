@@ -698,7 +698,7 @@ mod property_tests {
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
-    use crate::{widget2, widget_mixin2, Widget, WidgetId};
+    use crate::{context::TestWidgetContext, widget2, widget_mixin2, Widget, WidgetId};
 
     #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
@@ -736,7 +736,7 @@ mod widget_tests {
     #[test]
     pub fn basic_widget_with_mixin_default_values() {
         let mut default = bar_wgt!();
-        default.test_init();
+        default.test_init(&mut TestWidgetContext::wait_new());
 
         // test default values used.
         assert!(util::traced(&default, "foo_mixin"));
@@ -749,7 +749,7 @@ mod widget_tests {
             foo_trace = "foo!";
             bar_trace = "bar!";
         };
-        default.test_init();
+        default.test_init(&mut TestWidgetContext::wait_new());
 
         // test new values used.
         assert!(util::traced(&default, "foo!"));

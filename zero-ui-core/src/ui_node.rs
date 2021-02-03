@@ -544,9 +544,8 @@ pub trait Widget: UiNode {
 
     /// Run [`UiNode::init`] using the [`TestWidgetContext`].
     #[cfg(test)]
-    fn test_init(&mut self) {
-        let mut t = TestWidgetContext::default();
-        t.widget_context(&mut LazyStateMap::default(), |ctx| {
+    fn test_init(&mut self, ctx: &mut TestWidgetContext) {
+        ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
             self.init(ctx);
         });
     }
