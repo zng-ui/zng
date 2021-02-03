@@ -10,6 +10,7 @@ use crate::{
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Items { inherits, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
+    //let enable_trace = widget.ident == "reset_wgt";
     let WidgetItem {
         module,
         attrs,
@@ -205,23 +206,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let path = &p.path;
         let p_ident = ident!("__p_{}", p.ident);
 
-        // if property was declared `some_ident as new_ident;`.
-        if let Some(maybe_inherited) = p.get_path_ident() {
-            // if `some_ident` was inherited.
-            if inherited_properties.contains_key(&maybe_inherited) {
-                // re-exports: `pub use self::__p_some_ident as __p_new_ident;`
-                let inherited_p_ident = ident!("__p_{}", maybe_inherited);
-                property_reexports.extend(quote! {
-                    #cfg
-                    #[doc(inline)]
-                    pub use self::#inherited_p_ident as #p_ident;
-                });
-                // done.
-                continue;
+        match p.kind() {
+            PropertyItemKind::Ident => {
+                if let Some(inherited_source) = inherited_properties.get(&p.ident) {
+                    // re-export inherited property.
+                    property_reexports.extend(quote! {
+                        #cfg
+                        #[doc(inline)]
+                        pub use #inherited_source::#p_ident;
+                    });
+                    continue;
+                }
             }
+            PropertyItemKind::AliasedIdent(maybe_inherited) => {
+                if let Some(inherited_source) = inherited_properties.get(&maybe_inherited) {
+                    // re-export inherited property as a new name.
+                    let inherited_ident = ident!("__p_{}", maybe_inherited);
+                    property_reexports.extend(quote! {
+                        #cfg
+                        #[doc(inline)]
+                        pub use #inherited_source::#inherited_ident as #p_ident;
+                    });
+                    continue;
+                }
+            }
+            PropertyItemKind::Path => {}
         }
-        // else
-        let path = inherited_properties.get(&p.ident).unwrap_or(&path);
+        // not inherited.
         property_reexports.extend(quote! {
             #cfg
             #[doc(inline)]
@@ -601,10 +612,27 @@ impl Parse for PropertyItem {
     }
 }
 impl PropertyItem {
-    /// Gets `self.path` as [`Ident`] if it is a single ident.
-    pub fn get_path_ident(&self) -> Option<Ident> {
-        syn::parse2::<Ident>(self.path.clone()).ok()
+    /// Gets the kind of property reference.
+    pub fn kind(&self) -> PropertyItemKind {
+        if let Ok(ident) = syn::parse2::<Ident>(self.path.clone()) {
+            if self.ident == ident {
+                PropertyItemKind::Ident
+            } else {
+                PropertyItemKind::AliasedIdent(ident)
+            }
+        } else {
+            PropertyItemKind::Path
+        }
     }
+}
+/// Kind of property reference in [`PropertyItem`]
+pub enum PropertyItemKind {
+    /// Single property ident, maybe inherited.
+    Ident,
+    /// Single property ident as another ident, maybe inherited.
+    AliasedIdent(Ident),
+    /// Cannot ne inherited, maybe aliased.
+    Path,
 }
 
 mod keyword {

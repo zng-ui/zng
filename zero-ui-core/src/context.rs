@@ -877,7 +877,7 @@ pub struct TestWidgetContext {
 }
 
 #[cfg(test)]
-static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(||std::sync::Mutex::new(()));
+static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
 
 #[cfg(test)]
 impl TestWidgetContext {

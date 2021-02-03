@@ -723,6 +723,15 @@ mod widget_tests {
         }
     }
 
+    #[widget2($crate::widget_tests::reset_wgt)]
+    pub mod reset_wgt {
+        inherit!(super::foo_mixin);
+
+        properties! {
+            foo_trace = "reset_wgt"
+        }
+    }
+
     #[test]
     pub fn implicit_inherited() {
         let expected = WidgetId::new_unique();
@@ -734,7 +743,7 @@ mod widget_tests {
     }
 
     #[test]
-    pub fn basic_widget_with_mixin_default_values() {
+    pub fn wgt_with_mixin_default_values() {
         let mut default = bar_wgt!();
         default.test_init(&mut TestWidgetContext::wait_new());
 
@@ -744,7 +753,7 @@ mod widget_tests {
     }
 
     #[test]
-    pub fn basic_widget_with_mixin_assign_values() {
+    pub fn wgt_with_mixin_assign_values() {
         let mut default = bar_wgt! {
             foo_trace = "foo!";
             bar_trace = "bar!";
@@ -758,6 +767,15 @@ mod widget_tests {
         // test default values not used.
         assert!(!util::traced(&default, "foo_mixin"));
         assert!(!util::traced(&default, "bar_wgt"));
+    }
+
+    #[test]
+    pub fn wgt_with_new_value_for_inherited() {
+        let mut default = reset_wgt!();
+        default.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&default, "reset_wgt"));
+        assert!(!util::traced(&default, "foo_mixin"));
     }
 
     mod util {
