@@ -267,7 +267,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut when_defaults = TokenStream::default();
     for (i, when) in whens.into_iter().enumerate() {
         // when ident, `__w{i}_{condition_expr_to_str}`
-        let ident = when.make_ident(i);
+        let ident = when.make_ident("w", i);
 
         let attrs = Attributes::new(when.attrs);
         for invalid_attr in attrs.others.into_iter().chain(attrs.inline) {
@@ -291,23 +291,28 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         for assign in when.assigns {
             // property default value validation happens "widget_2_declare.rs"
 
-            if let Some(property) = assign.path.get_ident() {
-                let attrs = Attributes::new(assign.attrs);
-                for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
-                    errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
-                }
+            let attrs = Attributes::new(assign.attrs);
+            for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+                errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
+            }
 
+            if let Some(property) = assign.path.get_ident() {
+                let mut skip = false;
                 // validate property only assigned once in the when block.
                 if !assigns.insert(property.clone()) {
                     errors.push(
                         format_args!("property `{}` already assigned in this `when` block", property),
                         property.span(),
                     );
-                    continue;
+                    skip = true;
                 }
                 // validate value not one of the special commands (`unset!`, `required!`).
                 if let PropertyValue::Special(sp, _) = &assign.value {
                     errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
+                    skip = true;
+                }
+
+                if skip {
                     continue;
                 }
 

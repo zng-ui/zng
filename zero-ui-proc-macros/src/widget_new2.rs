@@ -54,8 +54,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|p| &p.ident)
         .collect();
     let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
-    // all widget properties that will be set (property_path, property_var).
-    let mut wgt_properties = HashMap::<syn::Path, Ident>::new();
+    // all widget properties that will be set (property_path, (property_var, cfg)).
+    let mut wgt_properties = HashMap::<syn::Path, (Ident, TokenStream)>::new();
 
     let mut property_inits = TokenStream::default();
     let mut child_prop_set_calls = vec![];
@@ -74,7 +74,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let p_var_ident = ident!("__{}", ident);
         let cfg = &ip.cfg;
 
-        wgt_properties.insert(parse_quote! { #ident }, p_var_ident.clone());
+        wgt_properties.insert(parse_quote! { #ident }, (p_var_ident.clone(), cfg.clone()));
 
         // generate call to default args.
         property_inits.extend(quote! {
@@ -162,7 +162,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let cfg = attrs.cfg;
         let lints = attrs.lints;
 
-        wgt_properties.insert(up.path.clone(), p_var_ident.clone());
+        wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
 
         let init_expr = up.value.expr_tokens(&p_mod);
         property_inits.extend(quote! {
@@ -222,14 +222,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let property_set_calls = property_set_calls;
 
     // validate required properties.
+    let mut missing_required = HashSet::new();
     for required in required_properties.into_iter().chain(captured_properties) {
         if !wgt_properties.contains_key(&parse_quote! { #required }) {
+            missing_required.insert(required);
             errors.push(format!("missing required property `{}`", required), Span::call_site());
         }
     }
+    let missing_required = missing_required;
 
     // generate whens.
     let mut when_inits = TokenStream::default();
+    // map of { property => [(cfg, condition_var, when_value_for_prop)] }
+    let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, TokenStream)>> = HashMap::new();
     for iw in widget_data.whens {
         if iw.inputs.iter().any(|p| unset_properties.contains(p)) {
             // deactivate when block because user unset one of the inputs.
@@ -242,11 +247,41 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue;
         }
 
+        let ident = iw.ident;
+        let cfg = iw.cfg;
+
+        // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
+        let len = iw.inputs.len();
+        let inputs: Vec<_> = iw
+            .inputs
+            .into_iter()
+            .filter_map(|id| {
+                let r = wgt_properties.get(&parse_quote! { #id }).map(|(id, _)| id);
+                if r.is_none() && !missing_required.contains(&id) {
+                    non_user_error!("inherited when condition uses property not set, not required or not unset");
+                }
+                r
+            })
+            .collect();
+        if inputs.len() != len {
+            // one of the required properties was not set, an error for this is added elsewhere.
+            continue;
+        }
+        let c_ident = ident!("__c_{}", ident);
         when_inits.extend(quote! {
-            // TODO
+            #cfg
+            let #c_ident = #module::#ident(#(&#inputs),*);
         });
+
+        // register when for each property assigned.
+        for BuiltWhenAssign { property, cfg, value_fn } in assigns {
+            let value = quote! { #module::#value_fn() };
+            let p_whens = when_assigns.entry(parse_quote! { #property }).or_default();
+            p_whens.push((cfg, c_ident.clone(), value));
+        }
     }
-    for w in user_input.whens {
+    for (i, w) in user_input.whens.into_iter().enumerate() {
+        // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
         let condition = match w.expand_condition() {
             Ok(c) => c,
             Err(e) => {
@@ -254,9 +289,26 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
         };
-        let input_props: HashSet<_> = condition.properties.keys().map(|(p, _)| p).collect();
+        let inputs = condition.properties;
+        let condition = condition.expr;
+
+        let ident = w.make_ident("uw", i);
+
+        let attrs = Attributes::new(w.attrs);
+        let cfg = attrs.cfg;
+        let lints = attrs.lints;
+
+        when_inits.extend(quote! {
+            #cfg
+            let #ident = {
+                // TODO get inputs
+                #(#lints)*
+                #module::__core::var::expr_var!(#condition)
+            };
+        });
 
         let mut assigns = HashSet::new();
+        let mut assigns_tokens = TokenStream::default();
         for assign in w.assigns {
             let attrs = Attributes::new(assign.attrs);
             for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
@@ -285,23 +337,54 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
 
-            // TODO
+            assigns_tokens.extend(quote! {
+                let _un = un;
+            });
         }
         when_inits.extend(quote! {
             // TODO
         });
     }
 
+    // apply the whens for each property.
+    for (property, assigns) in when_assigns {
+        let property_path = match property.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                let p_ident = ident!("__p_{}", maybe_inherited);
+                quote! { #module::#p_ident }
+            }
+            _ => property.to_token_stream(),
+        };
+        let when_cfgs = assigns.iter().map(|(c, _, _)| c);
+        let when_conditions = assigns.iter().map(|(_, c, _)| c);
+        let when_values = assigns.iter().map(|(_, _, v)| v);
+        let (default, cfg) = wgt_properties.get(&property).unwrap();
+        when_inits.extend(quote! {
+            #cfg
+            let #default = #property_path::code_gen! {
+                when #property_path {
+                    #(
+                        #when_cfgs
+                        #when_conditions => #when_values,
+                    )*
+                    default => #default,
+                }
+            };
+        });
+    }
+
     // generate new function calls.
     let new_child_caps = widget_data.new_child.iter().map(|p| {
-        wgt_properties
+        &wgt_properties
             .get(&parse_quote! {#p})
             .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+            .0
     });
     let new_caps = widget_data.new.iter().map(|p| {
-        wgt_properties
+        &wgt_properties
             .get(&parse_quote! {#p})
             .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+            .0
     });
     let new_child_call = quote! {
         let node__ = #module::__new_child(#(#new_child_caps),*);
@@ -621,9 +704,9 @@ impl When {
         }
     }
 
-    /// Returns an ident `__w{i}_{expr_to_str}`
-    pub fn make_ident(&self, i: usize) -> Ident {
-        ident!("__w{}_{}", i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
+    /// Returns an ident `__{prefix}{i}_{expr_to_str}`
+    pub fn make_ident(&self, prefix: impl std::fmt::Display, i: usize) -> Ident {
+        ident!("__{}{}_{}", prefix, i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
 
     /// Analyzes the [`Self::condition_expr`], collects all property member accesses and replaces then with `expr_var!` placeholders.
