@@ -4,6 +4,7 @@ use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
+    ext::IdentExt,
     parse::{discouraged::Speculative, Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
@@ -449,7 +450,7 @@ impl Parse for UserInput {
                 if let Some(when) = When::parse(&input, &mut errors) {
                     whens.push(when);
                 }
-            } else if input.peek(Ident) {
+            } else if input.peek(Ident::peek_any) {
                 // peek ident or path.
                 match input.parse() {
                     Ok(p) => properties.push(p),

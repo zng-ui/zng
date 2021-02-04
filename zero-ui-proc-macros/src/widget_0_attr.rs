@@ -4,6 +4,7 @@ use proc_macro2::{TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     parse2, parse_macro_input,
     punctuated::Punctuated,
@@ -194,13 +195,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
                 if sp == "unset" {
-                    if property.alias.is_some() || property.path.get_ident().is_some() {
+                    if property.alias.is_some() || property.path.get_ident().is_none() {
                         // only single name path without aliases can be referencing an inherited property.
                         errors.push("can only unset inherited property", sp.span());
                         continue;
                     }
                     // the final inherit validation is done in "widget_2_declare.rs".
                     p_ident.to_tokens(&mut property_unsets);
+                    continue;
                 } else if sp == "required" {
                     required = true;
                 } else {
@@ -765,7 +767,7 @@ impl Parse for Properties {
                         Err(e) => errors.push_syn(e),
                     }
                 }
-            } else if input.peek(Ident) {
+            } else if input.peek(Ident::peek_any) {
                 // peek ident or path.
                 match input.parse::<ItemProperty>() {
                     Ok(mut p) => {

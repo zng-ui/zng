@@ -700,38 +700,11 @@ mod property_tests {
 mod widget_tests {
     use crate::{context::TestWidgetContext, widget2, widget_mixin2, Widget, WidgetId};
 
+    /*
+     * Tests the implicitly inherited properties.
+     */
     #[widget2($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
-
-    #[widget_mixin2($crate::widget_tests::foo_mixin)]
-    pub mod foo_mixin {
-        use super::util;
-
-        properties! {
-            util::trace as foo_trace = "foo_mixin";
-        }
-    }
-
-    #[widget2($crate::widget_tests::bar_wgt)]
-    pub mod bar_wgt {
-        use super::{foo_mixin, util};
-
-        inherit!(foo_mixin);
-
-        properties! {
-            util::trace as bar_trace = "bar_wgt";
-        }
-    }
-
-    #[widget2($crate::widget_tests::reset_wgt)]
-    pub mod reset_wgt {
-        inherit!(super::foo_mixin);
-
-        properties! {
-            foo_trace = "reset_wgt"
-        }
-    }
-
     #[test]
     pub fn implicit_inherited() {
         let expected = WidgetId::new_unique();
@@ -742,6 +715,29 @@ mod widget_tests {
         assert_eq!(expected, actual);
     }
 
+    // Mixin used in inherit tests.
+    #[widget_mixin2($crate::widget_tests::foo_mixin)]
+    pub mod foo_mixin {
+        use super::util;
+
+        properties! {
+            util::trace as foo_trace = "foo_mixin";
+        }
+    }
+
+    /*
+     * Tests the inherited properties' default values and assigns.
+     */
+    #[widget2($crate::widget_tests::bar_wgt)]
+    pub mod bar_wgt {
+        use super::{foo_mixin, util};
+
+        inherit!(foo_mixin);
+
+        properties! {
+            util::trace as bar_trace = "bar_wgt";
+        }
+    }
     #[test]
     pub fn wgt_with_mixin_default_values() {
         let mut default = bar_wgt!();
@@ -751,7 +747,6 @@ mod widget_tests {
         assert!(util::traced(&default, "foo_mixin"));
         assert!(util::traced(&default, "bar_wgt"));
     }
-
     #[test]
     pub fn wgt_with_mixin_assign_values() {
         let mut default = bar_wgt! {
@@ -769,6 +764,17 @@ mod widget_tests {
         assert!(!util::traced(&default, "bar_wgt"));
     }
 
+    /*
+     * Tests changing the default value of the inherited property.
+     */
+    #[widget2($crate::widget_tests::reset_wgt)]
+    pub mod reset_wgt {
+        inherit!(super::foo_mixin);
+
+        properties! {
+            foo_trace = "reset_wgt"
+        }
+    }
     #[test]
     pub fn wgt_with_new_value_for_inherited() {
         let mut default = reset_wgt!();
@@ -778,6 +784,96 @@ mod widget_tests {
         assert!(!util::traced(&default, "foo_mixin"));
     }
 
+    /*
+     * Tests new property from inherited property.
+     */
+    #[widget2($crate::widget_tests::alias_inherit_wgt)]
+    pub mod alias_inherit_wgt {
+        inherit!(super::foo_mixin);
+
+        properties! {
+            foo_trace as alias_trace = "alias_inherit_wgt"
+        }
+    }
+    #[test]
+    pub fn wgt_alias_inherit() {
+        let mut default = alias_inherit_wgt!();
+        default.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&default, "foo_mixin"));
+        assert!(util::traced(&default, "alias_inherit_wgt"));
+
+        let mut assigned = alias_inherit_wgt!(
+            foo_trace = "foo!";
+            alias_trace = "alias!";
+        );
+        assigned.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&assigned, "foo!"));
+        assert!(util::traced(&assigned, "alias!"));
+    }
+
+    /*
+     * Tests the property name when declared from path.
+     */
+    #[widget2($crate::widget_tests::property_from_path_wgt)]
+    pub mod property_from_path_wgt {
+        properties! {
+            super::util::trace;
+        }
+    }
+    #[test]
+    pub fn wgt_property_from_path() {
+        let mut assigned = property_from_path_wgt!(
+            trace = "trace!";
+        );
+        assigned.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&assigned, "trace!"));
+    }
+
+    /*
+     * Tests unsetting inherited property.
+     */
+    #[widget2($crate::widget_tests::unset_property_wgt)]
+    pub mod unset_property_wgt {
+        inherit!(super::foo_mixin);
+
+        properties! {
+            foo_trace = unset!;
+        }
+    }
+    #[test]
+    pub fn wgt_unset_property() {
+        let mut default = unset_property_wgt!();
+        default.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(!util::traced(&default, "foo_mixin"));
+    }
+
+    /*
+     * Tests declaring required properties, new and inherited.
+     */
+    #[widget2($crate::widget_tests::required_properties_wgt)]
+    pub mod required_properties_wgt {
+        inherit!(super::foo_mixin);
+
+        properties! {
+            super::util::trace = required!;
+            foo_trace = required!;
+        }
+    }
+    #[test]
+    pub fn wgt_required_property() {
+        let mut required = required_properties_wgt!(
+            trace = "required!";
+            foo_trace = "required2!"
+        );
+        required.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&required, "required!"));
+        assert!(util::traced(&required, "required2!"));
+    }
     mod util {
         use std::collections::HashSet;
 
