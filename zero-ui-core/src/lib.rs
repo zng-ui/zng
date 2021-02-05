@@ -874,6 +874,91 @@ mod widget_tests {
         assert!(util::traced(&required, "required!"));
         assert!(util::traced(&required, "required2!"));
     }
+
+    // Mixin used in inherit required tests.
+    #[widget_mixin2($crate::widget_tests::required_mixin)]
+    pub mod required_mixin {
+        properties! {
+            super::util::trace as required_trace = required!;
+        }
+    }
+
+    /*
+     * Tests inheriting a required property.
+     */
+    #[widget2($crate::widget_tests::required_inherited_wgt)]
+    pub mod required_inherited_wgt {
+        inherit!(super::required_mixin);
+    }
+    #[test]
+    pub fn wgt_required_inherited() {
+        let mut required = required_inherited_wgt! {
+            required_trace = "required!";// removing this line must cause a compile error.
+        };
+        required.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&required, "required!"))
+    }
+
+    /*
+     * Tests inheriting a required property and setting it with a default value.
+     */
+    #[widget2($crate::widget_tests::required_inherited_default_wgt)]
+    pub mod required_inherited_default_wgt {
+        inherit!(super::required_mixin);
+
+        properties! {
+            //required_trace = unset!; // this line must cause a compile error.
+            required_trace = "required_inherited_default_wgt";
+        }
+    }
+    #[widget2($crate::widget_tests::required_inherited_default_depth2_wgt)]
+    pub mod required_inherited_default_depth2_wgt {
+        inherit!(super::required_inherited_default_wgt);
+
+        properties! {
+            //required_trace = unset!; // this line must cause a compile error.
+        }
+    }
+    #[test]
+    pub fn wgt_required_inherited_default() {
+        let mut required = required_inherited_default_wgt! {
+            // TODO expected compile error here, got panic.
+            //required_trace = unset!; // uncommenting this line must cause a compile error.
+        };
+        required.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&required, "required_inherited_default_wgt"));
+
+        let mut required2 = required_inherited_default_depth2_wgt! {
+            //required_trace = unset!; // uncommenting this line must cause a compile error.
+        };
+        required2.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&required2, "required_inherited_default_wgt"));
+    }
+
+    /*
+     * Tests inheriting a required property with default value changing to required without value.
+     */
+    #[widget2($crate::widget_tests::required_inherited_default_required_wgt)]
+    pub mod required_inherited_default_required_wgt {
+        inherit!(super::required_inherited_default_wgt);
+
+        properties! {
+            required_trace = required!;
+        }
+    }
+    #[test]
+    pub fn wgt_required_inherited_default_required() {
+        let mut required = required_inherited_default_required_wgt! {
+            required_trace = "required!"; // commenting this line must cause a compile error.
+        };
+        required.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&required, "required!"))
+    }
+
     mod util {
         use std::collections::HashSet;
 

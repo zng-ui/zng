@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
-use syn::{parse::Parse, Ident, LitBool};
+use syn::{parse::Parse, spanned::Spanned, Ident, LitBool};
 
 use crate::{
-    util::{self, parse_all},
+    util::{self, parse_all, Errors},
     widget_new2::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
@@ -29,10 +29,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mut new,
         mod_items,
     } = widget;
-    let properties_unset: HashSet<_> = properties_unset.into_iter().collect();
+    let properties_unset: HashMap<_, _> = properties_unset.into_iter().map(|u| (u.property, u.unset.span())).collect();
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
     let crate_core = util::crate_core();
+    let mut errors = Errors::default();
 
     // inherits `new_child` and `new`.
     let mut new_child_reexport = TokenStream::default();
@@ -85,24 +86,49 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut inherited_props = vec![];
     for inherited in inherits.iter().rev() {
         for p_child in inherited.properties_child.iter().rev() {
-            if !properties_unset.contains(&p_child.ident) && inherited_properties.insert(&p_child.ident, &inherited.module).is_none() {
+            if inherited_properties.insert(&p_child.ident, &inherited.module).is_none() {
                 inherited_props_child.push(p_child);
             }
         }
         for p in inherited.properties.iter().rev() {
-            if !properties_unset.contains(&p.ident) && inherited_properties.insert(&p.ident, &inherited.module).is_none() {
+            if inherited_properties.insert(&p.ident, &inherited.module).is_none() {
                 inherited_props.push(p);
             }
         }
     }
     inherited_props_child.reverse();
     inherited_props.reverse();
+
+    // inherited properties that are required!
+    let inherited_required: HashSet<_> = inherited_props_child
+        .iter()
+        .chain(inherited_props.iter())
+        .filter(|p| p.required)
+        .map(|p| &p.ident)
+        .collect();
+
+    // apply unsets.
+    for (unset, &unset_span) in &properties_unset {
+        if inherited_required.contains(unset) {
+            // cannot unset
+            errors.push(format_args!("property `{}` is required", unset), unset_span);
+        } else if inherited_properties.remove(unset).is_some() {
+            // can unset
+            if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == unset) {
+                inherited_props_child.remove(i);
+            } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == unset) {
+                inherited_props.remove(i);
+            }
+        }
+        // else was unset in a new property that must be a warning when that is stable
+    }
+
     let inherited_properties = inherited_properties;
     let inherited_props_child = inherited_props_child;
     let inherited_props = inherited_props;
 
     // properties that are assigned (not in when blocks) or declared in the new widget.
-    let wgt_used_properties: HashSet<_> = properties.iter().map(|p| &p.ident).collect();
+    let wgt_used_properties: HashSet<_> = properties_child.iter().chain(properties.iter()).map(|p| &p.ident).collect();
     // properties data for widget macros.
     let mut wgt_properties_child = TokenStream::default();
     let mut wgt_properties = TokenStream::default();
@@ -125,8 +151,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             docs,
             cfg,
             default,
-            required,
+            mut required,
         } = ip;
+
+        required |= inherited_required.contains(ident);
 
         // collect property data for macros.
         let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
@@ -184,7 +212,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             required,
             ..
         } = p;
-        let required = *required || captured_properties.contains(ident);
+        let required = *required || inherited_required.contains(ident);
 
         // collect property data for macros.
         let wgt_props = if is_child { &mut wgt_properties_child } else { &mut wgt_properties };
@@ -265,7 +293,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut assigns_tt = TokenStream::default();
             let mut defaults_tt = TokenStream::default();
             for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-                if properties_unset.contains(&property) {
+                if properties_unset.contains_key(&property) {
                     continue; // inherited removed by unset!.
                 }
 
@@ -429,6 +457,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let r = quote! {
+        #errors
+
         #attrs
         #gen_docs
         #cfg
@@ -520,7 +550,7 @@ struct WidgetItem {
     ident: Ident,
     mixin: bool,
 
-    properties_unset: Vec<Ident>,
+    properties_unset: Vec<UnsetItem>,
     properties_declared: Vec<Ident>,
 
     properties_child: Vec<PropertyItem>,
@@ -571,6 +601,19 @@ impl Parse for WidgetItem {
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
 
             mod_items: named_braces!("mod_items").parse().unwrap(),
+        })
+    }
+}
+struct UnsetItem {
+    property: Ident,
+    /// for the span of the unset keyword.
+    unset: TokenStream,
+}
+impl Parse for UnsetItem {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        Ok(Self {
+            property: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+            unset: non_user_braced!(input).parse().unwrap(),
         })
     }
 }

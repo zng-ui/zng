@@ -201,7 +201,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                         continue;
                     }
                     // the final inherit validation is done in "widget_2_declare.rs".
-                    p_ident.to_tokens(&mut property_unsets);
+                    property_unsets.extend(quote! {
+                        #p_ident {
+                            #sp // span sample
+                        }
+                    });
                     continue;
                 } else if sp == "required" {
                     required = true;
