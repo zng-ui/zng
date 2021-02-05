@@ -308,7 +308,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         let mut assigns = HashSet::new();
-        let mut assigns_tokens = TokenStream::default();
         for assign in w.assigns {
             let attrs = Attributes::new(assign.attrs);
             for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
@@ -328,7 +327,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 skip = true;
             }
 
-            if let PropertyValue::Special(sp, _) = assign.value {
+            if let PropertyValue::Special(sp, _) = &assign.value {
                 errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
                 skip = true;
             }
@@ -337,8 +336,24 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
 
-            assigns_tokens.extend(quote! {
-                let _un = un;
+            let ident = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
+            let cfg = util::merge_cfg_attr(attrs.cfg, cfg.clone());
+            let a_lints = attrs.lints;
+
+            let property_path = match assign.path.get_ident() {
+                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                    let p_ident = ident!("__p_{}", maybe_inherited);
+                    quote! { #module::#p_ident }
+                }
+                _ => assign.path.to_token_stream(),
+            };
+            let expr = assign.value.expr_tokens(&property_path);
+
+            when_inits.extend(quote! {
+                #cfg
+                #(#lints)*
+                #(#a_lints)*
+                let #ident = #expr;
             });
         }
         when_inits.extend(quote! {
