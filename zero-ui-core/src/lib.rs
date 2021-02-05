@@ -852,6 +852,30 @@ mod widget_tests {
     }
 
     /*
+     * Test unsetting default value.
+     */
+    #[widget2($crate::widget_tests::default_value_wgt)]
+    pub mod default_value_wgt {
+        properties! {
+            super::util::trace = "default_value_wgt";
+        }
+    }
+    #[test]
+    pub fn unset_default_value() {
+        let mut default = default_value_wgt!();
+        default.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&default, "default_value_wgt"));
+
+        let mut no_default = default_value_wgt! {
+            trace = unset!;
+        };
+        no_default.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(!util::traced(&no_default, "default_value_wgt"));
+    }
+
+    /*
      * Tests declaring required properties, new and inherited.
      */
     #[widget2($crate::widget_tests::required_properties_wgt)]
@@ -923,7 +947,6 @@ mod widget_tests {
     #[test]
     pub fn wgt_required_inherited_default() {
         let mut required = required_inherited_default_wgt! {
-            // TODO expected compile error here, got panic.
             //required_trace = unset!; // uncommenting this line must cause a compile error.
         };
         required.test_init(&mut TestWidgetContext::wait_new());

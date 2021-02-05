@@ -129,7 +129,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         );
                     } else {
                         unset_properties.insert(maybe_inherited);
-                        continue;
                     }
                 } else {
                     errors.push(
@@ -143,6 +142,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             } else {
                 errors.push(format_args!("unknown value `{}!`", sp), sp.span());
             }
+            // skip special values.
+            continue;
         }
 
         if !user_properties.insert(&up.path) {
@@ -164,7 +165,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
 
-        let init_expr = up.value.expr_tokens(&p_mod);
+        let init_expr = up.value.expr_tokens(&p_mod).unwrap_or_else(|e| non_user_error!(e));
         property_inits.extend(quote! {
             #cfg
             #(#lints)*
@@ -347,7 +348,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 _ => assign.path.to_token_stream(),
             };
-            let expr = assign.value.expr_tokens(&property_path);
+            let expr = assign.value.expr_tokens(&property_path).unwrap_or_else(|e| non_user_error!(e));
 
             when_inits.extend(quote! {
                 #cfg
@@ -612,21 +613,17 @@ pub enum PropertyValue {
 }
 impl PropertyValue {
     /// Convert this value to an expr. Panics if `self` is [`Special`].
-    pub fn expr_tokens(&self, property_path: &TokenStream) -> TokenStream {
+    pub fn expr_tokens(&self, property_path: &TokenStream) -> Result<TokenStream, &'static str> {
         match self {
-            PropertyValue::Unnamed(args) => {
-                quote! {
-                    #property_path::ArgsImpl::new(#args)
-                }
-            }
-            PropertyValue::Named(_, fields) => {
-                quote! {
-                    #property_path::code_gen! { named_new #property_path {
-                        #fields
-                    }}
-                }
-            }
-            PropertyValue::Special(_, _) => panic!("cannot expand special"),
+            PropertyValue::Unnamed(args) => Ok(quote! {
+                #property_path::ArgsImpl::new(#args)
+            }),
+            PropertyValue::Named(_, fields) => Ok(quote! {
+                #property_path::code_gen! { named_new #property_path {
+                    #fields
+                }}
+            }),
+            PropertyValue::Special(_, _) => Err("cannot expand special"),
         }
     }
 }

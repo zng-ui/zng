@@ -220,7 +220,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 let lints = attrs.lints;
                 let fn_ident = ident!("__d_{}", p_ident);
                 let p_mod_ident = ident!("__p_{}", p_ident);
-                let expr = default_value.expr_tokens(&quote! { self::#p_mod_ident });
+                let expr = default_value
+                    .expr_tokens(&quote! { self::#p_mod_ident })
+                    .unwrap_or_else(|e| non_user_error!(e));
 
                 property_defaults.extend(quote! {
                     #cfg
@@ -334,7 +336,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     }
                 });
 
-                let expr = assign.value.expr_tokens(&quote!(self::#prop_ident));
+                let expr = assign
+                    .value
+                    .expr_tokens(&quote!(self::#prop_ident))
+                    .unwrap_or_else(|e| non_user_error!(e));
                 let lints = attrs.lints;
 
                 when_defaults.extend(quote! {
