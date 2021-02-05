@@ -698,7 +698,9 @@ mod property_tests {
 /// Tests on the #[widget(..)] and #[widget_mixin], widget_new! code generators.
 #[cfg(test)]
 mod widget_tests {
+    use self::util::Position;
     use crate::{context::TestWidgetContext, widget2, widget_mixin2, Widget, WidgetId};
+    use serial_test::serial;
 
     /*
      * Tests the implicitly inherited properties.
@@ -982,8 +984,60 @@ mod widget_tests {
         assert!(util::traced(&required, "required!"))
     }
 
+    /*
+     * Tests value initialization order.
+     */
+    #[test]
+    #[serial(count)]
+    pub fn value_init_order() {
+        Position::reset();
+        let mut wgt = empty_wgt! {
+            util::count_inner = Position::next("count_inner");
+            util::count_context = Position::next("count_context");
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        // values evaluated in typed order.
+        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_context"]);
+
+        // but properties init in the priority order.
+        assert_eq!(util::sorted_init_count(&wgt), ["count_context", "count_inner"]);
+    }
+
+    /*
+     * Tests value initialization order with child property.
+     */
+    #[widget2($crate::widget_tests::child_property_wgt)]
+    pub mod child_property_wgt {
+        properties! {
+            child {
+                super::util::count_inner as count_child_inner;
+            }
+        }
+    }
+    #[test]
+    #[serial(count)]
+    pub fn wgt_child_property_init_order() {
+        Position::reset();
+        let mut wgt = child_property_wgt! {
+            util::count_inner = Position::next("count_inner");
+            util::count_context = Position::next("count_context");
+            count_child_inner = Position::next("count_child_inner");
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        // values evaluated in typed order.
+        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_context", "count_child_inner"]);
+
+        // but properties init in the priority order (child first).
+        assert_eq!(util::sorted_init_count(&wgt), ["count_inner", "count_context", "count_child_inner"]);
+    }
+
     mod util {
-        use std::collections::HashSet;
+        use std::{
+            collections::{HashMap, HashSet},
+            sync::atomic::{self, AtomicU32},
+        };
 
         use crate::{context::WidgetContext, impl_ui_node, property, state_key, UiNode, Widget};
 
@@ -1001,17 +1055,94 @@ mod widget_tests {
         state_key! {
             struct TraceKey: HashSet<&'static str>;
         }
-
         struct TraceNode<C: UiNode> {
             child: C,
             trace: &'static str,
         }
-
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for TraceNode<C> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 self.child.init(ctx);
                 ctx.widget_state.entry(TraceKey).or_default().insert(self.trace);
+            }
+        }
+
+        /// Insert `count` in the widget state. Can get using [`Count::get`].
+        #[property(context)]
+        pub fn count(child: impl UiNode, count: Position) -> impl UiNode {
+            CountNode { child, count }
+        }
+
+        pub use count as count_context;
+
+        /// Same as [`count`] but with `inner` priority.
+        #[property(inner)]
+        pub fn count_inner(child: impl UiNode, count: Position) -> impl UiNode {
+            CountNode { child, count }
+        }
+
+        /// Count adds one every [`Self::next`] call.
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        pub struct Position(pub u32, pub &'static str);
+        static COUNT: AtomicU32 = AtomicU32::new(0);
+        static COUNT_INIT: AtomicU32 = AtomicU32::new(0);
+        impl Position {
+            pub fn next(tag: &'static str) -> Self {
+                Position(COUNT.fetch_add(1, atomic::Ordering::AcqRel), tag)
+            }
+
+            fn next_init() -> u32 {
+                COUNT_INIT.fetch_add(1, atomic::Ordering::AcqRel)
+            }
+
+            pub fn reset() {
+                COUNT.store(0, atomic::Ordering::SeqCst);
+                COUNT_INIT.store(0, atomic::Ordering::SeqCst);
+            }
+        }
+
+        /// Gets the [`Position`] tags sorted by their number.
+        pub fn sorted_pos(wgt: &impl Widget) -> Vec<&'static str> {
+            wgt.state()
+                .get(PositionKey)
+                .map(|m| {
+                    let mut vec: Vec<_> = m.iter().collect();
+                    vec.sort_by_key(|(_, i)| i);
+                    vec.into_iter().map(|(t, _)| t).collect()
+                })
+                .unwrap_or_default()
+        }
+
+        /// Gets the [`Position`] tags sorted by their init position.
+        pub fn sorted_init_count(wgt: &impl Widget) -> Vec<&'static str> {
+            wgt.state()
+                .get(InitPositionKey)
+                .map(|m| {
+                    let mut vec: Vec<_> = m.iter().collect();
+                    vec.sort_by_key(|(_, i)| i);
+                    vec.into_iter().map(|(t, _)| t).collect()
+                })
+                .unwrap_or_default()
+        }
+
+        state_key! {
+            struct PositionKey: HashMap<&'static str, u32>;
+            struct InitPositionKey: HashMap<&'static str, u32>;
+        }
+
+        struct CountNode<C: UiNode> {
+            child: C,
+            count: Position,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for CountNode<C> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                ctx.widget_state
+                    .entry(InitPositionKey)
+                    .or_default()
+                    .insert(self.count.1, Position::next_init());
+                self.child.init(ctx);
+                ctx.widget_state.entry(PositionKey).or_default().insert(self.count.1, self.count.0);
             }
         }
     }
