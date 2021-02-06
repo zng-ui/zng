@@ -24,6 +24,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let mut errors = user_input.errors;
 
+    let child_properties: HashSet<_> = widget_data.properties_child.iter().map(|p| &p.ident).collect();
+
     let inherited_properties: HashSet<_> = widget_data
         .properties_child
         .iter()
@@ -102,10 +104,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             /*user_assigned: */ false,
         ));
         #[cfg(not(debug_assertions))]
-        delayed_assigns.push((quote! { #module::#p_mod_ident }, p_var_ident, cfg.clone()));
+        property_set_calls.push((quote! { #module::#p_mod_ident }, p_var_ident, cfg.clone()));
     }
 
-    let mut user_prop_set_calls = vec![];
     let mut unset_properties = HashSet::new();
     let mut user_properties = HashSet::new();
 
@@ -177,10 +178,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
         }
-
+        let prop_calls = match up.path.get_ident() {
+            Some(maybe_child) if child_properties.contains(maybe_child) => &mut child_prop_set_calls,
+            _ => &mut prop_set_calls,
+        };
         // register data for the set call generation.
         #[cfg(debug_assertions)]
-        user_prop_set_calls.push((
+        prop_calls.push((
             p_mod.to_token_stream(),
             p_var_ident,
             p_name,
@@ -191,14 +195,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             /*user_assigned: */ true,
         ));
         #[cfg(not(debug_assertions))]
-        delayed_assigns_user.push((p_mod.to_token_stream(), p_var_ident, p_name, cfg.to_token_stream()));
+        prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream()));
     }
     let unset_properties = unset_properties;
     let wgt_properties = wgt_properties;
 
     // generate property assigns.
     let mut property_set_calls = TokenStream::default();
-    for set_calls in vec![child_prop_set_calls, prop_set_calls, user_prop_set_calls] {
+    for set_calls in vec![child_prop_set_calls, prop_set_calls] {
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
             for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
@@ -210,8 +214,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 });
             }
             #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, cfg) in delayed_assigns {
-                property_assigns.extend(quote! {
+            for (p_mod, p_var_ident, cfg) in &set_calls {
+                property_set_calls.extend(quote! {
                     #cfg
                     #p_mod::code_gen! {
                         set #priority, node__, #p_mod, #p_var_ident

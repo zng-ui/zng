@@ -480,6 +480,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         };
     }
 
+    #[cfg(debug_assertions)]
+    let debug_reexport = quote! {debug::source_location};
+    #[cfg(not(debug_assertions))]
+    let debug_reexport = TokenStream::default();
+
     let r = quote! {
         #errors
 
@@ -543,7 +548,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #[doc(hidden)]
                     pub mod __core {
                         // TODO: Update widget_new2 to widget_new when it's ready.
-                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var, debug::source_location};
+                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var, #debug_reexport};
                     }
 
                     #disable_unused_warnings_for_inherits

@@ -1033,6 +1033,48 @@ mod widget_tests {
         assert_eq!(util::sorted_init_count(&wgt), ["count_context", "count_inner", "count_child_inner"]);
     }
 
+    /*
+     * Tests the ordering of properties of the same priority.
+     */
+    #[widget2($crate::widget_tests::same_priority_order_wgt)]
+    pub mod same_priority_order_wgt {
+        properties! {
+            super::util::count_inner as inner_a;
+            super::util::count_inner as inner_b;
+        }
+    }
+    #[test]
+    #[serial(count)]
+    pub fn wgt_same_priority_order() {
+        Position::reset();
+        let mut wgt = same_priority_order_wgt! {
+            inner_a = Position::next("inner_a");
+            inner_b = Position::next("inner_b");
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        // values evaluated in typed order.
+        assert_eq!(util::sorted_pos(&wgt), ["inner_a", "inner_b"]);
+
+        // properties with the same priority are set in the typed order.
+        // inner_a is set before inner_b who therefore contains inner_a:
+        // let node = inner_a(child, ..);
+        // let node = inner_b(node, ..);
+        assert_eq!(util::sorted_init_count(&wgt), ["inner_b", "inner_a"]);
+
+        Position::reset();
+        // order of declaration doesn't impact the order of evaluation,
+        // only the order of use does.
+        let mut wgt = same_priority_order_wgt! {
+            inner_b = Position::next("inner_b");
+            inner_a = Position::next("inner_a");
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert_eq!(util::sorted_pos(&wgt), ["inner_b", "inner_a"]);
+        assert_eq!(util::sorted_init_count(&wgt), ["inner_a", "inner_b"]);
+    }
+
     mod util {
         use std::{
             collections::{HashMap, HashSet},
