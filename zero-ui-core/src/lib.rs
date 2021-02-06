@@ -1016,21 +1016,21 @@ mod widget_tests {
         }
     }
     #[test]
-    #[serial(count)]
+    #[serial(count)] // TODO
     pub fn wgt_child_property_init_order() {
         Position::reset();
         let mut wgt = child_property_wgt! {
             util::count_inner = Position::next("count_inner");
-            util::count_context = Position::next("count_context");
             count_child_inner = Position::next("count_child_inner");
+            util::count_context = Position::next("count_context");
         };
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_context", "count_child_inner"]);
+        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_child_inner", "count_context"]);
 
         // but properties init in the priority order (child first).
-        assert_eq!(util::sorted_init_count(&wgt), ["count_inner", "count_context", "count_child_inner"]);
+        assert_eq!(util::sorted_init_count(&wgt), ["count_context", "count_inner", "count_child_inner"]);
     }
 
     mod util {
@@ -1107,8 +1107,8 @@ mod widget_tests {
                 .get(PositionKey)
                 .map(|m| {
                     let mut vec: Vec<_> = m.iter().collect();
-                    vec.sort_by_key(|(_, i)| i);
-                    vec.into_iter().map(|(t, _)| t).collect()
+                    vec.sort_by_key(|(_, i)| *i);
+                    vec.into_iter().map(|(&t, _)| t).collect::<Vec<_>>()
                 })
                 .unwrap_or_default()
         }
@@ -1119,8 +1119,8 @@ mod widget_tests {
                 .get(InitPositionKey)
                 .map(|m| {
                     let mut vec: Vec<_> = m.iter().collect();
-                    vec.sort_by_key(|(_, i)| i);
-                    vec.into_iter().map(|(t, _)| t).collect()
+                    vec.sort_by_key(|(_, i)| *i);
+                    vec.into_iter().map(|(&t, _)| t).collect::<Vec<_>>()
                 })
                 .unwrap_or_default()
         }
