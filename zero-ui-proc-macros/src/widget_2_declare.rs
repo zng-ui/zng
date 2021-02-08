@@ -330,20 +330,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    let wgt_captures: HashSet<_> = new_child.iter().chain(new.iter()).collect();
-    let wgt_properties_with_value: HashSet<_> = inherited_props_child
+    // all widget properties with and without values (excluding new when properties).
+    let wgt_all_properties: HashSet<_> = inherited_props_child
         .iter()
         .chain(inherited_props.iter())
-        .filter(|p| p.default || p.required || wgt_captures.contains(&p.ident))
         .map(|p| &p.ident)
-        .chain(
-            properties_child
-                .iter()
-                .chain(properties.iter())
-                .filter(|p| p.default || p.required || wgt_captures.contains(&p.ident))
-                .map(|p| &p.ident),
-        )
+        .chain(properties_child.iter().chain(properties.iter()).map(|p| &p.ident))
         .collect();
+    // widget properties introduced first by use in when blocks, we validate for default value.
+    let mut wgt_when_properties = HashSet::new();
 
     for BuiltWhen {
         ident,
@@ -353,21 +348,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         assigns,
     } in whens
     {
+        for input in &inputs {
+            if !wgt_all_properties.contains(input) {
+                wgt_when_properties.insert(input.clone());
+            }
+        }
+
         let mut assigns_tt = TokenStream::default();
         for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-            if wgt_properties_with_value.contains(&property) {
-                assigns_tt.extend(quote! {
-                    #property { cfg { #cfg } value_fn { #value_fn } }
-                });
-            } else {
-                let p_ident = ident!("__p_{}", ident);
-                let error = format!("property `{}` cannot be assigned in `when` because it has no default value", ident);
-                assigns_tt.extend(quote_spanned! {ident.span()=>
-                    self::#p_ident::code_gen! {
-                        if !default=> std::compile_error!{ #error }
-                    }
-                });
+            if !wgt_all_properties.contains(&property) {
+                wgt_when_properties.insert(property.clone());
             }
+            assigns_tt.extend(quote! {
+                #property { cfg { #cfg } value_fn { #value_fn } }
+            });
         }
         wgt_whens.extend(quote! {
             #ident {
@@ -375,6 +369,41 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 cfg { #cfg }
                 inputs { #(#inputs)* }
                 assigns {#assigns_tt }
+            }
+        });
+    }
+
+    // properties that are only introduced in when conditions.
+    // reexported if they have default values.
+    let mut when_condition_default_props = TokenStream::default();
+    for w_prop in &wgt_when_properties {
+        // property not introduced in the widget first, validate that it has a default value.
+
+        let p_ident = ident!("__p_{}", w_prop);
+        let d_ident = ident!("__d_{}", w_prop);
+
+        // reexport property and default value.
+        when_condition_default_props.extend(quote! {
+            #w_prop::code_gen! {
+                if default=>
+
+                #[doc(inline)]
+                pub use #w_prop::export as #p_ident;
+
+                #[doc(hidden)]
+                pub fn #d_ident() -> impl self::#p_ident::Args {
+                    self::#p_ident::ArgsImpl::default()
+                }
+            }
+        });
+
+        // OR compile error because the property has no default value.
+        let msg = format!("property `{}` is not declared in the widget and has no default value", w_prop);
+        when_condition_default_props.extend(quote_spanned! {w_prop.span()=>
+            #w_prop::code_gen! {
+                if !default=>
+
+                std::compile_error! { #msg }
             }
         });
     }
@@ -470,6 +499,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             #new_child_reexport
             #new_reexport
+
+            #when_condition_default_props
         }
         #[doc(hidden)]
         #[macro_export]

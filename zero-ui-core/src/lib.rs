@@ -988,7 +988,7 @@ mod widget_tests {
      * Tests value initialization order.
      */
     #[test]
-    #[serial(count)]
+    #[serial(priority)]
     pub fn value_init_order() {
         Position::reset();
         let mut wgt = empty_wgt! {
@@ -1016,7 +1016,7 @@ mod widget_tests {
         }
     }
     #[test]
-    #[serial(count)] // TODO
+    #[serial(priority)]
     pub fn wgt_child_property_init_order() {
         Position::reset();
         let mut wgt = child_property_wgt! {
@@ -1044,7 +1044,7 @@ mod widget_tests {
         }
     }
     #[test]
-    #[serial(count)]
+    #[serial(priority)]
     pub fn wgt_same_priority_order() {
         Position::reset();
         let mut wgt = same_priority_order_wgt! {
@@ -1075,13 +1075,34 @@ mod widget_tests {
         assert_eq!(util::sorted_init_count(&wgt), ["inner_a", "inner_b"]);
     }
 
+    /*
+     *  Tests widget when.
+     */
+    #[widget2($crate::widget_tests::when_wgt)]
+    pub mod when_wgt {
+        use super::util::is_state;
+        use super::util::trace as msg;
+
+        properties! {
+            msg = "boo!";
+
+            when self.is_state {
+                msg = "ok.";
+            }
+        }
+    }
+    #[test]
+    pub fn wgt_when() {
+        // TODO
+    }
+
     mod util {
         use std::{
             collections::{HashMap, HashSet},
             sync::atomic::{self, AtomicU32},
         };
 
-        use crate::{context::WidgetContext, impl_ui_node, property, state_key, UiNode, Widget};
+        use crate::{context::WidgetContext, impl_ui_node, property, state_key, var::StateVar, UiNode, Widget};
 
         /// Insert `trace` in the widget state. Can be probed using [`traced`].
         #[property(context)]
@@ -1186,6 +1207,31 @@ mod widget_tests {
                 self.child.init(ctx);
                 ctx.widget_state.entry(PositionKey).or_default().insert(self.count.1, self.count.0);
             }
+        }
+
+        /// Test state property, state can be set using [`set_state`] followed by updating.
+        #[property(context)]
+        pub fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
+            IsStateNode { child, state }
+        }
+
+        /// Sets the [`is_state`] of an widget.
+        ///
+        /// Note only applies after update.
+        pub fn set_state(wgt: &mut impl Widget, state: bool) {
+            *wgt.state_mut().entry(IsStateKey).or_default() = state;
+        }
+
+        struct IsStateNode<C: UiNode> {
+            child: C,
+            state: StateVar,
+        }
+
+        #[impl_ui_node(child)]
+        impl<C: UiNode> UiNode for IsStateNode<C> {}
+
+        state_key! {
+            struct IsStateKey: bool;
         }
     }
 }

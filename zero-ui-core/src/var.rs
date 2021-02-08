@@ -359,8 +359,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// An expression with multiple variables is transformed into a [`merge_var!`] call.
 #[macro_export]
 macro_rules! expr_var {
-    ($expr:expr) => {
-        $crate::var::__expr_var! { $crate::var, $expr }
+    ($($expr:tt)+) => {
+        $crate::var::__expr_var! { $crate::var, $($expr)+ }
     };
 }
 #[doc(inline)]
