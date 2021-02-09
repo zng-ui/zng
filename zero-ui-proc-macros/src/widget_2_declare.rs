@@ -400,7 +400,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[cfg(debug_assertions)]
         {
             let loc_ident = ident!("__loc_{}", w_prop);
-            when_condition_default_props.extend(quote_spanned! {p_ident.span()=>            
+            when_condition_default_props.extend(quote_spanned! {p_ident.span()=>
                 #w_prop::code_gen! {
                     if default=>
 

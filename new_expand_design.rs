@@ -478,18 +478,20 @@ pub fn widget_instantiation_expanded() -> impl Widget {
             path::button::__core::var::expr_var!( ! #{__is_enabled__0} )
         };
 
-        // #[cfg(..)] set in the when assign in widget, already combined with the when block cfg.
-        let __w0_d_text_color = path::button::__w0_d_text_color();
-        // #[cfg(..)] and lint attributes set in the when assign, combined with the when block cfg + lints set in the when block.
-        let __uw0_d_text_color = path::button::__p_text_color::ArgsImpl::new(colors::GRAY);
-
         // #[cfg(..)] set in the property default.
-        let __text_color = path::button::__p_text_color::when_property! {
-            // #[cfg(..)] same as in the `__w0_d_text_color` value. 
-            __c_not_self_is_enabled => __w0_d_text_color,
-            // #[cfg(..)] ..
-            __c_not_self_is_enabled => __uw0_d_text_color,
-            default => __text_color
+        let __text_color = {
+            // #[cfg(..)] set in the when assign in widget, already combined with the when block cfg.
+            let __w0_d_text_color = path::button::__w0_d_text_color();
+            // #[cfg(..)] and lint attributes set in the when assign, combined with the when block cfg + lints set in the when block.
+            let __uw0_d_text_color = path::button::__p_text_color::ArgsImpl::new(colors::GRAY);
+
+            path::button::__p_text_color::when_property! {
+                // #[cfg(..)] same as in the `__w0_d_text_color` value. 
+                __c_not_self_is_enabled => __w0_d_text_color,
+                // #[cfg(..)] ..
+                __c_not_self_is_enabled => path::button::__p_text_color::ArgsImpl::new(colors::GRAY),
+                default => __text_color
+            }
         };
         
         let node__ = path::button::__new_child(__content, __custom);

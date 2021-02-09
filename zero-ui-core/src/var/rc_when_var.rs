@@ -7,7 +7,7 @@ use super::*;
 /// # Syntax
 ///
 /// The macro expects a list of `condition-var => condition-value-var`, the list is separated by comma.
-/// The last condition must be the `default` keyword that maps to the value for when none of the conditions are `true`.
+/// The last condition must be the `_` token that maps to the value for when none of the conditions are `true`.
 ///
 /// The `condition-var` must be an expression that evaluates to an `impl Var<bool>` type. The `condition-value-var` must
 /// by any type that implements `IntoVar`. All condition values must be of the same [`VarValue`] type.
@@ -23,7 +23,7 @@ use super::*;
 ///
 /// let t = text(when_var! {
 ///     condition.clone() => "condition: true".to_text(),
-///     default => when_false.clone(),
+///     _ => when_false.clone(),
 /// });
 /// ```
 ///
@@ -44,7 +44,7 @@ use super::*;
 ///     condition0 => "is condition 0".to_text(),
 ///     #[cfg(not(some_flag))]
 ///     condition1 => "is condition 1".to_text(),
-///     default => "is default".to_text(),
+///     _ => "is default".to_text(),
 /// });
 /// ```
 ///
@@ -74,7 +74,7 @@ macro_rules! when_var {
             $condition8plus:expr => $value8pus:expr,
         )+
         $(#[$meta_default:meta])*
-        default => $default:expr $(,)?
+        _ => $default:expr $(,)?
     ) => {
         // we need a builder to have $value be IntoVar and work like the others.
         $(#[$meta_default])*
@@ -110,7 +110,7 @@ macro_rules! when_var {
             $condition:expr => $value:expr,
         )+
         $(#[$meta_default:meta])*
-        default => $default:expr$(,)?
+        _ => $default:expr$(,)?
     ) => {
         $(#[$meta_default:meta])*
         {
@@ -373,6 +373,14 @@ macro_rules! impl_rc_when_var {
                 MapBidiRefVar::new(self, map, map_mut)
             }
         }
+
+        impl<O: VarValue, D: Var<O>, $($C: VarObj<bool>),+ , $($V: Var<O>),+> IntoVar<O> for $RcMergeVar<O, D, $($C),+ , $($V),+>  {
+            type Var = Self;
+
+            fn into_var(self) -> Self::Var {
+                self
+            }
+        }
     };
 }
 impl_rc_when_var! {
@@ -589,6 +597,13 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         map_mut: G,
     ) -> MapBidiRefVar<O, O2, Self, F, G> {
         MapBidiRefVar::new(self, map, map_mut)
+    }
+}
+impl<O: VarValue> IntoVar<O> for RcWhenVar<O> {
+    type Var = Self;
+
+    fn into_var(self) -> Self::Var {
+        self
     }
 }
 

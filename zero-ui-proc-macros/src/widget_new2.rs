@@ -238,8 +238,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // generate whens.
     let mut when_inits = TokenStream::default();
-    // map of { property => [(cfg, condition_var, when_value_for_prop)] }
-    let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, TokenStream)>> = HashMap::new();
+    // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
+    let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
     for iw in widget_data.whens {
         if iw.inputs.iter().any(|p| unset_properties.contains(p)) {
             // deactivate when block because user unset one of the inputs.
@@ -282,7 +282,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         for BuiltWhenAssign { property, cfg, value_fn } in assigns {
             let value = quote! { #module::#value_fn() };
             let p_whens = when_assigns.entry(parse_quote! { #property }).or_default();
-            p_whens.push((cfg, c_ident.clone(), value));
+            p_whens.push((cfg, c_ident.clone(), value_fn, value));
         }
     }
     for (i, w) in user_input.whens.into_iter().enumerate() {
@@ -375,19 +375,31 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             _ => property.to_token_stream(),
         };
-        let when_cfgs = assigns.iter().map(|(c, _, _)| c);
-        let when_conditions = assigns.iter().map(|(_, c, _)| c);
-        let when_values = assigns.iter().map(|(_, _, v)| v);
+        let when_cfgs: Vec<_> = assigns.iter().map(|(c, _, _, _)| c).collect();
+        let when_conditions: Vec<_> = assigns.iter().map(|(_, c, _, _)| c).collect();
+        let when_value_idents: Vec<_> = assigns.iter().map(|(_, _, i, _)| i).collect();
+        let when_values = assigns.iter().map(|(_, _, _, v)| v);
+
         let (default, cfg) = wgt_properties.get(&property).unwrap();
         when_inits.extend(quote! {
             #cfg
-            let #default = #property_path::code_gen! {
-                when #property_path {
-                    #(
-                        #when_cfgs
-                        #when_conditions => #when_values,
-                    )*
-                    default => #default,
+            let #default = {
+                #(
+                    #[allow(non_snake_case)]
+                    #when_cfgs
+                    let #when_value_idents;
+                    #when_cfgs
+                    #when_value_idents = #when_values;
+                )*
+                #property_path::code_gen! {
+                    when #property_path {
+                        #(
+                            #when_cfgs
+                            #[allow(non_snake_case)]
+                            #when_conditions => #when_value_idents,
+                        )*
+                        _ => #default,
+                    }
                 }
             };
         });

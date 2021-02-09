@@ -1086,7 +1086,7 @@ mod output {
                             $(#[$meta])*
                             std::clone::Clone::clone(&$condition) => $args,
                         )*
-                        default => $default_args,
+                        _ => $default_args,
                     };
                 }
             } else {
@@ -1098,7 +1098,7 @@ mod output {
                                 $(#[$meta])*
                                 std::clone::Clone::clone(&$condition) => $args.#n,
                             )*
-                            default => $default_args.#n,
+                            _ => $default_args.#n,
                         };
                     )*
                 }
@@ -1133,8 +1133,8 @@ mod output {
                         $(
                             $(#[$meta:meta])*
                             $condition:ident => $args:ident,
-                        )+,
-                        default => $default_args:ident,
+                        )+
+                        _ => $default_args:ident,
                     }) => {
                         {
                             use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, when_var as __when_var};

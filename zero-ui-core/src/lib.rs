@@ -1081,7 +1081,7 @@ mod widget_tests {
     #[widget2($crate::widget_tests::when_wgt)]
     pub mod when_wgt {
         use super::util::is_state;
-        use super::util::trace as msg;
+        use super::util::live_trace as msg;
 
         properties! {
             msg = "boo!";
@@ -1093,9 +1093,11 @@ mod widget_tests {
     }
     #[test]
     pub fn wgt_when() {
-        let mut wgt =  when_wgt!();
+        let mut wgt = when_wgt!();
         let mut ctx = TestWidgetContext::wait_new();
-        // TODO
+        wgt.test_init(&mut ctx);
+
+        util::set_state(&mut wgt, true);
     }
 
     mod util {
@@ -1104,7 +1106,13 @@ mod widget_tests {
             sync::atomic::{self, AtomicU32},
         };
 
-        use crate::{context::WidgetContext, impl_ui_node, property, state_key, var::StateVar, UiNode, Widget};
+        use crate::{
+            context::WidgetContext,
+            impl_ui_node, property, state_key,
+            text::Text,
+            var::{IntoVar, StateVar, Var},
+            UiNode, Widget,
+        };
 
         /// Insert `trace` in the widget state. Can be probed using [`traced`].
         #[property(context)]
@@ -1216,24 +1224,66 @@ mod widget_tests {
         pub fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
             IsStateNode { child, state }
         }
-
         /// Sets the [`is_state`] of an widget.
         ///
         /// Note only applies after update.
         pub fn set_state(wgt: &mut impl Widget, state: bool) {
             *wgt.state_mut().entry(IsStateKey).or_default() = state;
         }
-
         struct IsStateNode<C: UiNode> {
             child: C,
             state: StateVar,
         }
-
+        impl<C: UiNode> IsStateNode<C> {
+            fn update_state(&mut self, ctx: &mut WidgetContext) {
+                let wgt_state = ctx.widget_state.get(IsStateKey).copied().unwrap_or_default();
+                if wgt_state != *self.state.get(ctx.vars) {
+                    self.state.set(ctx.vars, wgt_state);
+                }
+            }
+        }
         #[impl_ui_node(child)]
-        impl<C: UiNode> UiNode for IsStateNode<C> {}
+        impl<C: UiNode> UiNode for IsStateNode<C> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                self.update_state(ctx);
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                self.child.update(ctx);
+                self.update_state(ctx);
+            }
+        }
 
         state_key! {
             struct IsStateKey: bool;
+        }
+
+        /// A [trace] that can update.
+        #[property(context)]
+        pub fn live_trace(child: impl UiNode, trace: impl IntoVar<&'static str>) -> impl UiNode {
+            LiveTraceNode {
+                child,
+                trace: trace.into_var(),
+            }
+        }
+        struct LiveTraceNode<C: UiNode, T: Var<&'static str>> {
+            child: C,
+            trace: T,
+        }
+        #[impl_ui_node(child)]
+        impl<C: UiNode, T: Var<&'static str>> UiNode for LiveTraceNode<C, T> {
+            fn init(&mut self, ctx: &mut WidgetContext) {
+                self.child.init(ctx);
+                ctx.widget_state.entry(TraceKey).or_default().insert(self.trace.get(ctx.vars));
+            }
+
+            fn update(&mut self, ctx: &mut WidgetContext) {
+                self.child.update(ctx);
+                if let Some(trace) = self.trace.get_new(ctx.vars) {
+                    ctx.widget_state.entry(TraceKey).or_default().insert(trace);
+                }
+            }
         }
     }
 }
