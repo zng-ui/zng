@@ -376,6 +376,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // properties that are only introduced in when conditions.
     // reexported if they have default values.
     let mut when_condition_default_props = TokenStream::default();
+    let mut wgt_properties = wgt_properties;
     for w_prop in &wgt_when_properties {
         // property not introduced in the widget first, validate that it has a default value.
 
@@ -396,6 +397,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
         });
+        #[cfg(debug_assertions)]
+        {
+            let loc_ident = ident!("__loc_{}", w_prop);
+            when_condition_default_props.extend(quote_spanned! {p_ident.span()=>            
+                #w_prop::code_gen! {
+                    if default=>
+
+                    #[doc(hidden)]
+                    pub fn #loc_ident() -> #crate_core::debug::SourceLocation {
+                        #crate_core::debug::source_location!()
+                    }
+                }
+            });
+        }
 
         // OR compile error because the property has no default value.
         let msg = format!("property `{}` is not declared in the widget and has no default value", w_prop);
@@ -404,6 +419,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if !default=>
 
                 std::compile_error! { #msg }
+            }
+        });
+
+        wgt_properties.extend(quote! {
+            #w_prop {
+                docs { } // TODO
+                cfg { } // TODO
+                default { true }
+                required { false }
             }
         });
     }

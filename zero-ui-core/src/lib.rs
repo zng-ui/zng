@@ -1093,6 +1093,8 @@ mod widget_tests {
     }
     #[test]
     pub fn wgt_when() {
+        let mut wgt =  when_wgt!();
+        let mut ctx = TestWidgetContext::wait_new();
         // TODO
     }
 
