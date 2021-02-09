@@ -549,6 +549,14 @@ pub trait Widget: UiNode {
             self.init(ctx);
         });
     }
+
+    /// Run [`UiNode::update`] using the [`TestWidgetContext`].
+    #[cfg(test)]
+    fn test_update(&mut self, ctx: &mut TestWidgetContext) {
+        ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
+            self.update(ctx);
+        });
+    }
 }
 #[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
 impl UiNode for Box<dyn Widget> {}

@@ -1097,7 +1097,17 @@ mod widget_tests {
         let mut ctx = TestWidgetContext::wait_new();
         wgt.test_init(&mut ctx);
 
+        assert!(util::traced(&wgt, "boo!"));
+
         util::set_state(&mut wgt, true);
+        // TODO update vars
+        wgt.test_update(&mut ctx);
+        assert!(util::traced(&wgt, "ok."));
+
+        util::set_state(&mut wgt, false);
+        // TODO update vars
+        wgt.test_update(&mut ctx);
+        assert!(util::traced(&wgt, "boo!"));
     }
 
     mod util {
