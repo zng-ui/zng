@@ -15,6 +15,7 @@ mod util;
 mod derive_service;
 pub(crate) mod expr_var;
 mod hex_color;
+mod when_var;
 
 mod impl_ui_node;
 pub(crate) mod property;
@@ -111,4 +112,9 @@ pub fn widget_new2(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn expr_var(input: TokenStream) -> TokenStream {
     expr_var::expand(input)
+}
+
+#[proc_macro]
+pub fn when_var(input: TokenStream) -> TokenStream {
+    when_var::expand(input)
 }

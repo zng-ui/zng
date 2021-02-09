@@ -52,79 +52,20 @@ use super::*;
 /// type as if you had written a single condition.
 #[macro_export]
 macro_rules! when_var {
-    // 8.. conditions always uses the dynamic builder, even if some conditions are excluded using #[cfg(..)]
-    (
-        $(#[$meta0:meta])*
-        $condition0:expr => $value0:expr,
-        $(#[$meta1:meta])*
-        $condition1:expr => $value1:expr,
-        $(#[$meta2:meta])*
-        $condition2:expr => $value2:expr,
-        $(#[$meta3:meta])*
-        $condition3:expr => $value3:expr,
-        $(#[$meta4:meta])*
-        $condition4:expr => $value4:expr,
-        $(#[$meta5:meta])*
-        $condition5:expr => $value5:expr,
-        $(#[$meta6:meta])*
-        $condition7:expr => $value7:expr,
-        $(#[$meta7:meta])*
-        $(
-            $(#[$meta8plus:meta])*
-            $condition8plus:expr => $value8pus:expr,
-        )+
-        $(#[$meta_default:meta])*
-        _ => $default:expr $(,)?
-    ) => {
-        // we need a builder to have $value be IntoVar and work like the others.
-        $(#[$meta_default])*
-        {
-            let b = $crate::var::WhenVarBuilderDyn::new($default);
-            $(#[$meta0])*
-            let b = b.push($condition0, $value0);
-            $(#[$meta1])*
-            let b = b.push($condition1, $value1);
-            $(#[$meta2])*
-            let b = b.push($condition2, $value2);
-            $(#[$meta3])*
-            let b = b.push($condition3, $value3);
-            $(#[$meta4])*
-            let b = b.push($condition4, $value4);
-            $(#[$meta5])*
-            let b = b.push($condition5, $value5);
-            $(#[$meta6])*
-            let b = b.push($condition6, $value6);
-            $(#[$meta7])*
-            let b = b.push($condition7, $value7);
-            $(
-                $(#[$meta8plus:meta])*
-                let b = b.push($condition8plus, $value8pus);
-            )+
-            b.build()
+    ($($tt:tt)*) => {
+        $crate::var::__when_var! {
+            $crate::var
+            $($tt)*
         }
-    };
-    // 1..=7 conditions use the generic builder
-    (
-        $(
-            $(#[$meta_c:meta])*
-            $condition:expr => $value:expr,
-        )+
-        $(#[$meta_default:meta])*
-        _ => $default:expr$(,)?
-    ) => {
-        $(#[$meta_default:meta])*
-        {
-            let b = $crate::var::WhenVarBuilder::new($default);
-            $(
-                $(#[$meta_c])*
-                let b = b.push($condition, $value);
-            )+
-            b.build()
-        }
-    };
+    }
 }
+
 #[doc(inline)]
 pub use crate::when_var;
+
+#[doc(hidden)]
+pub use zero_ui_proc_macros::when_var as __when_var;
+
 macro_rules! impl_rc_when_var {
     ($(
         $len:tt => $($n:tt),+;

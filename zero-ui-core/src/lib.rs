@@ -1109,7 +1109,6 @@ mod widget_tests {
         use crate::{
             context::WidgetContext,
             impl_ui_node, property, state_key,
-            text::Text,
             var::{IntoVar, StateVar, Var},
             UiNode, Widget,
         };
