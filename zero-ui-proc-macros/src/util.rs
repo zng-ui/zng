@@ -442,6 +442,11 @@ pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     tokens.to_string()
 }
 
+/// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`Path`].
+pub fn path_to_ident_str(path: &syn::Path) -> String {
+    tokens_to_ident_str(&path.to_token_stream())
+}
+
 /// Returns `true` if `a` and `b` have the same tokens in the same order (ignoring span).
 pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
     let mut a = a.into_iter();

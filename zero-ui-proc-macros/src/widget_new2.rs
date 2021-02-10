@@ -285,6 +285,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_whens.push((cfg, c_ident.clone(), value_fn, value));
         }
     }
+
+    let mut user_when_properties = HashSet::new();
+
     for (i, w) in user_input.whens.into_iter().enumerate() {
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
         let condition = match w.expand_condition() {
@@ -298,6 +301,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let condition = condition.expr;
 
         let ident = w.make_ident("uw", i);
+        let field_idents = inputs.iter().map(|(_, m)| m);
+        let input_ident_per_field = inputs.iter().map(|(p, _)| ident!("__{}", util::path_to_ident_str(&p.0)));
+        let members = inputs.iter().map(|(p, _)| &p.1);
 
         let attrs = Attributes::new(w.attrs);
         let cfg = attrs.cfg;
@@ -307,6 +313,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #cfg
             let #ident = {
                 // TODO get inputs
+                #(let #field_idents = #module::__core::var::IntoVar::into_var(std::clone::Clone::clone(#input_ident_per_field.#members()));)*
+
                 #(#lints)*
                 #module::__core::var::expr_var!(#condition)
             };
@@ -364,6 +372,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         when_inits.extend(quote! {
             // TODO
         });
+    }
+
+    for p in user_when_properties {
+        let args_ident = ident!("__{}", util::path_to_ident_str(&p));
+        let error = format!("property {} is not assigned and has no default value", util::display_path(&p));
+        let _temp_name = quote! {
+            let #args_ident = {
+                #p::code_gen!{
+                    if default=>
+
+                    #p::ArgsImpl::default()
+                }
+                #p::code_gen!{
+                    if !default=>
+
+                    std::compile_error!(#error)
+                }
+            };
+        };
     }
 
     // apply the whens for each property.

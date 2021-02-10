@@ -905,9 +905,7 @@ impl TestWidgetContext {
             _lock: lock,
         }
     }
-}
-#[cfg(test)]
-impl TestWidgetContext {
+
     pub fn widget_context<R>(&mut self, widget_state: &mut LazyStateMap, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
@@ -922,6 +920,21 @@ impl TestWidgetContext {
             sync: &mut self.sync,
             updates: self.updates.updates(),
         })
+    }
+
+    /// Applies pending, `sync`, `vars`, `events` and takes all the update requests.
+    ///
+    /// Returns the update requests and a time for the loop wake back and call
+    /// [`Sync::update_timers`].
+    pub fn apply_updates(&mut self) -> ((UpdateRequest, UpdateDisplayRequest), Option<Instant>) {
+        let wake = self.sync.update(&mut AppSyncContext {
+            vars: &mut self.vars,
+            events: &mut self.events,
+            updates: &mut self.updates.0,
+        });
+        self.vars.apply(&mut self.updates.0);
+        self.events.apply(&mut self.updates.0);
+        (self.updates.take_updates(), wake)
     }
 }
 

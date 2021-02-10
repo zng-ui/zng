@@ -702,11 +702,13 @@ mod widget_tests {
     use crate::{context::TestWidgetContext, widget2, widget_mixin2, Widget, WidgetId};
     use serial_test::serial;
 
+    // Used in multiple tests.
+    #[widget2($crate::widget_tests::empty_wgt)]
+    pub mod empty_wgt {}
+
     /*
      * Tests the implicitly inherited properties.
      */
-    #[widget2($crate::widget_tests::empty_wgt)]
-    pub mod empty_wgt {}
     #[test]
     pub fn implicit_inherited() {
         let expected = WidgetId::new_unique();
@@ -1100,14 +1102,30 @@ mod widget_tests {
         assert!(util::traced(&wgt, "boo!"));
 
         util::set_state(&mut wgt, true);
-        // TODO update vars
         wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
         assert!(util::traced(&wgt, "ok."));
 
         util::set_state(&mut wgt, false);
-        // TODO update vars
+
         wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
         assert!(util::traced(&wgt, "boo!"));
+    }
+
+    #[test]
+    pub fn widget_new_when() {
+        let mut wgt = empty_wgt! {
+            util::live_trace = "A";
+
+            when self.util::is_state {
+                util::live_trace = "B";
+            }
+        };
     }
 
     mod util {
