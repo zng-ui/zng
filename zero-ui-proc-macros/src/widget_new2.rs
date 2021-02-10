@@ -298,23 +298,59 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         };
         let inputs = condition.properties;
-        let condition = condition.expr;
 
+        // for each property in inputs and assigns.
+        for property in inputs.keys().map(|(p, _)| p).chain(w.assigns.iter().map(|a| &a.path)) {
+            // if property not set in the widget.
+            if !wgt_properties.contains_key(property) {
+                match property.get_ident() {
+                    // if property was `unset!`.
+                    Some(maybe_unset) if unset_properties.contains(maybe_unset) => {
+                        errors.push(format!("cannot use unset property `{}`", maybe_unset), maybe_unset.span());
+                    }
+                    // if property maybe has a default value.
+                    _ => {
+                        user_when_properties.insert(property.clone());
+                    }
+                }
+            }
+        }
+
+        // generate let bindings for a clone var of each property.member.
+        let mut member_vars = TokenStream::default();
+        for ((property, member), var_ident) in inputs {
+            let property_path = match property.get_ident() {
+                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                    let p_ident = ident!("__p_{}", maybe_inherited);
+                    quote! { #module::#p_ident }
+                }
+                _ => property.to_token_stream(),
+            };
+            let property_args = ident!("__{}", util::path_to_ident_str(&property));
+
+            member_vars.extend(quote! {
+                let #var_ident = #module::__core::var::IntoVar::into_var(
+                    std::clone::Clone::clone(
+                        #property_path::Args::#member(&#property_args)
+                    )
+                );
+            });
+        }
+
+        // generate the condition var let binding.
         let ident = w.make_ident("uw", i);
-        let field_idents = inputs.iter().map(|(_, m)| m);
-        let input_ident_per_field = inputs.iter().map(|(p, _)| ident!("__{}", util::path_to_ident_str(&p.0)));
-        let members = inputs.iter().map(|(p, _)| &p.1);
-
         let attrs = Attributes::new(w.attrs);
+        for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+            errors.push("only `cfg` and lint attributes are allowed in when blocks", invalid_attr.span());
+        }
         let cfg = attrs.cfg;
         let lints = attrs.lints;
+        let condition = condition.expr;
 
         when_inits.extend(quote! {
             #cfg
             let #ident = {
-                // TODO get inputs
-                #(let #field_idents = #module::__core::var::IntoVar::into_var(std::clone::Clone::clone(#input_ident_per_field.#members()));)*
-
+                #member_vars
                 #(#lints)*
                 #module::__core::var::expr_var!(#condition)
             };
@@ -373,11 +409,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // TODO
         });
     }
-
     for p in user_when_properties {
         let args_ident = ident!("__{}", util::path_to_ident_str(&p));
-        let error = format!("property {} is not assigned and has no default value", util::display_path(&p));
-        let _temp_name = quote! {
+        let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
+        property_inits.extend(quote_spanned! {p.span()=>
             let #args_ident = {
                 #p::code_gen!{
                     if default=>
@@ -390,7 +425,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     std::compile_error!(#error)
                 }
             };
-        };
+        });
     }
 
     // apply the whens for each property.
