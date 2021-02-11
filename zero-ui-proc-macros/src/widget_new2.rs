@@ -460,29 +460,38 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
             _ => property.to_token_stream(),
         };
-        let when_cfgs: Vec<_> = assigns.iter().map(|(c, _, _, _)| c).collect();
-        let when_conditions: Vec<_> = assigns.iter().map(|(_, c, _, _)| c).collect();
-        let when_value_idents: Vec<_> = assigns.iter().map(|(_, _, i, _)| ident!("__w{}", i)).collect();
-        let when_values = assigns.iter().map(|(_, _, _, v)| v);
+
+        // collect assign items.
+        let mut init_members = TokenStream::default();
+        let mut conditions = Vec::with_capacity(assigns.len());
+        for (w_cfg, condition_ident, value_ident, value) in assigns {
+            if !util::token_stream_eq(value_ident.to_token_stream(), value.clone()) {
+                init_members.extend(quote! {
+                    #[allow(non_snake_case)]
+                    #w_cfg
+                    let #value_ident;
+                    #w_cfg {
+                        #value_ident = #value;
+                    }
+                });
+            }
+            conditions.push(quote! {
+                #w_cfg
+                #[allow(non_snake_case)]
+                #condition_ident => #value_ident,
+            });
+        }
+        // later conditions have priority.
+        conditions.reverse();
 
         let (default, cfg) = wgt_properties.get(&property).unwrap();
         when_inits.extend(quote! {
             #cfg
             let #default = {
-                #(
-                    #[allow(non_snake_case)]
-                    #when_cfgs
-                    let #when_value_idents;
-                    #when_cfgs
-                    #when_value_idents = #when_values;
-                )*
+                #init_members
                 #property_path::code_gen! {
                     when #property_path {
-                        #(
-                            #when_cfgs
-                            #[allow(non_snake_case)]
-                            #when_conditions => #when_value_idents,
-                        )*
+                        #(#conditions)*
                         _ => #default,
                     }
                 }

@@ -1116,7 +1116,6 @@ mod widget_tests {
 
         assert!(util::traced(&wgt, "boo!"));
     }
-
     #[test]
     pub fn widget_user_when() {
         let mut wgt = empty_wgt! {
@@ -1145,6 +1144,152 @@ mod widget_tests {
         wgt.test_update(&mut ctx);
 
         assert!(util::traced(&wgt, "A"));
+    }
+
+    /*
+     * Tests multiple widget whens
+     */
+    #[widget2($crate::widget_tests::multi_when_wgt)]
+    pub mod multi_when_wgt {
+        use super::util::{is_state, live_trace as trace};
+        properties! {
+            trace = "default";
+            when self.is_state {
+                trace = "state_0";
+            }
+            when self.is_state {
+                trace = "state_1";
+            }
+        }
+    }
+    #[test]
+    pub fn wgt_multi_when() {
+        let mut wgt = multi_when_wgt!();
+        let mut ctx = TestWidgetContext::wait_new();
+        wgt.test_init(&mut ctx);
+
+        assert!(util::traced(&wgt, "default"));
+
+        util::set_state(&mut wgt, true);
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "state_1"));
+
+        util::set_state(&mut wgt, false);
+
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "default"));
+    }
+
+    /*
+     * Tests widget property attributes.
+     */
+    #[widget2($crate::widget_tests::cfg_property_wgt)]
+    pub mod cfg_property_wgt {
+        use super::util::trace;
+
+        properties! {
+            // property not included in widget.
+            #[cfg(never)]
+            trace as never_trace = "never-trace";
+
+            // suppress warning.
+            #[allow(non_snake_case)]
+            trace as always_trace = {
+                let weird___name;
+                weird___name = "always-trace";
+                weird___name
+            };
+        }
+    }
+    #[test]
+    pub fn wgt_cfg_property() {
+        let mut wgt = cfg_property_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "always-trace"));
+        assert!(!util::traced(&wgt, "never-trace"));
+    }
+    #[test]
+    pub fn user_cfg_property() {
+        #[allow(unused_imports)]
+        use util::trace as never_trace;
+        use util::trace as always_trace;
+        let mut wgt = empty_wgt! {
+            // property not set.
+            #[cfg(never)]
+            never_trace = "never-trace";
+
+            // suppress warning.
+            #[allow(non_snake_case)]
+            always_trace = {
+                let weird___name;
+                weird___name = "always-trace";
+                weird___name
+            };
+        };
+
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "always-trace"));
+        assert!(!util::traced(&wgt, "never-trace"));
+    }
+
+    /*
+     * Tests widget when attributes.
+     */
+    #[widget2($crate::widget_tests::cfg_when_wgt)]
+    pub mod cfg_when_wgt {
+        use super::util::{is_state, live_trace};
+
+        properties! {
+            live_trace = "trace";
+
+            // suppress warning in all assigns.
+            #[allow(non_snake_case)]
+            when self.is_state {
+                live_trace = {
+                    let weird___name;
+                    weird___name = "is_state";
+                    weird___name
+                };
+            }
+
+            // when not applied.
+            #[cfg(never)]
+            when self.is_state {
+                live_trace = "is_never_state";
+            }
+        }
+    }
+    #[test]
+    pub fn wgt_cfg_when() {
+        let mut wgt = cfg_when_wgt!();
+
+        let mut ctx = TestWidgetContext::wait_new();
+        wgt.test_init(&mut ctx);
+
+        assert!(util::traced(&wgt, "trace"));
+
+        util::set_state(&mut wgt, true);
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "is_state"));
+
+        util::set_state(&mut wgt, false);
+
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "trace"));
     }
 
     mod util {
