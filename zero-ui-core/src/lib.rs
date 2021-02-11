@@ -1118,7 +1118,7 @@ mod widget_tests {
     }
 
     #[test]
-    pub fn widget_new_when() {
+    pub fn widget_user_when() {
         let mut wgt = empty_wgt! {
             util::live_trace = "A";
 
@@ -1126,6 +1126,25 @@ mod widget_tests {
                 util::live_trace = "B";
             }
         };
+        let mut ctx = TestWidgetContext::wait_new();
+        wgt.test_init(&mut ctx);
+
+        assert!(util::traced(&wgt, "A"));
+
+        util::set_state(&mut wgt, true);
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "B"));
+
+        util::set_state(&mut wgt, false);
+
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "A"));
     }
 
     mod util {

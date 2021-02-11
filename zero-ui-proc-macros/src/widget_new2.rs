@@ -200,32 +200,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let unset_properties = unset_properties;
     let wgt_properties = wgt_properties;
 
-    // generate property assigns.
-    let mut property_set_calls = TokenStream::default();
-    for set_calls in vec![child_prop_set_calls, prop_set_calls] {
-        for priority in &crate::property::Priority::all_settable() {
-            #[cfg(debug_assertions)]
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
-                property_set_calls.extend(quote! {
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
-                    }
-                });
-            }
-            #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, cfg) in &set_calls {
-                property_set_calls.extend(quote! {
-                    #cfg
-                    #p_mod::code_gen! {
-                        set #priority, node__, #p_mod, #p_var_ident
-                    }
-                });
-            }
-        }
-    }
-    let property_set_calls = property_set_calls;
-
     // validate required properties.
     let mut missing_required = HashSet::new();
     for required in required_properties.into_iter().chain(captured_properties) {
@@ -286,7 +260,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    let mut user_when_properties = HashSet::new();
+    let mut user_when_properties = HashMap::new();
 
     for (i, w) in user_input.whens.into_iter().enumerate() {
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
@@ -298,6 +272,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         };
         let inputs = condition.properties;
+        let condition = condition.expr;
+
+        let ident = w.make_ident("uw", i);
+
+        // validate/separate attributes
+        let attrs = Attributes::new(w.attrs);
+        for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+            errors.push("only `cfg` and lint attributes are allowed in when blocks", invalid_attr.span());
+        }
+        let cfg = attrs.cfg;
+        let lints = attrs.lints;
 
         // for each property in inputs and assigns.
         for property in inputs.keys().map(|(p, _)| p).chain(w.assigns.iter().map(|a| &a.path)) {
@@ -310,7 +295,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                     // if property maybe has a default value.
                     _ => {
-                        user_when_properties.insert(property.clone());
+                        user_when_properties.insert(property.clone(), cfg.clone());
                     }
                 }
             }
@@ -338,15 +323,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         // generate the condition var let binding.
-        let ident = w.make_ident("uw", i);
-        let attrs = Attributes::new(w.attrs);
-        for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
-            errors.push("only `cfg` and lint attributes are allowed in when blocks", invalid_attr.span());
-        }
-        let cfg = attrs.cfg;
-        let lints = attrs.lints;
-        let condition = condition.expr;
-
         when_inits.extend(quote! {
             #cfg
             let #ident = {
@@ -356,6 +332,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             };
         });
 
+        // init assign variables
         let mut assigns = HashSet::new();
         for assign in w.assigns {
             let attrs = Attributes::new(assign.attrs);
@@ -385,7 +362,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
 
-            let ident = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
+            let assign_val_id = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
             let cfg = util::merge_cfg_attr(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
@@ -402,14 +379,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #cfg
                 #(#lints)*
                 #(#a_lints)*
-                let #ident = #expr;
+                let #assign_val_id = #expr;
             });
+
+            // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
+            let p_whens = when_assigns.entry(assign.path).or_default();
+            let val = assign_val_id.to_token_stream();
+            p_whens.push((cfg.to_token_stream(), ident.clone(), assign_val_id, val));
         }
-        when_inits.extend(quote! {
-            // TODO
-        });
     }
-    for p in user_when_properties {
+    for (p, cfg) in user_when_properties {
         let args_ident = ident!("__{}", util::path_to_ident_str(&p));
         let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
         property_inits.extend(quote_spanned! {p.span()=>
@@ -426,7 +405,51 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             };
         });
+        let p_span = p.span();
+
+        // register data for the set call generation.
+        #[cfg(debug_assertions)]
+        prop_set_calls.push((
+            p.to_token_stream(),
+            args_ident,
+            util::display_path(&p),
+            {
+                quote_spanned! {p_span=>
+                    #module::__core::source_location!()
+                }
+            },
+            cfg.to_token_stream(),
+            /*user_assigned: */ true,
+        ));
+        #[cfg(not(debug_assertions))]
+        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream()));
     }
+
+    // generate property assigns.
+    let mut property_set_calls = TokenStream::default();
+    for set_calls in vec![child_prop_set_calls, prop_set_calls] {
+        for priority in &crate::property::Priority::all_settable() {
+            #[cfg(debug_assertions)]
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
+                property_set_calls.extend(quote! {
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
+                    }
+                });
+            }
+            #[cfg(not(debug_assertions))]
+            for (p_mod, p_var_ident, cfg) in &set_calls {
+                property_set_calls.extend(quote! {
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, node__, #p_mod, #p_var_ident
+                    }
+                });
+            }
+        }
+    }
+    let property_set_calls = property_set_calls;
 
     // apply the whens for each property.
     for (property, assigns) in when_assigns {
@@ -439,7 +462,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
         let when_cfgs: Vec<_> = assigns.iter().map(|(c, _, _, _)| c).collect();
         let when_conditions: Vec<_> = assigns.iter().map(|(_, c, _, _)| c).collect();
-        let when_value_idents: Vec<_> = assigns.iter().map(|(_, _, i, _)| i).collect();
+        let when_value_idents: Vec<_> = assigns.iter().map(|(_, _, i, _)| ident!("__w{}", i)).collect();
         let when_values = assigns.iter().map(|(_, _, _, v)| v);
 
         let (default, cfg) = wgt_properties.get(&property).unwrap();
@@ -623,14 +646,19 @@ impl Parse for UserInput {
         let mut whens = vec![];
 
         while !input.is_empty() {
+            let attrs = Attribute::parse_outer(&input)?;
             if input.peek(keyword::when) {
-                if let Some(when) = When::parse(&input, &mut errors) {
+                if let Some(mut when) = When::parse(&input, &mut errors) {
+                    when.attrs = attrs;
                     whens.push(when);
                 }
             } else if input.peek(Ident::peek_any) {
                 // peek ident or path.
-                match input.parse() {
-                    Ok(p) => properties.push(p),
+                match input.parse::<PropertyAssign>() {
+                    Ok(mut assign) => {
+                        assign.attrs = attrs;
+                        properties.push(assign);
+                    }
                     Err(e) => errors.push_syn(e),
                 }
             } else {
