@@ -1343,14 +1343,22 @@ mod widget_tests {
         }
 
         fn new_child(new_child_trace: &'static str) -> impl UiNode {
-            assert_eq!(new_child_trace, "new-child");
+            let msg = match new_child_trace {
+                "new-child" => "custom new_child",
+                "user-new-child" => "custom new_child (user)",
+                o => panic!("unexpected {:?}", o),
+            };
             let node = crate::widget_base::default_widget_new_child();
-            trace(node, "custom new_child")
+            trace(node, msg)
         }
 
         fn new(node: impl UiNode, id: WidgetId, new_trace: &'static str) -> impl Widget {
-            assert_eq!(new_trace, "new");
-            let node = trace(node, "custom new");
+            let msg = match new_trace {
+                "new" => "custom new",
+                "user-new" => "custom new (user)",
+                o => panic!("unexpected {:?}", o),
+            };
+            let node = trace(node, msg);
             crate::widget_base::default_widget_new2(node, id)
         }
     }
@@ -1365,6 +1373,24 @@ mod widget_tests {
 
         assert!(!util::traced(&wgt, "new-child"));
         assert!(!util::traced(&wgt, "new"));
+    }
+    #[test]
+    pub fn wgt_capture_properties_reassign() {
+        let mut wgt = capture_properties_wgt! {
+            new_child_trace = "user-new-child";
+            property_trace = "user-property";
+            new_trace = "user-new";
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "user-property"));
+        assert!(util::traced(&wgt, "custom new_child (user)"));
+        assert!(util::traced(&wgt, "custom new (user)"));
+
+        assert!(!util::traced(&wgt, "new-child"));
+        assert!(!util::traced(&wgt, "new"));        
+        assert!(!util::traced(&wgt, "user-new-child"));
+        assert!(!util::traced(&wgt, "user-new"));
     }
 
     mod util {
