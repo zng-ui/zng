@@ -884,7 +884,7 @@ impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
     /// **blocks until the other instance is dropped**.
     pub fn wait_new() -> Self {
-        let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e|e.into_inner());
+        let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let event_loop = crate::app::EventLoop::new(true);
         let updates = OwnedUpdates::new(event_loop.create_proxy());
         let update_notifier = updates.0.notifier().clone();

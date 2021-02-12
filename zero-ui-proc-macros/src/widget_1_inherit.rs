@@ -12,7 +12,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let inherit_rest = input.inherit.rest;
         let path = inherit.path;
         let cfg = inherit.cfg;
-        let not_cfg = util::negate_cfg_attr(cfg.clone());
+        let not_cfg = util::cfg_attr_not(cfg.clone());
         quote! {
             #path! {
                 inherit=>

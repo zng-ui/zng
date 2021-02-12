@@ -260,7 +260,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    let mut user_when_properties = HashMap::new();
+    // map of [property_without_value => combined_cfg_for_default_init]
+    let mut user_when_properties: HashMap<Path, Option<TokenStream>> = HashMap::new();
 
     for (i, w) in user_input.whens.into_iter().enumerate() {
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
@@ -285,7 +286,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let lints = attrs.lints;
 
         // for each property in inputs and assigns.
-        for property in inputs.keys().map(|(p, _)| p).chain(w.assigns.iter().map(|a| &a.path)) {
+        for (property, p_attrs) in inputs
+            .keys()
+            .map(|(p, _)| (p, &[][..]))
+            .chain(w.assigns.iter().map(|a| (&a.path, &a.attrs[..])))
+        {
             // if property not set in the widget.
             if !wgt_properties.contains_key(property) {
                 match property.get_ident() {
@@ -295,7 +300,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                     // if property maybe has a default value.
                     _ => {
-                        user_when_properties.insert(property.clone(), cfg.clone());
+                        let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
+                        let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
+                        match user_when_properties.entry(property.clone()) {
+                            std::collections::hash_map::Entry::Occupied(mut e) => {
+                                let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
+                                *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
+                            }
+                            std::collections::hash_map::Entry::Vacant(e) => {
+                                e.insert(cfg);
+                            }
+                        }
                     }
                 }
             }
@@ -363,7 +378,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
 
             let assign_val_id = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
-            let cfg = util::merge_cfg_attr(attrs.cfg, cfg.clone());
+            let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
             let property_path = match assign.path.get_ident() {

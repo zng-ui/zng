@@ -327,7 +327,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 // ident of the property value function.
                 let fn_ident = ident!("{}__{}", ident, property);
 
-                let cfg = util::merge_cfg_attr(attrs.cfg, cfg.clone());
+                let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
 
                 assigns_tokens.extend(quote! {
                     #property {
@@ -448,7 +448,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             stage_extra = TokenStream::default();
         } else {
             let cfg = cfgs.next().unwrap();
-            let not_cfg = util::negate_cfg_attr(cfg.clone());
+            let not_cfg = util::cfg_attr_not(cfg.clone());
             let next_path = inherit_names.next().unwrap();
             stage_path = quote!(#inherits_mod_ident::#next_path!);
             stage_extra = quote! {

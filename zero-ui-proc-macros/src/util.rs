@@ -467,8 +467,8 @@ pub fn token_stream_eq(a: TokenStream, b: TokenStream) -> bool {
     }
 }
 
-/// Merges both `#[cfg]` attributes
-pub fn merge_cfg_attr(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
+/// Merges both `#[cfg]` attributes so that only if both conditions are true the item is compiled.
+pub fn cfg_attr_and(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
     match (a, b) {
         (None, None) => None,
         (None, Some(b)) => Some(b.to_token_stream()),
@@ -487,10 +487,30 @@ pub fn merge_cfg_attr(a: Option<Attribute>, b: Option<Attribute>) -> Option<Toke
         },
     }
 }
+
+/// Merges both `#[cfg]` attributes so that if any of the two conditions are true the item is compiled.
+pub fn cfg_attr_or(a: Option<Attribute>, b: Option<Attribute>) -> Option<TokenStream> {
+    match (a, b) {
+        (None, _) => None,
+        (_, None) => None,
+        (Some(a), Some(b)) => match (syn::parse2::<CfgCondition>(a.tokens), syn::parse2::<CfgCondition>(b.tokens)) {
+            (Err(_), _) => None,
+            (_, Err(_)) => None,
+            (Ok(a), Ok(b)) => {
+                if token_stream_eq(a.tokens.clone(), b.tokens.clone()) {
+                    Some(quote! { #[cfg(#a)] })
+                } else {
+                    Some(quote! { #[cfg(any(all(#a), all(#b)))] })
+                }
+            }
+        },
+    }
+}
+
 /// Returns an `#[cfg(..)]` stream that is the inverse of the `cfg` condition.
 ///
 /// It the `cfg` is `None` returns a cfg match to a feature that is never set.
-pub fn negate_cfg_attr(cfg: Option<Attribute>) -> TokenStream {
+pub fn cfg_attr_not(cfg: Option<Attribute>) -> TokenStream {
     match cfg {
         Some(cfg) => {
             if !cfg.path.get_ident().map(|id| id == "cfg").unwrap_or_default() {
@@ -521,5 +541,46 @@ impl Parse for CfgCondition {
 impl ToTokens for CfgCondition {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.tokens.to_tokens(tokens);
+    }
+}
+
+/// Parse an attribute.
+pub fn parse_attr(input: TokenStream) -> Result<Attribute, syn::Error> {
+    syn::parse2::<OuterAttr>(input).map(|a| a.into())
+}
+struct OuterAttr {
+    pound_token: Token![#],
+    style: syn::AttrStyle,
+    bracket_token: syn::token::Bracket,
+    path: syn::Path,
+    tokens: TokenStream,
+}
+impl syn::parse::Parse for OuterAttr {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let inner;
+
+        #[allow(clippy::eval_order_dependence)] // see https://github.com/rust-lang/rust-clippy/issues/4637
+        Ok(OuterAttr {
+            pound_token: input.parse()?,
+            style: if input.peek(Token![!]) {
+                syn::AttrStyle::Inner(input.parse()?)
+            } else {
+                syn::AttrStyle::Outer
+            },
+            bracket_token: syn::bracketed!(inner in input),
+            path: inner.parse()?,
+            tokens: inner.parse()?,
+        })
+    }
+}
+impl Into<Attribute> for OuterAttr {
+    fn into(self) -> Attribute {
+        Attribute {
+            pound_token: self.pound_token,
+            style: self.style,
+            bracket_token: self.bracket_token,
+            path: self.path,
+            tokens: self.tokens,
+        }
     }
 }
