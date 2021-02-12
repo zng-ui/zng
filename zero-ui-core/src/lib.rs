@@ -1109,7 +1109,6 @@ mod widget_tests {
         assert!(util::traced(&wgt, "ok."));
 
         util::set_state(&mut wgt, false);
-
         wgt.test_update(&mut ctx);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
@@ -1138,7 +1137,6 @@ mod widget_tests {
         assert!(util::traced(&wgt, "B"));
 
         util::set_state(&mut wgt, false);
-
         wgt.test_update(&mut ctx);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
@@ -1178,7 +1176,6 @@ mod widget_tests {
         assert!(util::traced(&wgt, "state_1"));
 
         util::set_state(&mut wgt, false);
-
         wgt.test_update(&mut ctx);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
@@ -1284,7 +1281,46 @@ mod widget_tests {
         assert!(util::traced(&wgt, "is_state"));
 
         util::set_state(&mut wgt, false);
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
 
+        assert!(util::traced(&wgt, "trace"));
+    }
+
+    #[test]
+    pub fn user_cfg_when() {
+        let mut wgt = empty_wgt! {
+            util::live_trace = "trace";
+
+            #[allow(non_snake_case)]
+            when self.util::is_state {
+                util::live_trace = {
+                    let weird___name;
+                    weird___name = "is_state";
+                    weird___name
+                };
+            }
+
+            #[cfg(never)]
+            when self.util::is_state {
+                util::live_trace = "is_never_state";
+            }
+        };
+
+        let mut ctx = TestWidgetContext::wait_new();
+        wgt.test_init(&mut ctx);
+
+        assert!(util::traced(&wgt, "trace"));
+
+        util::set_state(&mut wgt, true);
+        wgt.test_update(&mut ctx);
+        ctx.apply_updates();
+        wgt.test_update(&mut ctx);
+
+        assert!(util::traced(&wgt, "is_state"));
+
+        util::set_state(&mut wgt, false);
         wgt.test_update(&mut ctx);
         ctx.apply_updates();
         wgt.test_update(&mut ctx);
