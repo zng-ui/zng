@@ -1328,6 +1328,45 @@ mod widget_tests {
         assert!(util::traced(&wgt, "trace"));
     }
 
+    /*
+     *  Tests widget captures.
+     */
+    #[widget2($crate::widget_tests::capture_properties_wgt)]
+    pub mod capture_properties_wgt {
+        use super::util::trace;
+        use crate::{UiNode, Widget, WidgetId};
+
+        properties! {
+            trace as new_child_trace = "new-child";
+            trace as new_trace = "new";
+            trace as property_trace = "property";
+        }
+
+        fn new_child(new_child_trace: &'static str) -> impl UiNode {
+            assert_eq!(new_child_trace, "new-child");
+            let node = crate::widget_base::default_widget_new_child();
+            trace(node, "custom new_child")
+        }
+
+        fn new(node: impl UiNode, id: WidgetId, new_trace: &'static str) -> impl Widget {
+            assert_eq!(new_trace, "new");
+            let node = trace(node, "custom new");
+            crate::widget_base::default_widget_new2(node, id)
+        }
+    }
+    #[test]
+    pub fn wgt_capture_properties() {
+        let mut wgt = capture_properties_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "property"));
+        assert!(util::traced(&wgt, "custom new_child"));
+        assert!(util::traced(&wgt, "custom new"));
+
+        assert!(!util::traced(&wgt, "new-child"));
+        assert!(!util::traced(&wgt, "new"));
+    }
+
     mod util {
         use std::{
             collections::{HashMap, HashSet},

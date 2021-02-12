@@ -70,8 +70,13 @@ pub fn default_widget_new_child() -> impl UiNode {
 /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
 #[inline]
 pub fn default_widget_new(child: impl UiNode, id_args: impl widget_id::Args) -> impl Widget {
+    default_widget_new2(child, id_args.unwrap())
+}
+// TODO replace to default_widget_new with this when old widget macro is removed.
+#[inline]
+pub fn default_widget_new2(child: impl UiNode, id: WidgetId) -> impl Widget {
     WidgetNode {
-        id: id_args.unwrap(),
+        id,
         transform_key: WidgetTransformKey::new_unique(),
         state: LazyStateMap::default(),
         child,

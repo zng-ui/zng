@@ -52,7 +52,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // zero_ui::core::widget_base::default_widget_new_child()
                 new_child_reexport = quote! {
                     #[doc(hidden)]
-                    pub use #crate_core::widget_base::default_widget_new_child as __new_child;
+                    #[inline]
+                    pub fn __new_child() -> impl #crate_core::UiNode {
+                        #crate_core::widget_base::default_widget_new_child()
+                    }
                 };
                 assert!(new_child.is_empty());
             }
@@ -69,7 +72,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // zero_ui::core::widget_base::default_widget_new(id)
                 new_reexport = quote! {
                     #[doc(hidden)]
-                    pub use #crate_core::widget_base::default_widget_new as __new;
+                    #[inline]
+                    pub fn __new(child: impl #crate_core::UiNode, id: impl self::__p_id::Args) -> impl #crate_core::Widget {
+                        // TODO remove the "2" when we convert all to the new macro.
+                        #crate_core::widget_base::default_widget_new2(child, self::__p_id::Args::unwrap(id))
+                    }
                 };
                 new = vec![ident!("id")];
             }

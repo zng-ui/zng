@@ -117,21 +117,21 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|_| {
-        let p_new_child = new_child.iter().map(|id| ident!("__p_{}", id));
+        let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
         quote! {
             #[doc(hidden)]
             pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> impl #crate_core::UiNode {
-                self::new_child(#(#new_child),*)
+                self::new_child(#(self::#p_new_child::Args::unwrap(#new_child)),*)
             }
         }
     });
     let new__ = new_fn.as_ref().map(|f| {
-        let p_new = new.iter().map(|id| ident!("__p_{}", id));
+        let p_new: Vec<_> = new.iter().map(|id| ident!("__p_{}", id)).collect();
         let output = &f.sig.output;
         quote! {
             #[doc(hidden)]
             pub fn __new(__child: impl #crate_core::UiNode, #(#new: impl self::#p_new::Args),*) #output {
-                self::new(__child, #(#new_child),*)
+                self::new(__child, #(self::#p_new::Args::unwrap(#new)),*)
             }
         }
     });
