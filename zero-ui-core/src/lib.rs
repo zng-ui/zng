@@ -1377,7 +1377,9 @@ mod widget_tests {
     #[test]
     pub fn wgt_capture_properties_reassign() {
         let mut wgt = capture_properties_wgt! {
-            new_child_trace = "user-new-child";
+            // TODO generate proper error here, now in panics.
+            new_child_trace = unset!;
+            //new_child_trace = "user-new-child";
             property_trace = "user-property";
             new_trace = "user-new";
         };
@@ -1388,7 +1390,7 @@ mod widget_tests {
         assert!(util::traced(&wgt, "custom new (user)"));
 
         assert!(!util::traced(&wgt, "new-child"));
-        assert!(!util::traced(&wgt, "new"));        
+        assert!(!util::traced(&wgt, "new"));
         assert!(!util::traced(&wgt, "user-new-child"));
         assert!(!util::traced(&wgt, "user-new"));
     }
