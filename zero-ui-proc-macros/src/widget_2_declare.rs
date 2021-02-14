@@ -85,8 +85,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new_child = new_child;
     let new = new;
 
-    let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
-
     // collect inherited properties. Late inherits of the same ident overrides early inherits.
     let mut inherited_properties = HashMap::new();
     let mut inherited_props_child = vec![];

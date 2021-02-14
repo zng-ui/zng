@@ -32,13 +32,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .chain(widget_data.properties.iter())
         .map(|p| &p.ident)
         .collect();
-    // inherited properties that are assigned by the user.
-    let overriden_properties: HashSet<_> = user_input
-        .properties
-        .iter()
-        .filter_map(|p| p.path.get_ident())
-        .filter(|p_id| inherited_properties.contains(p_id))
-        .collect();
+
     // properties that must be assigned by the user.
     let required_properties: HashSet<_> = widget_data
         .properties_child
@@ -55,7 +49,73 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .filter(|p| p.default)
         .map(|p| &p.ident)
         .collect();
+    // properties that are captured in new_child or new.
     let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
+
+    // inherited properties unset by the user.
+    let mut unset_properties = HashSet::new();
+
+    // properties user assigned with `special!` values (valid and invalid).
+    let mut user_properties = HashSet::new();
+
+    // user assigns with valid values.
+    let user_properties: Vec<_> = user_input
+        .properties
+        .iter()
+        .filter(|up| {
+            // if already (un)set by the user.
+            if !user_properties.insert(&up.path) {
+                let p_name = util::display_path(&up.path);
+                errors.push(format_args!("property `{}` already set", p_name), up.path.span());
+                return false;
+            }
+
+            if let PropertyValue::Special(sp, _) = &up.value {
+                if sp == "unset" {
+                    if let Some(maybe_inherited) = up.path.get_ident() {
+                        if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
+                            errors.push(
+                                format_args!("cannot unset required property `{}`", maybe_inherited),
+                                maybe_inherited.span(),
+                            );
+                        } else if !default_properties.contains(maybe_inherited) {
+                            errors.push(
+                                format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
+                                maybe_inherited.span(),
+                            );
+                        } else {
+                            unset_properties.insert(maybe_inherited);
+                        }
+                    } else {
+                        errors.push(
+                            format_args!(
+                                "cannot unset `{}` because it is not set by the widget",
+                                util::display_path(&up.path)
+                            ),
+                            up.path.span(),
+                        );
+                    }
+                } else {
+                    errors.push(format_args!("unknown value `{}!`", sp), sp.span());
+                }
+
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    let unset_properties = unset_properties;
+
+    // inherited properties that are set to a value or unset by the user.
+    let overriden_properties: HashSet<_> = user_properties
+        .iter()
+        .filter_map(|p| p.path.get_ident())
+        .filter(|p_id| inherited_properties.contains(p_id))
+        .chain(unset_properties.iter().copied())
+        .collect();
+
     // all widget properties that will be set (property_path, (property_var, cfg)).
     let mut wgt_properties = HashMap::<syn::Path, (Ident, TokenStream)>::new();
 
@@ -107,50 +167,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         property_set_calls.push((quote! { #module::#p_mod_ident }, p_var_ident, cfg.clone()));
     }
 
-    let mut unset_properties = HashSet::new();
-    let mut user_properties = HashSet::new();
-
-    // for each property assigned in the widget instantiation call (excluding when blocks).
-    for up in &user_input.properties {
+    // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
+    for up in &user_properties {
         let p_name = util::display_path(&up.path);
-
-        // validates and skips `unset!`.
-        if let PropertyValue::Special(sp, _) = &up.value {
-            if sp == "unset" {
-                if let Some(maybe_inherited) = up.path.get_ident() {
-                    if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
-                        errors.push(
-                            format_args!("cannot unset required property `{}`", maybe_inherited),
-                            maybe_inherited.span(),
-                        );
-                    } else if !default_properties.contains(maybe_inherited) {
-                        errors.push(
-                            format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
-                            maybe_inherited.span(),
-                        );
-                    } else {
-                        unset_properties.insert(maybe_inherited);
-                    }
-                } else {
-                    errors.push(
-                        format_args!(
-                            "cannot unset `{}` because it is not set by the widget",
-                            util::display_path(&up.path)
-                        ),
-                        up.path.span(),
-                    );
-                }
-            } else {
-                errors.push(format_args!("unknown value `{}!`", sp), sp.span());
-            }
-            // skip special values.
-            continue;
-        }
-
-        if !user_properties.insert(&up.path) {
-            errors.push(format_args!("property `{}` already set", p_name), up.path.span());
-            continue;
-        }
 
         let p_mod = match up.path.get_ident() {
             Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
@@ -197,7 +216,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[cfg(not(debug_assertions))]
         prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream()));
     }
-    let unset_properties = unset_properties;
     let wgt_properties = wgt_properties;
 
     // validate required properties.

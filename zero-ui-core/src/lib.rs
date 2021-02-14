@@ -1377,9 +1377,8 @@ mod widget_tests {
     #[test]
     pub fn wgt_capture_properties_reassign() {
         let mut wgt = capture_properties_wgt! {
-            // TODO generate proper error here, now in panics.
-            new_child_trace = unset!;
-            //new_child_trace = "user-new-child";
+            //new_child_trace = unset!;// compile error here
+            new_child_trace = "user-new-child";
             property_trace = "user-property";
             new_trace = "user-new";
         };
