@@ -540,6 +540,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #new_child__
                     #new__
 
+                    #property_declarations
+
                     #property_defaults
 
                     #when_conditions

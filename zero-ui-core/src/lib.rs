@@ -1394,6 +1394,86 @@ mod widget_tests {
         assert!(!util::traced(&wgt, "user-new"));
     }
 
+    /*
+     * Tests capture-only property declaration in widget.
+     */
+    #[widget2($crate::widget_tests::new_capture_property_wgt)]
+    pub mod new_capture_property_wgt {
+        use super::util::trace;
+        use crate::UiNode;
+
+        properties! {
+            new_capture: &'static str = "new_capture-default";
+        }
+
+        fn new_child(new_capture: &'static str) -> impl UiNode {
+            let msg = match new_capture {
+                "new_capture-default" => "captured new_capture (default)",
+                "new_capture-user" => "captured new_capture (user)",
+                o => panic!("unexpected {:?}", o),
+            };
+            let node = crate::widget_base::default_widget_new_child();
+            trace(node, msg)
+        }
+    }
+    #[test]
+    pub fn wgt_new_capture_property() {
+        let mut wgt = new_capture_property_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured new_capture (default)"));
+    }
+    #[test]
+    pub fn wgt_new_capture_property_reassign() {
+        let mut wgt = new_capture_property_wgt! {
+            new_capture = "new_capture-user"
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured new_capture (user)"));
+    }
+    #[widget2($crate::widget_tests::new_capture_property_named_wgt)]
+    pub mod new_capture_property_named_wgt {
+        use super::util::trace;
+        use crate::UiNode;
+
+        properties! {
+            new_capture: {
+                name: &'static str,
+                age: u32,
+            } = "name", 42;
+        }
+
+        fn new_child(new_capture: (&'static str, u32)) -> impl UiNode {
+            let msg = match new_capture {
+                ("name", 42) => "captured new_capture (default)",
+                ("eman", 24) => "captured new_capture (user)",
+                o => panic!("unexpected {:?}", o),
+            };
+            let node = crate::widget_base::default_widget_new_child();
+            trace(node, msg)
+        }
+    }
+    #[test]
+    pub fn wgt_new_capture_property_named() {
+        let mut wgt = new_capture_property_named_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured new_capture (default)"));
+    }
+    #[test]
+    pub fn wgt_new_capture_property_named_reassign() {
+        let mut wgt = new_capture_property_named_wgt! {
+            new_capture = {
+                name: "eman",
+                age: 24
+            }
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured new_capture (user)"));
+    }
+
     mod util {
         use std::{
             collections::{HashMap, HashSet},
