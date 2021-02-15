@@ -609,19 +609,29 @@ mod output {
     impl ToTokens for OutputAttributes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
-            tokens.extend(quote! {
-                /// </div>
-                /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
-                /// <pre id='ffn' class='rust fn'></pre>
-                /// <div class='docblock'>
-                ///
-                /// Each property is a function that can be called directly.
-                ///
-                ///
-                /// The property is ***set*** around the first input [`UiNode`](crate::core::UiNode),
-                /// the other inputs are the property arguments. The function output is a new [`UiNode`](crate::core::UiNode) that
-                /// includes the property behavior.
-            });
+            if self.is_capture_only {
+                tokens.extend(quote! {
+                    /// </div>
+                    ///
+                    /// This property is `capture_only` meaning it can only be used in widget declarations
+                    /// to define a property that is captured by the widget.
+                });
+            } else {
+                tokens.extend(quote! {
+                    /// </div>
+                    /// <h2 id='function' class='small-section-header'>Function<a href='#function' class='anchor'></a></h2>
+                    /// <pre id='ffn' class='rust fn'></pre>
+                    /// <div class='docblock'>
+                    ///
+                    /// This property is a function that can be called directly.
+                    ///
+                    ///
+                    /// The property is ***set*** around the first input [`UiNode`](crate::core::UiNode),
+                    /// the other inputs are the property arguments. The function output is a new [`UiNode`](crate::core::UiNode) that
+                    /// includes the property behavior.
+                });
+            }
+
             doc_extend!(
                 tokens,
                 "<script>{}property({})</script>",
