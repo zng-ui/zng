@@ -1518,6 +1518,7 @@ pub trait PixelGridExt {
     /// Gets a copy of self that is aligned with the pixel grid.
     fn snap_to(self, grid: PixelGrid) -> Self;
     /// Checks if self is aligned with the pixel grid.
+    #[allow(clippy::wrong_self_convention)] // trait implemented for layout types that are all copy.
     fn is_aligned_to(self, grid: PixelGrid) -> bool;
 }
 impl PixelGridExt for LayoutPoint {

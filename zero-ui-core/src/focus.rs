@@ -1050,7 +1050,7 @@ impl<'a> FrameFocusInfo<'a> {
     #[inline]
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetFocusInfo> {
         self.get(path)
-            .or_else(|| path.ancestors().iter().rev().filter_map(|&id| self.find(id)).next())
+            .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
     }
 
     /// If the frame info contains the widget and it is focusable.
@@ -1063,9 +1063,11 @@ impl<'a> FrameFocusInfo<'a> {
 /// [`WidgetInfo`] extensions that build a [`WidgetFocusInfo`].
 pub trait WidgetInfoFocusExt<'a> {
     /// Wraps the [`WidgetInfo`] in a [`WidgetFocusInfo`] even if it is not focusable.
+    #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focus_info(self) -> WidgetFocusInfo<'a>;
 
     /// Returns a wrapped [`WidgetFocusInfo`] if the [`WidgetInfo`] is focusable.
+    #[allow(clippy::wrong_self_convention)] // WidgetFocusInfo is a reference wrapper.
     fn as_focusable(self) -> Option<WidgetFocusInfo<'a>>;
 }
 impl<'a> WidgetInfoFocusExt<'a> for WidgetInfo<'a> {

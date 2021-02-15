@@ -766,10 +766,10 @@ impl PartialEq<Text> for String {
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
 pub trait ToText {
-    fn to_text(self) -> Text;
+    fn to_text(&self) -> Text;
 }
 impl<T: ToString> ToText for T {
-    fn to_text(self) -> Text {
+    fn to_text(&self) -> Text {
         self.to_string().into()
     }
 }
