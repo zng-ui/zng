@@ -605,7 +605,6 @@ mod output {
         pub attrs: Vec<Attribute>,
         pub is_capture_only: bool,
     }
-
     impl ToTokens for OutputAttributes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
@@ -943,7 +942,6 @@ mod output {
             })
         }
     }
-
     impl ToTokens for Priority {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             match self {
