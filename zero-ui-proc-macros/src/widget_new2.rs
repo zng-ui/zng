@@ -164,7 +164,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             /*user_assigned: */ false,
         ));
         #[cfg(not(debug_assertions))]
-        property_set_calls.push((quote! { #module::#p_mod_ident }, p_var_ident, cfg.clone()));
+        property_set_calls.push((quote! { #module::#p_mod_ident }, p_var_ident, ip.ident.to_string(), cfg.clone()));
     }
 
     // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
@@ -462,6 +462,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // generate property assigns.
     let mut property_set_calls = TokenStream::default();
     for set_calls in vec![child_prop_set_calls, prop_set_calls] {
+        for set_call in &set_calls {
+            #[cfg(debug_assertions)]
+            let (p_mod, _, p_name, _, cfg, _) = set_call;
+            #[cfg(not(debug_assertions))]
+            let (p_mod, _, p_name, cfg) = set_call;
+            let capture_only_error = format!("property `{}` cannot be set because it is capture-only, but is not captured by the widget", p_name);
+            property_set_calls.extend(quote_spanned! {p_mod.span()=>
+                #cfg
+                #p_mod::code_gen!{
+                    assert !capture_only => #capture_only_error
+                }
+            })
+        }
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
             for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
@@ -473,7 +486,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 });
             }
             #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, cfg) in &set_calls {
+            for (p_mod, p_var_ident, _, cfg) in &set_calls {
                 property_set_calls.extend(quote! {
                     #cfg
                     #p_mod::code_gen! {

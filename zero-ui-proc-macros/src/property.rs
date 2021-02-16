@@ -989,7 +989,9 @@ mod output {
             };
 
             let set = if priority.is_capture_only() {
-                TokenStream::new()
+                quote! {
+                    (set $($tt:tt)*) => {};
+                }
             } else {
                 #[cfg(debug_assertions)]
                 quote! {
