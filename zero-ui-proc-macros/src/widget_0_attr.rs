@@ -169,10 +169,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             if !captures.contains(p_ident) {
                 // new capture properties must be captured by new *new* functions.
                 errors.push(
-                    format_args!("property `{}` is declared in widget but is not captured by widget", p_ident),
+                    format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
                     p_ident.span(),
                 );
-                continue;
             }
 
             let p_mod_ident = ident!("__p_{}", p_ident);

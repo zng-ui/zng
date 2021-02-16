@@ -545,6 +545,8 @@ pub use zero_ui_proc_macros::widget_mixin;
 pub use zero_ui_proc_macros::widget2;
 pub use zero_ui_proc_macros::widget_mixin2;
 
+// TODO: use try_build -> https://crates.io/crates/trybuild
+
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
 #[allow(dead_code)] // if it builds it passes.
@@ -1432,6 +1434,7 @@ mod widget_tests {
 
         assert!(util::traced(&wgt, "captured new_capture (user)"));
     }
+
     #[widget2($crate::widget_tests::new_capture_property_named_wgt)]
     pub mod new_capture_property_named_wgt {
         use super::util::trace;
@@ -1472,6 +1475,45 @@ mod widget_tests {
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
         assert!(util::traced(&wgt, "captured new_capture (user)"));
+    }
+
+    /*
+     * Tests external capture_only properties
+     */
+    #[widget2($crate::widget_tests::captured_property_wgt)]
+    pub mod captured_property_wgt {
+        use super::util::{capture_only_trace, trace};
+        use crate::UiNode;
+
+        properties! {
+            capture_only_trace = "capture-default";
+        }
+
+        fn new_child(capture_only_trace: &'static str) -> impl UiNode {
+            let msg = match capture_only_trace {
+                "capture-default" => "captured capture (default)",
+                "capture-user" => "captured capture (user)",
+                o => panic!("unexpected {:?}", o),
+            };
+            let node = crate::widget_base::default_widget_new_child();
+            trace(node, msg)
+        }
+    }
+    #[test]
+    pub fn wgt_captured_property() {
+        let mut wgt = captured_property_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured capture (default)"));
+    }
+    #[test]
+    pub fn wgt_captured_property_reassign() {
+        let mut wgt = captured_property_wgt! {
+            capture_only_trace = "capture-user"
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert!(util::traced(&wgt, "captured capture (user)"));
     }
 
     mod util {
@@ -1658,5 +1700,9 @@ mod widget_tests {
                 }
             }
         }
+
+        /// A capture_only property.
+        #[property(capture_only)]
+        pub fn capture_only_trace(trace: &'static str) -> ! {}
     }
 }
