@@ -165,7 +165,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
 ///
 /// Some variable types are safe to reference the inner value at any moment, other variables
 /// can be wrapped in a type that makes a local clone of the current value. You can get any
-/// variable as a local variable by calling [`Var::as_local`].
+/// variable as a local variable by calling [`Var::into_local`].
 pub trait VarLocal<T: VarValue>: VarObj<T> {
     /// Reference the value.
     fn get_local(&self) -> &T;
@@ -197,9 +197,9 @@ pub trait VarLocal<T: VarValue>: VarObj<T> {
 ///
 /// Most of the methods are declared in the [`VarObj`] trait to support boxing.
 pub trait Var<T: VarValue>: VarObj<T> + Clone {
-    /// Return type of [`as_read_only`](Var::as_read_only).
+    /// Return type of [`into_read_only`](Var::into_read_only).
     type AsReadOnly: Var<T>;
-    /// Return type of [`as_local`](Var::as_local).
+    /// Return type of [`into_local`](Var::into_local).
     type AsLocal: VarLocal<T>;
 
     /// Schedules a closure to modify the value after the current update.
@@ -212,10 +212,10 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly>;
 
     /// Returns the variable as a type that is [`always_read_only`](VarObj::always_read_only).
-    fn as_read_only(self) -> Self::AsReadOnly;
+    fn into_read_only(self) -> Self::AsReadOnly;
 
     /// Returns the variable as a type that implements [`VarLocal`].
-    fn as_local(self) -> Self::AsLocal;
+    fn into_local(self) -> Self::AsLocal;
 
     /// Returns a variable with value generated from `self`.
     ///
@@ -293,12 +293,12 @@ pub trait IntoVar<T: VarValue>: Clone {
     /// Converts the source value into a var.
     fn into_var(self) -> Self::Var;
 
-    /// Shortcut call `self.into_var().as_local()`.
+    /// Shortcut call `self.into_var().into_local()`.
     fn into_local(self) -> <<Self as IntoVar<T>>::Var as Var<T>>::AsLocal
     where
         Self: Sized,
     {
-        self.into_var().as_local()
+        self.into_var().into_local()
     }
 }
 

@@ -55,11 +55,11 @@ impl<T: VarValue, V: Var<T>> Var<T> for ForceReadOnlyVar<T, V> {
     type AsReadOnly = Self;
     type AsLocal = CloningLocalVar<T, Self>;
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 

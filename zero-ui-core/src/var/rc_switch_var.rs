@@ -213,11 +213,11 @@ macro_rules! impl_rc_switch_var {
                 }
             }
 
-            fn as_read_only(self) -> Self::AsReadOnly {
+            fn into_read_only(self) -> Self::AsReadOnly {
                 ForceReadOnlyVar::new(self)
             }
 
-            fn as_local(self) -> Self::AsLocal {
+            fn into_local(self) -> Self::AsLocal {
                 CloningLocalVar::new(self)
             }
 
@@ -438,11 +438,11 @@ impl<O: VarValue, VI: VarObj<usize>> Var<O> for RcSwitchVar<O, VI> {
         self.0.vars[*self.0.index.get(vars)].modify_boxed(vars, Box::new(change))
     }
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         ForceReadOnlyVar::new(self)
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 

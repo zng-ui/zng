@@ -258,11 +258,11 @@ macro_rules! impl_rc_when_var {
                 }
             }
 
-            fn as_read_only(self) -> Self::AsReadOnly {
+            fn into_read_only(self) -> Self::AsReadOnly {
                ForceReadOnlyVar::new(self)
             }
 
-            fn as_local(self) -> Self::AsLocal {
+            fn into_local(self) -> Self::AsLocal {
                 CloningLocalVar::new(self)
             }
 
@@ -484,11 +484,11 @@ impl<O: VarValue> Var<O> for RcWhenVar<O> {
         self.modify_boxed(vars, Box::new(change))
     }
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         ForceReadOnlyVar::new(self)
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 

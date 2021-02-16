@@ -80,11 +80,11 @@ impl<C: ContextVar> Var<C::Type> for ContextVarProxy<C> {
 
     type AsLocal = CloningLocalVar<C::Type, Self>;
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 

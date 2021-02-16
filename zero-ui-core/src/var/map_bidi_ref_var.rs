@@ -117,11 +117,11 @@ where
         self.var.modify(vars, move |v| change(mut_(v)))
     }
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         MapRefVar::new(self.var, self.map)
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         CloningLocalVar::new(self)
     }
 

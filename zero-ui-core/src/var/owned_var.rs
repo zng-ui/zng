@@ -64,11 +64,11 @@ impl<T: VarValue> Var<T> for OwnedVar<T> {
     type AsReadOnly = Self;
     type AsLocal = Self;
 
-    fn as_read_only(self) -> Self::AsReadOnly {
+    fn into_read_only(self) -> Self::AsReadOnly {
         self
     }
 
-    fn as_local(self) -> Self::AsLocal {
+    fn into_local(self) -> Self::AsLocal {
         self
     }
 
