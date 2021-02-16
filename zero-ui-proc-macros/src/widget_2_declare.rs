@@ -343,7 +343,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .chain(properties_child.iter().chain(properties.iter()).map(|p| &p.ident))
         .collect();
     // widget properties introduced first by use in when blocks, we validate for default value.
-    let mut wgt_when_properties = HashSet::new();
+    // map of [property_without_value => combined_cfg_for_default_init]
+    let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();
 
     for BuiltWhen {
         ident,
@@ -353,17 +354,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         assigns,
     } in whens
     {
-        for input in &inputs {
-            if !wgt_all_properties.contains(input) {
-                wgt_when_properties.insert(input.clone());
+        let bw_cfg = if cfg.is_empty() {
+            None
+        } else {
+            Some(util::parse_attr(cfg.clone()).unwrap())
+        };
+
+        // for each property in inputs and assigns that are not declared in widget or inherited.
+        for (property, p_cfg) in inputs.iter().map(|i| (i, None)).chain(
+            assigns
+                .iter()
+                .map(|a| (&a.property, if a.cfg.is_empty() { None } else { Some(a.cfg.clone()) }))
+                .filter(|(p, _)| !wgt_all_properties.contains(p)),
+        ) {
+            let cfg = util::cfg_attr_or(bw_cfg.clone(), p_cfg.map(|tt| util::parse_attr(tt).unwrap()));
+            match wgt_when_properties.entry(property.clone()) {
+                std::collections::hash_map::Entry::Occupied(mut e) => {
+                    let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
+                    *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
+                }
+                std::collections::hash_map::Entry::Vacant(e) => {
+                    e.insert(cfg);
+                }
             }
         }
 
         let mut assigns_tt = TokenStream::default();
         for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-            if !wgt_all_properties.contains(&property) {
-                wgt_when_properties.insert(property.clone());
-            }
             assigns_tt.extend(quote! {
                 #property { cfg { #cfg } value_fn { #value_fn } }
             });
@@ -382,7 +399,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // reexported if they have default values.
     let mut when_condition_default_props = TokenStream::default();
     let mut wgt_properties = wgt_properties;
-    for w_prop in &wgt_when_properties {
+    for (w_prop, cfg) in &wgt_when_properties {
         // property not introduced in the widget first, validate that it has a default value.
 
         let p_ident = ident!("__p_{}", w_prop);
@@ -430,7 +447,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         wgt_properties.extend(quote! {
             #w_prop {
                 docs { } // TODO script call that takes the property summary?
-                cfg { } // TODO combine cfg like is done in widget_new2?
+                cfg { #cfg }
                 default { true }
                 required { false }
             }

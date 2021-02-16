@@ -421,6 +421,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_whens.push((cfg.to_token_stream(), ident.clone(), assign_val_id, val));
         }
     }
+    // properties that are only introduced in user when conditions.
     for (p, cfg) in user_when_properties {
         let args_ident = ident!("__{}", util::path_to_ident_str(&p));
         let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
