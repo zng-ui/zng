@@ -309,6 +309,13 @@ impl Attributes {
     }
 }
 
+/// Gets if any of the attributes is #[doc(hidden)].
+pub fn is_doc_hidden(docs: &[Attribute]) -> bool {
+    let expected = quote! { (hidden) };
+    docs.iter()
+        .any(|a| token_stream_eq(a.tokens.clone(), expected.clone()) && a.path.get_ident().map(|id| id == "doc").unwrap_or_default())
+}
+
 pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
     if docs.is_empty() {
         doc_extend!(output, "{}", js);

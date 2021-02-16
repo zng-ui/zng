@@ -467,7 +467,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let (p_mod, _, p_name, _, cfg, _) = set_call;
             #[cfg(not(debug_assertions))]
             let (p_mod, _, p_name, cfg) = set_call;
-            let capture_only_error = format!("property `{}` cannot be set because it is capture-only, but is not captured by the widget", p_name);
+            let capture_only_error = format!(
+                "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
+                p_name
+            );
             property_set_calls.extend(quote_spanned! {p_mod.span()=>
                 #cfg
                 #p_mod::code_gen!{

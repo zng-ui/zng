@@ -454,8 +454,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
-    let gen_docs = TokenStream::default();
-
     let built_data = quote! {
         module { #module }
         properties_child {
@@ -535,7 +533,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #errors
 
         #attrs
-        #gen_docs
+        // TODO property docs
         #cfg
         #vis mod #ident {
             #mod_items

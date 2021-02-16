@@ -23,50 +23,14 @@ pub use ui_n::*;
 pub use view_::*;
 pub use window_::*;
 
-/// Tests on the widget! code generator.
-#[cfg(test)]
-mod build_tests {
-    use super::*;
-    use crate::prelude::*;
+/// My widget docs.
+#[crate::core::widget2($crate::widgets::docs_sample_wgt)]
+pub mod docs_sample_wgt {
+    use crate::core::color::colors;
+    use crate::properties::background::background_color;
 
-    fn _basic(child: impl Widget) -> impl Widget {
-        button! {
-            on_click: |_,_|{};
-            background_gradient: 90.deg(), [rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)];
-            content: child;
-        }
-    }
-
-    fn _args(child: impl Widget) -> impl Widget {
-        button! {
-            on_click: {
-                handler: |_,_|{},
-            };
-
-            background_gradient: {
-                angle: 90.deg(),
-                stops: [rgb(0.0, 0.0, 0.0), rgb(1.0, 1.0, 1.0)]
-            };
-
-            content: child;
-        }
-    }
-
-    fn _id(child: impl Widget) -> impl Widget {
-        button! {
-            on_click: |_,_|{};
-            id: WidgetId::new_unique();
-            content: child;
-        }
-    }
-
-    fn _id_args(child: impl Widget) -> impl Widget {
-        button! {
-            on_click: |_,_|{};
-            id: {
-                id: WidgetId::new_unique()
-            };
-            content: child;
-        }
+    properties! {
+        /// My property docs.
+        background_color = colors::RED;
     }
 }

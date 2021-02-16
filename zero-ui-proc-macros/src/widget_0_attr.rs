@@ -47,11 +47,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         cfg: wgt_cfg,
         docs,
         lints,
-        others: mut wgt_attrs,
+        others,
         ..
     } = Attributes::new(mod_.attrs);
-    wgt_attrs.extend(lints);
-    wgt_attrs.extend(docs);
+    let mut wgt_attrs = TokenStream::default();
+    wgt_attrs.extend(quote! { #(#others)* });
+    wgt_attrs.extend(quote! { #(#lints)* });
+    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js_tag!("widget_header.js"));
+
     let wgt_attrs = wgt_attrs;
 
     let vis = mod_.vis;
@@ -502,7 +505,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             widget {
                 module { #mod_path }
-                attrs { #(#wgt_attrs)* }
+                attrs { #wgt_attrs }
                 cfg { #wgt_cfg }
                 vis { #vis }
                 ident { #ident }

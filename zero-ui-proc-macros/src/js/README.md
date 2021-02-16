@@ -9,10 +9,12 @@ The files are minified by the build script, the inserted string is the minified 
 
 # Limitations
 
-## No Empty Lines
+## Use Single Quotes
 
-The files cannot have empty lines, `rustdoc/markdown` HTML tag detection does not work over empty lines. The minification process
-usually removes all empty lines.
+Use `'` instead of `"`, rust-doc incorrectly escapes `"` with `&quot;`. Escaped quotes works in most browsers, but
+prints errors to the console.
+
+If you need to use `"` inside a string replace it with `\u0022`.
 
 ## No Fetching
 
@@ -20,9 +22,6 @@ The files cannot use `fetch` because its common to open documentation from local
 
 To circumvent this issue load the extra content using `iframe` elements and use the `window.message` event to send data from inside the frame to the outside.
 
-## Use Single Quotes
+## No Empty Lines
 
-Use `'` instead of `"`, rust-doc incorrectly escapes `"` with `&quot;`. Escaped quotes works in most browsers, but
-prints errors to the console.
-
-If you need to use `"` inside a string replace it with `\u0022`.
+The minified script cannot have empty lines, `rustdoc/markdown` HTML tag detection does not work over empty lines. The minification process should remove all empty lines, but this is something to inspect if a script is not working.
