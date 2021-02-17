@@ -567,7 +567,7 @@ mod property_tests {
         assert_eq!(1, *a.get_local());
         assert_eq!(2, *b.get_local());
     }
-        
+
     #[property(context)]
     fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
         let _ = state;

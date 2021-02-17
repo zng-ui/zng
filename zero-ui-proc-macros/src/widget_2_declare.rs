@@ -529,7 +529,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let auto_docs = auto_docs();
+    let auto_docs = auto_docs(vec![], vec![], vec![], vec![], vec![]);
 
     let r = quote! {
         #errors
@@ -564,13 +564,151 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     r.into()
 }
-fn auto_docs() -> TokenStream {
+struct PropertyDocs {
+    ident: Ident,
+    docs: TokenStream,
+    doc_hidden: bool,
+    inherited_from_path: Option<TokenStream>,
+    has_default: bool,
+}
+struct WhenDocs {
+    docs: TokenStream,
+    expr: String,
+}
+fn auto_docs(
+    required: Vec<PropertyDocs>,
+    default: Vec<PropertyDocs>,
+    state: Vec<PropertyDocs>,
+    other: Vec<PropertyDocs>,
+    whens: Vec<WhenDocs>,
+) -> TokenStream {
     #[allow(unused)]
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
-    // TODO properties
     doc_extend!(r, js_tag!("widget_full.js"));
+
+    doc_extend!(r, "\n</div>");
+
+    docs_section(
+        &mut r,
+        required,
+        "Required Properties",
+        "required-properties",
+        "Properties that must be set.",
+    );
+    docs_section(
+        &mut r,
+        default,
+        "Default Properties",
+        "default-properties",
+        "Properties that have a default value.",
+    );
+    docs_section(
+        &mut r,
+        state,
+        "State Properties",
+        "state-properties",
+        "Properties that probe the widget state.",
+    );
+    if !other.is_empty() {
+        docs_section(
+            &mut r,
+            other,
+            "Other Properties",
+            "other-properties",
+            "Other properties declared in the widget.",
+        );
+        docs_property_header(&mut r, "wp-all", "*", "#wp-all");
+        doc_extend!(r, "Widgets are open ended, all property functions can be used in any widget.");
+        docs_close_property(&mut r);
+    } else {
+        docs_section_header(
+            &mut r,
+            "Other Properties",
+            "other-properties",
+            "Other properties declared in the widget.",
+        );
+        docs_property_header(&mut r, "wp-all", "*", "#wp-all");
+        doc_extend!(r, "Widgets are open ended, all property functions can be used in any widget.");
+        docs_close_section(&mut r);
+    }
+
+    if !whens.is_empty() {
+        docs_section_header(&mut r, "Whens", "whens", "When conditions and what properties they set.");
+        for (i, when) in whens.into_iter().enumerate() {
+            doc_extend!(r, "\n\n");
+            doc_extend!(
+                r,
+                r##"<h3 id="ww-{0}" class="method in-band"><code><a style="margin-left:10px" href="#ww-{0}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+                i,
+                when.expr,
+            );
+            doc_extend!(r, "<div>\n\n");
+            r.extend(when.docs);
+            doc_extend!(r, "</div>\n\n");
+        }
+        docs_close_section(&mut r);
+    }
+
     r
+}
+fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'static str, id: &'static str, tool_tip: &'static str) {
+    if properties.is_empty() {
+        return;
+    }
+    docs_section_header(docs, title, id, tool_tip);
+    for property in properties {
+        if property.doc_hidden {
+            // TODO handle doc generation that includes doc_hidden items
+            continue;
+        }
+        docs_property_header(
+            docs,
+            &format!("wp-{}", property.ident),
+            &property.ident.to_string(),
+            &format!("fn.__p_{}.html", property.ident),
+        );
+        docs.extend(property.docs);
+        if property.has_default {
+            doc_extend!(docs, "*This property has a default value set by the widget.*");
+        }
+        if let Some(widget_path) = property.inherited_from_path {
+            let widget_path = util::tokens_to_ident_str(&widget_path);
+            let widget_name = if let Some(i) = widget_path.rfind(':') {
+                &widget_path[i + 1..]
+            } else {
+                &widget_path
+            };
+            doc_extend!(docs, "*Inherited from [`{}`]({}#wp-{})*", widget_name, widget_path, property.ident);
+        }
+        docs_close_property(docs);
+    }
+    docs_close_section(docs);
+}
+fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static str, tool_tip: &'static str) {
+    doc_extend!(
+        docs,
+        r##"<h2 id="{0}" class="small-section-header" title="{2}">{1}<a href="#{0}" class="anchor"></a></h2><div class="methods" style="display: block;">"##,
+        id,
+        title,
+        tool_tip,
+    )
+}
+fn docs_close_section(docs: &mut TokenStream) {
+    doc_extend!(docs, "</div>");
+}
+fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str) {
+    doc_extend!(docs, "\n\n");
+    doc_extend!(
+        docs,
+        r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+        id,
+        property,
+        url
+    );
+}
+fn docs_close_property(docs: &mut TokenStream) {
+    doc_extend!(docs, "</div>\n\n");
 }
 
 struct Items {

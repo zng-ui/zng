@@ -7,9 +7,9 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         Err(e) => {
             // in case of incorrect args, like unknown priority, we give the args error
             // but do not remove the function.
-           let mut  r =  proc_macro::TokenStream::from(e.to_compile_error());
-           r.extend(input);
-           return r;
+            let mut r = proc_macro::TokenStream::from(e.to_compile_error());
+            r.extend(input);
+            return r;
         }
     };
 
