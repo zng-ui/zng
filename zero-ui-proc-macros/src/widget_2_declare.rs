@@ -529,11 +529,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
+    let auto_docs = auto_docs();
+
     let r = quote! {
         #errors
 
         #attrs
-        // TODO property docs
+        #auto_docs
         #cfg
         #vis mod #ident {
             #mod_items
@@ -561,6 +563,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     r.into()
+}
+fn auto_docs() -> TokenStream {
+    let mut r = TokenStream::default();
+    // TODO properties
+    doc_extend!(r, js_tag!("widget_full.js"));
+    r
 }
 
 struct Items {
