@@ -2,7 +2,17 @@ use quote::ToTokens;
 use syn::parse_macro_input;
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let args = parse_macro_input!(args as input::MacroArgs);
+    let args = match syn::parse::<input::MacroArgs>(args) {
+        Ok(a) => a,
+        Err(e) => {
+            // in case of incorrect args, like unknown priority, we give the args error
+            // but do not remove the function.
+           let mut  r =  proc_macro::TokenStream::from(e.to_compile_error());
+           r.extend(input);
+           return r;
+        }
+    };
+
     let fn_ = parse_macro_input!(input as input::PropertyFn);
 
     let output = analysis::generate(args, fn_);
@@ -151,7 +161,7 @@ mod analysis {
 
         // validate prefix
         let args_len = fn_.sig.inputs.len();
-        let args_span = fn_.sig.inputs.span();
+        let args_span = fn_.sig.paren_token.span;
         if args.priority.is_capture_only() {
             match prefix {
                 Prefix::State => {

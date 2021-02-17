@@ -545,8 +545,6 @@ pub use zero_ui_proc_macros::widget_mixin;
 pub use zero_ui_proc_macros::widget2;
 pub use zero_ui_proc_macros::widget_mixin2;
 
-// TODO: use try_build -> https://crates.io/crates/trybuild
-
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
 #[allow(dead_code)] // if it builds it passes.
@@ -559,25 +557,6 @@ mod property_tests {
         let _arg = arg;
         child
     }
-
-    #[property(event)]
-    fn on_event(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {
-        let _arg = arg;
-        child
-    }
-
-    #[property(outer)]
-    fn basic_outer(child: impl UiNode, arg: impl IntoVar<u8>) -> impl UiNode {
-        let _arg = arg;
-        child
-    }
-
-    #[property(context)]
-    fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
-        let _ = state;
-        child
-    }
-
     #[test]
     fn basic_gen() {
         use basic_context::{code_gen, Args, ArgsImpl};
@@ -588,7 +567,12 @@ mod property_tests {
         assert_eq!(1, *a.get_local());
         assert_eq!(2, *b.get_local());
     }
-
+        
+    #[property(context)]
+    fn is_state(child: impl UiNode, state: StateVar) -> impl UiNode {
+        let _ = state;
+        child
+    }
     #[test]
     fn default_value() {
         use is_state::{code_gen, Args, ArgsImpl};
@@ -626,74 +610,6 @@ mod property_tests {
         };
         assert!(!is_default);
         assert!(is_not_default);
-    }
-
-    #[property(context)]
-    fn phantom_gen<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: impl IntoVar<A>) -> impl UiNode {
-        let _ = a;
-        let _ = b;
-        child
-    }
-
-    #[property(context)]
-    fn no_phantom_required(child: impl UiNode, a: Vec<u8>) -> impl UiNode {
-        println!("{:?}", a);
-        let _args = no_phantom_required::ArgsImpl { a: vec![0, 1] };
-        child
-    }
-
-    #[property(context)]
-    fn not_arg_gen<C: UiNode>(child: C, arg: impl IntoVar<u8>) -> C {
-        let _arg = arg;
-        let _arg = not_arg_gen::ArgsImpl::new(1);
-        child
-    }
-
-    #[property(context, allowed_in_when: false)]
-    fn no_bounds<A>(child: impl UiNode, a: A) -> impl UiNode {
-        let _a = no_bounds::ArgsImpl::new(a);
-        child
-    }
-
-    #[property(context, allowed_in_when: false)]
-    fn no_bounds_phantom<A, B: Into<A>>(child: impl UiNode, b: B) -> impl UiNode {
-        let _b = no_bounds_phantom::ArgsImpl::new(b);
-        child
-    }
-
-    #[property(context, allowed_in_when: false)]
-    fn no_bounds_not_arg<A: UiNode, B>(child: A, b: B) -> impl UiNode {
-        let _b = no_bounds_not_arg::ArgsImpl::new(b);
-        child
-    }
-
-    #[property(context)]
-    fn where_bounds<A, C, B>(child: C, a: impl IntoVar<A>, b: B) -> C
-    where
-        C: UiNode,
-        A: VarValue,
-        B: IntoVar<A>,
-    {
-        let _ = (a, b);
-        child
-    }
-
-    #[property(context)]
-    fn generated_generic_name_collision<TC: UiNode>(child: TC, c: impl IntoVar<char>) -> TC {
-        let _ = c;
-        child
-    }
-
-    #[property(context)]
-    fn not_into_var_input(child: impl UiNode, input: impl Var<&'static str>) -> impl UiNode {
-        let _ = input;
-        child
-    }
-
-    #[property(context)]
-    fn not_var_input(child: impl UiNode, input: &'static str) -> impl UiNode {
-        let _ = input;
-        child
     }
 }
 

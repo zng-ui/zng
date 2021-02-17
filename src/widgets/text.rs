@@ -144,6 +144,7 @@ pub struct TextNode<T: Var<Text>> {
     font_face: Option<FontFaceRef>,
     // Copy for layout, or zero before init.
     font_size: Length,
+    #[allow(unused)] // TODO
     line_spacing: Length,
 
     synthesis_used: FontSynthesis,
@@ -151,6 +152,8 @@ pub struct TextNode<T: Var<Text>> {
     /* measure, arrange data */
     //
     line_shaping_args: TextShapingArgs,
+
+    #[allow(unused)] // TODO
     layout_line_spacing: f32,
     // Font instance using the actual font_size.
     font: Option<FontRef>,
@@ -314,7 +317,7 @@ impl<T: Var<Text>> UiNode for TextNode<T> {
         self.size
     }
 
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+    fn arrange(&mut self, _final_size: LayoutSize, _ctx: &mut LayoutContext) {
         // TODO use final size for wrapping?
         // http://www.unicode.org/reports/tr14/tr14-45.html
     }

@@ -3,6 +3,7 @@ use crate::core::gesture::*;
 use crate::core::window::{StartPosition, Window};
 use crate::prelude::new_widget::*;
 
+#[allow(unused)]// it is used, and widget! will be deleted soon.
 use crate::core::widget_base::enabled;
 
 widget! {

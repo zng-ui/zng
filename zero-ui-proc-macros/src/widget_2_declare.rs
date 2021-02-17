@@ -565,6 +565,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     r.into()
 }
 fn auto_docs() -> TokenStream {
+    #[allow(unused)]
+    use util::is_doc_hidden;
     let mut r = TokenStream::default();
     // TODO properties
     doc_extend!(r, js_tag!("widget_full.js"));
