@@ -1,5 +1,5 @@
 // Script inserted at the start of each property function docs.
-// In the functions list page it creates a new "Property Functions" section.
+// In the functions list page it creates a new 'Property Functions' section.
 var local = document.currentScript.closest('tr');
 if (document.property_fns === undefined) {
     document.property_fns = new Array(local);
@@ -47,4 +47,10 @@ function move_properties() {
             side_functions.remove();
         }
     }
+    // the header script ends up in the sidebar tooltip, remove it here.
+    // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
+    let fn_section = document.querySelector('div.block.fn');
+    fn_section.querySelectorAll('li a').forEach(function (a) {
+        a.title = a.title.replace(/var local=doc.*/, '');
+    });
 }
