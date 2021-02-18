@@ -28,9 +28,15 @@ pub use window_::*;
 pub mod docs_sample_wgt {
     use crate::core::color::colors;
     use crate::properties::background::background_color;
+    use crate::properties::states::is_hovered;
 
     properties! {
         /// My property docs.
         background_color = colors::RED;
+
+        /// My when docs.
+        when self.is_hovered {
+            background_color = colors::BLUE;
+        }
     }
 }

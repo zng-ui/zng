@@ -316,6 +316,12 @@ pub fn is_doc_hidden(docs: &[Attribute]) -> bool {
         .any(|a| token_stream_eq(a.tokens.clone(), expected.clone()) && a.path.get_ident().map(|id| id == "doc").unwrap_or_default())
 }
 
+/// Gets if any of the attributes in the unparsed stream is #[doc(hidden)].
+pub fn is_doc_hidden_tt(docs: TokenStream) -> bool {
+    let attrs = syn::parse2::<OuterAttrs>(docs).unwrap().attrs;
+    is_doc_hidden(&attrs)
+}
+
 pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js: &'static str) {
     if docs.is_empty() {
         doc_extend!(output, "{}", js);
@@ -590,4 +596,20 @@ impl Into<Attribute> for OuterAttr {
             tokens: self.tokens,
         }
     }
+}
+
+struct OuterAttrs {
+    attrs: Vec<Attribute>,
+}
+impl syn::parse::Parse for OuterAttrs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(OuterAttrs {
+            attrs: Attribute::parse_outer(input)?,
+        })
+    }
+}
+
+/// Convert a #[cfg(..)] attribute token stream to a string that can be displayed in a HTML element title attribute.
+pub fn html_title_cfg(cfg: TokenStream) -> String {
+    cfg.to_string().replace(" ", "").replace(",", ", ").replace("\"", "&quot;")
 }

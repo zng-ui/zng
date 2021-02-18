@@ -1,7 +1,6 @@
 // Script inserted in each property function's full page after the user docs.
 // It changes the page to highlight the widget property aspects.
 function property(capture_only) {
-
     // change title.
     let title = document.getElementsByTagName('h1')[0];
     title.innerHTML = title.innerHTML.replace('Function', 'Property');

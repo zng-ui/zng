@@ -655,6 +655,7 @@ pub struct BuiltWhen {
     pub cfg: TokenStream,
     pub inputs: Vec<Ident>,
     pub assigns: Vec<BuiltWhenAssign>,
+    pub expr_str: syn::LitStr,
 }
 impl Parse for BuiltWhen {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -667,6 +668,7 @@ impl Parse for BuiltWhen {
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
             inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
             assigns: parse_all(&non_user_braced!(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
+            expr_str: non_user_braced!(&input, "expr_str").parse().unwrap_or_else(|e| non_user_error!(e)),
         });
         r
     }

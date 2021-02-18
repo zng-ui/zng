@@ -620,9 +620,8 @@ mod output {
             docs_with_first_line_js(tokens, &self.docs, js_tag!("property_header.js"));
             if self.is_capture_only {
                 tokens.extend(quote! {
-                    /// </div>
                     ///
-                    /// This property is `capture_only` meaning it can only be used in widget declarations
+                    /// This property is `capture_only`, it can only be used in widget declarations
                     /// to define a property that is captured by the widget.
                 });
             } else {
