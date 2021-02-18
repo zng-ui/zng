@@ -13,22 +13,65 @@ function property(capture_only) {
 
     // edit the function source code to only show the property name and arguments.
     fn.innerText = fn.innerText
-                    .replace(/.*fn /s, '')
-                    .replace(/(?!<[^>]*)\((?![^<-]*>)\s*/s, ': {\n    ')
-                    .replace(/(?!<[^>]*)\s*\)\s+->(?![^<-]*>).*/s, '}')
-                    .replace(/,\s*/sg, ', ');
-    
+        .replace(/.*fn /s, '')
+        .replace(/(?!<[^>]*)\((?![^<-]*>)\s*/s, ': {\n    ')
+        .replace(/(?!<[^>]*)\s*\)\s+->(?![^<-]*>).*/s, '}')
+        .replace(/,\s*/sg, ', ');
+
     if (!capture_only) {
         fn.innerText = fn.innerText.replace(/(.*?: {\n {4})((?!<[^>]*).*?, (?![^<-]*>))(.*)/s, '$1$3');
     }
 
     fn.innerText = fn.innerText.replace(/(?!\([^\)]*)(?!<[^>]*),\s*(?![^<-]*>)(?![^\(]*\))/gs, ',\n    ').replace(/\s*}/s, '\n}');
-    
+
     let set = new Set();
     for (let a of ffn.getElementsByTagName('a')) {
-         if (!set.has(a.innerText)) {
+        if (!set.has(a.innerText)) {
             fn.innerHTML = fn.innerHTML.replaceAll(a.innerText, a.outerHTML);
             set.add(a.innerText)
         }
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // TODO fix sidebar tooltips.
+
+        // if this is an widget property re-export.
+        if (document.title.includes("__p_")) {
+            // fix titles
+            document.title = document.title.replace("__p_", "");
+            let title = document.querySelector("h1 a.fn");
+            title.innerHTML = title.innerHTML.replace("__p_", "");
+
+            // fix code samples
+            document.querySelectorAll("pre.rust.fn").forEach(function (pre) {
+                pre.innerHTML = pre.innerHTML.replace("__p_", "");
+            });
+
+            // create properties section link in the sidebar
+            let p_section = document.createElement("div");
+            p_section.classList.add("block");
+            p_section.classList.add("property");
+            let h3 = document.createElement("h3");
+            h3.innerHTML = "Properties";
+            p_section.appendChild(h3);
+            let ul = document.createElement("ul");
+            p_section.appendChild(ul);
+
+            let fn_section = document.querySelector('div.block.fn');
+            fn_section.parentElement.insertBefore(p_section, fn_section);
+
+            // move __p_ functions to properties section
+            fn_section.querySelectorAll("li").forEach(function (li) {
+                if (li.firstChild.innerText.includes("__p_")) {
+                    li.firstChild.innerHTML = li.firstChild.innerHTML.replace("__p_", "");
+                    ul.appendChild(li);
+                }
+            });
+
+            // remove functions section if it is now empty.
+            if (fn_section.querySelector("li") === null) {
+                fn_section.remove();
+            }
+        }
+    });
 }

@@ -33,7 +33,7 @@ function move_properties() {
         let table = document.createElement('table');
         table.style = 'display:block;';
         let tbody = document.createElement('tbody');
-        document.property_fns.forEach(function(tr) {
+        document.property_fns.forEach(function (tr) {
             tbody.appendChild(tr);
         });
         document.property_fns = null;

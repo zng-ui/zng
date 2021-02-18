@@ -29,7 +29,7 @@ if (document.widget_modules === undefined) {
             var table = document.createElement('table');
             table.style = 'display:block;';
             var tbody = document.createElement('tbody');
-            document.widget_modules.forEach(function(tr) {
+            document.widget_modules.forEach(function (tr) {
                 tbody.appendChild(tr);
             });
             document.widget_modules = null;
