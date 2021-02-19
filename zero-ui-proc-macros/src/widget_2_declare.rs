@@ -189,7 +189,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: ident.to_string(),
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: None, // TODO
+            inherited_from_path: Some(inherited_properties[ident].clone()),
             has_default: *default,
         });
 
@@ -489,7 +489,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: None, // TODO
+            inherited_from_path: inherited_properties.get(w_prop).map(|&tt| tt.clone()),
             has_default: true,
         });
 
@@ -784,7 +784,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             doc_extend!(docs, "\n\n*This property has a default value set by the widget.*");
         }
         if let Some(widget_path) = property.inherited_from_path {
-            let widget_path = util::tokens_to_ident_str(&widget_path);
+            let widget_path = widget_path.to_string().replace(" ", "");
             let widget_name = if let Some(i) = widget_path.rfind(':') {
                 &widget_path[i + 1..]
             } else {
@@ -792,7 +792,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             };
             doc_extend!(
                 docs,
-                "\n\n*Inherited from [`{}`]({}#wp-{})*",
+                "\n\n*Inherited from [`{}`]({}#wp-{}).*",
                 widget_name,
                 widget_path,
                 property.ident
