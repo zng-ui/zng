@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
+use regex::Regex;
 use syn::{parse::Parse, spanned::Spanned, Ident, LitBool};
 
 use crate::{
@@ -251,9 +252,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let required = *required || inherited_required.contains(ident);
 
         // collect property documentation info.
+        let ident_str = ident.to_string();
         let docs_info = if required {
             &mut docs_required
-        } else if ident.to_string().starts_with("is_") {
+        } else if ident_str.starts_with("is_") {
             &mut docs_state
         } else if *default {
             &mut docs_default
@@ -261,7 +263,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             &mut docs_other
         };
         docs_info.push(PropertyDocs {
-            ident: ident.to_string(),
+            ident: ident_str,
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited_from_path: None,
@@ -330,8 +332,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     docs_state.extend(docs_state_inherited);
     docs_other.extend(docs_other_inherited);
     let docs_required = docs_required;
-    let docs_default = docs_default;
-    let docs_state = docs_state;
     let docs_other = docs_other;
 
     // when data for macros.
@@ -478,6 +478,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut wgt_properties = wgt_properties;
     for (w_prop, cfg) in &wgt_when_properties {
         // property not introduced in the widget first, validate that it has a default value.
+
+        let w_prop_str = w_prop.to_string();
+        let docs = if w_prop_str.starts_with("is_") {
+            &mut docs_state
+        } else {
+            &mut docs_default
+        };
+        docs.push(PropertyDocs {
+            ident: w_prop_str,
+            docs: TokenStream::default(),
+            doc_hidden: false,
+            inherited_from_path: None, // TODO
+            has_default: true,
+        });
 
         let p_ident = ident!("__p_{}", w_prop);
         let d_ident = ident!("__d_{}", w_prop);
@@ -710,12 +724,15 @@ fn auto_docs(
     if !whens.is_empty() {
         docs_section_header(&mut r, "When Conditions", "whens", "When conditions and what properties they set.");
         for (i, when) in whens.into_iter().enumerate() {
+            let pattern = Regex::new(r#"self\.(\w+)"#).unwrap();
+            let expr = util::format_rust_expr(when.expr);
+            let expr = pattern.replace_all(&expr, r#"<span class='keyword'>self</span>.<a href='#wp-$1' class='fnname'>$1</a>"#);
             doc_extend!(r, "\n\n");
             doc_extend!(
                 r,
-                r##"<h3 id="ww-{0}" class="method in-band"><code><a style="margin-left:10px" href="#ww-{0}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+                r##"<h3 id="ww-{0}" class="impl in-band"><code style="margin-left:10px">impl {1}</code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
                 i,
-                when.expr,
+                expr,
             );
             doc_extend!(r, "\n\n");
             r.extend(when.docs);
