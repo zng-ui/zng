@@ -773,7 +773,13 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             &property.ident.to_string(),
             &format!("fn.__p_{}.html", property.ident),
         );
-        docs.extend(property.docs);
+
+        if property.docs.is_empty() {
+            doc_extend!(docs, "<script>default_help('{}')</script>", property.ident);
+        } else {
+            docs.extend(property.docs);
+        }
+
         if property.has_default {
             doc_extend!(docs, "\n\n*This property has a default value set by the widget.*");
         }
