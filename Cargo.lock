@@ -2752,6 +2752,7 @@ dependencies = [
  "enclose",
  "meval",
  "paste",
+ "serial_test",
  "trybuild",
  "webrender_api",
  "zero-ui-core",

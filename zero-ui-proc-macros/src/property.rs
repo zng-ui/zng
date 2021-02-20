@@ -117,7 +117,7 @@ mod input {
 }
 
 mod analysis {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
 
     use proc_macro2::{Ident, TokenStream};
     use syn::{parse_quote, spanned::Spanned, visit::Visit, visit_mut::VisitMut, TypeParam};
@@ -171,6 +171,7 @@ mod analysis {
                 }
                 Prefix::Event => {
                     if args_len != 1 {
+                        // TODO: validate that the parameter type actually is FnMut
                         errors.push("on_* capture_only properties must have 1 parameter, `FnMut`", args_span);
                     }
                 }
@@ -233,7 +234,12 @@ mod analysis {
         // patch signature to continue validation:
         if args.priority.is_capture_only() {
             if fn_.sig.inputs.is_empty() {
-                fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                if let Prefix::State = prefix {
+                    let crate_core = crate_core();
+                    fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
+                } else {
+                    fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                }
             }
         } else {
             if fn_.sig.inputs.is_empty() {
@@ -241,7 +247,12 @@ mod analysis {
                 fn_.sig.inputs.push(parse_quote!( _missing_child: impl #crate_core::UiNode ));
             }
             if fn_.sig.inputs.len() == 1 {
-                fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                if let Prefix::State = prefix {
+                    let crate_core = crate_core();
+                    fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
+                } else {
+                    fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                }
             }
         }
 
@@ -302,6 +313,7 @@ mod analysis {
             invalid_n += 1;
             next
         };
+        let mut unique_names = HashMap::new();
         for input in inputs {
             match input {
                 syn::FnArg::Typed(t) => {
@@ -336,8 +348,16 @@ mod analysis {
                         }
                     }
 
-                    // convert `impl Trait` to normal generics:
                     let last_i = arg_types.len() - 1;
+                    // resolve name conflicts so that only a rust error shows up when
+                    // the user declares two or more inputs with the same name
+                    let count: &mut u32 = unique_names.entry(arg_idents[last_i].clone()).or_default();
+                    if *count > 0 {
+                        arg_idents[last_i] = ident_spanned! {arg_idents[last_i].span()=> "__{}{}", arg_idents[last_i], count};
+                    }
+                    *count += 1;
+
+                    // convert `impl Trait` to normal generics:
                     if let syn::Type::ImplTrait(impl_) = &arg_types[last_i] {
                         // impl at the *top* level gets a readable name
 
@@ -364,7 +384,7 @@ mod analysis {
                 }
             }
         }
-
+        drop(unique_names);
         generic_types.extend(embedded_impl_types.types);
         generic_types.extend(impl_types);
 
@@ -453,10 +473,15 @@ mod analysis {
         let has_default_value = allowed_in_when && matches!(prefix, Prefix::State);
         let default_value = if has_default_value {
             let crate_core = util::crate_core();
-            quote! {
-                Self::new(
-                    #crate_core::var::state_var()
-                )
+            if arg_idents.len() == 1 {
+                quote! {
+                    Self::new(
+                        #crate_core::var::state_var()
+                    )
+                }
+            } else {
+                // A compile error was generated for this case already.
+                quote! { std::unreachable!() }
             }
         } else {
             TokenStream::default()

@@ -1,17 +1,24 @@
-#[test]
-fn property_macro_fail() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/build/property_macro/fail/*.rs");
-}
+mod tests {
+    use serial_test::serial;
 
-#[test]
-fn property_macro_pass() {
-    let t = trybuild::TestCases::new();
-    t.pass("tests/build/property_macro/pass/*.rs");
-}
+    #[serial]
+    #[test]
+    fn property_macro_fail() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/build/property_macro/fail/*.rs");
+    }
 
-#[test]
-fn widget_macro() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/build/widget_macro/*.rs");
+    #[serial]
+    #[test]
+    fn property_macro_pass() {
+        let t = trybuild::TestCases::new();
+        t.pass("tests/build/property_macro/pass/*.rs");
+    }
+
+    #[serial]
+    #[test]
+    fn widget_macro() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/build/widget_macro/*.rs");
+    }
 }

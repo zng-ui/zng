@@ -1,0 +1,5 @@
+error: on_* properties must have 2 parameters, `UiNode` and `FnMut`
+ --> $DIR/args_count_prefix_on.rs:4:34
+  |
+4 | pub fn on_event_wrong_input_count(child: impl UiNode) -> impl UiNode {
+  |                                  ^^^^^^^^^^^^^^^^^^^^

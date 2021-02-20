@@ -1,0 +1,11 @@
+error: is_* capture_only properties must have 1 parameter, `IsStateVar`
+ --> $DIR/args_count_capture_only_prefix_is.rs:4:26
+  |
+4 | pub fn is_state_no_inputs() -> ! { }
+  |                          ^^
+
+error: is_* capture_only properties must have 1 parameter, `IsStateVar`
+ --> $DIR/args_count_capture_only_prefix_is.rs:7:27
+  |
+7 | pub fn is_state_two_inputs(input1: bool, input2: bool) -> ! { }
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
