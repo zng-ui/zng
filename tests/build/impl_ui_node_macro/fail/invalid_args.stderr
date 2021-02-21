@@ -1,0 +1,13 @@
+error: expected `child`, `children`, `children_iter`, `delegate`, `delegate_list` or `delegate_iter`
+ --> $DIR/invalid_args.rs:4:16
+  |
+4 | #[impl_ui_node(invalid_arg)]
+  |                ^^^^^^^^^^^
+
+warning: unused import: `UiNode`
+ --> $DIR/invalid_args.rs:1:35
+  |
+1 | use zero_ui::core::{impl_ui_node, UiNode};
+  |                                   ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

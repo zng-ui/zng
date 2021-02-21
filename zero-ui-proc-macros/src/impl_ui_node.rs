@@ -1,5 +1,6 @@
 use crate::util;
 use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use std::collections::HashSet;
 use syn::parse::{Error, Parse, ParseStream, Result};
 use syn::spanned::Spanned;
@@ -13,18 +14,22 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let crate_ = util::crate_core();
 
-    let mut in_node_impl = false;
+    let mut ui_node_path = None;
 
     let ui_node = ident!("UiNode");
 
+    // if the impl block has a trait path.
     if let Some((_, path, _)) = input.trait_ {
-        if let Some(seg) = path.segments.last() {
-            in_node_impl = seg.ident == ui_node;
+        // if the trait name is UiNode
+        let seg = path.segments.last().unwrap();
+        if seg.ident == ui_node {
+            ui_node_path = Some(path);
         }
-        if !in_node_impl {
+        // if the impl block is for a trait not named UiNode
+        else {
             abort!(
                 path.span(),
-                "expected inherent impl or UiNode trait impl, found `{}`",
+                "expected inherent impl or `UiNode` trait impl, found `{}`",
                 quote! {#path}
             )
         }
@@ -35,22 +40,32 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     let mut other_items = vec![];
     let mut node_item_names = HashSet::new();
 
+    // if the impl block is not annotated with `#[allow_missing_delegate]`.
+    // if this is `true` missing delegate validation must be done for each
+    // method that is not also annotated with the marker.
     let mut validate_manual_del = take_allow_missing_deletate(&mut input.attrs).is_none();
 
     for mut item in input.items {
         let mut is_node = false;
 
         if let ImplItem::Method(m) = &mut item {
-            if in_node_impl {
+            // if we are in an UiNode impl
+            if ui_node_path.is_some() {
+                // assume the item is a method defined in the UiNode trait.
                 is_node = true;
                 node_item_names.insert(m.sig.ident.clone());
-            } else if let Some(index) = m.attrs.iter().position(|a| a.path.get_ident() == Some(&ui_node)) {
+            }
+            // if we are not in an UiNode impl but a method is annotated with `#[UiNode]`.
+            else if let Some(index) = m.attrs.iter().position(|a| a.path.get_ident() == Some(&ui_node)) {
+                // remove the marker attribute..
                 m.attrs.remove(index);
+                // ..and assume the item is a method defined in the UiNode trait.
                 is_node = true;
                 node_item_names.insert(m.sig.ident.clone());
             }
 
             if is_node && validate_manual_del {
+                // if the method is annotated with `#[allow_missing_delegate]`.
                 node_items_allow_missing_del.push(take_allow_missing_deletate(&mut m.attrs).is_some());
             }
         }
@@ -62,6 +77,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
+    // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
             validate_manual_del = false;
@@ -80,6 +96,8 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     if validate_manual_del {
         let skip = vec![ident!("render"), ident!("render_update"), ident!("boxed")];
+
+        // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 
         for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
@@ -101,8 +119,9 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
-    if !in_node_impl && node_items.is_empty() && !other_items.is_empty() {
-        abort_call_site!("no UiNode method found, missing `UiNode for` in impl or `#[UiNode]` in methods")
+    // if we are not in a `UiNode` impl and no method was tagged `#[UiNode]`.
+    if ui_node_path.is_none() && node_items.is_empty() && !other_items.is_empty() {
+        abort_call_site!("no `UiNode` method found, missing `UiNode for` in impl or `#[UiNode]` in methods")
     }
 
     let generics = input.generics;
@@ -111,8 +130,16 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let mut inline_all = InlineEverything::new();
 
+    let in_node_impl = ui_node_path.is_some();
+
+    // we use the UiNode path provided by the user if possible
+    // to avoid an unused import warning.
+    let ui_node_path = ui_node_path
+        .map(|p| p.to_token_stream())
+        .unwrap_or_else(|| quote! { #crate_::UiNode });
+
     let mut impl_node = parse_quote! {
-        impl #impl_generics #crate_::UiNode for #self_ty #where_clause {
+        impl #impl_generics #ui_node_path for #self_ty #where_clause {
             #(#node_items)*
             #(#default_ui_items)*
         }
@@ -507,6 +534,7 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
     }
 }
 
+/// Removes and returns the `#[allow_missing_delegate]` marker attribute.
 fn take_allow_missing_deletate(attrs: &mut Vec<Attribute>) -> Option<Attribute> {
     let allow = ident!("allow_missing_delegate");
 
