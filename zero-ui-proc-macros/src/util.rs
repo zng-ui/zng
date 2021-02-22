@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{env, fmt, path::PathBuf};
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -652,4 +652,97 @@ pub fn format_rust_expr(value: String) -> String {
 pub fn after_span<T: ToTokens>(tt: &T) -> Span {
     let tt = tt.to_token_stream();
     tt.into_iter().last().span()
+}
+
+/// A lint level.
+///
+/// NOTE: We add an underline `_` after the lint display name because rustc validates
+/// custom tools even for lint attributes removed by proc-macros.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum LintLevel {
+    Allow,
+    Warn,
+    Deny,
+    Forbid,
+}
+impl fmt::Display for LintLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LintLevel::Allow => write!(f, "allow_"),
+            LintLevel::Warn => write!(f, "warn_"),
+            LintLevel::Deny => write!(f, "deny_"),
+            LintLevel::Forbid => write!(f, "forbid_"),
+        }
+    }
+}
+
+/// Takes lint attributes in the `zero_ui::` namespace.
+///
+/// Pushes `errors` for unsupported `warn` and already attempt of setting
+/// level of forbidden zero_ui lints.
+///
+/// NOTE: We add an underline `_` after the lint ident because rustc validates
+/// custom tools even for lint attributes removed by proc-macros.
+pub fn take_zero_ui_lints(
+    attrs: &mut Vec<Attribute>,
+    errors: &mut Errors,
+    forbidden: &std::collections::HashSet<&Ident>,
+) -> Vec<(Ident, LintLevel, Attribute)> {
+    let mut r = vec![];
+    let mut i = 0;
+    while i < attrs.len() {
+        if let Some(ident) = attrs[i].path.get_ident() {
+            let level = if ident == "allow_" {
+                LintLevel::Allow
+            } else if ident == "warn_" {
+                LintLevel::Warn
+            } else if ident == "deny_" {
+                LintLevel::Deny
+            } else if ident == "forbid_" {
+                LintLevel::Forbid
+            } else {
+                i += 1;
+                continue;
+            };
+            if let Ok(path) = syn::parse2::<LintPath>(attrs[i].tokens.clone()) {
+                let path = path.path;
+                if path.segments.len() == 2 && path.segments[0].ident == "zero_ui" {
+                    let attr = attrs.remove(i);
+                    let lint_ident = path.segments[1].ident.clone();
+                    match level {
+                        LintLevel::Warn => errors.push(
+                            "cannot set zero_ui lints to warn because warning diagnostics are not stable",
+                            attr.path.span(),
+                        ),
+                        LintLevel::Allow if forbidden.contains(&lint_ident) => errors.push(
+                            format_args!("lint `zero_ui::{}` is `forbid` in this context", lint_ident),
+                            attr.span(),
+                        ),
+                        _ => {
+                            r.push((lint_ident, level, attr));
+                        }
+                    }
+
+                    continue; // same i new attribute
+                }
+            }
+        }
+
+        i += 1;
+    }
+    r
+}
+struct LintPath {
+    _paren: syn::token::Paren,
+    path: syn::Path,
+}
+impl syn::parse::Parse for LintPath {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let inner;
+        #[allow(clippy::eval_order_dependence)] // see https://github.com/rust-lang/rust-clippy/issues/4637
+        Ok(LintPath {
+            _paren: syn::parenthesized!(inner in input),
+            path: inner.parse()?,
+        })
+    }
 }

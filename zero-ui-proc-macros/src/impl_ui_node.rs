@@ -36,14 +36,23 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
     }
 
     let mut node_items = vec![];
-    let mut node_items_allow_missing_del = vec![];
+    let mut node_items_missing_del_level = vec![];
     let mut other_items = vec![];
     let mut node_item_names = HashSet::new();
 
-    // if the impl block is not annotated with `#[allow_missing_delegate]`.
-    // if this is `true` missing delegate validation must be done for each
-    // method that is not also annotated with the marker.
-    let mut validate_manual_del = take_allow_missing_deletate(&mut input.attrs).is_none();
+    let mut errors = util::Errors::default();
+
+    // impl scope custom lints:
+    //
+    // we only have one lint, `zero_ui::missing_delegate`.
+    let missing_delegate_level =
+        take_missing_deletate_level(&mut input.attrs, &mut errors, &HashSet::new()).unwrap_or(util::LintLevel::Deny);
+    let missing_delegate_ident = ident!("missing_delegate");
+    let mut forbidden_lints = HashSet::new();
+    if let util::LintLevel::Forbid = missing_delegate_level {
+        forbidden_lints.insert(&missing_delegate_ident);
+    }
+    let forbidden_lints = forbidden_lints;
 
     for mut item in input.items {
         let mut is_node = false;
@@ -64,9 +73,9 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
                 node_item_names.insert(m.sig.ident.clone());
             }
 
-            if is_node && validate_manual_del {
-                // if the method is annotated with `#[allow_missing_delegate]`.
-                node_items_allow_missing_del.push(take_allow_missing_deletate(&mut m.attrs).is_some());
+            if is_node {
+                let item_level = take_missing_deletate_level(&mut m.attrs, &mut errors, &forbidden_lints).unwrap_or(missing_delegate_level);
+                node_items_missing_del_level.push(item_level);
             }
         }
 
@@ -77,10 +86,12 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
+    let mut validate_manual_delegate = true;
+
     // collect default methods needed.
     let default_ui_items = match args {
         Args::NoDelegate => {
-            validate_manual_del = false;
+            validate_manual_delegate = false;
             no_delegate_absents(crate_.clone(), node_item_names)
         }
         Args::Delegate { delegate, delegate_mut } => delegate_absents(crate_.clone(), node_item_names, delegate, delegate_mut),
@@ -94,15 +105,15 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         } => delegate_iter_absents(crate_.clone(), node_item_names, delegate_iter, delegate_iter_mut),
     };
 
-    if validate_manual_del {
+    if validate_manual_delegate {
         let skip = vec![ident!("render"), ident!("render_update"), ident!("boxed")];
 
         // validate that manually implemented UiNode methods call the expected method in the struct child or children.
 
-        for (manual_impl, allow) in node_items.iter().zip(node_items_allow_missing_del.into_iter()) {
+        for (manual_impl, level) in node_items.iter().zip(node_items_missing_del_level.into_iter()) {
             let mut validator = DelegateValidator::new(manual_impl);
 
-            if allow || skip.contains(&validator.ident) {
+            if level == util::LintLevel::Allow || skip.contains(&validator.ident) {
                 continue;
             }
 
@@ -110,11 +121,18 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
             if !validator.delegates {
                 let ident = validator.ident;
-                abort!(
-                    manual_impl.span(),
-                    "auto impl delegates call to `{}` but this manual impl does not",
-                    quote! {#ident},
-                )
+                errors.push(
+                    format_args!(
+                        "auto impl delegates call to `{}` but this manual impl does not\n `#[{}(zero_ui::missing_delegate)]` is on",
+                        ident, missing_delegate_level
+                    ),
+                    {
+                        match manual_impl {
+                            ImplItem::Method(mtd) => mtd.block.span(),
+                            _ => non_user_error!("expected a method"),
+                        }
+                    },
+                );
             }
         }
     }
@@ -148,11 +166,13 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
 
     let result = if in_node_impl {
         quote! {
+            #errors
             #impl_node
         }
     } else {
         let input_attrs = input.attrs;
         quote! {
+            #errors
             #(#input_attrs)*
             impl #impl_generics #self_ty #where_clause {
                 #(#other_items)*
@@ -550,13 +570,17 @@ impl<'a, 'ast> Visit<'ast> for DelegateValidator<'a> {
     }
 }
 
-/// Removes and returns the `#[allow_missing_delegate]` marker attribute.
-fn take_allow_missing_deletate(attrs: &mut Vec<Attribute>) -> Option<Attribute> {
-    let allow = ident!("allow_missing_delegate");
-
-    if let Some(i) = attrs.iter().position(|a| a.path.get_ident() == Some(&allow)) {
-        Some(attrs.remove(i))
-    } else {
-        None
+/// Removes and returns the `zero_ui::missing_delegate` level.
+fn take_missing_deletate_level(
+    attrs: &mut Vec<Attribute>,
+    errors: &mut util::Errors,
+    forbidden: &HashSet<&Ident>,
+) -> Option<util::LintLevel> {
+    let mut r = None;
+    for (lint_ident, level, _) in util::take_zero_ui_lints(attrs, errors, forbidden) {
+        if lint_ident == "missing_delegate" {
+            r = Some(level);
+        }
     }
+    r
 }
