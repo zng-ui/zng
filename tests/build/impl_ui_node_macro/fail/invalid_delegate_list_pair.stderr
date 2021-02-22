@@ -1,0 +1,19 @@
+error: expected `, delegate_list_mut: <expr>`
+ --> $DIR/invalid_delegate_list_pair.rs:6:37
+  |
+6 | #[impl_ui_node(delegate_list: &self.inner)]
+  |                                     ^^^^^
+
+error: expected `, delegate_list: <expr>`
+  --> $DIR/invalid_delegate_list_pair.rs:12:45
+   |
+12 | #[impl_ui_node(delegate_list_mut: &mut self.inner)]
+   |                                             ^^^^^
+
+warning: unused imports: `UiNodeList`, `UiNode`
+ --> $DIR/invalid_delegate_list_pair.rs:1:35
+  |
+1 | use zero_ui::core::{impl_ui_node, UiNodeList, UiNode};
+  |                                   ^^^^^^^^^^  ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

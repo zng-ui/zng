@@ -430,14 +430,14 @@ impl Parse for Args {
                 let delegate_mut = ident!("delegate_mut");
 
                 if arg0 == delegate || arg0 == delegate_mut {
-                    let (delegate, delegate_mut) = parse_pair(args, arg0, delegate, delegate_mut)?;
+                    let (delegate, delegate_mut) = parse_delegate_pair(args, arg0, delegate, delegate_mut)?;
                     Args::Delegate { delegate, delegate_mut }
                 } else {
                     let delegate_iter = ident!("delegate_iter");
                     let delegate_iter_mut = ident!("delegate_iter_mut");
 
                     if arg0 == delegate_iter || arg0 == delegate_iter_mut {
-                        let (delegate_iter, delegate_iter_mut) = parse_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
+                        let (delegate_iter, delegate_iter_mut) = parse_delegate_pair(args, arg0, delegate_iter, delegate_iter_mut)?;
                         Args::DelegateIter {
                             delegate_iter,
                             delegate_iter_mut,
@@ -447,7 +447,7 @@ impl Parse for Args {
                         let delegate_list_mut = ident!("delegate_list_mut");
 
                         if arg0 == delegate_list || arg0 == delegate_list_mut {
-                            let (delegate_list, delegate_list_mut) = parse_pair(args, arg0, delegate_list, delegate_list_mut)?;
+                            let (delegate_list, delegate_list_mut) = parse_delegate_pair(args, arg0, delegate_list, delegate_list_mut)?;
                             Args::DelegateList {
                                 delegate_list,
                                 delegate_list_mut,
@@ -472,33 +472,49 @@ impl Parse for Args {
     }
 }
 
-fn parse_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) -> Result<(Expr, Expr)> {
-    args.parse::<Token![:]>()?;
-    let expr1: Expr = args.parse()?;
-    args.parse::<Token![,]>()?;
+/// After parsing one of the delegate idents, parse the value and the other delegate.
+///
+/// Returns (immutable_expr, mutable_expr) independently of the order the delegates where written.
+fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) -> Result<(Expr, Expr)> {
+    // parse arg0 ": <expr>"
+    let expr0 = parse_delegate_expr(args, &arg0)?;
 
-    let ident2: Ident = args.parse()?;
+    // get what ident is the second one, delegate pairs can be defined in any order.
+    let expected_arg1 = if arg0 == ident { &ident_mut } else { &ident };
 
-    args.parse::<Token![:]>()?;
-    let expr2: Expr = args.parse()?;
-    if args.peek(Token![,]) {
-        args.parse::<Token![,]>()?;
+    // delegate pair are separated by comma (,)
+    let comma = args
+        .parse::<Token![,]>()
+        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {}: <expr>`", expected_arg1)))?;
+    // delegate idents require a pair.
+    let arg1: Ident = args
+        .parse()
+        .map_err(|_| Error::new(comma.span(), format!("expected `{}: <expr>`", expected_arg1)))?;
+
+    // second ident is not the expected pair.
+    if &arg1 != expected_arg1 {
+        return Err(Error::new(arg1.span(), format!("expected `{}`", ident_mut)));
     }
 
+    // parse arg1 ": <expr>"
+    let expr1 = parse_delegate_expr(args, &arg1)?;
+
+    // result is (immutable_expr, mutable_expr)
     if arg0 == ident {
-        if ident2 == ident_mut {
-            Ok((expr1, expr2))
-        } else {
-            Err(Error::new(ident2.span(), format!("expected `{}`", ident_mut)))
-        }
+        Ok((expr0, expr1))
     } else {
-        debug_assert_eq!(arg0, ident_mut);
-        if ident2 == ident {
-            Ok((expr2, expr1))
-        } else {
-            Err(Error::new(ident2.span(), format!("expected `{}`", ident)))
-        }
+        Ok((expr1, expr0))
     }
+}
+fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
+    let colon = args
+        .parse::<Token![:]>()
+        .map_err(|_| Error::new(ident.span(), format!("expected `{}: <expr>`", ident)))?;
+    let expr: Expr = args
+        .parse()
+        .map_err(|_| Error::new(colon.span(), format!("expected `{}: <expr>`", ident)))?;
+
+    Ok(expr)
 }
 
 struct DelegateValidator<'a> {

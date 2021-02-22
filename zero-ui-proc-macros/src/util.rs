@@ -647,3 +647,9 @@ pub fn format_rust_expr(value: String) -> String {
     }
     value
 }
+
+/// Gets a span that indicates a position after the item.
+pub fn after_span<T: ToTokens>(tt: &T) -> Span {
+    let tt = tt.to_token_stream();
+    tt.into_iter().last().span()
+}
