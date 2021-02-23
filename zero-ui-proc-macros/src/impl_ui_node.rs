@@ -137,7 +137,7 @@ pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro:
         }
     }
 
-    // if we are not in a `UiNode` impl and no method was tagged `#[UiNode]`.
+    // if we are not in a `UiNode` impl and no method was tagged `#[UiNode]`. TODO remove this?
     if ui_node_path.is_none() && node_items.is_empty() && !other_items.is_empty() {
         abort_call_site!("no `UiNode` method found, missing `UiNode for` in impl or `#[UiNode]` in methods")
     }

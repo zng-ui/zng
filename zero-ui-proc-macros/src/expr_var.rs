@@ -25,7 +25,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             quote! {
                 // single var interpolation, use map.
-                #mod_::Var::into_map({#eval}, |#ident|{ #expr })
+                #mod_::Var::into_map({#eval}, move |#ident|{ #expr })
             }
         }
     } else {
@@ -33,7 +33,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let idents = vars.iter().map(|(id, _)| id);
         let evals = vars.iter().map(|(_, ev)| ev);
         quote! {
-            #mod_::merge_var!{ #({#evals}),* , |#(#idents),*| { #expr } }
+            #mod_::merge_var!{ #({#evals}),* , move |#(#idents),*| { #expr } }
         }
     };
 

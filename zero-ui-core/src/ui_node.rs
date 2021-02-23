@@ -44,7 +44,7 @@ use crate::units::*;
 /// If delegation is configured but no delegation occurs in the manually implemented methods
 /// you get the error ``"auto impl delegates call to `{}` but this manual impl does not"``.
 ///
-/// To disable this error use `#[allow_missing_delegate]` in the method or in the `impl` block.
+/// To disable this error use `#[allow_(zero_ui::missing_delegate)]` in the method or in the `impl` block.
 ///
 /// # Usage Examples
 ///
@@ -65,6 +65,7 @@ use crate::units::*;
 /// # use zero_ui_core::render::FrameBuilder;
 /// # use zero_ui_core::var::*;
 /// # use zero_ui_core::color::*;
+/// # use zero_ui_core::UiNode;
 /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
 /// #[impl_ui_node(none)]
 /// impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
@@ -273,7 +274,7 @@ use crate::units::*;
 ///
 /// ### Defaults
 ///
-/// * Init, Updates: Calls the [`WidgetList`] equivalent method.
+/// * Init, Updates: Calls the [`WidgetList`](crate::WidgetList) equivalent method.
 /// * Layout: Is the same size as the largest child.
 /// * Render: Z-stacks the children. Last child on top.
 ///

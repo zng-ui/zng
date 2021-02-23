@@ -317,7 +317,7 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// let var_a = var(10);
 /// let var_b = var(10);
 /// let name = "var_eq";
-/// let var_eq = var_expr! {
+/// let var_eq = expr_var! {
 ///     let eq = #{var_a} == #{var_b};
 ///     println!("{} updated: {} == {}: {}", name, #{var_a}, #{var_b}, eq);
 ///     eq
@@ -339,7 +339,7 @@ pub trait IntoVar<T: VarValue>: Clone {
 /// The `<var-expr>` is evaluated before *capturing* starts so if you interpolate `#{var_a.clone()}` `var_a`
 /// will still be available after the `var_expr` call. Equal `<var-expr>` only evaluate once.
 ///
-/// The interpolation result value is the [`Var::get`] return value.
+/// The interpolation result value is the [`VarObj::get`] return value.
 ///
 /// # Expansion
 ///
