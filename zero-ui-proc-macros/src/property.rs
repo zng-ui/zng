@@ -217,31 +217,33 @@ mod analysis {
         }
 
         // validate return type.
-        if args.priority.is_capture_only() {
-            let valid = match &fn_.sig.output {
-                syn::ReturnType::Default => false,
-                syn::ReturnType::Type(_, t) => matches!(&**t, syn::Type::Never(_)),
-            };
-
-            if !valid {
-                match &fn_.sig.output {
-                    syn::ReturnType::Default => {
-                        errors.push(
-                            "capture_only properties must have return type `-> !`",
-                            // TODO change this to span of the last parenthesis when
-                            // [proc_macro_span](https://github.com/rust-lang/rust/issues/54725) is stable.
-                            args.priority.span(),
-                        );
-                    }
-                    syn::ReturnType::Type(_, t) => {
+        let output_assert_data = if args.priority.is_capture_only() {
+            match &fn_.sig.output {
+                syn::ReturnType::Default => {
+                    errors.push(
+                        "capture_only properties must have return type `-> !`",
+                        // TODO change this to span of the last parenthesis when
+                        // [proc_macro_span](https://github.com/rust-lang/rust/issues/54725) is stable.
+                        args.priority.span(),
+                    );
+                }
+                syn::ReturnType::Type(_, t) => {
+                    if !matches!(&**t, syn::Type::Never(_)) {
                         errors.push("capture_only properties must have return type `!`", t.span());
                     }
                 }
             }
+
+            None
         } else {
             // properties not capture_only:
             // rust will validate because we call fn_ in ArgsImpl.set(..) -> impl UiNode.
-        }
+            // we only need the span so that the error highlights the right code.
+            match &fn_.sig.output {
+                syn::ReturnType::Default => None,
+                syn::ReturnType::Type(_, t) => Some(t.span()),
+            }
+        };
 
         // patch signature to continue validation:
         if args.priority.is_capture_only() {
@@ -537,6 +539,7 @@ mod analysis {
                 arg_return_types,
                 default_value,
                 child_assert: child_assert_data,
+                output_assert: output_assert_data,
             },
             mod_: output::OutputMod {
                 cfg: attrs.cfg.clone(),
@@ -726,6 +729,7 @@ mod output {
         pub default_value: TokenStream,
 
         pub child_assert: Option<(Box<syn::Type>, Vec<syn::TypeParam>)>,
+        pub output_assert: Option<proc_macro2::Span>,
     }
     impl ToTokens for OutputTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -817,6 +821,10 @@ mod output {
                 let child_arg_use = quote_spanned! {set_child_span=>
                     child
                 };
+                let output_span = self.output_assert.unwrap_or_else(proc_macro2::Span::call_site);
+                let output_ty = quote_spanned! {output_span=>
+                    impl #crate_core::UiNode
+                };
 
                 let set_ident = ident!("__{}_set", ident);
                 #[cfg(debug_assertions)]
@@ -835,7 +843,7 @@ mod output {
                     quote! {
                         #[doc(hidden)]
                         #[inline]
-                        pub fn #set_ident(self_: impl #args_ident, #child_arg) -> impl #crate_core::UiNode {
+                        pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
                             let ( #(#arg_locals),* ) = self_.unwrap();
                             #ident(#child_arg_use, #( #arg_locals ),*)
                         }
@@ -875,7 +883,7 @@ mod output {
                 quote! {
                     #[doc(hidden)]
                     #[inline]
-                    pub fn #set_ident(self_: impl #args_ident, #child_arg) -> impl #crate_core::UiNode {
+                    pub fn #set_ident(self_: impl #args_ident, #child_arg) -> #output_ty {
                         let ( #(#arg_locals),* ) = self_.unwrap();
                         #ident(#child_arg_use, #( #arg_locals ),*)
                     }
