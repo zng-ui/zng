@@ -347,6 +347,7 @@ mod analysis {
             match input {
                 syn::FnArg::Typed(t) => {
                     // any pat : ty
+                    arg_types.push((&*t.ty).clone());
                     match &*t.pat {
                         syn::Pat::Ident(ident_pat) => {
                             if let Some(subpat) = &ident_pat.subpat {
@@ -356,24 +357,20 @@ mod analysis {
                                     subpat.0.span(),
                                 );
                                 arg_idents.push(invalid_idents());
-                                arg_types.push((&*t.ty).clone());
                             } else if ident_pat.ident == "self" {
                                 // self : type
                                 errors.push("methods cannot be property functions", ident_pat.ident.span());
                                 arg_idents.push(invalid_idents());
-                                arg_types.push((&*t.ty).clone());
                             } else {
                                 // VALID
                                 // ident: type
                                 arg_idents.push(ident_pat.ident.clone());
-                                arg_types.push((&*t.ty).clone());
                             }
                         }
                         invalid => {
                             // any_pat no type ascription
                             errors.push("only `field: T` pattern can be property arguments", invalid.span());
                             arg_idents.push(invalid_idents());
-                            arg_types.push(parse_quote!(()));
                         }
                     }
 

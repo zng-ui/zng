@@ -1,0 +1,5 @@
+error: only `field: T` pattern can be property arguments
+ --> $DIR/invalid_input_pattern.rs:4:45
+  |
+4 | pub fn invalid_destruct(child: impl UiNode, (a, b): (bool, u8)) -> impl UiNode {
+  |                                             ^^^^^^
