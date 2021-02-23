@@ -366,7 +366,7 @@ impl Events {
     }
 }
 
-/// Declares new [`EventArgs`](crate::core::event::EventArgs) types.
+/// Declares new [`EventArgs`](crate::event::EventArgs) types.
 ///
 /// # Example
 /// ```
@@ -583,7 +583,7 @@ macro_rules! event_args {
 #[doc(inline)]
 pub use crate::event_args;
 
-/// Declares new [`CancelableEventArgs`](crate::core::event::CancelableEventArgs) types.
+/// Declares new [`CancelableEventArgs`](crate::event::CancelableEventArgs) types.
 ///
 /// Same syntax as [`event_args!`](macro.event_args.html) but the generated args is also cancelable.
 ///

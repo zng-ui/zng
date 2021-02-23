@@ -52,7 +52,7 @@ pub use rc_when_var::*;
 mod vars;
 pub use vars::*;
 
-/// A type that can be a [`Var`](crate::core::var::Var) value.
+/// A type that can be a [`Var`](crate::var::Var) value.
 ///
 /// # Trait Alias
 ///
@@ -161,7 +161,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
 /// Represents a variable that has a value that can be accessed directly.
 ///
 /// For the normal variables you need a reference to [`Vars`] to access the value,
-/// this reference is not available in all [`UiNode`](crate::core::UiNode) methods.
+/// this reference is not available in all [`UiNode`](crate::UiNode) methods.
 ///
 /// Some variable types are safe to reference the inner value at any moment, other variables
 /// can be wrapped in a type that makes a local clone of the current value. You can get any
@@ -172,14 +172,14 @@ pub trait VarLocal<T: VarValue>: VarObj<T> {
 
     /// Initializes local clone of the value, if needed.
     ///
-    /// This must be called in the [`UiNode::init`](crate::core::UiNode::init) method.
+    /// This must be called in the [`UiNode::init`](crate::UiNode::init) method.
     ///
     /// Returns a reference to the local value for convenience.
     fn init_local(&mut self, vars: &Vars) -> &T;
 
     /// Updates the local clone of the value, if needed.
     ///
-    /// This must be called in the [`UiNode::update`](crate::core::UiNode::update) method.
+    /// This must be called in the [`UiNode::update`](crate::UiNode::update) method.
     ///
     /// Returns a reference to the local value if the value is new.
     fn update_local(&mut self, vars: &Vars) -> Option<&T>;

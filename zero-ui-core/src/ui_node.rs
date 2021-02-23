@@ -483,7 +483,7 @@ pub trait UiNode: 'static {
     ///
     /// # Arguments
     /// * `available_size`: The total available size for the node. Can contain positive infinity to
-    /// indicate the parent will accommodate [any size](is_layout_any_size). Finite values are pixel aligned.
+    /// indicate the parent will accommodate [any size](crate::is_layout_any_size). Finite values are pixel aligned.
     /// * `ctx`: Measure context.
     ///
     /// # Return

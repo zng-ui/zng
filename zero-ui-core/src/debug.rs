@@ -49,7 +49,7 @@ pub use crate::source_location;
 pub struct PropertyInstanceInfo {
     /// Property priority in a widget.
     ///
-    /// See [the property doc](crate::core::property#priority) for more details.
+    /// See [the property doc](crate::property#priority) for more details.
     pub priority: PropertyPriority,
     /// Original name of the property.
     pub original_name: &'static str,

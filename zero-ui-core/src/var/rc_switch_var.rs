@@ -9,11 +9,11 @@ use super::*;
 /// All arguments are separated by comma like a function call.
 ///
 /// * `$index`: A positive integer that is the initial switch index.
-/// * `$v0..$vn`: A list of [vars](crate::core::var::VarObj), minimal 2.
+/// * `$v0..$vn`: A list of [vars](crate::var::VarObj), minimal 2.
 ///
-/// [`RcSwitchVar`](crate::core::var::RcSwitchVar) is used for more then 8 variables.
+/// [`RcSwitchVar`](crate::var::RcSwitchVar) is used for more then 8 variables.
 ///
-/// All arguments are [`IntoVar`](crate::core::var::RcSwitchVar).
+/// All arguments are [`IntoVar`](crate::var::RcSwitchVar).
 ///
 /// # Example
 ///

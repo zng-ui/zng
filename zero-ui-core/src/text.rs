@@ -900,7 +900,7 @@ mod tests {
     }
 }
 
-/// Creates a [`Text`](crate::core::text::Text) by calling the `format!` macro and
+/// Creates a [`Text`](crate::text::Text) by calling the `format!` macro and
 /// wrapping the result in a `Cow::Owned`.
 ///
 /// # Example

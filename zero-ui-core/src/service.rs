@@ -177,7 +177,7 @@ impl WindowServicesInit {
     ///
     /// # Using Services
     ///
-    /// The window services are only available inside a call to [`AppContext::window_context`](crate::core::context::AppContext::window_context). All
+    /// The window services are only available inside a call to [`AppContext::window_context`](crate::context::AppContext::window_context). All
     /// the accessor methods panic if you attempt to request a service outside of the method.
     pub fn init(&self, ctx: &WindowContext) -> WindowServices {
         let mut services = Vec::with_capacity(self.builders.len());

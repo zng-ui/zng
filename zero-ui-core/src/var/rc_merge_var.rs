@@ -1,13 +1,13 @@
 use super::*;
 
-/// Initializes a new [`Var`](crate::core::var::Var) with value made
+/// Initializes a new [`Var`](crate::var::Var) with value made
 /// by merging multiple other variables.
 ///
 /// # Arguments
 ///
 /// All arguments are separated by comma like a function call.
 ///
-/// * `var0..N`: A list of [vars](crate::core::var::Var), minimal 2.
+/// * `var0..N`: A list of [vars](crate::var::Var), minimal 2.
 /// * `merge`: A function that produces a new value from references to all variable values. `FnMut(&var0_T, ..) -> merge_T`
 ///
 /// # Example

@@ -53,7 +53,7 @@ pub mod implicit_mixin2 {
 
 // This is called by the default widgets `new_child` function.
 ///
-/// See [`widget!`](module@crate::widget) for more details.
+/// See [`widget!`](crate::widget) for more details.
 ///
 /// Returns a [`NilUiNode`].
 #[inline]
@@ -63,10 +63,10 @@ pub fn default_widget_new_child() -> impl UiNode {
 
 /// This is called by the default widgets `new` function.
 ///
-/// See [`widget!`](module@crate::widget) for more details.
+/// See [`widget!`](crate::widget) for more details.
 ///
 /// A new widget context is introduced by this function. `child` is wrapped in a node that calls
-/// [`WidgetContext::widget_context`](crate::contextWidgetContext::widget_context) and
+/// [`WidgetContext::widget_context`](crate::context::WidgetContext::widget_context) and
 /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
 #[inline]
 pub fn default_widget_new(child: impl UiNode, id_args: impl widget_id::Args) -> impl Widget {
@@ -213,7 +213,7 @@ context_var! {
     pub struct IsEnabledVar: bool = return &true;
 }
 
-/// Extension method for accessing the [`enabled`] state of widgets.
+/// Extension method for accessing the [`enabled`](fn@enabled) state of widgets.
 pub trait WidgetEnabledExt {
     /// Gets the widget enabled state.
     ///
@@ -240,7 +240,7 @@ impl<'a> WidgetEnabledExt for WidgetInfo<'a> {
     }
 }
 
-/// Contextual [`enabled`] accessor.
+/// Contextual [`enabled`](fn@enabled) accessor.
 pub struct IsEnabled;
 impl IsEnabled {
     /// Gets the enabled state in the current `vars` context.

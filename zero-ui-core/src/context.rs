@@ -650,7 +650,7 @@ pub struct AppInitContext<'a> {
     /// Events listener access and registration.
     ///
     /// ### Note
-    /// Events are registered in the order the extensions appear in [`App`](crate::core::app::App), if an
+    /// Events are registered in the order the extensions appear in [`App`](crate::app::App), if an
     /// extension needs a listener for an event of another extension this dependency
     /// must be mentioned in documentation.
     pub events: &'a mut Events,
@@ -658,7 +658,7 @@ pub struct AppInitContext<'a> {
     /// Application services access and registration.
     ///
     /// ### Note
-    /// Services are registered in the order the extensions appear in [`App`](crate::core::app::App), if an
+    /// Services are registered in the order the extensions appear in [`App`](crate::app::App), if an
     /// extension needs a service from another extension this dependency
     /// must be mentioned in documentation.
     pub services: &'a mut AppServicesInit,

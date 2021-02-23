@@ -276,7 +276,7 @@ macro_rules! __context_var_inner {
     };
 }
 
-/// Declares new [`ContextVar`](crate::core::var::ContextVar) types.
+/// Declares new [`ContextVar`](crate::var::ContextVar) types.
 ///
 /// # Examples
 /// ```
@@ -298,7 +298,7 @@ macro_rules! __context_var_inner {
 ///
 /// All context variable have a default fallback value that is used when the variable is not setted in the context.
 ///
-/// The default value is a `&'static T` where `T` is the variable value type that must auto-implement [`VarValue`](crate::core::var::VarValue).
+/// The default value is a `&'static T` where `T` is the variable value type that must auto-implement [`VarValue`](crate::var::VarValue).
 ///
 /// There are three different ways of specifying how the default value is stored. The way is selected by a keyword
 /// after the `=` and before the default value expression.
