@@ -292,17 +292,34 @@ mod analysis {
             }
         }
 
+        let mut child_assert_data = None;
+
         if !args.priority.is_capture_only() {
-            // remove generics used only in the first `child` input.
+            // validate the child arg.
+            let child = &fn_.sig.inputs[0];
+            match child {
+                syn::FnArg::Typed(t) => {
+                    let mut visitor = CollectUsedGenerics::new(&generic_types);
+                    visitor.visit_fn_arg(child);
+                    let child_generics: Vec<_> = generic_types.iter().filter(|t| visitor.used.contains(&t.ident)).cloned().collect();
+                    child_assert_data = Some((t.ty.clone(), child_generics));
+                }
+                syn::FnArg::Receiver(invalid) => {
+                    // `self`
+                    errors.push("methods cannot be property functions", invalid.span());
+                }
+            }
+
+            // collect only generics used in property inputs (not in first child arg).
             let used = {
-                let mut cleanup = CleanupGenerics::new(&generic_types);
+                let mut visitor = CollectUsedGenerics::new(&generic_types);
                 for input in fn_.sig.inputs.iter().skip(1) {
-                    cleanup.visit_fn_arg(input);
+                    visitor.visit_fn_arg(input);
                 }
 
-                cleanup.used
+                visitor.used
             };
-
+            // removes generics used in only the first child arg.
             generic_types.retain(|t| used.contains(&t.ident));
         }
 
@@ -522,6 +539,7 @@ mod analysis {
                 assoc_types,
                 arg_return_types,
                 default_value,
+                child_assert: child_assert_data,
             },
             mod_: output::OutputMod {
                 cfg: attrs.cfg.clone(),
@@ -585,19 +603,19 @@ mod analysis {
         }
     }
 
-    struct CleanupGenerics<'g> {
+    struct CollectUsedGenerics<'g> {
         generics: &'g [TypeParam],
         used: HashSet<Ident>,
     }
-    impl<'g> CleanupGenerics<'g> {
+    impl<'g> CollectUsedGenerics<'g> {
         fn new(generics: &'g [TypeParam]) -> Self {
-            CleanupGenerics {
+            CollectUsedGenerics {
                 used: HashSet::new(),
                 generics,
             }
         }
     }
-    impl<'g, 'v> Visit<'v> for CleanupGenerics<'g> {
+    impl<'g, 'v> Visit<'v> for CollectUsedGenerics<'g> {
         fn visit_type(&mut self, i: &'v syn::Type) {
             if let syn::Type::Path(tp) = i {
                 if let Some(ident) = tp.path.get_ident() {
@@ -620,7 +638,7 @@ mod analysis {
 mod output {
     use proc_macro2::{Ident, TokenStream};
     use quote::ToTokens;
-    use syn::{Attribute, ItemFn, TraitItemType, Type, TypeParam, Visibility};
+    use syn::{spanned::Spanned, Attribute, ItemFn, TraitItemType, Type, TypeParam, Visibility};
 
     use crate::util::{crate_core, docs_with_first_line_js, Errors};
 
@@ -709,6 +727,8 @@ mod output {
         pub arg_return_types: Vec<Type>,
 
         pub default_value: TokenStream,
+
+        pub child_assert: Option<(Box<syn::Type>, Vec<syn::TypeParam>)>,
     }
     impl ToTokens for OutputTypes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -776,9 +796,31 @@ mod output {
                 }
             };
 
+            let mut child_ty_span = proc_macro2::Span::call_site();
+            let child_assert = if let Some((child_ty, ty_params)) = &self.child_assert {
+                child_ty_span = child_ty.span();
+                let assert_ident = ident!("__{}_arg0_assert", self.ident);
+                quote_spanned! {child_ty.span()=>
+                    fn #assert_ident<#(#ty_params),*>(child: #child_ty) -> impl #crate_core::UiNode {
+                        child
+                    }
+                }
+            } else {
+                TokenStream::default()
+            };
+            let set_child_span = child_ty_span;
+
             let set = if self.priority.is_capture_only() {
                 TokenStream::new()
             } else {
+                // set span for error when child type does not take impl UiNode.
+                let child_arg = quote_spanned! {set_child_span=>
+                    child: impl #crate_core::UiNode
+                };
+                let child_arg_use = quote_spanned! {set_child_span=>
+                    child
+                };
+
                 let set_ident = ident!("__{}_set", ident);
                 #[cfg(debug_assertions)]
                 {
@@ -796,16 +838,16 @@ mod output {
                     quote! {
                         #[doc(hidden)]
                         #[inline]
-                        pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                        pub fn #set_ident(self_: impl #args_ident, #child_arg) -> impl #crate_core::UiNode {
                             let ( #(#arg_locals),* ) = self_.unwrap();
-                            #ident(child, #( #arg_locals ),*)
+                            #ident(#child_arg_use, #( #arg_locals ),*)
                         }
 
                         #[doc(hidden)]
                         #[inline]
                         pub fn #set_debug_ident(
                             self_: impl #args_ident,
-                            child: impl #crate_core::UiNode,
+                            #child_arg,
                             property_name: &'static str,
                             instance_location: #crate_core::debug::SourceLocation,
                             user_assigned: bool
@@ -815,7 +857,7 @@ mod output {
                             fn box_fix(node: impl #crate_core::UiNode) -> Box<dyn #crate_core::UiNode> {
                                 #crate_core::UiNode::boxed(node)
                             }
-                            let node = box_fix(#set_ident(self_, child));
+                            let node = box_fix(#set_ident(self_, #child_arg_use));
 
                             #crate_core::debug::PropertyInfoNode::new_v1(
                                 node,
@@ -836,9 +878,9 @@ mod output {
                 quote! {
                     #[doc(hidden)]
                     #[inline]
-                    pub fn #set_ident(self_: impl #args_ident, child: impl #crate_core::UiNode) -> impl #crate_core::UiNode {
+                    pub fn #set_ident(self_: impl #args_ident, #child_arg) -> impl #crate_core::UiNode {
                         let ( #(#arg_locals),* ) = self_.unwrap();
-                        #ident(child, #( #arg_locals ),*)
+                        #ident(#child_arg_use, #( #arg_locals ),*)
                     }
                 }
             };
@@ -983,6 +1025,7 @@ mod output {
                     }
                 }
 
+                #child_assert
                 #set
                 #cap_debug
             })
