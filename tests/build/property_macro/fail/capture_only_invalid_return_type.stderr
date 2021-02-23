@@ -1,0 +1,11 @@
+error: capture_only properties must have return type `!`
+ --> $DIR/capture_only_invalid_return_type.rs:4:39
+  |
+4 | pub fn invalid_return(input: bool) -> bool {
+  |                                       ^^^^
+
+error: capture_only properties must have return type `-> !`
+ --> $DIR/capture_only_invalid_return_type.rs:8:12
+  |
+8 | #[property(capture_only)]
+  |            ^^^^^^^^^^^^

@@ -224,7 +224,19 @@ mod analysis {
             };
 
             if !valid {
-                errors.push("capture_only properties must have return type ` -> !`", fn_.sig.output.span());
+                match &fn_.sig.output {
+                    syn::ReturnType::Default => {
+                        errors.push(
+                            "capture_only properties must have return type `-> !`",
+                            // TODO change this to span of the last parenthesis when
+                            // [proc_macro_span](https://github.com/rust-lang/rust/issues/54725) is stable.
+                            args.priority.span(),
+                        );
+                    }
+                    syn::ReturnType::Type(_, t) => {
+                        errors.push("capture_only properties must have return type `!`", t.span());
+                    }
+                }
             }
         } else {
             // properties not capture_only:
