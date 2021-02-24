@@ -207,7 +207,7 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone {
     /// This is a variation of the [`set`](VarObj::set) method that does not require
     /// an entire new value to be instantiated.
     ///
-    /// If the result is `Ok` the variable will be flagged as [new](Self::is_new) in the next update,
+    /// If the result is `Ok` the variable will be flagged as [new](VarObj::is_new) in the next update,
     /// even if `change` does not do anything.
     fn modify<F: FnOnce(&mut T) + 'static>(&self, vars: &Vars, change: F) -> Result<(), VarIsReadOnly>;
 

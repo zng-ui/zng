@@ -40,8 +40,8 @@ pub type FrameId = webrender::api::Epoch;
 ///
 /// # Font API
 ///
-/// The default font API is provided by [`FontManager`](crate::core::text::FontManager) that is included
-/// in the app default extensions. The default font type is [`Font`](crate::core::text::Font) that implements this trait.
+/// The default font API is provided by [`FontManager`](crate::text::FontManager) that is included
+/// in the app default extensions. The default font type is [`Font`](crate::text::Font) that implements this trait.
 pub trait Font {
     /// Gets the instance key in the `api` namespace.
     /// The font configuration must be provided by `self`, except the `synthesis` that is used in the font instance.

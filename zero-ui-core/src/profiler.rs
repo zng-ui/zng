@@ -1,6 +1,7 @@
 //! Performance profiling.
 //!
-//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`] and [`write_profile`] for more details.
+//! Crate must be compiled with the `app_profiler`. See [`profile_scope!`](crate::profiler::profile_scope)
+//! and [`write_profile`](crate::profiler::write_profile) for more details.
 //!
 //! Profiler can be viewed using the `chrome://tracing` app.
 
@@ -200,7 +201,7 @@ mod profiler_impl {
 #[cfg(feature = "app_profiler")]
 pub use profiler_impl::*;
 
-/// Declares a [`ProfileScope`](crate::core::profiler::ProfileScope) variable if
+/// Declares a [`ProfileScope`](crate::profiler::ProfileScope) variable if
 /// the `app_profiler` feature is active.
 ///
 /// # Example

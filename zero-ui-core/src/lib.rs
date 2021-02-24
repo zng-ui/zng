@@ -161,7 +161,7 @@ type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 /// Event properties are the next priority, they are set after all others except `context`, this way events can be configured by the
 /// widget context properties but also have access to the widget visual they contain.
 ///
-/// It is strongly encouraged that the event handler signature matches the one from [`on_event`](crate::properties::events::on_event).
+/// It is strongly encouraged that the event handler signature matches the one from [`on_event`](crate::event::on_event).
 ///
 /// ## `outer`
 ///
@@ -244,7 +244,7 @@ pub use zero_ui_proc_macros::property;
 /// ```
 ///
 /// Widgets inheritance works by 'importing' all properties, when blocks and init functions into the new widget.
-/// All widgets automatically inherit from [`implicit_mixin`](mod@crate::widgets::mixins::implicit_mixin) (after all other inherits).
+/// All widgets automatically inherit from [`implicit_mixin`](mod@crate::widget_base::implicit_mixin) (after all other inherits).
 ///
 /// ### Conflict Resolution
 ///
@@ -438,7 +438,7 @@ pub use zero_ui_proc_macros::property;
 /// can [capture](#property-capturing) property arguments.
 ///
 /// If omitted the left-most inherited widget `new_child` is used, if the widget only inherits from mix-ins
-/// [`default_widget_new_child`](crate::default_widget_new_child) is used.
+/// [`default_widget_new_child`](crate::widget_base::default_widget_new_child) is used.
 ///
 /// ## `new`
 ///
@@ -473,7 +473,7 @@ pub use zero_ui_proc_macros::property;
 /// After the first argument it can [capture](#property-capturing) property arguments.
 ///
 /// If omitted the left-most inherited widget `new` is used, if the widget only inherits from mix-ins
-/// [`default_widget_new`](crate::default_widget_new) is used.
+/// [`default_widget_new`](crate::widget_base::default_widget_new) is used.
 ///
 /// ## Property Capturing
 ///

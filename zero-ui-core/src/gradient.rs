@@ -32,7 +32,7 @@ impl From<ExtendMode> for RenderExtendMode {
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
 pub type RenderExtendMode = webrender::api::ExtendMode;
 
-/// The [angle](AngleUnits) or [line](crate::core::units::Line) that defines a linear gradient.
+/// The [angle](AngleUnits) or [line](crate::units::Line) that defines a linear gradient.
 ///
 /// # Example
 ///

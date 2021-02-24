@@ -1,7 +1,7 @@
 //! Keyboard focus manager.
 //!
-//! The [`FocusManager`] struct is an [app extension](crate::core::app::AppExtension). It
-//! is included in the [default app](crate::core::app::App::default) and provides the [`Focus`] service
+//! The [`FocusManager`] struct is an [app extension](crate::app::AppExtension). It
+//! is included in the [default app](crate::app::App::default) and provides the [`Focus`] service
 //! and the [`FocusChangedEvent`] event.
 //!
 //! # Keyboard Focus
@@ -334,7 +334,7 @@ event! {
 ///
 /// # Default
 ///
-/// This extension is included in the [default app](crate::core::app::App::default).
+/// This extension is included in the [default app](crate::app::App::default).
 ///
 /// # Dependencies
 ///

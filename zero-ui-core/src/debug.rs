@@ -102,13 +102,13 @@ pub struct PropertyArgInfo {
     pub value: String,
     /// Value version from the source variable.
     pub value_version: u32,
-    /// If the arg is a [`can_update` var](crate::core::var::VarObj::can_update).
+    /// If the arg is a [`can_update` var](crate::var::VarObj::can_update).
     pub can_update: bool,
 }
 
 /// Property priority in a widget.
 ///
-/// See [the property doc](crate::core::property#priority) for more details.
+/// See [the property doc](crate::property#priority) for more details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyPriority {
     Context,

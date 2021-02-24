@@ -572,7 +572,7 @@ impl<T: VarValue + Send, V: Var<T>> SyncChannel for VarReceiverSync<T, V> {
     }
 }
 
-/// Represents a [`Var`](crate::core::var::Var) that can be read and updated from other threads.
+/// Represents a [`Var`](crate::var::Var) that can be read and updated from other threads.
 ///
 /// See [`Sync::var_channel`] for more details.
 ///

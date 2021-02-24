@@ -86,7 +86,7 @@ pub trait AppExtension: 'static {
         let _ = (update, ctx);
     }
 
-    /// Called when a [`WindowServicesInit::visit`](crate::core::service::WindowServicesInit::visit) request was made.
+    /// Called when a [`WindowServicesInit::visit`](crate::service::WindowServicesInit::visit) request was made.
     ///
     /// Only extensions that generate windows must handle this method. They must iterate
     /// through every window and call [`visit`](WindowServicesVisitors::visit) for each

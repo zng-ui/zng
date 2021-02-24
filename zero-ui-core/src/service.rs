@@ -213,7 +213,7 @@ impl WindowServicesInit {
 
 /// Windows services visit request.
 ///
-/// See [`visit_window_services`](crate::core::app::AppExtension::visit_window_services) for more details.
+/// See [`visit_window_services`](crate::app::AppExtension::visit_window_services) for more details.
 pub struct WindowServicesVisitors {
     visitors: Vec<Box<dyn FnMut(super::window::WindowId, &mut WindowServices)>>,
 }

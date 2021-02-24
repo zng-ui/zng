@@ -13,7 +13,7 @@ use super::*;
 /// Use [`var`] or [`RcVar::new`] to create a new variable, use [`RcVar::clone`] to create another reference
 /// to the same variable.
 ///
-/// Use the [`Sync`](crate::core::sync::Sync) variable methods to access the variable from other threads.
+/// Use the [`Sync`](crate::sync::Sync) variable methods to access the variable from other threads.
 pub struct RcVar<T: VarValue>(Rc<RcVarData<T>>);
 struct RcVarData<T> {
     data: UnsafeCell<T>,

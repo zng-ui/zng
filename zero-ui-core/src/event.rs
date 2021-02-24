@@ -169,7 +169,7 @@ impl<T: 'static> EventListener<T> {
         EventListener::never(false)
     }
 
-    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
+    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
     }
@@ -179,7 +179,7 @@ impl<T: 'static> EventListener<T> {
         !self.updates(events).is_empty()
     }
 
-    /// If this update is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
+    /// If this update is notified using the [`UiNode::update_hp`](crate::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }
@@ -237,7 +237,7 @@ impl<T: 'static> EventEmitter<T> {
         self.chan.has_listeners()
     }
 
-    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::core::UiNode::update).
+    /// Gets a reference to the updates that happened in between calls of [`UiNode::update`](crate::UiNode::update).
     pub fn updates<'a>(&'a self, events: &'a Events) -> &'a [T] {
         self.chan.updates(events)
     }
@@ -247,7 +247,7 @@ impl<T: 'static> EventEmitter<T> {
         !self.updates(events).is_empty()
     }
 
-    /// If this event is notified using the [`UiNode::update_hp`](crate::core::UiNode::update_hp) method.
+    /// If this event is notified using the [`UiNode::update_hp`](crate::UiNode::update_hp) method.
     pub fn is_high_pressure(&self) -> bool {
         self.chan.is_high_pressure()
     }
@@ -1126,8 +1126,8 @@ macro_rules! __event_property {
 /// Declare one or more event properties.
 ///
 /// Each declaration expands to a pair of properties `on_$event` and `on_pre_$event`. The preview property
-/// calls [`on_pre_event`](crate::properties::events::on_pre_event),
-/// the main event property calls [`on_event`](crate::properties::events::on_event).
+/// calls [`on_pre_event`](crate::event::on_pre_event),
+/// the main event property calls [`on_event`](crate::event::on_event).
 ///
 /// # Example
 ///
