@@ -27,7 +27,7 @@ pub use input::keyword;
 pub use input::Priority;
 
 mod input {
-    use syn::{parse::*, *};
+    use syn::{parse::*, spanned::Spanned, *};
 
     pub mod keyword {
         syn::custom_keyword!(context);
@@ -51,8 +51,21 @@ mod input {
             Ok(MacroArgs {
                 priority: input.parse()?,
                 allowed_in_when: {
-                    if input.peek(Token![,]) {
-                        Some((input.parse()?, input.parse()?, input.parse()?, input.parse()?))
+                    if input.peek(Token![,]) && input.peek2(keyword::allowed_in_when) {
+                        let comma = input.parse().unwrap();
+                        let allowed_in_when = input.parse::<keyword::allowed_in_when>().unwrap();
+
+                        if input.is_empty() {
+                            return Err(syn::Error::new(allowed_in_when.span(), "expected `allowed_in_when : <bool>`"));
+                        }
+                        let colon = input.parse::<Token![:]>()?;
+
+                        if input.is_empty() {
+                            return Err(syn::Error::new(colon.span(), "expected `: <bool>`"));
+                        }
+                        let bool_ = input.parse()?;
+
+                        Some((comma, allowed_in_when, colon, bool_))
                     } else {
                         None
                     }
