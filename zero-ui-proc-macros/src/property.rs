@@ -352,14 +352,7 @@ mod analysis {
                     arg_types.push((&*t.ty).clone());
                     match &*t.pat {
                         syn::Pat::Ident(ident_pat) => {
-                            if let Some(subpat) = &ident_pat.subpat {
-                                // ident @ sub_pat : type
-                                errors.push(
-                                    "only `field: T` pattern can be property arguments, found sub-pattern",
-                                    subpat.0.span(),
-                                );
-                                arg_idents.push(invalid_idents());
-                            } else if ident_pat.ident == "self" {
+                            if ident_pat.ident == "self" {
                                 // self : type
                                 errors.push("methods cannot be property functions", ident_pat.ident.span());
                                 arg_idents.push(invalid_idents());
