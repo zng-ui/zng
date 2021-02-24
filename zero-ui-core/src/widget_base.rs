@@ -1,4 +1,4 @@
-//! The implicit mixin, default constructors and properties used in all or most widgets.
+//! The [`implicit_mixin`](mod@implicit_mixin), default constructors and properties used in all or most widgets.
 
 use crate::context::{state_key, LayoutContext, LazyStateMap, WidgetContext};
 use crate::render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey};
