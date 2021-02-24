@@ -26,7 +26,3 @@ trybuild = "1.0.41"
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]
-
-#[[bench]]
-#name = "value_changed"
-#harness = false
