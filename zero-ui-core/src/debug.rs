@@ -626,16 +626,6 @@ pub mod debug_var_util {
         }
     }
 }
-#[doc(hidden)]
-#[macro_export]
-macro_rules! debug_var {
-    ($var:expr) => {{
-        use $crate::debug::debug_var_util::*;
-        (&&&Wrap(std::clone::Clone::clone($var))).debug_var()
-    }};
-}
-#[doc(hidden)]
-pub use debug_var;
 
 #[doc(hidden)]
 pub type DebugArgs = Box<[BoxedVar<String>]>;

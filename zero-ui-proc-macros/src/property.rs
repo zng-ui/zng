@@ -783,12 +783,26 @@ mod output {
 
             #[cfg(debug_assertions)]
             let arg_debug_vars = if self.allowed_in_when {
+                let args_len = arg_locals.len();
+                // generate debug_var calls with the arg type span in case the type does
+                // not implement Clone and (IntoVar or Var or Debug) which generates a compile error.
+                let debug_var_calls = arg_locals.iter().zip(arg_types).map(|(lid, ty)| {
+                    let mut lid = lid.clone();
+                    lid.set_span(ty.span());
+                    quote_spanned! {ty.span()=>
+                        {
+                            use #crate_core::debug::debug_var_util::*;
+                            (&&&Wrap(std::clone::Clone::clone(#lid))).debug_var()
+                        },
+                    }
+                });
                 quote! {
                     let arg_debug_vars = {
                         let ( #(#arg_locals),* ) = self_.unwrap_ref();
-                        Box::new([
-                            #(#crate_core::debug::debug_var!(#arg_locals),)*
-                        ])
+                        let __r: [_; #args_len] = [
+                            #(#debug_var_calls)*
+                        ];
+                        Box::new(__r)
                     };
                 }
             } else {
