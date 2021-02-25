@@ -1341,9 +1341,9 @@ pub mod prelude {
     /// }
     /// #[impl_ui_node(child)]
     /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
-    ///     fn update(&mut self, ctx: &mut WidgetContext) { 
+    ///     fn update(&mut self, ctx: &mut WidgetContext) {
     ///         self.child.update(ctx);
-    ///         if let Some(new_value) = self.value.get_new(ctx.vars) { 
+    ///         if let Some(new_value) = self.value.get_new(ctx.vars) {
     ///             todo!()
     ///         }
     ///     }
