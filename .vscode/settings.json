@@ -11,5 +11,8 @@
         "plaintext",
         "rust",
         "toml"
+    ],
+    "rust-analyzer.files.excludeDirs": [
+        "tests/build",
     ]
 }

@@ -169,6 +169,9 @@ mod analysis {
 
         let mut errors = Errors::default();
 
+        // if Output must only expand to the function and errors.
+        let mut fn_and_errors_only = false;
+
         let prefix = Prefix::new(&fn_.sig.ident);
         let attrs = Attributes::new(attrs);
 
@@ -314,6 +317,14 @@ mod analysis {
             let child = &fn_.sig.inputs[0];
             match child {
                 syn::FnArg::Typed(t) => {
+                    if let syn::Pat::Ident(id) = &*t.pat {
+                        // `self: T`
+                        if id.ident == "self" {
+                            errors.push("methods cannot be property functions", id.ident.span());
+                            fn_and_errors_only = true; // we can't expand struct and trait declarations inside an impl.
+                        }
+                    }
+
                     let mut visitor = CollectUsedGenerics::new(&generic_types);
                     visitor.visit_fn_arg(child);
                     let child_generics: Vec<_> = generic_types.iter().filter(|t| visitor.used.contains(&t.ident)).cloned().collect();
@@ -322,6 +333,7 @@ mod analysis {
                 syn::FnArg::Receiver(invalid) => {
                     // `self`
                     errors.push("methods cannot be property functions", invalid.span());
+                    fn_and_errors_only = true; // we can't expand struct and trait declarations inside an impl.
                 }
             }
 
@@ -414,7 +426,8 @@ mod analysis {
 
                 syn::FnArg::Receiver(invalid) => {
                     // `self`
-                    errors.push("methods cannot be property functions", invalid.span())
+                    errors.push("methods cannot be property functions", invalid.span());
+                    fn_and_errors_only = true; // we can't expand struct and trait declarations inside an impl.
                 }
             }
         }
@@ -487,8 +500,17 @@ mod analysis {
         }
 
         if args.priority.is_capture_only() {
+            let msg = if fn_and_errors_only {
+                // we are in a context where we only want to expand to the code
+                // the user wrote + errors, but the code for a capture_only function
+                // is not valid, so we patch it into a valid function to minimize
+                // misleading errors.
+                "invalid property declaration".to_owned()
+            } else {
+                format!("property `{}` cannot be set because it is capture-only", fn_.sig.ident)
+            };
+
             // set capture_only standard error.
-            let msg = format!("property `{}` cannot be set because it is capture-only", fn_.sig.ident);
             fn_.block = parse_quote! {
                 { panic!(#msg) }
             };
@@ -525,6 +547,7 @@ mod analysis {
 
         output::Output {
             errors,
+            fn_and_errors_only,
             fn_attrs: output::OutputAttributes {
                 docs: attrs.docs,
                 inline: attrs.inline,
@@ -654,6 +677,7 @@ mod output {
         pub errors: Errors,
         pub fn_attrs: OutputAttributes,
         pub fn_: ItemFn,
+        pub fn_and_errors_only: bool,
         pub types: OutputTypes,
         pub macro_: OutputMacro,
         pub mod_: OutputMod,
@@ -661,11 +685,16 @@ mod output {
     impl ToTokens for Output {
         fn to_tokens(&self, tokens: &mut TokenStream) {
             self.errors.to_tokens(tokens);
-            self.fn_attrs.to_tokens(tokens);
-            self.fn_.to_tokens(tokens);
-            self.types.to_tokens(tokens);
-            self.macro_.to_tokens(tokens);
-            self.mod_.to_tokens(tokens);
+            if self.fn_and_errors_only {
+                self.fn_attrs.to_tokens_fn_only(tokens);
+                self.fn_.to_tokens(tokens);
+            } else {
+                self.fn_attrs.to_tokens(tokens);
+                self.fn_.to_tokens(tokens);
+                self.types.to_tokens(tokens);
+                self.macro_.to_tokens(tokens);
+                self.mod_.to_tokens(tokens);
+            }
         }
     }
 
@@ -675,6 +704,16 @@ mod output {
         pub cfg: Option<Attribute>,
         pub attrs: Vec<Attribute>,
         pub is_capture_only: bool,
+    }
+
+    impl OutputAttributes {
+        fn to_tokens_fn_only(&self, tokens: &mut TokenStream) {
+            self.inline.to_tokens(tokens);
+            self.cfg.to_tokens(tokens);
+            for attr in self.attrs.iter().chain(&self.docs) {
+                attr.to_tokens(tokens);
+            }
+        }
     }
     impl ToTokens for OutputAttributes {
         fn to_tokens(&self, tokens: &mut TokenStream) {
