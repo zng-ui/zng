@@ -1,21 +1,20 @@
 use std::env;
 use std::format_args as f;
 
+const DO: &str = "do";// shell script that builds and runs the tasks.
+const DO_RS: &str = "do-tasks.rs";// tasks file name (this file).
+
 fn main() {
     let (task, args) = args();
     task_header(task, &args[..]);
 
     match task {
-        // do doc [-o, --open]
         "doc" => doc(args),
-        // do test
         "test" => test(args),
-        // do run [-p, --profile]
         "run" => run(args),
-        // do expand [-r, --raw]
         "expand" => expand(args),
-        // unknown
-        _ => fatal(f!("unknown task {:?}", task)),
+        "h" | "-h" | "help" | "--help" => help(args),
+        _ => fatal(f!("unknown task {:?}, \"{} help\" to list tasks", task, DO)),
     }
 }
 
@@ -28,16 +27,16 @@ fn doc(mut args: Vec<&str>) {
     if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
         *open = "--open";
     }
-    command("doc", "cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
+    cmd("doc", "cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
 // do test
 fn test(args: Vec<&str>) {
-    command("test", "cargo", &["test", "--workspace", "--no-fail-fast"], &args);
+    cmd("test", "cargo", &["test", "--workspace", "--no-fail-fast"], &args);
     test_crate("no-direct-dep", &args);
 }
 fn test_crate(crate_: &str, user_args: &[&str]) {
-    command(
+    cmd(
         "test",
         "cargo",
         &[
@@ -54,21 +53,21 @@ fn test_crate(crate_: &str, user_args: &[&str]) {
 // do run [-p, --profile]
 fn run(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-p", "--profile"]) {
-        command(
+        cmd(
             "run",
             "cargo",
             &["run", "--release", "--features", "app_profiler", "--example"],
             &args,
         );
     } else {
-        command("run", "cargo", &["run", "--example"], &args);
+        cmd("run", "cargo", &["run", "--example"], &args);
     }
 }
 
 // do expand [-r, --raw]
 fn expand(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-r", "--raw"]) {
-        command(
+        cmd(
             "expand (raw)",
             "cargo",
             &[
@@ -82,15 +81,25 @@ fn expand(mut args: Vec<&str>) {
             &args,
         );
     } else {
-        command("expand", "cargo", &["expand"], &args);
+        cmd("expand", "cargo", &["expand"], &args);
     }
+}
+
+// do help
+fn help(_: Vec<&str>) {
+    println!("\n{}{}{} (do)", C_WB, DO_RS, C_W);
+    println!("\n   Tasks for managing this project, implemented as a single Rust file.");
+    println!("\nUSAGE:");
+    println!("    {} TASK [TASK-ARGS]", DO);
+    println!("\nTASKS:");
+    // TODO read comments in this file?
 }
 
 /*****
  Util
 *****/
 
-fn command(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
+fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
     let status = std::process::Command::new(cmd)
         .args(&args[..])
@@ -126,11 +135,11 @@ fn args() -> (&'static str, Vec<&'static str>) {
 }
 
 fn task_header(task: &str, args: &[&str]) {
-    println!("{}Running{}: tasks.rs{} {:?} {:?}", GREEN, BOLD_W, NC, task, args);
+    println!("{}Running{}: {}{} {:?} {:?}", C_GREEN, C_WB, DO_RS, C_W, task, args);
 }
 
 fn error(msg: impl std::fmt::Display) {
-    eprintln!("{}error{}: tasks.rs{} {}", RED, BOLD_W, NC, msg);
+    eprintln!("{}error{}: {}{} {}", C_RED, C_WB, DO_RS, C_W, msg);
 }
 
 fn fatal(msg: impl std::fmt::Display) -> ! {
@@ -138,7 +147,7 @@ fn fatal(msg: impl std::fmt::Display) -> ! {
     std::process::exit(-1)
 }
 
-const GREEN: &str = "\x1B[1;32m";
-const RED: &str = "\x1B[1;31m";
-const BOLD_W: &str = "\x1B[1;37m";
-const NC: &str = "\x1B[0m";
+const C_GREEN: &str = "\x1B[1;32m";
+const C_RED: &str = "\x1B[1;31m";
+const C_WB: &str = "\x1B[1;37m";
+const C_W: &str = "\x1B[0m";

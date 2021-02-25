@@ -20,5 +20,5 @@ goto next
 :done
 
 :: Run Task
-rustc tasks.rs --out-dir "target/tasks"
-"target/tasks/tasks.exe" %ARGS%
+rustc do-tasks.rs --out-dir "target/do-tasks"
+"target/do-tasks/do-tasks.exe" %ARGS%
