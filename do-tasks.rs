@@ -13,6 +13,7 @@ fn main() {
         "test" => test(args),
         "run" => run(args),
         "expand" => expand(args),
+        "fmt" => fmt(args),
         "h" | "-h" | "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {:?}, \"{} help\" to list tasks", task, DO)),
     }
@@ -89,10 +90,17 @@ fn expand(mut args: Vec<&str>) {
     }
 }
 
-// do help
+// do fmt [<cargo-fmt-args>][-- <rustfmt-args>]
+//    Format workspace, examples, build tests and tasks script.
+fn fmt(args: Vec<&str>) {
+    cmd("fmt", "cargo", &["fmt"], &args);
+    error("TODO finish implementing fmt")
+}
+
+// do help, h, -h, --help
 //    prints this help, task docs are extracted from the tasks file.
 fn help(_: Vec<&str>) {
-    println!("\n{}{}{} ({}{}{})", C_WB, DO_RS, C_W, C_WB, DO, C_W);
+    println!("\n{}{}{} ({}{}{})", C_WB, DO, C_W, C_WB, DO_RS, C_W);
     println!("\n   Tasks for managing this project, implemented as a single Rust file.");
     println!("\nUSAGE:");
     println!("    {} TASK [<TASK-ARGS>]", DO);
@@ -134,7 +142,7 @@ fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
     }
 }
 
-// Removes any of the flags in `any` from `args`. Returns if found any.
+// Removes all of the flags in `any` from `args`. Returns if found any.
 fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
     let mut i = 0;
     let mut found = false;
