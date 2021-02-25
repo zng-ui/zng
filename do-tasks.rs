@@ -1,8 +1,8 @@
 use std::env;
 use std::format_args as f;
 
-const DO: &str = "do";// shell script that builds and runs the tasks.
-const DO_RS: &str = "do-tasks.rs";// tasks file name (this file).
+const DO: &str = "do"; // shell script that builds and runs the tasks.
+const DO_RS: &str = "do-tasks.rs"; // tasks file name (this file).
 
 fn main() {
     let (task, args) = args();
@@ -22,7 +22,8 @@ fn main() {
  Tasks
 ******/
 
-// do doc [-o, --open]
+// do doc [-o, --open] [<cargo-doc-args>]
+//    Generate documentation for crates in the root workspace.
 fn doc(mut args: Vec<&str>) {
     if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
         *open = "--open";
@@ -30,7 +31,8 @@ fn doc(mut args: Vec<&str>) {
     cmd("doc", "cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
-// do test
+// do test [<cargo-test-args>]
+//    Run all tests in project.
 fn test(args: Vec<&str>) {
     cmd("test", "cargo", &["test", "--workspace", "--no-fail-fast"], &args);
     test_crate("no-direct-dep", &args);
@@ -50,7 +52,8 @@ fn test_crate(crate_: &str, user_args: &[&str]) {
     );
 }
 
-// do run [-p, --profile]
+// do run EXAMPLE [-p, --profile] [<cargo-run-args>]
+//    Run an example in ./examples. If profiling builds in release with app_profiler.
 fn run(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-p", "--profile"]) {
         cmd(
@@ -64,7 +67,8 @@ fn run(mut args: Vec<&str>) {
     }
 }
 
-// do expand [-r, --raw]
+// do expand [-r, --raw] [<cargo-expand-args>|<cargo-args>]
+//    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
 fn expand(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-r", "--raw"]) {
         cmd(
@@ -86,19 +90,39 @@ fn expand(mut args: Vec<&str>) {
 }
 
 // do help
+//    prints this help, task docs are extracted from the tasks file.
 fn help(_: Vec<&str>) {
-    println!("\n{}{}{} (do)", C_WB, DO_RS, C_W);
+    println!("\n{}{}{} ({}{}{})", C_WB, DO_RS, C_W, C_WB, DO, C_W);
     println!("\n   Tasks for managing this project, implemented as a single Rust file.");
     println!("\nUSAGE:");
-    println!("    {} TASK [TASK-ARGS]", DO);
+    println!("    {} TASK [<TASK-ARGS>]", DO);
     println!("\nTASKS:");
-    // TODO read comments in this file?
+
+    // prints lines from this file that start with "// do " and comment lines directly after then.
+    match std::fs::read_to_string(DO_RS) {
+        Ok(rs) => {
+            let mut expect_details = false;
+            for line in rs.lines() {
+                if line.starts_with("// do ") {
+                    expect_details = true;
+                    println!("\n    {}", &line["// do ".len()..]);
+                } else if expect_details {
+                    expect_details = line.starts_with("//");
+                    if expect_details {
+                        println!("    {}", &line["//".len()..]);
+                    }
+                }
+            }
+        }
+        Err(e) => fatal(e),
+    }
 }
 
 /*****
  Util
 *****/
 
+// Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
 fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
     let status = std::process::Command::new(cmd)
@@ -110,6 +134,7 @@ fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
     }
 }
 
+// Removes any of the flags in `any` from `args`. Returns if found any.
 fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
     let mut i = 0;
     let mut found = false;
@@ -124,6 +149,7 @@ fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
     found
 }
 
+// Parses the initial input. Returns ("task-name", ["task", "args"]).
 fn args() -> (&'static str, Vec<&'static str>) {
     let mut args: Vec<_> = env::args().skip(1).collect();
     if args.is_empty() {
@@ -138,15 +164,18 @@ fn task_header(task: &str, args: &[&str]) {
     println!("{}Running{}: {}{} {:?} {:?}", C_GREEN, C_WB, DO_RS, C_W, task, args);
 }
 
+// Prints an error message, use `error(f!("{}", .."))` for formatting.
 fn error(msg: impl std::fmt::Display) {
     eprintln!("{}error{}: {}{} {}", C_RED, C_WB, DO_RS, C_W, msg);
 }
 
+// Prints an [`error`] and exists with code `-1`.
 fn fatal(msg: impl std::fmt::Display) -> ! {
     error(msg);
     std::process::exit(-1)
 }
 
+// ANSI colors.
 const C_GREEN: &str = "\x1B[1;32m";
 const C_RED: &str = "\x1B[1;31m";
 const C_WB: &str = "\x1B[1;37m";
