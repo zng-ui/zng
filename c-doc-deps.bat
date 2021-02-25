@@ -1,0 +1,1 @@
+cargo doc --all-features %*

@@ -1237,9 +1237,9 @@ pub mod core {
 pub mod properties;
 pub mod widgets;
 
-/// All the types you need to build an app.
+/// All the types you need to start building an app.
 ///
-/// Use glob import (`*`) to quickly start implementing an application.
+/// Use glob import (`*`) and start implementing your app.
 ///
 /// ```no_run
 /// use zero_ui::prelude::*;
@@ -1252,8 +1252,9 @@ pub mod widgets;
 /// # Other Preludes
 ///
 /// There are prelude modules for other contexts, [`new_property`](crate::prelude::new_property) for
-/// new properties, [`new_widget`](crate::prelude::new_widget) for creating widgets.
+/// creating new properties, [`new_widget`](crate::prelude::new_widget) for creating new widgets.
 pub mod prelude {
+    #[doc(no_inline)]
     pub use crate::core::{
         app::{App, ElementState},
         color::{
@@ -1287,44 +1288,88 @@ pub mod prelude {
         UiNode, Widget, WidgetId, WidgetList, WidgetVec,
     };
 
+    #[doc(no_inline)]
     pub use crate::properties::*;
+    #[doc(no_inline)]
     pub use crate::widgets::*;
 
+    #[doc(no_inline)]
     pub use crate::properties::background::{background, *};
+    #[doc(no_inline)]
     pub use crate::properties::border::*;
+    #[doc(no_inline)]
     pub use crate::properties::events::{focus::*, gesture::*, keyboard::*};
+    #[doc(no_inline)]
     pub use crate::properties::filters::*;
+    #[doc(no_inline)]
     pub use crate::properties::focus::*;
+    #[doc(no_inline)]
     pub use crate::properties::foreground::{foreground, *};
+    #[doc(no_inline)]
     pub use crate::properties::size::{size, *};
+    #[doc(no_inline)]
     pub use crate::properties::states::*;
+    #[doc(no_inline)]
     pub use crate::properties::text_theme::{
         font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
         text_transform, word_spacing,
     };
+    #[doc(no_inline)]
     pub use crate::properties::transform::{transform, *};
 
+    #[doc(no_inline)]
     pub use crate::widgets::layouts::*;
+    #[doc(no_inline)]
     pub use crate::widgets::text::{text, *};
 
     /// All the types you need to declare a new property.
     ///
-    /// Use glob import (`*`) to quickly start implementing properties.
+    /// Use glob import (`*`) and start your custom properties.
+    ///
+    /// ```no_run
+    /// use zero_ui::prelude::new_property::*;
+    ///
+    /// #[property(context)]
+    /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { 
+    ///     
+    /// }
+    ///
+    /// struct MyPropertyNode<C: UiNode, V: Var<bool>> { 
+    ///     child: C,
+    ///     value: V
+    /// }
+    /// #[impl_ui_node(child)]
+    /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> { 
+    ///     
+    /// }
+    /// ```
     pub mod new_property {
+        #[doc(no_inline)]
         pub use crate::core::app::ElementState;
+        #[doc(no_inline)]
         pub use crate::core::color::{self, *};
+        #[doc(no_inline)]
         pub use crate::core::context::*;
+        #[doc(no_inline)]
         pub use crate::core::event::*;
+        #[doc(no_inline)]
         pub use crate::core::gesture::*;
+        #[doc(no_inline)]
         pub use crate::core::render::*;
+        #[doc(no_inline)]
         pub use crate::core::text::Text;
+        #[doc(no_inline)]
         pub use crate::core::units::{self, *};
+        #[doc(no_inline)]
         pub use crate::core::var::*;
+        #[doc(no_inline)]
         pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
+        #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
             LAYOUT_ANY_SIZE,
         };
+        #[doc(no_inline)]
         pub use crate::properties::{set_widget_state, with_context_var};
     }
 
@@ -1332,33 +1377,55 @@ pub mod prelude {
     ///
     /// Use glob import (`*`) to quickly start implementing widgets.
     pub mod new_widget {
+        #[doc(no_inline)]
         pub use crate::core::color::*;
+        #[doc(no_inline)]
         pub use crate::core::context::*;
+        #[doc(no_inline)]
         pub use crate::core::render::*;
+        #[doc(no_inline)]
         pub use crate::core::text::*;
+        #[doc(no_inline)]
         pub use crate::core::units::*;
+        #[doc(no_inline)]
         pub use crate::core::var::*;
+        #[doc(no_inline)]
         pub use crate::core::{
             impl_ui_node, is_layout_any_size, ui_vec, widget, widget2, widget_mixin, FillUiNode, UiNode, UiNodeList, Widget, WidgetId,
             WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
+        #[doc(no_inline)]
         pub use crate::properties::background::{background, *};
+        #[doc(no_inline)]
         pub use crate::properties::border::{border, *};
+        #[doc(no_inline)]
         pub use crate::properties::capture_only::*;
+        #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
+        #[doc(no_inline)]
         pub use crate::properties::filters::*;
+        #[doc(no_inline)]
         pub use crate::properties::focus::focusable;
+        #[doc(no_inline)]
         pub use crate::properties::focus::*;
+        #[doc(no_inline)]
         pub use crate::properties::foreground::{foreground, *};
+        #[doc(no_inline)]
         pub use crate::properties::size::{size, *};
+        #[doc(no_inline)]
         pub use crate::properties::states::*;
+        #[doc(no_inline)]
         pub use crate::properties::text_theme::{
             font_family, font_size, font_stretch, font_style, font_weight, letter_spacing, line_height, tab_length, text_align, text_color,
             text_transform, word_spacing,
         };
+        #[doc(no_inline)]
         pub use crate::properties::transform::{transform, *};
+        #[doc(no_inline)]
         pub use crate::properties::*;
+        #[doc(no_inline)]
         pub use crate::widgets::container;
+        #[doc(no_inline)]
         pub use crate::widgets::mixins::*;
     }
 }

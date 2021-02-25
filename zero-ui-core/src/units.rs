@@ -1396,7 +1396,7 @@ impl_from_and_into_var! {
 /// A "word" is the sequence of characters in-between space characters. This extra
 /// spacing is applied per space character not per word, if there are three spaces between words
 /// the extra spacing is applied thrice. Usually the number of spaces between words is collapsed to one,
-/// see [`white_space`](crate::properties::text_theme::white_space) for more details.
+/// see [`WhiteSpace`](crate::text::WhiteSpace).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum WordSpacing {
     /// Word spacing can be tweaked when justification is enabled.
