@@ -1,1 +1,1 @@
-cargo test --workspace
+cargo test --workspace --no-fail-fast

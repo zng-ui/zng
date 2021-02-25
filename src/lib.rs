@@ -354,7 +354,7 @@ pub mod core {
     ///
     /// Given an UI node `struct`:
     /// ```
-    /// # use zero_ui_core::units::LayoutSize;
+    /// # use zero_ui::core::units::LayoutSize;
     /// struct FillColorNode<C> {
     ///     color: C,
     ///     final_size: LayoutSize,
@@ -364,12 +364,12 @@ pub mod core {
     /// In an `UiNode` trait impl block, annotate the impl block with `#[impl_ui_node(..)]` and only implement custom methods.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::impl_ui_node;
-    /// # use zero_ui_core::render::FrameBuilder;
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::UiNode;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::impl_ui_node;
+    /// # use zero_ui::core::render::FrameBuilder;
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::color::*;
+    /// # use zero_ui::core::UiNode;
     /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
     /// #[impl_ui_node(none)]
     /// impl<C: VarLocal<Rgba>> UiNode for FillColorNode<C> {
@@ -383,11 +383,11 @@ pub mod core {
     /// Or, in a inherent impl, annotate the impl block with `#[impl_ui_node(..)]` and custom `UiNode` methods with `#[UiNode]`.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::impl_ui_node;
-    /// # use zero_ui_core::render::FrameBuilder;
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::color::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::impl_ui_node;
+    /// # use zero_ui::core::render::FrameBuilder;
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::color::*;
     /// # struct FillColorNode<C> { color: C, final_size: LayoutSize, }
     /// #[impl_ui_node(none)]
     /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -417,11 +417,11 @@ pub mod core {
     /// * Render: Does nothing, blank implementation.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::impl_ui_node;
-    /// # use zero_ui_core::render::FrameBuilder;
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::color::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::impl_ui_node;
+    /// # use zero_ui::core::render::FrameBuilder;
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::color::*;
     /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
     /// #[impl_ui_node(none)]
     /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
@@ -439,11 +439,11 @@ pub mod core {
     /// Expands to:
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::impl_ui_node;
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::color::*;
-    /// # use zero_ui_core::context::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::impl_ui_node;
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::color::*;
+    /// # use zero_ui::core::context::*;
     /// # struct FillColorNode<C> { color: C, final_size: LayoutSize }
     /// impl<C: VarLocal<Rgba>> FillColorNode<C> {
     ///     pub fn new(color: C) -> Self {
@@ -451,33 +451,33 @@ pub mod core {
     ///     }
     /// }
     ///
-    /// impl<C: VarLocal<Rgba>> zero_ui_core::UiNode for FillColorNode<C> {
+    /// impl<C: VarLocal<Rgba>> zero_ui::core::UiNode for FillColorNode<C> {
     ///     #[inline]
-    ///     fn init(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) { }
+    ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
     ///
     ///     #[inline]
-    ///     fn update(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) { }
+    ///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
     ///
     ///     #[inline]
-    ///     fn update_hp(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) { }
+    ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
     ///
     ///     #[inline]
-    ///     fn measure(&mut self, available_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) -> zero_ui_core::units::LayoutSize {
+    ///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
     ///         let mut size = available_size;
-    ///         if zero_ui_core::is_layout_any_size(size.width) {
+    ///         if zero_ui::core::is_layout_any_size(size.width) {
     ///             size.width = 0.0;
     ///         }
-    ///         if zero_ui_core::is_layout_any_size(size.height) {
+    ///         if zero_ui::core::is_layout_any_size(size.height) {
     ///             size.height = 0.0;
     ///         }
     ///         size
     ///     }
     ///
     ///     #[inline]
-    ///     fn arrange(&mut self, final_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) { }
+    ///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) { }
     ///
     ///     #[inline]
-    ///     fn render(&self, frame: &mut zero_ui_core::render::FrameBuilder) {
+    ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
     ///         // empty here when you don't implement render.
     ///
     ///         let area = LayoutRect::from_size(self.final_size);
@@ -485,10 +485,10 @@ pub mod core {
     ///     }
     ///
     ///     #[inline]
-    ///     fn render_update(&self, update: &mut zero_ui_core::render::FrameUpdate) { }
+    ///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) { }
     ///
     ///     #[inline]
-    ///     fn deinit(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) { }
+    ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) { }
     /// }
     /// ```
     ///
@@ -504,9 +504,9 @@ pub mod core {
     /// * Render: Delegates to child render.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode};
-    /// # use zero_ui_core::var::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode};
+    /// # use zero_ui::core::var::*;
     /// struct DelegateChildNode<C: UiNode> { child: C }
     ///
     /// #[impl_ui_node(child)]
@@ -516,55 +516,55 @@ pub mod core {
     /// Expands to:
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode};
-    /// # use zero_ui_core::var::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode};
+    /// # use zero_ui::core::var::*;
     /// # struct DelegateChildNode<C: UiNode> { child: C }
     /// impl<C: UiNode> UiNode for DelegateChildNode<C> {
     ///     #[inline]
-    ///     fn init(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let child = { &mut self.child };
     ///         child.init(ctx)
     ///     }
     ///
     ///     #[inline]
-    ///     fn update(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let child = { &mut self.child };
     ///         child.update(ctx)
     ///     }
     ///
     ///     #[inline]
-    ///     fn update_hp(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let child = { &mut self.child };
     ///         child.update_hp(ctx)
     ///     }
     ///
     ///     #[inline]
-    ///     fn measure(&mut self, available_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) -> zero_ui_core::units::LayoutSize {
+    ///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
     ///         let child = { &mut self.child };
     ///         child.measure(available_size, ctx)
     ///     }
     ///
     ///     #[inline]
-    ///     fn arrange(&mut self, final_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) {
+    ///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
     ///         let child = { &mut self.child };
     ///         child.arrange(final_size, ctx)
     ///     }
     ///
     ///     #[inline]
-    ///     fn render(&self, frame: &mut zero_ui_core::render::FrameBuilder) {
+    ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
     ///         let child = { &self.child };
     ///         child.render(frame)
     ///     }
     ///
     ///     #[inline]
-    ///     fn render_update(&self, update: &mut zero_ui_core::render::FrameUpdate) {
+    ///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
     ///         let child = { &self.child };
     ///         child.render_update(update)
     ///     }
     ///
     ///     #[inline]
-    ///     fn deinit(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let child = { &mut self.child };
     ///         child.deinit(ctx)
     ///     }
@@ -583,8 +583,8 @@ pub mod core {
     /// * Render: Z-stacks the children. Last child on top.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode, WidgetList};
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode, WidgetList};
     /// struct DelegateChildrenNode<C: WidgetList> {
     ///     children: C,
     /// }
@@ -595,34 +595,34 @@ pub mod core {
     /// Expands to:
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode, WidgetList};
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode, WidgetList};
     /// struct DelegateChildrenNode<C: WidgetList> {
     ///     children: C,
     /// }
     /// impl<C: WidgetList> UiNode for DelegateChildrenNode<C> {
     ///     #[inline]
-    ///     fn init(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let children = { &mut self.children };
     ///         children.init_all(ctx);
     ///     }
     ///
     ///     #[inline]
-    ///     fn update(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let children = { &mut self.children };
     ///         children.update_all(ctx);
     ///     }
     ///
     ///     #[inline]
-    ///     fn update_hp(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let children = { &mut self.children };
     ///         children.update_hp_all(ctx);
     ///     }
     ///
     ///     #[inline]
-    ///     fn measure(&mut self, available_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) -> zero_ui_core::units::LayoutSize {
+    ///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
     ///         let children = { &mut self.children };
-    ///         let mut size = zero_ui_core::units::LayoutSize::zero();
+    ///         let mut size = zero_ui::core::units::LayoutSize::zero();
     ///         children.measure_all(|_, _|available_size, |_, desired_size, _| {
     ///             size = size.max(desired_size);
     ///         }, ctx);
@@ -630,25 +630,25 @@ pub mod core {
     ///     }
     ///
     ///     #[inline]
-    ///     fn arrange(&mut self, final_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) {
+    ///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
     ///         let children = { &mut self.children };
     ///         children.arrange_all(|_, _|final_size, ctx);
     ///     }
     ///
     ///     #[inline]
-    ///     fn render(&self, frame: &mut zero_ui_core::render::FrameBuilder) {
+    ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
     ///         let children = { &self.children };
-    ///         children.render_all(|_|zero_ui_core::units::LayoutPoint::zero(), frame);
+    ///         children.render_all(|_|zero_ui::core::units::LayoutPoint::zero(), frame);
     ///     }
     ///
     ///     #[inline]
-    ///     fn render_update(&self, update: &mut zero_ui_core::render::FrameUpdate) {
+    ///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
     ///         let children = { &self.children };
     ///         children.render_update_all(update);
     ///     }
     ///
     ///     #[inline]
-    ///     fn deinit(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         let children = { &mut self.children };
     ///         children.deinit_all(ctx);
     ///     }
@@ -668,10 +668,10 @@ pub mod core {
     /// * Render: Z-stacks the children. Last child on top.
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode, WidgetVec};
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::context::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode, WidgetVec};
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::context::*;
     /// struct DelegateChildrenNode {
     ///     children: WidgetVec,
     /// }
@@ -682,36 +682,36 @@ pub mod core {
     /// Expands to:
     ///
     /// ```
-    /// # use zero_ui_core::units::*;
-    /// # use zero_ui_core::{impl_ui_node, UiNode, WidgetVec};
-    /// # use zero_ui_core::var::*;
-    /// # use zero_ui_core::context::*;
+    /// # use zero_ui::core::units::*;
+    /// # use zero_ui::core::{impl_ui_node, UiNode, WidgetVec};
+    /// # use zero_ui::core::var::*;
+    /// # use zero_ui::core::context::*;
     /// # struct DelegateChildrenNode { children: WidgetVec }
     /// impl UiNode for DelegateChildrenNode {
     ///     #[inline]
-    ///     fn init(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn init(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         for child in { self.children.iter_mut() } {
     ///             child.init(ctx)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn update(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         for child in { self.children.iter_mut() } {
     ///             child.update(ctx)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn update_hp(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn update_hp(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         for child in { self.children.iter_mut() } {
     ///             child.update_hp(ctx)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn measure(&mut self, available_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) -> zero_ui_core::units::LayoutSize {
-    ///         let mut size = zero_ui_core::units::LayoutSize::zero();
+    ///     fn measure(&mut self, available_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) -> zero_ui::core::units::LayoutSize {
+    ///         let mut size = zero_ui::core::units::LayoutSize::zero();
     ///         for child in { self.children.iter_mut() } {
     ///            size = child.measure(available_size, ctx).max(size);
     ///         }
@@ -719,28 +719,28 @@ pub mod core {
     ///     }
     ///
     ///     #[inline]
-    ///     fn arrange(&mut self, final_size: zero_ui_core::units::LayoutSize, ctx: &mut zero_ui_core::context::LayoutContext) {
+    ///     fn arrange(&mut self, final_size: zero_ui::core::units::LayoutSize, ctx: &mut zero_ui::core::context::LayoutContext) {
     ///         for child in { self.children.iter_mut() } {
     ///             child.arrange(final_size, ctx)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn render(&self, frame: &mut zero_ui_core::render::FrameBuilder) {
+    ///     fn render(&self, frame: &mut zero_ui::core::render::FrameBuilder) {
     ///         for child in { self.children.iter() } {
     ///             child.render(frame)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn render_update(&self, update: &mut zero_ui_core::render::FrameUpdate) {
+    ///     fn render_update(&self, update: &mut zero_ui::core::render::FrameUpdate) {
     ///         for child in { self.children.iter() } {
     ///             child.render_update(update)
     ///         }
     ///     }
     ///
     ///     #[inline]
-    ///     fn deinit(&mut self, ctx: &mut zero_ui_core::context::WidgetContext) {
+    ///     fn deinit(&mut self, ctx: &mut zero_ui::core::context::WidgetContext) {
     ///         for child in { self.children.iter_mut() } {
     ///             child.deinit(ctx)
     ///         }
@@ -782,7 +782,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// use zero_ui_core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
+    /// use zero_ui::core::{property, UiNode, impl_ui_node, var::{Var, IntoVar}, context::WidgetContext};
     ///
     /// struct MyNode<C, V> { child: C, value: V }
     /// #[impl_ui_node(child)]
@@ -807,7 +807,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{property, var::IntoVar, text::Text};
+    /// # use zero_ui::core::{property, var::IntoVar, text::Text};
     /// /// Property docs.
     /// #[property(capture_only)]
     /// pub fn my_property(value: impl IntoVar<Text>) -> ! { }
@@ -884,8 +884,8 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::widget;
-    /// # // use zero_ui_core::widgets::{container, mixins::focusable_mixin};
+    /// # use zero_ui::core::widget;
+    /// # // use zero_ui::core::widgets::{container, mixins::focusable_mixin};
     /// widget! {
     ///     /// Widget documentation.
     ///     pub button;//: container + focusable_mixin;
@@ -898,7 +898,7 @@ pub mod core {
     /// Extra documentation about the widget properties is auto-generated and added to the module as well.
     ///
     /// ```
-    /// # use zero_ui_core::widget;
+    /// # use zero_ui::core::widget;
     /// widget! {
     ///     /// Widget documentation.
     ///     #[cfg(debug_assertions)]
@@ -911,7 +911,7 @@ pub mod core {
     /// The visibility is transferred to the widget module and macro and supports all visibility configurations.
     ///
     /// ```
-    /// # use zero_ui_core::widget;
+    /// # use zero_ui::core::widget;
     /// widget! {
     ///     pub(crate) widget_name;
     /// }
@@ -923,7 +923,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::widget;
+    /// # use zero_ui::core::widget;
     /// widget! {
     ///     pub foo;
     /// }
@@ -944,7 +944,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::widget;
+    /// # use zero_ui::core::widget;
     /// widget! {
     ///     pub foo;
     ///
@@ -979,7 +979,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{widget, property, UiNode, var::IntoVar};
+    /// # use zero_ui::core::{widget, property, UiNode, var::IntoVar};
     /// # #[property(context)]
     /// # fn other_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { child }
     /// widget! {
@@ -999,7 +999,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{widget, property, UiNode, var::IntoVar, text::Text};
+    /// # use zero_ui::core::{widget, property, UiNode, var::IntoVar, text::Text};
     /// # #[property(context)]
     /// # pub fn my_property(child: impl UiNode, value: impl IntoVar<Text>) -> impl UiNode { child }
     /// widget! {
@@ -1021,8 +1021,8 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::widget;
-    /// # use zero_ui_core::widget_base::enabled as on_click;
+    /// # use zero_ui::core::widget;
+    /// # use zero_ui::core::widget_base::enabled as on_click;
     /// widget! {
     /// # widget_name;
     ///     //..
@@ -1046,7 +1046,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{widget, UiNode, property, color::{rgb, Rgba}, var::{IntoVar, StateVar}};
+    /// # use zero_ui::core::{widget, UiNode, property, color::{rgb, Rgba}, var::{IntoVar, StateVar}};
     /// # #[property(inner)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
     /// # #[property(context)] pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode { child }
     /// widget! {
@@ -1069,7 +1069,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{widget, UiNode, property, color::{rgb, Rgba}, text::Text, var::{IntoVar, StateVar}};
+    /// # use zero_ui::core::{widget, UiNode, property, color::{rgb, Rgba}, text::Text, var::{IntoVar, StateVar}};
     /// # #[property(inner)] pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl UiNode { child }
     /// # #[property(inner)] pub fn title(child: impl UiNode, title: impl IntoVar<Text>) -> impl UiNode { child }
     /// # #[property(context)] pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode { child }
@@ -1106,7 +1106,7 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui_core::{widget, UiNode};
+    /// # use zero_ui::core::{widget, UiNode};
     /// // widget! {
     /// //     pub container;
     /// //     
@@ -1132,10 +1132,10 @@ pub mod core {
     ///
     /// ```
     /// # fn main() { }
-    /// # // use zero_ui_core::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
-    /// # // use zero_ui_core::properties::title;
-    /// # // use zero_ui_core::properties::background::background_color;
-    /// # // use zero_ui_core::widgets::container;
+    /// # // use zero_ui::core::{widget, color::rgb, var::IntoVar, WidgetId, text::Text, color::Rgba};
+    /// # // use zero_ui::core::properties::title;
+    /// # // use zero_ui::core::properties::background::background_color;
+    /// # // use zero_ui::core::widgets::container;
     /// # // pub struct Window { } impl Window { pub fn new(child: impl crate::core::UiNode, id: impl IntoVar<WidgetId>, title: impl IntoVar<Text>, background_color: impl IntoVar<Rgba>) -> Self { todo!() } }
     /// // widget! {
     /// //     pub window: container;
@@ -1184,8 +1184,8 @@ pub mod core {
     ///
     /// ```
     /// # // fn main() { }
-    /// # // use zero_ui_core::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
-    /// # // use zero_ui_core::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
+    /// # // use zero_ui::core::prelude::new_widget::{widget_mixin, focusable, border, is_focused_hgl, foreground_highlight, SideOffsets};
+    /// # // use zero_ui::core::widgets::mixins::{FocusHighlightDetailsVar, FocusHighlightWidthsVar, FocusHighlightOffsetsVar};
     /// // widget_mixin! {
     /// //     /// Focusable widget mix-in. Enables keyboard focusing on the widget and adds a focused
     /// //     /// highlight border.
