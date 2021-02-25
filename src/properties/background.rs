@@ -50,7 +50,7 @@ impl<T: UiNode, B: UiNode> UiNode for BackgroundNode<T, B> {
 /// Custom background property. Allows using any other widget as a background.
 ///
 /// Backgrounds are not hit-testable
-#[property(inner, allowed_in_when: false)]
+#[property(inner, allowed_in_when = false)]
 pub fn background(child: impl UiNode, background: impl UiNode) -> impl UiNode {
     BackgroundNode { child, background }
 }

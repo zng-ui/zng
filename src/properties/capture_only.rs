@@ -11,11 +11,11 @@ use crate::widgets::{LineOrientation, LineStyle};
 /// # Container
 ///
 /// Widgets that contain a single other widget can capture this property in their implementation.
-#[property(capture_only, allowed_in_when: false)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn widget_child(child: impl Widget) -> ! {}
 
 /// [`UiNode`] child node.
-#[property(capture_only, allowed_in_when: false)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn node_child(child: impl UiNode) -> ! {}
 
 /// [`Widget`] children nodes.
@@ -23,11 +23,11 @@ pub fn node_child(child: impl UiNode) -> ! {}
 /// # Layout
 ///
 /// Layout widgets can capture this property in their implementation.
-#[property(capture_only, allowed_in_when: false)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn widget_children(children: impl WidgetList) -> ! {}
 
 /// [`UiNode`] children nodes.
-#[property(capture_only, allowed_in_when: false)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn node_children(children: impl UiNodeList) -> ! {}
 
 /// A [`Length`] spacing.

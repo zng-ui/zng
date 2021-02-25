@@ -50,7 +50,7 @@ impl<T: UiNode, B: UiNode> UiNode for ForegroundNode<T, B> {
 }
 
 /// Custom foreground property. Allows using any other widget as a foreground overlay.
-#[property(inner, allowed_in_when: false)]
+#[property(inner, allowed_in_when = false)]
 pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
     ForegroundNode { child, foreground }
 }

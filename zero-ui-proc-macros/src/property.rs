@@ -41,8 +41,8 @@ mod input {
 
     pub struct MacroArgs {
         pub priority: Priority,
-        //", allowed_in_when: true"
-        pub allowed_in_when: Option<(Token![,], keyword::allowed_in_when, Token![:], LitBool)>,
+        //", allowed_in_when = true"
+        pub allowed_in_when: Option<(Token![,], keyword::allowed_in_when, Token![=], LitBool)>,
         // trailing comma
         pub comma_token: Option<Token![,]>,
     }
@@ -56,16 +56,16 @@ mod input {
                         let allowed_in_when = input.parse::<keyword::allowed_in_when>().unwrap();
 
                         if input.is_empty() {
-                            return Err(syn::Error::new(allowed_in_when.span(), "expected `allowed_in_when : <bool>`"));
+                            return Err(syn::Error::new(allowed_in_when.span(), "expected `allowed_in_when = <bool>`"));
                         }
-                        let colon = input.parse::<Token![:]>()?;
+                        let equal = input.parse::<Token![=]>()?;
 
                         if input.is_empty() {
-                            return Err(syn::Error::new(colon.span(), "expected `: <bool>`"));
+                            return Err(syn::Error::new(equal.span(), "expected `= <bool>`"));
                         }
                         let bool_ = input.parse()?;
 
-                        Some((comma, allowed_in_when, colon, bool_))
+                        Some((comma, allowed_in_when, equal, bool_))
                     } else {
                         None
                     }

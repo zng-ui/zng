@@ -1,18 +1,18 @@
 use zero_ui::core::{property, UiNode, var::*};
 
-#[property(context, allowed_in_when: false)]
+#[property(context, allowed_in_when = false)]
 fn unbounded<A>(child: impl UiNode, a: A) -> impl UiNode {
     let _a = unbounded::ArgsImpl::new(a);
     child
 }
 
-#[property(context, allowed_in_when: false)]
+#[property(context, allowed_in_when = false)]
 fn unbounded_phantom<A, B: Into<A>>(child: impl UiNode, b: B) -> impl UiNode {
     let _b = unbounded_phantom::ArgsImpl::new(b);
     child
 }
 
-#[property(context, allowed_in_when: false)]
+#[property(context, allowed_in_when = false)]
 fn generic_child<A: UiNode, B>(child: A, b: B) -> impl UiNode {
     let _b = generic_child::ArgsImpl::new(b);
     child
