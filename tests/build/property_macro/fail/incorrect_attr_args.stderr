@@ -1,0 +1,23 @@
+error: unexpected token
+ --> $DIR/incorrect_attr_args.rs:3:21
+  |
+3 | #[property(context, unknown: true)]
+  |                     ^^^^^^^
+
+error: expected boolean literal
+ --> $DIR/incorrect_attr_args.rs:8:38
+  |
+8 | #[property(context, allowed_in_when: "false")]
+  |                                      ^^^^^^^
+
+error: expected `allowed_in_when : <bool>`
+  --> $DIR/incorrect_attr_args.rs:13:21
+   |
+13 | #[property(context, allowed_in_when)]
+   |                     ^^^^^^^^^^^^^^^
+
+error: expected `: <bool>`
+  --> $DIR/incorrect_attr_args.rs:18:36
+   |
+18 | #[property(context, allowed_in_when: )]
+   |                                    ^

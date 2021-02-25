@@ -128,7 +128,7 @@ pub enum Justify {
     InterWord,
     /// The text is justified by adding space between letters.
     ///
-    /// This only works if [`letter_spacing`](crate::properties::text_theme::letter_spacing) is set to auto.
+    /// This only works if *letter spacing* is set to auto.
     InterLetter,
 }
 impl Default for Justify {
@@ -319,7 +319,7 @@ impl WhiteSpace {
 
 /// Font family name.
 ///
-/// A possible value for the [`font_family`](crate::properties::text_theme::font_family) property.
+/// A possible value for the `font_family` property.
 ///
 /// # Case Insensitive
 ///

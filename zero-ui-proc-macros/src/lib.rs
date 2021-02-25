@@ -1,9 +1,4 @@
-//! zero-ui proc-macros.
-//!
-//! Documentation of macros are done at the final reexport place in the main crate.
-//
-//! `#[doc(hidden)]` annotation is done here because this annotation is lost in `pub use _` items
-//! re-exported more then once.
+//! [`zero-ui`](../zero_ui_proc_macros/index.html) proc-macros.
 
 extern crate proc_macro;
 
@@ -34,21 +29,41 @@ mod widget_stage1;
 mod widget_stage2;
 pub(crate) mod widget_stage3;
 
+/// Expands an impl into a `UiNode` impl.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::impl_ui_node`](../zero_ui/core/attr.impl_ui_node.html) page.
 #[proc_macro_attribute]
 pub fn impl_ui_node(args: TokenStream, input: TokenStream) -> TokenStream {
     impl_ui_node::gen_impl_ui_node(args, input)
 }
 
+/// Expands a function to a widget property.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::property`](../zero_ui/core/attr.property.html) page.
 #[proc_macro_attribute]
 pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
 }
 
+/// Declares a new widget macro and module.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::widget`](../zero_ui/core/attr.widget.html) page.
 #[proc_macro]
 pub fn widget(input: TokenStream) -> TokenStream {
     widget_stage1::expand(false, input)
 }
 
+/// Declares a new widget mix-in module.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::widget_mixin`](../zero_ui/core/attr.widget_mixin.html) page.
 #[proc_macro]
 pub fn widget_mixin(input: TokenStream) -> TokenStream {
     widget_stage1::expand(true, input)
@@ -91,11 +106,21 @@ pub fn derive_window_service(item: TokenStream) -> TokenStream {
     derive_service::derive(item, ident!("WindowService"))
 }
 
+/// Expands a module to a widget module and macro.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::widget2`](../zero_ui/core/attr.widget2.html) page.
 #[proc_macro_attribute]
 pub fn widget2(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(false, args, input)
 }
 
+/// Expands a module to a widget mix-in module.
+///
+/// # Full Documentation
+///
+/// Read the documentation in the [`zero_ui::core::widget_mixin2`](../zero_ui/core/attr.widget_mixin2.html) page.
 #[proc_macro_attribute]
 pub fn widget_mixin2(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(true, args, input)

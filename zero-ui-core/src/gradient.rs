@@ -1,3 +1,5 @@
+//! Gradient types.
+
 use std::ops::Range;
 
 use crate::color::*;
@@ -28,7 +30,7 @@ impl From<ExtendMode> for RenderExtendMode {
 
 /// Gradient extend mode supported by the render.
 ///
-/// Note that [`ExtendMode::Reflect`](crate::widgets::ExtendMode::Reflect) is not supported
+/// Note that [`ExtendMode::Reflect`](crate::gradient::ExtendMode::Reflect) is not supported
 /// directly, you must duplicate and mirror the stops and use the `Repeat` render mode.
 pub type RenderExtendMode = webrender::api::ExtendMode;
 

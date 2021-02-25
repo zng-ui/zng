@@ -834,7 +834,8 @@ impl Gestures {
         }
     }
 
-    /// Does the [`click_shortcut`](crate::properties::events::gesture::click_shortcut) action.
+    /// Schedules a click event for the next update. The click arguments will say that the
+    /// click origin is the shortcut press.
     pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, args: ShortcutArgs) {
         self.click_shortcut.push((window_id, widget_id, ShortcutClick::Primary, args));
     }
