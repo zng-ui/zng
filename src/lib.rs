@@ -1324,23 +1324,29 @@ pub mod prelude {
 
     /// All the types you need to declare a new property.
     ///
-    /// Use glob import (`*`) and start your custom properties.
+    /// Use glob import (`*`) and start implement your custom properties.
     ///
-    /// ```no_run
+    /// ```
+    /// # fn main() {}
     /// use zero_ui::prelude::new_property::*;
     ///
     /// #[property(context)]
-    /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode { 
-    ///     
+    /// pub fn my_property(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
+    ///     MyPropertyNode { child, value: value.into_var() }
     /// }
     ///
-    /// struct MyPropertyNode<C: UiNode, V: Var<bool>> { 
+    /// struct MyPropertyNode<C: UiNode, V: Var<bool>> {
     ///     child: C,
     ///     value: V
     /// }
     /// #[impl_ui_node(child)]
-    /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> { 
-    ///     
+    /// impl<C: UiNode, V: Var<bool>> UiNode for MyPropertyNode<C, V> {
+    ///     fn update(&mut self, ctx: &mut WidgetContext) { 
+    ///         self.child.update(ctx);
+    ///         if let Some(new_value) = self.value.get_new(ctx.vars) { 
+    ///             todo!()
+    ///         }
+    ///     }
     /// }
     /// ```
     pub mod new_property {
@@ -1375,7 +1381,12 @@ pub mod prelude {
 
     /// All the types you need to declare a new widget or widget mix-in.
     ///
-    /// Use glob import (`*`) to quickly start implementing widgets.
+    /// Use glob import (`*`) and start implement your custom widgets.
+    ///
+    /// ```
+    /// use zero_ui::prelude::new_widget::*;
+    /// // TODO small example when new widget syntax is finished.
+    /// ```
     pub mod new_widget {
         #[doc(no_inline)]
         pub use crate::core::color::*;
