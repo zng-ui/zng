@@ -96,7 +96,7 @@ fn help(_: Vec<&str>) {
     println!("\n   Tasks for managing this project, implemented as a single Rust file.");
     println!("\nUSAGE:");
     println!("    {} TASK [<TASK-ARGS>]", DO);
-    println!("\nTASKS:");
+    print!("\nTASKS:");
 
     // prints lines from this file that start with "// do " and comment lines directly after then.
     match std::fs::read_to_string(DO_RS) {
