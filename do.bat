@@ -20,5 +20,9 @@ goto next
 :done
 
 :: Run Task
-rustc do-tasks.rs --out-dir "target/do-tasks"
-"target/do-tasks/do-tasks.exe" %ARGS%
+set DO_TASK_OUT="target/do-tasks"
+rustc do-tasks.rs --out-dir %DO_TASK_OUT% 
+:: -C incremental=%DO_TASK_OUT%
+if %errorlevel%  == 0 (
+   "target/do-tasks/do-tasks.exe" %ARGS%
+)

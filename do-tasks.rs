@@ -1,12 +1,12 @@
 use std::env;
 use std::format_args as f;
+use std::io::Write;
 
 const DO: &str = "do"; // shell script that builds and runs the tasks.
 const DO_RS: &str = "do-tasks.rs"; // tasks file name (this file).
 
 fn main() {
     let (task, args) = args();
-    task_header(task, &args[..]);
 
     match task {
         "doc" => doc(args),
@@ -15,7 +15,7 @@ fn main() {
         "expand" => expand(args),
         "fmt" => fmt(args),
         "h" | "-h" | "help" | "--help" => help(args),
-        _ => fatal(f!("unknown task {:?}, \"{} help\" to list tasks", task, DO)),
+        _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
     }
 }
 
@@ -29,16 +29,15 @@ fn doc(mut args: Vec<&str>) {
     if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
         *open = "--open";
     }
-    cmd("doc", "cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
+    cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
 // do test [<cargo-test-args>]
 //    Run all tests in project.
 fn test(args: Vec<&str>) {
-    cmd("test", "cargo", &["test", "--workspace", "--no-fail-fast"], &args);
+    cmd("cargo", &["test", "--workspace", "--no-fail-fast"], &args);
     for test_crate in top_cargo_toml("test-crates") {
         cmd(
-            "test",
             "cargo",
             &["test", "--workspace", "--no-fail-fast", "--manifest-path", &test_crate],
             &args,
@@ -57,19 +56,16 @@ fn test(args: Vec<&str>) {
 //           Runs the "some_example" in release mode with the "app_profiler" feature.
 fn run(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-p", "--profile"]) {
-        cmd(
-            "run",
-            "cargo",
-            &["run", "--release", "--features", "app_profiler", "--example"],
-            &args,
-        );
+        cmd("cargo", &["run", "--release", "--features", "app_profiler", "--example"], &args);
     } else {
-        cmd("run", "cargo", &["run", "--example"], &args);
+        cmd("cargo", &["run", "--example"], &args);
     }
 }
 
 // do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
+//    FLAGS:
+//        --dump   Write the expanded Rust code to "dump.rs".
 //    USAGE:
 //        expand some::item
 //           Prints only the specified item in the main crate.
@@ -78,9 +74,9 @@ fn run(mut args: Vec<&str>) {
 //        expand --raw
 //           Prints the entire main crate, including macro_rules!.
 fn expand(mut args: Vec<&str>) {
+    TaskInfo::get().set_stdout_dump("dump.rs");
     if take_arg(&mut args, &["-r", "--raw"]) {
         cmd(
-            "expand (raw)",
             "cargo",
             &[
                 "+nightly",
@@ -93,42 +89,44 @@ fn expand(mut args: Vec<&str>) {
             &args,
         );
     } else {
-        cmd("expand", "cargo", &["expand", "--lib", "--tests"], &args);
+        cmd("cargo", &["expand", "--lib", "--tests"], &args);
     }
 }
 
 // do fmt [<cargo-fmt-args>][-- <rustfmt-args>]
 //    Format workspace, build test samples, test-crates and the tasks script.
 fn fmt(args: Vec<&str>) {
-    print!("    fmt workspace ... ");
-    cmd("fmt", "cargo", &["fmt"], &args);
-    println!("done");
+    print("    fmt workspace ... ");
+    cmd("cargo", &["fmt"], &args);
+    println("done");
 
-    print!("    fmt test-crates ... ");
+    print("    fmt test-crates ... ");
     for test_crate in top_cargo_toml("test-crates") {
-        cmd("fmt", "cargo", &["fmt", "--manifest-path", &test_crate], &args);
+        cmd("cargo", &["fmt", "--manifest-path", &test_crate], &args);
     }
-    println!("done");
+    println("done");
 
-    print!("    fmt tests/build/**/*.rs .. ");
+    print("    fmt tests/build/**/*.rs .. ");
     let cases = all_rs("tests/build");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-    cmd("fmt", "rustfmt", &["--edition", "2018"], &cases_str);
-    println!("done");
+    cmd("rustfmt", &["--edition", "2018"], &cases_str);
+    println("done");
 
-    print!("    fmt {} ... ", DO_RS);
-    cmd("fmt", "rustfmt", &["--edition", "2018", DO_RS], &[]);
-    println!("done");
+    print(f!("    fmt {} ... ", DO_RS));
+    cmd("rustfmt", &["--edition", "2018", DO_RS], &[]);
+    println("done");
 }
 
 // do help, h, -h, --help
 //    prints this help, task docs are extracted from the tasks file.
 fn help(_: Vec<&str>) {
-    println!("\n{}{}{} ({}{}{})", C_WB, DO, C_W, C_WB, DO_RS, C_W);
-    println!("   Run tasks for managing this project, implemented as a Rust file.");
-    println!("\nUSAGE:");
-    println!("    {} TASK [<TASK-ARGS>]", DO);
-    print!("\nTASKS:");
+    println(f!("\n{}{}{} ({}{}{})", c_wb(), DO, c_w(), c_wb(), DO_RS, c_w()));
+    println("   Run tasks for managing this project, implemented as a Rust file.");
+    println("\nUSAGE:");
+    println(f!("    {} TASK [<TASK-ARGS>]", DO));
+    println("\nFLAGS:");
+    println(r#"    --dump   Redirect output to "dump.log" or other file specified by task."#);
+    print("\nTASKS:");
 
     // prints lines from this file that start with "// do " and comment lines directly after then.
     match std::fs::read_to_string(DO_RS) {
@@ -137,11 +135,19 @@ fn help(_: Vec<&str>) {
             for line in rs.lines() {
                 if line.starts_with("// do ") {
                     expect_details = true;
-                    println!("\n    {}", &line["// do ".len()..]);
+                    let task_line = &line["// do ".len()..];
+                    let task_name_end = task_line.find(' ').unwrap();
+                    println(f!(
+                        "\n    {}{}{}{}",
+                        c_wb(),
+                        &task_line[..task_name_end],
+                        c_w(),
+                        &task_line[task_name_end..]
+                    ));
                 } else if expect_details {
                     expect_details = line.starts_with("//");
                     if expect_details {
-                        println!("    {}", &line["//".len()..]);
+                        println(f!("    {}", &line["//".len()..]));
                     }
                 }
             }
@@ -155,20 +161,34 @@ fn help(_: Vec<&str>) {
 *****/
 
 // Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
-fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    cmd_impl(task, cmd, default_args, user_args, false)
+fn cmd(cmd: &str, default_args: &[&str], user_args: &[&str]) {
+    cmd_impl(cmd, default_args, user_args, false)
 }
 // Like [`cmd`] but exists the task runner if the command fails.
-//fn cmd_req(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
-//    cmd_impl(task, cmd, default_args, user_args, true)
+//fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
+//    cmd_impl(cmd, default_args, user_args, true)
 //}
-fn cmd_impl(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str], required: bool) {
+fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], required: bool) {
+    let info = TaskInfo::get();
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
-    let status = std::process::Command::new(cmd).args(&args[..]).status();
+
+    let mut cmd = std::process::Command::new(cmd);
+    cmd.args(&args[..]);
+
+    if info.dump {
+        if let Some(stdout) = info.stdout_dump() {
+            cmd.stdout(std::process::Stdio::from(stdout));
+        }
+        if let Some(stderr) = info.stderr_dump() {
+            cmd.stdout(std::process::Stdio::from(stderr));
+        }
+    }
+
+    let status = cmd.status();
     match status {
         Ok(status) => {
             if !status.success() {
-                let msg = format!("task {:?} failed with {}", task, status);
+                let msg = format!("task {:?} failed with {}", info.name, status);
                 if required {
                     fatal(msg);
                 } else {
@@ -177,7 +197,7 @@ fn cmd_impl(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str], re
             }
         }
         Err(e) => {
-            let msg = format!("task {:?} failed to run, {}", task, e);
+            let msg = format!("task {:?} failed to run, {}", info.name, e);
             if required {
                 fatal(msg)
             } else {
@@ -209,8 +229,69 @@ fn args() -> (&'static str, Vec<&'static str>) {
         return ("", vec![]);
     }
     let task = Box::leak(args.remove(0).into_boxed_str());
-    let args = args.into_iter().map(|a| Box::leak(a.into_boxed_str()) as &'static str).collect();
+    let mut args = args.into_iter().map(|a| Box::leak(a.into_boxed_str()) as &'static str).collect();
+
+    // set task name and flags
+    let info = TaskInfo::get();
+    info.name = task;
+    info.dump = take_arg(&mut args, &["--dump"]);
+
+    // prints header
+    println(f!("{}Running{}: {}{} {:?} {:?}", c_green(), c_wb(), DO_RS, c_w(), task, args));
+
     (task, args)
+}
+
+// Information about the running task.
+struct TaskInfo {
+    name: &'static str,
+    dump: bool,
+    stdout_dump: &'static str,
+    stderr_dump: &'static str,
+    stdout_dump_file: Option<std::fs::File>,
+    stderr_dump_file: Option<std::fs::File>,
+}
+static mut TASK_INFO: TaskInfo = TaskInfo {
+    name: "",
+    dump: false,
+    stdout_dump: "dump.log",
+    stderr_dump: "dump.log",
+    stdout_dump_file: None,
+    stderr_dump_file: None,
+};
+impl TaskInfo {
+    fn get() -> &'static mut TaskInfo {
+        unsafe { &mut TASK_INFO }
+    }
+    fn set_stdout_dump(&mut self, file: &'static str) {
+        self.stdout_dump_file = None;
+        self.stdout_dump = file;
+    }
+    fn stdout_dump(&mut self) -> Option<std::fs::File> {
+        if self.dump && !self.stdout_dump.is_empty() {
+            if self.stdout_dump_file.is_none() {
+                self.stdout_dump_file = std::fs::File::create(self.stdout_dump).ok();
+            }
+            self.stdout_dump_file.as_ref().and_then(|f| f.try_clone().ok())
+        } else {
+            None
+        }
+    }
+    fn stderr_dump(&mut self) -> Option<std::fs::File> {
+        if self.dump && !self.stderr_dump.is_empty() {
+            if self.stderr_dump_file.is_none() {
+                if self.stderr_dump == self.stdout_dump {
+                    let file = self.stdout_dump();
+                    self.stderr_dump_file = file;
+                } else {
+                    self.stdout_dump_file = std::fs::File::create(self.stdout_dump).ok();
+                }
+            }
+            self.stderr_dump_file.as_ref().and_then(|f| f.try_clone().ok())
+        } else {
+            None
+        }
+    }
 }
 
 // Get all paths to `dir/*/Cargo.toml`
@@ -267,13 +348,28 @@ fn glob_rs(dir: std::path::PathBuf, r: &mut Vec<String>) {
     }
 }
 
-fn task_header(task: &str, args: &[&str]) {
-    println!("{}Running{}: {}{} {:?} {:?}", C_GREEN, C_WB, DO_RS, C_W, task, args);
+fn println(msg: impl std::fmt::Display) {
+    if let Some(mut dump) = TaskInfo::get().stdout_dump() {
+        writeln!(dump, "{}", msg).ok();
+    } else {
+        println!("{}", msg);
+    }
+}
+fn print(msg: impl std::fmt::Display) {
+    if let Some(mut dump) = TaskInfo::get().stdout_dump() {
+        write!(dump, "{}", msg).ok();
+    } else {
+        print!("{}", msg);
+    }
 }
 
 // Prints an error message, use `error(f!("{}", .."))` for formatting.
 fn error(msg: impl std::fmt::Display) {
-    eprintln!("{}error{}: {}{} {}", C_RED, C_WB, DO_RS, C_W, msg);
+    if let Some(mut dump) = TaskInfo::get().stderr_dump() {
+        writeln!(dump, "{}error{}: {}{} {}", c_red(), c_wb(), DO_RS, c_w(), msg).ok();
+    } else {
+        eprintln!("{}error{}: {}{} {}", c_red(), c_wb(), DO_RS, c_w(), msg);
+    }
 }
 
 // Prints an [`error`] and exists with code `-1`.
@@ -283,7 +379,22 @@ fn fatal(msg: impl std::fmt::Display) -> ! {
 }
 
 // ANSI colors.
-const C_GREEN: &str = "\x1B[1;32m";
-const C_RED: &str = "\x1B[1;31m";
-const C_WB: &str = "\x1B[1;37m";
-const C_W: &str = "\x1B[0m";
+fn c_green() -> &'static str {
+    color("\x1B[1;32m")
+}
+fn c_red() -> &'static str {
+    color("\x1B[1;31m")
+}
+fn c_wb() -> &'static str {
+    color("\x1B[1;37m")
+}
+fn c_w() -> &'static str {
+    color("\x1B[0m")
+}
+fn color(color: &str) -> &str {
+    if TaskInfo::get().dump {
+        ""
+    } else {
+        color
+    }
+}
