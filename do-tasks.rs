@@ -99,11 +99,11 @@ fn fmt(args: Vec<&str>) {
     print!("    fmt tests/build/**/*.rs .. ");
     let cases = all_rs("tests/build");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
-    cmd("fmt", "rustfmt", &cases_str, &[]);
+    cmd("fmt", "rustfmt", &["--edition", "2018"], &cases_str);
     println!("done");
 
     print!("    fmt {} ... ", DO_RS);
-    cmd("fmt", "rustfmt", &[DO_RS], &[]);
+    cmd("fmt", "rustfmt", &["--edition", "2018", DO_RS], &[]);
     println!("done");
 }
 
@@ -192,7 +192,7 @@ fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
 fn args() -> (&'static str, Vec<&'static str>) {
     let mut args: Vec<_> = env::args().skip(1).collect();
     if args.is_empty() {
-        fatal("missing task name")
+        return ("", vec![]);
     }
     let task = Box::leak(args.remove(0).into_boxed_str());
     let args = args.into_iter().map(|a| Box::leak(a.into_boxed_str()) as &'static str).collect();

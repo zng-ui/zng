@@ -485,12 +485,15 @@ mod analysis {
         // more signature validation.
         if let Some(async_) = &fn_.sig.asyncness {
             errors.push("property functions cannot be `async`", async_.span());
+            fn_and_errors_only = true; // we don't call .await in set and we don't implement UiNode for Future
         }
         if let Some(unsafe_) = &fn_.sig.unsafety {
             errors.push("property functions cannot be `unsafe`", unsafe_.span());
+            fn_and_errors_only = true; // we don't want to support unsafe set
         }
         if let Some(abi) = &fn_.sig.abi {
             errors.push("property functions cannot be `extern`", abi.span());
+            fn_and_errors_only = true; // we don't want to support unsafe set
         }
         if let Some(lifetime) = fn_.sig.generics.lifetimes().next() {
             errors.push("property functions cannot declare lifetimes", lifetime.span());
