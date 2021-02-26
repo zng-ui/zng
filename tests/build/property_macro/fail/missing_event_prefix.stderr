@@ -1,5 +1,5 @@
 error: property marked `event` does not have prefix `on_`
  --> $DIR/missing_event_prefix.rs:4:8
   |
-4 | pub fn event_property(child: impl UiNode, input: bool) -> impl UiNode { // expected `on_*` prefix
+4 | pub fn event_property(child: impl UiNode, input: bool) -> impl UiNode {
   |        ^^^^^^^^^^^^^^

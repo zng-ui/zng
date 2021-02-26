@@ -36,21 +36,14 @@ fn doc(mut args: Vec<&str>) {
 //    Run all tests in project.
 fn test(args: Vec<&str>) {
     cmd("test", "cargo", &["test", "--workspace", "--no-fail-fast"], &args);
-    test_crate("no-direct-dep", &args);
-}
-fn test_crate(crate_: &str, user_args: &[&str]) {
-    cmd(
-        "test",
-        "cargo",
-        &[
+    for test_crate in top_cargo_toml("test-crates") {
+        cmd(
             "test",
-            "--workspace",
-            "--no-fail-fast",
-            "--manifest-path",
-            &format!("test-crates/{}/Cargo.toml", crate_),
-        ],
-        &user_args,
-    );
+            "cargo",
+            &["test", "--workspace", "--no-fail-fast", "--manifest-path", &test_crate],
+            &args,
+        );
+    }
 }
 
 // do run EXAMPLE [-p, --profile] [<cargo-run-args>]
@@ -91,17 +84,34 @@ fn expand(mut args: Vec<&str>) {
 }
 
 // do fmt [<cargo-fmt-args>][-- <rustfmt-args>]
-//    Format workspace, examples, build tests and tasks script.
+//    Format workspace, build test samples, test-crates and the tasks script.
 fn fmt(args: Vec<&str>) {
+    print!("    fmt workspace ... ");
     cmd("fmt", "cargo", &["fmt"], &args);
-    error("TODO finish implementing fmt")
+    println!("done");
+
+    print!("    fmt test-crates ... ");
+    for test_crate in top_cargo_toml("test-crates") {
+        cmd("fmt", "cargo", &["fmt", "--manifest-path", &test_crate], &args);
+    }
+    println!("done");
+
+    print!("    fmt tests/build/**/*.rs .. ");
+    let cases = all_rs("tests/build");
+    let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
+    cmd("fmt", "rustfmt", &cases_str, &[]);
+    println!("done");
+
+    print!("    fmt {} ... ", DO_RS);
+    cmd("fmt", "rustfmt", &[DO_RS], &[]);
+    println!("done");
 }
 
 // do help, h, -h, --help
 //    prints this help, task docs are extracted from the tasks file.
 fn help(_: Vec<&str>) {
     println!("\n{}{}{} ({}{}{})", C_WB, DO, C_W, C_WB, DO_RS, C_W);
-    println!("\n   Tasks for managing this project, implemented as a single Rust file.");
+    println!("   Run tasks for managing this project, implemented as a Rust file.");
     println!("\nUSAGE:");
     println!("    {} TASK [<TASK-ARGS>]", DO);
     print!("\nTASKS:");
@@ -132,13 +142,34 @@ fn help(_: Vec<&str>) {
 
 // Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
 fn cmd(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
+    cmd_impl(task, cmd, default_args, user_args, false)
+}
+// Like [`cmd`] but exists the task runner if the command fails.
+//fn cmd_req(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str]) {
+//    cmd_impl(task, cmd, default_args, user_args, true)
+//}
+fn cmd_impl(task: &str, cmd: &str, default_args: &[&str], user_args: &[&str], required: bool) {
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
-    let status = std::process::Command::new(cmd)
-        .args(&args[..])
-        .status()
-        .unwrap_or_else(|e| fatal(f!("task {:?} failed to run, {}", task, e)));
-    if !status.success() {
-        fatal(f!("task {:?} failed with exit code: {}", task, status));
+    let status = std::process::Command::new(cmd).args(&args[..]).status();
+    match status {
+        Ok(status) => {
+            if !status.success() {
+                let msg = format!("task {:?} failed with {}", task, status);
+                if required {
+                    fatal(msg);
+                } else {
+                    error(msg);
+                }
+            }
+        }
+        Err(e) => {
+            let msg = format!("task {:?} failed to run, {}", task, e);
+            if required {
+                fatal(msg)
+            } else {
+                error(msg);
+            }
+        }
     }
 }
 
@@ -166,6 +197,60 @@ fn args() -> (&'static str, Vec<&'static str>) {
     let task = Box::leak(args.remove(0).into_boxed_str());
     let args = args.into_iter().map(|a| Box::leak(a.into_boxed_str()) as &'static str).collect();
     (task, args)
+}
+
+// Get all paths to `dir/*/Cargo.toml`
+fn top_cargo_toml(dir: &str) -> Vec<String> {
+    let mut r = vec![];
+    match std::fs::read_dir(dir) {
+        Ok(dir) => {
+            for entry in dir {
+                match entry {
+                    Ok(et) => {
+                        let path = et.path();
+                        if path.is_dir() {
+                            let crate_ = path.join("Cargo.toml");
+                            if crate_.exists() {
+                                r.push(crate_.to_string_lossy().into_owned());
+                            }
+                        }
+                    }
+                    Err(e) => error(e),
+                }
+            }
+        }
+        Err(e) => error(e),
+    }
+    r
+}
+
+// Get all `dir/**/*.rs` files.
+fn all_rs(dir: &str) -> Vec<String> {
+    let mut r = vec![];
+    glob_rs(dir.into(), &mut r);
+    r
+}
+fn glob_rs(dir: std::path::PathBuf, r: &mut Vec<String>) {
+    match std::fs::read_dir(dir) {
+        Ok(dir) => {
+            for entry in dir {
+                match entry {
+                    Ok(et) => {
+                        let path = et.path();
+                        if path.is_dir() {
+                            glob_rs(path, r);
+                        } else if let Some(ext) = path.extension() {
+                            if ext == "rs" {
+                                r.push(path.to_string_lossy().into_owned());
+                            }
+                        }
+                    }
+                    Err(e) => error(e),
+                }
+            }
+        }
+        Err(e) => error(e),
+    }
 }
 
 fn task_header(task: &str, args: &[&str]) {

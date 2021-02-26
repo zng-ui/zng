@@ -1,4 +1,4 @@
-use zero_ui::core::{property, UiNode, var::*};
+use zero_ui::core::{property, var::*, UiNode};
 
 #[property(context, allowed_in_when = false)]
 fn unbounded<A>(child: impl UiNode, a: A) -> impl UiNode {
@@ -29,4 +29,4 @@ where
     child
 }
 
-fn main() { }
+fn main() {}

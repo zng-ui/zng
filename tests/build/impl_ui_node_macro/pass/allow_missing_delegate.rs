@@ -16,7 +16,7 @@ struct Node2<C> {
     child: C,
 }
 #[impl_ui_node(child)]
-impl<C: UiNode> UiNode for Node2<C> {    
+impl<C: UiNode> UiNode for Node2<C> {
     #[allow_(zero_ui::missing_delegate)]
     fn update(&mut self, ctx: &mut WidgetContext) {
         let _ = ctx;

@@ -28,6 +28,6 @@ fn assert_type<N: zero_ui::core::UiNode>(_: N) {}
 fn main() {
     // missing_delegate is a 'lint' and will become a full lint when
     // custom diagnostics is stable, meaning the UiNode impl should still
-    // be generated. 
+    // be generated.
     assert_type(Node1 { child: NilUiNode })
 }

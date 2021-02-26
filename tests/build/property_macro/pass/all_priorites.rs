@@ -33,4 +33,4 @@ pub fn inner_property(child: impl UiNode, input: bool) -> impl UiNode {
 #[property(capture_only)]
 pub fn capture_only_property(input: bool) -> ! {}
 
-fn main() { }
+fn main() {}

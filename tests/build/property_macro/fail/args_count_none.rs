@@ -5,4 +5,4 @@ pub fn no_args() -> impl UiNode {
     zero_ui::core::NilUiNode
 }
 
-fn main() { }
+fn main() {}

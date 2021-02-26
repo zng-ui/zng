@@ -13,7 +13,7 @@ error: expected `, delegate_list: <expr>`
 warning: unused imports: `UiNodeList`, `UiNode`
  --> $DIR/invalid_delegate_list_pair.rs:1:35
   |
-1 | use zero_ui::core::{impl_ui_node, UiNodeList, UiNode};
-  |                                   ^^^^^^^^^^  ^^^^^^
+1 | use zero_ui::core::{impl_ui_node, UiNode, UiNodeList};
+  |                                   ^^^^^^  ^^^^^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

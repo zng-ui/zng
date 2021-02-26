@@ -8,8 +8,4 @@ For example, if a crate uses a widget defined in another crate and does not dire
 
 # Running Tests
 
-A call must be manually added to the task runner:
-
-```shell
-cargo test --workspace --no-fail-fast --manifest-path "test-crates/no-direct-dep/Cargo.toml"
-```
+The task `do test` will run tests for each folder in this directory that has a `Cargo.toml`.

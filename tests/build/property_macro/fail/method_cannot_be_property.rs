@@ -1,9 +1,9 @@
-use zero_ui::core::{property, UiNode, NilUiNode};
+use zero_ui::core::{property, NilUiNode, UiNode};
 
 struct Foo;
 impl Foo {
     #[property(capture_only)]
-    pub fn self_method1(self) -> ! { }
+    pub fn self_method1(self) -> ! {}
 
     #[property(context)]
     pub fn self_method2(self, input: bool) -> impl UiNode {
@@ -16,7 +16,7 @@ impl Foo {
     }
 }
 
-fn main(){
+fn main() {
     let _mtd_was_not_removed = Foo.self_method2(true);
     let _mtd_was_not_removed = Box::new(Foo).self_method3(true);
     let _mtd_was_not_removed = Foo.self_method1();

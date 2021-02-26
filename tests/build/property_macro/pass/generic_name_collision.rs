@@ -1,4 +1,4 @@
-use zero_ui::core::{property, UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, UiNode};
 
 #[property(context)]
 fn generated_generic_name_collision<TC: UiNode>(child: TC, c: impl IntoVar<char>) -> TC {
@@ -6,4 +6,4 @@ fn generated_generic_name_collision<TC: UiNode>(child: TC, c: impl IntoVar<char>
     child
 }
 
-fn main() { }
+fn main() {}

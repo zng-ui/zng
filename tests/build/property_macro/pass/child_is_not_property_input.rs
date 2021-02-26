@@ -1,4 +1,4 @@
-use zero_ui::core::{property, UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, UiNode};
 
 #[property(context)]
 fn test_property<C: UiNode>(child: C, arg: impl IntoVar<u8>) -> C {
@@ -6,4 +6,4 @@ fn test_property<C: UiNode>(child: C, arg: impl IntoVar<u8>) -> C {
     child
 }
 
-fn main() { }
+fn main() {}

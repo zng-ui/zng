@@ -5,4 +5,4 @@ pub fn no_inputs(child: impl UiNode) -> impl UiNode {
     child
 }
 
-fn main() { }
+fn main() {}

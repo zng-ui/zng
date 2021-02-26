@@ -1,11 +1,11 @@
 error: on_* capture_only properties must have 1 parameter, `FnMut`
  --> $DIR/args_count_capture_only_prefix_on.rs:4:26
   |
-4 | pub fn on_event_no_inputs() -> ! { }
+4 | pub fn on_event_no_inputs() -> ! {}
   |                          ^^
 
 error: on_* capture_only properties must have 1 parameter, `FnMut`
  --> $DIR/args_count_capture_only_prefix_on.rs:7:27
   |
-7 | pub fn on_event_two_inputs(input1: bool, input2: bool) -> ! { }
+7 | pub fn on_event_two_inputs(input1: bool, input2: bool) -> ! {}
   |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
