@@ -1,1 +1,0 @@
-cargo +nightly rustc --package zero-ui-core --tests --profile=check -- -Zunstable-options --pretty=expanded

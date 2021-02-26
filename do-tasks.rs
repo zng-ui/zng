@@ -48,6 +48,13 @@ fn test(args: Vec<&str>) {
 
 // do run EXAMPLE [-p, --profile] [<cargo-run-args>]
 //    Run an example in ./examples. If profiling builds in release with app_profiler.
+//    USAGE:
+//        run some_example
+//           Runs the "some_example" in debug mode.
+//        run some_example --release
+//           Runs the "some_example" in release mode.
+//        run some_example --profile
+//           Runs the "some_example" in release mode with the "app_profiler" feature.
 fn run(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-p", "--profile"]) {
         cmd(
@@ -61,8 +68,15 @@ fn run(mut args: Vec<&str>) {
     }
 }
 
-// do expand [-r, --raw] [<cargo-expand-args>|<cargo-args>]
+// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
+//    USAGE:
+//        expand some::item
+//           Prints only the specified item in the main crate.
+//        expand -p "other-crate" some::item
+//           Prints only the specified item in the other-crate from workspace.
+//        expand --raw
+//           Prints the entire main crate, including macro_rules!.
 fn expand(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-r", "--raw"]) {
         cmd(
@@ -79,7 +93,7 @@ fn expand(mut args: Vec<&str>) {
             &args,
         );
     } else {
-        cmd("expand", "cargo", &["expand"], &args);
+        cmd("expand", "cargo", &["expand", "--lib", "--tests"], &args);
     }
 }
 

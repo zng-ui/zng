@@ -1,1 +1,0 @@
-cargo build > dump.log 2>&1
