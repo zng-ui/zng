@@ -9,11 +9,13 @@ fn main() {
     let (task, args) = args();
 
     match task {
-        "doc" => doc(args),
+        "fmt" => fmt(args),
         "test" => test(args),
         "run" => run(args),
+        "doc" => doc(args),
         "expand" => expand(args),
-        "fmt" => fmt(args),
+        "build" => build(args),
+        "clean" => clean(args),
         "h" | "-h" | "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
     }
@@ -93,7 +95,7 @@ fn expand(mut args: Vec<&str>) {
     }
 }
 
-// do fmt [<cargo-fmt-args>][-- <rustfmt-args>]
+// do fmt [<cargo-fmt-args>] [-- <rustfmt-args>]
 //    Format workspace, build test samples, test-crates and the tasks script.
 fn fmt(args: Vec<&str>) {
     print("    fmt workspace ... ");
@@ -115,6 +117,75 @@ fn fmt(args: Vec<&str>) {
     print(f!("    fmt {} ... ", DO_RS));
     cmd("rustfmt", &["--edition", "2018", DO_RS], &[]);
     println("done");
+}
+
+// do build [-e, --example] [--self] [--all] [<cargo-build-args>]
+//    Compile the main crate and its dependencies.
+// USAGE:
+//    build -e <example>
+//       Compile the example.
+//    build --workspace
+//       Compile the root workspace.
+//    build --all
+//       Compile the root workspace and ./test-crates.
+//    build --self
+//       Rebuild this tool.
+fn build(mut args: Vec<&str>) {
+    if take_arg(&mut args, &["--self"]) {
+        // external because it will replace self.
+        print(r#"   closing to rebuild, will print "rebuild finished" when done"#);
+        cmd_external(
+            "rustc",
+            &[
+                DO_RS,
+                "--out-dir",
+                env!("DO_TASK_OUT"),
+                "-C",
+                "opt-level=3",
+                "&",
+                "echo",
+                "rebuild finished",
+            ],
+            &args,
+        );
+    } else if take_arg(&mut args, &["--all"]) {
+        for test_crate in top_cargo_toml("test-crates") {
+            cmd("cargo", &["build", "--manifest-path", &test_crate], &args);
+        }
+        cmd("cargo", &["build"], &args);
+    } else {
+        if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
+            *example = "--example";
+        }
+        cmd("cargo", &["build"], &args);
+    }
+}
+
+// do clean [--test-crates] [<cargo-clean-args>]
+//    Remove workspace and test-crates target directories.
+// USAGE:
+//    clean --test-crates
+//       Remove only the target directories in ./test-crates.
+//    clean --doc
+//       Remove only the workspace doc files.
+//    clean --release
+//       Remove only the release files from the target directories.
+fn clean(mut args: Vec<&str>) {
+    let test_crates_only = take_arg(&mut args, &["--test-crates"]);
+
+    for crate_ in top_cargo_toml("test-crates") {
+        cmd("cargo", &["clean", "--manifest-path", &crate_], &args);
+    }
+
+    if !test_crates_only {
+        if args.iter().any(|&a| a == "--doc" || a == "--release") {
+            cmd("cargo", &["clean"], &args);
+        } else {
+            print(r#"   closing to also clean self, will print "clean finished" when done"#);
+            // external because it will delete self.
+            cmd_external("cargo", &["clean"], &args);
+        }
+    }
 }
 
 // do help, h, -h, --help
@@ -204,6 +275,26 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], required: bool
                 error(msg);
             }
         }
+    }
+}
+
+// Like [`cmd`] but runs after a small delay and does not block.
+// Use this for commands that need write access to the self executable.
+fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
+    let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
+
+    #[cfg(windows)]
+    {
+        std::process::Command::new("cmd")
+            .args(&["/C", "ping", "localhost", "-n", "3", ">", "nul", "&"])
+            .arg(cmd)
+            .args(&args)
+            .spawn()
+            .ok();
+    }
+    #[cfg(not(windows))]
+    {
+        todo!("cmd_external only implemented in windows")
     }
 }
 
@@ -360,6 +451,7 @@ fn print(msg: impl std::fmt::Display) {
         write!(dump, "{}", msg).ok();
     } else {
         print!("{}", msg);
+        std::io::stdout().lock().flush().ok();
     }
 }
 

@@ -1,4 +1,5 @@
 @echo off
+set errorlevel=0
 
 :: Bypass "Terminate Batch Job" prompt.
 if "%~1"=="-FIXED_CTRL_C" (
@@ -20,9 +21,12 @@ goto next
 :done
 
 :: Run Task
-set DO_TASK_OUT="target/do-tasks"
-rustc do-tasks.rs --out-dir %DO_TASK_OUT% 
-:: -C incremental=%DO_TASK_OUT%
-if %errorlevel%  == 0 (
-   "target/do-tasks/do-tasks.exe" %ARGS%
+set DO_TASK_OUT=target\do-tasks
+set DO_TASK_EXE=%DO_TASK_OUT%\do-tasks.exe
+
+if not exist %DO_TASK_EXE% (
+   rustc do-tasks.rs --out-dir %DO_TASK_OUT% -C opt-level=3
+)
+if %errorlevel% == 0 (
+   %DO_TASK_EXE% %ARGS%
 )
