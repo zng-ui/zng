@@ -138,6 +138,8 @@ fn build(mut args: Vec<&str>) {
             "rustc",
             &[
                 DO_RS,
+                "--edition",
+                "2018",
                 "--out-dir",
                 env!("DO_TASK_OUT"),
                 "-C",

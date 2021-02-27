@@ -25,7 +25,7 @@ set DO_TASK_OUT=target\do-tasks
 set DO_TASK_EXE=%DO_TASK_OUT%\do-tasks.exe
 
 if not exist %DO_TASK_EXE% (
-   rustc do-tasks.rs --out-dir %DO_TASK_OUT% -C opt-level=3
+   rustc do-tasks.rs --edition 2018 --out-dir %DO_TASK_OUT% -C opt-level=3
 )
 if %errorlevel% == 0 (
    %DO_TASK_EXE% %ARGS%
