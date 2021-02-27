@@ -1,5 +1,4 @@
 use quote::ToTokens;
-use syn::parse_macro_input;
 
 pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let args = match syn::parse::<input::MacroArgs>(args) {
@@ -13,7 +12,15 @@ pub fn expand(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> 
         }
     };
 
-    let fn_ = parse_macro_input!(input as input::PropertyFn);
+    let fn_ = match syn::parse::<input::PropertyFn>(input.clone()) {
+        Ok(p) => p,
+        Err(e) => {
+            // in case of major parsing error, like item not being a function.
+            let mut r = proc_macro::TokenStream::from(e.to_compile_error());
+            r.extend(input);
+            return r;
+        }
+    };
 
     let output = analysis::generate(args, fn_);
 

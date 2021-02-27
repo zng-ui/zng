@@ -9,8 +9,19 @@ use syn::visit_mut::{self, VisitMut};
 use syn::*;
 
 pub(crate) fn gen_impl_ui_node(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let mut input = match syn::parse::<ItemImpl>(input.clone()) {
+        Ok(i) => i,
+        Err(e) => {
+            // in case of major parsing error, like item not being an impl block. We give the args error
+            // but do not remove the function.
+            let mut r = proc_macro::TokenStream::from(e.to_compile_error());
+            r.extend(input);
+            return r;
+        }
+    };
+    // TODO in case of error and input is not an `impl UiNode for`
+    // remove #[UiNode] methods and custom lints attributes.
     let args = parse_macro_input!(args as Args);
-    let mut input = parse_macro_input!(input as ItemImpl);
 
     let crate_ = util::crate_core();
 
