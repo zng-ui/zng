@@ -1,0 +1,5 @@
+error: property functions cannot declare lifetimes
+ --> $DIR/cannot_declare_lifetime.rs:4:16
+  |
+4 | pub fn invalid<'a>(child: impl UiNode, input: &'a str) -> impl UiNode {
+  |                ^^

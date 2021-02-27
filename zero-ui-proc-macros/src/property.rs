@@ -497,9 +497,11 @@ mod analysis {
         }
         if let Some(lifetime) = fn_.sig.generics.lifetimes().next() {
             errors.push("property functions cannot declare lifetimes", lifetime.span());
+            fn_and_errors_only = true; // we don't support lifetimes in the Args trait and ArgsImpl struct
         }
         if let Some(const_) = fn_.sig.generics.const_params().next() {
             errors.push("property functions do not support `const` generics", const_.span());
+            fn_and_errors_only = true; // we don't support const generics yet.
         }
 
         if args.priority.is_capture_only() {
