@@ -138,6 +138,7 @@ mod profiler_impl {
     /// # Example
     ///
     /// ```
+    /// # use zero_ui_core::profiler::ProfileScope;
     /// # fn do_thing() { }
     /// # fn do_another_thing() { }
     /// {

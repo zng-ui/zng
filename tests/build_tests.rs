@@ -1,4 +1,4 @@
-mod tests {
+mod build_tests {
     use serial_test::serial;
 
     /*

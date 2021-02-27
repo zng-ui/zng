@@ -34,16 +34,74 @@ fn doc(mut args: Vec<&str>) {
     cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
-// do test [<cargo-test-args>]
-//    Run all tests in project.
-fn test(args: Vec<&str>) {
-    cmd("cargo", &["test", "--workspace", "--no-fail-fast"], &args);
-    for test_crate in top_cargo_toml("test-crates") {
+// do test [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
+//    Run all tests in root workspace and ./test-crates.
+//    USAGE:
+//        test -u, --unit test::path
+//           Run tests that partially match the path in the root workspace.
+//        test -w, --workspace
+//           Run all tests in root workspace (exclude build_tests and ./test-crates).
+//        test -t, --test <integration_test_name>
+//           Run the integration test named in the root workspace.
+//        test --doc
+//           Run all doc tests in the root workspace.
+//        test --test-crates
+//           Run all the ./test-crates tests.
+//        test -t build_tests
+//           Run all build tests
+//        test -t build_tests -- <test-name>
+//           Run all build tests with name that match.
+fn test(mut args: Vec<&str>) {
+    if take_arg(&mut args, &["-w", "--workspace"]) {
+        // exclude ./test-crates and build_tests
+        if !args.iter().any(|a| *a == "--") {
+            args.push("--");
+        }
+        args.push("--skip");
+        args.push("build_tests");
+        cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+    } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
+        // exclude ./test-crates and integration tests
+        for test_name in unit_tests {
+            cmd(
+                "cargo",
+                &["test", "--workspace", "--no-fail-fast", "--all-features", test_name],
+                &args,
+            );
+        }
+    } else if take_arg(&mut args, &["--doc"]) {
+        // only doc tests for the main workspace.
         cmd(
             "cargo",
-            &["test", "--workspace", "--no-fail-fast", "--manifest-path", &test_crate],
+            &["test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
             &args,
         );
+    } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
+        // only specific integration test.
+        let mut t_args = vec!["test", "--workspace", "--no-fail-fast", "--all-features"];
+        for it in int_tests {
+            t_args.push("--test");
+            t_args.push(it);
+        }
+        cmd("cargo", &t_args, &args);
+    } else {
+        if !take_arg(&mut args, &["--test-crates"]) {
+            cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+        }
+        for test_crate in top_cargo_toml("test-crates") {
+            cmd(
+                "cargo",
+                &[
+                    "test",
+                    "--workspace",
+                    "--no-fail-fast",
+                    "--all-features",
+                    "--manifest-path",
+                    &test_crate,
+                ],
+                &args,
+            );
+        }
     }
 }
 
@@ -313,6 +371,30 @@ fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
         i += 1;
     }
     found
+}
+
+// Removes all of the `option` values, fails with "-o <value_name>" if a value is missing.
+fn take_option<'a>(args: &mut Vec<&'a str>, option: &[&str], value_name: &str) -> Option<Vec<&'a str>> {
+    let mut i = 0;
+    let mut values = vec![];
+    while i < args.len() {
+        if option.iter().any(|&o| args[i] == o) {
+            let next_i = i + 1;
+            if next_i == args.len() || args[next_i].starts_with('-') {
+                fatal(f!("expected value for option {} {}", args[i], value_name));
+            }
+
+            args.remove(i); // remove option
+            values.push(args.remove(i)) // take value.
+        }
+        i += 1;
+    }
+
+    if values.is_empty() {
+        None
+    } else {
+        Some(values)
+    }
 }
 
 // Parses the initial input. Returns ("task-name", ["task", "args"]).
