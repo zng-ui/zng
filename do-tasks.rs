@@ -36,21 +36,21 @@ fn doc(mut args: Vec<&str>) {
 
 // do test [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
 //    Run all tests in root workspace and ./test-crates.
-//    USAGE:
-//        test -u, --unit test::path
-//           Run tests that partially match the path in the root workspace.
-//        test -w, --workspace
-//           Run all tests in root workspace (exclude build_tests and ./test-crates).
-//        test -t, --test <integration_test_name>
-//           Run the integration test named in the root workspace.
-//        test --doc
-//           Run all doc tests in the root workspace.
-//        test --test-crates
-//           Run all the ./test-crates tests.
-//        test -t build_tests
-//           Run all build tests
-//        test -t build_tests -- <test-name>
-//           Run all build tests with name that match.
+// USAGE:
+//     test -u, --unit test::path
+//        Run tests that partially match the path in the root workspace.
+//     test -w, --workspace
+//        Run all tests in root workspace (exclude build_tests and ./test-crates).
+//     test -t, --test <integration_test_name>
+//        Run the integration test named in the root workspace.
+//     test --doc
+//        Run all doc tests in the root workspace.
+//     test --test-crates
+//        Run all the ./test-crates tests.
+//     test -t build_tests
+//        Run all build tests
+//     test -t build_tests -- <test-name>
+//        Run all build tests with name that match.
 fn test(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-w", "--workspace"]) {
         // exclude ./test-crates and build_tests
@@ -107,13 +107,13 @@ fn test(mut args: Vec<&str>) {
 
 // do run EXAMPLE [-p, --profile] [<cargo-run-args>]
 //    Run an example in ./examples. If profiling builds in release with app_profiler.
-//    USAGE:
-//        run some_example
-//           Runs the "some_example" in debug mode.
-//        run some_example --release
-//           Runs the "some_example" in release mode.
-//        run some_example --profile
-//           Runs the "some_example" in release mode with the "app_profiler" feature.
+// USAGE:
+//     run some_example
+//        Runs the "some_example" in debug mode.
+//     run some_example --release
+//        Runs the "some_example" in release mode.
+//     run some_example --profile
+//        Runs the "some_example" in release mode with the "app_profiler" feature.
 fn run(mut args: Vec<&str>) {
     if take_arg(&mut args, &["-p", "--profile"]) {
         cmd("cargo", &["run", "--release", "--features", "app_profiler", "--example"], &args);
@@ -124,15 +124,15 @@ fn run(mut args: Vec<&str>) {
 
 // do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
-//    FLAGS:
-//        --dump   Write the expanded Rust code to "dump.rs".
-//    USAGE:
-//        expand some::item
-//           Prints only the specified item in the main crate.
-//        expand -p "other-crate" some::item
-//           Prints only the specified item in the other-crate from workspace.
-//        expand --raw
-//           Prints the entire main crate, including macro_rules!.
+// FLAGS:
+//     --dump   Write the expanded Rust code to "dump.rs".
+// USAGE:
+//     expand some::item
+//        Prints only the specified item in the main crate.
+//     expand -p "other-crate" some::item
+//        Prints only the specified item in the other-crate from workspace.
+//     expand --raw
+//        Prints the entire main crate, including macro_rules!.
 fn expand(mut args: Vec<&str>) {
     TaskInfo::get().set_stdout_dump("dump.rs");
     if take_arg(&mut args, &["-r", "--raw"]) {
