@@ -21,12 +21,6 @@ goto next
 :done
 
 :: Run Task
-set DO_TASK_OUT=target\do-tasks
-set DO_TASK_EXE=%DO_TASK_OUT%\do-tasks.exe
-
-if not exist %DO_TASK_EXE% (
-   rustc do-tasks.rs --edition 2018 --out-dir %DO_TASK_OUT% -C opt-level=3
-)
-if %errorlevel% == 0 (
-   %DO_TASK_EXE% %ARGS%
-)
+set DO_NAME=do
+set DO_MANIFEST_PATH=tools/do-tasks/Cargo.toml
+cargo run --manifest-path %DO_MANIFEST_PATH% --release --quiet -- %ARGS%

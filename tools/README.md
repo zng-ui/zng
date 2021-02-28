@@ -1,6 +1,6 @@
 # Tools
 
-Crates that are/where used only for manual resource generation and are not included in the release.
+Crates that only used to generate content or manage the project.
 
 ## Workspace
 

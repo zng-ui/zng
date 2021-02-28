@@ -1,0 +1,235 @@
+mod util;
+use std::format_args as f;
+use util::*;
+
+fn main() {
+    let (task, args) = args();
+
+    match task {
+        "fmt" => fmt(args),
+        "test" => test(args),
+        "run" => run(args),
+        "doc" => doc(args),
+        "expand" => expand(args),
+        "build" => build(args),
+        "clean" => clean(args),
+        "h" | "-h" | "help" | "--help" => help(args),
+        _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
+    }
+}
+
+// do doc [-o, --open] [<cargo-doc-args>]
+//    Generate documentation for crates in the root workspace.
+fn doc(mut args: Vec<&str>) {
+    if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
+        *open = "--open";
+    }
+    cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
+}
+
+// do test [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
+//    Run all tests in root workspace and ./test-crates.
+// USAGE:
+//     test -u, --unit test::path
+//        Run tests that partially match the path in the root workspace.
+//     test -w, --workspace
+//        Run all tests in root workspace (exclude build_tests and ./test-crates).
+//     test -t, --test <integration_test_name>
+//        Run the integration test named in the root workspace.
+//     test --doc
+//        Run all doc tests in the root workspace.
+//     test --test-crates
+//        Run all the ./test-crates tests.
+//     test -t build_tests
+//        Run all build tests
+//     test -t build_tests -- <test-name>
+//        Run all build tests with name that match.
+fn test(mut args: Vec<&str>) {
+    if take_arg(&mut args, &["-w", "--workspace"]) {
+        // exclude ./test-crates and build_tests
+        if !args.iter().any(|a| *a == "--") {
+            args.push("--");
+        }
+        args.push("--skip");
+        args.push("build_tests");
+        cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+    } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
+        // exclude ./test-crates and integration tests
+        for test_name in unit_tests {
+            cmd(
+                "cargo",
+                &["test", "--workspace", "--no-fail-fast", "--all-features", test_name],
+                &args,
+            );
+        }
+    } else if take_arg(&mut args, &["--doc"]) {
+        // only doc tests for the main workspace.
+        cmd(
+            "cargo",
+            &["test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
+            &args,
+        );
+    } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
+        // only specific integration test.
+        let mut t_args = vec!["test", "--workspace", "--no-fail-fast", "--all-features"];
+        for it in int_tests {
+            t_args.push("--test");
+            t_args.push(it);
+        }
+        cmd("cargo", &t_args, &args);
+    } else {
+        if !take_arg(&mut args, &["--test-crates"]) {
+            cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+        }
+        for test_crate in top_cargo_toml("test-crates") {
+            cmd(
+                "cargo",
+                &[
+                    "test",
+                    "--workspace",
+                    "--no-fail-fast",
+                    "--all-features",
+                    "--manifest-path",
+                    &test_crate,
+                ],
+                &args,
+            );
+        }
+    }
+}
+
+// do run EXAMPLE [-p, --profile] [<cargo-run-args>]
+//    Run an example in ./examples. If profiling builds in release with app_profiler.
+// USAGE:
+//     run some_example
+//        Runs the "some_example" in debug mode.
+//     run some_example --release
+//        Runs the "some_example" in release mode.
+//     run some_example --profile
+//        Runs the "some_example" in release mode with the "app_profiler" feature.
+fn run(mut args: Vec<&str>) {
+    if take_arg(&mut args, &["-p", "--profile"]) {
+        cmd("cargo", &["run", "--release", "--features", "app_profiler", "--example"], &args);
+    } else {
+        cmd("cargo", &["run", "--example"], &args);
+    }
+}
+
+// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [<cargo-expand-args>|<cargo-args>]
+//    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
+// FLAGS:
+//     --dump   Write the expanded Rust code to "dump.rs".
+// USAGE:
+//     expand some::item
+//        Prints only the specified item in the main crate.
+//     expand -p "other-crate" some::item
+//        Prints only the specified item in the other-crate from workspace.
+//     expand --raw
+//        Prints the entire main crate, including macro_rules!.
+fn expand(mut args: Vec<&str>) {
+    TaskInfo::get().set_stdout_dump("dump.rs");
+    if take_arg(&mut args, &["-r", "--raw"]) {
+        cmd(
+            "cargo",
+            &[
+                "+nightly",
+                "rustc",
+                "--profile=check",
+                "--",
+                "-Zunstable-options",
+                "--pretty=expanded",
+            ],
+            &args,
+        );
+    } else {
+        cmd("cargo", &["expand", "--lib", "--tests"], &args);
+    }
+}
+
+// do fmt [<cargo-fmt-args>] [-- <rustfmt-args>]
+//    Format workspace, build test samples, test-crates and the tasks script.
+fn fmt(args: Vec<&str>) {
+    print("    fmt workspace ... ");
+    cmd("cargo", &["fmt"], &args);
+    println("done");
+
+    print("    fmt test-crates ... ");
+    for test_crate in top_cargo_toml("test-crates") {
+        cmd("cargo", &["fmt", "--manifest-path", &test_crate], &args);
+    }
+    println("done");
+
+    print("    fmt tests/build/**/*.rs .. ");
+    let cases = all_rs("tests/build");
+    let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
+    cmd("rustfmt", &["--edition", "2018"], &cases_str);
+    println("done");
+
+    print("    fmt tools ... ");
+    for tool_crate in top_cargo_toml("tools") {
+        cmd("cargo", &["fmt", "--manifest-path", &tool_crate], &args);
+    }
+    println("done");
+}
+
+// do build [-e, --example] [--all] [<cargo-build-args>]
+//    Compile the main crate and its dependencies.
+// USAGE:
+//    build -e <example>
+//       Compile the example.
+//    build --workspace
+//       Compile the root workspace.
+//    build --all
+//       Compile the root workspace and ./test-crates.
+fn build(mut args: Vec<&str>) {
+    if take_arg(&mut args, &["--all"]) {
+        for test_crate in top_cargo_toml("test-crates") {
+            cmd("cargo", &["build", "--manifest-path", &test_crate], &args);
+        }
+        cmd("cargo", &["build"], &args);
+    } else {
+        if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
+            *example = "--example";
+        }
+        cmd("cargo", &["build"], &args);
+    }
+}
+
+// do clean [--test-crates] [<cargo-clean-args>]
+//    Remove workspace and test-crates target directories.
+// USAGE:
+//    clean --test-crates
+//       Remove only the target directories in ./test-crates.
+//    clean --doc
+//       Remove only the workspace doc files.
+//    clean --release
+//       Remove only the release files from the target directories.
+fn clean(mut args: Vec<&str>) {
+    let test_crates_only = take_arg(&mut args, &["--test-crates"]);
+
+    for crate_ in top_cargo_toml("test-crates") {
+        cmd("cargo", &["clean", "--manifest-path", &crate_], &args);
+    }
+
+    if !test_crates_only {
+        cmd("cargo", &["clean"], &args);
+        // external because it will delete self.
+        cmd_external("cargo", &["clean", "--manifest-path", env!("DO_MANIFEST_PATH")], &args);
+    }
+}
+
+// do help, h, -h, --help
+//    prints this help, task docs are extracted from the tasks file.
+fn help(_: Vec<&str>) {
+    println(f!("\n{}{}{}", c_wb(), DO, c_w()));
+    println("   Run tasks for managing this project, implemented as a Rust file.");
+    println("\nUSAGE:");
+    println(f!("    {} TASK [<TASK-ARGS>]", DO));
+    println("\nFLAGS:");
+    println(r#"    --dump   Redirect output to "dump.log" or other file specified by task."#);
+    print("\nTASKS:");
+
+    // prints lines from this file that start with "// do " and comment lines directly after then.
+    let tasks_help = include_str!(concat!(std::env!("OUT_DIR"), "\\tasks-help.stdout"));
+    println(tasks_help.replace("<task>", c_wb()).replace("</task>", c_w()));
+}

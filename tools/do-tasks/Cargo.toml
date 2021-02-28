@@ -1,0 +1,11 @@
+[package]
+name = "do-tasks"
+version = "0.1.0"
+authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
+edition = "2018"
+
+[dependencies]
+ansi_term = "0.12.1"
+glob = "0.3.0"
+
+[workspace]
