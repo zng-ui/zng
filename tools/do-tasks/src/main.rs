@@ -159,7 +159,7 @@ fn fmt(args: Vec<&str>) {
     }
     println("done");
 
-    print("    fmt tests/build/**/*.rs .. ");
+    print("    fmt tests/build/**/*.rs ... ");
     let cases = all_rs("tests/build");
     let cases_str: Vec<_> = cases.iter().map(|s| s.as_str()).collect();
     cmd("rustfmt", &["--edition", "2018"], &cases_str);
@@ -195,24 +195,40 @@ fn build(mut args: Vec<&str>) {
     }
 }
 
-// do clean [--test-crates] [<cargo-clean-args>]
-//    Remove workspace and test-crates target directories.
+// do clean [--test-crates] [--tools] [--workspace] [<cargo-clean-args>]
+//    Remove workspace, test-crates and tools target directories.
 // USAGE:
 //    clean --test-crates
 //       Remove only the target directories in ./test-crates.
+//    clean --tools
+//       Remove only the target directories in ./tools.
+//    clean --workspace
+//       Remove only the target directory of the root workspace.
 //    clean --doc
-//       Remove only the workspace doc files.
+//       Remove only the doc files from the target directories.
 //    clean --release
 //       Remove only the release files from the target directories.
 fn clean(mut args: Vec<&str>) {
-    let test_crates_only = take_arg(&mut args, &["--test-crates"]);
+    let test_crates = take_arg(&mut args, &["--test-crates"]);
+    let tools = take_arg(&mut args, &["--tools"]);
+    let workspace = take_arg(&mut args, &["--workspace"]);
+    let all = !test_crates && !tools && !workspace;
 
-    for crate_ in top_cargo_toml("test-crates") {
-        cmd("cargo", &["clean", "--manifest-path", &crate_], &args);
-    }
-
-    if !test_crates_only {
+    if all || workspace {
         cmd("cargo", &["clean"], &args);
+    }
+    if all || test_crates {
+        for crate_ in top_cargo_toml("test-crates") {
+            cmd("cargo", &["clean", "--manifest-path", &crate_], &args);
+        }
+    }
+    if all || tools {
+        for tool_ in top_cargo_toml("test-crates") {
+            if tool_.contains("/do-tasks/") {
+                continue;
+            }
+            cmd("cargo", &["clean", "--manifest-path", &tool_], &args);
+        }
         // external because it will delete self.
         cmd_external("cargo", &["clean", "--manifest-path", env!("DO_MANIFEST_PATH")], &args);
     }
