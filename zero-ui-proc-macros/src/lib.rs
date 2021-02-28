@@ -96,11 +96,13 @@ pub fn hex_color(input: TokenStream) -> TokenStream {
     hex_color::expand(input)
 }
 
+#[doc(hidden)]
 #[proc_macro_derive(AppService)]
 pub fn derive_app_service(item: TokenStream) -> TokenStream {
     derive_service::derive(item, ident!("AppService"))
 }
 
+#[doc(hidden)]
 #[proc_macro_derive(WindowService)]
 pub fn derive_window_service(item: TokenStream) -> TokenStream {
     derive_service::derive(item, ident!("WindowService"))
