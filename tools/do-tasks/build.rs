@@ -18,7 +18,7 @@ fn main() {
         if line.starts_with("// do ") {
             expect_details = true;
             let task_line = &line["// do ".len()..];
-            let task_name_end = task_line.find(' ').unwrap();
+            let task_name_end = task_line.find(|c| c == ' ' || c == ',').unwrap();
             writeln!(
                 out,
                 "\n    %c_wb%{}%c_w%{}",
