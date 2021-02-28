@@ -221,8 +221,15 @@ fn clean(mut args: Vec<&str>) {
 // do help, h, -h, --help
 //    prints this help, task docs are extracted from the tasks file.
 fn help(_: Vec<&str>) {
-    println(f!("\n{}{}{}", c_wb(), DO, c_w()));
-    println("   Run tasks for managing this project, implemented as a Rust file.");
+    println(f!(
+        "\n{}{}{} ({} {})",
+        c_wb(),
+        DO,
+        c_w(),
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    ));
+    println(f!("   {}", env!("CARGO_PKG_DESCRIPTION")));
     println("\nUSAGE:");
     println(f!("    {} TASK [<TASK-ARGS>]", DO));
     println("\nFLAGS:");
@@ -231,5 +238,5 @@ fn help(_: Vec<&str>) {
 
     // prints lines from this file that start with "// do " and comment lines directly after then.
     let tasks_help = include_str!(concat!(std::env!("OUT_DIR"), "\\tasks-help.stdout"));
-    println(tasks_help.replace("<task>", c_wb()).replace("</task>", c_w()));
+    println(tasks_help.replace("%c_wb%", c_wb()).replace("%c_w%", c_w()));
 }

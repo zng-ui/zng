@@ -21,7 +21,7 @@ fn main() {
             let task_name_end = task_line.find(' ').unwrap();
             writeln!(
                 out,
-                "\n    <task>{}</task>{}", // me mark the task name for coloring.
+                "\n    %c_wb%{}%c_w%{}",
                 &task_line[..task_name_end],
                 &task_line[task_name_end..]
             )
