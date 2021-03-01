@@ -6,14 +6,14 @@ fn main() {
     let (task, args) = args();
 
     match task {
-        "fmt" => fmt(args),
-        "test" => test(args),
-        "run" => run(args),
+        "fmt" | "f" => fmt(args),
+        "test" | "t" => test(args),
+        "run" | "r" => run(args),
         "doc" => doc(args),
         "expand" => expand(args),
-        "build" => build(args),
+        "build" | "b" => build(args),
         "clean" => clean(args),
-        "h" | "-h" | "help" | "--help" => help(args),
+        "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
     }
 }
@@ -27,7 +27,7 @@ fn doc(mut args: Vec<&str>) {
     cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
-// do test [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
+// do test, t [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
 //    Run all tests in root workspace and ./test-crates.
 // USAGE:
 //     test -u, --unit test::path
@@ -98,7 +98,7 @@ fn test(mut args: Vec<&str>) {
     }
 }
 
-// do run EXAMPLE [-p, --profile] [<cargo-run-args>]
+// do run, r EXAMPLE [-p, --profile] [<cargo-run-args>]
 //    Run an example in ./examples. If profiling builds in release with app_profiler.
 // USAGE:
 //     run some_example
@@ -146,7 +146,7 @@ fn expand(mut args: Vec<&str>) {
     }
 }
 
-// do fmt [<cargo-fmt-args>] [-- <rustfmt-args>]
+// do fmt, f [<cargo-fmt-args>] [-- <rustfmt-args>]
 //    Format workspace, build test samples, test-crates and the tasks script.
 fn fmt(args: Vec<&str>) {
     print("    fmt workspace ... ");
@@ -172,7 +172,7 @@ fn fmt(args: Vec<&str>) {
     println("done");
 }
 
-// do build [-e, --example] [--all] [<cargo-build-args>]
+// do build, b [-e, --example] [--all] [<cargo-build-args>]
 //    Compile the main crate and its dependencies.
 // USAGE:
 //    build -e <example>
@@ -234,8 +234,8 @@ fn clean(mut args: Vec<&str>) {
     }
 }
 
-// do help, h, -h, --help
-//    prints this help, task docs are extracted from the tasks file.
+// do help, --help
+//    Prints this help.
 fn help(_: Vec<&str>) {
     println(f!(
         "\n{}{}{} ({} {})",
