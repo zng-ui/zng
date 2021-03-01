@@ -155,3 +155,26 @@ impl UiNode for NilUiNode {
 pub struct FillUiNode;
 #[impl_ui_node(none)]
 impl UiNode for FillUiNode {}
+
+// Used by #[impl_ui_node] to validate custom delegation.
+pub mod ui_node_asserts {
+    use crate::{UiNode, UiNodeList};
+
+    #[inline]
+    pub fn delegate(d: &(impl UiNode + ?Sized)) -> &(impl UiNode + ?Sized) {
+        d
+    }
+    #[inline]
+    pub fn delegate_mut(d: &mut (impl UiNode + ?Sized)) -> &mut (impl UiNode + ?Sized) {
+        d
+    }
+
+    #[inline]
+    pub fn delegate_list(d: &(impl UiNodeList + ?Sized)) -> &(impl UiNodeList + ?Sized) {
+        d
+    }
+    #[inline]
+    pub fn delegate_list_mut(d: &mut (impl UiNodeList + ?Sized)) -> &mut (impl UiNodeList + ?Sized) {
+        d
+    }
+}

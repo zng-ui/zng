@@ -271,6 +271,12 @@ fn no_delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>) -> Vec<Im
 }
 
 fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+    let borrow = quote_spanned! {borrow.span()=>
+        #crate_::ui_node_asserts::delegate(#borrow)
+    };
+    let borrow_mut = quote_spanned! {borrow_mut.span()=>
+        #crate_::ui_node_asserts::delegate_mut(#borrow_mut)
+    };
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -316,6 +322,12 @@ fn delegate_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr
 }
 
 fn delegate_list_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, borrow: Expr, borrow_mut: Expr) -> Vec<ImplItem> {
+    let borrow = quote_spanned! {borrow.span()=>
+        #crate_::ui_node_asserts::delegate_list(#borrow)
+    };
+    let borrow_mut = quote_spanned! {borrow_mut.span()=>
+        #crate_::ui_node_asserts::delegate_list_mut(#borrow_mut)
+    };
     make_absents! { user_mtds
 
         [fn init(&mut self, ctx: &mut #crate_::context::WidgetContext) {
@@ -411,7 +423,7 @@ fn delegate_iter_absents(crate_: TokenStream, user_mtds: HashSet<Ident>, iter: E
 
         [fn measure(&mut self, available_size: #crate_::units::LayoutSize, ctx: &mut #crate_::context::LayoutContext) -> #crate_::units::LayoutSize {
             let mut size = #crate_::units::LayoutSize::zero();
-            for child in #iter_mut {
+            for child in {#iter_mut} {
                 size = child.measure(available_size, ctx).max(size);
             }
             size
@@ -441,18 +453,18 @@ impl Parse for Args {
 
             let args = if arg0 == ident!("child") {
                 Args::Delegate {
-                    delegate: parse_quote!(&self.child),
-                    delegate_mut: parse_quote!(&mut self.child),
+                    delegate: parse_quote_spanned!(arg0.span()=> &self.child),
+                    delegate_mut: parse_quote_spanned!(arg0.span()=> &mut self.child),
                 }
             } else if arg0 == ident!("children") {
                 Args::DelegateList {
-                    delegate_list: parse_quote!(&self.children),
-                    delegate_list_mut: parse_quote!(&mut self.children),
+                    delegate_list: parse_quote_spanned!(arg0.span()=> &self.children),
+                    delegate_list_mut: parse_quote_spanned!(arg0.span()=> &mut self.children),
                 }
             } else if arg0 == ident!("children_iter") {
                 Args::DelegateIter {
-                    delegate_iter: parse_quote!(self.children.iter()),
-                    delegate_iter_mut: parse_quote!(self.children.iter_mut()),
+                    delegate_iter: parse_quote_spanned!(arg0.span()=> self.children.iter()),
+                    delegate_iter_mut: parse_quote_spanned!(arg0.span()=> self.children.iter_mut()),
                 }
             } else if arg0 == ident!("none") {
                 Args::NoDelegate
