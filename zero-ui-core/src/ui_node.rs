@@ -157,8 +157,13 @@ pub struct FillUiNode;
 impl UiNode for FillUiNode {}
 
 // Used by #[impl_ui_node] to validate custom delegation.
-pub mod ui_node_asserts {
-    use crate::{UiNode, UiNodeList};
+pub mod impl_ui_node_util {
+    use crate::{
+        context::{LayoutContext, WidgetContext},
+        render::{FrameBuilder, FrameUpdate},
+        units::LayoutSize,
+        UiNode, UiNodeList,
+    };
 
     #[inline]
     pub fn delegate(d: &(impl UiNode + ?Sized)) -> &(impl UiNode + ?Sized) {
@@ -176,5 +181,81 @@ pub mod ui_node_asserts {
     #[inline]
     pub fn delegate_list_mut(d: &mut (impl UiNodeList + ?Sized)) -> &mut (impl UiNodeList + ?Sized) {
         d
+    }
+
+    #[inline]
+    pub fn delegate_iter<'a>(d: impl IntoIterator<Item = &'a impl UiNode>) -> impl IterImpl {
+        d
+    }
+    #[inline]
+    pub fn delegate_iter_mut<'a>(d: impl IntoIterator<Item = &'a mut impl UiNode>) -> impl IterMutImpl {
+        d
+    }
+
+    pub trait IterMutImpl {
+        fn init_all(self, ctx: &mut WidgetContext);
+        fn deinit_all(self, ctx: &mut WidgetContext);
+        fn update_all(self, ctx: &mut WidgetContext);
+        fn update_hp_all(self, ctx: &mut WidgetContext);
+        fn measure_all(self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize;
+        fn arrange_all(self, final_size: LayoutSize, ctx: &mut LayoutContext);
+    }
+    pub trait IterImpl {
+        fn render_all(self, frame: &mut FrameBuilder);
+        fn render_update_all(self, update: &mut FrameUpdate);
+    }
+
+    impl<'u, U: UiNode, I: IntoIterator<Item = &'u mut U>> IterMutImpl for I {
+        fn init_all(self, ctx: &mut WidgetContext) {
+            for child in self {
+                child.init(ctx);
+            }
+        }
+
+        fn deinit_all(self, ctx: &mut WidgetContext) {
+            for child in self {
+                child.deinit(ctx);
+            }
+        }
+
+        fn update_all(self, ctx: &mut WidgetContext) {
+            for child in self {
+                child.update(ctx);
+            }
+        }
+
+        fn update_hp_all(self, ctx: &mut WidgetContext) {
+            for child in self {
+                child.update_hp(ctx);
+            }
+        }
+
+        fn measure_all(self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            let mut size = LayoutSize::zero();
+            for child in self {
+                size = child.measure(available_size, ctx).max(size);
+            }
+            size
+        }
+
+        fn arrange_all(self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            for child in self {
+                child.arrange(final_size, ctx);
+            }
+        }
+    }
+
+    impl<'u, U: UiNode, I: IntoIterator<Item = &'u U>> IterImpl for I {
+        fn render_all(self, frame: &mut FrameBuilder) {
+            for child in self {
+                child.render(frame);
+            }
+        }
+
+        fn render_update_all(self, update: &mut FrameUpdate) {
+            for child in self {
+                child.render_update(update);
+            }
+        }
     }
 }
