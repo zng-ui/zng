@@ -157,6 +157,7 @@ pub struct FillUiNode;
 impl UiNode for FillUiNode {}
 
 // Used by #[impl_ui_node] to validate custom delegation.
+#[doc(hidden)]
 pub mod impl_ui_node_util {
     use crate::{
         context::{LayoutContext, WidgetContext},

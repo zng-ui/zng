@@ -538,6 +538,11 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
     // parse arg1 ": <expr>"
     let expr1 = parse_delegate_expr(args, &arg1)?;
 
+    // trailing comma.
+    if args.peek(Token![,]) {
+        args.parse::<Token![,]>().ok();
+    }
+
     // result is (immutable_expr, mutable_expr)
     if arg0 == ident {
         Ok((expr0, expr1))
