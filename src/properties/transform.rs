@@ -188,6 +188,7 @@ impl<C: UiNode, O: VarLocal<Point>> UiNode for TransformOriginNode<C, O> {
     fn render(&self, frame: &mut FrameBuilder) {
         self.child.render(frame);
         //TODO
+        eprintln!("TODO TransformOriginNode::layout_origin {:?}", self.layout_origin);
     }
 
     fn render_update(&self, update: &mut FrameUpdate) {

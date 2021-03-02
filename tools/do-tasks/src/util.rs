@@ -31,7 +31,7 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
             cmd.stdout(Stdio::from(stdout));
         }
         if let Some(stderr) = info.stderr_dump() {
-            cmd.stdout(Stdio::from(stderr));
+            cmd.stderr(Stdio::from(stderr));
         }
     }
 
@@ -134,6 +134,7 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     // set task name and flags
     let info = TaskInfo::get();
     info.name = task;
+
     info.dump = take_flag(&mut args, &["--dump"]);
 
     // prints header
@@ -164,9 +165,17 @@ impl TaskInfo {
         unsafe { &mut TASK_INFO }
     }
     pub fn set_stdout_dump(&mut self, file: &'static str) {
+        if self.stderr_dump == self.stdout_dump {
+            self.stderr_dump_file = None;
+        }
         self.stdout_dump_file = None;
         self.stdout_dump = file;
     }
+    //pub fn set_stderr_dump(&mut self, file: &'static str) {
+    //    self.stderr_dump_file = None;
+    //    self.stderr_dump = file;
+    //}
+    // Get the stdout dump stream.
     pub fn stdout_dump(&mut self) -> Option<std::fs::File> {
         if self.dump && !self.stdout_dump.is_empty() {
             if self.stdout_dump_file.is_none() {
@@ -177,6 +186,7 @@ impl TaskInfo {
             None
         }
     }
+    // Get the stderr dump stream.
     pub fn stderr_dump(&mut self) -> Option<std::fs::File> {
         if self.dump && !self.stderr_dump.is_empty() {
             if self.stderr_dump_file.is_none() {
@@ -184,7 +194,7 @@ impl TaskInfo {
                     let file = self.stdout_dump();
                     self.stderr_dump_file = file;
                 } else {
-                    self.stdout_dump_file = std::fs::File::create(self.stdout_dump).ok();
+                    self.stderr_dump_file = std::fs::File::create(self.stderr_dump).ok();
                 }
             }
             self.stderr_dump_file.as_ref().and_then(|f| f.try_clone().ok())
@@ -202,6 +212,38 @@ pub fn top_cargo_toml(dir: &str) -> Vec<String> {
 // Get all `dir/**/*.rs` files.
 pub fn all_rs(dir: &str) -> Vec<String> {
     glob(&format!("{}/**/*.rs", dir))
+}
+
+// [[bin]] names for build tests last run ("bin-name", "test_file_path").
+pub fn build_test_cases() -> Vec<(String, String)> {
+    match std::fs::read_to_string("target/tests/zero-ui/Cargo.toml") {
+        Ok(file) => {
+            let mut bin_names = vec![];
+
+            let mut lines = file.lines();
+            while let Some(line) = lines.next() {
+                if line == "[[bin]]" {
+                    if let (Some(name_line), Some(path_line)) = (lines.next(), lines.next()) {
+                        assert!(name_line.starts_with("name = "));
+                        assert!(path_line.starts_with("path = "));
+
+                        let name = name_line["name = ".len()..].trim_matches('"');
+                        if name.starts_with("trybuild") {
+                            let path = path_line["path = ".len()..].trim_matches('"');
+
+                            bin_names.push((name.to_owned(), path.to_owned()));
+                        }
+                    }
+                }
+            }
+
+            bin_names
+        }
+        Err(e) => {
+            error(e);
+            vec![]
+        }
+    }
 }
 
 fn glob(pattern: &str) -> Vec<String> {

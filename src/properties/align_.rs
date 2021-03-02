@@ -11,8 +11,6 @@ use crate::core::{impl_ui_node, property};
 struct AlignNode<T: UiNode, A: VarLocal<Alignment>> {
     child: T,
     alignment: A,
-
-    final_size: LayoutSize,
     child_rect: LayoutRect,
 }
 
@@ -37,7 +35,6 @@ impl<T: UiNode, A: VarLocal<Alignment>> UiNode for AlignNode<T, A> {
     }
 
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        self.final_size = final_size;
         self.child_rect.size = final_size.min(self.child_rect.size);
         self.child.arrange(self.child_rect.size, ctx);
 
@@ -63,7 +60,6 @@ pub fn align(child: impl UiNode, alignment: impl IntoVar<Alignment>) -> impl UiN
     AlignNode {
         child,
         alignment: alignment.into_local(),
-        final_size: LayoutSize::zero(),
         child_rect: LayoutRect::zero(),
     }
 }

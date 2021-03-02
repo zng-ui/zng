@@ -47,6 +47,8 @@ fn doc(mut args: Vec<&str>) {
 //     test -b -f <build_test_case>
 //        Run build test files that match "./tests/build/*/fail/*<build_test_case>*.rs".
 fn test(mut args: Vec<&str>) {
+    let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
+
     if take_flag(&mut args, &["-w", "--workspace"]) {
         // exclude ./test-crates and build_tests
         if !args.iter().any(|a| *a == "--") {
@@ -54,13 +56,17 @@ fn test(mut args: Vec<&str>) {
         }
         args.push("--skip");
         args.push("build_tests");
-        cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+        cmd(
+            "cargo",
+            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
+            &args,
+        );
     } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         // exclude ./test-crates and integration tests
         for test_name in unit_tests {
             cmd(
                 "cargo",
-                &["test", "--workspace", "--no-fail-fast", "--all-features", test_name],
+                &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", test_name],
                 &args,
             );
         }
@@ -68,12 +74,12 @@ fn test(mut args: Vec<&str>) {
         // only doc tests for the main workspace.
         cmd(
             "cargo",
-            &["test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
+            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", "--doc"],
             &args,
         );
     } else if let Some(int_tests) = take_option(&mut args, &["-t", "--test"], "<integration-test-name>") {
         // only specific integration test.
-        let mut t_args = vec!["test", "--workspace", "--no-fail-fast", "--all-features"];
+        let mut t_args = vec![nightly, "test", "--workspace", "--no-fail-fast", "--all-features"];
         for it in int_tests {
             t_args.push("--test");
             t_args.push(it);
@@ -84,7 +90,15 @@ fn test(mut args: Vec<&str>) {
         let fails = take_option(&mut args, &["-f", "--fail"], "<fail-test-name>").unwrap_or_default();
         let passes = take_option(&mut args, &["-p", "--pass"], "<pass-test-name>").unwrap_or_default();
 
-        let build_tests_args = vec!["test", "--workspace", "--no-fail-fast", "--all-features", "--test", "build_tests"];
+        let build_tests_args = vec![
+            nightly,
+            "test",
+            "--workspace",
+            "--no-fail-fast",
+            "--all-features",
+            "--test",
+            "build_tests",
+        ];
 
         if fails.is_empty() && passes.is_empty() {
             // all build tests.
@@ -112,6 +126,7 @@ fn test(mut args: Vec<&str>) {
             cmd(
                 "cargo",
                 &[
+                    nightly,
                     "test",
                     "--workspace",
                     "--no-fail-fast",
@@ -123,7 +138,11 @@ fn test(mut args: Vec<&str>) {
             );
         }
     } else {
-        cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+        cmd(
+            "cargo",
+            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
+            &args,
+        );
     }
 }
 
@@ -144,7 +163,9 @@ fn run(mut args: Vec<&str>) {
     }
 }
 
-// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [<cargo-expand-args>|<cargo-args>]
+// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw]
+//           [-b, --build [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
+//           [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
 // FLAGS:
 //     --dump   Write the expanded Rust code to "dump.rs".
@@ -155,23 +176,52 @@ fn run(mut args: Vec<&str>) {
 //        Prints only the specified item in the other-crate from workspace.
 //     expand --raw
 //        Prints the entire main crate, including macro_rules!.
+//     expand --build -p pass_test_name
+//        Prints the build test cases that match.
 fn expand(mut args: Vec<&str>) {
-    TaskInfo::get().set_stdout_dump("dump.rs");
-    if take_flag(&mut args, &["-r", "--raw"]) {
-        cmd(
-            "cargo",
-            &[
-                "+nightly",
-                "rustc",
-                "--profile=check",
-                "--",
-                "-Zunstable-options",
-                "--pretty=expanded",
-            ],
-            &args,
-        );
+    if args.iter().any(|&a| a == "-b" || a == "--build") {
+        // Expand build test, we need to run the test to load the bins
+        // in the trybuild test crate. We also test in nightly because
+        // expand is in nightly.
+
+        let mut test_args = args.clone();
+        test_args.insert(0, "+nightly");
+        test(test_args);
+
+        TaskInfo::get().set_stdout_dump("dump.rs");
+        for (bin_name, path) in build_test_cases() {
+            println(f!("//\n// {}\n//", path));
+            cmd(
+                "cargo",
+                &[
+                    "expand",
+                    "--manifest-path",
+                    "target/tests/zero-ui/Cargo.toml",
+                    "--bin",
+                    &bin_name,
+                    "--all-features",
+                ],
+                &[],
+            );
+        }
     } else {
-        cmd("cargo", &["expand", "--lib", "--tests"], &args);
+        TaskInfo::get().set_stdout_dump("dump.rs");
+        if take_flag(&mut args, &["-r", "--raw"]) {
+            cmd(
+                "cargo",
+                &[
+                    "+nightly",
+                    "rustc",
+                    "--profile=check",
+                    "--",
+                    "-Zunstable-options",
+                    "--pretty=expanded",
+                ],
+                &args,
+            );
+        } else {
+            cmd("cargo", &["expand", "--lib", "--tests", "--all-features"], &args);
+        }
     }
 }
 
