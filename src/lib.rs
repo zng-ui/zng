@@ -465,6 +465,8 @@ pub mod core {
     /// the [`UiNode`](crate::core::UiNode) implementation.
     ///
     /// This is particularly useful for nodes that have a large amount of generic constrains, you just type then once.
+    /// <div style='display:none'>
+    #[doc(inline)]
     pub use zero_ui_core::impl_ui_node;
 
     /// Expands a function to a widget property module.
@@ -589,6 +591,7 @@ pub mod core {
     ///
     /// Properties with the `is_` prefix are special, they output information about the widget instead of shaping it. They are automatically set
     /// to a new probing variable when used in an widget when condition expression.
+    /// <div style='display:none'>
     pub use zero_ui_core::property;
 
     /// Declares a new widget macro and module.
