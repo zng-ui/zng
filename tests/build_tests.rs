@@ -52,3 +52,30 @@ mod build_tests {
         t.compile_fail("tests/build/widget_macro/pass/*.rs");
     }
 }
+
+/*
+ * do-tasks uses these to run a specific test
+ */
+mod do_tasks_util {
+    use std::env;
+
+    #[test]
+    #[ignore]
+    fn do_test_fail() {
+        if let Some(test) = env::var_os("DO_TASKS_BUILD_TEST") {
+            let t = trybuild::TestCases::new();
+            let path = format! {"tests/build/*/fail/*{}*.rs", test.to_string_lossy()};
+            t.compile_fail(path);
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn do_test_pass() {
+        if let Some(test) = env::var_os("DO_TASKS_BUILD_TEST") {
+            let t = trybuild::TestCases::new();
+            let path = format! {"tests/build/*/pass/*{}*.rs", test.to_string_lossy()};
+            t.pass(path);
+        }
+    }
+}

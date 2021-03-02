@@ -8,18 +8,22 @@ pub static DO: &str = env!("DO_NAME");
 
 // Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
 pub fn cmd(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    cmd_impl(cmd, default_args, user_args, false)
+    cmd_impl(cmd, default_args, user_args, false, &[])
+}
+pub fn cmd_env(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)]) {
+    cmd_impl(cmd, default_args, user_args, false, envs)
 }
 // Like [`cmd`] but exists the task runner if the command fails.
 //fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
 //    cmd_impl(cmd, default_args, user_args, true)
 //}
-fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], required: bool) {
+fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], required: bool, env: &[(&str, &str)]) {
     let info = TaskInfo::get();
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
 
     let mut cmd = Command::new(cmd);
     cmd.args(&args[..]);
+    cmd.envs(env.iter().map(|&t| t));
 
     if info.dump {
         if let Some(stdout) = info.stdout_dump() {

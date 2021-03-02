@@ -77,6 +77,44 @@ fn test(mut args: Vec<&str>) {
             t_args.push(it);
         }
         cmd("cargo", &t_args, &args);
+    } else if let Some(test_names) = take_option(&mut args, &["--build-fail"], "<fail-test-name>") {
+        for test_name in test_names {
+            cmd_env(
+                "cargo",
+                &[
+                    "test",
+                    "--workspace",
+                    "--no-fail-fast",
+                    "--all-features",
+                    "--test",
+                    "build_tests",
+                    "--",
+                    "--ignored",
+                    "do_tasks_util::do_test_fail",
+                ],
+                &[],
+                &[("DO_TASKS_BUILD_TEST", test_name)],
+            );
+        }
+    } else if let Some(test_names) = take_option(&mut args, &["--build-pass"], "<pass-test-name>") {
+        for test_name in test_names {
+            cmd_env(
+                "cargo",
+                &[
+                    "test",
+                    "--workspace",
+                    "--no-fail-fast",
+                    "--all-features",
+                    "--test",
+                    "build_tests",
+                    "--",
+                    "--ignored",
+                    "do_tasks_util::do_test_pass",
+                ],
+                &[],
+                &[("DO_TASKS_BUILD_TEST", test_name)],
+            );
+        }
     } else {
         if !take_arg(&mut args, &["--test-crates"]) {
             cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);

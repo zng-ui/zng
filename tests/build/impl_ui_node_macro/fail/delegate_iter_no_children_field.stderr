@@ -1,0 +1,11 @@
+error[E0609]: no field `children` on type `&mut Node`
+ --> $DIR/delegate_iter_no_children_field.rs:5:16
+  |
+5 | #[impl_ui_node(children_iter)]
+  |                ^^^^^^^^^^^^^ unknown field
+
+error[E0609]: no field `children` on type `&Node`
+ --> $DIR/delegate_iter_no_children_field.rs:5:16
+  |
+5 | #[impl_ui_node(children_iter)]
+  |                ^^^^^^^^^^^^^ unknown field
