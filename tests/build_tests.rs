@@ -53,9 +53,7 @@ mod build_tests {
     }
 }
 
-/*
- * do-tasks uses these to run a specific test
- */
+// `do test --build [-f <fail-name>] [-p <pass-name>]` uses these to run specific tests.
 mod do_tasks_util {
     use std::env;
 

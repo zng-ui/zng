@@ -13,27 +13,38 @@ fn main() {
 
     let mut out = File::create(out_file).expect("failed to write help comments");
 
+    // if the comment line is in a comment block started by a "// do .." comment.
     let mut expect_details = false;
+    // the offset of the first '[' character in the comment block.
+    let mut details_arg_offset = 0;
     for line in rs.lines() {
         if line.starts_with("// do ") {
             expect_details = true;
             let task_line = &line["// do ".len()..];
             let (names, options) = parse_task_line(task_line);
             let mut names = names.into_iter();
-            write!(
-                out,
-                "\n    %c_wb%{}%c_w%",
-                names.next().expect("`// do` task comment missing task name")
-            )
-            .unwrap();
+
+            let first_name = names.next().expect("`// do` task comment missing task name");
+            write!(out, "\n    %c_wb%{}%c_w%", first_name).unwrap();
+            details_arg_offset = 4 + first_name.len();
+
             for name in names {
                 write!(out, ", %c_wb%{}%c_w%", name).unwrap();
+                details_arg_offset += 2 + name.len();
             }
+
             writeln!(out, "{}", options).unwrap();
         } else if expect_details {
             expect_details = line.starts_with("//");
             if expect_details {
-                writeln!(out, "    {}", &line["//".len()..]).expect("failed to write help comments");
+                let line = &line["//".len()..];
+
+                let maybe_arg_line = line.trim();
+                if maybe_arg_line.starts_with('[') {
+                    writeln!(out, "{:width$}", line, width = details_arg_offset).unwrap();
+                } else {
+                    writeln!(out, "   {}", line).unwrap();
+                }
             }
         }
     }

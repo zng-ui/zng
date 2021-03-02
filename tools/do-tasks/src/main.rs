@@ -27,10 +27,12 @@ fn doc(mut args: Vec<&str>) {
     cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
-// do test, t [-w --workspace] [-u, --unit <unit-test>] [--test-crates] [<cargo-test-args>]
+// do test, t [-w, --workspace] [-u, --unit <unit-test>] [--test-crates]
+//            [-b, --build [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
+//            [<cargo-test-args>]
 //    Run all tests in root workspace and ./test-crates.
 // USAGE:
-//     test -u, --unit test::path
+//     test -u, --unit <test::path>
 //        Run tests that partially match the path in the root workspace.
 //     test -w, --workspace
 //        Run all tests in root workspace (exclude build_tests and ./test-crates).
@@ -40,12 +42,12 @@ fn doc(mut args: Vec<&str>) {
 //        Run all doc tests in the root workspace.
 //     test --test-crates
 //        Run all the ./test-crates tests.
-//     test -t build_tests
+//     test --build
 //        Run all build tests
-//     test -t build_tests -- <test-name>
-//        Run all build tests with name that match.
+//     test -b -f <build_test_case>
+//        Run build test files that match "./tests/build/*/fail/*<build_test_case>*.rs".
 fn test(mut args: Vec<&str>) {
-    if take_arg(&mut args, &["-w", "--workspace"]) {
+    if take_flag(&mut args, &["-w", "--workspace"]) {
         // exclude ./test-crates and build_tests
         if !args.iter().any(|a| *a == "--") {
             args.push("--");
@@ -62,7 +64,7 @@ fn test(mut args: Vec<&str>) {
                 &args,
             );
         }
-    } else if take_arg(&mut args, &["--doc"]) {
+    } else if take_flag(&mut args, &["--doc"]) {
         // only doc tests for the main workspace.
         cmd(
             "cargo",
@@ -77,48 +79,35 @@ fn test(mut args: Vec<&str>) {
             t_args.push(it);
         }
         cmd("cargo", &t_args, &args);
-    } else if let Some(test_names) = take_option(&mut args, &["--build-fail"], "<fail-test-name>") {
-        for test_name in test_names {
-            cmd_env(
-                "cargo",
-                &[
-                    "test",
-                    "--workspace",
-                    "--no-fail-fast",
-                    "--all-features",
-                    "--test",
-                    "build_tests",
-                    "--",
-                    "--ignored",
-                    "do_tasks_util::do_test_fail",
-                ],
-                &[],
-                &[("DO_TASKS_BUILD_TEST", test_name)],
-            );
+    } else if take_flag(&mut args, &["-b", "--build"]) {
+        // build_tests
+        let fails = take_option(&mut args, &["-f", "--fail"], "<fail-test-name>").unwrap_or_default();
+        let passes = take_option(&mut args, &["-p", "--pass"], "<pass-test-name>").unwrap_or_default();
+
+        let build_tests_args = vec!["test", "--workspace", "--no-fail-fast", "--all-features", "--test", "build_tests"];
+
+        if fails.is_empty() && passes.is_empty() {
+            // all build tests.
+            cmd("cargo", &build_tests_args, &args);
+            return;
         }
-    } else if let Some(test_names) = take_option(&mut args, &["--build-pass"], "<pass-test-name>") {
-        for test_name in test_names {
-            cmd_env(
-                "cargo",
-                &[
-                    "test",
-                    "--workspace",
-                    "--no-fail-fast",
-                    "--all-features",
-                    "--test",
-                    "build_tests",
-                    "--",
-                    "--ignored",
-                    "do_tasks_util::do_test_pass",
-                ],
-                &[],
-                &[("DO_TASKS_BUILD_TEST", test_name)],
-            );
+
+        // specific test files.
+        if !passes.is_empty() {
+            let mut args = build_tests_args.clone();
+            args.extend(&["--", "do_tasks_util::do_test_pass", "--exact", "--ignored"]);
+            for test_name in passes {
+                cmd_env("cargo", &args, &[], &[("DO_TASKS_BUILD_TEST", test_name)]);
+            }
         }
-    } else {
-        if !take_arg(&mut args, &["--test-crates"]) {
-            cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
+        if !fails.is_empty() {
+            let mut args = build_tests_args;
+            args.extend(&["--", "do_tasks_util::do_test_fail", "--exact", "--ignored"]);
+            for test_name in fails {
+                cmd_env("cargo", &args, &[], &[("DO_TASKS_BUILD_TEST", test_name)]);
+            }
         }
+    } else if take_flag(&mut args, &["--test-crates"]) {
         for test_crate in top_cargo_toml("test-crates") {
             cmd(
                 "cargo",
@@ -133,6 +122,8 @@ fn test(mut args: Vec<&str>) {
                 &args,
             );
         }
+    } else {
+        cmd("cargo", &["test", "--workspace", "--no-fail-fast", "--all-features"], &args);
     }
 }
 
@@ -146,7 +137,7 @@ fn test(mut args: Vec<&str>) {
 //     run some_example --profile
 //        Runs the "some_example" in release mode with the "app_profiler" feature.
 fn run(mut args: Vec<&str>) {
-    if take_arg(&mut args, &["-p", "--profile"]) {
+    if take_flag(&mut args, &["-p", "--profile"]) {
         cmd("cargo", &["run", "--release", "--features", "app_profiler", "--example"], &args);
     } else {
         cmd("cargo", &["run", "--example"], &args);
@@ -166,7 +157,7 @@ fn run(mut args: Vec<&str>) {
 //        Prints the entire main crate, including macro_rules!.
 fn expand(mut args: Vec<&str>) {
     TaskInfo::get().set_stdout_dump("dump.rs");
-    if take_arg(&mut args, &["-r", "--raw"]) {
+    if take_flag(&mut args, &["-r", "--raw"]) {
         cmd(
             "cargo",
             &[
@@ -220,7 +211,7 @@ fn fmt(args: Vec<&str>) {
 //    build --all
 //       Compile the root workspace and ./test-crates.
 fn build(mut args: Vec<&str>) {
-    if take_arg(&mut args, &["--all"]) {
+    if take_flag(&mut args, &["--all"]) {
         for test_crate in top_cargo_toml("test-crates") {
             cmd("cargo", &["build", "--manifest-path", &test_crate], &args);
         }
@@ -247,9 +238,9 @@ fn build(mut args: Vec<&str>) {
 //    clean --release
 //       Remove only the release files from the target directories.
 fn clean(mut args: Vec<&str>) {
-    let test_crates = take_arg(&mut args, &["--test-crates"]);
-    let tools = take_arg(&mut args, &["--tools"]);
-    let workspace = take_arg(&mut args, &["--workspace"]);
+    let test_crates = take_flag(&mut args, &["--test-crates"]);
+    let tools = take_flag(&mut args, &["--tools"]);
+    let workspace = take_flag(&mut args, &["--workspace"]);
     let all = !test_crates && !tools && !workspace;
 
     if all || workspace {

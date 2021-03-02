@@ -8,22 +8,23 @@ pub static DO: &str = env!("DO_NAME");
 
 // Run a command, args are chained, empty ("") arg strings are filtered, command streams are inherited.
 pub fn cmd(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    cmd_impl(cmd, default_args, user_args, false, &[])
+    cmd_impl(cmd, default_args, user_args, &[], false)
 }
+// Like [`cmd`] but also sets environment variables. Empty var keys are filtered, empty values unset the variable.
 pub fn cmd_env(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)]) {
-    cmd_impl(cmd, default_args, user_args, false, envs)
+    cmd_impl(cmd, default_args, user_args, envs, false)
 }
 // Like [`cmd`] but exists the task runner if the command fails.
 //fn cmd_req(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-//    cmd_impl(cmd, default_args, user_args, true)
+//    cmd_impl(cmd, default_args, user_args, &[], true)
 //}
-fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], required: bool, env: &[(&str, &str)]) {
+fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str, &str)], required: bool) {
     let info = TaskInfo::get();
     let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
 
     let mut cmd = Command::new(cmd);
     cmd.args(&args[..]);
-    cmd.envs(env.iter().map(|&t| t));
+    cmd.envs(envs.iter().filter(|t| !t.0.is_empty()).map(|&t| t));
 
     if info.dump {
         if let Some(stdout) = info.stdout_dump() {
@@ -78,7 +79,7 @@ pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
 }
 
 // Removes all of the flags in `any` from `args`. Returns if found any.
-pub fn take_arg(args: &mut Vec<&str>, any: &[&str]) -> bool {
+pub fn take_flag(args: &mut Vec<&str>, any: &[&str]) -> bool {
     let mut i = 0;
     let mut found = false;
     while i < args.len() {
@@ -133,7 +134,7 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     // set task name and flags
     let info = TaskInfo::get();
     info.name = task;
-    info.dump = take_arg(&mut args, &["--dump"]);
+    info.dump = take_flag(&mut args, &["--dump"]);
 
     // prints header
     println(f!("{}Running{}: {}{} {:?} {:?}", c_green(), c_wb(), DO, c_w(), task, args));
