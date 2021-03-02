@@ -188,7 +188,7 @@ fn expand(mut args: Vec<&str>) {
         test_args.insert(0, "+nightly");
         test(test_args);
 
-        TaskInfo::get().set_stdout_dump("dump.rs");
+        TaskInfo::get().stdout_dump = "dump.rs";
         for (bin_name, path) in build_test_cases() {
             println(f!("//\n// {}\n//", path));
             cmd(
@@ -205,7 +205,7 @@ fn expand(mut args: Vec<&str>) {
             );
         }
     } else {
-        TaskInfo::get().set_stdout_dump("dump.rs");
+        TaskInfo::get().stdout_dump = "dump.rs";
         if take_flag(&mut args, &["-r", "--raw"]) {
             cmd(
                 "cargo",

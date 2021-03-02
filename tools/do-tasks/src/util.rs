@@ -147,59 +147,41 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
 pub struct TaskInfo {
     pub name: &'static str,
     pub dump: bool,
-    stdout_dump: &'static str,
-    stderr_dump: &'static str,
-    stdout_dump_file: Option<std::fs::File>,
-    stderr_dump_file: Option<std::fs::File>,
+    pub stdout_dump: &'static str,
+    pub stderr_dump: &'static str,
+    dump_files: Option<std::collections::HashMap<&'static str, std::fs::File>>,
 }
 static mut TASK_INFO: TaskInfo = TaskInfo {
     name: "",
     dump: false,
     stdout_dump: "dump.log",
     stderr_dump: "dump.log",
-    stdout_dump_file: None,
-    stderr_dump_file: None,
+    dump_files: None,
 };
 impl TaskInfo {
     pub fn get() -> &'static mut TaskInfo {
         unsafe { &mut TASK_INFO }
     }
-    pub fn set_stdout_dump(&mut self, file: &'static str) {
-        if self.stderr_dump == self.stdout_dump {
-            self.stderr_dump_file = None;
-        }
-        self.stdout_dump_file = None;
-        self.stdout_dump = file;
-    }
-    //pub fn set_stderr_dump(&mut self, file: &'static str) {
-    //    self.stderr_dump_file = None;
-    //    self.stderr_dump = file;
-    //}
     // Get the stdout dump stream.
     pub fn stdout_dump(&mut self) -> Option<std::fs::File> {
-        if self.dump && !self.stdout_dump.is_empty() {
-            if self.stdout_dump_file.is_none() {
-                self.stdout_dump_file = std::fs::File::create(self.stdout_dump).ok();
-            }
-            self.stdout_dump_file.as_ref().and_then(|f| f.try_clone().ok())
-        } else {
-            None
-        }
+        self.dump_file(self.stdout_dump)
     }
     // Get the stderr dump stream.
     pub fn stderr_dump(&mut self) -> Option<std::fs::File> {
-        if self.dump && !self.stderr_dump.is_empty() {
-            if self.stderr_dump_file.is_none() {
-                if self.stderr_dump == self.stdout_dump {
-                    let file = self.stdout_dump();
-                    self.stderr_dump_file = file;
-                } else {
-                    self.stderr_dump_file = std::fs::File::create(self.stderr_dump).ok();
-                }
-            }
-            self.stderr_dump_file.as_ref().and_then(|f| f.try_clone().ok())
-        } else {
-            None
+        self.dump_file(self.stderr_dump)
+    }
+
+    fn dump_file(&mut self, file: &'static str) -> Option<std::fs::File> {
+        if !self.dump || file.is_empty() {
+            return None;
+        }
+
+        match self.dump_files.get_or_insert_with(std::collections::HashMap::new).entry(file) {
+            std::collections::hash_map::Entry::Occupied(e) => e.get().try_clone().ok(),
+            std::collections::hash_map::Entry::Vacant(e) => match std::fs::File::create(file) {
+                Ok(f) => e.insert(f).try_clone().ok(),
+                Err(_) => None,
+            },
         }
     }
 }
