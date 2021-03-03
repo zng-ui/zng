@@ -61,10 +61,9 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
 // Like [`cmd`] but runs after a small delay and does not block.
 // Use this for commands that need write access to the self executable.
 pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
-    let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
-
     #[cfg(windows)]
     {
+        let args: Vec<_> = default_args.iter().chain(user_args.iter()).filter(|a| !a.is_empty()).collect();
         // We use ping to cause a slight delay that gives time for the current
         // executable to close because the subsequent command is expected to affect
         // the current executable file.

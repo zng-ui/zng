@@ -333,6 +333,6 @@ fn help(_: Vec<&str>) {
     print("\nTASKS:");
 
     // prints lines from this file that start with "// do " and comment lines directly after then.
-    let tasks_help = include_str!(concat!(std::env!("OUT_DIR"), "\\tasks-help.stdout"));
+    let tasks_help = include_str!(concat!(std::env!("OUT_DIR"), "/tasks-help.stdout"));
     println(tasks_help.replace("%c_wb%", c_wb()).replace("%c_w%", c_w()));
 }
