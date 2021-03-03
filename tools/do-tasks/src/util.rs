@@ -219,9 +219,8 @@ pub fn build_test_cases() -> Vec<(String, String)> {
 
                         let name = name_line["name = ".len()..].trim_matches('"');
                         if name.starts_with("trybuild") {
-                            let path = path_line["path = ".len()..].trim_matches('"');
-
-                            bin_names.push((name.to_owned(), path.to_owned()));
+                            let path = path_line["path = ".len()..].trim_matches('"').replace(r#"\\"#, "\\");
+                            bin_names.push((name.to_owned(), path));
                         }
                     }
                 }

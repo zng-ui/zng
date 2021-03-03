@@ -190,7 +190,8 @@ fn expand(mut args: Vec<&str>) {
 
         TaskInfo::get().stdout_dump = "dump.rs";
         for (bin_name, path) in build_test_cases() {
-            println(f!("//\n// {}\n//", path));
+            let i = path.find("tests").unwrap_or_default();
+            println(f!("\n//\n// {}\n//\n", &path[i..]));
             cmd(
                 "cargo",
                 &[
