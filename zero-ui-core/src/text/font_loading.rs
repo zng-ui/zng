@@ -14,10 +14,15 @@ use webrender::api::RenderApi;
 use super::{FontFaceMetrics, FontMetrics, FontName, FontStretch, FontStyle, FontSynthesis, FontWeight, Script};
 use crate::app::AppExtension;
 use crate::context::{AppContext, AppInitContext, UpdateNotifier, UpdateRequest};
-use crate::event::{event, event_args, EventEmitter, EventListener};
+use crate::event::{event, event_args, EventEmitter};
 use crate::service::AppService;
 use crate::units::{layout_to_pt, LayoutLength};
-use crate::window::{WindowEventArgs, WindowOpenEvent, Windows};
+
+#[cfg(windows)]
+use crate::{
+    event::EventListener,
+    window::{WindowEventArgs, WindowOpenEvent, Windows},
+};
 
 event! {
     /// Change in [`Fonts`] that may cause a font query to now give
@@ -87,7 +92,6 @@ pub struct FontManager {
 
     #[cfg(windows)]
     window_open: EventListener<WindowEventArgs>,
-
     #[cfg(windows)]
     system_fonts_changed: Rc<Cell<bool>>,
 }
@@ -176,11 +180,13 @@ impl Fonts {
         }
     }
 
+    #[cfg(windows)]
     fn on_system_fonts_changed(&mut self) {
         self.loader.on_system_fonts_changed();
         self.prune_requested = false;
     }
 
+    #[cfg(windows)]
     fn on_prune(&mut self) {
         self.loader.on_prune();
         self.prune_requested = false;
@@ -937,6 +943,7 @@ impl FontFaceLoader {
         }
     }
 
+    #[cfg(windows)]
     fn on_system_fonts_changed(&mut self) {
         self.system_fonts = font_kit::source::SystemSource::new();
         for (_, sys_family) in self.system_fonts_cache.drain() {
@@ -947,6 +954,7 @@ impl FontFaceLoader {
             }
         }
     }
+    #[cfg(windows)]
     fn on_prune(&mut self) {
         self.system_fonts_cache.retain(|_, v| {
             v.retain(|sff| match sff {

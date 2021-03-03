@@ -130,6 +130,10 @@ pub fn args() -> (&'static str, Vec<&'static str>) {
     unsafe {
         ANSI_ENABLED = ansi_term::enable_ansi_support().is_ok();
     }
+    #[cfg(unix)]
+    unsafe {
+        ANSI_ENABLED = true;
+    }
 
     let mut args: Vec<_> = env::args().skip(1).collect();
     if args.is_empty() {

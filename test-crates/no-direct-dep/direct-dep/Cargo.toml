@@ -5,4 +5,4 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
 [dependencies]
-zero-ui = { path = "..\\..\\..\\..\\zero-ui" }
+zero-ui = { path = "../../../../zero-ui" }

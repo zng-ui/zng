@@ -149,7 +149,7 @@ macro_rules! non_user_error {
 /// Include minified JS string from the "src/js" dir.
 macro_rules! js {
     ($file_name:tt) => {
-        include_str!(concat!(env!("OUT_DIR"), "\\js_min\\", $file_name))
+        include_str!(concat!(env!("OUT_DIR"), "/js_min/", $file_name))
     };
 }
 

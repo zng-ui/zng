@@ -791,7 +791,7 @@ pub struct OpenWindow {
 
     is_active: bool,
 
-    #[doc(windows)]
+    #[cfg(windows)]
     subclass_id: std::cell::Cell<usize>,
 }
 
@@ -914,7 +914,7 @@ impl OpenWindow {
             doc_view_changed: false,
             is_active: true, // just opened it?
 
-            #[doc(windows)]
+            #[cfg(windows)]
             subclass_id: std::cell::Cell::new(0),
         };
 

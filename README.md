@@ -14,10 +14,13 @@ You just need `cargo` with an up-to-date stable toolchain installed.
 
 Apart from `cargo` you may need to install:
 
-* `build-essential` or equivalent `gcc` and `g++`.
-*  TODO harfbuzz stuff?
+* `build-essential`
+* `cmake`
+* `pkg-config`
+* `libfreetype6-dev`
+* `libexpat1-dev`
 
-Linux support is tested in the Ubuntu sub-system for Windows, other distros may.
+Linux support is tested in the Ubuntu sub-system for Windows.
 
 # Building
 

@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("js_min");
     fs::create_dir_all(&out_dir)?;
 
-    let in_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("src\\js");
+    let in_dir = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("src/js");
 
     println!("cargo:rerun-if-changed={}", in_dir.display()); // in case a new JS gets added
 

@@ -823,7 +823,7 @@ fn multi_click_time_ms() -> Duration {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn multi_click_time_ms() -> u32 {
+fn multi_click_time_ms() -> Duration {
     // https://stackoverflow.com/questions/50868129/how-to-get-double-click-time-interval-value-programmatically-on-linux
     // https://developer.apple.com/documentation/appkit/nsevent/1532495-mouseevent
     Duration::from_millis(500)
