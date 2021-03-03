@@ -12,7 +12,7 @@ You just need `cargo` with an up-to-date stable toolchain installed.
 
 ## Linux
 
-Apart from `cargo` you may need to install:
+Apart from `cargo` with an up-to-date stable toolchain you may need to install:
 
 * `build-essential`
 * `cmake`
@@ -22,12 +22,10 @@ Apart from `cargo` you may need to install:
 
 Linux support is tested in the Ubuntu sub-system for Windows.
 
-# Building
+## Other Dependencies
 
-For building/debugging this project you may also need:
-
-* [`cargo-expand`](https://github.com/dtolnay/cargo-expand)
-* [`rustfmt`](https://github.com/rust-lang/rustfmt)
+For debugging this project you may also need [`cargo-expand`](https://github.com/dtolnay/cargo-expand)
+and the nightly toolchain for debugging macros.
 
 ## `do`
 
