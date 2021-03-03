@@ -65,6 +65,9 @@ pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
 
     #[cfg(windows)]
     {
+        // We use ping to cause a slight delay that gives time for the current
+        // executable to close because the subsequent command is expected to affect
+        // the current executable file.
         Command::new("cmd")
             .args(&["/C", "ping", "localhost", "-n", "3", ">", "nul", "&"])
             .arg(cmd)
@@ -72,9 +75,14 @@ pub fn cmd_external(cmd: &str, default_args: &[&str], user_args: &[&str]) {
             .spawn()
             .ok();
     }
+
     #[cfg(not(windows))]
     {
-        todo!("cmd_external only implemented in windows")
+        // We assume that if not on Windows we are in a Unix based system.
+        //
+        // We don't need a delay in Unix because it naturally permits repointing
+        // or removing a file name without affecting the current running file.
+        self::cmd(cmd, default_args, user_args);
     }
 }
 

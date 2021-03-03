@@ -1,6 +1,4 @@
 @echo off
-set errorlevel=0
-
 :: Bypass "Terminate Batch Job" prompt.
 if "%~1"=="-FIXED_CTRL_C" (
    :: Remove the -FIXED_CTRL_C parameter
