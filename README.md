@@ -4,23 +4,22 @@ A Rust UI Framework.
 
 # Dependencies
 
-Extra dependencies needed for building a crate that uses `zero-ui`.
+Extra system dependencies needed for building a crate that uses the `zero-ui` crate.
 
 ## Windows
 
-You just need `cargo` with an up-to-date stable toolchain installed.
+You just need the latest stable Rust toolchain installed.
 
 ## Linux
 
-Apart from `cargo` with an up-to-date stable toolchain you may need to install:
-
-* `build-essential`
+* Latest stable Rust.
+* `build-essential` or equivalent C/C++ compiler package.
 * `cmake`
 * `pkg-config`
 * `libfreetype6-dev`
 * `libexpat1-dev`
 
-Linux support is tested in the Ubuntu sub-system for Windows.
+Linux support is tested using the Windows Subsystem for Linux (Ubuntu image)
 
 ## Other Dependencies
 
