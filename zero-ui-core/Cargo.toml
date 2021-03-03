@@ -16,7 +16,7 @@ glutin = "0.26.0"
 winapi = "0.3.9"
 
 # text
-font-kit = "0.10.0"
+font-kit = "0.8.0" #version required by harfbuzz_rs
 unicode-script = "0.5.2"
 unicase = "2.6.0"
 harfbuzz_rs = "1.2.0"
