@@ -573,15 +573,32 @@ struct ArgPath {
 
 impl Parse for ArgPath {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(Token![$]) && input.peek2(Token![crate]) && input.peek3(Token![::]) {
-            Ok(ArgPath {
-                path: input.parse().unwrap(),
-            })
-        } else {
-            Err(syn::Error::new(
+        let fork = input.fork();
+        match (fork.parse::<Token![$]>(), fork.parse::<syn::Path>()) {
+            (Ok(_), Ok(p)) => {
+                if fork.is_empty() {
+                    if p.segments[0].ident == "crate" {
+                        Ok(ArgPath {
+                            path: input.parse().unwrap(),
+                        })
+                    } else {
+                        Err(syn::Error::new(p.segments[0].ident.span(), "expected `crate`"))
+                    }
+                } else {
+                    Err(syn::Error::new(fork.span(), "unexpected token"))
+                }
+            }
+            (Ok(_), Err(e)) => {
+                if !util::span_is_call_site(e.span()) {
+                    Err(e)
+                } else {
+                    Err(syn::Error::new(util::last_span(input.parse().unwrap()), e.to_string()))
+                }
+            }
+            _ => Err(syn::Error::new(
                 input.span(),
                 "expected a macro_rules `$crate` path to this widget mod",
-            ))
+            )),
         }
     }
 }

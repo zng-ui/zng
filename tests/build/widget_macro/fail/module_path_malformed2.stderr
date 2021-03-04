@@ -1,0 +1,5 @@
+error: unexpected token
+ --> $DIR/module_path_malformed2.rs:3:25
+  |
+3 | #[widget2($crate::widget, invalid)]
+  |                         ^

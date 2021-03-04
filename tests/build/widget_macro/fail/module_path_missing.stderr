@@ -1,0 +1,7 @@
+error: expected a macro_rules `$crate` path to this widget mod
+ --> $DIR/module_path_missing.rs:4:1
+  |
+4 | #[widget2]
+  | ^^^^^^^^^^
+  |
+  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

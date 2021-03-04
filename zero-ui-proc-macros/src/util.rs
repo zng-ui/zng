@@ -766,3 +766,11 @@ impl syn::parse::Parse for LintPath {
         })
     }
 }
+
+pub fn span_is_call_site(a: proc_macro2::Span) -> bool {
+    span_eq(a, proc_macro2::Span::call_site())
+}
+
+pub fn span_eq(a: proc_macro2::Span, b: proc_macro2::Span) -> bool {
+    format!("{:?}", a) == format!("{:?}", b)
+}
