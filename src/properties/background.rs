@@ -67,6 +67,6 @@ pub fn background_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`linear_gradient`] as [`background`](fn@background).
 #[property(inner)]
-pub fn background_gradient(child: impl UiNode, angle: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    background(child, linear_gradient(angle, stops))
+pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    background(child, linear_gradient(axis, stops))
 }

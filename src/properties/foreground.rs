@@ -79,6 +79,6 @@ pub fn foreground_color(child: impl UiNode, color: impl IntoVar<Rgba>) -> impl U
 ///
 /// This property applies a [`linear_gradient`] as [`foreground`] using the [`Clamp`](ExtendMode::Clamp) extend mode.
 #[property(inner)]
-pub fn foreground_gradient(child: impl UiNode, angle: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
-    foreground(child, linear_gradient(angle, stops))
+pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+    foreground(child, linear_gradient(axis, stops))
 }
