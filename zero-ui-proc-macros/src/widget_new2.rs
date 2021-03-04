@@ -163,6 +163,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg.clone(),
             /*user_assigned: */ false,
             Span::call_site(),
+            Span::call_site(),
         ));
         #[cfg(not(debug_assertions))]
         property_set_calls.push((
@@ -170,6 +171,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_var_ident,
             ip.ident.to_string(),
             cfg.clone(),
+            Span::call_site(),
             Span::call_site(),
         ));
     }
@@ -220,6 +222,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg.to_token_stream(),
             /*user_assigned: */ true,
             up.path.span(),
+            up.value_span,
         ));
         #[cfg(not(debug_assertions))]
         prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream(), up.path.span()));
@@ -467,9 +470,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg.to_token_stream(),
             /*user_assigned: */ true,
             p.span(),
+            /*val_span: */ Span::call_site(),
         ));
         #[cfg(not(debug_assertions))]
-        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span()));
+        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), Span::call_site()));
     }
 
     // generate property assigns.
@@ -481,7 +485,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for set_calls in vec![child_prop_set_calls, prop_set_calls] {
         for set_call in &set_calls {
             #[cfg(debug_assertions)]
-            let (p_mod, _, p_name, _, cfg, _, p_span) = set_call;
+            let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
             #[cfg(not(debug_assertions))]
             let (p_mod, _, p_name, cfg, p_span) = set_call;
             let capture_only_error = format!(
@@ -497,20 +501,24 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span) in &set_calls {
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in &set_calls {
+                // __set @ value span
+                let set = ident_spanned!(*val_span=> "__set");
                 property_set_calls.extend(quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
                     }
                 });
             }
             #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, _, cfg, p_span) in &set_calls {
+            for (p_mod, p_var_ident, _, cfg, p_span, val_span) in &set_calls {
+                // __set @ value span
+                let set = ident_spanned!(*val_span=> "__set");
                 property_set_calls.extend(quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident
+                        set #priority, #node__, #p_mod, #p_var_ident, #set
                     }
                 });
             }
@@ -772,6 +780,7 @@ pub struct PropertyAssign {
     pub path: Path,
     pub eq: Token![=],
     pub value: PropertyValue,
+    pub value_span: Span,
     pub semi: Option<Token![;]>,
 }
 impl Parse for PropertyAssign {
@@ -797,6 +806,7 @@ impl Parse for PropertyAssign {
             attrs,
             path,
             eq,
+            value_span: value_stream.span(),
             value: syn::parse2(value_stream)?,
             semi,
         })

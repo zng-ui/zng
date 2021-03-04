@@ -51,6 +51,23 @@ mod build_tests {
         let t = trybuild::TestCases::new();
         t.compile_fail("tests/build/pass/widget/*.rs");
     }
+
+    /*
+     * Widget macros asserts
+     */
+
+    #[serial]
+    #[test]
+    fn widget_new_macro_fail() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/build/fail/widget_new/*.rs");
+    }
+    #[serial]
+    #[test]
+    fn widget_new_macro_pass() {
+        let t = trybuild::TestCases::new();
+        t.compile_fail("tests/build/pass/widget_new/*.rs");
+    }
 }
 
 // `do test --build [-f <fail-name>] [-p <pass-name>]` uses these to run specific tests.

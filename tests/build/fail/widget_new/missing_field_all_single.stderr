@@ -1,9 +1,3 @@
-error[E0425]: cannot find value `node__` in this scope
- --> $DIR/missing_field_all_single.rs:8:9
-  |
-8 |         margin = { }
-  |         ^^^^^^ not found in this scope
-
 error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
  --> $DIR/missing_field_all_single.rs:8:18
   |

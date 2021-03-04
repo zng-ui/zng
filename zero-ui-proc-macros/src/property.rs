@@ -1158,29 +1158,32 @@ mod output {
                     (set $($tt:tt)*) => {};
                 }
             } else {
+                // we need $__set as input because some errors of type mismatch
+                // on assign also highlight the __set function, so we take it as
+                // input and in widget_new! we set the ident span to be value span.
                 #[cfg(debug_assertions)]
                 quote! {
                     (set #priority, $node:ident, $property_path: path, $args:ident,
-                        $property_name:expr, $source_location:expr, $user_assigned:tt) => {
+                        $property_name:expr, $source_location:expr, $user_assigned:tt, $__set:ident) => {
                             let $node = {
-                                use $property_path::{set_debug as __set};
-                                __set($args, $node, $property_name, $source_location, $user_assigned)
+                                use $property_path::{set_debug as $__set};
+                                $__set($args, $node, $property_name, $source_location, $user_assigned)
                             };
                     };
-                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                    (set #priority, $node:ident, $property_path: path, $args:ident, $__set:ident) => {
                         let $node = {
-                            use $property_path::{set as __set};
-                            __set($args, $node)
+                            use $property_path::{set as $__set};
+                            $__set($args, $node)
                         };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
                 }
                 #[cfg(not(debug_assertions))]
                 quote! {
-                    (set #priority, $node:ident, $property_path: path, $args:ident) => {
+                    (set #priority, $node:ident, $property_path: path, $args:ident, $__set:ident) => {
                         let $node = {
                             use $property_path::{set as __set};
-                            __set($args, $node)
+                            $__set($args, $node)
                         };
                     };
                     (set $other:ident, $($ignore:tt)+) => { };
