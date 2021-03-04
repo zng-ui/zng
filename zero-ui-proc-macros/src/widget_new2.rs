@@ -162,9 +162,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.clone(),
             /*user_assigned: */ false,
+            Span::call_site(),
         ));
         #[cfg(not(debug_assertions))]
-        property_set_calls.push((quote! { #module::#p_mod_ident }, p_var_ident, ip.ident.to_string(), cfg.clone()));
+        property_set_calls.push((
+            quote! { #module::#p_mod_ident },
+            p_var_ident,
+            ip.ident.to_string(),
+            cfg.clone(),
+            Span::call_site(),
+        ));
     }
 
     // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
@@ -212,9 +219,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.to_token_stream(),
             /*user_assigned: */ true,
+            up.path.span(),
         ));
         #[cfg(not(debug_assertions))]
-        prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream()));
+        prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream(), up.path.span()));
     }
     let wgt_properties = wgt_properties;
 
@@ -458,24 +466,29 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.to_token_stream(),
             /*user_assigned: */ true,
+            p.span(),
         ));
         #[cfg(not(debug_assertions))]
-        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream()));
+        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span()));
     }
 
     // generate property assigns.
     let mut property_set_calls = TokenStream::default();
+
+    // node__ @ call_site
+    let node__ = ident!("node__");
+
     for set_calls in vec![child_prop_set_calls, prop_set_calls] {
         for set_call in &set_calls {
             #[cfg(debug_assertions)]
-            let (p_mod, _, p_name, _, cfg, _) = set_call;
+            let (p_mod, _, p_name, _, cfg, _, p_span) = set_call;
             #[cfg(not(debug_assertions))]
-            let (p_mod, _, p_name, cfg) = set_call;
+            let (p_mod, _, p_name, cfg, p_span) = set_call;
             let capture_only_error = format!(
                 "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
                 p_name
             );
-            property_set_calls.extend(quote_spanned! {p_mod.span()=>
+            property_set_calls.extend(quote_spanned! {*p_span=>
                 #cfg
                 #p_mod::code_gen!{
                     assert !capture_only => #capture_only_error
@@ -484,20 +497,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned) in &set_calls {
-                property_set_calls.extend(quote! {
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span) in &set_calls {
+                property_set_calls.extend(quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned
                     }
                 });
             }
             #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, _, cfg) in &set_calls {
-                property_set_calls.extend(quote! {
+            for (p_mod, p_var_ident, _, cfg, p_span) in &set_calls {
+                property_set_calls.extend(quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, node__, #p_mod, #p_var_ident
+                        set #priority, #node__, #p_mod, #p_var_ident
                     }
                 });
             }

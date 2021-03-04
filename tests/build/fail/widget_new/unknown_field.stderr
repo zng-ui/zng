@@ -1,0 +1,7 @@
+error[E0560]: struct `margin_ArgsImpl<_>` has no field named `unknown`
+ --> $DIR/unknown_field.rs:7:13
+  |
+7 |             unknown: 0,
+  |             ^^^^^^^ `margin_ArgsImpl<_>` does not have this field
+  |
+  = note: available fields are: `margin`
