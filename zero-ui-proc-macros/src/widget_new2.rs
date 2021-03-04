@@ -185,7 +185,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
 
-        let init_expr = up.value.expr_tokens(&p_mod).unwrap_or_else(|e| non_user_error!(e));
+        let init_expr = up.value.expr_tokens(&p_mod, up.path.span()).unwrap_or_else(|e| non_user_error!(e));
         property_inits.extend(quote! {
             #cfg
             #(#lints)*
@@ -399,14 +399,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
-            let property_path = match assign.path.get_ident() {
+            let (property_path, property_span) = match assign.path.get_ident() {
                 Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
                     let p_ident = ident!("__p_{}", maybe_inherited);
-                    quote! { #module::#p_ident }
+                    let span = maybe_inherited.span();
+                    (quote_spanned! {span=> #module::#p_ident }, span)
                 }
-                _ => assign.path.to_token_stream(),
+                _ => (assign.path.to_token_stream(), assign.path.span()),
             };
-            let expr = assign.value.expr_tokens(&property_path).unwrap_or_else(|e| non_user_error!(e));
+            let expr = assign
+                .value
+                .expr_tokens(&property_path, property_span)
+                .unwrap_or_else(|e| non_user_error!(e));
 
             when_inits.extend(quote! {
                 #cfg
@@ -707,7 +711,13 @@ impl Parse for UserInput {
         let mut whens = vec![];
 
         while !input.is_empty() {
-            let attrs = Attribute::parse_outer(&input)?;
+            let attrs = match Attribute::parse_outer(&input) {
+                Ok(a) => a,
+                Err(e) => {
+                    errors.push_syn(e);
+                    vec![]
+                }
+            };
             if input.peek(keyword::when) {
                 if let Some(mut when) = When::parse(&input, &mut errors) {
                     when.attrs = attrs;
@@ -720,12 +730,23 @@ impl Parse for UserInput {
                         assign.attrs = attrs;
                         properties.push(assign);
                     }
-                    Err(e) => errors.push_syn(e),
+                    Err(e) => {
+                        errors.push_syn(e);
+                        break;
+                    }
                 }
             } else {
                 errors.push("expected `when` or a property path", input.span());
                 break;
             }
+        }
+
+        if !input.is_empty() {
+            if errors.is_empty() {
+                errors.push("unexpected token", input.span());
+            }
+            // suppress the "unexpected token" error from syn parse.
+            let _ = input.parse::<TokenStream>();
         }
 
         Ok(UserInput { errors, properties, whens })
@@ -780,12 +801,12 @@ pub enum PropertyValue {
 }
 impl PropertyValue {
     /// Convert this value to an expr. Panics if `self` is [`Special`].
-    pub fn expr_tokens(&self, property_path: &TokenStream) -> Result<TokenStream, &'static str> {
+    pub fn expr_tokens(&self, property_path: &TokenStream, span: Span) -> Result<TokenStream, &'static str> {
         match self {
-            PropertyValue::Unnamed(args) => Ok(quote! {
-                #property_path::ArgsImpl::new(#args)
+            PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
+                #property_path::code_gen! { new #property_path { #args } }
             }),
-            PropertyValue::Named(_, fields) => Ok(quote! {
+            PropertyValue::Named(_, fields) => Ok(quote_spanned! {span=>
                 #property_path::code_gen! { named_new #property_path {
                     #fields
                 }}

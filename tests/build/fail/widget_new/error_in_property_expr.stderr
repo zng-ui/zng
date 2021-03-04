@@ -1,0 +1,5 @@
+error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
+ --> $DIR/error_in_property_expr.rs:7:21
+  |
+7 |             let _ = unknown::path();
+  |                     ^^^^^^^ use of undeclared crate or module `unknown`

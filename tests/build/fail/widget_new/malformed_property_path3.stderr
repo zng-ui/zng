@@ -1,0 +1,5 @@
+error: expected `=`
+ --> $DIR/malformed_property_path3.rs:5:28
+  |
+5 |         zero_ui::properties:margin = 0;
+  |                            ^

@@ -1,0 +1,5 @@
+error: expected `=`
+ --> $DIR/malformed_property_path2.rs:5:15
+  |
+5 |         margin! = 0;
+  |               ^

@@ -256,9 +256,9 @@ impl Errors {
         self.tokens.extend(errors.tokens)
     }
 
-    // pub fn is_empty(&self) -> bool {
-    //     self.tokens.is_empty()
-    // }
+    pub fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
 }
 impl ToTokens for Errors {
     fn to_tokens(&self, tokens: &mut TokenStream) {

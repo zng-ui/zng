@@ -1,6 +1,6 @@
 use std::{collections::HashSet, mem};
 
-use proc_macro2::{TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
@@ -162,6 +162,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         }
 
         let p_ident = property.ident();
+        let p_path_span = property.path_span();
+
         if !declared_properties.insert(p_ident) {
             errors.push(format_args!("property `{}` is already declared", p_ident), p_ident.span());
             continue;
@@ -223,7 +225,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 let fn_ident = ident!("__d_{}", p_ident);
                 let p_mod_ident = ident!("__p_{}", p_ident);
                 let expr = default_value
-                    .expr_tokens(&quote! { self::#p_mod_ident })
+                    .expr_tokens(&quote_spanned! {p_path_span=> self::#p_mod_ident }, p_path_span)
                     .unwrap_or_else(|e| non_user_error!(e));
 
                 property_defaults.extend(quote! {
@@ -340,9 +342,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     }
                 });
 
+                let prop_span = property.span();
+
                 let expr = assign
                     .value
-                    .expr_tokens(&quote!(self::#prop_ident))
+                    .expr_tokens(&quote_spanned!(prop_span=> self::#prop_ident), prop_span)
                     .unwrap_or_else(|e| non_user_error!(e));
                 let lints = attrs.lints;
 
@@ -882,6 +886,10 @@ impl ItemProperty {
             .as_ref()
             .map(|(_, id)| id)
             .unwrap_or_else(|| &self.path.segments.last().unwrap().ident)
+    }
+
+    fn path_span(&self) -> Span {
+        self.alias.as_ref().map(|(_, id)| id.span()).unwrap_or_else(|| self.path.span())
     }
 }
 
