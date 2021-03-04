@@ -23,20 +23,9 @@ pub use ui_n::*;
 pub use view_::*;
 pub use window_::*;
 
-/// My widget docs.
-#[crate::core::widget2($crate::widgets::docs_sample_wgt)]
-pub mod docs_sample_wgt {
-    use crate::core::color::colors;
-    use crate::properties::background::background_color;
-    use crate::properties::states::is_hovered;
-
-    properties! {
-        /// My property docs.
-        background_color = colors::RED;
-
-        /// My when docs.
-        when self.is_hovered {
-            background_color = colors::BLUE;
-        }
-    }
-}
+/// A widget with only the implicit properties.
+///
+/// You can use this to shape a custom widget that will only
+/// be used once. Instead of declaring a new widget type.
+#[crate::core::widget2($crate::widgets::blank)]
+pub mod blank {}
