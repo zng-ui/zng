@@ -28,7 +28,7 @@ fn doc(mut args: Vec<&str>) {
 }
 
 // do test, t [-w, --workspace] [-u, --unit <unit-test>] [--test-crates]
-//            [-b, --build [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
+//            [-b, --build [-p, -pass <pass-test-path>] [-f, --fail <fail-test-path>]]
 //            [<cargo-test-args>]
 //    Run all tests in root workspace and ./test-crates.
 // USAGE:
@@ -44,8 +44,8 @@ fn doc(mut args: Vec<&str>) {
 //        Run all the ./test-crates tests.
 //     test --build
 //        Run all build tests
-//     test -b -f <build_test_case>
-//        Run build test files that match "./tests/build/*/fail/*<build_test_case>*.rs".
+//     test -b -f <build_test_path>
+//        Run build test files that match "./tests/build/fail/<build_test_path>.rs".
 fn test(mut args: Vec<&str>) {
     let nightly = if take_flag(&mut args, &["+nightly"]) { "+nightly" } else { "" };
 
@@ -109,16 +109,21 @@ fn test(mut args: Vec<&str>) {
         // specific test files.
         if !passes.is_empty() {
             let mut args = build_tests_args.clone();
-            args.extend(&["--", "do_tasks_util::do_test_pass", "--exact", "--ignored"]);
+            args.extend(&["--", "do_tasks_test_runner", "--exact", "--ignored"]);
             for test_name in passes {
-                cmd_env("cargo", &args, &[], &[("DO_TASKS_BUILD_TEST", test_name)]);
+                cmd_env(
+                    "cargo",
+                    &args,
+                    &[],
+                    &[("DO_TASKS_TEST_BUILD", test_name), ("DO_TASKS_TEST_BUILD_MODE", "pass")],
+                );
             }
         }
         if !fails.is_empty() {
             let mut args = build_tests_args;
-            args.extend(&["--", "do_tasks_util::do_test_fail", "--exact", "--ignored"]);
+            args.extend(&["--", "do_tasks_test_runner", "--exact", "--ignored"]);
             for test_name in fails {
-                cmd_env("cargo", &args, &[], &[("DO_TASKS_BUILD_TEST", test_name)]);
+                cmd_env("cargo", &args, &[], &[("DO_TASKS_TEST_BUILD", test_name)]);
             }
         }
     } else if take_flag(&mut args, &["--test-crates"]) {
