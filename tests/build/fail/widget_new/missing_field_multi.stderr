@@ -1,0 +1,7 @@
+error[E0063]: missing field `stops` in initializer of `background_gradient_ArgsImpl<_, _>`
+  --> $DIR/missing_field_multi.rs:10:9
+   |
+10 |         background_gradient = {
+   |         ^^^^^^^^^^^^^^^^^^^ missing `stops`
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
