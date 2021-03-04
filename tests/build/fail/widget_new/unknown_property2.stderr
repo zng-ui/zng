@@ -1,0 +1,5 @@
+error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
+ --> $DIR/unknown_property2.rs:5:9
+  |
+5 |         unknown = {
+  |         ^^^^^^^ use of undeclared crate or module `unknown`
