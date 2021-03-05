@@ -794,8 +794,10 @@ pub struct PropertyAssign {
 }
 impl PropertyAssign {
     const RECOVERABLE_EXPECTED_P_VALUE: &'static str = "expected property value";
+    const RECOVERABLE_EXPECTED_SEMI: &'static str = "expected `,` or `;`";
     pub fn can_continue_parsing_assigns(e: &syn::Error) -> bool {
-        e.to_string() == Self::RECOVERABLE_EXPECTED_P_VALUE
+        let e = e.to_string();
+        e == Self::RECOVERABLE_EXPECTED_P_VALUE || e == Self::RECOVERABLE_EXPECTED_SEMI
     }
 }
 impl Parse for PropertyAssign {
@@ -823,18 +825,37 @@ impl Parse for PropertyAssign {
         }
 
         let value_span = value_stream.span();
-        let value = syn::parse2::<PropertyValue>(value_stream)?;
+        let value = match syn::parse2::<PropertyValue>(value_stream) {
+            Ok(v) => v,
+            Err(e) => {
+                if e.to_string() == "expected `,`" {
+                    return Err(syn::Error::new(e.span(), Self::RECOVERABLE_EXPECTED_SEMI));
+                } else {
+                    return Err(e);
+                }
+            }
+        };
 
         if let PropertyValue::Unnamed(args) = &value {
-            if args.len() == 1 {
-                if let Expr::Assign(_) = &args[0] {
-                    // parsed next property as value
-                    if input.is_empty() || semi.is_some() {
-                        // next property was formed correctly.
-                        return Err(syn::Error::new(eq.span, Self::RECOVERABLE_EXPECTED_P_VALUE));
-                    } else {
-                        return Err(syn::Error::new(eq.span, "expected `<property-value> ;`, found next property"));
-                    }
+            let mut last_punct_span = eq.span;
+            let mut last_expr = None;
+            for pair in args.pairs() {
+                if let Some(p) = pair.punct() {
+                    last_punct_span = p.span();
+                }
+                last_expr = Some(*pair.value());
+            }
+            if let Some(Expr::Assign(_)) = last_expr {
+                // parsed next property as value
+
+                if input.is_empty() || semi.is_some() {
+                    // next property was formed correctly.
+                    return Err(syn::Error::new(last_punct_span, Self::RECOVERABLE_EXPECTED_P_VALUE));
+                } else {
+                    return Err(syn::Error::new(
+                        last_punct_span,
+                        "expected `<property-value> ;`, found next property",
+                    ));
                 }
             }
         }

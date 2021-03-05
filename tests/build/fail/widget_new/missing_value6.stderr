@@ -1,0 +1,19 @@
+error: expected property value
+ --> $DIR/missing_value6.rs:7:38
+  |
+7 |         background_gradient = 0.deg(),
+  |                                      ^
+
+warning: unused import: `zero_ui::core::units::*`
+ --> $DIR/missing_value6.rs:1:5
+  |
+1 | use zero_ui::core::units::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `background::background_gradient`, `margin`
+ --> $DIR/missing_value6.rs:2:27
+  |
+2 | use zero_ui::properties::{background::background_gradient, margin};
+  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^
