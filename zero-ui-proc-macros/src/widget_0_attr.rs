@@ -22,10 +22,13 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mod_ = parse_macro_input!(input as ItemMod);
 
     if mod_.content.is_none() {
-        return syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
+        let mut r = syn::Error::new(mod_.semi.span(), "only modules with inline content are supported")
             .to_compile_error()
-            .to_token_stream()
-            .into();
+            .to_token_stream();
+
+        mod_.to_tokens(&mut r);
+
+        return r.into();
     }
     let (_, items) = mod_.content.unwrap();
 
