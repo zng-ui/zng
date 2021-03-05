@@ -829,6 +829,10 @@ impl Parse for Properties {
                 }
             } else {
                 errors.push("expected `when`, `child` or a property declaration", input.span());
+
+                // suppress the "unexpected token" error from syn parse.
+                let _ = input.parse::<TokenStream>();
+
                 break;
             }
         }
