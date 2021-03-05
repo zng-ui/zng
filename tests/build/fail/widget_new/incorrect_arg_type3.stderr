@@ -1,0 +1,52 @@
+error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
+ --> $DIR/incorrect_arg_type3.rs:8:40
+  |
+8 |         background_gradient = 0.deg(), true
+  |                                        ^^^^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
+  |
+  = help: the following implementations were found:
+            <bool as IntoVar<AutoSize>>
+            <bool as IntoVar<CaptureMode>>
+            <bool as IntoVar<FactorNormal>>
+            <bool as IntoVar<FontFeatureState>>
+          and 2 others
+  = note: required by `background_gradient_ArgsImpl::<T_axis, T_stops>::new`
+
+error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
+  --> $DIR/incorrect_arg_type3.rs:8:9
+   |
+8  |         background_gradient = 0.deg(), true
+   |         ^^^^^^^^^^^^^^^^^^^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
+   |
+  ::: $WORKSPACE/src/properties/background.rs
+   |
+   | pub fn background_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
+   |                                                                                                    ---------------------- required by this bound in `background_gradient_ArgsImpl`
+   |
+   = help: the following implementations were found:
+             <bool as IntoVar<AutoSize>>
+             <bool as IntoVar<CaptureMode>>
+             <bool as IntoVar<FactorNormal>>
+             <bool as IntoVar<FontFeatureState>>
+           and 2 others
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `bool: IntoVar<GradientStops>` is not satisfied
+  --> $DIR/incorrect_arg_type3.rs:8:9
+   |
+8  |         background_gradient = 0.deg(), true
+   |         ^^^^^^^^^^^^^^^^^^^ the trait `IntoVar<GradientStops>` is not implemented for `bool`
+   |
+  ::: $WORKSPACE/src/properties/background.rs
+   |
+   | #[property(inner)]
+   | ------------------ required by this bound in `__background_gradient_set_debug`
+   |
+   = help: the following implementations were found:
+             <bool as IntoVar<AutoSize>>
+             <bool as IntoVar<CaptureMode>>
+             <bool as IntoVar<FactorNormal>>
+             <bool as IntoVar<FontFeatureState>>
+           and 2 others
+   = note: required because of the requirements on the impl of `background_gradient_Args` for `background_gradient_ArgsImpl<AngleDegree, bool>`
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

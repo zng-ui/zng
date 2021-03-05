@@ -1287,16 +1287,16 @@ mod output {
                 #[doc(hidden)]
                 #[macro_export]
                 macro_rules! #macro_ident {
-                    (new $property_path:path { $($values:tt)+ }) => {
+                    (new $property_path:path, $ArgsImpl:ident { $($values:tt)+ }) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl};
-                            __ArgsImpl::new($($values)+)
+                            use $property_path::{ArgsImpl as $ArgsImpl};
+                            $ArgsImpl::new($($values)+)
                         }
                     };
-                    (named_new $property_path:path { $($fields:tt)+ }) => {
+                    (named_new $property_path:path, $ArgsImpl:ident { $($fields:tt)+ }) => {
                         {
-                            use $property_path::{ArgsImpl as __ArgsImpl};
-                            __ArgsImpl {
+                            use $property_path::{ArgsImpl as $ArgsImpl};
+                            $ArgsImpl {
                                 #phantom
                                 $($fields)+
                             }

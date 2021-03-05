@@ -163,6 +163,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         let p_ident = property.ident();
         let p_path_span = property.path_span();
+        let p_value_span = property.value_span;
 
         if !declared_properties.insert(p_ident) {
             errors.push(format_args!("property `{}` is already declared", p_ident), p_ident.span());
@@ -225,7 +226,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 let fn_ident = ident!("__d_{}", p_ident);
                 let p_mod_ident = ident!("__p_{}", p_ident);
                 let expr = default_value
-                    .expr_tokens(&quote_spanned! {p_path_span=> self::#p_mod_ident }, p_path_span)
+                    .expr_tokens(&quote_spanned! {p_path_span=> self::#p_mod_ident }, p_path_span, p_value_span)
                     .unwrap_or_else(|e| non_user_error!(e));
 
                 property_defaults.extend(quote! {
@@ -346,7 +347,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                 let expr = assign
                     .value
-                    .expr_tokens(&quote_spanned!(prop_span=> self::#prop_ident), prop_span)
+                    .expr_tokens(&quote_spanned!(prop_span=> self::#prop_ident), prop_span, assign.value_span)
                     .unwrap_or_else(|e| non_user_error!(e));
                 let lints = attrs.lints;
 
@@ -844,6 +845,7 @@ struct ItemProperty {
     pub alias: Option<(Token![as], Ident)>,
     pub type_: Option<(Token![:], PropertyType)>,
     pub value: Option<(Token![=], PropertyValue)>,
+    pub value_span: Span,
     pub semi: Option<Token![;]>,
 }
 impl Parse for ItemProperty {
@@ -857,24 +859,33 @@ impl Parse for ItemProperty {
                 }
             };
         }
+        let path = input.parse()?;
+        let alias = peek_parse![as];
+        let type_ = peek_parse![:];
+
+        let mut value_span = Span::call_site();
+        let value = if input.peek(Token![=]) {
+            let eq = input.parse()?;
+
+            let mut value_stream = TokenStream::new();
+            while !input.is_empty() && !input.peek(Token![;]) {
+                let tt: TokenTree = input.parse().unwrap();
+                tt.to_tokens(&mut value_stream);
+            }
+            value_span = value_stream.span();
+
+            Some((eq, syn::parse2(value_stream)?))
+        } else {
+            None
+        };
 
         Ok(ItemProperty {
             attrs: vec![],
-            path: input.parse()?,
-            alias: peek_parse![as],
-            type_: peek_parse![:],
-            value: if input.peek(Token![=]) {
-                Some((input.parse()?, {
-                    let mut value_stream = TokenStream::new();
-                    while !input.is_empty() && !input.peek(Token![;]) {
-                        let tt: TokenTree = input.parse().unwrap();
-                        tt.to_tokens(&mut value_stream);
-                    }
-                    syn::parse2(value_stream)?
-                }))
-            } else {
-                None
-            },
+            path,
+            alias,
+            type_,
+            value,
+            value_span,
             semi: if input.peek(Token![;]) { Some(input.parse()?) } else { None },
         })
     }

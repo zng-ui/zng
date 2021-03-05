@@ -2226,7 +2226,7 @@ pub mod output {
                     let fields = &f.fields;
                     quote! {
                         properties::#property::code_gen! { named_new
-                            properties::#property {
+                            properties::#property , __ArgsImpl {
                                 #fields
                             }
                         }

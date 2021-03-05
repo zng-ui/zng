@@ -347,7 +347,7 @@ pub mod widget_expanded {
 
         #[doc(hidden)]
         pub fn __d_multi() -> impl self::__p_multi::Args {
-            self::__p_multi::code_gen! {named_new self::__p_multi {
+            self::__p_multi::code_gen! {named_new self::__p_multi, __ArgsImpl {
                 field0: false,
                 field1: 200,
             }}

@@ -194,7 +194,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
 
-        let init_expr = up.value.expr_tokens(&p_mod, up.path.span()).unwrap_or_else(|e| non_user_error!(e));
+        let init_expr = up
+            .value
+            .expr_tokens(&p_mod, up.path.span(), up.value_span)
+            .unwrap_or_else(|e| non_user_error!(e));
         property_inits.extend(quote! {
             #cfg
             #(#lints)*
@@ -410,17 +413,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
             let a_lints = attrs.lints;
 
-            let (property_path, property_span) = match assign.path.get_ident() {
+            let (property_path, property_span, value_span) = match assign.path.get_ident() {
                 Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
                     let p_ident = ident!("__p_{}", maybe_inherited);
                     let span = maybe_inherited.span();
-                    (quote_spanned! {span=> #module::#p_ident }, span)
+                    (quote_spanned! {span=> #module::#p_ident }, span, span)
                 }
-                _ => (assign.path.to_token_stream(), assign.path.span()),
+                _ => (assign.path.to_token_stream(), assign.path.span(), assign.value_span),
             };
             let expr = assign
                 .value
-                .expr_tokens(&property_path, property_span)
+                .expr_tokens(&property_path, property_span, value_span)
                 .unwrap_or_else(|e| non_user_error!(e));
 
             when_inits.extend(quote! {
@@ -824,13 +827,16 @@ pub enum PropertyValue {
 }
 impl PropertyValue {
     /// Convert this value to an expr. Panics if `self` is [`Special`].
-    pub fn expr_tokens(&self, property_path: &TokenStream, span: Span) -> Result<TokenStream, &'static str> {
+    pub fn expr_tokens(&self, property_path: &TokenStream, span: Span, value_span: Span) -> Result<TokenStream, &'static str> {
+        // property ArgsImpl alias with value span to show type errors involving generics in the
+        // right place.
+        let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
         match self {
             PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
-                #property_path::code_gen! { new #property_path { #args } }
+                #property_path::code_gen! { new #property_path, #args_impl { #args } }
             }),
             PropertyValue::Named(_, fields) => Ok(quote_spanned! {span=>
-                #property_path::code_gen! { named_new #property_path {
+                #property_path::code_gen! { named_new #property_path, #args_impl {
                     #fields
                 }}
             }),

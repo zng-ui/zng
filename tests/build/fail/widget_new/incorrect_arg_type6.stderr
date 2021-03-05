@@ -1,0 +1,5 @@
+error[E0308]: mismatched types
+  --> $DIR/incorrect_arg_type6.rs:13:23
+   |
+13 |             simple_b: true,
+   |                       ^^^^ expected `u32`, found `bool`

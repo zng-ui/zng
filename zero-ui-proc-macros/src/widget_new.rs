@@ -705,7 +705,7 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let property_path = property_path();
                     quote! {
-                        let #var_name = #property_path::code_gen! { named_new #property_path {
+                        let #var_name = #property_path::code_gen! { named_new #property_path, __ArgsImpl {
                             #fields
                         }};
                     }
@@ -1016,7 +1016,7 @@ mod output {
                 PropertyValue::Fields(fields) => {
                     let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
                     quote! {
-                        #widget#property::code_gen! { named_new #widget#property {
+                        #widget#property::code_gen! { named_new #widget#property, __ArgsImpl {
                             #fields
                         } }
                     }
