@@ -1,0 +1,13 @@
+error: expected property value
+ --> $DIR/missing_value3.rs:7:18
+  |
+7 |         cursor = ;
+  |                  ^
+
+warning: unused import: `cursor`
+ --> $DIR/missing_value3.rs:1:27
+  |
+1 | use zero_ui::properties::{cursor, margin};
+  |                           ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

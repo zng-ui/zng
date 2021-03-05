@@ -755,8 +755,14 @@ impl Parse for UserInput {
                         properties.push(assign);
                     }
                     Err(e) => {
+                        let recovered = PropertyAssign::can_continue_parsing_assigns(&e);
                         errors.push_syn(e);
-                        break;
+
+                        if recovered {
+                            continue;
+                        } else {
+                            break;
+                        }
                     }
                 }
             } else {
@@ -786,18 +792,24 @@ pub struct PropertyAssign {
     pub value_span: Span,
     pub semi: Option<Token![;]>,
 }
+impl PropertyAssign {
+    const RECOVERABLE_EXPECTED_P_VALUE: &'static str = "expected property value";
+    pub fn can_continue_parsing_assigns(e: &syn::Error) -> bool {
+        e.to_string() == Self::RECOVERABLE_EXPECTED_P_VALUE
+    }
+}
 impl Parse for PropertyAssign {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let attrs = Attribute::parse_outer(input)?;
         let path = input.parse()?;
-        let eq = input.parse()?;
+        let eq = input.parse::<Token![=]>()?;
 
         // the value is terminated by the end of `input` or by a `;` token.
         let mut value_stream = TokenStream::new();
         let mut semi = None;
         while !input.is_empty() {
             if input.peek(Token![;]) {
-                semi = input.parse().unwrap();
+                semi = input.parse::<Option<Token![;]>>().unwrap();
                 break;
             } else {
                 let tt: TokenTree = input.parse().unwrap();
@@ -805,18 +817,41 @@ impl Parse for PropertyAssign {
             }
         }
 
+        if value_stream.is_empty() {
+            let span = semi.as_ref().map(|s| s.span()).unwrap_or(eq.span);
+            return Err(syn::Error::new(span, Self::RECOVERABLE_EXPECTED_P_VALUE));
+        }
+
+        let value_span = value_stream.span();
+        let value = syn::parse2::<PropertyValue>(value_stream)?;
+
+        if let PropertyValue::Unnamed(args) = &value {
+            if args.len() == 1 {
+                if let Expr::Assign(_) = &args[0] {
+                    // parsed next property as value
+                    if input.is_empty() || semi.is_some() {
+                        // next property was formed correctly.
+                        return Err(syn::Error::new(eq.span, Self::RECOVERABLE_EXPECTED_P_VALUE));
+                    } else {
+                        return Err(syn::Error::new(eq.span, "expected `<property-value> ;`, found next property"));
+                    }
+                }
+            }
+        }
+
         Ok(PropertyAssign {
             attrs,
             path,
             eq,
-            value_span: value_stream.span(),
-            value: syn::parse2(value_stream)?,
+            value_span,
+            value,
             semi,
         })
     }
 }
 
 /// Value [assigned](PropertyAssign) to a property.
+#[derive(Debug)]
 pub enum PropertyValue {
     /// `unset!` or `required!`.
     Special(Ident, Token![!]),
