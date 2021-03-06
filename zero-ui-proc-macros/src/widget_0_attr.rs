@@ -814,7 +814,7 @@ impl Parse for Properties {
                     }
                 }
             } else if input.peek(Ident::peek_any) {
-                // peek ident or path.
+                // peek ident or path (including keywords because of super:: and self::).
                 match input.parse::<ItemProperty>() {
                     Ok(mut p) => {
                         p.attrs = attrs;
@@ -880,8 +880,7 @@ impl Parse for ItemProperty {
         } else {
             None
         };
-
-        Ok(ItemProperty {
+        let item_property = ItemProperty {
             attrs: vec![],
             path,
             alias,
@@ -889,7 +888,13 @@ impl Parse for ItemProperty {
             value,
             value_span,
             semi: if input.peek(Token![;]) { Some(input.parse()?) } else { None },
-        })
+        };
+
+        if item_property.semi.is_none() && !input.is_empty() {
+            Err(syn::Error::new(input.span(), "expected `;`"))
+        } else {
+            Ok(item_property)
+        }
     }
 }
 impl ItemProperty {

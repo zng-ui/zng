@@ -1,0 +1,13 @@
+error: expected `;`
+ --> $DIR/missing_semi.rs:9:9
+  |
+9 |         margin = 10
+  |         ^^^^^^
+
+warning: unused import: `cursor`
+ --> $DIR/missing_semi.rs:5:31
+  |
+5 |     use zero_ui::properties::{cursor, margin};
+  |                               ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
