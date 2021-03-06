@@ -5,7 +5,7 @@ use zero_ui::widgets::blank;
 fn main() {
     let _ = blank! {
         margin = 0
-        // we expected this properties to be used.
+        // we expect this properties to be used.
         draggable = true;
         cursor = CursorIcon::Hand;
     };

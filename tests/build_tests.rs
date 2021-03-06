@@ -49,7 +49,7 @@ mod build_tests {
     #[test]
     fn widget_macro_pass() {
         let t = trybuild::TestCases::new();
-        t.compile_fail("tests/build/pass/widget/*.rs");
+        t.pass("tests/build/pass/widget/*.rs");
     }
 
     /*
@@ -66,7 +66,7 @@ mod build_tests {
     #[test]
     fn widget_new_macro_pass() {
         let t = trybuild::TestCases::new();
-        t.compile_fail("tests/build/pass/widget_new/*.rs");
+        t.pass("tests/build/pass/widget_new/*.rs");
     }
 }
 

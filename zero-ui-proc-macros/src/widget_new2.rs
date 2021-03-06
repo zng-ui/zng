@@ -786,8 +786,49 @@ pub struct PropertyAssign {
 impl Parse for PropertyAssign {
     /// Expects that outer attributes are already parsed and that ident, super or self was peeked.
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let path = input.parse()?;
-        let eq = input.parse::<Token![=]>()?;
+        let path = input.parse::<Path>()?;
+        let path_is_ident = path.get_ident().is_some();
+
+        if path_is_ident && (input.is_empty() || input.peek(Token![;])) {
+            // shorthand assign
+            let semi = input.parse().unwrap_or_default();
+            let value_span = path.span();
+            let eq = parse_quote_spanned! {value_span=> = };
+            let value = parse_quote! { #path };
+            return Ok(PropertyAssign {
+                attrs: vec![],
+                path,
+                eq,
+                value,
+                value_span,
+                semi,
+            });
+        }
+
+        let peek_next_assign = |input: ParseStream| {
+            // checks if the next tokens in the stream look like the start
+            // of another property assign.
+            let fork = input.fork();
+            let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
+            if fork.peek2(Token![=]) {
+                fork.peek(Ident)
+            } else if fork.peek2(Token![::]) {
+                return fork.parse::<Path>().is_ok() && fork.peek(Token![=]);
+            } else if fork.peek(keyword::when) {
+                true // found `when`
+            } else {
+                false // did not peek next item.
+            }
+        };
+
+        let eq = input.parse::<Token![=]>().map_err(|e| {
+            if peek_next_assign(input) {
+                let msg = if path_is_ident { "expected `=` or `;`" } else { "expected `=`" };
+                util::recoverable_err(e.span(), msg)
+            } else {
+                syn::Error::new(e.span(), "expected `=`")
+            }
+        })?;
 
         let value_stream = util::parse_soft_group(
             input,
@@ -795,19 +836,7 @@ impl Parse for PropertyAssign {
             |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
             // next item is found after optional outer attributes.
             // then is an `ident =` OR a `when` OR a `property::path =`
-            |input| {
-                let fork = input.fork();
-                let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
-                if fork.peek2(Token![=]) {
-                    fork.peek(Ident)
-                } else if fork.peek2(Token![::]) {
-                    return fork.parse::<Path>().is_ok() && fork.peek(Token![=]);
-                } else if fork.peek(keyword::when) {
-                    true // found `when`
-                } else {
-                    false // did not peek next item.
-                }
-            },
+            peek_next_assign,
         );
 
         let value;
