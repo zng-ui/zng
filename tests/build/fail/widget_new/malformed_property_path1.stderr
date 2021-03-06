@@ -1,4 +1,4 @@
-error: expected identifier
+error: expected `when` or a property path
  --> $DIR/malformed_property_path1.rs:5:9
   |
 5 |         _ = 0;

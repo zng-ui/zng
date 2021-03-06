@@ -802,3 +802,57 @@ pub fn parse_outer_attrs(input: ParseStream, errors: &mut Errors) -> Vec<Attribu
 
     attrs
 }
+
+/// Take token-trees until a terminator if found or an invalid next item is peeked.
+///
+/// Returns `Ok(group, Some(terminator))` if `correct_terminator` returns `Some(terminator)`.
+/// Returns `Ok(group, None)` if `input` reaches its end.
+/// Returns `Err(partial_group)` if `peek_next_item` returns `true`.
+pub fn parse_soft_group<T>(
+    input: ParseStream,
+    mut correct_terminator: impl FnMut(ParseStream) -> Option<T>,
+    mut peek_next_item: impl FnMut(ParseStream) -> bool,
+) -> Result<(TokenStream, Option<T>), TokenStream> {
+    let mut g = TokenStream::new();
+    while !input.is_empty() {
+        if let Some(terminator) = correct_terminator(input) {
+            return Ok((g, Some(terminator)));
+        }
+        if peek_next_item(input) {
+            return Err(g);
+        }
+        let tt: TokenTree = input.parse().unwrap();
+        tt.to_tokens(&mut g);
+    }
+    Ok((g, None))
+}
+
+pub fn recoverable_err(span: Span, msg: impl std::fmt::Display) -> syn::Error {
+    syn::Error::new(span, msg).set_recoverable()
+}
+
+pub trait ErrorRecoverable {
+    fn set_recoverable(self) -> Self;
+    fn recoverable(self) -> (bool, Self);
+}
+impl ErrorRecoverable for syn::Error {
+    fn set_recoverable(mut self) -> Self {
+        self.combine(syn::Error::new(Span::call_site(), "<!recoverable>"));
+        self
+    }
+    fn recoverable(self) -> (bool, Self) {
+        let mut errors = self.into_iter();
+        let mut e = errors.next().unwrap();
+        let mut recoverable = false;
+
+        for error in errors {
+            if error.to_string() == "<!recoverable>" {
+                recoverable = true;
+            } else {
+                e.combine(error);
+            }
+        }
+
+        (recoverable, e)
+    }
+}

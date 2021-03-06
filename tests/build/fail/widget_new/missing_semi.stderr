@@ -1,13 +1,13 @@
 error: expected `,` or `;`
- --> $DIR/missing_semi.rs:8:9
+ --> $DIR/missing_semi.rs:7:18
   |
-8 |         drag_move = true;
-  |         ^^^^^^^^^
+7 |         margin = 0
+  |                  ^
 
-warning: unused imports: `drag_move`, `margin`
- --> $DIR/missing_semi.rs:2:35
+warning: unused import: `margin`
+ --> $DIR/missing_semi.rs:2:57
   |
-2 | use zero_ui::properties::{cursor, drag_move, margin};
-  |                                   ^^^^^^^^^  ^^^^^^
+2 | use zero_ui::properties::{cursor, drag_move::draggable, margin};
+  |                                                         ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default

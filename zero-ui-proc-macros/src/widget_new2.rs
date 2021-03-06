@@ -4,7 +4,6 @@ use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
-    ext::IdentExt,
     parse::{discouraged::Speculative, Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
@@ -12,7 +11,7 @@ use syn::{
     token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, Errors};
+use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -736,12 +735,13 @@ impl Parse for UserInput {
 
         while !input.is_empty() {
             let attrs = parse_outer_attrs(&input, &mut errors);
+
             if input.peek(keyword::when) {
                 if let Some(mut when) = When::parse(&input, &mut errors) {
                     when.attrs = attrs;
                     whens.push(when);
                 }
-            } else if input.peek(Ident::peek_any) {
+            } else if input.peek(Ident) || input.peek(Token![super]) || input.peek(Token![self]) {
                 // peek ident or path.
                 match input.parse::<PropertyAssign>() {
                     Ok(mut assign) => {
@@ -749,12 +749,9 @@ impl Parse for UserInput {
                         properties.push(assign);
                     }
                     Err(e) => {
-                        let recovered = PropertyAssign::can_continue_parsing_assigns(&e);
+                        let (recoverable, e) = e.recoverable();
                         errors.push_syn(e);
-
-                        if recovered {
-                            continue;
-                        } else {
+                        if !recoverable {
                             break;
                         }
                     }
@@ -786,76 +783,80 @@ pub struct PropertyAssign {
     pub value_span: Span,
     pub semi: Option<Token![;]>,
 }
-impl PropertyAssign {
-    const RECOVERABLE_EXPECTED_P_VALUE: &'static str = "expected property value";
-    const RECOVERABLE_EXPECTED_SEMI: &'static str = "expected `,` or `;`";
-    pub fn can_continue_parsing_assigns(e: &syn::Error) -> bool {
-        let e = e.to_string();
-        e == Self::RECOVERABLE_EXPECTED_P_VALUE || e == Self::RECOVERABLE_EXPECTED_SEMI
-    }
-}
 impl Parse for PropertyAssign {
+    /// Expects that outer attributes are already parsed and that ident, super or self was peeked.
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let attrs = Attribute::parse_outer(input)?;
         let path = input.parse()?;
         let eq = input.parse::<Token![=]>()?;
 
-        // the value is terminated by the end of `input` or by a `;` token.
-        let mut value_stream = TokenStream::new();
-        let mut semi = None;
-        while !input.is_empty() {
-            if input.peek(Token![;]) {
-                semi = input.parse::<Option<Token![;]>>().unwrap();
-                break;
-            } else {
-                let tt: TokenTree = input.parse().unwrap();
-                tt.to_tokens(&mut value_stream);
-            }
-        }
-
-        if value_stream.is_empty() {
-            let span = semi.as_ref().map(|s| s.span()).unwrap_or(eq.span);
-            return Err(syn::Error::new(span, Self::RECOVERABLE_EXPECTED_P_VALUE));
-        }
-
-        let value_span = value_stream.span();
-        let value = match syn::parse2::<PropertyValue>(value_stream) {
-            Ok(v) => v,
-            Err(e) => {
-                if e.to_string() == "expected `,`" {
-                    return Err(syn::Error::new(e.span(), Self::RECOVERABLE_EXPECTED_SEMI));
+        let value_stream = util::parse_soft_group(
+            input,
+            // terminates in the first `;` in the current level.
+            |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
+            // next item is found after optional outer attributes.
+            // then is an `ident =` OR a `when` OR a `property::path =`
+            |input| {
+                let fork = input.fork();
+                let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
+                if fork.peek2(Token![=]) {
+                    fork.peek(Ident)
+                } else if fork.peek2(Token![::]) {
+                    return fork.parse::<Path>().is_ok() && fork.peek(Token![=]);
+                } else if fork.peek(keyword::when) {
+                    true // found `when`
                 } else {
-                    return Err(e);
+                    false // did not peek next item.
+                }
+            },
+        );
+
+        let value;
+        let value_span;
+        let semi;
+
+        match value_stream {
+            Ok((value_stream, s)) => {
+                semi = s;
+                if value_stream.is_empty() {
+                    // no value tokens
+                    let span = semi.as_ref().map(|s| s.span()).unwrap_or(eq.span);
+                    return Err(util::recoverable_err(span, "expected property value"));
+                }
+                value_span = value_stream.span();
+                match syn::parse2::<PropertyValue>(value_stream) {
+                    Ok(v) => {
+                        value = v;
+                    }
+                    Err(e) => {
+                        if e.to_string() == "expected `,`" {
+                            return Err(util::recoverable_err(e.span(), "expected `,` or `;`"));
+                        } else {
+                            return Err(e);
+                        }
+                    }
                 }
             }
-        };
-
-        if let PropertyValue::Unnamed(args) = &value {
-            let mut last_punct_span = eq.span;
-            let mut last_expr = None;
-            for pair in args.pairs() {
-                if let Some(p) = pair.punct() {
-                    last_punct_span = p.span();
-                }
-                last_expr = Some(*pair.value());
-            }
-            if let Some(Expr::Assign(_)) = last_expr {
-                // parsed next property as value
-
-                if input.is_empty() || semi.is_some() {
-                    // next property was formed correctly.
-                    return Err(syn::Error::new(last_punct_span, Self::RECOVERABLE_EXPECTED_P_VALUE));
+            Err(partial_value) => {
+                if partial_value.is_empty() {
+                    // no value tokens
+                    return Err(util::recoverable_err(eq.span(), "expected property value"));
                 } else {
-                    return Err(syn::Error::new(
-                        last_punct_span,
-                        "expected `<property-value> ;`, found next property",
-                    ));
+                    // maybe missing next argument (`,`) or terminator (`;`)
+                    let last_tt = partial_value.into_iter().last().unwrap();
+                    let last_span = last_tt.span();
+                    let mut msg = "expected `,` or `;`";
+                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
+                        if p.as_char() == ',' {
+                            msg = "expected another property arg";
+                        }
+                    }
+                    return Err(util::recoverable_err(last_span, msg));
                 }
             }
         }
 
         Ok(PropertyAssign {
-            attrs,
+            attrs: vec![],
             path,
             eq,
             value_span,

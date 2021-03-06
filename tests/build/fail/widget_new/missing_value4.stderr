@@ -4,16 +4,10 @@ error: expected property value
 6 |         cursor =
   |                ^
 
-error[E0433]: failed to resolve: could not find `code_gen` in `drag_move`
- --> $DIR/missing_value4.rs:9:9
-  |
-9 |         drag_move = true;
-  |         ^^^^^^^^^ could not find `code_gen` in `drag_move`
-
-warning: unused imports: `cursor`, `margin`
+warning: unused import: `cursor`
  --> $DIR/missing_value4.rs:1:27
   |
-1 | use zero_ui::properties::{cursor, drag_move, margin};
-  |                           ^^^^^^             ^^^^^^
+1 | use zero_ui::properties::{cursor, drag_move::draggable, margin};
+  |                           ^^^^^^
   |
   = note: `#[warn(unused_imports)]` on by default
