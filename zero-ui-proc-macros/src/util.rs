@@ -5,7 +5,7 @@ use quote::{quote_spanned, ToTokens};
 use regex::Regex;
 use syn::{
     self,
-    parse::{Parse, ParseStream},
+    parse::{discouraged::Speculative, Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
@@ -773,4 +773,32 @@ pub fn span_is_call_site(a: proc_macro2::Span) -> bool {
 
 pub fn span_eq(a: proc_macro2::Span, b: proc_macro2::Span) -> bool {
     format!("{:?}", a) == format!("{:?}", b)
+}
+
+/// Parses all outer attributes and stores any parsing errors in `errors`.
+/// Note: If a malformed attribute is passed, only the attributes after that one will be returned.
+pub fn parse_outer_attrs(input: ParseStream, errors: &mut Errors) -> Vec<Attribute> {
+    let mut attrs;
+    loop {
+        let fork = input.fork();
+        let mut parsed = true;
+
+        attrs = Attribute::parse_outer(&fork).unwrap_or_else(|e| {
+            parsed = false;
+            errors.push_syn(e);
+            vec![]
+        });
+        if parsed {
+            input.advance_to(&fork);
+            break;
+        } else {
+            let _ = input.parse::<Token![#]>();
+            if input.peek(Token![!]) {
+                let _ = input.parse::<Token![!]>();
+            }
+            let _ = non_user_bracketed!(input).parse::<TokenStream>();
+        }
+    }
+
+    attrs
 }

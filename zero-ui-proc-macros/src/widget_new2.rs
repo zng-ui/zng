@@ -12,7 +12,7 @@ use syn::{
     token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
 };
 
-use crate::util::{self, parse_all, tokens_to_ident_str, Attributes, Errors};
+use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, Errors};
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
@@ -735,13 +735,7 @@ impl Parse for UserInput {
         let mut whens = vec![];
 
         while !input.is_empty() {
-            let attrs = match Attribute::parse_outer(&input) {
-                Ok(a) => a,
-                Err(e) => {
-                    errors.push_syn(e);
-                    vec![]
-                }
-            };
+            let attrs = parse_outer_attrs(&input, &mut errors);
             if input.peek(keyword::when) {
                 if let Some(mut when) = When::parse(&input, &mut errors) {
                     when.attrs = attrs;

@@ -5,6 +5,7 @@ pub mod widget {
     use zero_ui::properties::margin;
 
     properties! {
+        #![allow(inner_attribute)]
         #[!foo]
         /// valid
         margin = 10;

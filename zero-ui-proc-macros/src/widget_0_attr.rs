@@ -13,7 +13,7 @@ use syn::{
 };
 
 use crate::{
-    util::{self, parse2_punctuated, Attributes, Errors},
+    util::{self, parse2_punctuated, parse_outer_attrs, Attributes, Errors},
     widget_new2::{PropertyValue, When},
 };
 
@@ -794,10 +794,8 @@ impl Parse for Properties {
         let mut whens = vec![];
 
         while !input.is_empty() {
-            let attrs = Attribute::parse_outer(input).unwrap_or_else(|e| {
-                errors.push_syn(e);
-                vec![]
-            });
+            let attrs = parse_outer_attrs(input, &mut errors);
+
             if input.peek(keyword::when) {
                 if let Some(mut when) = When::parse(input, &mut errors) {
                     when.attrs = attrs;
@@ -806,10 +804,7 @@ impl Parse for Properties {
             } else if input.peek(keyword::child) && input.peek2(syn::token::Brace) {
                 let input = non_user_braced!(input, "child");
                 while !input.is_empty() {
-                    let attrs = Attribute::parse_outer(&input).unwrap_or_else(|e| {
-                        errors.push_syn(e);
-                        vec![]
-                    });
+                    let attrs = parse_outer_attrs(&input, &mut errors);
                     match input.parse::<ItemProperty>() {
                         Ok(mut p) => {
                             p.attrs = attrs;
