@@ -537,7 +537,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         wgt_properties.extend(quote! {
             #w_prop {
-                docs { } // TODO script call that takes the property summary?
+                docs { }
                 cfg { #cfg }
                 default { true }
                 required { false }

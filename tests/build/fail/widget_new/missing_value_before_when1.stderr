@@ -1,0 +1,11 @@
+error: expected property value
+ --> $DIR/missing_value_before_when1.rs:6:16
+  |
+6 |         margin = // missing 0; here
+  |                ^
+
+error: property `margin` is not assigned and has no default value
+ --> $DIR/missing_value_before_when1.rs:8:13
+  |
+8 |             margin = 20;
+  |             ^^^^^^

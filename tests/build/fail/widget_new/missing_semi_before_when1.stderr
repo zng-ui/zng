@@ -1,0 +1,11 @@
+error: expected `,` or `;`
+ --> $DIR/missing_semi_before_when1.rs:6:18
+  |
+6 |         margin = 0 // missing ; here
+  |                  ^
+
+error: property `margin` is not assigned and has no default value
+ --> $DIR/missing_semi_before_when1.rs:8:13
+  |
+8 |             margin = 20;
+  |             ^^^^^^

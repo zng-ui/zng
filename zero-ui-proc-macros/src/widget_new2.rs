@@ -229,7 +229,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[cfg(not(debug_assertions))]
         prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream(), up.path.span()));
     }
-    let wgt_properties = wgt_properties;
 
     // validate required properties.
     let mut missing_required = HashSet::new();
@@ -462,7 +461,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[cfg(debug_assertions)]
         prop_set_calls.push((
             p.to_token_stream(),
-            args_ident,
+            args_ident.clone(),
             util::display_path(&p),
             {
                 quote_spanned! {p_span=>
@@ -476,6 +475,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ));
         #[cfg(not(debug_assertions))]
         prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), Span::call_site()));
+
+        wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));
     }
 
     // generate property assigns.
@@ -561,7 +562,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         // later conditions have priority.
         conditions.reverse();
 
-        let (default, cfg) = wgt_properties.get(&property).unwrap();
+        let (default, cfg) = wgt_properties
+            .get(&property)
+            .unwrap_or_else(|| non_user_error!("property(introduced in when?) not found"));
         when_inits.extend(quote! {
             #cfg
             let #default = {
@@ -813,11 +816,9 @@ impl Parse for PropertyAssign {
             if fork.peek2(Token![=]) {
                 fork.peek(Ident)
             } else if fork.peek2(Token![::]) {
-                return fork.parse::<Path>().is_ok() && fork.peek(Token![=]);
-            } else if fork.peek(keyword::when) {
-                true // found `when`
+                fork.parse::<Path>().is_ok() && fork.peek(Token![=])
             } else {
-                false // did not peek next item.
+                fork.peek(keyword::when)
             }
         };
 
@@ -982,7 +983,12 @@ pub struct When {
 impl When {
     /// Call only if peeked `when`. Parse outer attribute before calling.
     pub fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
-        let when = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let when = input.parse::<keyword::when>().unwrap_or_else(|e| non_user_error!(e));
+
+        if input.is_empty() {
+            errors.push("expected when expression", when.span());
+            return None;
+        }
         let condition_expr = crate::expr_var::parse_without_eager_brace(input);
 
         let (brace_token, assigns) = if input.peek(syn::token::Brace) {
@@ -996,7 +1002,7 @@ impl When {
             }
             (brace.token, assigns)
         } else {
-            errors.push("expected `{ <property-assigns> }`", input.span());
+            errors.push("expected a block of property assigns", util::last_span(condition_expr));
             return None;
         };
 

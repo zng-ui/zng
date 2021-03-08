@@ -1,0 +1,5 @@
+error: expected when expression
+ --> $DIR/when_missing_expr1.rs:5:9
+  |
+5 |         when
+  |         ^^^^
