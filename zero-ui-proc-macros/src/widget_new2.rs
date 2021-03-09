@@ -1069,7 +1069,7 @@ impl Parse for WhenExprToVar {
                 let var_ident = ident!("__{}{}", util::display_path(&property).replace("::", "_"), member_ident);
 
                 expr.extend(quote! {
-                    #{#var_ident}
+                    (*#{#var_ident}) // deref here to simulate a `self.`
                 });
 
                 properties.insert((property, member_ident), var_ident);
