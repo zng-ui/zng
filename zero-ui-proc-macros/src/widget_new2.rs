@@ -267,7 +267,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .filter_map(|id| {
                 let r = wgt_properties.get(&parse_quote! { #id }).map(|(id, _)| id);
                 if r.is_none() && !missing_required.contains(&id) {
-                    non_user_error!("inherited when condition uses property not set, not required or not unset");
+                    non_user_error!("inherited when condition uses property not set, not required and not unset");
                 }
                 r
             })
@@ -356,12 +356,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 _ => property.to_token_stream(),
             };
-            let property_args = ident!("__{}", util::path_to_ident_str(&property));
+
+            let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
+                // if is not in `wgt_properties` it must be in `user_when_properties`
+                // that will generate a __u_ variable before this binding in the final code.
+                #[cfg(debug_assertions)]
+                if !user_when_properties.contains_key(&property) {
+                    non_user_error!("");
+                }
+                ident!("__u_{}", util::path_to_ident_str(&property))
+            });
 
             member_vars.extend(quote! {
                 let #var_ident = #module::__core::var::IntoVar::into_var(
                     std::clone::Clone::clone(
-                        #property_path::Args::#member(&#property_args)
+                        #property_path::Args::#member(&#args_ident)
                     )
                 );
             });
@@ -439,7 +448,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     // properties that are only introduced in user when conditions.
     for (p, cfg) in user_when_properties {
-        let args_ident = ident!("__{}", util::path_to_ident_str(&p));
+        let args_ident = ident!("__u_{}", util::path_to_ident_str(&p));
         let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
         property_inits.extend(quote_spanned! {p.span()=>
             let #args_ident = {
@@ -1074,9 +1083,10 @@ impl Parse for WhenExprToVar {
                     ident!("__0")
                 };
 
-                let var_ident = ident!("__{}{}", util::display_path(&property).replace("::", "_"), member_ident);
+                let member_span = member_ident.span();
+                let var_ident = ident_spanned!(member_span=> "__{}{}", util::display_path(&property).replace("::", "_"), member_ident);
 
-                expr.extend(quote! {
+                expr.extend(quote_spanned! {member_span=>
                     (*#{#var_ident}) // deref here to simulate a `self.`
                 });
 
@@ -1105,6 +1115,12 @@ impl Parse for WhenExprToVar {
                 tt.to_tokens(&mut expr)
             }
         }
+
+        // assert expression type.
+        let expr = quote_spanned! {expr.span()=>
+            let __result__: bool = { #expr };
+            __result__
+        };
 
         Ok(WhenExprToVar { properties, expr })
     }

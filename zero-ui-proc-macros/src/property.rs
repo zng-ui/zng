@@ -1024,7 +1024,7 @@ mod output {
             } else {
                 quote! {
                     #[inline]
-                    pub fn default() -> Self {
+                    pub fn default() -> impl #args_ident {
                         #default_value
                     }
                 }
@@ -1058,7 +1058,7 @@ mod output {
                 #[allow(non_camel_case_types)]
                 impl #generic_decl #args_impl_ident #generic_use {
                     #[inline]
-                    pub fn new(#( #arg_idents: #arg_types ),*) -> Self {
+                    pub fn new(#( #arg_idents: #arg_types ),*) -> impl #args_ident {
                         Self {
                             #phantom_init
                             #(#arg_idents,)*
@@ -1299,7 +1299,7 @@ mod output {
                             $ArgsImpl {
                                 #phantom
                                 $($fields)+
-                            }
+                            }.args()
                         }
                     };
 

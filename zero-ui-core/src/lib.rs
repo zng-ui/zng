@@ -82,8 +82,8 @@ mod property_tests {
         use basic_context::{code_gen, Args, ArgsImpl};
         let a = ArgsImpl::new(1);
         let b = code_gen! { named_new basic_context, __ArgsImpl { arg: 2 } };
-        let a = a.args().unwrap().into_local();
-        let b = b.args().unwrap().into_local();
+        let a = a.unwrap().into_local();
+        let b = b.unwrap().into_local();
         assert_eq!(1, *a.get_local());
         assert_eq!(2, *b.get_local());
     }
