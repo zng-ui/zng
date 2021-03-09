@@ -840,50 +840,7 @@ impl Parse for PropertyAssign {
             peek_next_assign,
         );
 
-        let value;
-        let value_span;
-        let semi;
-
-        match value_stream {
-            Ok((value_stream, s)) => {
-                semi = s;
-                if value_stream.is_empty() {
-                    // no value tokens
-                    let span = semi.as_ref().map(|s| s.span()).unwrap_or(eq.span);
-                    return Err(util::recoverable_err(span, "expected property value"));
-                }
-                value_span = value_stream.span();
-                match syn::parse2::<PropertyValue>(value_stream) {
-                    Ok(v) => {
-                        value = v;
-                    }
-                    Err(e) => {
-                        if e.to_string() == "expected `,`" {
-                            return Err(util::recoverable_err(e.span(), "expected `,` or `;`"));
-                        } else {
-                            return Err(e);
-                        }
-                    }
-                }
-            }
-            Err(partial_value) => {
-                if partial_value.is_empty() {
-                    // no value tokens
-                    return Err(util::recoverable_err(eq.span(), "expected property value"));
-                } else {
-                    // maybe missing next argument (`,`) or terminator (`;`)
-                    let last_tt = partial_value.into_iter().last().unwrap();
-                    let last_span = last_tt.span();
-                    let mut msg = "expected `,` or `;`";
-                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
-                        if p.as_char() == ',' {
-                            msg = "expected another property arg";
-                        }
-                    }
-                    return Err(util::recoverable_err(last_span, msg));
-                }
-            }
-        }
+        let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
 
         Ok(PropertyAssign {
             attrs: vec![],
@@ -922,6 +879,57 @@ impl PropertyValue {
                 }}
             }),
             PropertyValue::Special(_, _) => Err("cannot expand special"),
+        }
+    }
+
+    pub fn parse_soft_group(
+        value_stream: Result<(TokenStream, Option<Token![;]>), TokenStream>,
+        group_start_span: Span,
+    ) -> syn::Result<(Self, Span, Option<Token![;]>)> {
+        let value;
+        let value_span;
+        let semi;
+
+        match value_stream {
+            Ok((value_stream, s)) => {
+                semi = s;
+                if value_stream.is_empty() {
+                    // no value tokens
+                    let span = semi.as_ref().map(|s| s.span()).unwrap_or(group_start_span);
+                    return Err(util::recoverable_err(span, "expected property value"));
+                }
+                value_span = value_stream.span();
+                match syn::parse2::<PropertyValue>(value_stream) {
+                    Ok(v) => {
+                        value = v;
+                        Ok((value, value_span, semi))
+                    }
+                    Err(e) => {
+                        if e.to_string() == "expected `,`" {
+                            Err(util::recoverable_err(e.span(), "expected `,` or `;`"))
+                        } else {
+                            Err(e)
+                        }
+                    }
+                }
+            }
+            Err(partial_value) => {
+                if partial_value.is_empty() {
+                    // no value tokens
+                    Err(util::recoverable_err(group_start_span, "expected property value"))
+                } else {
+                    // maybe missing next argument (`,`) or terminator (`;`)
+                    let last_tt = partial_value.into_iter().last().unwrap();
+                    let last_span = last_tt.span();
+                    let mut msg = "expected `,` or `;`";
+                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
+                        if p.as_char() == ',' {
+                            msg = "expected another property arg";
+                        }
+                    }
+                    Err(util::recoverable_err(last_span, msg))
+                }
+            }
         }
     }
 }

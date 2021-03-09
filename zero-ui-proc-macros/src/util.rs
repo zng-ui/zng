@@ -837,7 +837,7 @@ pub trait ErrorRecoverable {
 }
 impl ErrorRecoverable for syn::Error {
     fn set_recoverable(mut self) -> Self {
-        self.combine(syn::Error::new(Span::call_site(), "<!recoverable>"));
+        self.combine(syn::Error::new(Span::call_site(), "<recoverable>"));
         self
     }
     fn recoverable(self) -> (bool, Self) {
@@ -846,7 +846,7 @@ impl ErrorRecoverable for syn::Error {
         let mut recoverable = false;
 
         for error in errors {
-            if error.to_string() == "<!recoverable>" {
+            if error.to_string() == "<recoverable>" {
                 recoverable = true;
             } else {
                 e.combine(error);

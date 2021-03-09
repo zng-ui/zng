@@ -855,7 +855,18 @@ impl Parse for ItemProperty {
         macro_rules! peek_parse {
             ($token:tt) => {
                 if input.peek(Token![$token]) {
-                    Some((input.parse()?, input.parse()?))
+                    let tt0: Token![$token] = input.parse()?;
+                    let tt1 = input.parse().map_err(|e| {
+                        // change error span to last parsed token tree
+                        // if the error span is the default (callsite)
+                        if util::span_is_call_site(e.span()) {
+                            syn::Error::new(tt0.span(), e)
+                        } else {
+                            e
+                        }
+                    })?;
+
+                    Some((tt0, tt1))
                 } else {
                     None
                 }
@@ -865,20 +876,34 @@ impl Parse for ItemProperty {
         let alias = peek_parse![as];
         let type_ = peek_parse![:];
 
-        let mut value_span = Span::call_site();
-        let value = if input.peek(Token![=]) {
-            let eq = input.parse()?;
+        let (value, value_span, semi) = if input.peek(Token![=]) {
+            let eq: Token![=] = input.parse()?;
 
-            let mut value_stream = TokenStream::new();
-            while !input.is_empty() && !input.peek(Token![;]) {
-                let tt: TokenTree = input.parse().unwrap();
-                tt.to_tokens(&mut value_stream);
-            }
-            value_span = value_stream.span();
+            let value_stream = util::parse_soft_group(
+                input,
+                // terminates in the first `;` in the current level.
+                |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
+                |input| {
+                    // checks if the next tokens in the stream look like the start
+                    // of another ItemProperty.
+                    let fork = input.fork();
+                    let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
+                    if fork.peek2(Token![=]) {
+                        fork.peek(Ident)
+                    } else if fork.peek2(Token![::]) {
+                        fork.parse::<Path>().is_ok() && fork.peek(Token![=])
+                    } else {
+                        fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                    }
+                },
+            );
 
-            Some((eq, syn::parse2(value_stream)?))
+            let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
+
+            (Some((eq, value)), value_span, semi)
         } else {
-            None
+            let semi = if input.is_empty() { None } else { Some(input.parse()?) };
+            (None, Span::call_site(), semi)
         };
         let item_property = ItemProperty {
             attrs: vec![],
@@ -887,14 +912,10 @@ impl Parse for ItemProperty {
             type_,
             value,
             value_span,
-            semi: if input.peek(Token![;]) { Some(input.parse()?) } else { None },
+            semi,
         };
 
-        if item_property.semi.is_none() && !input.is_empty() {
-            Err(syn::Error::new(input.span(), "expected `;`"))
-        } else {
-            Ok(item_property)
-        }
+        Ok(item_property)
     }
 }
 impl ItemProperty {
