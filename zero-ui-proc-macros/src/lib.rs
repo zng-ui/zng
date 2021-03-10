@@ -22,6 +22,7 @@ mod widget_0_attr;
 mod widget_1_inherit;
 mod widget_2_declare;
 
+mod property_new;
 mod widget_new2;
 
 pub(crate) mod widget_new;
