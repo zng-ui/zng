@@ -207,6 +207,7 @@ macro_rules! non_user_bracketed {
     };
 }
 
+/// Parse items of a type until the end of the parse stream or the first error.
 pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>> {
     let mut result = vec![];
 

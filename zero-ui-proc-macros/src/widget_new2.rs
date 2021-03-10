@@ -888,11 +888,12 @@ impl PropertyValue {
             PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
                 #property_path::code_gen! { new #property_path, #args_impl { #args } }
             }),
-            PropertyValue::Named(_, fields) => Ok(quote_spanned! {span=>
-                #property_path::code_gen! { named_new #property_path, #args_impl {
-                    #fields
-                }}
-            }),
+            PropertyValue::Named(brace, fields) => {
+                let fields = quote_spanned! { brace.span=> { #fields } };
+                Ok(quote_spanned! {span=>
+                    #property_path::code_gen! { named_new #property_path, #args_impl #fields }
+                })
+            }
             PropertyValue::Special(_, _) => Err("cannot expand special"),
         }
     }

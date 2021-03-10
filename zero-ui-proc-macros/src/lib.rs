@@ -50,6 +50,12 @@ pub fn property(args: TokenStream, input: TokenStream) -> TokenStream {
     property::expand(args, input)
 }
 
+#[doc(hidden)]
+#[proc_macro]
+pub fn property_new(input: TokenStream) -> TokenStream {
+    property_new::expand(input)
+}
+
 /// Declares a new widget macro and module.
 ///
 /// # Full Documentation

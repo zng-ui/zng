@@ -49,7 +49,7 @@ pub use ui_list::*;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{widget_declare, widget_inherit, widget_new, widget_new2, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{property_new, widget_declare, widget_inherit, widget_new, widget_new2, widget_stage2, widget_stage3};
 
 /// Gets if the value indicates that any size is available during layout (positive infinity)
 #[inline]

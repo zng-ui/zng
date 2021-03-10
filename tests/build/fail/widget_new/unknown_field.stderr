@@ -1,7 +1,14 @@
-error[E0560]: struct `margin_ArgsImpl<_>` has no field named `unknown`
+error: unknown field `unknown`
  --> $DIR/unknown_field.rs:7:13
   |
 7 |             unknown: 0,
-  |             ^^^^^^^ `margin_ArgsImpl<_>` does not have this field
+  |             ^^^^^^^
+
+error: missing field `margin` in property initializer
+ --> $DIR/unknown_field.rs:6:18
   |
-  = note: available fields are: `margin`
+6 |           margin = {
+  |  __________________^
+7 | |             unknown: 0,
+8 | |         }
+  | |_________^

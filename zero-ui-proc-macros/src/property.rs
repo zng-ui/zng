@@ -572,7 +572,7 @@ mod analysis {
                 ident: fn_.sig.ident.clone(),
                 generics: generic_types,
                 allowed_in_when,
-                phantom_idents: phantom_idents.clone(),
+                phantom_idents,
                 arg_idents: arg_idents.clone(),
                 priority: args.priority,
                 arg_types,
@@ -597,7 +597,6 @@ mod analysis {
                 export: !matches!(fn_.vis, syn::Visibility::Inherited),
                 priority: args.priority,
                 allowed_in_when,
-                phantom_idents,
                 arg_idents,
                 has_default_value,
             },
@@ -1126,8 +1125,6 @@ mod output {
         pub macro_ident: Ident,
         pub export: bool,
 
-        pub phantom_idents: Vec<Ident>,
-
         pub priority: Priority,
 
         pub allowed_in_when: bool,
@@ -1141,17 +1138,10 @@ mod output {
             let OutputMacro {
                 cfg,
                 macro_ident,
-                phantom_idents: phantom,
                 priority,
                 arg_idents,
                 ..
             } = self;
-
-            let phantom = if phantom.is_empty() {
-                TokenStream::new()
-            } else {
-                quote! { _phantom: std::marker::PhantomData<#(#phantom),*>, }
-            };
 
             let set = if priority.is_capture_only() {
                 quote! {
@@ -1293,13 +1283,16 @@ mod output {
                             $ArgsImpl::new($($values)+)
                         }
                     };
-                    (named_new $property_path:path, $ArgsImpl:ident { $($fields:tt)+ }) => {
+                    (named_new $property_path:path, $ArgsImpl:ident $($fields_block:tt)+) => {
                         {
-                            use $property_path::{ArgsImpl as $ArgsImpl};
-                            $ArgsImpl {
-                                #phantom
-                                $($fields)+
-                            }.args()
+                            use $property_path::{__property_new};
+                            __property_new! {
+                                property_path { $property_path }
+                                args_impl_spanned { $ArgsImpl }
+                                arg_idents { #(#arg_idents)* }
+
+                                $($fields_block)+
+                            }
                         }
                     };
 
@@ -1416,6 +1409,8 @@ mod output {
                     };
                     pub use #macro_ident as code_gen;
                     pub use #crate_core::var::{when_var, switch_var};
+                    #[doc(hidden)]
+                    pub use #crate_core::property_new as __property_new;
                 }
             })
         }
