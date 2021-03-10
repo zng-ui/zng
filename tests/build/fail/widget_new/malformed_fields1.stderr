@@ -1,0 +1,13 @@
+error: expected `,`
+ --> $DIR/malformed_fields1.rs:7:22
+  |
+7 |             margin: 0;
+  |                      ^
+
+warning: unused import: `zero_ui::properties::margin`
+ --> $DIR/malformed_fields1.rs:1:5
+  |
+1 | use zero_ui::properties::margin;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

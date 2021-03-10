@@ -22,7 +22,7 @@ use syn::{
 // initializes the invalid generic type and continue given errors in every usage of the args instance
 // that asserts the generic bounds, this can very easy cause a `Span::call_site()` error with a cryptic message.
 //
-// The down side is that we need to reimplement the other errors like missing fields here too.
+// The downside is that we need to reimplement the other errors like missing fields here too.
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { property_data, user_input } = parse_macro_input!(input as Input);
 

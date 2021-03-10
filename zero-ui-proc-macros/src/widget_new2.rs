@@ -920,13 +920,7 @@ impl PropertyValue {
                         value = v;
                         Ok((value, value_span, semi))
                     }
-                    Err(e) => {
-                        if e.to_string() == "expected `,`" {
-                            Err(util::recoverable_err(e.span(), "expected `,` or `;`"))
-                        } else {
-                            Err(e)
-                        }
-                    }
+                    Err(e) => Err(e),
                 }
             }
             Err(partial_value) => {
@@ -961,6 +955,15 @@ impl Parse for PropertyValue {
             }
         }
 
+        fn map_unnamed_err(e: syn::Error) -> syn::Error {
+            if e.to_string() == "expected `,`" {
+                // We expect a `;` in here also, if there was one `input` would have terminated.
+                syn::Error::new(e.span(), "expected `,` or `;`")
+            } else {
+                e
+            }
+        }
+
         if input.peek(syn::token::Brace) {
             // Differentiating between a fields declaration and a single unnamed arg declaration gets tricky.
             //
@@ -984,14 +987,20 @@ impl Parse for PropertyValue {
                     Ok(PropertyValue::Named(fields_brace, Punctuated::parse_terminated(&fields_input)?))
                 } else {
                     // is an unnamed block expression or { field } that works as an expression.
-                    Ok(PropertyValue::Unnamed(Punctuated::parse_terminated(input)?))
+                    Ok(PropertyValue::Unnamed(
+                        Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+                    ))
                 }
             } else {
                 // first arg is a block expression but has other arg expression e.g: `{ <expr> }, ..`
-                Ok(PropertyValue::Unnamed(Punctuated::parse_terminated(input)?))
+                Ok(PropertyValue::Unnamed(
+                    Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+                ))
             }
         } else {
-            Ok(PropertyValue::Unnamed(Punctuated::parse_terminated(input)?))
+            Ok(PropertyValue::Unnamed(
+                Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+            ))
         }
     }
 }
