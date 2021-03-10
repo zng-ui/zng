@@ -368,7 +368,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             });
 
             member_vars.extend(quote! {
-                let #var_ident = #module::__core::var::IntoVar::into_var(
+                #[allow(non_snake_case)]
+                let #var_ident;
+                #var_ident = #module::__core::var::IntoVar::into_var(
                     std::clone::Clone::clone(
                         #property_path::Args::#member(&#args_ident)
                     )
@@ -378,12 +380,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         // generate the condition var let binding.
         when_inits.extend(quote! {
+            #[allow(non_snake_case)]
             #cfg
-            let #ident = {
-                #member_vars
-                #(#lints)*
-                #module::__core::var::expr_var!(#condition)
-            };
+            let #ident;
+            #cfg {
+                #ident = {
+                    #member_vars
+                    #(#lints)*
+                    #module::__core::var::expr_var!(#condition)
+                };
+            }
         });
 
         // init assign variables
@@ -1074,13 +1080,13 @@ impl Parse for WhenExprToVar {
                     input.parse::<Token![.]>().unwrap();
                     if input.peek(Ident) {
                         let member = input.parse::<Ident>().unwrap();
-                        ident!("__{}", member)
+                        ident_spanned!(member.span()=> "__{}", member)
                     } else {
                         let index = input.parse::<syn::Index>().unwrap();
-                        ident!("__{}", index.index)
+                        ident_spanned!(index.span()=> "__{}", index.index)
                     }
                 } else {
-                    ident!("__0")
+                    ident_spanned!(property.span()=> "__0")
                 };
 
                 let member_span = member_ident.span();
@@ -1097,17 +1103,17 @@ impl Parse for WhenExprToVar {
                 let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
-                expr.extend(quote! { { #inner } });
+                expr.extend(quote_spanned! {inner.span()=> { #inner } });
             } else if input.peek(token::Paren) {
                 let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
-                expr.extend(quote! { ( #inner ) });
+                expr.extend(quote_spanned! {inner.span()=> ( #inner ) });
             } else if input.peek(token::Bracket) {
                 let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
-                expr.extend(quote! { [ #inner ] });
+                expr.extend(quote_spanned! {inner.span()=> [ #inner ] });
             }
             // keep other tokens the same:
             else {

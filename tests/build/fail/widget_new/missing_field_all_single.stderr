@@ -5,30 +5,3 @@ error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
   |                  ^^^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
   |
   = note: required by `margin_ArgsImpl::<T_margin>::new`
-
-error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> $DIR/missing_field_all_single.rs:8:9
-   |
-8  |         margin = { }
-   |         ^^^^^^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
-   |
-  ::: $WORKSPACE/src/properties/margin_.rs
-   |
-   | pub fn margin(child: impl UiNode, margin: impl IntoVar<SideOffsets>) -> impl UiNode {
-   |                                                -------------------- required by this bound in `margin_ArgsImpl`
-   |
-   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0277]: the trait bound `(): IntoVar<SideOffsets>` is not satisfied
-  --> $DIR/missing_field_all_single.rs:8:9
-   |
-8  |         margin = { }
-   |         ^^^^^^ the trait `IntoVar<SideOffsets>` is not implemented for `()`
-   |
-  ::: $WORKSPACE/src/properties/margin_.rs
-   |
-   | #[property(outer)]
-   | ------------------ required by this bound in `__margin_set_debug`
-   |
-   = note: required because of the requirements on the impl of `margin_Args` for `margin_ArgsImpl<()>`
-   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

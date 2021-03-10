@@ -549,7 +549,7 @@ mod analysis {
                 }
             } else {
                 // A compile error was generated for this case already.
-                quote! { std::unreachable!() }
+                TokenStream::default()
             }
         } else {
             TokenStream::default()

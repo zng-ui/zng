@@ -2,7 +2,9 @@ use proc_macro2::{Group, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     parse::{Parse, ParseStream},
-    parse_macro_input, token, Ident, Path, Token,
+    parse_macro_input,
+    spanned::Spanned,
+    token, Ident, Path, Token,
 };
 
 use crate::util::{token_stream_eq, tokens_to_ident_str};
@@ -12,28 +14,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let r = if vars.is_empty() {
         // no interpolation, just eval to var.
-        quote! {
+        quote_spanned! {expr.span()=>
             #mod_::IntoVar::into_var({ #expr })
         }
     } else if vars.len() == 1 {
         let (ident, eval) = &vars[0];
         if token_stream_eq(expr.clone(), ident.to_token_stream()) {
             // full expr is an interpolation, just return the  var.
-            quote! {
+            quote_spanned! {expr.span()=>
                 {#eval}
             }
         } else {
-            quote! {
+            quote_spanned! {expr.span()=>
                 // single var interpolation, use map.
-                #mod_::Var::into_map({#eval}, move |#ident|{ #expr })
+                #mod_::Var::into_map({#eval}, move |#[allow(non_snake_case)]#ident|{ #expr })
             }
         }
     } else {
         // multiple var interpolation, use merge.
         let idents = vars.iter().map(|(id, _)| id);
         let evals = vars.iter().map(|(_, ev)| ev);
-        quote! {
-            #mod_::merge_var!{ #({#evals}),* , move |#(#idents),*| { #expr } }
+        quote_spanned! {expr.span()=>
+            #mod_::merge_var!{ #({#evals}),* , move |#(#[allow(non_snake_case)]#idents),*| { #expr } }
         }
     };
 
@@ -67,7 +69,7 @@ fn parse_replace_expr(input: ParseStream, vars: &mut Vec<(Ident, TokenStream)>) 
             if let Some((var_ident, _)) = vars.iter().find(|(_, v)| token_stream_eq(v.clone(), var.clone())) {
                 var_ident.to_tokens(&mut expr)
             } else {
-                let var_ident = ident!("__{}_{}", vars.len(), tokens_to_ident_str(&var));
+                let var_ident = ident_spanned!(var.span()=> "__{}_{}", vars.len(), tokens_to_ident_str(&var));
                 var_ident.to_tokens(&mut expr);
                 vars.push((var_ident, var))
             }
