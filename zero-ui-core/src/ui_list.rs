@@ -17,7 +17,7 @@ pub type WidgetVec = Vec<Box<dyn Widget>>;
 /// ```
 /// # use zero_ui_core::{ui_vec, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, widget_id::ArgsImpl::new(WidgetId::new_unique()))  };
+/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
 /// let widgets = ui_vec![
 ///     text("Hello"),
 ///     text("World!")

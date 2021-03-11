@@ -3,7 +3,6 @@
 use crate::prelude::new_widget::*;
 use crate::properties::text_theme::*;
 
-#[widget($crate::widgets::text)]
 /// A configured [`text`](../fn.text.html).
 ///
 /// # Example
@@ -12,14 +11,15 @@ use crate::properties::text_theme::*;
 /// use zero_ui::prelude::text;
 ///
 /// let hello_txt = text! {
-///     font_family: "Arial";
-///     font_size: 18;
-///     text: "Hello!";
+///     font_family = "Arial";
+///     font_size = 18;
+///     text = "Hello!";
 /// };
 /// ```
 /// # `text()`
 ///
 /// If you don't need to configure the text, you can just use the function [`text`](../fn.text.html).
+#[widget($crate::widgets::text::text)]
 pub mod text {
     use super::*;
 
@@ -68,9 +68,9 @@ pub mod text {
 /// use zero_ui::properties::text_theme::{font_family, font_size};
 ///
 /// let hello_txt = container! {
-///     font_family: "Arial";
-///     font_size: 18;
-///     content: text("Hello!");
+///     font_family = "Arial";
+///     font_size = 18;
+///     content = text("Hello!");
 /// };
 /// # }
 /// ```
@@ -85,7 +85,7 @@ pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
     }
 }
 
-#[widget($crate::widgets::strong)]
+#[widget($crate::widgets::text::strong)]
 mod strong {
     use super::*;
 
@@ -111,7 +111,7 @@ pub fn strong(text: impl IntoVar<Text> + 'static) -> impl Widget {
     strong! { text; }
 }
 
-#[widget($crate::widgets::em)]
+#[widget($crate::widgets::text::em)]
 mod em {
     use super::*;
 

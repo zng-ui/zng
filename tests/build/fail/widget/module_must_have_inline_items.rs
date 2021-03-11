@@ -1,6 +1,6 @@
-use zero_ui::core::widget2;
+use zero_ui::core::widget;
 
-#[widget2($crate::widget)]
+#[widget($crate::widget)]
 #[path = "util/a_mod.rs"]
 pub mod widget;
 

@@ -38,8 +38,8 @@ pub mod button {
 
         /// When the pointer device is over this button.
         when self.is_cap_hovered {
-            background_color: ButtonBackgroundHoveredVar;
-            border: {
+            background_color = ButtonBackgroundHoveredVar;
+            border = {
                 widths: ButtonBorderWidthsHoveredVar,
                 details: ButtonBorderDetailsHoveredVar,
             };
@@ -47,20 +47,20 @@ pub mod button {
 
         /// When the mouse or touch pressed on this button and has not yet released.
         when self.is_pressed  {
-            background_color: ButtonBackgroundPressedVar;
-            border: {
+            background_color = ButtonBackgroundPressedVar;
+            border = {
                 widths: ButtonBorderWidthsPressedVar,
                 details: ButtonBorderDetailsPressedVar,
             };
         }
 
         when self.is_disabled {
-            background_color: ButtonBackgroundDisabledVar;
-            border: {
+            background_color = ButtonBackgroundDisabledVar;
+            border = {
                 widths: ButtonBorderWidthsDisabledVar,
                 details: ButtonBorderDetailsDisabledVar,
             };
-            text_color: TextColorDisabledVar;
+            text_color = TextColorDisabledVar;
         }
     }
 }

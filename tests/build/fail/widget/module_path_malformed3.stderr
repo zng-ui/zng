@@ -1,5 +1,5 @@
 error: expected `crate`
- --> $DIR/module_path_malformed3.rs:4:12
+ --> $DIR/module_path_malformed3.rs:4:11
   |
-4 | #[widget2($self::widget)]
-  |            ^^^^
+4 | #[widget($self::widget)]
+  |           ^^^^

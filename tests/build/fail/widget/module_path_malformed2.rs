@@ -1,6 +1,6 @@
-use zero_ui::core::widget2;
+use zero_ui::core::widget;
 
-#[widget2($crate::widget, invalid)]
-pub mod widget {}
+#[widget($crate::widget, invalid)]
+pub mod test_widget {}
 
 fn main() {}

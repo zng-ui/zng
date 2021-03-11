@@ -73,8 +73,8 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///
 ///     // initial_ui:
 ///     text! {
-///         color: rgba(0, 0, 0, 0.5);
-///         text: "starting..";
+///         color = rgba(0, 0, 0, 0.5);
+///         text = "starting..";
 ///     }.boxed(),
 ///
 ///     // presenter:
@@ -82,8 +82,8 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///         State::Starting => {
 ///             state = State::Counting;
 ///             View::Update(text! {
-///                 font_size: 28;
-///                 text: n.map(|n| n.to_text());
+///                 font_size = 28;
+///                 text = n.map(|n| n.to_text());
 ///             }.boxed())
 ///         }
 ///         State::Counting => {
@@ -100,9 +100,9 @@ impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View
 ///
 ///                 View::Update(
 ///                     text! {
-///                         color: rgb(0, 128, 0);
-///                         font_size: 18;
-///                         text: "Congratulations!!";
+///                         color = rgb(0, 128, 0);
+///                         font_size = 18;
+///                         text = "Congratulations!!";
 ///                     }
 ///                     .boxed(),
 ///                 )

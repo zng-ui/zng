@@ -45,14 +45,14 @@ impl<T: UiNode, S: VarLocal<bool>> UiNode for ClipToBoundsNode<T, S> {
 /// use zero_ui::prelude::*;
 ///
 /// container! {
-///     background_color: rgb(255, 0, 0);
-///     size: (200.0, 300.0);
-///     clip_to_bounds: true;
-///     content: container! {
-///         background_color: rgb(0, 255, 0);
+///     background_color = rgb(255, 0, 0);
+///     size = (200.0, 300.0);
+///     clip_to_bounds = true;
+///     content = container! {
+///         background_color = rgb(0, 255, 0);
 ///         // fixed size ignores the layout available size.
-///         size: (1000.0, 1000.0);
-///         content: text("1000x1000 green clipped to 200x300");
+///         size = (1000.0, 1000.0);
+///         content = text("1000x1000 green clipped to 200x300");
 ///     };
 /// }
 /// # ;

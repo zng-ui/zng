@@ -3,12 +3,12 @@ use zero_ui::prelude::*;
 fn main() {
     App::default().run_window(|_| {
         window! {
-            title: "Gradient Example";
-            auto_size: true;
-            padding: 20;
-            content: v_stack! {
-                spacing: 20;
-                items: (
+            title = "Gradient Example";
+            auto_size = true;
+            padding = 20;
+            content = v_stack! {
+                spacing = 20;
+                items = (
                     title("Linear"),
                     linear_angle(),
                     linear_points(),
@@ -23,8 +23,8 @@ fn main() {
 
 fn title(title: &'static str) -> impl Widget {
     text! {
-        text: title;
-        font_size: 18.pt();
+        text = title;
+        font_size = 18.pt();
     }
 }
 
@@ -156,13 +156,13 @@ fn stack_linear() -> impl Widget {
 fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
     let name = name.to_text();
     v_stack! {
-        spacing: 5;
-        items: (
+        spacing = 5;
+        items = (
             text(name),
             container! {
-                background: gradient;
-                size: (180, 180);
-                content: text("");
+                background = gradient;
+                size = (180, 180);
+                content = text("");
             }
         );
     }
@@ -170,7 +170,7 @@ fn sample(name: impl ToText, gradient: impl UiNode) -> impl Widget {
 
 fn sample_line(items: impl WidgetList) -> impl Widget {
     h_stack! {
-        spacing: 5;
+        spacing = 5;
         items;
     }
 }

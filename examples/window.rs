@@ -12,16 +12,16 @@ fn main() {
         let background_color = var(rgb(0.1, 0.1, 0.1));
 
         window! {
-            position: position.clone();
-            size: size.clone();
-            background_color: background_color.clone();
+            position = position.clone();
+            size = size.clone();
+            background_color = background_color.clone();
             title;
-            content: h_stack! {
-                spacing: 40;
-                items: (
+            content = h_stack! {
+                spacing = 40;
+                items = (
                     v_stack! {
-                        spacing: 20;
-                        items: (
+                        spacing = 20;
+                        items = (
                             property_stack("position", [
                                 set_position(0.0, 0.0, &position),
                                 set_position(490.0, 290.0, &position),
@@ -52,11 +52,11 @@ fn main() {
 
 fn property_stack(header: &'static str, items: impl WidgetList) -> impl Widget {
     v_stack! {
-        spacing: 5;
-        items: [text! {
-            text: header;
-            font_weight: FontWeight::BOLD;
-            margin: (0, 4);
+        spacing = 5;
+        items = [text! {
+            text = header;
+            font_weight = FontWeight::BOLD;
+            margin = (0, 4);
         }].chain(items);
     }
 }
@@ -76,8 +76,8 @@ fn set_background(color: Rgba, color_name: &str, background_color: &RcVar<Rgba>)
 fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, content_txt: Text) -> impl Widget {
     let var = var.clone();
     button! {
-        content: text(content_txt);
-        on_click: move |ctx, _| {
+        content = text(content_txt);
+        on_click = move |ctx, _| {
             var.set(ctx.vars,  new_value.clone());
         };
     }
@@ -86,8 +86,8 @@ fn set_var_btn<T: zero_ui::core::var::VarValue>(var: &RcVar<T>, new_value: T, co
 fn screenshot() -> impl Widget {
     use std::time::Instant;
     button! {
-        content: text("screenshot");
-        on_click: |ctx, _| {
+        content = text("screenshot");
+        on_click = |ctx, _| {
             println!("taking `screenshot.png`..");
 
             let t = Instant::now();
@@ -103,8 +103,8 @@ fn screenshot() -> impl Widget {
 
 fn inspect() -> impl Widget {
     button! {
-        content: text("inspector");
-        on_click: |_,_| {
+        content = text("inspector");
+        on_click = |_,_| {
             println!("in debug only, press CTRL+SHIFT+I")
         };
     }

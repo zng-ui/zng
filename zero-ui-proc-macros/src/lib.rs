@@ -73,7 +73,7 @@ pub fn derive_window_service(item: TokenStream) -> TokenStream {
 ///
 /// # Full Documentation
 ///
-/// Read the documentation in the [`zero_ui::core::widget2`](../zero_ui/core/attr.widget2.html) page.
+/// Read the documentation in the [`zero_ui::core::widget`](../zero_ui/core/attr.widget2.html) page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
     widget_0_attr::expand(false, args, input)

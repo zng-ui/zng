@@ -1,6 +1,6 @@
 use crate::prelude::new_widget::*;
 
-#[widget($crate::widgets::layouts::center)]
+#[widget($crate::widgets::layouts::align::center)]
 mod center {
     use super::*;
 

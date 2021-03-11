@@ -27,7 +27,7 @@ pub mod focusable_mixin {
         };
 
         when self.is_focused_hgl {
-            focus_highlight: {
+            focus_highlight = {
                 widths: FocusHighlightWidthsVar,
                 offsets: FocusHighlightOffsetsVar,
                 details: FocusHighlightDetailsVar

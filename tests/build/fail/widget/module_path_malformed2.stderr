@@ -1,5 +1,5 @@
 error: unexpected token
- --> $DIR/module_path_malformed2.rs:3:25
+ --> $DIR/module_path_malformed2.rs:3:24
   |
-3 | #[widget2($crate::widget, invalid)]
-  |                         ^
+3 | #[widget($crate::widget, invalid)]
+  |                        ^

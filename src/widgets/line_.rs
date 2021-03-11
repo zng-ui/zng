@@ -96,38 +96,45 @@ impl<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rg
     }
 }
 
-widget! {
-    /// Draws a horizontal or vertical line.
-    pub line_w;
+/// Draws a horizontal or vertical line.
+#[widget($crate::widgets::line_w)]
+pub mod line_w {
+    use super::*;
 
-    default {
+    properties! {
         /// Line orientation.
-        orientation -> line_orientation: LineOrientation::Horizontal;
+        line_orientation as orientation = LineOrientation::Horizontal;
 
         /// Line color.
-        color: rgb(0, 0, 0);
+        color = rgb(0, 0, 0);
 
         /// Line stroke thickness.
-        width: 1.0;
+        width = 1.0;
 
         /// Line length.
         ///
         /// Set to `f32::INFINITY` to fill the available space.
-        length: f32::INFINITY;
+        length = f32::INFINITY;
 
         /// Line style.
-        style -> line_style: LineStyle::Solid;
+        line_style as style = LineStyle::Solid;
     }
 
-    fn new_child(orientation, length, width, color, style) -> impl UiNode {
+    fn new_child(
+        orientation: impl IntoVar<LineOrientation>,
+        length: impl IntoVar<f32>,
+        width: impl IntoVar<f32>,
+        color: impl IntoVar<Rgba>,
+        style: impl IntoVar<LineStyle>,
+    ) -> impl UiNode {
         LineNode {
             bounds: LayoutSize::zero(),
             render_command: RenderLineCommand::Line(w_api::LineStyle::Solid, 0.0),
-            orientation: orientation.unwrap().into_local(),
-            length: length.unwrap().into_local(),
-            width: width.unwrap().into_var(),
-            color: color.unwrap().into_local(),
-            style: style.unwrap().into_var(),
+            orientation: orientation.into_local(),
+            length: length.into_local(),
+            width: width.into_var(),
+            color: color.into_local(),
+            style: style.into_var(),
         }
     }
 }

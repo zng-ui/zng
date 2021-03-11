@@ -1,7 +1,7 @@
-use zero_ui::core::widget2;
+use zero_ui::core::widget;
 
 // path is missing
-#[widget2]
-pub mod widget {}
+#[widget]
+pub mod test_widget {}
 
 fn main() {}

@@ -136,8 +136,8 @@ impl StackDimension for HorizontalD {
 /// ```
 /// # use zero_ui::prelude::*;
 /// let text = v_stack! {
-///     spacing: 5.0;
-///     items: [
+///     spacing = 5.0;
+///     items = [
 ///         text("1. Hello"),
 ///         text("2. World"),
 ///     ];
@@ -175,8 +175,8 @@ pub mod h_stack {
 /// ```
 /// # use zero_ui::prelude::*;
 /// let text = h_stack! {
-///     spacing: 5.0;
-///     items: [
+///     spacing = 5.0;
+///     items = [
 ///         text("Hello"),
 ///         text("World"),
 ///     ];
@@ -263,8 +263,8 @@ impl<C: UiNodeList> UiNode for ZStackNode<C> {}
 /// ```
 /// # use zero_ui::prelude::*;
 /// let text = z_stack! {
-///     padding: 5.0;
-///     items: [
+///     padding = 5.0;
+///     items = [
 ///         text("under"),
 ///         text("over"),
 ///     ];

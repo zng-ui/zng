@@ -64,13 +64,14 @@ impl<C: UiNode, M: Var<CaptureMode>> UiNode for CaptureMouseNode<C, M> {
 /// # fn main() { }
 /// # use zero_ui::prelude::new_widget::*;
 /// # use zero_ui::properties::capture_mouse;
-/// widget! {
-///    pub button: container;
-///
-///    default {
-///        /// Mouse does not interact with other widgets when pressed in a button.
-///        capture_mouse: true; //true == CaptureMode::Widget;
-///    }
+/// #[widget($crate::button)]
+/// pub mod button {
+///     use super::*;
+///     inherit!(container);
+///     properties! {
+///         /// Mouse does not interact with other widgets when pressed in a button.
+///         capture_mouse = true; //true == CaptureMode::Widget;
+///     }
 /// }
 /// ```
 #[property(context)]

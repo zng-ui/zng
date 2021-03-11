@@ -7,18 +7,18 @@ fn main() {
     App::default().run_window(|_| {
         let calc = var(Calculator::default());
         window! {
-            title: "Calculator";
-            resizable: false;
-            auto_size: true;
-            padding: 5;
-            content: v_stack! {
-                spacing: 5;
-                items: (
+            title = "Calculator";
+            resizable = false;
+            auto_size = true;
+            padding = 5;
+            content = v_stack! {
+                spacing = 5;
+                items = (
                     text! {
-                        text: calc.map_ref(|c| c.text());
-                        align: Alignment::RIGHT;
-                        font_size: 32.pt();
-                        color: calc.map_ref(|c| c.color());
+                        text = calc.map_ref(|c| c.text());
+                        align = Alignment::RIGHT;
+                        font_size = 32.pt();
+                        color = calc.map_ref(|c| c.color());
                     },
                     controls(calc)
                 );
@@ -36,10 +36,10 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
     let b_equal = btn_eval(calc.clone());
 
     uniform_grid! {
-        spacing: 2;
-        columns: 4;
-        font_size: 14.pt();
-        items: (
+        spacing = 2;
+        columns = 4;
+        font_size = 14.pt();
+        items = (
             b_squre,  b_sroot,  b_clear,  b_back,
             bn('7'),  bn('8'),  bn('9'),  bn('/'),
             bn('4'),  bn('5'),  bn('6'),  bn('*'),
@@ -51,53 +51,53 @@ fn controls(calc: RcVar<Calculator>) -> impl Widget {
 
 fn btn_square(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.square());
-        content: text("x²");
+        on_click = move |ctx, _| calc.modify(ctx.vars, |c|c.square());
+        content = text("x²");
     }
 }
 
 fn btn_square_root(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.square_root());
-        content: text("√x");
+        on_click = move |ctx, _| calc.modify(ctx.vars, |c|c.square_root());
+        content = text("√x");
     }
 }
 
 fn btn_clear(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.clear());
-        click_shortcut: shortcut!(Escape);
-        content: text("C");
+        on_click = move |ctx, _| calc.modify(ctx.vars, |c|c.clear());
+        click_shortcut = shortcut!(Escape);
+        content = text("C");
     }
 }
 
 fn btn_backspace(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.backspace());
-        click_shortcut: shortcut!(Backspace);
-        content: text("⌫");
+        on_click = move |ctx, _| calc.modify(ctx.vars, |c|c.backspace());
+        click_shortcut = shortcut!(Backspace);
+        content = text("⌫");
     }
 }
 
 fn btn(calc: RcVar<Calculator>, c: char) -> impl Widget {
     button! {
-        on_click: move |ctx, _| {
+        on_click = move |ctx, _| {
             calc.modify(ctx.vars, move |b| b.push(c))
         };
-        click_shortcut: {
+        click_shortcut = {
             let shortcuts: Shortcuts = c.try_into().unwrap_or_default();
             assert!(!shortcuts.0.is_empty());
             shortcuts
         };
-        content: text(c.to_string());
+        content = text(c.to_string());
     }
 }
 
 fn btn_eval(calc: RcVar<Calculator>) -> impl Widget {
     button! {
-        on_click: move |ctx, _| calc.modify(ctx.vars, |c|c.eval());
-        click_shortcut: vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
-        content: text("=");
+        on_click = move |ctx, _| calc.modify(ctx.vars, |c|c.eval());
+        click_shortcut = vec![shortcut!(Enter), shortcut!(NumpadEnter), shortcut!(Equals)];
+        content = text("=");
     }
 }
 

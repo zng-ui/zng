@@ -1,10 +1,7 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::window::{StartPosition, Window};
+use crate::core::window::{AutoSize, StartPosition, Window};
 use crate::prelude::new_widget::*;
-
-#[allow(unused)] // it is used, and widget! will be deleted soon.
-use crate::core::widget_base::enabled;
 
 /// A window container.
 ///
@@ -18,8 +15,8 @@ use crate::core::widget_base::enabled;
 ///
 /// App::default().run_window(|_| {
 ///     window! {
-///         title: "Window 1";
-///         content: text("Window 1");
+///         title = "Window 1";
+///         content = text("Window 1");
 ///     }
 /// })
 /// ```
@@ -82,9 +79,9 @@ pub mod window {
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
 
-        id = unset!;
         /// Unique identifier of the window root widget.
-        id as root_id = WidgetId::new_unique();
+        root_id: WidgetId = WidgetId::new_unique();
+        id = unset!;
 
         /// Windows are focus scopes by default.
         focus_scope = true;
@@ -108,7 +105,7 @@ pub mod window {
         enabled as resizable = true;
 
         /// If the window is visible.
-        enabled as visibility = true;
+        enabled as visible = true;
     }
 
     #[inline]
@@ -134,7 +131,7 @@ pub mod window {
             auto_size,
             resizable,
             clear_color,
-            visibility,
+            visible,
             child,
         )
     }

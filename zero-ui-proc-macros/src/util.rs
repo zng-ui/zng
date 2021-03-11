@@ -755,3 +755,50 @@ impl ErrorRecoverable for syn::Error {
         (recoverable, e)
     }
 }
+
+// Debug tracing if it was enabled during run-time.
+//
+// This is useful for debugging say the widget macros but only for a widget.
+//
+// Use [`enable_trace!`] and [`trace!`].
+#[allow(unused)]
+#[cfg(debug_assertions)]
+pub mod debug_trace {
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    static ENABLED: AtomicBool = AtomicBool::new(false);
+
+    pub fn enable() {
+        ENABLED.store(true, Ordering::SeqCst);
+        eprintln!("zero-ui-proc-macros::debug_trace enabled");
+    }
+
+    pub fn display(msg: impl std::fmt::Display) {
+        if ENABLED.load(Ordering::SeqCst) {
+            eprintln!("{}", msg);
+        }
+    }
+}
+
+#[allow(unused)]
+#[cfg(debug_assertions)]
+macro_rules! enable_trace {
+    () => {
+        $crate::util::debug_trace::enable();
+    };
+    (if $bool_expr:expr) => {
+        if $bool_expr {
+            $crate::util::debug_trace::enable();
+        }
+    };
+}
+#[allow(unused)]
+#[cfg(debug_assertions)]
+macro_rules! trace {
+    ($msg:tt) => {
+        $crate::util::debug_trace::display($msg);
+    };
+    ($fmt:tt, $($args:tt)+) => {
+        $crate::util::debug_trace::display(format_args!($fmt, $($args)+));
+    };
+}

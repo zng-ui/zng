@@ -1,7 +1,7 @@
-use zero_ui::core::widget2;
+use zero_ui::core::widget;
 
-#[widget2($crate::widget)]
-pub mod widget {
+#[widget($crate::widget)]
+pub mod test_widget {
     use zero_ui::properties::{cursor, margin};
 
     properties! {

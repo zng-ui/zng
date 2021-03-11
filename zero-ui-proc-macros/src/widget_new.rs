@@ -1030,7 +1030,13 @@ impl When {
             while !brace.content.is_empty() {
                 match brace.content.parse() {
                     Ok(p) => assigns.push(p),
-                    Err(e) => errors.push_syn(e),
+                    Err(e) => {
+                        let (recoverable, e) = e.recoverable();
+                        errors.push_syn(e);
+                        if !recoverable {
+                            break;
+                        }
+                    }
                 }
             }
             (brace.token, assigns)

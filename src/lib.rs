@@ -17,21 +17,21 @@
 //!         window! {
 //!             size;
 //!             title;
-//!             content: example();
+//!             content = example();
 //!         }
 //!     })
 //! }
 //!
 //! fn example() -> impl Widget {
 //!     button! {
-//!         on_click: |_,_| {
+//!         on_click = |_,_| {
 //!             println!("Button clicked!");
 //!         };
-//!         margin: 10.0;
-//!         size: (300.0, 200.0);
-//!         align: Alignment::CENTER;
-//!         font_size: 28;
-//!         content: text("Click Me!");
+//!         margin = 10.0;
+//!         size = (300.0, 200.0);
+//!         align = Alignment::CENTER;
+//!         font_size = 28;
+//!         content = text("Click Me!");
 //!     }
 //! }
 //! ```

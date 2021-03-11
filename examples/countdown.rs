@@ -8,8 +8,8 @@ fn main() {
         let count = var(10u32);
         let mut every1s = Some(ctx.sync.update_every_secs(1));
         window! {
-            title: "Countdown Example";
-            on_update: enclose!{ (count) move |ctx| {
+            title = "Countdown Example";
+            on_update = enclose!{ (count) move |ctx| {
                 println!("on_update");
 
                 // if timer still running.
@@ -35,20 +35,20 @@ fn main() {
                     }
                 }
             }};
-            content: example(count);
+            content = example(count);
         }
     })
 }
 
 fn example(count: RcVar<u32>) -> impl Widget {
     text! {
-        text: count.into_map(|&n| {
+        text = count.into_map(|&n| {
             if n > 0 {
                 formatx!("{}", n)
             } else {
                 "Done!".into()
             }
         });
-        font_size: 32.pt();
+        font_size = 32.pt();
     }
 }

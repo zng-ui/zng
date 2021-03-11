@@ -126,6 +126,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
         quote! {
             #[doc(hidden)]
+            #[allow(clippy::too_many_arguments)]
             pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> impl #crate_core::UiNode {
                 self::new_child(#(self::#p_new_child::Args::unwrap(#new_child)),*)
             }
@@ -136,6 +137,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let output = &f.sig.output;
         quote! {
             #[doc(hidden)]
+            #[allow(clippy::too_many_arguments)]
             pub fn __new(__child: impl #crate_core::UiNode, #(#new: impl self::#p_new::Args),*) #output {
                 self::new(__child, #(self::#p_new::Args::unwrap(#new)),*)
             }
@@ -856,7 +858,7 @@ impl Parse for ItemProperty {
                     let tt0: Token![$token] = input.parse()?;
                     let tt1 = input.parse().map_err(|e| {
                         // change error span to last parsed token tree
-                        // if the error span is the default (callsite)
+                        // if the error span is the default (call_site)
                         if util::span_is_call_site(e.span()) {
                             syn::Error::new(tt0.span(), e)
                         } else {

@@ -357,9 +357,9 @@ impl<T: UiNode, S: VarLocal<Size>> UiNode for SizeNode<T, S> {
 /// ```
 /// use zero_ui::prelude::*;
 /// container! {
-///     background_color: rgb(255, 0, 0);
-///     size: (200.0, 300.0);
-///     content: text("200x300 red");
+///     background_color = rgb(255, 0, 0);
+///     size = (200.0, 300.0);
+///     content = text("200x300 red");
 /// }
 /// # ;
 /// ```
