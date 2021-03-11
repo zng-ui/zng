@@ -82,7 +82,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let r = quote_spanned! {args_ident_from_wgt.span()=>
         #allow_unreachable {
             #errors
-            use #path::{ArgsImpl as #args_ident_from_wgt};
+            use #path::ArgsImpl as #args_ident_from_wgt;
             #args_ident_from_wgt::new(#(#args),*)
         }
     };

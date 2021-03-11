@@ -1283,7 +1283,7 @@ mod output {
                             $ArgsImpl::new($($values)+)
                         }
                     };
-                    (named_new $property_path:path, $ArgsImpl:ident $($fields_block:tt)+) => {
+                    (named_new $property_path:path, $ArgsImpl:ident $fields_block:tt) => {
                         {
                             use $property_path::{__property_new};
                             __property_new! {
@@ -1291,7 +1291,7 @@ mod output {
                                 args_impl_spanned { $ArgsImpl }
                                 arg_idents { #(#arg_idents)* }
 
-                                $($fields_block)+
+                                $fields_block
                             }
                         }
                     };
