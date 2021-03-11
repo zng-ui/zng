@@ -1,0 +1,10 @@
+error: missing required property `foo`
+  --> $DIR/missing_captured2.rs:18:13
+   |
+18 |       let _ = test_widget! {
+   |  _____________^
+19 | |         // foo = true;
+20 | |     };
+   | |_____^
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

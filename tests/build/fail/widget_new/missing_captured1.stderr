@@ -1,5 +1,5 @@
 error: missing required property `foo`
-  --> $DIR/missing_captured.rs:18:13
+  --> $DIR/missing_captured1.rs:18:13
    |
 18 |       let _ = test_widget! {
    |  _____________^
