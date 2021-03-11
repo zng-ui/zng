@@ -59,7 +59,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             use std::fmt::Write;
             missing_count += 1;
             write!(missing_fields, "`{}`, ", property_data.arg_idents[i]).unwrap();
-            *a = Some(parse_quote!(unreachable!()));
+            *a = Some(parse_quote!(std::unreachable!()));
         }
     }
 

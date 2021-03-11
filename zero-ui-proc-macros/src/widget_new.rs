@@ -600,23 +600,52 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
     }
 
-    // generate new function calls.
-    let new_child_caps = widget_data.new_child.iter().map(|p| {
-        &wgt_properties
-            .get(&parse_quote! {#p})
-            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
-            .0
-    });
-    let new_caps = widget_data.new.iter().map(|p| {
-        &wgt_properties
-            .get(&parse_quote! {#p})
-            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
-            .0
-    });
+    // Generate new function calls:
+    let mut allow_unreachable = false;
+
+    let new_child_caps: Vec<_> = widget_data
+        .new_child
+        .iter()
+        .map(|p| {
+            wgt_properties
+                .get(&parse_quote! {#p})
+                .map(|(id, _)| id.to_token_stream())
+                .unwrap_or_else(|| {
+                    allow_unreachable = true;
+                    quote! { std::unreachable!() }
+                })
+        })
+        .collect();
+
+    let new_caps: Vec<_> = widget_data
+        .new
+        .iter()
+        .map(|p| {
+            wgt_properties
+                .get(&parse_quote! {#p})
+                .map(|(id, _)| id.to_token_stream())
+                .unwrap_or_else(|| {
+                    allow_unreachable = true;
+                    quote! { std::unreachable!() }
+                })
+        })
+        .collect();
+
+    let allow_unreachable = if allow_unreachable {
+        // we have filled-in missing captured with a panic, because of this we need
+        // too suppress the `unreachable_code` lint. Missing captured already generated
+        // a compile error so the panic cannot actually execute.
+        quote! { #[allow(unreachable_code)] }
+    } else {
+        TokenStream::default()
+    };
+
     let new_child_call = quote! {
+        #allow_unreachable
         let node__ = #module::__new_child(#(#new_child_caps),*);
     };
     let new_call = quote! {
+        #allow_unreachable
         #module::__new(node__, #(#new_caps),*)
     };
 
