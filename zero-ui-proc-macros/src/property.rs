@@ -174,11 +174,6 @@ mod analysis {
                 Prefix::None
             }
         }
-
-        pub fn is_state(fn_ident: &Ident) -> bool {
-            let ident_str = fn_ident.to_string();
-            ident_str.starts_with("is_")
-        }
     }
 
     pub fn generate(args: input::MacroArgs, fn_: input::PropertyFn) -> output::Output {

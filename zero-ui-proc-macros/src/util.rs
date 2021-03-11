@@ -6,7 +6,6 @@ use regex::Regex;
 use syn::{
     self,
     parse::{discouraged::Speculative, Parse, ParseStream},
-    parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     Attribute, Token,
@@ -84,14 +83,6 @@ fn in_crate_core() -> std::result::Result<bool, ()> {
     Ok(content.contains(r#"name = "zero-ui-core""#))
 }
 
-/// Same as `parse_quote` but with an `expect` message.
-#[allow(unused)]
-macro_rules! dbg_parse_quote {
-    ($msg:expr, $($tt:tt)*) => {
-        syn::parse(quote!{$($tt)*}.into()).expect($msg)
-    };
-}
-
 /// Generates a return of a compile_error message in the given span.
 macro_rules! abort {
     ($span:expr, $($tt:tt)*) => {{
@@ -127,16 +118,6 @@ macro_rules! doc_extend {
             }
         }
     }
-}
-
-/// Generates a string with the code of `input` parse stream. The stream is not modified.
-#[allow(unused)]
-macro_rules! dump_parse {
-    ($input:ident) => {{
-      let input = $input.fork();
-      let tokens: TokenStream = input.parse().unwrap();
-      format!("{}", quote!(#tokens))
-    }};
 }
 
 /// Input error not caused by the user.
@@ -353,89 +334,6 @@ pub fn docs_with_first_line_js(output: &mut TokenStream, docs: &[Attribute], js:
         for attr in docs.iter().skip(skip) {
             attr.to_tokens(output);
         }
-    }
-}
-
-/// Split docs with line breaks into different doc attributes.
-#[allow(unused)]
-pub fn normalize_docs(docs: &[Attribute]) -> Vec<Attribute> {
-    let mut r = Vec::with_capacity(docs.len());
-    for a in docs {
-        if let syn::AttrStyle::Inner(_) = a.style {
-            r.push(a.clone());
-        } else {
-            let doc: DocArgs = syn::parse2(a.tokens.clone()).unwrap();
-            for line in doc.str_.value().lines() {
-                r.push(parse_quote!( #[doc=#line] ));
-            }
-        }
-    }
-    r
-}
-
-struct DocArgs {
-    _eq: Token![=],
-    str_: syn::LitStr,
-}
-impl Parse for DocArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(DocArgs {
-            _eq: input.parse()?,
-            str_: input.parse()?,
-        })
-    }
-}
-
-/// Inserts extra `super::` in paths that start with super that reference
-/// out of the implied mod visited.
-pub struct PatchSuperPath {
-    super_ident: Ident,
-    new_depth: usize,
-    mod_depth: usize,
-}
-impl PatchSuperPath {
-    /// `new_depth` is the number of `super::` to insert the paths.
-    pub fn new(new_depth: usize) -> Self {
-        PatchSuperPath {
-            super_ident: ident!("super"),
-            new_depth,
-            mod_depth: 0,
-        }
-    }
-}
-impl syn::visit_mut::VisitMut for PatchSuperPath {
-    fn visit_path_mut(&mut self, i: &mut syn::Path) {
-        syn::visit_mut::visit_path_mut(self, i);
-
-        // if the path does not start with ::
-        if i.leading_colon.is_none() {
-            // count super::(super::)?.
-            let mut super_count = 0;
-            for seg in i.segments.iter() {
-                if seg.ident == self.super_ident {
-                    super_count += 1;
-                } else {
-                    break;
-                }
-            }
-
-            // if the path super:: prefixes reference out of the outer mod visited.
-            if super_count > 0 && super_count > self.mod_depth {
-                let first = i.segments[0].clone();
-
-                // insert the `new_depth` count of supers in the `0` index.
-                for _ in 1..self.new_depth {
-                    i.segments.insert(0, first.clone());
-                }
-                i.segments.insert(0, first);
-            }
-        }
-    }
-
-    fn visit_item_mod_mut(&mut self, i: &mut syn::ItemMod) {
-        self.mod_depth += 1;
-        syn::visit_mut::visit_item_mod_mut(self, i);
-        self.mod_depth -= 1;
     }
 }
 
