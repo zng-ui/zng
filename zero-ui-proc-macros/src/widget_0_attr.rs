@@ -283,7 +283,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut when_defaults = TokenStream::default();
     for (i, when) in whens.into_iter().enumerate() {
         // when ident, `__w{i}_{condition_expr_to_str}`
-        let ident = when.make_ident("w", i);
+        let ident = when.make_ident("w", i, Span::call_site());
 
         let attrs = Attributes::new(when.attrs);
         for invalid_attr in attrs.others.into_iter().chain(attrs.inline) {

@@ -13,17 +13,46 @@ use syn::{
 
 use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
 
+#[allow(unused_macros)]
+macro_rules! quote {
+    ($($tt:tt)*) => {
+        compile_error!("don't use Span::call_site() in widget_new");
+
+        // we don't use [`Span::call_site()`] in this widget because of a bug that highlights
+        // more then the call_site span. Not sure what causes it but I think some of
+        // the #[widget(..)] span gets used. Taking a direct sample of token inside
+        // the the `<widget>!` macro solves the issue, this is done in [`WidgetData::call_site`].
+    };
+}
+#[allow(unused_macros)]
+macro_rules! ident {
+    ($($tt:tt)*) => {
+        compile_error!("don't use Span::call_site() in widget_new");
+        // see quote! above
+    };
+}
+
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
         Ok(i) => i,
         Err(e) => non_user_error!(e),
     };
 
-    // we don't use [`Span::call_site()`] in this widget because of a bug that highlights
-    // more then the call_site span. Not sure what causes it but I think some of
-    // the #[widget(..)] span gets mixed-in. Taking a direct sample of token inside
-    // the the `<widget>!` macro solves the issue.
     let call_site = widget_data.call_site;
+    macro_rules! quote {
+        ($($tt:tt)*) => {
+            quote::quote_spanned! {call_site=>
+                $($tt)*
+            }
+        }
+    }
+    macro_rules! ident {
+        ($($tt:tt)*) => {
+            ident_spanned! {call_site=>
+                $($tt)*
+            }
+        }
+    }
 
     let module = widget_data.module;
 
@@ -285,7 +314,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let c_ident = ident!("__c_{}", ident);
         when_inits.extend(quote! {
             #cfg
-            let #c_ident = #module::#ident(#(&#inputs),*);
+            #[allow(non_snake_case)]
+            let #c_ident;
+            #cfg { #c_ident = #module::#ident(#(&#inputs),*); }
         });
 
         // register when for each property assigned.
@@ -311,7 +342,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let inputs = condition.properties;
         let condition = condition.expr;
 
-        let ident = w.make_ident("uw", i);
+        let ident = w.make_ident("uw", i, call_site);
 
         // validate/separate attributes
         let attrs = Attributes::new(w.attrs);
@@ -1097,8 +1128,8 @@ impl When {
     }
 
     /// Returns an ident `__{prefix}{i}_{expr_to_str}`
-    pub fn make_ident(&self, prefix: impl std::fmt::Display, i: usize) -> Ident {
-        ident!("__{}{}_{}", prefix, i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
+    pub fn make_ident(&self, prefix: impl std::fmt::Display, i: usize, span: Span) -> Ident {
+        ident_spanned!(span=> "__{}{}_{}", prefix, i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
 
     /// Analyzes the [`Self::condition_expr`], collects all property member accesses and replaces then with `expr_var!` placeholders.
