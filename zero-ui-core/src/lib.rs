@@ -49,7 +49,7 @@ pub use ui_list::*;
 
 // proc-macros used internally during widget creation.
 #[doc(hidden)]
-pub use zero_ui_proc_macros::{property_new, widget_declare, widget_inherit, widget_new, widget_new2, widget_stage2, widget_stage3};
+pub use zero_ui_proc_macros::{property_new, widget_declare, widget_inherit, widget_new};
 
 /// Gets if the value indicates that any size is available during layout (positive infinity)
 #[inline]
@@ -63,7 +63,7 @@ pub const LAYOUT_ANY_SIZE: f32 = f32::INFINITY;
 /// A map of TypeId -> Box<dyn Any>.
 type AnyMap = fnv::FnvHashMap<std::any::TypeId, Box<dyn std::any::Any>>;
 
-pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget2, widget_mixin, widget_mixin2};
+pub use zero_ui_proc_macros::{impl_ui_node, property, widget, widget_mixin};
 
 /// Tests on the #[property(..)] code generator.
 #[cfg(test)]
@@ -137,11 +137,11 @@ mod property_tests {
 #[cfg(test)]
 mod widget_tests {
     use self::util::Position;
-    use crate::{context::TestWidgetContext, widget2, widget_mixin2, Widget, WidgetId};
+    use crate::{context::TestWidgetContext, widget, widget_mixin, Widget, WidgetId};
     use serial_test::serial;
 
     // Used in multiple tests.
-    #[widget2($crate::widget_tests::empty_wgt)]
+    #[widget($crate::widget_tests::empty_wgt)]
     pub mod empty_wgt {}
 
     /*
@@ -158,7 +158,7 @@ mod widget_tests {
     }
 
     // Mixin used in inherit tests.
-    #[widget_mixin2($crate::widget_tests::foo_mixin)]
+    #[widget_mixin($crate::widget_tests::foo_mixin)]
     pub mod foo_mixin {
         use super::util;
 
@@ -170,7 +170,7 @@ mod widget_tests {
     /*
      * Tests the inherited properties' default values and assigns.
      */
-    #[widget2($crate::widget_tests::bar_wgt)]
+    #[widget($crate::widget_tests::bar_wgt)]
     pub mod bar_wgt {
         use super::{foo_mixin, util};
 
@@ -209,7 +209,7 @@ mod widget_tests {
     /*
      * Tests changing the default value of the inherited property.
      */
-    #[widget2($crate::widget_tests::reset_wgt)]
+    #[widget($crate::widget_tests::reset_wgt)]
     pub mod reset_wgt {
         inherit!(super::foo_mixin);
 
@@ -229,7 +229,7 @@ mod widget_tests {
     /*
      * Tests new property from inherited property.
      */
-    #[widget2($crate::widget_tests::alias_inherit_wgt)]
+    #[widget($crate::widget_tests::alias_inherit_wgt)]
     pub mod alias_inherit_wgt {
         inherit!(super::foo_mixin);
 
@@ -258,7 +258,7 @@ mod widget_tests {
     /*
      * Tests the property name when declared from path.
      */
-    #[widget2($crate::widget_tests::property_from_path_wgt)]
+    #[widget($crate::widget_tests::property_from_path_wgt)]
     pub mod property_from_path_wgt {
         properties! {
             super::util::trace;
@@ -277,7 +277,7 @@ mod widget_tests {
     /*
      * Tests unsetting inherited property.
      */
-    #[widget2($crate::widget_tests::unset_property_wgt)]
+    #[widget($crate::widget_tests::unset_property_wgt)]
     pub mod unset_property_wgt {
         inherit!(super::foo_mixin);
 
@@ -296,7 +296,7 @@ mod widget_tests {
     /*
      * Test unsetting default value.
      */
-    #[widget2($crate::widget_tests::default_value_wgt)]
+    #[widget($crate::widget_tests::default_value_wgt)]
     pub mod default_value_wgt {
         properties! {
             super::util::trace = "default_value_wgt";
@@ -320,7 +320,7 @@ mod widget_tests {
     /*
      * Tests declaring required properties, new and inherited.
      */
-    #[widget2($crate::widget_tests::required_properties_wgt)]
+    #[widget($crate::widget_tests::required_properties_wgt)]
     pub mod required_properties_wgt {
         inherit!(super::foo_mixin);
 
@@ -342,7 +342,7 @@ mod widget_tests {
     }
 
     // Mixin used in inherit required tests.
-    #[widget_mixin2($crate::widget_tests::required_mixin)]
+    #[widget_mixin($crate::widget_tests::required_mixin)]
     pub mod required_mixin {
         properties! {
             super::util::trace as required_trace = required!;
@@ -352,7 +352,7 @@ mod widget_tests {
     /*
      * Tests inheriting a required property.
      */
-    #[widget2($crate::widget_tests::required_inherited_wgt)]
+    #[widget($crate::widget_tests::required_inherited_wgt)]
     pub mod required_inherited_wgt {
         inherit!(super::required_mixin);
     }
@@ -369,7 +369,7 @@ mod widget_tests {
     /*
      * Tests inheriting a required property and setting it with a default value.
      */
-    #[widget2($crate::widget_tests::required_inherited_default_wgt)]
+    #[widget($crate::widget_tests::required_inherited_default_wgt)]
     pub mod required_inherited_default_wgt {
         inherit!(super::required_mixin);
 
@@ -378,7 +378,7 @@ mod widget_tests {
             required_trace = "required_inherited_default_wgt";
         }
     }
-    #[widget2($crate::widget_tests::required_inherited_default_depth2_wgt)]
+    #[widget($crate::widget_tests::required_inherited_default_depth2_wgt)]
     pub mod required_inherited_default_depth2_wgt {
         inherit!(super::required_inherited_default_wgt);
 
@@ -406,7 +406,7 @@ mod widget_tests {
     /*
      * Tests inheriting a required property with default value changing to required without value.
      */
-    #[widget2($crate::widget_tests::required_inherited_default_required_wgt)]
+    #[widget($crate::widget_tests::required_inherited_default_required_wgt)]
     pub mod required_inherited_default_required_wgt {
         inherit!(super::required_inherited_default_wgt);
 
@@ -447,7 +447,7 @@ mod widget_tests {
     /*
      * Tests value initialization order with child property.
      */
-    #[widget2($crate::widget_tests::child_property_wgt)]
+    #[widget($crate::widget_tests::child_property_wgt)]
     pub mod child_property_wgt {
         properties! {
             child {
@@ -476,7 +476,7 @@ mod widget_tests {
     /*
      * Tests the ordering of properties of the same priority.
      */
-    #[widget2($crate::widget_tests::same_priority_order_wgt)]
+    #[widget($crate::widget_tests::same_priority_order_wgt)]
     pub mod same_priority_order_wgt {
         properties! {
             super::util::count_inner as inner_a;
@@ -518,7 +518,7 @@ mod widget_tests {
     /*
      *  Tests widget when.
      */
-    #[widget2($crate::widget_tests::when_wgt)]
+    #[widget($crate::widget_tests::when_wgt)]
     pub mod when_wgt {
         use super::util::is_state;
         use super::util::live_trace as msg;
@@ -585,7 +585,7 @@ mod widget_tests {
     /*
      * Tests multiple widget whens
      */
-    #[widget2($crate::widget_tests::multi_when_wgt)]
+    #[widget($crate::widget_tests::multi_when_wgt)]
     pub mod multi_when_wgt {
         use super::util::{is_state, live_trace as trace};
         properties! {
@@ -624,7 +624,7 @@ mod widget_tests {
     /*
      * Tests widget property attributes.
      */
-    #[widget2($crate::widget_tests::cfg_property_wgt)]
+    #[widget($crate::widget_tests::cfg_property_wgt)]
     pub mod cfg_property_wgt {
         use super::util::trace;
 
@@ -678,7 +678,7 @@ mod widget_tests {
     /*
      * Tests widget when attributes.
      */
-    #[widget2($crate::widget_tests::cfg_when_wgt)]
+    #[widget($crate::widget_tests::cfg_when_wgt)]
     pub mod cfg_when_wgt {
         use super::util::{is_state, live_trace};
 
@@ -769,7 +769,7 @@ mod widget_tests {
     /*
      *  Tests widget captures.
      */
-    #[widget2($crate::widget_tests::capture_properties_wgt)]
+    #[widget($crate::widget_tests::capture_properties_wgt)]
     pub mod capture_properties_wgt {
         use super::util::trace;
         use crate::{UiNode, Widget, WidgetId};
@@ -797,7 +797,7 @@ mod widget_tests {
                 o => panic!("unexpected {:?}", o),
             };
             let node = trace(node, msg);
-            crate::widget_base::default_widget_new2(node, id)
+            crate::widget_base::default_widget_new(node, id)
         }
     }
     #[test]
@@ -835,7 +835,7 @@ mod widget_tests {
     /*
      * Tests capture-only property declaration in widget.
      */
-    #[widget2($crate::widget_tests::new_capture_property_wgt)]
+    #[widget($crate::widget_tests::new_capture_property_wgt)]
     pub mod new_capture_property_wgt {
         use super::util::trace;
         use crate::UiNode;
@@ -871,7 +871,7 @@ mod widget_tests {
         assert!(util::traced(&wgt, "captured new_capture (user)"));
     }
 
-    #[widget2($crate::widget_tests::new_capture_property_named_wgt)]
+    #[widget($crate::widget_tests::new_capture_property_named_wgt)]
     pub mod new_capture_property_named_wgt {
         use super::util::trace;
         use crate::UiNode;
@@ -916,7 +916,7 @@ mod widget_tests {
     /*
      * Tests external capture_only properties
      */
-    #[widget2($crate::widget_tests::captured_property_wgt)]
+    #[widget($crate::widget_tests::captured_property_wgt)]
     pub mod captured_property_wgt {
         use super::util::{capture_only_trace, trace};
         use crate::UiNode;

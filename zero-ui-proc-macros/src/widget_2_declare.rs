@@ -6,7 +6,7 @@ use syn::{parse::Parse, spanned::Spanned, Ident, LitBool};
 
 use crate::{
     util::{self, parse_all, Errors},
-    widget_new2::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
+    widget_new::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -75,8 +75,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     #[inline]
                     pub fn __new(child: impl #crate_core::UiNode, id: impl self::__p_id::Args) -> impl #crate_core::Widget {
-                        // TODO remove the "2" when we convert all to the new macro.
-                        #crate_core::widget_base::default_widget_new2(child, self::__p_id::Args::unwrap(id))
+                        #crate_core::widget_base::default_widget_new(child, self::__p_id::Args::unwrap(id))
                     }
                 };
                 new = vec![ident!("id")];

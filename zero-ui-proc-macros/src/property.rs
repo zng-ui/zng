@@ -98,6 +98,16 @@ mod input {
         pub fn is_capture_only(self) -> bool {
             matches!(self, Priority::CaptureOnly(_))
         }
+        pub fn all_settable() -> [Self; 5] {
+            use crate::property::keyword::*;
+            [
+                Priority::Inner(inner::default()),
+                Priority::Size(size::default()),
+                Priority::Outer(outer::default()),
+                Priority::Event(event::default()),
+                Priority::Context(context::default()),
+            ]
+        }
     }
     impl Parse for Priority {
         fn parse(input: ParseStream) -> Result<Self> {
@@ -1234,18 +1244,6 @@ mod output {
 
             let arg_locals: Vec<_> = arg_idents.iter().enumerate().map(|(i, id)| ident!("__{}_{}", i, id)).collect();
 
-            // TODO remove when widget_new2 finished and in use.
-            let switches = if arg_locals.len() == 1 {
-                let arg = &arg_locals[0];
-                quote! {
-                    let #arg = __switch_var!($idx, $($arg_for_i),+);
-                }
-            } else {
-                let n = (0..arg_locals.len()).map(syn::Index::from);
-                quote! {
-                    #(let #arg_locals = __switch_var!(std::clone::Clone::clone(&$idx), $($arg_for_i.#n),+) ;)*
-                }
-            };
             let whens = if arg_locals.len() == 1 {
                 let arg = &arg_locals[0];
                 quote! {
@@ -1321,17 +1319,6 @@ mod output {
                             )+
                             let $default_args = __Args::unwrap($default_args);
                             #whens
-                            __ArgsImpl::new(#(#arg_locals),*)
-                        }
-                    };
-
-
-                    // TODO remove when widget_new2 finished and in use.
-                    (switch $property_path:path, $idx:ident, $($arg_for_i:ident),+) => {
-                        {
-                            use $property_path::{ArgsImpl as __ArgsImpl, Args as __Args, switch_var as __switch_var};
-                            $(let $arg_for_i = __Args::unwrap($arg_for_i);)+
-                            #switches
                             __ArgsImpl::new(#(#arg_locals),*)
                         }
                     };

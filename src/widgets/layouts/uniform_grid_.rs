@@ -148,87 +148,96 @@ impl<U: WidgetList, C: VarLocal<usize>, R: VarLocal<usize>, FC: VarLocal<usize>,
     }
 }
 
-widget! {
-    /// Grid layout where all cells are the same size.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use zero_ui::prelude::*;
-    /// let grid = uniform_grid!{
-    ///     columns: 3;
-    ///     rows: 2;
-    ///     items: [
-    ///         text("0,0"), text("1,0"), text("2,0"),
-    ///         text("0,1"), text("1,1")
-    ///     ];
-    /// };
-    /// ```
-    /// Produces a 3x2 grid:
-    ///
-    /// ```text
-    /// 0,0 | 1.0 | 2,0
-    /// ----|-----|----
-    /// 0,1 | 1,1 |
-    /// ```
-    pub uniform_grid;
+/// Grid layout where all cells are the same size.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// let grid = uniform_grid!{
+///     columns: 3;
+///     rows: 2;
+///     items: [
+///         text("0,0"), text("1,0"), text("2,0"),
+///         text("0,1"), text("1,1")
+///     ];
+/// };
+/// ```
+/// Produces a 3x2 grid:
+///
+/// ```text
+/// 0,0 | 1.0 | 2,0
+/// ----|-----|----
+/// 0,1 | 1,1 |
+/// ```
+#[widget($crate::widgets::layouts::uniform_grid)]
+pub mod uniform_grid {
+    use super::*;
 
-    default_child {
-        /// Widget items.
-        items -> widget_children: ();
+    properties! {
+        child {
+            /// Widget items.
+            widget_children as items = ();
 
-        /// Number of columns.
-        ///
-        /// Set to zero (`0`) for auto TODO.
-        columns -> len: 0;
-        /// Number of rows.
-        rows -> len: 0;
-        /// Number of empty cells in the first row.
-        ///
-        /// Value is ignored if is `>= columns`.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// # use zero_ui::prelude::*;
-        /// let grid = uniform_grid!{
-        ///     columns: 3;
-        ///     rows: 2;
-        ///     first_column: 1;
-        ///     items: [
-        ///                      text("1,0"), text("2,0"),
-        ///         text("0,1"), text("1,1"), text("2,1")
-        ///     ];
-        /// };
-        /// ```
-        /// Produces a 3x2 grid with an empty first cell:
-        ///
-        /// ```text
-        ///     | 1,0 | 2,0
-        /// ----|-----|----
-        /// 0,1 | 1,1 | 2,1
-        /// ```
-        first_column -> index: 0;
+            /// Number of columns.
+            ///
+            /// Set to zero (`0`) for auto TODO.
+            len as columns = 0;
+            /// Number of rows.
+            len as rows = 0;
+            /// Number of empty cells in the first row.
+            ///
+            /// Value is ignored if is `>= columns`.
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// # use zero_ui::prelude::*;
+            /// let grid = uniform_grid!{
+            ///     columns: 3;
+            ///     rows: 2;
+            ///     first_column: 1;
+            ///     items: [
+            ///                      text("1,0"), text("2,0"),
+            ///         text("0,1"), text("1,1"), text("2,1")
+            ///     ];
+            /// };
+            /// ```
+            /// Produces a 3x2 grid with an empty first cell:
+            ///
+            /// ```text
+            ///     | 1,0 | 2,0
+            /// ----|-----|----
+            /// 0,1 | 1,1 | 2,1
+            /// ```
+            index as first_column = 0;
 
-        /// Space in-between items.
-        spacing -> grid_spacing: 0.0;
+            /// Space in-between items.
+            grid_spacing as spacing = 0.0;
 
-        /// Margin around all items.
-        padding -> margin;
+            /// Margin around all items.
+            margin as padding;
+        }
     }
 
     /// New uniform grid layout.
     #[inline]
-    fn new_child(items, columns, rows, first_column, spacing) -> impl UiNode {
+    fn new_child(
+        items: impl WidgetList,
+        columns: impl IntoVar<usize>,
+        rows: impl IntoVar<usize>,
+        first_column: impl IntoVar<usize>,
+        spacing: impl IntoVar<GridSpacing>,
+    ) -> impl UiNode {
         UniformGridNode {
-            children: items.unwrap(),
+            children: items,
 
-            columns: columns.unwrap().into_local(),
-            rows: rows.unwrap().into_local(),
-            first_column: first_column.unwrap().into_local(),
-            spacing: spacing.unwrap().into_local(),
+            columns: columns.into_local(),
+            rows: rows.into_local(),
+            first_column: first_column.into_local(),
+            spacing: spacing.into_local(),
 
-            cells_iter: CellsIter::default()
+            cells_iter: CellsIter::default(),
         }
     }
 }

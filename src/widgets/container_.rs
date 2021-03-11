@@ -1,23 +1,25 @@
 use crate::prelude::new_widget::*;
 
-widget! {
-    /// Base single content container.
-    pub container;
+/// Base single content container.
+#[widget($crate::widgets::container)]
+pub mod container {
+    use super::*;
 
-    default_child {
-        /// Content UI.
-        content -> widget_child: required!;
-        /// Content margin.
-        padding -> margin;
-        /// Content alignment.
-        content_align -> align: Alignment::CENTER;
-        /// Content overflow clipping.
-        clip_to_bounds;
+    properties! {
+        child {
+            /// Content UI.
+            widget_child as content = required!;
+            /// Content margin.
+            margin as padding;
+            /// Content alignment.
+            align as content_align = Alignment::CENTER;
+            /// Content overflow clipping.
+            clip_to_bounds;
+        }
     }
 
-    /// `content.0` is the new child.
     #[inline]
-    fn new_child(content) -> impl UiNode {
-        content.unwrap()
+    fn new_child(content: impl UiNode) -> impl UiNode {
+        content
     }
 }

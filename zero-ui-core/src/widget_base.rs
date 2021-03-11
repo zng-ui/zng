@@ -4,7 +4,7 @@ use crate::context::{state_key, LayoutContext, LazyStateMap, WidgetContext};
 use crate::render::{FrameBuilder, FrameUpdate, WidgetInfo, WidgetTransformKey};
 use crate::units::LayoutSize;
 use crate::var::{context_var, IntoVar, VarLocal, Vars};
-use crate::{impl_ui_node, property, widget_mixin, widget_mixin2, NilUiNode, UiNode, Widget, WidgetId};
+use crate::{impl_ui_node, property, widget_mixin, NilUiNode, UiNode, Widget, WidgetId};
 
 #[cfg(debug_assertions)]
 use crate::units::PixelGridExt;
@@ -21,23 +21,9 @@ use crate::units::PixelGridExt;
 #[property(capture_only)]
 pub fn widget_id(id: WidgetId) -> ! {}
 
-widget_mixin! {
-    /// Mix-in inherited implicitly by all [widgets](widget!).
-    pub implicit_mixin;
-
-    default {
-        /// Widget id. Set to  a [unique id](WidgetId::new_unique()) by default.
-        id -> widget_id: WidgetId::new_unique();
-
-        /// If events are enabled in the widget and descendants, `true` by default.
-        enabled;
-    }
-}
-
-// TODO: Change name to implicit_mixin when the new widget_mixin is completed.
 /// Mix-in inherited implicitly by all [widgets](widget!).
-#[widget_mixin2($crate::widget_base::implicit_mixin2)]
-pub mod implicit_mixin2 {
+#[widget_mixin($crate::widget_base::implicit_mixin)]
+pub mod implicit_mixin {
     use super::{enabled, widget_id, WidgetId};
 
     properties! {
@@ -63,18 +49,13 @@ pub fn default_widget_new_child() -> impl UiNode {
 
 /// This is called by the default widgets `new` function.
 ///
-/// See [`widget!`](crate::widget) for more details.
+/// See [`widget`](crate::widget) for more details.
 ///
 /// A new widget context is introduced by this function. `child` is wrapped in a node that calls
 /// [`WidgetContext::widget_context`](crate::context::WidgetContext::widget_context) and
 /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
 #[inline]
-pub fn default_widget_new(child: impl UiNode, id_args: impl widget_id::Args) -> impl Widget {
-    default_widget_new2(child, id_args.unwrap())
-}
-// TODO replace to default_widget_new with this when old widget macro is removed.
-#[inline]
-pub fn default_widget_new2(child: impl UiNode, id: WidgetId) -> impl Widget {
+pub fn default_widget_new(child: impl UiNode, id: WidgetId) -> impl Widget {
     WidgetNode {
         id,
         transform_key: WidgetTransformKey::new_unique(),

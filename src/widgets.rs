@@ -27,5 +27,5 @@ pub use window_::*;
 ///
 /// You can use this to shape a custom widget that will only
 /// be used once. Instead of declaring a new widget type.
-#[crate::core::widget2($crate::widgets::blank)]
+#[crate::core::widget($crate::widgets::blank)]
 pub mod blank {}

@@ -3,33 +3,34 @@
 use crate::prelude::new_widget::*;
 use crate::properties::text_theme::*;
 
-widget! {
-    /// A configured [`text`](../fn.text.html).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use zero_ui::prelude::text;
-    ///
-    /// let hello_txt = text! {
-    ///     font_family: "Arial";
-    ///     font_size: 18;
-    ///     text: "Hello!";
-    /// };
-    /// ```
-    /// # `text()`
-    ///
-    /// If you don't need to configure the text, you can just use the function [`text`](../fn.text.html).
-    pub text;
+#[widget($crate::widgets::text)]
+/// A configured [`text`](../fn.text.html).
+///
+/// # Example
+///
+/// ```
+/// use zero_ui::prelude::text;
+///
+/// let hello_txt = text! {
+///     font_family: "Arial";
+///     font_size: 18;
+///     text: "Hello!";
+/// };
+/// ```
+/// # `text()`
+///
+/// If you don't need to configure the text, you can just use the function [`text`](../fn.text.html).
+pub mod text {
+    use super::*;
 
-    default_child {
-        /// The [`Text`](crate::core::types::Text) value.
-        ///
-        /// Set to an empty string (`""`).
-        text -> text_value: "";
-    }
+    properties! {
+        child {
+            /// The [`Text`](crate::core::types::Text) value.
+            ///
+            /// Set to an empty string (`""`).
+            text_value as text = "";
+        }
 
-    default {
         /// The text font. If not set inherits the `font_family` from the parent widget.
         font_family;
         /// The font style. If not set inherits the `font_style` from the parent widget.
@@ -41,15 +42,14 @@ widget! {
         /// The font size. If not set inherits the `font_size` from the parent widget.
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
-        color -> text_color;
+        text_color as color ;
         /// Height of each text line. If not set inherits the `line_height` from the parent widget.
         line_height;
     }
 
-    /// Creates a [`text`](../fn.text.html).
     #[inline]
-    fn new_child(text) -> impl UiNode {
-        TextNode::new(text.unwrap().into_var())
+    fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
+        TextNode::new(text.into_var())
     }
 }
 
@@ -85,16 +85,19 @@ pub fn text(text: impl IntoVar<Text> + 'static) -> impl Widget {
     }
 }
 
-widget! {
-    strong;
+#[widget($crate::widgets::strong)]
+mod strong {
+    use super::*;
 
-    default_child {
-        text -> text_value;
+    properties! {
+        child {
+            text_value as text;
+        }
     }
 
     #[inline]
-    fn new_child(text) -> impl UiNode {
-        let text = TextNode::new(text.unwrap().into_var());
+    fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
+        let text = TextNode::new(text.into_var());
         font_weight(text, FontWeight::BOLD)
     }
 }
@@ -108,16 +111,19 @@ pub fn strong(text: impl IntoVar<Text> + 'static) -> impl Widget {
     strong! { text; }
 }
 
-widget! {
-    em;
+#[widget($crate::widgets::em)]
+mod em {
+    use super::*;
 
-    default_child {
-        text -> text_value;
+    properties! {
+        child {
+            text_value as text;
+        }
     }
 
     #[inline]
-    fn new_child(text) -> impl UiNode {
-        let text = TextNode::new(text.unwrap().into_var());
+    fn new_child(text: impl IntoVar<Text>) -> impl UiNode {
+        let text = TextNode::new(text.into_var());
         font_style(text, FontStyle::Italic)
     }
 }

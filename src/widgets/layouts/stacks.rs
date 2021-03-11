@@ -129,76 +129,80 @@ impl StackDimension for HorizontalD {
     }
 }
 
-widget! {
-    /// Horizontal stack layout.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use zero_ui::prelude::*;
-    /// let text = v_stack! {
-    ///     spacing: 5.0;
-    ///     items: [
-    ///         text("1. Hello"),
-    ///         text("2. World"),
-    ///     ];
-    /// };
-    /// ```
-    ///
-    /// ## `h_stack()`
-    ///
-    /// If you only want to set the `items` property you can use the [`h_stack`](function@h_stack) shortcut function.
-    pub h_stack;
+/// Horizontal stack layout.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// let text = v_stack! {
+///     spacing: 5.0;
+///     items: [
+///         text("1. Hello"),
+///         text("2. World"),
+///     ];
+/// };
+/// ```
+///
+/// ## `h_stack()`
+///
+/// If you only want to set the `items` property you can use the [`h_stack`](function@h_stack) shortcut function.
+#[widget($crate::widgets::layouts::h_stack)]
+pub mod h_stack {
+    use super::*;
 
-    default_child {
-        /// Space in-between items.
-        spacing: 0.0;
-        /// Widget items.
-        items -> widget_children: ();
-        /// Items margin.
-        padding -> margin;
+    properties! {
+        child {
+            /// Space in-between items.
+            spacing = 0.0;
+            /// Widget items.
+            widget_children as items = ();
+            /// Items margin.
+            margin as padding;
+        }
     }
 
-    /// New stack layout.
     #[inline]
-    fn new_child(items, spacing) -> impl UiNode {
-        StackNode::new(items.unwrap(), spacing.unwrap().into_local(), HorizontalD)
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
+        StackNode::new(items, spacing.into_local(), HorizontalD)
     }
 }
 
-widget! {
-    /// Vertical stack layout.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use zero_ui::prelude::*;
-    /// let text = h_stack! {
-    ///     spacing: 5.0;
-    ///     items: [
-    ///         text("Hello"),
-    ///         text("World"),
-    ///     ];
-    /// };
-    /// ```
-    /// ## `v_stack()`
-    ///
-    /// If you only want to set the `items` property you can use the [`v_stack`](function@v_stack) shortcut function.
-    pub v_stack;
+/// Vertical stack layout.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// let text = h_stack! {
+///     spacing: 5.0;
+///     items: [
+///         text("Hello"),
+///         text("World"),
+///     ];
+/// };
+/// ```
+/// ## `v_stack()`
+///
+/// If you only want to set the `items` property you can use the [`v_stack`](function@v_stack) shortcut function.
+#[widget($crate::widgets::layouts::v_stack)]
+pub mod v_stack {
+    use super::*;
 
-    default_child {
-        /// Space in-between items.
-        spacing: 0.0;
-        /// Widget items.
-        items -> widget_children: ();
-        /// Items margin.
-        padding -> margin;
+    properties! {
+        child {
+            /// Space in-between items.
+            spacing = 0.0;
+            /// Widget items.
+            widget_children as items = ();
+            /// Items margin.
+            margin as padding;
+        }
     }
 
-    /// New stack layout.
     #[inline]
-    fn new_child(items, spacing) -> impl UiNode {
-        StackNode::new(items.unwrap(), spacing.unwrap().into_local(), VerticalD)
+    fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
+        StackNode::new(items, spacing.into_local(), VerticalD)
     }
 }
 
@@ -252,38 +256,40 @@ struct ZStackNode<C: UiNodeList> {
 #[impl_ui_node(children)]
 impl<C: UiNodeList> UiNode for ZStackNode<C> {}
 
-widget! {
-    /// Layering stack layout.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # use zero_ui::prelude::*;
-    /// let text = z_stack! {
-    ///     padding: 5.0;
-    ///     items: [
-    ///         text("under"),
-    ///         text("over"),
-    ///     ];
-    /// };
-    /// ```
-    ///
-    /// ## `z_stack()`
-    ///
-    /// If you only want to set the `items` property you can use the [`z_stack`](function@z_stack) shortcut function.
-    pub z_stack;
+/// Layering stack layout.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui::prelude::*;
+/// let text = z_stack! {
+///     padding: 5.0;
+///     items: [
+///         text("under"),
+///         text("over"),
+///     ];
+/// };
+/// ```
+///
+/// ## `z_stack()`
+///
+/// If you only want to set the `items` property you can use the [`z_stack`](function@z_stack) shortcut function.
+#[widget($crate::widgets::layouts::z_stack)]
+pub mod z_stack {
+    use super::*;
 
-    default_child {
-        /// UiNode items.
-        items -> node_children: ();
-        /// Items margin.
-        padding -> margin;
+    properties! {
+        child {
+            /// UiNode items.
+            node_children as items = ();
+            /// Items margin.
+            margin as padding;
+        }
     }
 
-    fn new_child(items) -> impl UiNode {
-        ZStackNode {
-            children: items.unwrap(),
-        }
+    #[inline]
+    fn new_child(items: impl UiNodeList) -> impl UiNode {
+        ZStackNode { children: items }
     }
 }
 

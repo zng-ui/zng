@@ -6,39 +6,42 @@ use crate::prelude::new_widget::*;
 #[allow(unused)] // it is used, and widget! will be deleted soon.
 use crate::core::widget_base::enabled;
 
-widget! {
-    /// A window container.
-    ///
-    /// The instance type is [`Window`], witch can be given to the [`Windows`](crate::core::window::Windows) service
-    /// to open a system window that is kept in sync with the window properties set in the widget.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use zero_ui::prelude::*;
-    ///
-    /// App::default().run_window(|_| {
-    ///     window! {
-    ///         title: "Window 1";
-    ///         content: text("Window 1");
-    ///     }
-    /// })
-    /// ```
-    /// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
-    pub window: container;
+/// A window container.
+///
+/// The instance type is [`Window`], witch can be given to the [`Windows`](crate::core::window::Windows) service
+/// to open a system window that is kept in sync with the window properties set in the widget.
+///
+/// # Example
+///
+/// ```no_run
+/// use zero_ui::prelude::*;
+///
+/// App::default().run_window(|_| {
+///     window! {
+///         title: "Window 1";
+///         content: text("Window 1");
+///     }
+/// })
+/// ```
+/// See [`run_window`](crate::core::window::AppRunWindow::run_window) for more details.
+#[widget($crate::widgets::window)]
+pub mod window {
+    use super::*;
 
-    default {
+    inherit!(container);
+
+    properties! {
         /// Window title.
-        title: "";
+        title = "";
 
-        start_position: StartPosition::Default;
+        start_position = StartPosition::Default;
 
         /// Window position (left, top).
         ///
         ///  If set to a variable it is kept in sync.
         ///
         /// Set to [`f32::NAN`](f32::NAN) to not give an initial position.
-        position: {
+        position = {
             // use shared var in debug to allow inspecting the value.
             #[cfg(debug_assertions)]
             let r = crate::core::var::var(crate::core::units::Point::new(f32::NAN, f32::NAN));
@@ -54,7 +57,7 @@ widget! {
         /// If set to a variable it is kept in sync.
         ///
         /// Does not include the OS window border.
-        size: {
+        size = {
             #[cfg(debug_assertions)]
             let r = crate::core::var::var(crate::core::units::Size::new(800.0, 600.0));
 
@@ -67,62 +70,72 @@ widget! {
         /// Window auto size config.
         ///
         /// If enabled overwrites the other sizes with the content size.
-        auto_size: false;
+        auto_size = false;
 
         /// Window clear color.
         ///
         /// Changes to this property are ignored, only the initial value is used.
         ///
         /// Color filters applied to the window don't affect this color.
-        clear_color -> background_color: rgb(0.1, 0.1, 0.1);
+        background_color as clear_color = rgb(0.1, 0.1, 0.1);
 
         /// Window background color.
-        background_color: rgb(0.1, 0.1, 0.1);
+        background_color = rgb(0.1, 0.1, 0.1);
 
-        id: unset!;
+        id = unset!;
         /// Unique identifier of the window root widget.
-        root_id -> id: WidgetId::new_unique();
+        id as root_id = WidgetId::new_unique();
 
         /// Windows are focus scopes by default.
-        focus_scope: true;
+        focus_scope = true;
 
         /// Windows cycle TAB navigation by default.
-        tab_nav: TabNav::Cycle;
+        tab_nav = TabNav::Cycle;
 
         /// Windows cycle arrow navigation by default.
-        directional_nav: DirectionalNav::Cycle;
+        directional_nav = DirectionalNav::Cycle;
 
         /// Windows remember the last focused widget and return focus when activated again.
-        focus_scope_behavior: FocusScopeOnFocus::LastFocused;
+        focus_scope_behavior = FocusScopeOnFocus::LastFocused;
 
         /// Test inspector.
-        on_shortcut_inspect -> on_shortcut: print_frame_inspector();
+        on_shortcut as on_shortcut_inspect = print_frame_inspector();
 
         /// If the user can resize the window.
         ///
         /// Not that the window can still change size, this only disables
         /// the OS window frame controls that change size.
-        resizable -> enabled: true;
+        enabled as resizable = true;
 
         /// If the window is visible.
-        visibility -> enabled: true;
+        enabled as visibility = true;
     }
 
-    /// Manually initializes a new [`window`](self).
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    fn new(child, root_id, title, start_position, position, size, auto_size, resizable, clear_color, visibility) -> Window {
+    fn new(
+        child: impl UiNode,
+        root_id: WidgetId,
+        title: impl IntoVar<Text>,
+        start_position: impl Into<StartPosition>,
+        position: impl IntoVar<Point>,
+        size: impl IntoVar<Size>,
+        auto_size: impl IntoVar<AutoSize>,
+        resizable: impl IntoVar<bool>,
+        clear_color: impl IntoVar<Rgba>,
+        visible: impl IntoVar<bool>,
+    ) -> Window {
         Window::new(
-            root_id.unwrap(),
-            title.unwrap(),
-            start_position.unwrap(),
-            position.unwrap(),
-            size.unwrap(),
-            auto_size.unwrap(),
-            resizable.unwrap(),
-            clear_color.unwrap(),
-            visibility.unwrap(),
-            child
+            root_id,
+            title,
+            start_position,
+            position,
+            size,
+            auto_size,
+            resizable,
+            clear_color,
+            visibility,
+            child,
         )
     }
 }

@@ -1,1230 +1,1143 @@
+use std::collections::{HashMap, HashSet};
+
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
-use syn::parse_macro_input;
+use syn::{
+    braced,
+    parse::{discouraged::Speculative, Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    spanned::Spanned,
+    token, Attribute, Expr, FieldValue, Ident, LitBool, Path, Token,
+};
 
-/// `widget_new!` expansion.
+use crate::util::{self, parse_all, parse_outer_attrs, tokens_to_ident_str, Attributes, ErrorRecoverable, Errors};
+
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = parse_macro_input!(input as input::WidgetNewInput);
-    let output = analysis::generate(input);
-    let output_stream = output.to_token_stream();
-    output_stream.into()
-}
-
-mod input {
-    pub use crate::widget_stage3::input::{
-        InheritedProperty, InheritedWhen, PropertyAssign, PropertyBlock, PropertyValue as InputPropertyValue,
-    };
-    use proc_macro2::Ident;
-    use syn::{
-        parse::{Parse, ParseStream},
-        punctuated::Punctuated,
-        Error, Expr, Token,
+    let Input { widget_data, user_input } = match syn::parse::<Input>(input) {
+        Ok(i) => i,
+        Err(e) => non_user_error!(e),
     };
 
-    mod keyword {
-        pub use crate::widget_stage3::input::keyword::{default_child, new, new_child, when, whens};
-        syn::custom_keyword!(user_input);
-    }
+    let module = widget_data.module;
 
-    pub struct WidgetNewInput {
-        pub name: Ident,
-        pub default: Punctuated<InheritedProperty, Token![,]>,
-        pub default_child: Punctuated<InheritedProperty, Token![,]>,
-        pub whens: Punctuated<InheritedWhen, Token![,]>,
-        pub new: Punctuated<Ident, Token![,]>,
-        pub new_child: Punctuated<Ident, Token![,]>,
-        pub user_input: UserInput,
-    }
-    impl Parse for WidgetNewInput {
-        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            fn parse_block<T: Parse, R: Parse>(input: ParseStream) -> Punctuated<R, Token![,]> {
-                input.parse::<T>().unwrap_or_else(|e| non_user_error!(e));
-                let inner = non_user_braced!(input);
-                Punctuated::parse_terminated(&inner).unwrap_or_else(|e| non_user_error!(e))
+    let mut errors = user_input.errors;
+
+    let child_properties: HashSet<_> = widget_data.properties_child.iter().map(|p| &p.ident).collect();
+
+    let inherited_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .map(|p| &p.ident)
+        .collect();
+
+    // properties that must be assigned by the user.
+    let required_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .filter(|p| p.required)
+        .map(|p| &p.ident)
+        .collect();
+    // properties that have a default value.
+    let default_properties: HashSet<_> = widget_data
+        .properties_child
+        .iter()
+        .chain(widget_data.properties.iter())
+        .filter(|p| p.default)
+        .map(|p| &p.ident)
+        .collect();
+    // properties that are captured in new_child or new.
+    let captured_properties: HashSet<_> = widget_data.new_child.iter().chain(widget_data.new.iter()).collect();
+
+    // inherited properties unset by the user.
+    let mut unset_properties = HashSet::new();
+
+    // properties user assigned with `special!` values (valid and invalid).
+    let mut user_properties = HashSet::new();
+
+    // user assigns with valid values.
+    let user_properties: Vec<_> = user_input
+        .properties
+        .iter()
+        .filter(|up| {
+            // if already (un)set by the user.
+            if !user_properties.insert(&up.path) {
+                let p_name = util::display_path(&up.path);
+                errors.push(format_args!("property `{}` already set", p_name), up.path.span());
+                return false;
             }
 
-            Ok(WidgetNewInput {
-                name: input.parse().unwrap_or_else(|e| non_user_error!(e)),
-                default: parse_block::<Token![default], InheritedProperty>(&input),
-                default_child: parse_block::<keyword::default_child, InheritedProperty>(&input),
-                whens: parse_block::<keyword::whens, InheritedWhen>(&input),
-                new: parse_block::<keyword::new, Ident>(input),
-                new_child: parse_block::<keyword::new_child, Ident>(input),
-                user_input: input.parse()?,
-            })
-        }
-    }
-
-    pub struct UserInput {
-        pub items: Vec<UserInputItem>,
-    }
-    impl Parse for UserInput {
-        fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-            input.parse::<keyword::user_input>().unwrap_or_else(|e| non_user_error!(e));
-            let input = non_user_braced!(input);
-
-            let mut items = vec![];
-
-            while !input.is_empty() {
-                items.push(input.parse()?);
-            }
-
-            Ok(UserInput { items })
-        }
-    }
-
-    pub enum UserInputItem {
-        Property(PropertyAssign),
-        ShortProperty(ShortPropertyAssign),
-        When(WgtItemWhen),
-        MetaProperty(MetaProperty),
-    }
-    impl Parse for UserInputItem {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            if input.peek2(Token![:]) {
-                Ok(UserInputItem::Property(input.parse()?))
-            } else if input.peek2(Token![;]) {
-                Ok(UserInputItem::ShortProperty(input.parse()?))
-            } else if input.peek(keyword::when) {
-                Ok(UserInputItem::When(input.parse()?))
-            } else if input.peek(Token![@]) {
-                Ok(UserInputItem::MetaProperty(input.parse()?))
-            } else {
-                Err(Error::new(input.span(), "expected property assign or when block"))
-            }
-        }
-    }
-
-    pub struct MetaProperty {
-        pub at_token: Token![@],
-        pub ident: Ident,
-        pub colon_token: Token![:],
-        pub value: Box<Expr>,
-        pub semi_token: Token![;],
-    }
-    impl Parse for MetaProperty {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            Ok(MetaProperty {
-                at_token: input.parse()?,
-                ident: input.parse()?,
-                colon_token: input.parse()?,
-                value: input.parse()?,
-                semi_token: input.parse()?,
-            })
-        }
-    }
-
-    pub struct WgtItemWhen {
-        pub when_token: keyword::when,
-        pub condition: Box<Expr>,
-        pub block: WhenBlock,
-    }
-    impl Parse for WgtItemWhen {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            Ok(WgtItemWhen {
-                when_token: input.parse()?,
-                condition: Box::new(Expr::parse_without_eager_brace(input)?),
-                block: input.parse()?,
-            })
-        }
-    }
-    pub type WhenBlock = PropertyBlock<WhenPropertyAssign>;
-
-    pub enum WhenPropertyAssign {
-        Assign(PropertyAssign),
-        Short(ShortPropertyAssign),
-    }
-
-    impl Parse for WhenPropertyAssign {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            if input.peek2(Token![:]) {
-                Ok(WhenPropertyAssign::Assign(input.parse()?))
-            } else if input.peek2(Token![;]) {
-                Ok(WhenPropertyAssign::Short(input.parse()?))
-            } else {
-                Err(Error::new(input.span(), "expected property assign"))
-            }
-        }
-    }
-
-    pub struct ShortPropertyAssign {
-        pub ident: Ident,
-        pub semi_token: Token![;],
-    }
-    impl Parse for ShortPropertyAssign {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            Ok(ShortPropertyAssign {
-                ident: input.parse()?,
-                semi_token: input.parse()?,
-            })
-        }
-    }
-}
-
-mod analysis {
-    use super::{
-        input::{self, InputPropertyValue, PropertyBlock, UserInputItem, WidgetNewInput},
-        output::*,
-    };
-    use crate::widget_stage3::input::WgtItemWhen;
-    use crate::{property::Prefix, util::Errors, widget_stage3::analysis::*};
-    use proc_macro2::{Ident, Span};
-    use std::collections::{HashMap, HashSet};
-    use syn::{parse_quote, spanned::Spanned};
-
-    pub fn generate(input: WidgetNewInput) -> WidgetNewOutput {
-        let mut properties = vec![];
-        let mut whens = vec![];
-        let mut meta_properties = vec![];
-        for item in input.user_input.items {
-            match item {
-                UserInputItem::Property(p) => properties.push(p),
-                UserInputItem::ShortProperty(p) => properties.push(p.into()),
-                UserInputItem::When(w) => whens.push(w.into()),
-                UserInputItem::MetaProperty(m) => meta_properties.push(m),
-            }
-        }
-
-        let mut errors = Errors::default();
-
-        validate_property_assigns(&mut properties, &mut errors);
-        validate_whens(&mut whens, &mut errors);
-
-        // properties that are used in the new_child or new functions.
-        let mut captured_properties = HashSet::new();
-        for property in input.new.iter().chain(input.new_child.iter()) {
-            captured_properties.insert(property.clone());
-        }
-
-        struct UserPropsIndex {
-            binding: usize,
-            assign: Option<usize>,
-        }
-        let mut user_properties = HashMap::new();
-        let mut args_bindings = vec![];
-        let mut unset_properties = HashMap::new();
-        let mut mixed_props_assigns = vec![];
-
-        #[derive(Clone, Copy)]
-        enum AssignTarget {
-            Child,
-            Widget,
-        }
-
-        // process user properties.
-        for property in properties {
-            let is_captured = captured_properties.contains(&property.ident);
-
-            let value = match property.value {
-                InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
-                InputPropertyValue::Args(a) => PropertyValue::Args(a),
-                InputPropertyValue::Unset(u) => {
-                    if is_captured {
-                        errors.push(format!("cannot unset captured property `{}`", property.ident), u.span())
+            if let PropertyValue::Special(sp, _) = &up.value {
+                if sp == "unset" {
+                    if let Some(maybe_inherited) = up.path.get_ident() {
+                        if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
+                            errors.push(
+                                format_args!("cannot unset required property `{}`", maybe_inherited),
+                                maybe_inherited.span(),
+                            );
+                        } else if !default_properties.contains(maybe_inherited) {
+                            errors.push(
+                                format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
+                                maybe_inherited.span(),
+                            );
+                        } else {
+                            unset_properties.insert(maybe_inherited);
+                        }
                     } else {
-                        unset_properties.insert(property.ident.clone(), u);
+                        errors.push(
+                            format_args!(
+                                "cannot unset `{}` because it is not set by the widget",
+                                util::display_path(&up.path)
+                            ),
+                            up.path.span(),
+                        );
                     }
-                    continue;
+                } else {
+                    errors.push(format_args!("unknown value `{}!`", sp), sp.span());
                 }
+
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    let unset_properties = unset_properties;
+
+    // inherited properties that are set to a value or unset by the user.
+    let overriden_properties: HashSet<_> = user_properties
+        .iter()
+        .filter_map(|p| p.path.get_ident())
+        .filter(|p_id| inherited_properties.contains(p_id))
+        .chain(unset_properties.iter().copied())
+        .collect();
+
+    // all widget properties that will be set (property_path, (property_var, cfg)).
+    let mut wgt_properties = HashMap::<syn::Path, (Ident, TokenStream)>::new();
+
+    let mut property_inits = TokenStream::default();
+    let mut child_prop_set_calls = vec![];
+    let mut prop_set_calls = vec![];
+
+    // for each inherited property that has a default value and is not overridden by the user:
+    for (ip, is_child) in widget_data
+        .properties_child
+        .iter()
+        .map(|ip| (ip, true))
+        .chain(widget_data.properties.iter().map(|ip| (ip, true)))
+        .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
+    {
+        let ident = &ip.ident;
+        let p_default_fn_ident = ident!("__d_{}", ident);
+        let p_var_ident = ident!("__{}", ident);
+        let cfg = &ip.cfg;
+
+        wgt_properties.insert(parse_quote! { #ident }, (p_var_ident.clone(), cfg.clone()));
+
+        // generate call to default args.
+        property_inits.extend(quote! {
+            #cfg
+            let #p_var_ident = #module::#p_default_fn_ident();
+        });
+
+        if captured_properties.contains(ident) {
+            continue; // we don't set captured properties.
+        }
+
+        let p_mod_ident = ident!("__p_{}", ident);
+        // register data for the set call generation.
+        let property_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
+        #[cfg(debug_assertions)]
+        property_set_calls.push((
+            quote! { #module::#p_mod_ident },
+            p_var_ident,
+            ip.ident.to_string(),
+            {
+                let p_source_loc_ident = ident!("__loc_{}", ip.ident);
+                quote! { #module::#p_source_loc_ident() }
+            },
+            cfg.clone(),
+            /*user_assigned: */ false,
+            Span::call_site(),
+            Span::call_site(),
+        ));
+        #[cfg(not(debug_assertions))]
+        property_set_calls.push((
+            quote! { #module::#p_mod_ident },
+            p_var_ident,
+            ip.ident.to_string(),
+            cfg.clone(),
+            Span::call_site(),
+            Span::call_site(),
+        ));
+    }
+
+    // for each property assigned in the widget instantiation call (excluding when blocks and `special!` values).
+    for up in &user_properties {
+        let p_name = util::display_path(&up.path);
+
+        let p_mod = match up.path.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                let p_ident = ident!("__p_{}", maybe_inherited);
+                quote! { #module::#p_ident }
+            }
+            _ => up.path.to_token_stream(),
+        };
+        let p_var_ident = ident!("__u_{}", p_name.replace("::", "_"));
+        let attrs = Attributes::new(up.attrs.clone());
+        let cfg = attrs.cfg;
+        let lints = attrs.lints;
+
+        wgt_properties.insert(up.path.clone(), (p_var_ident.clone(), cfg.to_token_stream()));
+
+        let init_expr = up
+            .value
+            .expr_tokens(&p_mod, up.path.span(), up.value_span)
+            .unwrap_or_else(|e| non_user_error!(e));
+        property_inits.extend(quote! {
+            #cfg
+            #(#lints)*
+            let #p_var_ident = #init_expr;
+        });
+
+        if let Some(maybe_inherited) = up.path.get_ident() {
+            if captured_properties.contains(maybe_inherited) {
+                continue;
+            }
+        }
+        let prop_calls = match up.path.get_ident() {
+            Some(maybe_child) if child_properties.contains(maybe_child) => &mut child_prop_set_calls,
+            _ => &mut prop_set_calls,
+        };
+        // register data for the set call generation.
+        #[cfg(debug_assertions)]
+        prop_calls.push((
+            p_mod.to_token_stream(),
+            p_var_ident,
+            p_name,
+            quote_spanned! {up.path.span()=>
+                #module::__core::source_location!()
+            },
+            cfg.to_token_stream(),
+            /*user_assigned: */ true,
+            up.path.span(),
+            up.value_span,
+        ));
+        #[cfg(not(debug_assertions))]
+        prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream(), up.path.span()));
+    }
+
+    // validate required properties.
+    let mut missing_required = HashSet::new();
+    for required in required_properties.into_iter().chain(captured_properties) {
+        if !wgt_properties.contains_key(&parse_quote! { #required }) {
+            missing_required.insert(required);
+            errors.push(format!("missing required property `{}`", required), Span::call_site());
+        }
+    }
+    let missing_required = missing_required;
+
+    // generate whens.
+    let mut when_inits = TokenStream::default();
+    // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
+    let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
+    for iw in widget_data.whens {
+        if iw.inputs.iter().any(|p| unset_properties.contains(p)) {
+            // deactivate when block because user unset one of the inputs.
+            continue;
+        }
+
+        let assigns: Vec<_> = iw.assigns.into_iter().filter(|a| !unset_properties.contains(&a.property)).collect();
+        if assigns.is_empty() {
+            // deactivate when block because user unset all of the properties assigned.
+            continue;
+        }
+
+        let ident = iw.ident;
+        let cfg = iw.cfg;
+
+        // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
+        let len = iw.inputs.len();
+        let inputs: Vec<_> = iw
+            .inputs
+            .into_iter()
+            .filter_map(|id| {
+                let r = wgt_properties.get(&parse_quote! { #id }).map(|(id, _)| id);
+                if r.is_none() && !missing_required.contains(&id) {
+                    non_user_error!("inherited when condition uses property not set, not required and not unset");
+                }
+                r
+            })
+            .collect();
+        if inputs.len() != len {
+            // one of the required properties was not set, an error for this is added elsewhere.
+            continue;
+        }
+        let c_ident = ident!("__c_{}", ident);
+        when_inits.extend(quote! {
+            #cfg
+            let #c_ident = #module::#ident(#(&#inputs),*);
+        });
+
+        // register when for each property assigned.
+        for BuiltWhenAssign { property, cfg, value_fn } in assigns {
+            let value = quote! { #module::#value_fn() };
+            let p_whens = when_assigns.entry(parse_quote! { #property }).or_default();
+            p_whens.push((cfg, c_ident.clone(), value_fn, value));
+        }
+    }
+
+    // map of [property_without_value => combined_cfg_for_default_init]
+    let mut user_when_properties: HashMap<Path, Option<TokenStream>> = HashMap::new();
+
+    for (i, w) in user_input.whens.into_iter().enumerate() {
+        // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
+        let condition = match w.expand_condition() {
+            Ok(c) => c,
+            Err(e) => {
+                errors.push_syn(e);
+                continue;
+            }
+        };
+        let inputs = condition.properties;
+        let condition = condition.expr;
+
+        let ident = w.make_ident("uw", i);
+
+        // validate/separate attributes
+        let attrs = Attributes::new(w.attrs);
+        for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+            errors.push("only `cfg` and lint attributes are allowed in when blocks", invalid_attr.span());
+        }
+        let cfg = attrs.cfg;
+        let lints = attrs.lints;
+
+        // for each property in inputs and assigns.
+        for (property, p_attrs) in inputs
+            .keys()
+            .map(|(p, _)| (p, &[][..]))
+            .chain(w.assigns.iter().map(|a| (&a.path, &a.attrs[..])))
+        {
+            // if property not set in the widget.
+            if !wgt_properties.contains_key(property) {
+                match property.get_ident() {
+                    // if property was `unset!`.
+                    Some(maybe_unset) if unset_properties.contains(maybe_unset) => {
+                        errors.push(format!("cannot use unset property `{}`", maybe_unset), maybe_unset.span());
+                    }
+                    // if property maybe has a default value.
+                    _ => {
+                        let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
+                        let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
+                        match user_when_properties.entry(property.clone()) {
+                            std::collections::hash_map::Entry::Occupied(mut e) => {
+                                let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
+                                *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
+                            }
+                            std::collections::hash_map::Entry::Vacant(e) => {
+                                e.insert(cfg);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // generate let bindings for a clone var of each property.member.
+        let mut member_vars = TokenStream::default();
+        for ((property, member), var_ident) in inputs {
+            let property_path = match property.get_ident() {
+                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                    let p_ident = ident!("__p_{}", maybe_inherited);
+                    quote! { #module::#p_ident }
+                }
+                _ => property.to_token_stream(),
             };
 
-            args_bindings.push(ArgsBinding {
-                widget: None,
-                property: property.ident.clone(),
-                value,
+            let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
+                // if is not in `wgt_properties` it must be in `user_when_properties`
+                // that will generate a __u_ variable before this binding in the final code.
+                #[cfg(debug_assertions)]
+                if !user_when_properties.contains_key(&property) {
+                    non_user_error!("");
+                }
+                ident!("__u_{}", util::path_to_ident_str(&property))
             });
 
-            if !is_captured {
-                mixed_props_assigns.push((
-                    AssignTarget::Widget,
-                    PropertyAssign {
-                        is_from_widget: false,
-                        user_assigned: true,
-                        ident: property.ident.clone(),
-                    },
-                ));
-            }
-
-            user_properties.insert(
-                property.ident,
-                UserPropsIndex {
-                    binding: args_bindings.len() - 1,
-                    assign: if is_captured { None } else { Some(mixed_props_assigns.len() - 1) },
-                },
-            );
+            member_vars.extend(quote! {
+                #[allow(non_snake_case)]
+                let #var_ident;
+                #var_ident = #module::__core::var::IntoVar::into_var(
+                    std::clone::Clone::clone(
+                        #property_path::Args::#member(&#args_ident)
+                    )
+                );
+            });
         }
 
-        let mut widget_defaults = HashSet::new();
-        let mut widget_properties = HashSet::new();
+        // generate the condition var let binding.
+        when_inits.extend(quote! {
+            #[allow(non_snake_case)]
+            #cfg
+            let #ident;
+            #cfg {
+                #ident = {
+                    #member_vars
+                    #(#lints)*
+                    #module::__core::var::expr_var!(#condition)
+                };
+            }
+        });
 
-        // process widget properties.
-        for (target, property) in input
-            .default
-            .into_iter()
-            .map(|p| (AssignTarget::Widget, p))
-            .chain(input.default_child.into_iter().map(|p| (AssignTarget::Child, p)))
-        {
-            widget_properties.insert(property.ident.clone());
+        // init assign variables
+        let mut assigns = HashSet::new();
+        for assign in w.assigns {
+            let attrs = Attributes::new(assign.attrs);
+            for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
+                errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
+            }
 
-            if let Some(&UserPropsIndex { binding: bi, assign: ai }) = user_properties.get(&property.ident) {
-                // property already has user value, just change it to be found inside widget.
-                args_bindings[bi].widget = Some(input.name.clone());
-                if let Some(i) = ai {
-                    mixed_props_assigns[i].1.is_from_widget = true;
-                    mixed_props_assigns[i].0 = target;
-                }
+            let mut skip = false;
+
+            if !assigns.insert(assign.path.clone()) {
+                errors.push(
+                    format_args!(
+                        "property `{}` already assigned in this `when` block",
+                        util::display_path(&assign.path)
+                    ),
+                    assign.path.span(),
+                );
+                skip = true;
+            }
+
+            if let PropertyValue::Special(sp, _) = &assign.value {
+                errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
+                skip = true;
+            }
+
+            if skip {
                 continue;
             }
 
-            use crate::widget_stage3::input::BuiltPropertyKind::*;
-            match property.kind {
-                Required => {
-                    if let Some(u) = unset_properties.get(&property.ident) {
-                        errors.push(format!("cannot unset required property `{}`", property.ident), u.span())
-                    } else {
-                        errors.push(format!("missing required property `{}`", property.ident), Span::call_site())
+            let assign_val_id = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
+            let cfg = util::cfg_attr_and(attrs.cfg, cfg.clone());
+            let a_lints = attrs.lints;
+
+            let (property_path, property_span, value_span) = match assign.path.get_ident() {
+                Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                    let p_ident = ident!("__p_{}", maybe_inherited);
+                    let span = maybe_inherited.span();
+                    (quote_spanned! {span=> #module::#p_ident }, span, span)
+                }
+                _ => (assign.path.to_token_stream(), assign.path.span(), assign.value_span),
+            };
+            let expr = assign
+                .value
+                .expr_tokens(&property_path, property_span, value_span)
+                .unwrap_or_else(|e| non_user_error!(e));
+
+            when_inits.extend(quote! {
+                #cfg
+                #(#lints)*
+                #(#a_lints)*
+                let #assign_val_id = #expr;
+            });
+
+            // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
+            let p_whens = when_assigns.entry(assign.path).or_default();
+            let val = assign_val_id.to_token_stream();
+            p_whens.push((cfg.to_token_stream(), ident.clone(), assign_val_id, val));
+        }
+    }
+    // properties that are only introduced in user when conditions.
+    for (p, cfg) in user_when_properties {
+        let args_ident = ident!("__u_{}", util::path_to_ident_str(&p));
+        let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
+        property_inits.extend(quote_spanned! {p.span()=>
+            let #args_ident = {
+                #p::code_gen!{
+                    if default=>
+
+                    #p::ArgsImpl::default()
+                }
+                #p::code_gen!{
+                    if !default=>
+
+                    std::compile_error!(#error)
+                }
+            };
+        });
+        let p_span = p.span();
+
+        // register data for the set call generation.
+        #[cfg(debug_assertions)]
+        prop_set_calls.push((
+            p.to_token_stream(),
+            args_ident.clone(),
+            util::display_path(&p),
+            {
+                quote_spanned! {p_span=>
+                    #module::__core::source_location!()
+                }
+            },
+            cfg.to_token_stream(),
+            /*user_assigned: */ true,
+            p.span(),
+            /*val_span: */ Span::call_site(),
+        ));
+        #[cfg(not(debug_assertions))]
+        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), Span::call_site()));
+
+        wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));
+    }
+
+    // generate property assigns.
+    let mut property_set_calls = TokenStream::default();
+
+    // node__ @ call_site
+    let node__ = ident!("node__");
+
+    for set_calls in vec![child_prop_set_calls, prop_set_calls] {
+        for set_call in &set_calls {
+            #[cfg(debug_assertions)]
+            let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
+            #[cfg(not(debug_assertions))]
+            let (p_mod, _, p_name, cfg, p_span) = set_call;
+            let capture_only_error = format!(
+                "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
+                p_name
+            );
+            property_set_calls.extend(quote_spanned! {*p_span=>
+                #cfg
+                #p_mod::code_gen!{
+                    assert !capture_only => #capture_only_error
+                }
+            })
+        }
+        for priority in &crate::property::Priority::all_settable() {
+            #[cfg(debug_assertions)]
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in &set_calls {
+                // __set @ value span
+                let set = ident_spanned!(*val_span=> "__set");
+                property_set_calls.extend(quote_spanned! {*p_span=>
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
+                    }
+                });
+            }
+            #[cfg(not(debug_assertions))]
+            for (p_mod, p_var_ident, _, cfg, p_span, val_span) in &set_calls {
+                // __set @ value span
+                let set = ident_spanned!(*val_span=> "__set");
+                property_set_calls.extend(quote_spanned! {*p_span=>
+                    #cfg
+                    #p_mod::code_gen! {
+                        set #priority, #node__, #p_mod, #p_var_ident, #set
+                    }
+                });
+            }
+        }
+    }
+    let property_set_calls = property_set_calls;
+
+    // apply the whens for each property.
+    for (property, assigns) in when_assigns {
+        let property_path = match property.get_ident() {
+            Some(maybe_inherited) if inherited_properties.contains(maybe_inherited) => {
+                let p_ident = ident!("__p_{}", maybe_inherited);
+                quote! { #module::#p_ident }
+            }
+            _ => property.to_token_stream(),
+        };
+
+        // collect assign items.
+        let mut init_members = TokenStream::default();
+        let mut conditions = Vec::with_capacity(assigns.len());
+        for (w_cfg, condition_ident, value_ident, value) in assigns {
+            if !util::token_stream_eq(value_ident.to_token_stream(), value.clone()) {
+                init_members.extend(quote! {
+                    #[allow(non_snake_case)]
+                    #w_cfg
+                    let #value_ident;
+                    #w_cfg {
+                        #value_ident = #value;
+                    }
+                });
+            }
+            conditions.push(quote! {
+                #w_cfg
+                #[allow(non_snake_case)]
+                #condition_ident => #value_ident,
+            });
+        }
+        // later conditions have priority.
+        conditions.reverse();
+
+        let (default, cfg) = wgt_properties
+            .get(&property)
+            .unwrap_or_else(|| non_user_error!("property(introduced in when?) not found"));
+        when_inits.extend(quote! {
+            #cfg
+            let #default = {
+                #init_members
+                #property_path::code_gen! {
+                    when #property_path {
+                        #(#conditions)*
+                        _ => #default,
                     }
                 }
-                Local => {}
-                Default => {
-                    if unset_properties.get(&property.ident).is_none() {
-                        widget_defaults.insert(property.ident.clone());
-                        args_bindings.push(ArgsBinding {
-                            widget: Some(input.name.clone()),
-                            property: property.ident.clone(),
-                            value: PropertyValue::Inherited,
-                        });
-                        if !captured_properties.contains(&property.ident) {
-                            mixed_props_assigns.push((
-                                target,
-                                PropertyAssign {
-                                    is_from_widget: true,
-                                    user_assigned: false,
-                                    ident: property.ident,
-                                },
-                            ));
+            };
+        });
+    }
+
+    // generate new function calls.
+    let new_child_caps = widget_data.new_child.iter().map(|p| {
+        &wgt_properties
+            .get(&parse_quote! {#p})
+            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+            .0
+    });
+    let new_caps = widget_data.new.iter().map(|p| {
+        &wgt_properties
+            .get(&parse_quote! {#p})
+            .unwrap_or_else(|| non_user_error!("captured property is unknown"))
+            .0
+    });
+    let new_child_call = quote! {
+        let node__ = #module::__new_child(#(#new_child_caps),*);
+    };
+    let new_call = quote! {
+        #module::__new(node__, #(#new_caps),*)
+    };
+
+    let r = quote! {
+        {
+            #errors
+            #property_inits
+            #when_inits
+            #new_child_call
+            #property_set_calls
+            #new_call
+        }
+    };
+    r.into()
+}
+
+struct Input {
+    widget_data: WidgetData,
+    user_input: UserInput,
+}
+impl Parse for Input {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(Input {
+            widget_data: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+            // user errors go into UserInput::errors field.
+            user_input: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+        })
+    }
+}
+
+struct WidgetData {
+    module: TokenStream,
+    properties_child: Vec<BuiltProperty>,
+    properties: Vec<BuiltProperty>,
+    whens: Vec<BuiltWhen>,
+    new_child: Vec<Ident>,
+    new: Vec<Ident>,
+}
+impl Parse for WidgetData {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let input = non_user_braced!(input, "widget");
+        let r = Ok(Self {
+            module: non_user_braced!(&input, "module").parse().unwrap(),
+            properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
+            properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
+            whens: parse_all(&non_user_braced!(&input, "whens")).unwrap_or_else(|e| non_user_error!(e)),
+            new_child: parse_all(&non_user_braced!(&input, "new_child")).unwrap_or_else(|e| non_user_error!(e)),
+            new: parse_all(&non_user_braced!(&input, "new")).unwrap_or_else(|e| non_user_error!(e)),
+        });
+
+        r
+    }
+}
+
+pub struct BuiltProperty {
+    pub ident: Ident,
+    pub docs: TokenStream,
+    pub cfg: TokenStream,
+    pub default: bool,
+    pub required: bool,
+}
+impl Parse for BuiltProperty {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced!(input);
+
+        let r = Ok(BuiltProperty {
+            ident,
+            docs: non_user_braced!(&input, "docs").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            default: non_user_braced!(&input, "default")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            required: non_user_braced!(&input, "required")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+        });
+        r
+    }
+}
+
+pub struct BuiltWhen {
+    pub ident: Ident,
+    pub docs: TokenStream,
+    pub cfg: TokenStream,
+    pub inputs: Vec<Ident>,
+    pub assigns: Vec<BuiltWhenAssign>,
+    pub expr_str: syn::LitStr,
+}
+impl Parse for BuiltWhen {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced!(input);
+
+        let r = Ok(BuiltWhen {
+            ident,
+            docs: non_user_braced!(&input, "docs").parse().unwrap(),
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
+            assigns: parse_all(&non_user_braced!(&input, "assigns")).unwrap_or_else(|e| non_user_error!(e)),
+            expr_str: non_user_braced!(&input, "expr_str").parse().unwrap_or_else(|e| non_user_error!(e)),
+        });
+        r
+    }
+}
+
+pub struct BuiltWhenAssign {
+    pub property: Ident,
+    pub cfg: TokenStream,
+    pub value_fn: Ident,
+}
+impl Parse for BuiltWhenAssign {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let property = input.parse().unwrap_or_else(|e| non_user_error!(e));
+        let input = non_user_braced!(input);
+        let r = Ok(BuiltWhenAssign {
+            property,
+            cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
+            value_fn: non_user_braced!(&input, "value_fn").parse().unwrap_or_else(|e| non_user_error!(e)),
+        });
+        r
+    }
+}
+
+/// The content of the widget macro call.
+struct UserInput {
+    errors: Errors,
+    properties: Vec<PropertyAssign>,
+    whens: Vec<When>,
+}
+impl Parse for UserInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let input = non_user_braced!(input, "user");
+
+        let mut errors = Errors::default();
+        let mut properties = vec![];
+        let mut whens = vec![];
+
+        while !input.is_empty() {
+            let attrs = parse_outer_attrs(&input, &mut errors);
+
+            if input.peek(keyword::when) {
+                if let Some(mut when) = When::parse(&input, &mut errors) {
+                    when.attrs = attrs;
+                    whens.push(when);
+                }
+            } else if input.peek(Ident) || input.peek(Token![super]) || input.peek(Token![self]) {
+                // peek ident or path.
+                match input.parse::<PropertyAssign>() {
+                    Ok(mut assign) => {
+                        assign.attrs = attrs;
+                        properties.push(assign);
+                    }
+                    Err(e) => {
+                        let (recoverable, e) = e.recoverable();
+                        errors.push_syn(e);
+                        if !recoverable {
+                            break;
                         }
                     }
                 }
-            }
-        }
-
-        let mut inited_properties = HashSet::with_capacity(mixed_props_assigns.len());
-        let mut child_props_assigns = vec![];
-        let mut props_assigns = vec![];
-        for (target, p) in mixed_props_assigns {
-            assert!(inited_properties.insert(p.ident.clone()));
-            match target {
-                AssignTarget::Child => child_props_assigns.push(p),
-                AssignTarget::Widget => props_assigns.push(p),
-            }
-        }
-
-        let mut state_bindings_done = HashSet::new();
-        let mut state_bindings = vec![];
-        let mut when_bindings = vec![];
-        let mut when_index = 0;
-        let mut property_indexes: HashMap<Ident, WhenPropertyIndex> = HashMap::new();
-        let mut when_index_usage = HashMap::new();
-        let mut when_switch_bindings: HashMap<Ident, WhenSwitchArgs> = HashMap::new();
-
-        // process widget whens.
-        'when_for: for when in input.whens {
-            let mut is_bindings = vec![];
-
-            for arg in when.args.iter() {
-                if user_properties.contains_key(arg) || state_bindings_done.contains(arg) || widget_defaults.contains(arg) {
-                    // user or widget already set arg or another when already uses the same property.
-                    continue;
-                } else if Prefix::new(&arg) == Prefix::State {
-                    is_bindings.push(StateBinding {
-                        widget: Some(input.name.clone()),
-                        property: arg.clone(),
-                    })
-                } else if let Some(_u) = unset_properties.get(&arg) {
-                    // TODO warning when API stabilizes.
-                    continue 'when_for;
-                } else {
-                    unreachable!("when condition property has no initial value")
-                }
-            }
-
-            // when will be used:
-
-            when_bindings.push(WhenBinding {
-                index: when_index,
-                condition: WhenCondition::Inherited {
-                    widget: input.name.clone(),
-                    index: when_index,
-                    properties: when.args.into_iter().collect(),
-                },
-            });
-
-            for binding in is_bindings {
-                state_bindings_done.insert(binding.property.clone());
-                props_assigns.push(PropertyAssign {
-                    is_from_widget: true,
-                    user_assigned: false,
-                    ident: binding.property.clone(),
-                });
-                state_bindings.push(binding);
-            }
-
-            for property in when.sets {
-                let when_var = WhenConditionVar {
-                    index: when_index,
-                    can_move: false,
-                };
-                let count = when_index_usage.entry(when_index).or_insert(0);
-                *count += 1;
-
-                if let Some(entry) = property_indexes.get_mut(&property) {
-                    entry.whens.push(when_var);
-                } else {
-                    property_indexes.insert(
-                        property.clone(),
-                        WhenPropertyIndex {
-                            property: property.clone(),
-                            whens: vec![when_var],
-                        },
-                    );
-                }
-
-                let when_value = WhenPropertyValue {
-                    index: when_index,
-                    value: PropertyValue::Inherited,
-                };
-
-                if let Some(entry) = when_switch_bindings.get_mut(&property) {
-                    entry.whens.push(when_value);
-                } else {
-                    when_switch_bindings.insert(
-                        property.clone(),
-                        WhenSwitchArgs {
-                            widget: Some(input.name.clone()),
-                            property,
-                            whens: vec![when_value],
-                        },
-                    );
-                }
-            }
-
-            when_index += 1;
-        }
-
-        // process user whens.
-        validate_whens_with_default(&mut whens, &mut errors, inited_properties);
-        'when_for2: for when in whens {
-            #[cfg(debug_assertions)]
-            let expr_str = {
-                let c = &when.condition;
-                quote!(#c).to_string()
-            };
-
-            let when_analysis = match WhenConditionAnalysis::new(when.condition) {
-                Ok(r) => r,
-                Err(e) => {
-                    errors.push_syn(e);
-                    continue;
-                }
-            };
-
-            let mut is_bindings = vec![];
-
-            for arg in when_analysis.properties.iter().map(|p| &p.property) {
-                if user_properties.contains_key(&arg) || state_bindings_done.contains(&arg) || widget_defaults.contains(&arg) {
-                    // user or widget already set arg or another when already uses the same property.
-                    continue;
-                } else if Prefix::new(&arg) == Prefix::State {
-                    is_bindings.push(StateBinding {
-                        widget: None,
-                        property: arg.clone(),
-                    })
-                } else if let Some(_u) = unset_properties.get(&arg) {
-                    // TODO warning when API stabilizes.
-                    continue 'when_for2;
-                } else {
-                    unreachable!("when condition property has no initial value")
-                }
-            }
-
-            when_bindings.push(WhenBinding {
-                index: when_index,
-                condition: WhenCondition::Local {
-                    widget: input.name.clone(),
-                    properties: when_analysis.properties.iter().map(|p| p.property.clone()).collect(),
-                    widget_properties: widget_properties.clone(),
-                    expr: when_analysis.expr,
-                    #[cfg(debug_assertions)]
-                    expr_str,
-                    #[cfg(debug_assertions)]
-                    property_sets: when.block.properties.iter().map(|p| p.ident.clone()).collect(),
-                },
-            });
-
-            for binding in is_bindings {
-                state_bindings_done.insert(binding.property.clone());
-                props_assigns.push(PropertyAssign {
-                    is_from_widget: widget_properties.contains(&binding.property),
-                    user_assigned: true,
-                    ident: binding.property.clone(),
-                });
-                state_bindings.push(binding);
-            }
-
-            for property in when.block.properties {
-                let when_var = WhenConditionVar {
-                    index: when_index,
-                    can_move: false,
-                };
-                let count = when_index_usage.entry(when_index).or_insert(0);
-                *count += 1;
-
-                if let Some(entry) = property_indexes.get_mut(&property.ident) {
-                    entry.whens.push(when_var);
-                } else {
-                    property_indexes.insert(
-                        property.ident.clone(),
-                        WhenPropertyIndex {
-                            property: property.ident.clone(),
-                            whens: vec![when_var],
-                        },
-                    );
-                }
-
-                let when_value = WhenPropertyValue {
-                    index: when_index,
-                    value: match property.value {
-                        InputPropertyValue::Fields(f) => PropertyValue::Fields(f),
-                        InputPropertyValue::Args(a) => PropertyValue::Args(a),
-                        InputPropertyValue::Unset(_) => unreachable!("error case removed early"),
-                    },
-                };
-
-                if let Some(entry) = when_switch_bindings.get_mut(&property.ident) {
-                    entry.whens.push(when_value);
-                } else {
-                    when_switch_bindings.insert(
-                        property.ident.clone(),
-                        WhenSwitchArgs {
-                            widget: if widget_properties.contains(&property.ident) {
-                                Some(input.name.clone())
-                            } else {
-                                None
-                            },
-                            property: property.ident,
-                            whens: vec![when_value],
-                        },
-                    );
-                }
-            }
-
-            when_index += 1;
-        }
-
-        let mut property_indexes: Vec<_> = property_indexes.into_iter().map(|(_, i)| i).collect();
-
-        for pi in &mut property_indexes {
-            for w in &mut pi.whens {
-                let count = when_index_usage.get_mut(&w.index).unwrap();
-                if *count == 1 {
-                    debug_assert!(!w.can_move);
-                    w.can_move = true;
-                } else {
-                    *count -= 1;
-                }
-            }
-        }
-
-        let when_switch_bindings = when_switch_bindings.into_iter().map(|(_, i)| i).collect();
-
-        #[cfg(debug_assertions)]
-        let debug_enabled = {
-            let p_name = ident!("debug_enabled");
-            if let Some(mp) = meta_properties.iter().find(|mp| mp.ident == p_name) {
-                mp.value == parse_quote!(true)
             } else {
-                true // default
+                errors.push("expected `when` or a property path", input.span());
+                break;
+            }
+        }
+
+        if !input.is_empty() {
+            if errors.is_empty() {
+                errors.push("unexpected token", input.span());
+            }
+            // suppress the "unexpected token" error from syn parse.
+            let _ = input.parse::<TokenStream>();
+        }
+
+        Ok(UserInput { errors, properties, whens })
+    }
+}
+
+/// Property assign in a widget instantiation or when block.
+pub struct PropertyAssign {
+    pub attrs: Vec<Attribute>,
+    pub path: Path,
+    pub eq: Token![=],
+    pub value: PropertyValue,
+    pub value_span: Span,
+    pub semi: Option<Token![;]>,
+}
+impl Parse for PropertyAssign {
+    /// Expects that outer attributes are already parsed and that ident, super or self was peeked.
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let path = input.parse::<Path>()?;
+        let path_is_ident = path.get_ident().is_some();
+
+        if path_is_ident && (input.is_empty() || input.peek(Token![;])) {
+            // shorthand assign
+            let semi = input.parse().unwrap_or_default();
+            let value_span = path.span();
+            let eq = parse_quote_spanned! {value_span=> = };
+            let value = parse_quote! { #path };
+            return Ok(PropertyAssign {
+                attrs: vec![],
+                path,
+                eq,
+                value,
+                value_span,
+                semi,
+            });
+        }
+
+        let peek_next_assign = |input: ParseStream| {
+            // checks if the next tokens in the stream look like the start
+            // of another property assign.
+            let fork = input.fork();
+            let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
+            if fork.peek2(Token![=]) {
+                fork.peek(Ident)
+            } else if fork.peek2(Token![::]) {
+                fork.parse::<Path>().is_ok() && fork.peek(Token![=])
+            } else {
+                fork.peek(keyword::when)
             }
         };
 
-        WidgetNewOutput {
-            args_bindings: ArgsBindings {
-                args: args_bindings,
-                state_args: state_bindings,
-            },
-            when_bindings: WhenBindings {
-                conditions: when_bindings,
-                indexes: property_indexes,
-                switch_args: when_switch_bindings,
-                #[cfg(debug_assertions)]
-                debug_enabled,
-            },
-            new_child_call: NewChildCall {
-                widget_name: input.name.clone(),
-
-                #[cfg(debug_assertions)]
-                properties_user_assigned: input.new_child.iter().map(|p| user_properties.contains_key(p)).collect(),
-                #[cfg(debug_assertions)]
-                debug_enabled,
-
-                properties: input.new_child.into_iter().collect(),
-            },
-            child_props_assigns: PropertyAssigns {
-                widget_name: input.name.clone(),
-                properties: child_props_assigns,
-                #[cfg(debug_assertions)]
-                debug_enabled,
-            },
-            props_assigns: PropertyAssigns {
-                widget_name: input.name.clone(),
-                properties: props_assigns,
-                #[cfg(debug_assertions)]
-                debug_enabled,
-            },
-            new_call: NewCall {
-                widget_name: input.name,
-
-                #[cfg(debug_assertions)]
-                properties_user_assigned: input.new.iter().map(|p| user_properties.contains_key(p)).collect(),
-                #[cfg(debug_assertions)]
-                debug_enabled,
-
-                properties: input.new.into_iter().collect(),
-            },
-            errors,
-        }
-    }
-
-    impl From<input::ShortPropertyAssign> for input::PropertyAssign {
-        fn from(p: input::ShortPropertyAssign) -> Self {
-            input::PropertyAssign {
-                colon_token: parse_quote![:],
-                value: {
-                    let ident = &p.ident;
-                    parse_quote!(#ident)
-                },
-                ident: p.ident,
-                semi_token: p.semi_token,
+        let eq = input.parse::<Token![=]>().map_err(|e| {
+            if peek_next_assign(input) {
+                let msg = if path_is_ident { "expected `=` or `;`" } else { "expected `=`" };
+                util::recoverable_err(e.span(), msg)
+            } else {
+                syn::Error::new(e.span(), "expected `=`")
             }
-        }
-    }
+        })?;
 
-    impl From<input::WgtItemWhen> for WgtItemWhen {
-        fn from(w: input::WgtItemWhen) -> Self {
-            WgtItemWhen {
-                attrs: vec![],
-                when_token: w.when_token,
-                condition: w.condition,
-                block: PropertyBlock {
-                    brace_token: w.block.brace_token,
-                    properties: w.block.properties.into_iter().map(From::from).collect(),
-                },
+        let value_stream = util::parse_soft_group(
+            input,
+            // terminates in the first `;` in the current level.
+            |input| input.parse::<Option<Token![;]>>().unwrap_or_default(),
+            // next item is found after optional outer attributes.
+            // then is an `ident =` OR a `when` OR a `property::path =`
+            peek_next_assign,
+        );
+
+        let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
+
+        Ok(PropertyAssign {
+            attrs: vec![],
+            path,
+            eq,
+            value_span,
+            value,
+            semi,
+        })
+    }
+}
+
+/// Value [assigned](PropertyAssign) to a property.
+#[derive(Debug)]
+pub enum PropertyValue {
+    /// `unset!` or `required!`.
+    Special(Ident, Token![!]),
+    /// `arg0, arg1,`
+    Unnamed(Punctuated<Expr, Token![,]>),
+    /// `{ field0: true, field1: false, }`
+    Named(syn::token::Brace, Punctuated<FieldValue, Token![,]>),
+}
+impl PropertyValue {
+    /// Convert this value to an expr. Panics if `self` is [`Special`].
+    pub fn expr_tokens(&self, property_path: &TokenStream, span: Span, value_span: Span) -> Result<TokenStream, &'static str> {
+        // property ArgsImpl alias with value span to show type errors involving generics in the
+        // right place.
+        let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
+        match self {
+            PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
+                #property_path::code_gen! { new #property_path, #args_impl { #args } }
+            }),
+            PropertyValue::Named(brace, fields) => {
+                let fields = quote_spanned! { brace.span=> { #fields } };
+                Ok(quote_spanned! {span=>
+                    #property_path::code_gen! { named_new #property_path, #args_impl #fields }
+                })
             }
+            PropertyValue::Special(_, _) => Err("cannot expand special"),
         }
     }
 
-    impl From<input::WhenPropertyAssign> for input::PropertyAssign {
-        fn from(p: input::WhenPropertyAssign) -> Self {
-            match p {
-                input::WhenPropertyAssign::Assign(a) => a,
-                input::WhenPropertyAssign::Short(p) => p.into(),
+    pub fn parse_soft_group(
+        value_stream: Result<(TokenStream, Option<Token![;]>), TokenStream>,
+        group_start_span: Span,
+    ) -> syn::Result<(Self, Span, Option<Token![;]>)> {
+        let value;
+        let value_span;
+        let semi;
+
+        match value_stream {
+            Ok((value_stream, s)) => {
+                semi = s;
+                if value_stream.is_empty() {
+                    // no value tokens
+                    let span = semi.as_ref().map(|s| s.span()).unwrap_or(group_start_span);
+                    return Err(util::recoverable_err(span, "expected property value"));
+                }
+                value_span = value_stream.span();
+                match syn::parse2::<PropertyValue>(value_stream) {
+                    Ok(v) => {
+                        value = v;
+                        Ok((value, value_span, semi))
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            Err(partial_value) => {
+                if partial_value.is_empty() {
+                    // no value tokens
+                    Err(util::recoverable_err(group_start_span, "expected property value"))
+                } else {
+                    // maybe missing next argument (`,`) or terminator (`;`)
+                    let last_tt = partial_value.into_iter().last().unwrap();
+                    let last_span = last_tt.span();
+                    let mut msg = "expected `,` or `;`";
+                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
+                        if p.as_char() == ',' {
+                            msg = "expected another property arg";
+                        }
+                    }
+                    Err(util::recoverable_err(last_span, msg))
+                }
             }
         }
     }
 }
-
-mod output {
-    use crate::{
-        property::Priority,
-        util::{crate_core, Errors},
-        widget_stage3::input::{PropertyArgs, PropertyFields},
-        widget_stage3::output::{WhenConditionExpr, WhenPropertyRef},
-    };
-    use proc_macro2::{Ident, TokenStream};
-    use quote::ToTokens;
-    use std::collections::HashSet;
-
-    pub struct WidgetNewOutput {
-        pub args_bindings: ArgsBindings,
-        pub when_bindings: WhenBindings,
-        pub new_child_call: NewChildCall,
-        pub child_props_assigns: PropertyAssigns,
-        pub props_assigns: PropertyAssigns,
-        pub new_call: NewCall,
-        pub errors: Errors,
-    }
-    impl ToTokens for WidgetNewOutput {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            self.errors.to_tokens(tokens);
-            let mut inner = TokenStream::new();
-            self.args_bindings.to_tokens(&mut inner);
-            self.when_bindings.to_tokens(&mut inner);
-            self.new_child_call.to_tokens(&mut inner);
-            self.child_props_assigns.to_tokens(&mut inner);
-            self.props_assigns.to_tokens(&mut inner);
-            self.new_call.to_tokens(&mut inner);
-
-            tokens.extend(quote!({#inner}));
+impl Parse for PropertyValue {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Ident) && input.peek2(Token![!]) {
+            // input stream can be `unset!` with no third token.
+            let unset = input.fork();
+            let r = PropertyValue::Special(unset.parse().unwrap(), unset.parse().unwrap());
+            if unset.is_empty() {
+                input.advance_to(&unset);
+                return Ok(r);
+            }
         }
-    }
 
-    pub struct ArgsBindings {
-        pub args: Vec<ArgsBinding>,
-        pub state_args: Vec<StateBinding>,
-    }
-    impl ToTokens for ArgsBindings {
-        fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-            self.args.iter().for_each(|arg| arg.to_tokens(tokens));
-            self.state_args.iter().for_each(|arg| arg.to_tokens(tokens));
+        fn map_unnamed_err(e: syn::Error) -> syn::Error {
+            if e.to_string() == "expected `,`" {
+                // We expect a `;` in here also, if there was one `input` would have terminated.
+                syn::Error::new(e.span(), "expected `,` or `;`")
+            } else {
+                e
+            }
         }
-    }
-    pub struct ArgsBinding {
-        pub widget: Option<Ident>,
-        pub property: Ident,
-        pub value: PropertyValue,
-    }
-    impl ToTokens for ArgsBinding {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = ident!("{}_args", self.property);
-            let property_path = || {
-                let property = &self.property;
-                if let Some(widget) = &self.widget {
-                    quote!(#widget::properties::#property)
+
+        if input.peek(syn::token::Brace) {
+            // Differentiating between a fields declaration and a single unnamed arg declaration gets tricky.
+            //
+            // This is a normal fields decl.: `{ field0: "value" }`
+            // This is a block single argument decl.: `{ foo(); bar() }`
+            //
+            // Fields can use the shorthand field name only `{ field0 }`
+            // witch is also a single arg block expression. In this case
+            // we parse as Unnamed, if it was a field it will still work because
+            // we only have one field.
+
+            let maybe_fields = input.fork();
+            let fields_input;
+            let fields_brace = braced!(fields_input in maybe_fields);
+
+            if maybe_fields.is_empty() {
+                // is only block in assign, still can be a block expression.
+                if fields_input.peek(Ident) && (fields_input.peek2(Token![:]) || fields_input.peek2(Token![,])) {
+                    // is named fields, { field: .. } or { field, .. }.
+                    input.advance_to(&maybe_fields);
+                    Ok(PropertyValue::Named(fields_brace, Punctuated::parse_terminated(&fields_input)?))
                 } else {
-                    property.to_token_stream()
+                    // is an unnamed block expression or { field } that works as an expression.
+                    Ok(PropertyValue::Unnamed(
+                        Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+                    ))
                 }
-            };
-
-            let out = match &self.value {
-                PropertyValue::Args(args) => {
-                    let property_path = property_path();
-                    quote! {
-                        let #var_name = #property_path::ArgsImpl::new(#args);
-                    }
-                }
-                PropertyValue::Fields(fields) => {
-                    let property_path = property_path();
-                    quote! {
-                        let #var_name = #property_path::code_gen! { named_new #property_path, __ArgsImpl { #fields } };
-                    }
-                }
-                PropertyValue::Inherited => {
-                    let property = &self.property;
-                    let widget = self
-                        .widget
-                        .as_ref()
-                        .unwrap_or_else(|| non_user_error!("widget required for inherited property value"));
-
-                    quote! {
-                        let #var_name = #widget::defaults::#property();
-                    }
-                }
-            };
-
-            tokens.extend(out)
-        }
-    }
-
-    pub struct StateBinding {
-        pub widget: Option<Ident>,
-        pub property: Ident,
-    }
-    impl ToTokens for StateBinding {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = ident!("{}_args", self.property);
-            let property = &self.property;
-            let crate_ = crate_core();
-            let mod_ = self.widget.as_ref().map(|widget| quote!(#widget::properties::));
-
-            tokens.extend(quote! {let #var_name = #mod_#property::ArgsImpl::new(#crate_::var::state_var());})
-        }
-    }
-
-    #[derive(Debug)]
-    pub enum PropertyValue {
-        Args(PropertyArgs),
-        Fields(PropertyFields),
-        Inherited,
-    }
-    impl ToTokens for PropertyArgs {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            self.0.to_tokens(tokens)
-        }
-    }
-    impl ToTokens for PropertyFields {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            self.fields.to_tokens(tokens)
-        }
-    }
-
-    pub struct WhenBindings {
-        pub conditions: Vec<WhenBinding>,
-        pub indexes: Vec<WhenPropertyIndex>,
-        pub switch_args: Vec<WhenSwitchArgs>,
-        #[cfg(debug_assertions)]
-        pub debug_enabled: bool,
-    }
-
-    impl ToTokens for WhenBindings {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            self.conditions.iter().for_each(|c| c.to_tokens(tokens));
-
-            #[cfg(debug_assertions)]
-            if self.debug_enabled {
-                let infos = self.conditions.iter().map(|c| c.debug_info_tokens());
-                tokens.extend(quote! {
-                    let debug_whens = vec![#(#infos),*];
-                });
+            } else {
+                // first arg is a block expression but has other arg expression e.g: `{ <expr> }, ..`
+                Ok(PropertyValue::Unnamed(
+                    Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+                ))
             }
-
-            self.indexes.iter().for_each(|c| c.to_tokens(tokens));
-            self.switch_args.iter().for_each(|c| c.to_tokens(tokens));
+        } else {
+            Ok(PropertyValue::Unnamed(
+                Punctuated::parse_terminated(input).map_err(map_unnamed_err)?,
+            ))
         }
     }
+}
 
-    pub struct WhenBinding {
-        pub index: u32,
-        pub condition: WhenCondition,
-    }
-    impl WhenBinding {
-        fn var_name(&self) -> Ident {
-            ident!("local_w{}", self.index)
+/// When block in a widget instantiation or declaration.
+pub struct When {
+    pub attrs: Vec<Attribute>,
+    pub when: keyword::when,
+    pub condition_expr: TokenStream,
+    pub brace_token: syn::token::Brace,
+    pub assigns: Vec<PropertyAssign>,
+}
+impl When {
+    /// Call only if peeked `when`. Parse outer attribute before calling.
+    pub fn parse(input: ParseStream, errors: &mut Errors) -> Option<When> {
+        let when = input.parse::<keyword::when>().unwrap_or_else(|e| non_user_error!(e));
+
+        if input.is_empty() {
+            errors.push("expected when expression", when.span());
+            return None;
         }
+        let condition_expr = crate::expr_var::parse_without_eager_brace(input);
 
-        #[cfg(debug_assertions)]
-        fn debug_info_tokens(&self) -> TokenStream {
-            let crate_ = crate_core();
-            let var_name = self.var_name();
-            let var_clone = quote! { #crate_::var::VarObj::boxed(std::clone::Clone::clone(&#var_name)) };
-
-            match &self.condition {
-                WhenCondition::Inherited { widget, index, .. } => {
-                    let fn_name = ident!("w{}_info", index);
-
-                    quote! {
-                        #widget::whens::#fn_name(
-                            #var_clone,
-                            #crate_::debug::source_location!()
-                        )
-                    }
-                }
-                WhenCondition::Local {
-                    property_sets, expr_str, ..
-                } => {
-                    let props_str = property_sets.iter().map(|p| p.to_string());
-                    quote! {
-                        #crate_::debug::WhenInfoV1 {
-                            condition_expr: #expr_str,
-                            condition_var: Some(#var_clone),
-                            properties: vec![#(#props_str),*],
-                            decl_location: #crate_::debug::source_location!(),
-                            instance_location: #crate_::debug::source_location!(),
-                            user_declared: true,
-                        }
-                    }
+        let (brace_token, assigns) = if input.peek(syn::token::Brace) {
+            let brace = syn::group::parse_braces(input).unwrap();
+            let mut assigns = vec![];
+            while !brace.content.is_empty() {
+                match brace.content.parse() {
+                    Ok(p) => assigns.push(p),
+                    Err(e) => errors.push_syn(e),
                 }
             }
-        }
-    }
-    impl ToTokens for WhenBinding {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = self.var_name();
-            let condition = &self.condition;
-            tokens.extend(quote! {
-                let #var_name = {
-                    #condition
-                };
+            (brace.token, assigns)
+        } else {
+            errors.push("expected a block of property assigns", util::last_span(condition_expr));
+            return None;
+        };
+
+        if assigns.is_empty() {
+            None
+        } else {
+            Some(When {
+                attrs: vec![], // must be parsed before.
+                when,
+                condition_expr,
+                brace_token,
+                assigns,
             })
         }
     }
 
-    #[cfg_attr(debug_assertions, allow(clippy::large_enum_variant))]
-    pub enum WhenCondition {
-        Inherited {
-            widget: Ident,
-            index: u32,
-            /// properties used by the condition.
-            properties: Vec<Ident>,
-        },
-        Local {
-            widget: Ident,
-            /// properties used by the condition.
-            properties: Vec<Ident>,
-            widget_properties: HashSet<Ident>,
-            expr: WhenConditionExpr,
-            #[cfg(debug_assertions)]
-            expr_str: String,
-            #[cfg(debug_assertions)]
-            property_sets: Vec<Ident>,
-        },
-    }
-    impl ToTokens for WhenCondition {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            match self {
-                WhenCondition::Inherited { widget, index, properties } => {
-                    let fn_name = ident!("w{}", index);
-                    let properties = properties.iter().map(|p| ident!("{}_args", p));
-                    tokens.extend(quote! { #widget::whens::#fn_name(#(&#properties),*) })
-                }
-                WhenCondition::Local {
-                    widget,
-                    properties,
-                    widget_properties,
-                    expr,
-                    ..
-                } => {
-                    for property in properties {
-                        let not_allowed_msg = format!("property `{}` is not allowed in when condition", property);
-
-                        let mod_ = if widget_properties.contains(property) {
-                            Some(quote! {#widget::properties::})
-                        } else {
-                            None
-                        };
-
-                        tokens.extend(quote! {
-                            #mod_#property::code_gen!(assert allowed_in_when=> #not_allowed_msg);
-                        });
-                    }
-                    expr.to_local_tokens(widget, widget_properties, tokens)
-                }
-            }
-        }
+    /// Returns an ident `__{prefix}{i}_{expr_to_str}`
+    pub fn make_ident(&self, prefix: impl std::fmt::Display, i: usize) -> Ident {
+        ident!("__{}{}_{}", prefix, i, tokens_to_ident_str(&self.condition_expr.to_token_stream()))
     }
 
-    impl WhenConditionExpr {
-        fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>, tokens: &mut TokenStream) {
-            match self {
-                WhenConditionExpr::Ref(let_name) => {
-                    let name = let_name.name();
-                    let let_name = let_name.to_local_tokens(widget, widget_properties);
-                    tokens.extend(quote! {
-                        #[allow(clippy::let_and_return)]
-                        #let_name
-                        #name
-                    })
-                }
-                WhenConditionExpr::Map(let_name, expr) => {
-                    let name = let_name.name();
-                    let let_name = let_name.to_local_tokens(widget, widget_properties);
-                    let crate_ = crate_core();
-                    tokens.extend(quote! {
-                        #let_name
-                        #crate_::var::Var::into_map(#name, |#name|{#expr})
-                    })
-                }
-                WhenConditionExpr::Merge(let_names, expr) => {
-                    let names: Vec<_> = let_names.iter().map(|n| n.name()).collect();
-                    let crate_ = crate_core();
-                    let let_names = let_names.iter().map(|l| l.to_local_tokens(widget, widget_properties));
-                    tokens.extend(quote! {
-                        #(#let_names)*
-                        #crate_::var::merge_var!(#(#names, )* |#(#names),*|{
-                            #expr
-                        })
-                    })
-                }
-                WhenConditionExpr::Inherited(inh) => inh.to_tokens(tokens),
-            }
-        }
+    /// Analyzes the [`Self::condition_expr`], collects all property member accesses and replaces then with `expr_var!` placeholders.
+    pub fn expand_condition(&self) -> syn::Result<WhenExprToVar> {
+        syn::parse2::<WhenExprToVar>(self.condition_expr.clone())
     }
+}
 
-    impl WhenPropertyRef {
-        fn to_local_tokens(&self, widget: &Ident, widget_properties: &HashSet<Ident>) -> TokenStream {
-            let crate_ = crate_core();
-            let mod_ = if widget_properties.contains(&self.property) {
-                Some(quote! {#widget::properties::})
-            } else {
-                None
-            };
-            let property = &self.property;
-            let property_args = ident!("{}_args", property);
-            let arg = &self.arg;
-            let name = self.name();
-            quote! {
-                let #name = #crate_::var::IntoVar::into_var(std::clone::Clone::clone(#mod_#property::#arg(&#property_args)));
-            }
-        }
-    }
+pub mod keyword {
+    syn::custom_keyword!(when);
+}
 
-    pub struct WhenPropertyIndex {
-        pub property: Ident,
-        pub whens: Vec<WhenConditionVar>,
-    }
-    impl ToTokens for WhenPropertyIndex {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = ident!("{}_index", self.property);
+/// See [`When::expand_condition`].
+pub struct WhenExprToVar {
+    /// Map of `(property_path, member_method) => var_name`, example: `(id, __0) => __id__0`
+    pub properties: HashMap<(syn::Path, Ident), Ident>,
+    ///The [input expression](When::condition_expr) with all properties replaced with `expr_var!` placeholders.
+    pub expr: TokenStream,
+}
+impl Parse for WhenExprToVar {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut properties = HashMap::new();
+        let mut expr = TokenStream::default();
 
-            let crate_ = crate_core();
-            if self.whens.len() == 1 {
-                let wn = ident!("local_w{}", self.whens[0].index);
-                if self.whens[0].can_move {
-                    tokens.extend(quote! {
-                        let #var_name = #crate_::var::Var::into_map(#wn, |&#wn| if #wn { 1usize } else { 0usize });
-                    });
-                } else {
-                    tokens.extend(quote! {
-                        let #var_name = #crate_::var::Var::map(&#wn, |&#wn| if #wn { 1usize } else { 0usize });
-                    });
-                }
-            } else {
-                debug_assert!(!self.whens.is_empty());
-                let wns: Vec<_> = self.whens.iter().map(|i| ident!("local_w{}", i.index)).collect();
-                let wns_clone = self.whens.iter().map(|i| if i.can_move { None } else { Some(quote!(.clone())) });
-                let wns_rev = wns.iter().rev();
-                let wns_i = (1..=wns.len()).rev();
-                tokens.extend(quote! {
-                    let #var_name = #crate_::var::merge_var!(#(#wns #wns_clone,)* |#(&#wns),*|{
-                        #(if #wns_rev { #wns_i })else*
-                        else { 0usize }
-                    });
-                });
-            }
-        }
-    }
+        while !input.is_empty() {
+            // look for `self.property(.member)?` and replace with `#{__property__member}`
+            if input.peek(Token![self]) && input.peek2(Token![.]) {
+                input.parse::<Token![self]>().unwrap();
+                input.parse::<Token![.]>().unwrap();
 
-    pub struct WhenConditionVar {
-        pub index: u32,
-        pub can_move: bool,
-    }
-
-    pub struct WhenSwitchArgs {
-        /// Widget name if the property exists in the widget.
-        pub widget: Option<Ident>,
-        pub property: Ident,
-        pub whens: Vec<WhenPropertyValue>,
-    }
-
-    impl ToTokens for WhenSwitchArgs {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let var_name = ident!("{}_args", self.property);
-
-            let widget = &self.widget;
-            let property = &self.property;
-
-            let index_var_name = ident!("{}_index", property);
-
-            let when_var_names: Vec<_> = self.whens.iter().map(|w| ident!("{}{}", property, w.index)).collect();
-
-            let when_var_inits = self.whens.iter().map(|w| match &w.value {
-                PropertyValue::Args(a) => {
-                    let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
-                    quote! { #widget#property::ArgsImpl::new(#a) }
-                }
-                PropertyValue::Fields(fields) => {
-                    let widget = widget.as_ref().map(|w| quote! { #w::properties:: });
-                    quote! {
-                        #widget#property::code_gen! { named_new #widget#property, __ArgsImpl { #fields } }
-                    }
-                }
-                PropertyValue::Inherited => {
-                    debug_assert!(
-                        widget.is_some(),
-                        "property default value is inherited, but no widget name was given"
-                    );
-                    let wi = ident!("w{}", w.index);
-                    quote! { #widget::when_defaults::#wi::#property() }
-                }
-            });
-
-            let property_path = if let Some(widget) = &self.widget {
-                quote!(#widget::properties::#property)
-            } else {
-                property.to_token_stream()
-            };
-
-            tokens.extend(quote! {
-                let #var_name = {
-                    #(let #when_var_names = #when_var_inits;)*
-                    #property_path::code_gen!(switch #property_path,
-                        #index_var_name,
-                        #var_name, #(#when_var_names),*
-                    )
-                };
-            })
-        }
-    }
-
-    pub struct WhenPropertyValue {
-        pub index: u32,
-        pub value: PropertyValue,
-    }
-
-    pub struct NewChildCall {
-        pub widget_name: Ident,
-        // properties captured by the new function
-        pub properties: Vec<Ident>,
-
-        #[cfg(debug_assertions)]
-        pub properties_user_assigned: Vec<bool>,
-
-        #[cfg(debug_assertions)]
-        pub debug_enabled: bool,
-    }
-    impl ToTokens for NewChildCall {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let name = &self.widget_name;
-            let args = self.properties.iter().map(|p| ident!("{}_args", p));
-
-            #[cfg(debug_assertions)]
-            if self.debug_enabled {
-                let crate_ = crate_core();
-                let p = &self.properties;
-                let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
-                let p_assig = &self.properties_user_assigned;
-                let args = args.clone();
-
-                tokens.extend(quote! {
-                    let mut debug_captured_new_child = {
-                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*]
-                    };
-                });
-            }
-
-            tokens.extend(quote!( let node = #name::new_child(#(#args),*); ));
-
-            #[cfg(debug_assertions)]
-            if self.debug_enabled {
-                let crate_ = crate_core();
-                tokens.extend(quote! {
-                    let node = #crate_::debug::NewChildMarkerNode::new_v1(
-                        #crate_::UiNode::boxed(node)
-                    );
-                });
-            }
-        }
-    }
-
-    pub struct PropertyAssigns {
-        pub widget_name: Ident,
-        pub properties: Vec<PropertyAssign>,
-        #[cfg(debug_assertions)]
-        pub debug_enabled: bool,
-    }
-    impl ToTokens for PropertyAssigns {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let mod_ = {
-                let name = &self.widget_name;
-                quote!(#name::properties)
-            };
-
-            // property details (*_args, *, ::*)
-            let properties: Vec<_> = self
-                .properties
-                .iter()
-                .map(|p| {
-                    let ident = &p.ident;
-                    let args_ident = ident!("{}_args", ident);
-
-                    let property = if p.is_from_widget { quote!(#mod_::#ident) } else { quote!(#ident) };
-                    (args_ident, ident, property, p.user_assigned)
-                })
-                .collect();
-
-            // assert property is not capture_only
-            for (_, ident, property, _) in &properties {
-                let msg = format!("cannot set capture_only property `{}`", ident);
-                tokens.extend(quote! {
-                    #property::code_gen!(assert !capture_only=> #msg);
-                });
-            }
-
-            // set the property in their priority.
-            for priority in &Priority::all_settable() {
-                #[cfg(debug_assertions)]
-                for (args_ident, property_name, property, user_assigned) in &properties {
-                    let property_name = property_name.to_string();
-                    if self.debug_enabled {
-                        let crate_core = crate_core();
-                        tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::code_gen!(set #priority,
-                                node,
-                                #property,
-                                #args_ident,
-                                #property_name,
-                                #crate_core::debug::source_location!(),
-                                #user_assigned
-                            );
-                        });
+                let property = input.parse::<Path>()?;
+                let member_ident = if input.peek(Token![.]) {
+                    input.parse::<Token![.]>().unwrap();
+                    if input.peek(Ident) {
+                        let member = input.parse::<Ident>().unwrap();
+                        ident_spanned!(member.span()=> "__{}", member)
                     } else {
-                        tokens.extend(quote_spanned! {args_ident.span()=>
-                            #property::code_gen!(set #priority,
-                                node,
-                                #property,
-                                #args_ident
-                            );
-                        });
+                        let index = input.parse::<syn::Index>().unwrap();
+                        ident_spanned!(index.span()=> "__{}", index.index)
                     }
-                }
+                } else {
+                    ident_spanned!(property.span()=> "__0")
+                };
 
-                #[cfg(not(debug_assertions))]
-                for (args_ident, _, property, _) in &properties {
-                    tokens.extend(quote_spanned! {args_ident.span()=>
-                        #property::code_gen!(set #priority, node, #args_ident);
-                    });
-                }
-            }
-        }
-    }
-    pub struct PropertyAssign {
-        pub is_from_widget: bool,
-        pub user_assigned: bool,
-        pub ident: Ident,
-    }
-    impl Priority {
-        pub fn all_settable() -> [Self; 5] {
-            use crate::property::keyword::*;
-            [
-                Priority::Inner(inner::default()),
-                Priority::Size(size::default()),
-                Priority::Outer(outer::default()),
-                Priority::Event(event::default()),
-                Priority::Context(context::default()),
-            ]
-        }
-    }
+                let member_span = member_ident.span();
+                let var_ident = ident_spanned!(member_span=> "__{}{}", util::display_path(&property).replace("::", "_"), member_ident);
 
-    pub struct NewCall {
-        pub widget_name: Ident,
-        // properties captured by the new function
-        pub properties: Vec<Ident>,
-
-        #[cfg(debug_assertions)]
-        pub properties_user_assigned: Vec<bool>,
-
-        #[cfg(debug_assertions)]
-        pub debug_enabled: bool,
-    }
-    impl ToTokens for NewCall {
-        fn to_tokens(&self, tokens: &mut TokenStream) {
-            let name = &self.widget_name;
-            let args = self.properties.iter().map(|p| ident!("{}_args", p));
-
-            #[cfg(debug_assertions)]
-            if self.debug_enabled {
-                let crate_ = crate_core();
-                let name_str = name.to_string();
-                let p = &self.properties;
-                let p_names = p.iter().map(|p| p.to_string());
-                let p_locs = p.iter().map(|p| quote_spanned!(p.span()=> #crate_::debug::source_location!()));
-                let p_assig = &self.properties_user_assigned;
-                let args = args.clone();
-
-                tokens.extend(quote! {
-                    let node = #crate_::debug::WidgetInstanceInfoNode::new_v1(
-                        #crate_::UiNode::boxed(node),
-                        #name_str,
-                        #name::decl_location(),
-                        #crate_::debug::source_location!(),
-                        debug_captured_new_child,
-                        vec![#(#name::properties::#p::captured_debug(&#args, #p_names, #p_locs, #p_assig)),*],
-                        debug_whens
-                    );
+                expr.extend(quote_spanned! {member_span=>
+                    (*#{#var_ident}) // deref here to simulate a `self.`
                 });
-            }
 
-            tokens.extend(quote!(#name::new(node, #(#args),*)));
+                properties.insert((property, member_ident), var_ident);
+            }
+            // recursive parse groups:
+            else if input.peek(token::Brace) {
+                let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> { #inner } });
+            } else if input.peek(token::Paren) {
+                let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> ( #inner ) });
+            } else if input.peek(token::Bracket) {
+                let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
+                properties.extend(inner.properties);
+                let inner = inner.expr;
+                expr.extend(quote_spanned! {inner.span()=> [ #inner ] });
+            }
+            // keep other tokens the same:
+            else {
+                let tt = input.parse::<TokenTree>().unwrap();
+                tt.to_tokens(&mut expr)
+            }
         }
+
+        // assert expression type.
+        let expr = quote_spanned! {expr.span()=>
+            let __result__: bool = { #expr };
+            __result__
+        };
+
+        Ok(WhenExprToVar { properties, expr })
     }
 }

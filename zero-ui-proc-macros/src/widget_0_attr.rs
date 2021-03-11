@@ -14,7 +14,7 @@ use syn::{
 
 use crate::{
     util::{self, parse2_punctuated, parse_outer_attrs, Attributes, Errors},
-    widget_new2::{PropertyValue, When},
+    widget_new::{PropertyValue, When},
 };
 
 pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -478,8 +478,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         }
     } else {
         // not-mixins inherit from the implicit_mixin first so we call inherit=> for that:
-        // TODO rename implicit_mixin2 to implicit_mixin
-        stage_path = quote!(#crate_core::widget_base::implicit_mixin2!);
+        stage_path = quote!(#crate_core::widget_base::implicit_mixin!);
         stage_extra = quote! {
             inherit=>
             cfg { }
@@ -562,8 +561,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
                     #[doc(hidden)]
                     pub mod __core {
-                        // TODO: Update widget_new2 to widget_new when it's ready.
-                        pub use #crate_core::{widget_inherit, widget_new2 as widget_new, var, #debug_reexport};
+                        pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
                     }
 
                     #disable_unused_warnings_for_inherits
@@ -995,7 +993,7 @@ impl ToTokens for NamedField {
 }
 
 mod keyword {
-    pub use crate::widget_new2::keyword::when;
+    pub use crate::widget_new::keyword::when;
     syn::custom_keyword!(child);
 }
 

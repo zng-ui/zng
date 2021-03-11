@@ -1,15 +1,18 @@
 use crate::prelude::new_widget::*;
 
-widget! {
-    center;
+#[widget($crate::widgets::layouts::center)]
+mod center {
+    use super::*;
 
-    default_child {
-        content -> widget_child: required!;
+    properties! {
+        child {
+            widget_child as content = required!;
+        }
     }
 
     #[inline]
-    fn new_child(content) -> impl UiNode {
-        align(content.unwrap(), Alignment::CENTER)
+    fn new_child(content: impl Widget) -> impl UiNode {
+        align(content, Alignment::CENTER)
     }
 }
 
