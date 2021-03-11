@@ -19,6 +19,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Err(e) => non_user_error!(e),
     };
 
+    // we don't use [`Span::call_site()`] in this widget because of a bug that highlights
+    // more then the call_site span. Not sure what causes it but I think some of
+    // the #[widget(..)] span gets mixed-in. Taking a direct sample of token inside
+    // the the `<widget>!` macro solves the issue.
+    let call_site = widget_data.call_site;
+
     let module = widget_data.module;
 
     let mut errors = user_input.errors;
@@ -161,8 +167,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.clone(),
             /*user_assigned: */ false,
-            Span::call_site(),
-            Span::call_site(),
+            call_site,
+            call_site,
         ));
         #[cfg(not(debug_assertions))]
         property_set_calls.push((
@@ -170,8 +176,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             p_var_ident,
             ip.ident.to_string(),
             cfg.clone(),
-            Span::call_site(),
-            Span::call_site(),
+            call_site,
+            call_site,
         ));
     }
 
@@ -235,7 +241,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for required in required_properties.into_iter().chain(captured_properties) {
         if !wgt_properties.contains_key(&parse_quote! { #required }) {
             missing_required.insert(required);
-            errors.push(format!("missing required property `{}`", required), Span::call_site());
+            errors.push(format!("missing required property `{}`", required), call_site);
         }
     }
     let missing_required = missing_required;
@@ -486,10 +492,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             cfg.to_token_stream(),
             /*user_assigned: */ true,
             p.span(),
-            /*val_span: */ Span::call_site(),
+            /*val_span: */ call_site,
         ));
         #[cfg(not(debug_assertions))]
-        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), Span::call_site()));
+        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), call_site));
 
         wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));
     }
@@ -642,6 +648,7 @@ impl Parse for Input {
 }
 
 struct WidgetData {
+    call_site: Span,
     module: TokenStream,
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
@@ -651,8 +658,10 @@ struct WidgetData {
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let call_site_span = input.span();
         let input = non_user_braced!(input, "widget");
         let r = Ok(Self {
+            call_site: call_site_span,
             module: non_user_braced!(&input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
