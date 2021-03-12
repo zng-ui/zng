@@ -434,7 +434,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut inherit_names = paths.clone().map(|p| ident!("__{}", util::display_path(p).replace("::", "_")));
 
     // module that exports the inherited items
-    let inherits_mod_ident = ident!("__{}_inherit", ident);
+    let inherits_mod_ident = ident!("__{}_inherit_{}", ident, util::uuid());
     let inherit_reexports = cfgs
         .clone()
         .zip(paths.clone())
