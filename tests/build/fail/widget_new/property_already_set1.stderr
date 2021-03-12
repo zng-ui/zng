@@ -1,0 +1,5 @@
+error: property `margin` already set
+ --> $DIR/property_already_set1.rs:7:9
+  |
+7 |         margin = 0;
+  |         ^^^^^^

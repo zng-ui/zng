@@ -100,7 +100,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // if already (un)set by the user.
             if !user_properties.insert(&up.path) {
                 let p_name = util::display_path(&up.path);
-                errors.push(format_args!("property `{}` already set", p_name), up.path.span());
+                errors.push(format_args!("property `{}` already set", p_name), util::path_span(&up.path));
                 return false;
             }
 

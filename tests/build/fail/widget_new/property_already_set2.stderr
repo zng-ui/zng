@@ -1,0 +1,5 @@
+error: property `zero_ui::properties::margin` already set
+ --> $DIR/property_already_set2.rs:6:30
+  |
+6 |         zero_ui::properties::margin = 0;
+  |                              ^^^^^^
