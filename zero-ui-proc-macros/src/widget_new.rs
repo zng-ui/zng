@@ -718,10 +718,10 @@ struct WidgetData {
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let call_site_span = input.span();
+        let call_site = input.span();
         let input = non_user_braced!(input, "widget");
         let r = Ok(Self {
-            call_site: call_site_span,
+            call_site,
             module: non_user_braced!(&input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
@@ -876,6 +876,7 @@ impl Parse for PropertyAssign {
         let path = input.parse::<Path>()?;
         let path_is_ident = path.get_ident().is_some();
 
+        // TODO don't allow shorthand in widget declaration.
         if path_is_ident && (input.is_empty() || input.peek(Token![;])) {
             // shorthand assign
             let semi = input.parse().unwrap_or_default();
