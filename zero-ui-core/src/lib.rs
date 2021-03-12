@@ -20,6 +20,8 @@ mod crate_macros;
 #[doc(hidden)]
 pub use paste::paste;
 
+mod tests;
+
 pub mod animation;
 pub mod app;
 pub mod color;

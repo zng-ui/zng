@@ -199,9 +199,14 @@ pub fn parse_all<T: Parse>(input: syn::parse::ParseStream) -> syn::Result<Vec<T>
     Ok(result)
 }
 
-pub fn uuid() -> impl std::fmt::Display {
-    // could also be format!("{:?}", Span::call_site()).splitn(2, ' ').next().unwrap()[1..].to_string();
-    uuid::Uuid::new_v4().to_simple()
+/// Unique id of the current [`Span::call_site()`] or a random unique id if the call_site is not distinct.
+pub fn uuid() -> String {
+    let call_site = format!("{:?}", Span::call_site());
+    if call_site == "Span" {
+        uuid::Uuid::new_v4().to_simple().to_string()
+    } else {
+        call_site.splitn(2, ' ').next().unwrap().replace('#', "u")
+    }
 }
 
 struct PunctParser<T, P>(Punctuated<T, P>);
