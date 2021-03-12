@@ -168,7 +168,7 @@ fn run(mut args: Vec<&str>) {
     }
 }
 
-// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw]
+// do expand [-p <crate>] [<ITEM-PATH>] [-r, --raw] [-e, --example <example>]
 //           [-b, --build [-p, -pass <pass-test-name>] [-f, --fail <fail-test-name>]]
 //           [<cargo-expand-args>|<cargo-args>]
 //    Run "cargo expand" OR if raw is enabled, runs the unstable "--pretty=expanded" check.
@@ -179,6 +179,8 @@ fn run(mut args: Vec<&str>) {
 //        Prints only the specified item in the main crate.
 //     expand -p "other-crate" some::item
 //        Prints only the specified item in the other-crate from workspace.
+//     expand -e "example"
+//        Prints the example.
 //     expand --raw
 //        Prints the entire main crate, including macro_rules!.
 //     expand --build -p pass_test_name
@@ -210,6 +212,9 @@ fn expand(mut args: Vec<&str>) {
                 &[],
             );
         }
+    } else if take_flag(&mut args, &["-e", "--example"]) {
+        TaskInfo::get().stdout_dump = "dump.rs";
+        cmd("cargo", &["expand", "--example"], &args);
     } else {
         TaskInfo::get().stdout_dump = "dump.rs";
         if take_flag(&mut args, &["-r", "--raw"]) {
