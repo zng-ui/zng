@@ -1,0 +1,16 @@
+error: cannot unset required property `foo`
+  --> $DIR/cannot_unset_required2.rs:19:9
+   |
+19 |         foo = unset!;
+   |         ^^^
+
+error: missing required property `foo`
+  --> $DIR/cannot_unset_required2.rs:18:13
+   |
+18 |       let _ = test_widget! {
+   |  _____________^
+19 | |         foo = unset!;
+20 | |     };
+   | |_____^
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
