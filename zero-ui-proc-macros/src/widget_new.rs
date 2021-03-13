@@ -280,7 +280,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     #[cfg(debug_assertions)]
     when_inits.extend(quote! {
-        let mut __when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
+        #[allow(unused_mut)]
+        let mut when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
     });
 
     // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
@@ -323,7 +324,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         #[cfg(debug_assertions)]
         let condition_call = quote! {
-            #module::#dbg_ident(#(&#inputs),* , &mut __when_infos__)
+            #module::#dbg_ident(#(&#inputs),* , &mut when_infos__)
         };
         #[cfg(not(debug_assertions))]
         let condition_call = quote! {
@@ -689,10 +690,37 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         TokenStream::default()
     };
 
+    #[cfg(debug_assertions)]
+    let new_child_call = {
+        let cap_user_set = new_child_caps.iter().map(|_| false);
+        quote! {
+            #[allow(unused_mut)]
+            let mut captured_new_child__ = std::vec![];
+            #allow_unreachable
+            let node__ = #module::__new_child_debug(#(#new_child_caps,)* #(#cap_user_set,)* &mut captured_new_child__);
+        }
+    };
+    #[cfg(not(debug_assertions))]
     let new_child_call = quote! {
         #allow_unreachable
-        let node__ = #module::__new_child(#(#new_child_caps),*);
+        let node__ = #module::__new_child_debug(#(#new_child_caps),*);
     };
+    #[cfg(debug_assertions)]
+    let new_call = {
+        let cap_user_set = new_caps.iter().map(|_| false);
+        quote! {
+            #allow_unreachable
+            #module::__new_debug(
+                node__,
+                #(#new_caps,)*
+                #(#cap_user_set,)*
+                captured_new_child__,
+                when_infos__,
+                #module::__core::source_location!()
+            )
+        }
+    };
+    #[cfg(not(debug_assertions))]
     let new_call = quote! {
         #allow_unreachable
         #module::__new(node__, #(#new_caps),*)

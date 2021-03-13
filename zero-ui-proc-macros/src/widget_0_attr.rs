@@ -124,24 +124,91 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|_| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
-        quote! {
+        let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
             pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> impl #crate_core::UiNode {
                 self::new_child(#(self::#p_new_child::Args::unwrap(#new_child)),*)
             }
+        };
+
+        #[cfg(debug_assertions)]
+        {
+            let names = new_child.iter().map(|id| id.to_string());
+            let locations = new_child.iter().map(|id| {
+                quote_spanned! {id.span()=>
+                    #crate_core::debug::source_location!()
+                }
+            });
+            let assigned_flags: Vec<_> = new_child.iter().map(|id| ident!("__{}_user_set", id)).collect();
+            r.extend(quote! {
+                #[doc(hidden)]
+                #[allow(clippy::too_many_arguments)]
+                pub fn __new_child_debug(
+                    #(#new_child : impl self::#p_new_child::Args,)*
+                    #(#assigned_flags: bool,)*
+                     __captures_info: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>
+                ) -> impl #crate_core::UiNode {
+                    #(__captures_info.push(#p_new_child::captured_debug(&#new_child, #names, #locations, #assigned_flags));)*
+                    self::__new_child(#(#new_child),*)
+                }
+            });
         }
+
+        r
     });
     let new__ = new_fn.as_ref().map(|f| {
         let p_new: Vec<_> = new.iter().map(|id| ident!("__p_{}", id)).collect();
         let output = &f.sig.output;
-        quote! {
+        let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
             pub fn __new(__child: impl #crate_core::UiNode, #(#new: impl self::#p_new::Args),*) #output {
                 self::new(__child, #(self::#p_new::Args::unwrap(#new)),*)
             }
+        };
+
+        #[cfg(debug_assertions)]
+        {
+            let names = new.iter().map(|id| id.to_string());
+            let locations = new.iter().map(|id| {
+                quote_spanned! {id.span()=>
+                    #crate_core::debug::source_location!()
+                }
+            });
+            let assigned_flags: Vec<_> = new.iter().map(|id| ident!("__{}_user_set", id)).collect();
+            let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+            let wgt_name = ident.to_string();
+            r.extend(quote! {
+                #[doc(hidden)]
+                #[allow(clippy::too_many_arguments)]
+                pub fn __new_debug(
+                    __child: impl #crate_core::UiNode,
+                    #(#new : impl self::#p_new::Args,)*
+                    #(#assigned_flags: bool,)*
+                     __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                     __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                     __instance_location: #crate_core::debug::SourceLocation,
+                ) #output {
+                    let __child = #crate_core::UiNode::boxed(__child);
+                    let __new_captures = std::vec![
+                        #(self::#p_new::captured_debug(&#new, #names, #locations, #assigned_flags),)*
+                    ];
+                    let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                        __child,
+                        #wgt_name,
+                        #decl_location,
+                        __instance_location,
+                        __new_child_captures,
+                        __new_captures,
+                        __whens,
+                    );
+                    self::__new(__child, #(#new),*)
+                }
+            });
         }
+
+        r
     });
     // captured property existence validation happens "widget_2_declare.rs"
 
@@ -418,7 +485,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             #cfg
             #[doc(hidden)]
             pub fn #dbg_ident(
-                #(#input_idents : &(impl self::#prop_idents::Args + 'static)),*,
+                #(#input_idents : &(impl self::#prop_idents::Args + 'static),)*
                 when_infos: &mut std::vec::Vec<#crate_core::debug::WhenInfoV1>
             ) -> impl #crate_core::var::Var<bool> + 'static {
                 let var = self::#ident(#(#input_idents),*);

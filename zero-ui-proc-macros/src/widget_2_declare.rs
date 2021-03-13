@@ -48,6 +48,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     pub use #source_mod::__new_child;
                 };
+                #[cfg(debug_assertions)]
+                new_child_reexport.extend(quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::__new_child_debug;
+                });
                 new_child = source.new_child.clone();
             } else {
                 // zero_ui::core::widget_base::default_widget_new_child()
@@ -58,6 +63,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         #crate_core::widget_base::default_widget_new_child()
                     }
                 };
+                #[cfg(debug_assertions)]
+                new_child_reexport.extend(quote! {
+                    #[doc(hidden)]
+                    #[inline]
+                    pub fn __new_child_debug(_: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>)
+                        -> impl #crate_core::UiNode {
+                        self::__new_child()
+                    }
+                });
                 assert!(new_child.is_empty());
             }
         }
@@ -68,6 +82,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     pub use #source_mod::__new;
                 };
+                #[cfg(debug_assertions)]
+                new_reexport.extend(quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::__new_debug;
+                });
                 new = source.new.clone();
             } else {
                 // zero_ui::core::widget_base::default_widget_new(id)
@@ -78,6 +97,41 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         #crate_core::widget_base::default_widget_new(child, self::__p_id::Args::unwrap(id))
                     }
                 };
+                #[cfg(debug_assertions)]
+                {
+                    let wgt_name = ident.to_string();
+                    let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+                    new_reexport.extend(quote! {
+                        #[doc(hidden)]
+                        #[inline]
+                        pub fn __new_debug(
+                            child: impl #crate_core::UiNode,
+                            id: impl self::__p_id::Args,
+                            id_user_set: bool,
+                            new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                            whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                            instance_location: #crate_core::debug::SourceLocation,
+                        ) -> impl #crate_core::Widget {
+                            let child = #crate_core::UiNode::boxed(child);
+                            let new_captures = std::vec![
+                                self::__p_id::captured_debug(
+                                    &id, "id",
+                                     #crate_core::debug::source_location!(), id_user_set
+                                )
+                            ];
+                            let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                                child,
+                                #wgt_name,
+                                #decl_location,
+                                instance_location,
+                                new_child_captures,
+                                new_captures,
+                                whens,
+                            );
+                            self::__new(child, id)
+                        }
+                    });
+                }
                 new = vec![ident!("id")];
             }
         }
