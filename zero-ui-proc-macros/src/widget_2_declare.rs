@@ -812,7 +812,7 @@ fn auto_docs(
         docs_section_header(&mut r, "When Conditions", "whens", "When conditions and what properties they set.");
         for (i, when) in whens.into_iter().enumerate() {
             let pattern = Regex::new(r#"self\.(\w+)"#).unwrap();
-            let expr = util::format_rust_expr(when.expr);
+            let expr = when.expr;
             let expr = pattern.replace_all(&expr, r#"<span class='keyword'>self</span>.<a href='#wp-$1' class='fnname'>$1</a>"#);
             doc_extend!(r, "\n\n");
             doc_extend!(

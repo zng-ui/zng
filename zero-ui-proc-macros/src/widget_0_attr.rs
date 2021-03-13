@@ -363,7 +363,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let docs = attrs.docs;
         let when_lints = attrs.lints;
 
-        let expr_str = when.condition_expr.to_string();
+        let expr_str = util::format_rust_expr(when.condition_expr.to_string());
 
         // when condition with `self.property(.member)?` converted to `#(__property__member)` for the `expr_var` macro.
         let condition = match syn::parse2::<WhenExprToVar>(when.condition_expr) {

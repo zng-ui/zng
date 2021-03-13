@@ -447,6 +447,23 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
             }
         });
+        #[cfg(debug_assertions)]
+        {
+            let expr_str = util::format_rust_expr(w.condition_expr.to_string());
+            let assign_names = w.assigns.iter().map(|a| util::display_path(&a.path));
+            when_inits.extend(quote! {
+                #cfg
+                when_infos__.push(#module::__core::WhenInfoV1 {
+                    condition_expr: #expr_str,
+                    condition_var: Some(#module::__core::var::VarObj::boxed(std::clone::Clone::clone(&#ident))),
+                    properties: std::vec![
+                        #(#assign_names),*
+                    ],
+                    decl_location: #module::__core::source_location!(),
+                    user_declared: false,
+                });
+            });
+        }
 
         // init assign variables
         let mut assigns = HashSet::new();
@@ -692,7 +709,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     #[cfg(debug_assertions)]
     let new_child_call = {
-        let cap_user_set = new_child_caps.iter().map(|_| false);
+        let cap_user_set = widget_data.new_child.iter().map(|id| overriden_properties.contains(id));
         quote! {
             #[allow(unused_mut)]
             let mut captured_new_child__ = std::vec![];
@@ -707,7 +724,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
     #[cfg(debug_assertions)]
     let new_call = {
-        let cap_user_set = new_caps.iter().map(|_| false);
+        let cap_user_set = widget_data.new.iter().map(|id| overriden_properties.contains(id));
         quote! {
             #allow_unreachable
             #module::__new_debug(
