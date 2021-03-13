@@ -285,6 +285,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // when ident, `__w{i}_{condition_expr_to_str}`
         let ident = when.make_ident("w", i, Span::call_site());
 
+        #[cfg(debug_assertions)]
+        let dbg_ident = when.make_ident("wd", i, Span::call_site());
+
         let attrs = Attributes::new(when.attrs);
         for invalid_attr in attrs.others.into_iter().chain(attrs.inline) {
             errors.push("only `doc`, `cfg` and lint attributes are allowed in when", invalid_attr.span());
@@ -304,6 +307,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         };
 
+        #[cfg(debug_assertions)]
+        let mut assign_names = vec![];
         let mut assigns = HashSet::new();
         let mut assigns_tokens = TokenStream::default();
         for assign in when.assigns {
@@ -333,6 +338,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 if skip {
                     continue;
                 }
+
+                #[cfg(debug_assertions)]
+                assign_names.push(property.to_string());
 
                 // ident of property module in the widget.
                 let prop_ident = ident!("__p_{}", property);
@@ -378,9 +386,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let inputs: HashSet<_> = condition.properties.iter().map(|(p, _)| p).collect();
 
         // name of property inputs Args reference in the condition function.
-        let input_idents = inputs.iter().map(|p| ident!("__{}", p));
+        let input_idents: Vec<_> = inputs.iter().map(|p| ident!("__{}", p)).collect();
         // name of property inputs in the widget module.
-        let prop_idents = inputs.iter().map(|p| ident!("__p_{}", p));
+        let prop_idents: Vec<_> = inputs.iter().map(|p| ident!("__p_{}", p)).collect();
 
         // name of the fields for each interpolated property
         let field_idents = condition.properties.iter().map(|(p, m)| ident!("__{}{}", p, m));
@@ -393,17 +401,51 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             #cfg
             #(#when_lints)*
             #[doc(hidden)]
-            pub fn #ident(#(#input_idents : &impl self::#prop_idents::Args),*) -> impl #crate_core::var::Var<bool> {
-                #(let #field_idents = #crate_core::var::IntoVar::into_var(std::clone::Clone::clone(#input_ident_per_field.#members()));)*
+            pub fn #ident(
+                #(#input_idents : &impl self::#prop_idents::Args),*
+            ) -> impl #crate_core::var::Var<bool> {
+                #(let #field_idents = #crate_core::var::IntoVar::into_var(
+                    std::clone::Clone::clone(#input_ident_per_field.#members()));
+                )*
                 #crate_core::var::expr_var! {
                     #expr
                 }
             }
         });
 
+        #[cfg(debug_assertions)]
+        when_conditions.extend(quote! {
+            #cfg
+            #[doc(hidden)]
+            pub fn #dbg_ident(
+                #(#input_idents : &(impl self::#prop_idents::Args + 'static)),*,
+                when_infos: &mut std::vec::Vec<#crate_core::debug::WhenInfoV1>
+            ) -> impl #crate_core::var::Var<bool> + 'static {
+                let var = self::#ident(#(#input_idents),*);
+                when_infos.push(#crate_core::debug::WhenInfoV1 {
+                    condition_expr: #expr_str,
+                    condition_var: Some(#crate_core::var::VarObj::boxed(std::clone::Clone::clone(&var))),
+                    properties: std::vec![
+                        #(#assign_names),*
+                    ],
+                    decl_location: #crate_core::debug::source_location!(),
+                    user_declared: false,
+                });
+                var
+            }
+        });
+
+        #[cfg(debug_assertions)]
+        let dbg_ident = quote! {
+            dbg_ident { #dbg_ident }
+        };
+        #[cfg(not(debug_assertions))]
+        let dbg_ident = TokenStream::default();
+
         let inputs = inputs.iter();
         built_whens.extend(quote! {
             #ident {
+                #dbg_ident
                 docs { #(#docs)* }
                 cfg { #cfg }
                 inputs {
@@ -495,7 +537,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
 
     #[cfg(debug_assertions)]
-    let debug_reexport = quote! {debug::source_location};
+    let debug_reexport = quote! {debug::{source_location, WhenInfoV1}};
     #[cfg(not(debug_assertions))]
     let debug_reexport = TokenStream::default();
 

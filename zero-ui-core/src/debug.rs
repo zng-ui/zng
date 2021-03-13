@@ -229,9 +229,6 @@ pub struct WhenInfo {
     /// Source-code location of the when block declaration.
     pub decl_location: SourceLocation,
 
-    /// Source-code location of the widget instantiation or property assign.
-    pub instance_location: SourceLocation,
-
     /// If the user declared the when block in the widget instance.
     pub user_declared: bool,
 }
@@ -278,7 +275,6 @@ pub struct WhenInfoV1 {
     pub condition_var: Option<BoxedVar<bool>>,
     pub properties: Vec<&'static str>,
     pub decl_location: SourceLocation,
-    pub instance_location: SourceLocation,
     pub user_declared: bool,
 }
 impl WidgetInstanceInfoNode {
@@ -341,7 +337,6 @@ impl WidgetInstanceInfoNode {
                 condition_version: 0,
                 properties: w.properties.into_iter().collect(),
                 decl_location: w.decl_location,
-                instance_location: w.instance_location,
                 user_declared: w.user_declared,
             })
             .collect::<Vec<_>>()

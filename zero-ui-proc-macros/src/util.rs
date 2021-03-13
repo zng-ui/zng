@@ -351,7 +351,7 @@ pub fn display_path(path: &syn::Path) -> String {
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();
     let max = tokens.len().min(20);
-    let tokens = tokens[..max]
+    let tokens = tokens[(tokens.len() - max)..]
         .replace(".", " ")
         .replace(":", " ")
         .replace("!", "not")

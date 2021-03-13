@@ -343,18 +343,25 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     for inherited in &inherits {
         //inherited.module
-        for BuiltWhen {
-            ident,
-            docs,
-            cfg,
-            inputs,
-            assigns,
-            expr_str,
-        } in &inherited.whens
-        {
+        for bw in &inherited.whens {
+            #[cfg(debug_assertions)]
+            let dbg_ident = &bw.dbg_ident;
+            let BuiltWhen {
+                ident,
+                docs,
+                cfg,
+                inputs,
+                assigns,
+                expr_str,
+                ..
+            } = bw;
+
             let module = &inherited.module;
             let module_id_str = util::tokens_to_ident_str(module);
             let new_ident = ident!("__{}{}", module_id_str, ident);
+
+            #[cfg(debug_assertions)]
+            let new_dbg_ident = ident!("__{}{}", module_id_str, dbg_ident);
 
             let mut assigns_tt = TokenStream::default();
             let mut defaults_tt = TokenStream::default();
@@ -384,8 +391,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             if assigns_tt.is_empty() {
                 continue; // all properties unset!, remove when block.
             }
+
+            #[cfg(debug_assertions)]
+            let dbg_ident_value = quote! {
+                dbg_ident { #new_dbg_ident }
+            };
+            #[cfg(not(debug_assertions))]
+            let dbg_ident_value = TokenStream::default();
+
             wgt_whens.extend(quote! {
                 #new_ident {
+                    #dbg_ident_value
                     docs { #docs }
                     cfg { #cfg }
                     inputs { #(#inputs)* }
@@ -394,11 +410,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             });
             when_reexports.extend(quote! {
-
                 #[doc(hidden)]
                 #cfg
                 pub use #module::#ident as #new_ident;
                 #defaults_tt
+            });
+            #[cfg(debug_assertions)]
+            when_reexports.extend(quote! {
+                #[doc(hidden)]
+                #cfg
+                pub use #module::#dbg_ident as #new_dbg_ident;
             });
         }
     }
@@ -414,15 +435,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // map of [property_without_value => combined_cfg_for_default_init]
     let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();
 
-    for BuiltWhen {
-        ident,
-        docs,
-        cfg,
-        inputs,
-        assigns,
-        expr_str,
-    } in whens
-    {
+    for bw in whens {
+        #[cfg(debug_assertions)]
+        let dbg_ident = &bw.dbg_ident;
+        let BuiltWhen {
+            ident,
+            docs,
+            cfg,
+            inputs,
+            assigns,
+            expr_str,
+            ..
+        } = bw;
+
         docs_whens.push(WhenDocs {
             docs: docs.clone(),
             expr: expr_str.value(),
@@ -460,8 +485,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #property { cfg { #cfg } value_fn { #value_fn } }
             });
         }
+
+        #[cfg(debug_assertions)]
+        let dbg_ident = quote! {
+            dbg_ident { #dbg_ident }
+        };
+        #[cfg(not(debug_assertions))]
+        let dbg_ident = TokenStream::default();
+
         wgt_whens.extend(quote! {
             #ident {
+                #dbg_ident
                 docs { #docs }
                 cfg { #cfg }
                 inputs { #(#inputs)* }

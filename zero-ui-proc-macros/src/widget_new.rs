@@ -277,6 +277,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // generate whens.
     let mut when_inits = TokenStream::default();
+
+    #[cfg(debug_assertions)]
+    when_inits.extend(quote! {
+        let mut __when_infos__: std::vec::Vec<#module::__core::WhenInfoV1> = std::vec![];
+    });
+
     // map of { property => [(cfg, condition_var, when_value_ident, when_value_for_prop)] }
     let mut when_assigns: HashMap<Path, Vec<(TokenStream, Ident, Ident, TokenStream)>> = HashMap::new();
     for iw in widget_data.whens {
@@ -292,6 +298,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         let ident = iw.ident;
+        #[cfg(debug_assertions)]
+        let dbg_ident = iw.dbg_ident;
         let cfg = iw.cfg;
 
         // arg variables for each input, they should all have a default value or be required (already deactivated if any unset).
@@ -312,11 +320,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             continue;
         }
         let c_ident = ident!("__c_{}", ident);
+
+        #[cfg(debug_assertions)]
+        let condition_call = quote! {
+            #module::#dbg_ident(#(&#inputs),* , &mut __when_infos__)
+        };
+        #[cfg(not(debug_assertions))]
+        let condition_call = quote! {
+            #module::#ident(#(&#inputs),*)
+        };
+
         when_inits.extend(quote! {
             #cfg
             #[allow(non_snake_case)]
             let #c_ident;
-            #cfg { #c_ident = #module::#ident(#(&#inputs),*); }
+            #cfg { #c_ident = #condition_call; }
         });
 
         // register when for each property assigned.
@@ -765,6 +783,8 @@ impl Parse for BuiltProperty {
 
 pub struct BuiltWhen {
     pub ident: Ident,
+    #[cfg(debug_assertions)]
+    pub dbg_ident: TokenStream,
     pub docs: TokenStream,
     pub cfg: TokenStream,
     pub inputs: Vec<Ident>,
@@ -778,6 +798,8 @@ impl Parse for BuiltWhen {
 
         let r = Ok(BuiltWhen {
             ident,
+            #[cfg(debug_assertions)]
+            dbg_ident: non_user_braced!(&input, "dbg_ident").parse().unwrap(),
             docs: non_user_braced!(&input, "docs").parse().unwrap(),
             cfg: non_user_braced!(&input, "cfg").parse().unwrap(),
             inputs: parse_all(&non_user_braced!(&input, "inputs")).unwrap_or_else(|e| non_user_error!(e)),
