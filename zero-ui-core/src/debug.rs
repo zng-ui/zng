@@ -906,11 +906,10 @@ mod print_fmt {
             self.write_tabs();
             if user_assigned {
                 self.write(name.blue().bold());
-                self.write(": ".blue().bold());
             } else {
                 self.write(name);
-                self.write(": ");
             }
+            self.write(" = ");
         }
 
         fn write_property_end(&mut self, user_assigned: bool) {
