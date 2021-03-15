@@ -162,7 +162,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .properties_child
         .iter()
         .map(|ip| (ip, true))
-        .chain(widget_data.properties.iter().map(|ip| (ip, true)))
+        .chain(widget_data.properties.iter().map(|ip| (ip, false)))
         .filter(|(ip, _)| ip.default && !overriden_properties.contains(&ip.ident))
     {
         let ident = &ip.ident;

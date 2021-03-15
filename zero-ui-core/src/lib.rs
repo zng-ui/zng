@@ -1168,6 +1168,8 @@ mod widget_tests {
     #[test]
     #[serial(priority)]
     pub fn property_priority_sorting_node_inherited_init() {
+        Position::reset();
+
         let mut wgt = property_priority_sorting_inherited_wgt! {
             child_count_context1 = Position::next("child_count_context1");
             child_count_context2 = Position::next("child_count_context2");
@@ -1193,6 +1195,47 @@ mod widget_tests {
         };
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
+        assert_node_order(&wgt);
+    }
+
+    #[widget($crate::widget_tests::property_priority_sorting_defaults_wgt)]
+    pub mod property_priority_sorting_defaults_wgt {
+        use super::util::Position;
+        inherit!(super::property_priority_sorting_wgt);
+
+        properties! {
+            count_context1 = Position::next("count_context1");
+            count_context2 = Position::next("count_context2");
+            count_event1 = Position::next("count_event1");
+            count_event2 = Position::next("count_event2");
+            count_outer1 = Position::next("count_outer1");
+            count_outer2 = Position::next("count_outer2");
+            count_size1 = Position::next("count_size1");
+            count_size2 = Position::next("count_size2");
+            count_inner1 = Position::next("count_inner1");
+            count_inner2 = Position::next("count_inner2");
+
+            child {
+                child_count_context1 = Position::next("child_count_context1");
+                child_count_context2 = Position::next("child_count_context2");
+                child_count_event1 = Position::next("child_count_event1");
+                child_count_event2 = Position::next("child_count_event2");
+                child_count_outer1 = Position::next("child_count_outer1");
+                child_count_outer2 = Position::next("child_count_outer2");
+                child_count_size1 = Position::next("child_count_size1");
+                child_count_size2 = Position::next("child_count_size2");
+                child_count_inner1 = Position::next("child_count_inner1");
+                child_count_inner2 = Position::next("child_count_inner2");
+            }
+        }
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_defaults() {
+        Position::reset();
+
+        let mut wgt = property_priority_sorting_defaults_wgt!();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
         assert_node_order(&wgt);
     }
 
