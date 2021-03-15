@@ -1,5 +1,8 @@
 #![cfg(test)]
 
+mod property;
+mod widget;
+
 mod a;
 mod b;
 

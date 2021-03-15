@@ -569,7 +569,7 @@ mod analysis {
                 docs: attrs.docs,
                 inline: attrs.inline,
                 cfg: attrs.cfg.clone(),
-                attrs: attrs.others,
+                attrs: attrs.others.into_iter().chain(attrs.lints).collect(),
                 is_capture_only: args.priority.is_capture_only(),
             },
             types: output::OutputTypes {
