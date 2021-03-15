@@ -1,0 +1,13 @@
+error: cannot unset `margin` because it is not set by the widget
+ --> $DIR/cannot_unset_not_by_widget1.rs:6:18
+  |
+6 |         margin = unset!;
+  |                  ^^^^^
+
+warning: unused import: `zero_ui::properties::margin`
+ --> $DIR/cannot_unset_not_by_widget1.rs:1:5
+  |
+1 | use zero_ui::properties::margin;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

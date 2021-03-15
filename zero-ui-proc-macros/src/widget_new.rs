@@ -108,14 +108,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if sp == "unset" {
                     if let Some(maybe_inherited) = up.path.get_ident() {
                         if required_properties.contains(maybe_inherited) || captured_properties.contains(maybe_inherited) {
-                            errors.push(
-                                format_args!("cannot unset required property `{}`", maybe_inherited),
-                                maybe_inherited.span(),
-                            );
+                            errors.push(format_args!("cannot unset required property `{}`", maybe_inherited), sp.span());
                         } else if !default_properties.contains(maybe_inherited) {
                             errors.push(
                                 format_args!("cannot unset `{}` because it is not set by the widget", maybe_inherited),
-                                maybe_inherited.span(),
+                                sp.span(),
                             );
                         } else {
                             unset_properties.insert(maybe_inherited);
@@ -126,7 +123,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                                 "cannot unset `{}` because it is not set by the widget",
                                 util::display_path(&up.path)
                             ),
-                            up.path.span(),
+                            sp.span(),
                         );
                     }
                 } else {
@@ -361,6 +358,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let inputs = condition.properties;
         let condition = condition.expr;
 
+        // empty when blocks don't need to generate any code,
+        // but we still want to run all validations possible.
+        let validate_but_skip = w.assigns.is_empty();
+
         let ident = w.make_ident("uw", i, call_site);
 
         // validate/separate attributes
@@ -386,20 +387,26 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                     // if property maybe has a default value.
                     _ => {
-                        let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
-                        let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
-                        match user_when_properties.entry(property.clone()) {
-                            std::collections::hash_map::Entry::Occupied(mut e) => {
-                                let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
-                                *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
-                            }
-                            std::collections::hash_map::Entry::Vacant(e) => {
-                                e.insert(cfg);
+                        if !validate_but_skip {
+                            let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
+                            let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
+                            match user_when_properties.entry(property.clone()) {
+                                std::collections::hash_map::Entry::Occupied(mut e) => {
+                                    let prev = e.get().clone().map(|tt| util::parse_attr(tt).unwrap());
+                                    *e.get_mut() = util::cfg_attr_or(prev, cfg.map(|tt| util::parse_attr(tt).unwrap()));
+                                }
+                                std::collections::hash_map::Entry::Vacant(e) => {
+                                    e.insert(cfg);
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+
+        if validate_but_skip {
+            continue;
         }
 
         // generate let bindings for a clone var of each property.member.
@@ -1182,17 +1189,13 @@ impl When {
             return None;
         };
 
-        if assigns.is_empty() {
-            None
-        } else {
-            Some(When {
-                attrs: vec![], // must be parsed before.
-                when,
-                condition_expr,
-                brace_token,
-                assigns,
-            })
-        }
+        Some(When {
+            attrs: vec![], // must be parsed before.
+            when,
+            condition_expr,
+            brace_token,
+            assigns,
+        })
     }
 
     /// Returns an ident `__{prefix}{i}_{expr_to_str}`

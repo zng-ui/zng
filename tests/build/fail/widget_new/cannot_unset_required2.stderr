@@ -1,8 +1,8 @@
 error: cannot unset required property `foo`
-  --> $DIR/cannot_unset_required2.rs:19:9
+  --> $DIR/cannot_unset_required2.rs:19:15
    |
 19 |         foo = unset!;
-   |         ^^^
+   |               ^^^^^
 
 error: missing required property `foo`
   --> $DIR/cannot_unset_required2.rs:18:13

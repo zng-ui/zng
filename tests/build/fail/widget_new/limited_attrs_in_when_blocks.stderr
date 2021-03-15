@@ -1,0 +1,31 @@
+error: only `cfg` and lint attributes are allowed in when blocks
+ --> $DIR/limited_attrs_in_when_blocks.rs:7:9
+  |
+7 |         #[some_attr]
+  |         ^
+
+error: only `cfg` and lint attributes are allowed in when blocks
+  --> $DIR/limited_attrs_in_when_blocks.rs:10:9
+   |
+10 |         #[inline]
+   |         ^
+
+error: only `cfg` and lint attributes are allowed in when blocks
+  --> $DIR/limited_attrs_in_when_blocks.rs:13:9
+   |
+13 |         /// docs
+   |         ^^^^^^^^
+
+warning: unused import: `zero_ui::properties::margin`
+ --> $DIR/limited_attrs_in_when_blocks.rs:1:5
+  |
+1 | use zero_ui::properties::margin;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `zero_ui::properties::states::is_pressed`
+ --> $DIR/limited_attrs_in_when_blocks.rs:2:5
+  |
+2 | use zero_ui::properties::states::is_pressed;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
