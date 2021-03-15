@@ -440,10 +440,10 @@ mod widget_tests {
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_context"]);
+        assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_context"]);
 
         // but properties init in the priority order.
-        assert_eq!(util::sorted_init_count(&wgt), ["count_context", "count_inner"]);
+        assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_inner"]);
     }
 
     /*
@@ -469,10 +469,10 @@ mod widget_tests {
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_pos(&wgt), ["count_inner", "count_child_inner", "count_context"]);
+        assert_eq!(util::sorted_value_init(&wgt), ["count_inner", "count_child_inner", "count_context"]);
 
         // but properties init in the priority order (child first).
-        assert_eq!(util::sorted_init_count(&wgt), ["count_context", "count_inner", "count_child_inner"]);
+        assert_eq!(util::sorted_node_init(&wgt), ["count_context", "count_inner", "count_child_inner"]);
     }
 
     /*
@@ -496,13 +496,13 @@ mod widget_tests {
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
         // values evaluated in typed order.
-        assert_eq!(util::sorted_pos(&wgt), ["inner_a", "inner_b"]);
+        assert_eq!(util::sorted_value_init(&wgt), ["inner_a", "inner_b"]);
 
         // properties with the same priority are set in the typed order.
         // inner_a is set before inner_b who therefore contains inner_a:
         // let node = inner_a(child, ..);
         // let node = inner_b(node, ..);
-        assert_eq!(util::sorted_init_count(&wgt), ["inner_b", "inner_a"]);
+        assert_eq!(util::sorted_node_init(&wgt), ["inner_b", "inner_a"]);
 
         Position::reset();
         // order of declaration doesn't impact the order of evaluation,
@@ -513,8 +513,8 @@ mod widget_tests {
         };
         wgt.test_init(&mut TestWidgetContext::wait_new());
 
-        assert_eq!(util::sorted_pos(&wgt), ["inner_b", "inner_a"]);
-        assert_eq!(util::sorted_init_count(&wgt), ["inner_a", "inner_b"]);
+        assert_eq!(util::sorted_value_init(&wgt), ["inner_b", "inner_a"]);
+        assert_eq!(util::sorted_node_init(&wgt), ["inner_a", "inner_b"]);
     }
 
     /*
@@ -954,6 +954,248 @@ mod widget_tests {
         assert!(util::traced(&wgt, "captured capture (user)"));
     }
 
+    /*
+     * Tests order properties are inited and applied.
+     */
+
+    #[widget($crate::widget_tests::property_priority_sorting_wgt)]
+    pub mod property_priority_sorting_wgt {
+        use super::util::{count_context, count_inner, count_outer, count_size, on_count};
+
+        properties! {
+            count_inner as count_inner2;
+            count_size as count_size2;
+            count_outer as count_outer2;
+            on_count as count_event2;
+            count_context as count_context2;
+
+            count_inner as count_inner1;
+            count_size as count_size1;
+            count_outer as count_outer1;
+            on_count as count_event1;
+            count_context as count_context1;
+
+            child {
+                count_inner as child_count_inner2;
+                count_size as child_count_size2;
+                count_outer as child_count_outer2;
+                on_count as child_count_event2;
+                count_context as child_count_context2;
+
+                count_inner as child_count_inner1;
+                count_size as child_count_size1;
+                count_outer as child_count_outer1;
+                on_count as child_count_event1;
+                count_context as child_count_context1;
+            }
+        }
+    }
+    fn property_priority_sorting_init1() -> impl Widget {
+        property_priority_sorting_wgt! {
+            count_inner1 = Position::next("count_inner1");
+            count_inner2 = Position::next("count_inner2");
+            count_size1 = Position::next("count_size1");
+            count_size2 = Position::next("count_size2");
+            count_outer1 = Position::next("count_outer1");
+            count_outer2 = Position::next("count_outer2");
+            count_event1 = Position::next("count_event1");
+            count_event2 = Position::next("count_event2");
+            count_context1 = Position::next("count_context1");
+            count_context2 = Position::next("count_context2");
+
+            child_count_inner1 = Position::next("child_count_inner1");
+            child_count_inner2 = Position::next("child_count_inner2");
+            child_count_size1 = Position::next("child_count_size1");
+            child_count_size2 = Position::next("child_count_size2");
+            child_count_outer1 = Position::next("child_count_outer1");
+            child_count_outer2 = Position::next("child_count_outer2");
+            child_count_event1 = Position::next("child_count_event1");
+            child_count_event2 = Position::next("child_count_event2");
+            child_count_context1 = Position::next("child_count_context1");
+            child_count_context2 = Position::next("child_count_context2");
+        }
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_value_init1() {
+        Position::reset();
+
+        let mut wgt = property_priority_sorting_init1();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        // assert that value init is the same as typed.
+        assert_eq!(
+            util::sorted_value_init(&wgt),
+            [
+                "count_inner1",
+                "count_inner2",
+                "count_size1",
+                "count_size2",
+                "count_outer1",
+                "count_outer2",
+                "count_event1",
+                "count_event2",
+                "count_context1",
+                "count_context2",
+                "child_count_inner1",
+                "child_count_inner2",
+                "child_count_size1",
+                "child_count_size2",
+                "child_count_outer1",
+                "child_count_outer2",
+                "child_count_event1",
+                "child_count_event2",
+                "child_count_context1",
+                "child_count_context2",
+            ]
+        );
+    }
+    fn property_priority_sorting_init2() -> impl Widget {
+        property_priority_sorting_wgt! {
+            child_count_context1 = Position::next("child_count_context1");
+            child_count_context2 = Position::next("child_count_context2");
+            child_count_event1 = Position::next("child_count_event1");
+            child_count_event2 = Position::next("child_count_event2");
+            child_count_outer1 = Position::next("child_count_outer1");
+            child_count_outer2 = Position::next("child_count_outer2");
+            child_count_size1 = Position::next("child_count_size1");
+            child_count_size2 = Position::next("child_count_size2");
+            child_count_inner1 = Position::next("child_count_inner1");
+            child_count_inner2 = Position::next("child_count_inner2");
+
+            count_context1 = Position::next("count_context1");
+            count_context2 = Position::next("count_context2");
+            count_event1 = Position::next("count_event1");
+            count_event2 = Position::next("count_event2");
+            count_outer1 = Position::next("count_outer1");
+            count_outer2 = Position::next("count_outer2");
+            count_size1 = Position::next("count_size1");
+            count_size2 = Position::next("count_size2");
+            count_inner1 = Position::next("count_inner1");
+            count_inner2 = Position::next("count_inner2");
+        }
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_value_init2() {
+        Position::reset();
+
+        let mut wgt = property_priority_sorting_init2();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        // assert that value init is the same as typed.
+        assert_eq!(
+            util::sorted_value_init(&wgt),
+            [
+                "child_count_context1",
+                "child_count_context2",
+                "child_count_event1",
+                "child_count_event2",
+                "child_count_outer1",
+                "child_count_outer2",
+                "child_count_size1",
+                "child_count_size2",
+                "child_count_inner1",
+                "child_count_inner2",
+                "count_context1",
+                "count_context2",
+                "count_event1",
+                "count_event2",
+                "count_outer1",
+                "count_outer2",
+                "count_size1",
+                "count_size2",
+                "count_inner1",
+                "count_inner2",
+            ]
+        );
+    }
+    fn assert_node_order(wgt: &impl Widget) {
+        // assert that `UiNode::init` position is sorted by `child` and
+        // property priorities, followed by the typed position.
+        assert_eq!(
+            util::sorted_node_init(wgt),
+            [
+                // each property wraps the next one and takes a position number before
+                // delegating to the next property (child node).
+                "count_context2",
+                "count_context1",
+                "count_event2",
+                "count_event1",
+                "count_outer2",
+                "count_outer1",
+                "count_size2",
+                "count_size1",
+                "count_inner2",
+                "count_inner1",
+                "child_count_context2",
+                "child_count_context1",
+                "child_count_event2",
+                "child_count_event1",
+                "child_count_outer2",
+                "child_count_outer1",
+                "child_count_size2",
+                "child_count_size1",
+                "child_count_inner2",
+                "child_count_inner1",
+            ]
+        );
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_node_init1() {
+        Position::reset();
+
+        let mut wgt = property_priority_sorting_init1();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert_node_order(&wgt);
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_node_init2() {
+        Position::reset();
+
+        let mut wgt = property_priority_sorting_init2();
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert_node_order(&wgt);
+    }
+    #[widget($crate::widget_tests::property_priority_sorting_inherited_wgt)]
+    pub mod property_priority_sorting_inherited_wgt {
+        inherit!(super::property_priority_sorting_wgt);
+    }
+    #[test]
+    #[serial(priority)]
+    pub fn property_priority_sorting_node_inherited_init() {
+        let mut wgt = property_priority_sorting_inherited_wgt! {
+            child_count_context1 = Position::next("child_count_context1");
+            child_count_context2 = Position::next("child_count_context2");
+            child_count_event1 = Position::next("child_count_event1");
+            child_count_event2 = Position::next("child_count_event2");
+            child_count_outer1 = Position::next("child_count_outer1");
+            child_count_outer2 = Position::next("child_count_outer2");
+            child_count_size1 = Position::next("child_count_size1");
+            child_count_size2 = Position::next("child_count_size2");
+            child_count_inner1 = Position::next("child_count_inner1");
+            child_count_inner2 = Position::next("child_count_inner2");
+
+            count_context1 = Position::next("count_context1");
+            count_context2 = Position::next("count_context2");
+            count_event1 = Position::next("count_event1");
+            count_event2 = Position::next("count_event2");
+            count_outer1 = Position::next("count_outer1");
+            count_outer2 = Position::next("count_outer2");
+            count_size1 = Position::next("count_size1");
+            count_size2 = Position::next("count_size2");
+            count_inner1 = Position::next("count_inner1");
+            count_inner2 = Position::next("count_inner2");
+        };
+        wgt.test_init(&mut TestWidgetContext::wait_new());
+
+        assert_node_order(&wgt);
+    }
+
     mod util {
         use std::{
             collections::{HashMap, HashSet},
@@ -996,7 +1238,7 @@ mod widget_tests {
         /// Insert `count` in the widget state. Can get using [`Count::get`].
         #[property(context)]
         pub fn count(child: impl UiNode, count: Position) -> impl UiNode {
-            CountNode { child, count }
+            CountNode { child, value_pos: count }
         }
 
         pub use count as count_context;
@@ -1004,17 +1246,41 @@ mod widget_tests {
         /// Same as [`count`] but with `inner` priority.
         #[property(inner)]
         pub fn count_inner(child: impl UiNode, count: Position) -> impl UiNode {
-            CountNode { child, count }
+            CountNode { child, value_pos: count }
+        }
+
+        /// Same as [`count`] but with `outer` priority.
+        #[property(outer)]
+        pub fn count_outer(child: impl UiNode, count: Position) -> impl UiNode {
+            CountNode { child, value_pos: count }
+        }
+
+        /// Same as [`count`] but with `size` priority.
+        #[property(size)]
+        pub fn count_size(child: impl UiNode, count: Position) -> impl UiNode {
+            CountNode { child, value_pos: count }
+        }
+
+        /// Same as [`count`] but with `event` priority.
+        #[property(event)]
+        pub fn on_count(child: impl UiNode, count: Position) -> impl UiNode {
+            CountNode { child, value_pos: count }
         }
 
         /// Count adds one every [`Self::next`] call.
         #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-        pub struct Position(pub u32, pub &'static str);
+        pub struct Position {
+            pub pos: u32,
+            pub tag: &'static str,
+        }
         static COUNT: AtomicU32 = AtomicU32::new(0);
         static COUNT_INIT: AtomicU32 = AtomicU32::new(0);
         impl Position {
             pub fn next(tag: &'static str) -> Self {
-                Position(COUNT.fetch_add(1, atomic::Ordering::AcqRel), tag)
+                Position {
+                    pos: COUNT.fetch_add(1, atomic::Ordering::AcqRel),
+                    tag,
+                }
             }
 
             fn next_init() -> u32 {
@@ -1027,10 +1293,10 @@ mod widget_tests {
             }
         }
 
-        /// Gets the [`Position`] tags sorted by their number.
-        pub fn sorted_pos(wgt: &impl Widget) -> Vec<&'static str> {
+        /// Gets the [`Position`] tags sorted by call to [`Position::next`].
+        pub fn sorted_value_init(wgt: &impl Widget) -> Vec<&'static str> {
             wgt.state()
-                .get(PositionKey)
+                .get(ValuePositionKey)
                 .map(|m| {
                     let mut vec: Vec<_> = m.iter().collect();
                     vec.sort_by_key(|(_, i)| *i);
@@ -1039,10 +1305,10 @@ mod widget_tests {
                 .unwrap_or_default()
         }
 
-        /// Gets the [`Position`] tags sorted by their init position.
-        pub fn sorted_init_count(wgt: &impl Widget) -> Vec<&'static str> {
+        /// Gets the [`Position`] tags sorted by the [`UiNode::init` call.
+        pub fn sorted_node_init(wgt: &impl Widget) -> Vec<&'static str> {
             wgt.state()
-                .get(InitPositionKey)
+                .get(NodePositionKey)
                 .map(|m| {
                     let mut vec: Vec<_> = m.iter().collect();
                     vec.sort_by_key(|(_, i)| *i);
@@ -1052,23 +1318,28 @@ mod widget_tests {
         }
 
         state_key! {
-            struct PositionKey: HashMap<&'static str, u32>;
-            struct InitPositionKey: HashMap<&'static str, u32>;
+            struct ValuePositionKey: HashMap<&'static str, u32>;
+            struct NodePositionKey: HashMap<&'static str, u32>;
         }
 
         struct CountNode<C: UiNode> {
             child: C,
-            count: Position,
+            value_pos: Position,
         }
         #[impl_ui_node(child)]
         impl<C: UiNode> UiNode for CountNode<C> {
             fn init(&mut self, ctx: &mut WidgetContext) {
                 ctx.widget_state
-                    .entry(InitPositionKey)
+                    .entry(ValuePositionKey)
                     .or_default()
-                    .insert(self.count.1, Position::next_init());
+                    .insert(self.value_pos.tag, self.value_pos.pos);
+
+                ctx.widget_state
+                    .entry(NodePositionKey)
+                    .or_default()
+                    .insert(self.value_pos.tag, Position::next_init());
+
                 self.child.init(ctx);
-                ctx.widget_state.entry(PositionKey).or_default().insert(self.count.1, self.count.0);
             }
         }
 
