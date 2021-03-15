@@ -1199,12 +1199,12 @@ mod output {
 
             let capture_only = if !priority.is_capture_only() {
                 quote! {
-                    (assert !capture_only=> $msg:tt) => { };
+                    (if capture_only=> $($tt:tt)*) => { };
                 }
             } else {
                 quote! {
-                    (assert !capture_only=> $msg:tt) => {
-                        std::compile_error!{$msg}
+                    (if capture_only=> $($tt:tt)*) => {
+                        $($tt)*
                     };
                 }
             };

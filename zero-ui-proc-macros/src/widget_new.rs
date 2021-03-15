@@ -594,7 +594,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             property_set_calls.extend(quote_spanned! {*p_span=>
                 #cfg
                 #p_mod::code_gen!{
-                    assert !capture_only => #capture_only_error
+                    if capture_only =>  std::compile_error!{#capture_only_error}
                 }
             })
         }
