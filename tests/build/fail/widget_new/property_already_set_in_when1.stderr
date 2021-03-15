@@ -1,0 +1,5 @@
+error: property `margin` already set in this `when` block
+ --> $DIR/property_already_set_in_when1.rs:9:13
+  |
+9 |             margin = 1;
+  |             ^^^^^^

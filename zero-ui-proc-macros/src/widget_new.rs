@@ -484,17 +484,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             if !assigns.insert(assign.path.clone()) {
                 errors.push(
-                    format_args!(
-                        "property `{}` already assigned in this `when` block",
-                        util::display_path(&assign.path)
-                    ),
+                    format_args!("property `{}` already set in this `when` block", util::display_path(&assign.path)),
                     assign.path.span(),
                 );
                 skip = true;
             }
 
             if let PropertyValue::Special(sp, _) = &assign.value {
-                errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
+                if sp == "unset" {
+                    errors.push("cannot `unset!` properties in `when` blocks", sp.span());
+                } else {
+                    errors.push(format_args!("unknown value `{}!`", sp), sp.span());
+                }
                 skip = true;
             }
 

@@ -391,7 +391,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 // validate property only assigned once in the when block.
                 if !assigns.insert(property.clone()) {
                     errors.push(
-                        format_args!("property `{}` already assigned in this `when` block", property),
+                        format_args!("property `{}` already set in this `when` block", property),
                         property.span(),
                     );
                     skip = true;
