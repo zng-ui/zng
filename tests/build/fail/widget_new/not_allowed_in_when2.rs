@@ -1,5 +1,5 @@
 use zero_ui::core::{property, UiNode};
-use zero_ui::properties::states::is_pressed;
+use zero_ui::properties::{margin, states::is_pressed};
 use zero_ui::widgets::blank;
 struct NotVarValue;
 
@@ -12,9 +12,11 @@ pub fn foo(child: impl UiNode, value: NotVarValue) -> impl UiNode {
 fn main() {
     let _ = blank! {
         foo = NotVarValue;
+        margin = 0;
 
         when self.is_pressed {
             foo = NotVarValue;
+            margin = 1;
         }
     };
 }

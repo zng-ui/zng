@@ -696,16 +696,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             .get(&property)
             .unwrap_or_else(|| non_user_error!("property(introduced in when?) not found"));
         when_inits.extend(quote! {
-            #cfg
-            let #default = {
-                #init_members
-                #property_path::code_gen! {
-                    when #property_path {
-                        #(#conditions)*
-                        _ => #default,
+            #property_path::code_gen! { if allowed_in_when=>
+                #cfg
+                let #default = {
+                    #init_members
+                    #property_path::code_gen! {
+                        when #property_path {
+                            #(#conditions)*
+                            _ => #default,
+                        }
                     }
-                }
-            };
+                };
+            }
         });
     }
 

@@ -1,0 +1,5 @@
+error: property `foo` is not allowed in when
+  --> $DIR/not_allowed_in_when2.rs:18:13
+   |
+18 |             foo = NotVarValue;
+   |             ^^^
