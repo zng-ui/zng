@@ -444,11 +444,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             member_vars.extend(quote! {
                 #[allow(non_snake_case)]
                 let #var_ident;
-                #var_ident = #module::__core::var::IntoVar::into_var(
-                    std::clone::Clone::clone(
-                        #property_path::Args::#member(&#args_ident)
-                    )
-                );
+                #property_path::code_gen!{ if !allowed_in_when=>
+                    #[allow(unreachable_code)] {
+                        #var_ident = std::unreachable!{};
+                    }
+                }
+                #property_path::code_gen!{ if allowed_in_when=>
+                    #var_ident =  #module::__core::var::IntoVar::into_var(
+                        std::clone::Clone::clone(
+                            #property_path::Args::#member(&#args_ident)
+                        )
+                    );
+                }
             });
         }
 

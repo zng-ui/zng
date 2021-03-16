@@ -1187,10 +1187,14 @@ mod output {
 
             let allowed_in_when = if self.allowed_in_when {
                 quote! {
+                    (if allowed_in_when=> $($tt:tt)*) => {
+                        $($tt)*
+                    };
                     (if !allowed_in_when=> $($tt:tt)*) => { };
                 }
             } else {
                 quote! {
+                    (if allowed_in_when=> $($tt:tt)*) => { };
                     (if !allowed_in_when=> $($tt:tt)*) => {
                         $($tt)*
                     };

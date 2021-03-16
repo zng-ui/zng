@@ -1,0 +1,5 @@
+error: property `foo` is not allowed in when
+  --> $DIR/not_allowed_in_when1.rs:22:19
+   |
+22 |         when self.foo.is() {
+   |                   ^^^
