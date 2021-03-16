@@ -1,0 +1,13 @@
+error: unexpected end of input, expected identifier
+ --> $DIR/error_in_when_expr2.rs:7:18
+  |
+7 |         when self. {
+  |                  ^
+
+warning: unused import: `states::is_pressed`
+ --> $DIR/error_in_when_expr2.rs:1:35
+  |
+1 | use zero_ui::properties::{margin, states::is_pressed};
+  |                                   ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

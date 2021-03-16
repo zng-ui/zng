@@ -101,17 +101,54 @@ pub fn parse_without_eager_brace(input: ParseStream) -> TokenStream {
     let mut r = TokenStream::default();
     let mut is_start = true;
     while !input.is_empty() {
-        if input.peek2(token::Brace) {
-            if input.cursor().punct().is_some() {
-                // #{} or ={}
-                let tt = input.parse::<TokenTree>().unwrap();
-                tt.to_tokens(&mut r);
-                let tt = input.parse::<TokenTree>().unwrap();
-                tt.to_tokens(&mut r);
-            } else {
+        if input.peek(Token![match]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // expr
+            r.extend(parse_without_eager_brace(input));
+            // block
+            if input.peek(token::Brace) {
                 input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
-                break; // found { } after expr or Struct { }
             }
+        } else if input.peek(Token![if]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // expr
+            r.extend(parse_without_eager_brace(input));
+            // block
+            if input.peek(token::Brace) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+
+                if input.peek(Token![else]) {
+                    input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                    if input.peek(token::Brace) {
+                        // else { }
+                        input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                    } else {
+                        // maybe another if
+                        continue;
+                    }
+                }
+            }
+        } else if input.peek(Token![loop]) {
+            // keyword
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            // block
+            if input.peek(token::Brace) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+        } else if input.peek2(token::Brace) {
+            if let Some(p) = input.cursor().punct() {
+                if p.0.as_char() != '.' {
+                    let tt = input.parse::<TokenTree>().unwrap();
+                    tt.to_tokens(&mut r);
+                    let tt = input.parse::<TokenTree>().unwrap();
+                    tt.to_tokens(&mut r);
+                    continue; // found #{ }
+                }
+            }
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            break; // found { } after expr or Struct { }
         } else if !is_start && input.peek(token::Brace) {
             break; // found { } after expr
         } else {
@@ -222,6 +259,22 @@ mod tests {
     }
 
     #[test]
+    fn parse_expr_without_interpolation_j() {
+        let input = quote! {
+            // if
+            a == !{ true } {
+                println!("is false");
+            }
+        };
+        let expected = quote! {
+            a == !{ true }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
     fn parse_expr_with_interpolation() {
         let input = quote! {
             // if
@@ -231,6 +284,86 @@ mod tests {
         };
         let expected = quote! {
             a == #{b}
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_punct() {
+        let input = quote! {
+            // if
+            a == 0. {
+                println!("is zero")
+            }
+        };
+        let expected = quote! {
+            a == 0.
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_match() {
+        let input = quote! {
+            // if
+           match a { 5 => false, 8 => true } {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            match a { 5 => false, 8 => true }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_if() {
+        let input = quote! {
+            // if
+           if a == 8 {  false } else { true } {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            if a == 8 {  false } else { true }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_if2() {
+        let input = quote! {
+            // if
+            if a == 8 {  false } else if a > 10 { true } else { true } {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            if a == 8 {  false } else if a > 10 { true } else { true }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_loop() {
+        let input = quote! {
+            // if
+            loop { break true; } {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            loop { break true; }
         };
         let actual = test_parse(input);
 

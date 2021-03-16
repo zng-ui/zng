@@ -1266,16 +1266,26 @@ impl WhenExprToVar {
             // look for `self.property(.member)?` and replace with `#{__property__member}`
             if input.peek(Token![self]) && input.peek2(Token![.]) {
                 input.parse::<Token![self]>().unwrap();
-                input.parse::<Token![.]>().unwrap();
+                let last_span = input.parse::<Token![.]>().unwrap().span();
 
-                let property = input.parse::<Path>()?;
+                let property = input.parse::<Path>().map_err(|e| {
+                    if util::span_is_call_site(e.span()) {
+                        syn::Error::new(last_span, e)
+                    } else {
+                        e
+                    }
+                })?;
                 let member_ident = if input.peek(Token![.]) && !input.peek2(Token![await]) && !input.peek3(token::Paren) {
                     input.parse::<Token![.]>().unwrap();
                     if input.peek(Ident) {
                         let member = input.parse::<Ident>().unwrap();
                         ident_spanned!(member.span()=> "__{}", member)
                     } else {
-                        let index = input.parse::<syn::Index>().unwrap();
+                        let index = input.parse::<syn::Index>().map_err(|e| {
+                            let span = if util::span_is_call_site(e.span()) { last_span } else { e.span() };
+
+                            syn::Error::new(span, "expected identifier or index")
+                        })?;
                         ident_spanned!(index.span()=> "__{}", index.index)
                     }
                 } else {
