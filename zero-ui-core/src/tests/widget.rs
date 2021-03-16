@@ -1101,6 +1101,102 @@ pub fn property_priority_sorting_defaults() {
     assert_node_order(&wgt);
 }
 
+/*
+ * Tests property member access in when
+ */
+
+#[test]
+pub fn when_property_member_default() {
+    let mut wgt = empty_wgt! {
+       util::duo_members = "a", "b";
+       util::live_trace = "";
+       when {
+           assert_eq!(self.util::duo_members, "a");
+           true
+       } {
+           util::live_trace = "true";
+       }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "true"));
+}
+
+#[test]
+pub fn when_property_member_index() {
+    let mut wgt = empty_wgt! {
+       util::duo_members = "a", "b";
+       util::live_trace = "";
+       when {
+           assert_eq!(self.util::duo_members.0, "a");
+           assert_eq!(self.util::duo_members.1, "b");
+           true
+       } {
+           util::live_trace = "true";
+       }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "true"));
+}
+
+#[test]
+pub fn when_property_member_named() {
+    let mut wgt = empty_wgt! {
+       util::duo_members = "a", "b";
+       util::live_trace = "";
+       when {
+           assert_eq!(self.util::duo_members.member_a, "a");
+           assert_eq!(self.util::duo_members.member_b, "b");
+           true
+       } {
+           util::live_trace = "true";
+       }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "true"));
+}
+
+#[test]
+pub fn when_property_member_default_method() {
+    let mut wgt = empty_wgt! {
+       util::duo_members = "a", "b";
+       util::live_trace = "";
+       when {
+           assert_eq!(self.util::duo_members.len(), 1);
+           true
+       } {
+           util::live_trace = "true";
+       }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "true"));
+}
+
+#[test]
+pub fn when_property_member_indexed_method() {
+    let mut wgt = empty_wgt! {
+       util::duo_members = "a", "b";
+       util::live_trace = "";
+       when {
+           assert_eq!(self.util::duo_members.0.len(), 1);
+           true
+       } {
+           util::live_trace = "true";
+       }
+    };
+
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "true"));
+}
+
 mod util {
     use std::{
         collections::{HashMap, HashSet},
@@ -1318,4 +1414,11 @@ mod util {
     /// A capture_only property.
     #[property(capture_only)]
     pub fn capture_only_trace(trace: &'static str) -> ! {}
+
+    #[property(context)]
+    pub fn duo_members(child: impl UiNode, member_a: impl IntoVar<&'static str>, member_b: impl IntoVar<&'static str>) -> impl UiNode {
+        let _ = member_a;
+        let _ = member_b;
+        child
+    }
 }

@@ -1248,8 +1248,8 @@ pub struct WhenExprToVar {
     ///The [input expression](When::condition_expr) with all properties replaced with `expr_var!` placeholders.
     pub expr: TokenStream,
 }
-impl Parse for WhenExprToVar {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+impl WhenExprToVar {
+    fn parse_inner(input: ParseStream) -> syn::Result<Self> {
         let mut properties = HashMap::new();
         let mut expr = TokenStream::default();
 
@@ -1260,7 +1260,7 @@ impl Parse for WhenExprToVar {
                 input.parse::<Token![.]>().unwrap();
 
                 let property = input.parse::<Path>()?;
-                let member_ident = if input.peek(Token![.]) {
+                let member_ident = if input.peek(Token![.]) && !input.peek2(Token![await]) && !input.peek3(token::Paren) {
                     input.parse::<Token![.]>().unwrap();
                     if input.peek(Ident) {
                         let member = input.parse::<Ident>().unwrap();
@@ -1284,17 +1284,17 @@ impl Parse for WhenExprToVar {
             }
             // recursive parse groups:
             else if input.peek(token::Brace) {
-                let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
+                let inner = WhenExprToVar::parse_inner(&non_user_braced!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote_spanned! {inner.span()=> { #inner } });
             } else if input.peek(token::Paren) {
-                let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
+                let inner = WhenExprToVar::parse_inner(&non_user_parenthesized!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote_spanned! {inner.span()=> ( #inner ) });
             } else if input.peek(token::Bracket) {
-                let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
+                let inner = WhenExprToVar::parse_inner(&non_user_bracketed!(input))?;
                 properties.extend(inner.properties);
                 let inner = inner.expr;
                 expr.extend(quote_spanned! {inner.span()=> [ #inner ] });
@@ -1306,12 +1306,20 @@ impl Parse for WhenExprToVar {
             }
         }
 
+        Ok(WhenExprToVar { properties, expr })
+    }
+}
+impl Parse for WhenExprToVar {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut r = WhenExprToVar::parse_inner(input)?;
+        let expr = &mut r.expr;
+
         // assert expression type.
-        let expr = quote_spanned! {expr.span()=>
+        *expr = quote_spanned! {expr.span()=>
             let __result__: bool = { #expr };
             __result__
         };
 
-        Ok(WhenExprToVar { properties, expr })
+        Ok(r)
     }
 }
