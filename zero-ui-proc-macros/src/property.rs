@@ -1187,12 +1187,12 @@ mod output {
 
             let allowed_in_when = if self.allowed_in_when {
                 quote! {
-                    (assert allowed_in_when=> $msg:tt) => { };
+                    (if !allowed_in_when=> $($tt:tt)*) => { };
                 }
             } else {
                 quote! {
-                    (assert allowed_in_when=> $msg:tt) => {
-                        std::compile_error!{$msg}
+                    (if !allowed_in_when=> $($tt:tt)*) => {
+                        $($tt)*
                     };
                 }
             };

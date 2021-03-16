@@ -1,0 +1,5 @@
+error: cannot use unset property `margin` in when
+  --> $DIR/cannot_use_unset_property1.rs:15:19
+   |
+15 |         when self.margin == 0 { }
+   |                   ^^^^^^

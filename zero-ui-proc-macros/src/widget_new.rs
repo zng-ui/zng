@@ -383,7 +383,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 match property.get_ident() {
                     // if property was `unset!`.
                     Some(maybe_unset) if unset_properties.contains(maybe_unset) => {
-                        errors.push(format!("cannot use unset property `{}`", maybe_unset), maybe_unset.span());
+                        errors.push(format!("cannot use unset property `{}` in when", maybe_unset), maybe_unset.span());
                     }
                     // if property maybe has a default value.
                     _ => {
@@ -405,10 +405,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
 
-        if validate_but_skip {
-            continue;
-        }
-
         // generate let bindings for a clone var of each property.member.
         let mut member_vars = TokenStream::default();
         for ((property, member), var_ident) in inputs {
@@ -419,6 +415,21 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 _ => property.to_token_stream(),
             };
+
+            if validate_but_skip {
+                continue;
+            }
+            if let Some(maybe_unset) = property.get_ident() {
+                if unset_properties.contains(maybe_unset) {
+                    // also skip if unset, the error message is already added.
+                    continue;
+                }
+            }
+
+            let not_allowed_error = format!("property `{}` is not allowed in when", util::display_path(&property));
+            when_inits.extend(quote_spanned! {util::path_span(&property)=>
+                #property_path::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
+            });
 
             let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
                 // if is not in `wgt_properties` it must be in `user_when_properties`
@@ -439,6 +450,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     )
                 );
             });
+        }
+
+        if validate_but_skip {
+            continue;
         }
 
         // generate the condition var let binding.
@@ -492,7 +507,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             if let PropertyValue::Special(sp, _) = &assign.value {
                 if sp == "unset" {
-                    errors.push("cannot `unset!` properties in `when` blocks", sp.span());
+                    errors.push("cannot `unset!` properties in when blocks", sp.span());
                 } else {
                     errors.push(format_args!("unknown value `{}!`", sp), sp.span());
                 }
@@ -501,6 +516,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
             if skip {
                 continue;
+            }
+            if let Some(maybe_unset) = assign.path.get_ident() {
+                if unset_properties.contains(maybe_unset) {
+                    // also skip if unset, the error message is already added.
+                    continue;
+                }
             }
 
             let assign_val_id = ident!("__uwv_{}", util::display_path(&assign.path).replace("::", "_"));
@@ -515,11 +536,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 _ => (assign.path.to_token_stream(), assign.path.span(), assign.value_span),
             };
+
+            let not_allowed_error = format!("property `{}` is not allowed in when", util::display_path(&assign.path));
+
             let expr = assign
                 .value
                 .expr_tokens(&property_path, property_span, value_span)
                 .unwrap_or_else(|e| non_user_error!(e));
 
+            when_inits.extend(quote_spanned! {util::path_span(&assign.path)=>
+                #property_path::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
+            });
             when_inits.extend(quote! {
                 #cfg
                 #(#lints)*
