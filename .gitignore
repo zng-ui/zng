@@ -6,5 +6,6 @@ dump.rs
 dump.log
 dump*.rs
 dump*.log
+dump*.asm
 screenshot.png
 wip

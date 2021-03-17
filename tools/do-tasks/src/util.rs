@@ -272,6 +272,16 @@ pub fn print(msg: impl std::fmt::Display) {
     }
 }
 
+// Do `action` in background thread after `delay_secs`.
+pub fn do_after(delay_secs: u64, action: impl FnOnce() + Send + 'static) {
+    use std::thread;
+    use std::time::Duration;
+    thread::spawn(move || {
+        thread::sleep(Duration::from_secs(delay_secs));
+        action();
+    });
+}
+
 // Prints an error message, use `error(f!("{}", .."))` for formatting.
 pub fn error(msg: impl std::fmt::Display) {
     if let Some(mut dump) = TaskInfo::get().stderr_dump() {

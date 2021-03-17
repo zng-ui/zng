@@ -260,12 +260,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ));
         #[cfg(not(debug_assertions))]
         prop_set_calls.push((
-            p_mod.to_token_stream(), 
+            p_mod.to_token_stream(),
             p_var_ident,
             p_name,
             cfg.to_token_stream(),
             up.path.span(),
-            up.value_span
+            up.value_span,
         ));
     }
 
@@ -612,12 +612,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         ));
         #[cfg(not(debug_assertions))]
         prop_set_calls.push((
-            p.to_token_stream(), 
+            p.to_token_stream(),
             args_ident.clone(),
-            util::display_path(&p), 
-            cfg.to_token_stream(), 
-            p_span, 
-            call_site
+            util::display_path(&p),
+            cfg.to_token_stream(),
+            p_span,
+            call_site,
         ));
 
         wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));

@@ -13,6 +13,7 @@ fn main() {
         "expand" => expand(args),
         "build" | "b" => build(args),
         "clean" => clean(args),
+        "asm" => asm(args),
         "help" | "--help" => help(args),
         _ => fatal(f!("unknown task {:?}, `{} help` to list tasks", task, DO)),
     }
@@ -322,6 +323,56 @@ fn clean(mut args: Vec<&str>) {
         // external because it will delete self.
         cmd_external("cargo", &["clean", "--manifest-path", env!("DO_MANIFEST_PATH")], &args);
     }
+}
+
+// do asm [r --rust] [--debug] [<FN-PATH>] [<cargo-asm-args>]
+//    Run "cargo asm" after building.
+// FLAGS:
+//     --dump   Write the assembler to "dump.asm".
+// USAGE:
+//    asm <FN-PATH>
+//        Print assembler for the function, build in release, or list all functions matched.
+//    asm --debug <FN-PATH>
+//        Print assembler for the function, or list all functions matched.
+//    asm -r <FN-PATH>
+//        Print source Rust code interleaved with assembler code.
+fn asm(mut args: Vec<&str>) {
+    let manifest_path = take_option(&mut args, &["--manifest-path"], "<Cargo.toml>").unwrap_or_default();
+    let build_type = take_option(&mut args, &["--build-type"], "<debug, release>").unwrap_or_default();
+    let debug = take_flag(&mut args, &["--debug"]);
+
+    let mut asm_args = vec!["asm"];
+
+    if debug {
+        asm_args.push("--build-type");
+        asm_args.push("debug");
+    } else if let Some(t) = build_type.first() {
+        asm_args.push("--build-type");
+        asm_args.push(t);
+    }
+
+    if take_flag(&mut args, &["-r", "--rust"]) {
+        asm_args.push("--rust");
+    }
+
+    if let Some(p) = manifest_path.first() {
+        asm_args.push("--manifest-path");
+        asm_args.push(p);
+    }
+
+    {
+        let t = TaskInfo::get();
+        if t.dump {
+            asm_args.push("--no-color");
+            t.stdout_dump = "dump.asm";
+        }
+    }
+
+    util::do_after(10, || {
+        println(r#"Awaiting "cargo asm", this can take a while..."#);
+    });
+
+    cmd("cargo", &asm_args, &args);
 }
 
 // do help, --help
