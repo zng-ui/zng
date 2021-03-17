@@ -114,7 +114,7 @@ mod inspect {
     use super::*;
     use zero_ui::core::context::WidgetContext;
 
-    pub fn focus(path: &Option<WidgetPath>, ctx: &mut WidgetContext) -> String {
+    pub fn focus(path: &Option<WidgetPath>, _: &mut WidgetContext) -> String {
         path.as_ref()
             .map(|p| format!("{:?}", p.widget_id()))
             .unwrap_or_else(|| "<none>".to_owned())

@@ -124,6 +124,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|_| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
+        
+        #[allow(unused_mut)]
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
@@ -160,6 +162,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let new__ = new_fn.as_ref().map(|f| {
         let p_new: Vec<_> = new.iter().map(|id| ident!("__p_{}", id)).collect();
         let output = &f.sig.output;
+        #[allow(unused_mut)]
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]

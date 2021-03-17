@@ -181,9 +181,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         let p_mod_ident = ident!("__p_{}", ident);
         // register data for the set call generation.
-        let property_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
+        let prop_set_calls = if is_child { &mut child_prop_set_calls } else { &mut prop_set_calls };
         #[cfg(debug_assertions)]
-        property_set_calls.push((
+        prop_set_calls.push((
             quote! { #module::#p_mod_ident },
             p_var_ident,
             ip.ident.to_string(),
@@ -197,7 +197,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             call_site,
         ));
         #[cfg(not(debug_assertions))]
-        property_set_calls.push((
+        prop_set_calls.push((
             quote! { #module::#p_mod_ident },
             p_var_ident,
             ip.ident.to_string(),
@@ -240,13 +240,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 continue;
             }
         }
-        let prop_calls = match up.path.get_ident() {
+        let prop_set_calls = match up.path.get_ident() {
             Some(maybe_child) if child_properties.contains(maybe_child) => &mut child_prop_set_calls,
             _ => &mut prop_set_calls,
         };
         // register data for the set call generation.
         #[cfg(debug_assertions)]
-        prop_calls.push((
+        prop_set_calls.push((
             p_mod.to_token_stream(),
             p_var_ident,
             p_name,
@@ -259,7 +259,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             up.value_span,
         ));
         #[cfg(not(debug_assertions))]
-        prop_calls.push((p_mod.to_token_stream(), p_var_ident, cfg.to_token_stream(), up.path.span()));
+        prop_set_calls.push((
+            p_mod.to_token_stream(), 
+            p_var_ident,
+            p_name,
+            cfg.to_token_stream(),
+            up.path.span(),
+            up.value_span
+        ));
     }
 
     // validate required properties.
@@ -600,11 +607,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             },
             cfg.to_token_stream(),
             /*user_assigned: */ true,
-            p.span(),
+            p_span,
             /*val_span: */ call_site,
         ));
         #[cfg(not(debug_assertions))]
-        prop_set_calls.push((p.to_token_stream(), args_ident, cfg.to_token_stream(), p.span(), call_site));
+        prop_set_calls.push((
+            p.to_token_stream(), 
+            args_ident.clone(),
+            util::display_path(&p), 
+            cfg.to_token_stream(), 
+            p_span, 
+            call_site
+        ));
 
         wgt_properties.insert(p, (args_ident, cfg.unwrap_or_default()));
     }
@@ -620,7 +634,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #[cfg(debug_assertions)]
             let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
             #[cfg(not(debug_assertions))]
-            let (p_mod, _, p_name, cfg, p_span) = set_call;
+            let (p_mod, _, p_name, cfg, p_span, _) = set_call;
             let capture_only_error = format!(
                 "property `{}` cannot be set because it is capture-only, but is not captured by the widget",
                 p_name
@@ -764,7 +778,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(not(debug_assertions))]
     let new_child_call = quote! {
         #allow_unreachable
-        let node__ = #module::__new_child_debug(#(#new_child_caps),*);
+        let node__ = #module::__new_child(#(#new_child_caps),*);
     };
     #[cfg(debug_assertions)]
     let new_call = {
