@@ -1,0 +1,8 @@
+error[E0599]: no associated item named `__1` found for trait object `dyn is_pressed_Args` in the current scope
+ --> $DIR/unknown_member_in_when_expr1.rs:7:30
+  |
+7 |         when self.is_pressed.1 { // only .0 or .state allowed.
+  |                              ^
+  |                              |
+  |                              associated item not found in `dyn is_pressed_Args`
+  |                              help: there is an associated function with a similar name: `__0`
