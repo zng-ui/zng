@@ -101,7 +101,7 @@ pub fn parse_without_eager_brace(input: ParseStream) -> TokenStream {
     let mut r = TokenStream::default();
     let mut is_start = true;
     while !input.is_empty() {
-        if input.peek(Token![match]) {
+        if input.peek(Token![match]) || input.peek(Token![while]) {
             // keyword
             input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
             // expr
@@ -136,6 +136,22 @@ pub fn parse_without_eager_brace(input: ParseStream) -> TokenStream {
             // block
             if input.peek(token::Brace) {
                 input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+        } else if input.peek(Token![for]) {
+            // keyword (for)
+            input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            while !input.is_empty() && !input.peek(Token![in]) {
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+            }
+            if !input.is_empty() {
+                // keyword (in)
+                input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                //expr
+                r.extend(parse_without_eager_brace(input));
+                // block
+                if input.peek(token::Brace) {
+                    input.parse::<TokenTree>().unwrap().to_tokens(&mut r);
+                }
             }
         } else if input.peek2(token::Brace) {
             if let Some(p) = input.cursor().punct() {
@@ -179,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_expr_without_interpolation_a() {
+    fn parse_expr_without_interpolation_simple1() {
         let input = quote! {
             // if
             a == self.b {
@@ -195,7 +211,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_expr_without_interpolation_b() {
+    fn parse_expr_without_interpolation_simple2() {
         let input = quote! {
             // if
             (a == self.b) {
@@ -211,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_expr_without_interpolation_c() {
+    fn parse_expr_without_interpolation_escaped1() {
         let input = quote! {
             // if
             a == ( A { } ) {
@@ -227,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_expr_without_interpolation_d() {
+    fn parse_expr_without_interpolation_invalid1() {
         let input = quote! {
             // if
             a == A { } {
@@ -236,6 +252,22 @@ mod tests {
         };
         let expected = quote! {
             a == A
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_without_interpolation_invalid2() {
+        let input = quote! {
+            // if
+            A { } == a {
+                println!("is true");
+            }
+        };
+        let expected = quote! {
+            A
         };
         let actual = test_parse(input);
 
@@ -364,6 +396,37 @@ mod tests {
         };
         let expected = quote! {
             loop { break true; }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+
+    #[test]
+    fn parse_expr_end_while() {
+        let input = quote! {
+            // if
+            () == while a { } {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            () == while a { }
+        };
+        let actual = test_parse(input);
+
+        assert_tt_eq!(expected, actual);
+    }
+    #[test]
+    fn parse_expr_end_for() {
+        let input = quote! {
+            // if
+            () == for i in name { }  {
+                println!("is 8")
+            }
+        };
+        let expected = quote! {
+            () == for i in name { }
         };
         let actual = test_parse(input);
 
