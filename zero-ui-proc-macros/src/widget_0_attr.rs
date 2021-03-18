@@ -69,7 +69,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         mut properties,
         mut new_child_fn,
         mut new_fn,
-        others,
+        mut others,
     } = WidgetItems::new(items, &mut errors);
 
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
@@ -78,11 +78,13 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     if mixin {
         if let Some(child_fn_) = new_child_fn.take() {
-            errors.push("widget mixins do not have a `new_child` function", child_fn_.span())
+            errors.push("widget mixins do not have a `new_child` function", child_fn_.sig.ident.span());
+            others.push(syn::Item::Fn(child_fn_))
         }
 
         if let Some(fn_) = new_fn.take() {
-            errors.push("widget mixins do not have a `new` function", fn_.span())
+            errors.push("widget mixins do not have a `new` function", fn_.sig.ident.span());
+            others.push(syn::Item::Fn(fn_))
         }
     }
 
@@ -91,9 +93,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     // in the generated `__new_child` and `__new` functions.
     if let Some(fn_) = &new_child_fn {
         validate_new_fn(fn_, &mut errors);
-        if let syn::ReturnType::Default = &fn_.sig.output {
-            errors.push("`new_child` must return a type that implements `UiNode`", fn_.sig.output.span())
-        }
     }
     if let Some(fn_) = &new_fn {
         validate_new_fn(fn_, &mut errors);
@@ -122,14 +121,20 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let captures = captures;
 
     // generate `__new_child` and `__new` if new functions are defined in the widget.
-    let new_child__ = new_child_fn.as_ref().map(|_| {
+    let new_child__ = new_child_fn.as_ref().map(|f| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
-
+        let span = match &f.sig.output {
+            syn::ReturnType::Default => f.block.span(),
+            syn::ReturnType::Type(_, t) => t.span(),
+        };
+        let output = quote_spanned! {span=>
+            impl #crate_core::UiNode
+        };
         #[allow(unused_mut)]
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
-            pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> impl #crate_core::UiNode {
+            pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> #output {
                 self::new_child(#(self::#p_new_child::Args::unwrap(#new_child)),*)
             }
         };

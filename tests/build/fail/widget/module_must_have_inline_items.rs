@@ -1,9 +1,9 @@
 use zero_ui::core::widget;
 
-#[widget($crate::widget)]
+#[widget($crate::test_widget)]
 #[path = "util/a_mod.rs"]
-pub mod widget;
+pub mod test_widget;
 
 fn main() {
-    widget::mod_exists();
+    test_widget::mod_exists();
 }

@@ -1,0 +1,23 @@
+error: `new_child` cannot be `async`
+  --> $DIR/new_fns_cannot_be_async.rs:10:5
+   |
+10 |     async fn new_child() -> NilUiNode {
+   |     ^^^^^
+
+error: `new` cannot be `async`
+ --> $DIR/new_fns_cannot_be_async.rs:7:5
+  |
+7 |     async fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
+  |     ^^^^^
+
+error[E0277]: the trait bound `impl Future: UiNode` is not satisfied
+  --> $DIR/new_fns_cannot_be_async.rs:10:29
+   |
+10 |     async fn new_child() -> NilUiNode {
+   |                             ^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future`
+
+error[E0277]: the trait bound `impl Future: UiNode` is not satisfied
+ --> $DIR/new_fns_cannot_be_async.rs:7:55
+  |
+7 |     async fn new(child: impl UiNode, id: WidgetId) -> impl UiNode {
+  |                                                       ^^^^^^^^^^^ the trait `UiNode` is not implemented for `impl Future`

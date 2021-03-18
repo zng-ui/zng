@@ -1,0 +1,5 @@
+error[E0277]: the trait bound `(): UiNode` is not satisfied
+ --> $DIR/new_child_no_return_value.rs:5:20
+  |
+5 |     fn new_child() {}
+  |                    ^^ the trait `UiNode` is not implemented for `()`

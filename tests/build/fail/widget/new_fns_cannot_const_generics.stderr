@@ -1,0 +1,50 @@
+error: `new_child` does not support `const` generics
+  --> $DIR/new_fns_cannot_const_generics.rs:10:18
+   |
+10 |     fn new_child<const N: usize>() -> [bool; N] {
+   |                  ^^^^^
+
+error: `new` does not support `const` generics
+ --> $DIR/new_fns_cannot_const_generics.rs:7:12
+  |
+7 |     fn new<const N: usize>(child: impl UiNode, id: WidgetId) -> [bool; N] {
+  |            ^^^^^
+
+error[E0425]: cannot find value `N` in this scope
+ --> $DIR/new_fns_cannot_const_generics.rs:7:72
+  |
+7 |     fn new<const N: usize>(child: impl UiNode, id: WidgetId) -> [bool; N] {
+  |                                                                        ^ not found in this scope
+  |
+help: consider importing one of these items
+  |
+5 |     use zero_ui::prelude::GestureKey::N;
+  |
+5 |     use zero_ui::prelude::Key::N;
+  |
+5 |     use zero_ui_core::gesture::GestureKey::N;
+  |
+5 |     use zero_ui_core::keyboard::Key::N;
+  |
+
+error[E0658]: const generics are unstable
+  --> $DIR/new_fns_cannot_const_generics.rs:10:24
+   |
+10 |     fn new_child<const N: usize>() -> [bool; N] {
+   |                        ^
+   |
+   = note: see issue #74878 <https://github.com/rust-lang/rust/issues/74878> for more information
+
+error[E0658]: const generics are unstable
+ --> $DIR/new_fns_cannot_const_generics.rs:7:18
+  |
+7 |     fn new<const N: usize>(child: impl UiNode, id: WidgetId) -> [bool; N] {
+  |                  ^
+  |
+  = note: see issue #74878 <https://github.com/rust-lang/rust/issues/74878> for more information
+
+error[E0277]: the trait bound `[bool; _]: UiNode` is not satisfied
+  --> $DIR/new_fns_cannot_const_generics.rs:10:39
+   |
+10 |     fn new_child<const N: usize>() -> [bool; N] {
+   |                                       ^^^^^^^^^ the trait `UiNode` is not implemented for `[bool; _]`
