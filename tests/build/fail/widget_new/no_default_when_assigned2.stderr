@@ -1,0 +1,5 @@
+error: property `cursor` is not assigned and has no default value
+ --> $DIR/no_default_when_assigned2.rs:8:19
+  |
+8 |         when self.cursor == CursorIcon::Hand {
+  |                   ^^^^^^

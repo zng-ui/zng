@@ -394,6 +394,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                     // if property maybe has a default value.
                     _ => {
+                        let error = format!(
+                            "property `{}` is not assigned and has no default value",
+                            util::display_path(&property)
+                        );
+                        property_inits.extend(quote_spanned! {util::path_span(&property)=>
+                            #property::code_gen!{
+                                if !default=>
+                                std::compile_error!{#error}
+                            }
+                        });
+
                         if !validate_but_skip {
                             let p_cfg = Attributes::new(p_attrs.to_vec()).cfg;
                             let cfg = util::cfg_attr_or(cfg.clone(), p_cfg);
@@ -423,6 +434,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 _ => property.to_token_stream(),
             };
 
+            let not_allowed_error = format!("property `{}` is not allowed in when", util::display_path(&property));
+            when_inits.extend(quote_spanned! {util::path_span(&property)=>
+                #property_path::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
+            });
+
             if validate_but_skip {
                 continue;
             }
@@ -432,11 +448,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     continue;
                 }
             }
-
-            let not_allowed_error = format!("property `{}` is not allowed in when", util::display_path(&property));
-            when_inits.extend(quote_spanned! {util::path_span(&property)=>
-                #property_path::code_gen!{ if !allowed_in_when=> std::compile_error!{ #not_allowed_error } }
-            });
 
             let args_ident = wgt_properties.get(&property).map(|(id, _)| id.clone()).unwrap_or_else(|| {
                 // if is not in `wgt_properties` it must be in `user_when_properties`
@@ -577,20 +588,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // properties that are only introduced in user when conditions.
     for (p, cfg) in user_when_properties {
         let args_ident = ident!("__u_{}", util::path_to_ident_str(&p));
-        let error = format!("property `{}` is not assigned and has no default value", util::display_path(&p));
-        property_inits.extend(quote_spanned! {p.span()=>
-            let #args_ident = {
-                #p::code_gen!{
-                    if default=>
 
-                    #p::ArgsImpl::default()
-                }
-                #p::code_gen!{
-                    if !default=>
+        property_inits.extend(quote! {
+            #cfg
+            #p::code_gen! {
+                if default=>
 
-                    std::compile_error!(#error)
+                #cfg
+                let #args_ident = #p::ArgsImpl::default();
+            }
+            #cfg
+            #p::code_gen!{
+                if !default=>
+
+                #cfg
+                let #args_ident;
+
+                // a compile error was already added for this case.
+                #[allow(unreachable_code)] {
+                    #cfg
+                    #args_ident = std::unreachable!();
                 }
-            };
+            }
         });
         let p_span = p.span();
 
