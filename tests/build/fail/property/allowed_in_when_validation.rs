@@ -16,7 +16,6 @@ pub fn valid(child: impl UiNode, value: impl IntoVar<bool>) -> impl UiNode {
 }
 
 fn main() {
-    use zero_ui::properties::margin;
     let _ = zero_ui::widgets::blank! {
         margin = 0;
         valid = true;

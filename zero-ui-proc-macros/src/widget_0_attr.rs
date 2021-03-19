@@ -233,7 +233,28 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         .map(|p| (p, true))
         .chain(properties.iter_mut().map(|p| (p, false)))
     {
-        let attrs = Attributes::new(mem::take(&mut property.attrs));
+        let mut attrs = Attributes::new(mem::take(&mut property.attrs));
+
+        // #[allowed_in_when = <bool>]
+        // applies for when a capture_only property is being declared.
+        let allowed_in_when = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "allowed_in_when").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+                match syn::parse2::<AllowedInWhenInput>(attr.tokens) {
+                    Ok(args) => args.flag.value,
+                    Err(e) => {
+                        errors.push_syn(e);
+                        false
+                    }
+                }
+            } else {
+                true
+            }
+        };
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
                 "only `doc`, `cfg` and lint attributes are allowed in properties",
@@ -265,7 +286,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             property_declarations.extend(quote! {
                 #[doc(hidden)]
-                #[#crate_core::property(capture_only)]
+                #[#crate_core::property(capture_only, allowed_in_when = #allowed_in_when)]
                 pub fn #p_mod_ident(#inputs) -> ! { }
             });
 
@@ -1178,5 +1199,18 @@ impl Parse for WhenExprToVar {
         }
 
         Ok(WhenExprToVar { properties, expr })
+    }
+}
+
+struct AllowedInWhenInput {
+    _eq_token: Token![=],
+    flag: syn::LitBool,
+}
+impl Parse for AllowedInWhenInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        Ok(AllowedInWhenInput {
+            _eq_token: input.parse()?,
+            flag: input.parse()?,
+        })
     }
 }

@@ -10,7 +10,7 @@ fn phantom_generated<A: VarValue>(child: impl UiNode, a: impl IntoVar<A>, b: imp
     child
 }
 
-#[property(context)]
+#[property(context, allowed_in_when = false)]
 fn no_phantom_generated(child: impl UiNode, a: Vec<u8>) -> impl UiNode {
     let _args = no_phantom_generated::ArgsImpl { a };
     child

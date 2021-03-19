@@ -196,7 +196,7 @@ pub trait VarLocal<T: VarValue>: VarObj<T> {
 /// Represents a variable.
 ///
 /// Most of the methods are declared in the [`VarObj`] trait to support boxing.
-pub trait Var<T: VarValue>: VarObj<T> + Clone {
+pub trait Var<T: VarValue>: VarObj<T> + Clone + IntoVar<T> {
     /// Return type of [`into_read_only`](Var::into_read_only).
     type AsReadOnly: Var<T>;
     /// Return type of [`into_local`](Var::into_local).
@@ -298,7 +298,7 @@ pub trait IntoVar<T: VarValue>: Clone {
     where
         Self: Sized,
     {
-        self.into_var().into_local()
+        Var::into_local(self.into_var())
     }
 }
 

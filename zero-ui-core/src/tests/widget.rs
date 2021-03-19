@@ -705,6 +705,7 @@ pub mod new_capture_property_wgt {
     use crate::UiNode;
 
     properties! {
+        #[allowed_in_when = false]
         new_capture: &'static str = "new_capture-default";
     }
 
@@ -741,6 +742,7 @@ pub mod new_capture_property_named_wgt {
     use crate::UiNode;
 
     properties! {
+        #[allowed_in_when = false]
         new_capture: {
             name: &'static str,
             age: u32,
@@ -1211,7 +1213,7 @@ mod util {
     };
 
     /// Insert `trace` in the widget state. Can be probed using [`traced`].
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn trace(child: impl UiNode, trace: &'static str) -> impl UiNode {
         TraceNode { child, trace }
     }
@@ -1237,7 +1239,7 @@ mod util {
     }
 
     /// Insert `count` in the widget state. Can get using [`Count::get`].
-    #[property(context)]
+    #[property(context, allowed_in_when = false)]
     pub fn count(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
@@ -1245,25 +1247,25 @@ mod util {
     pub use count as count_context;
 
     /// Same as [`count`] but with `inner` priority.
-    #[property(inner)]
+    #[property(inner, allowed_in_when = false)]
     pub fn count_inner(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
 
     /// Same as [`count`] but with `outer` priority.
-    #[property(outer)]
+    #[property(outer, allowed_in_when = false)]
     pub fn count_outer(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
 
     /// Same as [`count`] but with `size` priority.
-    #[property(size)]
+    #[property(size, allowed_in_when = false)]
     pub fn count_size(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
 
     /// Same as [`count`] but with `event` priority.
-    #[property(event)]
+    #[property(event, allowed_in_when = false)]
     pub fn on_count(child: impl UiNode, count: Position) -> impl UiNode {
         CountNode { child, value_pos: count }
     }
@@ -1412,7 +1414,7 @@ mod util {
     }
 
     /// A capture_only property.
-    #[property(capture_only)]
+    #[property(capture_only, allowed_in_when = false)]
     pub fn capture_only_trace(trace: &'static str) -> ! {}
 
     #[property(context)]

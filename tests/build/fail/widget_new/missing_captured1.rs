@@ -5,6 +5,7 @@ pub mod test_widget {
     use zero_ui::core::NilUiNode;
 
     properties! {
+        #[allowed_in_when = false]
         foo: bool;
     }
 

@@ -18,7 +18,7 @@ use crate::units::PixelGridExt;
 ///
 /// The default widget `new` function captures this `id` property and uses in the default
 /// [`Widget`](crate::core::Widget) implementation.
-#[property(capture_only)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn widget_id(id: WidgetId) -> ! {}
 
 /// Mix-in inherited implicitly by all [widgets](widget!).

@@ -83,5 +83,5 @@ pub fn enabled(enabled: impl IntoVar<bool>) -> ! {}
 pub fn auto_size(config: impl IntoVar<AutoSize>) -> ! {}
 
 /// A ['StartPosition'] config.
-#[property(capture_only)]
+#[property(capture_only, allowed_in_when = false)]
 pub fn start_position(position: impl Into<StartPosition> + Clone + std::fmt::Debug + 'static) -> ! {}

@@ -4,7 +4,7 @@ use zero_ui::core::{property, UiNode};
 // a name for the property named assign.
 //
 // For now only @ _ is stable.
-#[property(context)]
+#[property(context, allowed_in_when = false)]
 fn sub_pattern_all(child: impl UiNode, input @ _: bool) -> impl UiNode {
     let _ = input;
     child

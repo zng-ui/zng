@@ -274,29 +274,36 @@ mod analysis {
         };
 
         // patch signature to continue validation:
+        let mut args_are_valid = true;
         if args.priority.is_capture_only() {
             if fn_.sig.inputs.is_empty() {
                 if let Prefix::State = prefix {
                     let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
+                    args_are_valid = false;
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                    args_are_valid = false;
                 }
             }
         } else {
             if fn_.sig.inputs.is_empty() {
                 let crate_core = crate_core();
                 fn_.sig.inputs.push(parse_quote!( _missing_child: impl #crate_core::UiNode ));
+                args_are_valid = false;
             }
             if fn_.sig.inputs.len() == 1 {
                 if let Prefix::State = prefix {
                     let crate_core = crate_core();
                     fn_.sig.inputs.push(parse_quote!(_missing_param: #crate_core::var::StateVar));
+                    args_are_valid = false;
                 } else {
                     fn_.sig.inputs.push(parse_quote!(_missing_param: ()));
+                    args_are_valid = false;
                 }
             }
         }
+        let args_are_valid = args_are_valid;
 
         // collect normal generics.
         let mut generic_types = vec![]; // Vec<TypeParam>
@@ -577,6 +584,7 @@ mod analysis {
                 ident: fn_.sig.ident.clone(),
                 generics: generic_types,
                 allowed_in_when,
+                args_are_valid,
                 phantom_idents,
                 arg_idents: arg_idents.clone(),
                 priority: args.priority,
@@ -783,6 +791,7 @@ mod output {
 
         pub arg_idents: Vec<Ident>,
         pub arg_types: Vec<Type>,
+        pub args_are_valid: bool,
 
         pub assoc_types: Vec<TraitItemType>,
         pub arg_return_types: Vec<Type>,
@@ -1029,14 +1038,22 @@ mod output {
                 }
             };
 
-            // TODO
-            let allowed_in_when_assert = TokenStream::default();
-            //if self.allowed_in_when {
-            // TODO
-            //} else {
-            //    TokenStream::default()
-            //};
-            //
+            let allowed_in_when_assert = if self.allowed_in_when && self.args_are_valid {
+                let assert_ident = ident!("__{}_assert_allowed_in_when", ident);
+                quote! {
+                    fn #assert_ident(args: impl #args_ident) {
+                        #(
+                            let #named_arg_mtds = #crate_core::var::IntoVar::into_var(
+                                std::clone::Clone::clone(#args_ident::#named_arg_mtds(&args))
+                            );
+                        )*
+                        let _ = #args_impl_ident::new(#(#named_arg_mtds),*);
+                    }
+                }
+            } else {
+                TokenStream::default()
+            };
+
             tokens.extend(quote! {
                 #cfg
                 #[doc(hidden)]

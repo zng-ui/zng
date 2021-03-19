@@ -6,7 +6,7 @@ fn not_into_var_input(child: impl UiNode, input: impl Var<&'static str>) -> impl
     child
 }
 
-#[property(context)]
+#[property(context, allowed_in_when = false)]
 fn not_var_input(child: impl UiNode, input: &'static str) -> impl UiNode {
     let _ = input;
     child

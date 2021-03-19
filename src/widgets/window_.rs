@@ -80,6 +80,7 @@ pub mod window {
         background_color = rgb(0.1, 0.1, 0.1);
 
         /// Unique identifier of the window root widget.
+        #[allowed_in_when = false]
         root_id: WidgetId = WidgetId::new_unique();
         id = unset!;
 
