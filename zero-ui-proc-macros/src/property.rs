@@ -841,9 +841,8 @@ mod output {
                 }
                 co
             };
-
             #[cfg(debug_assertions)]
-            let arg_debug_vars = if self.allowed_in_when {
+            let arg_debug_vars = {
                 let args_len = arg_locals.len();
                 // generate debug_var calls with the arg type span in case the type does
                 // not implement Clone and (IntoVar or Var or Debug) which generates a compile error.
@@ -853,7 +852,7 @@ mod output {
                     quote_spanned! {ty.span()=>
                         {
                             use #crate_core::debug::debug_var_util::*;
-                            (&&&Wrap(std::clone::Clone::clone(#lid))).debug_var()
+                            (&&&&Wrap(#lid)).debug_var()
                         },
                     }
                 });
@@ -865,10 +864,6 @@ mod output {
                         ];
                         Box::new(__r)
                     };
-                }
-            } else {
-                quote! {
-                    let arg_debug_vars = Box::new([]);
                 }
             };
 
@@ -1034,6 +1029,14 @@ mod output {
                 }
             };
 
+            // TODO
+            let allowed_in_when_assert = TokenStream::default();
+            //if self.allowed_in_when {
+            // TODO
+            //} else {
+            //    TokenStream::default()
+            //};
+            //
             tokens.extend(quote! {
                 #cfg
                 #[doc(hidden)]
@@ -1106,6 +1109,7 @@ mod output {
                 }
 
                 #child_assert
+                #allowed_in_when_assert
                 #set
                 #cap_debug
             })

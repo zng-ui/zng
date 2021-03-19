@@ -468,6 +468,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 }
                 #property_path::code_gen!{ if allowed_in_when=>
+                    // if you change this you need to change the allowed_in_when
+                    // validation in ./property.rs
                     #var_ident =  #module::__core::var::IntoVar::into_var(
                         std::clone::Clone::clone(
                             #property_path::Args::#member(&#args_ident)

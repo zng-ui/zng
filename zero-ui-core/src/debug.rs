@@ -590,6 +590,8 @@ impl UiNode for NewChildMarkerNode {
 
 #[doc(hidden)]
 pub mod debug_var_util {
+    use std::any::type_name;
+
     use crate::var::{BoxedVar, IntoVar, OwnedVar, Var, VarObj, VarValue};
 
     pub struct Wrap<T>(pub T);
@@ -597,7 +599,7 @@ pub mod debug_var_util {
     pub trait FromIntoVar<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<String>;
     }
-    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for Wrap<V> {
+    impl<T: VarValue, V: IntoVar<T>> FromIntoVar<T> for &Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<String> {
             self.0.clone().into_var().into_map(|t| format!("{:?}", t)).boxed()
         }
@@ -606,18 +608,101 @@ pub mod debug_var_util {
     pub trait FromVar<T> {
         fn debug_var(&self) -> crate::var::BoxedVar<String>;
     }
-    impl<T: VarValue, V: Var<T>> FromVar<T> for &Wrap<V> {
+    impl<T: VarValue, V: Var<T>> FromVar<T> for &&Wrap<&V> {
         fn debug_var(&self) -> BoxedVar<String> {
             self.0.map(|t| format!("{:?}", t)).boxed()
         }
     }
 
-    pub trait FromValue {
+    pub trait FromDebug {
         fn debug_var(&self) -> crate::var::BoxedVar<String>;
     }
-    impl<T: std::fmt::Debug> FromValue for &&Wrap<T> {
+    impl<T: std::fmt::Debug> FromDebug for &&&Wrap<&T> {
         fn debug_var(&self) -> crate::var::BoxedVar<String> {
             OwnedVar(format!("{:?}", &self.0)).boxed()
+        }
+    }
+
+    pub trait FromAny {
+        fn debug_var(&self) -> crate::var::BoxedVar<String>;
+    }
+    impl<T> FromAny for Wrap<&T> {
+        fn debug_var(&self) -> BoxedVar<String> {
+            let name = type_name::<T>();
+            if name.starts_with("zero_ui_core::widget_base::WidgetNode<") {
+                OwnedVar("<widget!>".to_owned()).boxed()
+            } else {
+                OwnedVar(format!("<{}>", name)).boxed()
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        macro_rules! debug_var_util_trick {
+            ($value:expr) => {{
+                use $crate::debug::debug_var_util::*;
+                (&&&&Wrap($value)).debug_var()
+            }};
+        }
+
+        use crate::context::TestWidgetContext;
+
+        #[test]
+        fn from_into_var() {
+            use crate::var::IntoVar;
+            fn value() -> impl IntoVar<bool> {
+                true
+            }
+            let value = value();
+
+            let r = debug_var_util_trick!(&value);
+
+            let ctx = TestWidgetContext::wait_new();
+
+            assert_eq!("true", r.get(&ctx.vars))
+        }
+
+        #[test]
+        fn from_var() {
+            use crate::var::var;
+
+            let value = var(true);
+
+            let r = debug_var_util_trick!(&value);
+
+            let mut ctx = TestWidgetContext::wait_new();
+
+            assert_eq!("true", r.get(&ctx.vars));
+
+            value.set(&ctx.vars, false);
+
+            ctx.apply_updates();
+
+            assert_eq!("false", r.get(&ctx.vars));
+        }
+
+        #[test]
+        fn from_debug() {
+            let value = true;
+
+            let r = debug_var_util_trick!(&value);
+
+            let ctx = TestWidgetContext::wait_new();
+
+            assert_eq!("true", r.get(&ctx.vars))
+        }
+
+        #[test]
+        fn from_any() {
+            struct Foo;
+            let value = Foo;
+
+            let r = debug_var_util_trick!(&value);
+
+            let ctx = TestWidgetContext::wait_new();
+
+            assert!(r.get(&ctx.vars).contains("Foo"));
         }
     }
 }
@@ -1050,7 +1135,7 @@ mod print_fmt {
             self.writeln();
 
             self.write("▉".truecolor(150, 150, 200));
-            self.write("  - frozen, init value");
+            self.write("  - static, init value");
             self.writeln();
 
             self.write("▉".truecolor(150, 255, 150));
