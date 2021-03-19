@@ -1,7 +1,7 @@
 use zero_ui::core::{property, var::IntoVar, UiNode};
 use zero_ui::properties::margin;
 
-#[property(context)]
+#[property(context)] // error because no allowed_in_when = false
 pub fn invalid(child: impl UiNode, value: bool) -> impl UiNode {
     let _ = value;
     // value does not take Var but property is allowed_in_when by default.

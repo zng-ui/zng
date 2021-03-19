@@ -766,6 +766,16 @@ impl ErrorRecoverable for syn::Error {
     }
 }
 
+/// Set `span` in all tokens of `token_stream`.
+pub fn set_span(token_stream: &mut TokenStream, span: Span) {
+    let mut r = TokenStream::default();
+    for mut tt in token_stream.clone() {
+        tt.set_span(span);
+        tt.to_tokens(&mut r);
+    }
+    *token_stream = r;
+}
+
 // Debug tracing if it was enabled during run-time.
 //
 // This is useful for debugging say the widget macros but only for a widget.

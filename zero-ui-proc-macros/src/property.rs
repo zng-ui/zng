@@ -1040,14 +1040,33 @@ mod output {
 
             let allowed_in_when_assert = if self.allowed_in_when && self.args_are_valid {
                 let assert_ident = ident!("__{}_assert_allowed_in_when", ident);
-                quote! {
-                    fn #assert_ident(args: impl #args_ident) {
-                        #(
-                            let #named_arg_mtds = #crate_core::var::IntoVar::into_var(
-                                std::clone::Clone::clone(#args_ident::#named_arg_mtds(&args))
+                let var_idents: Vec<_> = arg_idents
+                    .iter()
+                    .zip(arg_types.iter())
+                    .map(|(a, t)| {
+                        let mut a = a.clone();
+                        a.set_span(t.span());
+                        a
+                    })
+                    .collect();
+                let declarations = var_idents
+                    .iter()
+                    .zip(named_arg_mtds.iter())
+                    .zip(arg_types.iter())
+                    .map(|((a, m), t)| {
+                        let span = t.span();
+                        let mut crate_core = crate_core.clone();
+                        crate::util::set_span(&mut crate_core, span);
+                        quote_spanned! {span=>
+                            let #a = #crate_core::var::IntoVar::into_var(
+                                std::clone::Clone::clone(#args_ident::#m(&__args))
                             );
-                        )*
-                        let _ = #args_impl_ident::new(#(#named_arg_mtds),*);
+                        }
+                    });
+                quote! {
+                    fn #assert_ident(__args: impl #args_ident) {
+                        #(#declarations)*
+                        let _ = #args_impl_ident::new(#(#var_idents),*);
                     }
                 }
             } else {
