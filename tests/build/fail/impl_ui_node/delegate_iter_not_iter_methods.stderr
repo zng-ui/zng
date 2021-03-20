@@ -1,17 +1,17 @@
 error[E0599]: no method named `iter_mut` found for struct `NoIterMethods` in the current scope
- --> $DIR/delegate_iter_not_iter_methods.rs:9:80
+ --> $DIR/delegate_iter_not_iter_methods.rs:9:82
   |
 3 | struct NoIterMethods;
   | --------------------- method `iter_mut` not found for this
 ...
-9 | #[impl_ui_node(delegate_iter: self.inner.iter(), delegate_iter_mut: self.inner.iter_mut())]
-  |                                                                                ^^^^^^^^ method not found in `NoIterMethods`
+9 | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+  |                                                                                  ^^^^^^^^ method not found in `NoIterMethods`
 
 error[E0599]: no method named `iter` found for struct `NoIterMethods` in the current scope
- --> $DIR/delegate_iter_not_iter_methods.rs:9:42
+ --> $DIR/delegate_iter_not_iter_methods.rs:9:43
   |
 3 | struct NoIterMethods;
   | --------------------- method `iter` not found for this
 ...
-9 | #[impl_ui_node(delegate_iter: self.inner.iter(), delegate_iter_mut: self.inner.iter_mut())]
-  |                                          ^^^^ method not found in `NoIterMethods`
+9 | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+  |                                           ^^^^ method not found in `NoIterMethods`

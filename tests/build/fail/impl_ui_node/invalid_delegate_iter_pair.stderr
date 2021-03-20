@@ -1,14 +1,14 @@
 error: expected `, delegate_iter_mut: <expr>`
- --> $DIR/invalid_delegate_iter_pair.rs:6:46
+ --> $DIR/invalid_delegate_iter_pair.rs:6:47
   |
-6 | #[impl_ui_node(delegate_iter: self.inner.iter())]
-  |                                              ^^
+6 | #[impl_ui_node(delegate_iter = self.inner.iter())]
+  |                                               ^^
 
 error: expected `, delegate_iter: <expr>`
-  --> $DIR/invalid_delegate_iter_pair.rs:12:54
+  --> $DIR/invalid_delegate_iter_pair.rs:12:55
    |
-12 | #[impl_ui_node(delegate_iter_mut: self.inner.iter_mut())]
-   |                                                      ^^
+12 | #[impl_ui_node(delegate_iter_mut = self.inner.iter_mut())]
+   |                                                       ^^
 
 warning: unused import: `UiNode`
  --> $DIR/invalid_delegate_iter_pair.rs:1:35

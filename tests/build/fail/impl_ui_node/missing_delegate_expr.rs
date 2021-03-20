@@ -9,13 +9,13 @@ impl<C: UiNode> UiNode for Node1<C> {}
 struct Node2<C> {
     inner: C,
 }
-#[impl_ui_node(delegate: &self.inner, delegate_mut)]
+#[impl_ui_node(delegate = &self.inner, delegate_mut)]
 impl<C: UiNode> UiNode for Node2<C> {}
 
 struct Node3<C> {
     inner: C,
 }
-#[impl_ui_node(delegate:)]
+#[impl_ui_node(delegate =)]
 impl<C: UiNode> UiNode for Node3<C> {}
 
 fn main() {}

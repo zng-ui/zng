@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
-   --> $DIR/delegate_expr_error_incorrect_type.rs:9:53
+   --> $DIR/delegate_expr_error_incorrect_type.rs:9:55
     |
-9   | #[impl_ui_node(delegate: &self.inner, delegate_mut: &mut self.inner)]
-    |                                                     ^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    |                                                       ^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
@@ -10,10 +10,10 @@ error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
     |                                       ------ required by this bound in `delegate_mut`
 
 error[E0277]: the trait bound `NotANode: UiNode` is not satisfied
-   --> $DIR/delegate_expr_error_incorrect_type.rs:9:26
+   --> $DIR/delegate_expr_error_incorrect_type.rs:9:27
     |
-9   | #[impl_ui_node(delegate: &self.inner, delegate_mut: &mut self.inner)]
-    |                          ^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
+9   | #[impl_ui_node(delegate = &self.inner, delegate_mut = &mut self.inner)]
+    |                           ^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotANode`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |

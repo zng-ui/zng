@@ -552,7 +552,7 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
 }
 fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
     let colon = args
-        .parse::<Token![:]>()
+        .parse::<Token![=]>()
         .map_err(|_| Error::new(ident.span(), format!("expected `{}: <expr>`", ident)))?;
     let expr: Expr = args
         .parse()

@@ -326,9 +326,9 @@ pub mod core {
     /// }
     /// #[impl_ui_node(
     ///     // Expression that borrows the delegation target node.
-    ///     delegate: &self.child,
+    ///     delegate = &self.child,
     ///     // Expression that exclusive borrows the delegation target node.
-    ///     delegate_mut: &mut self.child,
+    ///     delegate_mut = &mut self.child,
     /// )]
     /// impl<C: UiNode> UiNode for MyNode<C> { }
     /// ```
@@ -356,9 +356,9 @@ pub mod core {
     /// }
     /// #[impl_ui_node(
     ///     // Expression that borrows the delegation target list.
-    ///     delegate_list: &self.children,
+    ///     delegate_list = &self.children,
     ///     // Expression that exclusive borrows the delegation target list.
-    ///     delegate_list_mut: &mut self.children,
+    ///     delegate_list_mut = &mut self.children,
     /// )]
     /// impl<L: UiNodeList> UiNode for MyNode<L> { }
     /// ```
@@ -386,8 +386,8 @@ pub mod core {
     ///     children: Vec<Box<dyn UiNode>>
     /// }
     /// #[impl_ui_node(
-    ///     delegate_iter: self.children.iter(),
-    ///     delegate_iter_mut: self.children.iter_mut(),
+    ///     delegate_iter = self.children.iter(),
+    ///     delegate_iter_mut = self.children.iter_mut(),
     /// )]
     /// impl UiNode for MyNode { }
     /// ```

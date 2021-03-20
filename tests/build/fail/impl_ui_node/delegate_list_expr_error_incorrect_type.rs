@@ -6,7 +6,7 @@ struct MyNode {
     inner: NotANodeList,
 }
 
-#[impl_ui_node(delegate_list: &self.inner, delegate_list_mut: &mut self.inner)]
+#[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
 impl UiNode for MyNode {}
 
 fn main() {}

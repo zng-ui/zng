@@ -1,14 +1,14 @@
 error: expected `, delegate_mut: <expr>`
- --> $DIR/invalid_delegate_pair.rs:6:32
+ --> $DIR/invalid_delegate_pair.rs:6:33
   |
-6 | #[impl_ui_node(delegate: &self.inner)]
-  |                                ^^^^^
+6 | #[impl_ui_node(delegate = &self.inner)]
+  |                                 ^^^^^
 
 error: expected `, delegate: <expr>`
-  --> $DIR/invalid_delegate_pair.rs:12:40
+  --> $DIR/invalid_delegate_pair.rs:12:41
    |
-12 | #[impl_ui_node(delegate_mut: &mut self.inner)]
-   |                                        ^^^^^
+12 | #[impl_ui_node(delegate_mut = &mut self.inner)]
+   |                                         ^^^^^
 
 warning: unused import: `UiNode`
  --> $DIR/invalid_delegate_pair.rs:1:46

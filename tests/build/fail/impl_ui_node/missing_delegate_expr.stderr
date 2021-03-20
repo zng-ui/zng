@@ -5,16 +5,16 @@ error: expected `delegate: <expr>`
   |                ^^^^^^^^
 
 error: expected `delegate_mut: <expr>`
-  --> $DIR/missing_delegate_expr.rs:12:39
+  --> $DIR/missing_delegate_expr.rs:12:40
    |
-12 | #[impl_ui_node(delegate: &self.inner, delegate_mut)]
-   |                                       ^^^^^^^^^^^^
+12 | #[impl_ui_node(delegate = &self.inner, delegate_mut)]
+   |                                        ^^^^^^^^^^^^
 
 error: expected `delegate: <expr>`
-  --> $DIR/missing_delegate_expr.rs:18:24
+  --> $DIR/missing_delegate_expr.rs:18:25
    |
-18 | #[impl_ui_node(delegate:)]
-   |                        ^
+18 | #[impl_ui_node(delegate =)]
+   |                         ^
 
 warning: unused import: `UiNode`
  --> $DIR/missing_delegate_expr.rs:1:35

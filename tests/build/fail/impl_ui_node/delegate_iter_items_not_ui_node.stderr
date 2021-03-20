@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
-   --> $DIR/delegate_iter_items_not_ui_node.rs:9:69
+   --> $DIR/delegate_iter_items_not_ui_node.rs:9:71
     |
-9   | #[impl_ui_node(delegate_iter: self.inner.iter(), delegate_iter_mut: self.inner.iter_mut())]
-    |                                                                     ^^^^^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
+9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+    |                                                                       ^^^^^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
@@ -10,10 +10,10 @@ error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
     |                                                                           ------ required by this bound in `delegate_iter_mut`
 
 error[E0277]: the trait bound `NotUiNode: UiNode` is not satisfied
-   --> $DIR/delegate_iter_items_not_ui_node.rs:9:31
+   --> $DIR/delegate_iter_items_not_ui_node.rs:9:32
     |
-9   | #[impl_ui_node(delegate_iter: self.inner.iter(), delegate_iter_mut: self.inner.iter_mut())]
-    |                               ^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
+9   | #[impl_ui_node(delegate_iter = self.inner.iter(), delegate_iter_mut = self.inner.iter_mut())]
+    |                                ^^^^^^^^^^^^^^^^^ the trait `UiNode` is not implemented for `NotUiNode`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |

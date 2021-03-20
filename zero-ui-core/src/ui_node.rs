@@ -76,7 +76,7 @@ pub trait UiNode: 'static {
         Box::new(self)
     }
 }
-#[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+#[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
 impl UiNode for Box<dyn UiNode> {
     fn boxed(self) -> Box<dyn UiNode> {
         self
@@ -117,7 +117,7 @@ pub trait Widget: UiNode {
         });
     }
 }
-#[impl_ui_node(delegate: self.as_ref(), delegate_mut: self.as_mut())]
+#[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
 impl UiNode for Box<dyn Widget> {}
 impl Widget for Box<dyn Widget> {
     #[inline]

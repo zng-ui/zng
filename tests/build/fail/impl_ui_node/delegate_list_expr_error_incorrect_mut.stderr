@@ -1,8 +1,8 @@
 error[E0308]: mismatched types
- --> $DIR/delegate_list_expr_error_incorrect_mut.rs:5:63
+ --> $DIR/delegate_list_expr_error_incorrect_mut.rs:5:65
   |
-5 | #[impl_ui_node(delegate_list: &self.inner, delegate_list_mut: &self.inner)]
-  |                                                               ^^^^^^^^^^^ types differ in mutability
+5 | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &self.inner)]
+  |                                                                 ^^^^^^^^^^^ types differ in mutability
   |
   = note: expected mutable reference `&mut _`
                      found reference `&C`

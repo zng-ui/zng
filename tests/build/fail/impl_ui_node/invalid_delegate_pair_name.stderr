@@ -1,8 +1,8 @@
 error: expected `delegate_mut`
- --> $DIR/invalid_delegate_pair_name.rs:6:39
+ --> $DIR/invalid_delegate_pair_name.rs:6:40
   |
-6 | #[impl_ui_node(delegate: &self.inner, delegate2: &mut self.inner)]
-  |                                       ^^^^^^^^^
+6 | #[impl_ui_node(delegate = &self.inner, delegate2 = &mut self.inner)]
+  |                                        ^^^^^^^^^
 
 warning: unused import: `UiNode`
  --> $DIR/invalid_delegate_pair_name.rs:1:46

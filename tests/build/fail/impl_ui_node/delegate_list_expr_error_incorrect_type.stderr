@@ -1,8 +1,8 @@
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
-   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:63
+   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:65
     |
-9   | #[impl_ui_node(delegate_list: &self.inner, delegate_list_mut: &mut self.inner)]
-    |                                                               ^^^^^^^^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
+9   | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
+    |                                                                 ^^^^^^^^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
@@ -10,10 +10,10 @@ error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
     |                                            ---------- required by this bound in `delegate_list_mut`
 
 error[E0277]: the trait bound `NotANodeList: UiNodeList` is not satisfied
-   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:31
+   --> $DIR/delegate_list_expr_error_incorrect_type.rs:9:32
     |
-9   | #[impl_ui_node(delegate_list: &self.inner, delegate_list_mut: &mut self.inner)]
-    |                               ^^^^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
+9   | #[impl_ui_node(delegate_list = &self.inner, delegate_list_mut = &mut self.inner)]
+    |                                ^^^^^^^^^^^ the trait `UiNodeList` is not implemented for `NotANodeList`
     |
    ::: $WORKSPACE/zero-ui-core/src/ui_node.rs
     |
