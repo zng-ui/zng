@@ -25,6 +25,7 @@ fn main() {
             let mut names = names.into_iter();
 
             let first_name = names.next().expect("`// do` task comment missing task name");
+            writeln!(out, "--{}--", first_name).unwrap();
             write!(out, "\n    %c_wb%{}%c_w%", first_name).unwrap();
             details_arg_offset = 4 + first_name.len();
 

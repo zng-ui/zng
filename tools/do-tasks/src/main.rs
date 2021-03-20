@@ -29,7 +29,7 @@ fn doc(mut args: Vec<&str>) {
 }
 
 // do test, t [-w, --workspace] [-u, --unit <unit-test>] [--test-crates]
-//            [-b, --build [-p, -pass <pass-test-path>] [-f, --fail <fail-test-path>]]
+//            [-b, --build [-p, -pass <pat>] [-f, --fail <pat>]] [--OVERWRITE]
 //            [<cargo-test-args>]
 //    Run all tests in root workspace and ./test-crates.
 // USAGE:
@@ -88,8 +88,8 @@ fn test(mut args: Vec<&str>) {
         cmd("cargo", &t_args, &args);
     } else if take_flag(&mut args, &["-b", "--build"]) {
         // build_tests
-        let fails = take_option(&mut args, &["-f", "--fail"], "<fail-test-name>").unwrap_or_default();
-        let passes = take_option(&mut args, &["-p", "--pass"], "<pass-test-name>").unwrap_or_default();
+        let fails = take_option(&mut args, &["-f", "--fail"], "<fail-test-pat>").unwrap_or_default();
+        let passes = take_option(&mut args, &["-p", "--pass"], "<pass-test-pat>").unwrap_or_default();
 
         let build_tests_args = vec![
             nightly,
@@ -100,6 +100,8 @@ fn test(mut args: Vec<&str>) {
             "--test",
             "build_tests",
         ];
+
+        let overwrite = if take_flag(&mut args, &["--OVERWRITE"]) { "overwrite" } else { "" };
 
         if fails.is_empty() && passes.is_empty() {
             // all build tests.
@@ -124,10 +126,10 @@ fn test(mut args: Vec<&str>) {
             let mut args = build_tests_args;
             args.extend(&["--", "do_tasks_test_runner", "--exact", "--ignored"]);
             for test_name in fails {
-                cmd_env("cargo", &args, &[], &[("DO_TASKS_TEST_BUILD", test_name)]);
+                cmd_env("cargo", &args, &[], &[("DO_TASKS_TEST_BUILD", test_name), ("TRYBUILD", overwrite)]);
             }
         }
-    } else if take_flag(&mut args, &["--test-crates"]) {
+    } else {
         for test_crate in top_cargo_toml("test-crates") {
             cmd(
                 "cargo",
@@ -143,7 +145,9 @@ fn test(mut args: Vec<&str>) {
                 &args,
             );
         }
-    } else {
+        if take_flag(&mut args, &["--test-crates"]) {
+            return; // --test-crates only.
+        }
         cmd(
             "cargo",
             &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
@@ -375,9 +379,12 @@ fn asm(mut args: Vec<&str>) {
     cmd("cargo", &asm_args, &args);
 }
 
-// do help, --help
-//    Prints this help.
-fn help(_: Vec<&str>) {
+// do help, --help [task]
+//    Prints help for all tasks.
+// USAGE:
+//    help <task>
+//        Prints only the help for the <task>
+fn help(mut args: Vec<&str>) {
     println(f!(
         "\n{}{}{} ({} {})",
         c_wb(),
@@ -386,14 +393,43 @@ fn help(_: Vec<&str>) {
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
     ));
-    println(f!("   {}", env!("CARGO_PKG_DESCRIPTION")));
-    println("\nUSAGE:");
-    println(f!("    {} TASK [<TASK-ARGS>]", DO));
-    println("\nFLAGS:");
-    println(r#"    --dump   Redirect output to "dump.log" or other file specified by task."#);
+
+    let specific_task = !args.is_empty();
+
+    if !specific_task {
+        println(f!("   {}", env!("CARGO_PKG_DESCRIPTION")));
+        println("\nUSAGE:");
+        println(f!("    {} TASK [<TASK-ARGS>]", DO));
+        println("\nFLAGS:");
+        println(r#"    --dump   Redirect output to "dump.log" or other file specified by task."#);
+    }
     print("\nTASKS:");
 
     // prints lines from this file that start with "// do " and comment lines directly after then.
     let tasks_help = include_str!(concat!(std::env!("OUT_DIR"), "/tasks-help.stdout"));
-    println(tasks_help.replace("%c_wb%", c_wb()).replace("%c_w%", c_w()));
+
+    let mut skip = false;
+
+    for line in tasks_help.lines() {
+        if line.starts_with("--") && line.ends_with("--") {
+            if specific_task {
+                let name = line.trim_matches('-');
+                if let Some(i) = args.iter().position(|a| a == &name) {
+                    args.swap_remove(i);
+                    skip = false;
+                } else {
+                    skip = true;
+                }
+            }
+        } else if !skip {
+            println(line.replace("%c_wb%", c_wb()).replace("%c_w%", c_w()));
+        }
+    }
+
+    if specific_task && !args.is_empty() {
+        println("\n");
+        for t in args {
+            error(f!("task `{}` not found in help", t));
+        }
+    }
 }
