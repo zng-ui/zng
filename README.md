@@ -24,7 +24,8 @@ Linux support is tested using the Windows Subsystem for Linux (Ubuntu image)
 ## Other Dependencies
 
 For debugging this project you may also need [`cargo-expand`](https://github.com/dtolnay/cargo-expand)
-and the nightly toolchain for debugging macros.
+and the nightly toolchain for debugging macros (`do expand`), [`cargo-asm`](https://github.com/gnzlbg/cargo-asm) for checking
+optimization (`do asm`).
 
 ## `do`
 

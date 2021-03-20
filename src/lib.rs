@@ -436,7 +436,7 @@ pub mod core {
     ///
     /// You can use the same `impl` block to define [`UiNode`](crate::core::UiNode) methods and
     /// associated methods by using this attribute in a `impl` block without trait. The [`UiNode`](crate::core::UiNode)
-    /// methods must be tagged with the `#[UiNode]` attribute.
+    /// methods must be tagged with the `#[UiNode]` pseudo-attribute.
     ///
     /// ```
     /// # use zero_ui::core::{impl_ui_node, UiNode, context::WidgetContext};
