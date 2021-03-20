@@ -10,7 +10,8 @@
         "latex",
         "plaintext",
         "rust",
-        "toml"
+        "toml",
+        "json"
     ],
     "rust-analyzer.files.excludeDirs": [
         "tests/build",

@@ -1,0 +1,120 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "widget expansion",
+  "steps": [
+    {
+      "file": "src/widgets/button_.rs",
+      "description": "This `#[widget(..)]` call will turn this module into a widget. Hidden items will be added to the module, custom documentation sections added and a hidden macro with the same name as the module will be generated.",
+      "line": 5
+    },
+    {
+      "file": "src/widgets/button_.rs",
+      "description": "The `#[widget(..)]` attribute enables some *pseudo-macros* that aren't really macros as they only exist inside widgets, `properties!` is one pseudo-macro, where the widget author can define the properties that form this widget.",
+      "line": 14
+    },
+    {
+      "file": "src/widgets/button_.rs",
+      "description": "`inherit!` is another pseudo-macro and the cause of most of the complexity of the `#[widget(..)]` macro expansion.\r\n\r\nBecause there is no eager execution for *proc-macros* we need a way to get the inherited data into the widget macro while it is expanding, we will get back to that.",
+      "line": 12
+    },
+    {
+      "file": "src/widgets/container_.rs",
+      "selection": {
+        "start": {
+          "line": 21,
+          "character": 1
+        },
+        "end": {
+          "line": 24,
+          "character": 6
+        }
+      },
+      "description": "The `#[widget(..)]` macro also has special handing for a function named `new_child` and ..."
+    },
+    {
+      "file": "src/widgets/window_.rs",
+      "description": "And a function named `new`.\r\n\r\nSo, these are the specially handled module items:\r\n\r\n* `inherit!`\r\n* `properties!`\r\n* `fn new_child`\r\n* `fn new`\r\n\r\nAll other module items are just passed through, so the widget author can use the widget as a namespace.",
+      "line": 138
+    },
+    {
+      "file": "zero-ui-core/src/widget_base.rs",
+      "description": "Also, all widgets inherit the `implicit_mixin`, no need for an `inherit!` directive for this one.",
+      "line": 38,
+      "selection": {
+        "start": {
+          "line": 25,
+          "character": 1
+        },
+        "end": {
+          "line": 38,
+          "character": 2
+        }
+      }
+    },
+    {
+      "file": "zero-ui-core/src/widget_base.rs",
+      "description": "A `#[widget_mixin(..)]` is very similar to a `#[widget(..)]`, it forbids the `new_child` and `new` functions and can only inherit from other mix-ins, they also don't inherit from the `implicit_mixin`.\r\n\r\nBecause this macro is a sub-set of the full widget they share the same implementation.",
+      "line": 25
+    },
+    {
+      "file": "zero-ui-proc-macros/src/lib.rs",
+      "description": "As you can see both macros redirect to the same entry point, also the full documentation for proc-macros is only given at the final re-export point in the main crate.\r\n\r\nTo implement inheritance we had do divide the widget expansion in 3 stages:\r\n\r\n* `widget_0_attr` - Witch does the initial validation and all expansion that does not change depending on the inherited data.\r\n* `widget_1_inherit` - Witch recursively includes the inherited data, more on this later.\r\n* `widget_2_declare` 0 Witch does the final validation and expansion that depends on the inherited data.",
+      "line": 90,
+      "selection": {
+        "start": {
+          "line": 72,
+          "character": 1
+        },
+        "end": {
+          "line": 90,
+          "character": 2
+        }
+      }
+    },
+    {
+      "file": "zero-ui-proc-macros/src/widget_0_attr.rs",
+      "description": "Now lets go over the code expansion it self. You should be familiar with these crates before continuing:\r\n\r\n* [`proc_macro`](https://doc.rust-lang.org/proc_macro/)\r\n* [`proc_macro2`](https://docs.rs/proc-macro2/1.0.24/proc_macro2/)\r\n* [`syn`](https://docs.rs/syn/1.0.64/syn/)\r\n* [`quote`](https://docs.rs/quote/1.0.9/quote/)",
+      "line": 20
+    },
+    {
+      "file": "zero-ui-proc-macros/src/widget_0_attr.rs",
+      "description": "We let `syn` do the general Rust validation by parsing a `mod`, we will find and use the pseudo-macros later.",
+      "line": 22,
+      "selection": {
+        "start": {
+          "line": 22,
+          "character": 1
+        },
+        "end": {
+          "line": 23,
+          "character": 1
+        }
+      }
+    },
+    {
+      "file": "zero-ui-proc-macros/src/widget_0_attr.rs",
+      "description": "Rust only supports proc-macros in module with inline contents, there is a validation in `rustc` for this, but the compiler calls our macro even after given this error, so we validate here again.",
+      "line": 32,
+      "selection": {
+        "start": {
+          "line": 24,
+          "character": 1
+        },
+        "end": {
+          "line": 32,
+          "character": 6
+        }
+      }
+    },
+    {
+      "file": "zero-ui-proc-macros/src/widget_0_attr.rs",
+      "description": "We emit errors using the [`std::compile_error!`](https://doc.rust-lang.org/std/macro.compile_error.html) macro. We try to get as many errors as possible, so you will see errors getting pushed into this variable and some of the code patched to that it can reach the end. \r\n\r\nWe do this so that the widget authors don't see a single error at a time, plus, if we manage to expand some code we also include the `rustc` type validation errors.",
+      "line": 36
+    },
+    {
+      "file": "zero-ui-proc-macros/src/widget_0_attr.rs",
+      "description": "Widget macros reference some things in the core crate, this is a problem because we can't use `$crate` in proc-macros like we can in `macro_rules!` and we don't known if the widget author is referencing the main crate or just the core crate, or we could be authoring something **in** the core crate.\r\n\r\nThis function resolves all that with the help of the [`proc-macro-crate`](https://github.com/bkchr/proc-macro-crate) and some other tricks that are out of the scope of this tour, all you need to know is that the `#crate_core` variable if the equivalent of `$crate`.",
+      "line": 38
+    }
+  ]
+}
