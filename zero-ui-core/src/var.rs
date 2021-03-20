@@ -300,6 +300,12 @@ pub trait IntoVar<T: VarValue>: Clone {
     {
         Var::into_local(self.into_var())
     }
+
+    #[doc(hidden)]
+    #[allow(non_snake_case)]
+    fn allowed_in_when_property_requires_IntoVar_members(self) -> Self::Var {
+        self.into_var()
+    }
 }
 
 /// New [`impl Var<T>`](Var) from an expression with interpolated *vars*.

@@ -1058,7 +1058,7 @@ mod output {
                         let mut crate_core = crate_core.clone();
                         crate::util::set_span(&mut crate_core, span);
                         quote_spanned! {span=>
-                            let #a = #crate_core::var::IntoVar::into_var(
+                            let #a = #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
                                 std::clone::Clone::clone(#args_ident::#m(&__args))
                             );
                         }
