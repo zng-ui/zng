@@ -483,7 +483,7 @@ pub mod core {
     ///
     /// **Optional**
     ///
-    /// Optional arguments can be set after the required, they use the `name: value` syntax. Currently there is only one
+    /// Optional arguments can be set after the required, they use the `name = value` syntax. Currently there is only one
     /// [`allowed_in_when`](#when-conditions).
     ///
     /// # Function
@@ -598,7 +598,21 @@ pub mod core {
     /// <div style='display:none'>
     pub use zero_ui_core::property;
 
+    /// Expands a module to a widget module and macro.
+    ///
+    /// TODO
+    ///
+    /// <div style='display:none'>
     pub use zero_ui_core::widget;
+
+    /// Expands a module to a widget mix-in module.
+    ///
+    /// Widget mix-ins can only be inherited by other widgets and mix-ins, they cannot be instantiated.
+    ///
+    /// See the [`#[widget(..)]`](macro@widget) documentation for how to declare, the only difference
+    /// from a full widget is that you can only inherit other mix-ins and cannot declare
+    /// the `new_child` and `new` functions.
+    /// <div style='display:none'>
     pub use zero_ui_core::widget_mixin;
 
     pub use zero_ui_core::*;

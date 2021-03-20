@@ -515,7 +515,7 @@ impl Parse for Args {
 ///
 /// Returns (immutable_expr, mutable_expr) independently of the order the delegates where written.
 fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: Ident) -> Result<(Expr, Expr)> {
-    // parse arg0 ": <expr>"
+    // parse arg0 " = <expr>"
     let expr0 = parse_delegate_expr(args, &arg0)?;
 
     // get what ident is the second one, delegate pairs can be defined in any order.
@@ -524,18 +524,18 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
     // delegate pair are separated by comma (,)
     let comma = args
         .parse::<Token![,]>()
-        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {}: <expr>`", expected_arg1)))?;
+        .map_err(|_| Error::new(util::after_span(&expr0), format!("expected `, {} = <expr>`", expected_arg1)))?;
     // delegate idents require a pair.
     let arg1: Ident = args
         .parse()
-        .map_err(|_| Error::new(comma.span(), format!("expected `{}: <expr>`", expected_arg1)))?;
+        .map_err(|_| Error::new(comma.span(), format!("expected `{} = <expr>`", expected_arg1)))?;
 
     // second ident is not the expected pair.
     if &arg1 != expected_arg1 {
         return Err(Error::new(arg1.span(), format!("expected `{}`", ident_mut)));
     }
 
-    // parse arg1 ": <expr>"
+    // parse arg1 " = <expr>"
     let expr1 = parse_delegate_expr(args, &arg1)?;
 
     // trailing comma.
@@ -553,10 +553,10 @@ fn parse_delegate_pair(args: ParseStream, arg0: Ident, ident: Ident, ident_mut: 
 fn parse_delegate_expr(args: ParseStream, ident: &Ident) -> Result<Expr> {
     let colon = args
         .parse::<Token![=]>()
-        .map_err(|_| Error::new(ident.span(), format!("expected `{}: <expr>`", ident)))?;
+        .map_err(|_| Error::new(ident.span(), format!("expected `{} = <expr>`", ident)))?;
     let expr: Expr = args
         .parse()
-        .map_err(|_| Error::new(colon.span(), format!("expected `{}: <expr>`", ident)))?;
+        .map_err(|_| Error::new(colon.span(), format!("expected `{} = <expr>`", ident)))?;
 
     Ok(expr)
 }

@@ -1,10 +1,10 @@
-error: expected `, delegate_iter_mut: <expr>`
+error: expected `, delegate_iter_mut = <expr>`
  --> $DIR/invalid_delegate_iter_pair.rs:6:47
   |
 6 | #[impl_ui_node(delegate_iter = self.inner.iter())]
   |                                               ^^
 
-error: expected `, delegate_iter: <expr>`
+error: expected `, delegate_iter = <expr>`
   --> $DIR/invalid_delegate_iter_pair.rs:12:55
    |
 12 | #[impl_ui_node(delegate_iter_mut = self.inner.iter_mut())]

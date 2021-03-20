@@ -1,4 +1,4 @@
-use zero_ui::core::{widget2, Widget};
+use zero_ui::core::{widget, Widget};
 
 #[widget($crate::test_widget)]
 pub mod test_widget {

@@ -1,16 +1,16 @@
-error: expected `delegate: <expr>`
+error: expected `delegate = <expr>`
  --> $DIR/missing_delegate_expr.rs:6:16
   |
 6 | #[impl_ui_node(delegate)]
   |                ^^^^^^^^
 
-error: expected `delegate_mut: <expr>`
+error: expected `delegate_mut = <expr>`
   --> $DIR/missing_delegate_expr.rs:12:40
    |
 12 | #[impl_ui_node(delegate = &self.inner, delegate_mut)]
    |                                        ^^^^^^^^^^^^
 
-error: expected `delegate: <expr>`
+error: expected `delegate = <expr>`
   --> $DIR/missing_delegate_expr.rs:18:25
    |
 18 | #[impl_ui_node(delegate =)]
