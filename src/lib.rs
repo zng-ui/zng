@@ -498,7 +498,8 @@ pub mod core {
     ///
     /// Normal properties must take at least two arguments, the first argument is the child [`UiNode`](crate::core::UiNode), the other argument(s)
     /// are the property values. The function must return a type that implements `UiNode`. The first argument must support any type that implements
-    /// `UiNode`. All of these requirements are validated at compile time.
+    /// `UiNode`, the other arguments also have type requirements depending on the [priority](#priority) or [allowed-in-when](#when-integration).
+    /// All of these requirements are validated at compile time.
     ///
     /// ```
     /// # fn main() { }
@@ -582,10 +583,13 @@ pub mod core {
     ///
     /// Properties that are set first, so they end-up inside of all other widget properties. Most of the properties that render use this priority.
     ///
-    /// # When Conditions
+    /// # `when` Integration
     ///
-    /// Most properties can be used in widget when condition expressions, by default all properties that don't have the `on_` prefix are allowed.
-    /// This can be overridden by setting the optional argument `allowed_in_when`.
+    /// Most properties are expected to work in widget `when` blocks, this is controlled by the optional argument `allowed_in_when`. By default all
+    /// properties that don't have the `on_` prefix are allowed. This can be overridden by setting `allowed_in_when = <bool>`.
+    ///
+    /// If a property is `allowed_in_when` all arguments must be [`impl IntoVar<T>`](crate::core::var::IntoVar). This is validated during
+    /// compile time, if you see `allowed_in_when_property_requires_IntoVar_members` in a error message you need to change the type or disable `allowed_in_when`.
     ///
     /// ## State Probing
     ///
