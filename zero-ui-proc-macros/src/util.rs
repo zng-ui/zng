@@ -1,4 +1,4 @@
-use std::{env, fmt, path::PathBuf};
+use std::fmt;
 
 use proc_macro2::*;
 use quote::{quote_spanned, ToTokens};
@@ -41,21 +41,24 @@ macro_rules! parse_quote_spanned {
 /// is the zero-ui-core crate if the crate using our proc-macros does not use the main zero-ui crate.
 pub fn crate_core() -> TokenStream {
     use once_cell::sync::OnceCell;
-    use proc_macro_crate::crate_name;
     static CRATE: OnceCell<(String, bool)> = OnceCell::new();
 
     let (ident, core) = CRATE.get_or_init(|| {
+        use proc_macro_crate::{crate_name, FoundCrate};
         if let Ok(ident) = crate_name("zero-ui") {
             // using the main crate.
-            (ident, true)
+            match ident {
+                FoundCrate::Name(name) => (name, true),
+                FoundCrate::Itself => ("zero_ui".to_owned(), true),
+            }
         } else if let Ok(ident) = crate_name("zero-ui-core") {
             // using the core crate only.
-            (ident, false)
-        } else if let Ok(true) = in_crate_core() {
-            // using in the zero-ui-core crate, it re-exports self as zero_ui_core to work in examples.
-            ("zero_ui_core".to_owned(), false)
+            match ident {
+                FoundCrate::Name(name) => (name, false),
+                FoundCrate::Itself => ("zero_ui_core".to_owned(), false),
+            }
         } else {
-            // using in the zero-ui-core crate, it re-exports self as zero_ui to work in examples.
+            // proc_macro_crate failed?
             ("zero_ui".to_owned(), true)
         }
     });
@@ -66,21 +69,6 @@ pub fn crate_core() -> TokenStream {
     } else {
         ident.to_token_stream()
     }
-}
-fn in_crate_core() -> std::result::Result<bool, ()> {
-    use std::io::Read;
-
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|_| ())?;
-
-    let cargo_toml_path = PathBuf::from(manifest_dir).join("Cargo.toml");
-
-    let mut content = String::new();
-    std::fs::File::open(cargo_toml_path)
-        .map_err(|_| ())?
-        .read_to_string(&mut content)
-        .map_err(|_| ())?;
-
-    Ok(content.contains(r#"name = "zero-ui-core""#))
 }
 
 /// Generates a return of a compile_error message in the given span.
