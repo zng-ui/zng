@@ -40,7 +40,7 @@ fn doc(mut args: Vec<&str>) {
         match std::env::var_os("BROWSER") {
             Some(browser) => {
                 if let Err(e) = std::process::Command::new(&browser).arg(path).status() {
-                    error(f!("Couldn't open docs with {}: {}", browser.to_string_lossy(), e));
+                    error(f!("couldn't open docs with {}: {}", browser.to_string_lossy(), e));
                 }
             }
             None => {
