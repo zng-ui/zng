@@ -600,6 +600,27 @@ pub mod core {
 
     /// Expands a module to a widget module and macro.
     ///
+    /// You can add any valid module item to a widget module, the widget attribute adds two pseudo-macros
+    /// [`inherit!`](#inherit) and [`properties!`](#properties), it also constrains functions named [`new_child`](#fn-new_child)
+    /// and [`new`](#fn-new).
+    ///
+    /// After expansion the only visible change to the module is in the documentation appended, the module is still usable
+    /// as a namespace for any item you witch to add.
+    ///
+    /// # `inherit!`
+    ///
+    /// TODO
+    ///
+    /// # `properties!`
+    ///
+    /// TODO
+    ///
+    /// # `fn new_child`
+    ///
+    /// TODO
+    ///
+    /// # `fn new`
+    ///
     /// TODO
     ///
     /// <div style='display:none'>

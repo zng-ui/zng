@@ -22,10 +22,34 @@ fn main() {
 // do doc [-o, --open] [<cargo-doc-args>]
 //    Generate documentation for crates in the root workspace.
 fn doc(mut args: Vec<&str>) {
-    if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
-        *open = "--open";
+    let custom_open = if args.contains(&"--manifest-path") {
+        if let Some(open) = args.iter_mut().find(|a| **a == "-o") {
+            *open = "--open";
+        }
+        false
+    } else {
+        take_flag(&mut args, &["-o", "--open"])
+    };
+
+    cmd_req("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
+
+    if custom_open {
+        // Open the main crate.
+        // based on https://github.com/rust-lang/cargo/blob/master/src/cargo/ops/cargo_doc.rs
+        let path = std::env::current_dir().unwrap().join("target/doc/zero_ui/index.html");
+        match std::env::var_os("BROWSER") {
+            Some(browser) => {
+                if let Err(e) = std::process::Command::new(&browser).arg(path).status() {
+                    error(f!("Couldn't open docs with {}: {}", browser.to_string_lossy(), e));
+                }
+            }
+            None => {
+                if let Err(e) = opener::open(&path) {
+                    error(f!("couldn't open docs, {:?}", e));
+                }
+            }
+        };
     }
-    cmd("cargo", &["doc", "--all-features", "--no-deps", "--workspace"], &args);
 }
 
 // do test, t [-w, --workspace] [-u, --unit <unit-test>] [--test-crates]
