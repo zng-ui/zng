@@ -1,4 +1,4 @@
-use zero_ui::core::{widget, Widget};
+use zero_ui_renamed::core::{widget, Widget};
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
@@ -12,7 +12,7 @@ pub fn is_test_widget(_: impl Widget) -> bool {
     true
 }
 
-pub use zero_ui::crate_reference_call as zero_ui_ref_call;
+pub use zero_ui_renamed::crate_reference_call as zero_ui_ref_call;
 
 #[test]
 pub fn macros_ok_in_direct_dep() {

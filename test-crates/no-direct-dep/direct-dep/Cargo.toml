@@ -5,4 +5,5 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
 [dependencies]
-zero-ui = { path = "../../../../zero-ui" }
+# test support for custom names.
+zero-ui-renamed = { package = "zero-ui", path = "../../../../zero-ui" }
