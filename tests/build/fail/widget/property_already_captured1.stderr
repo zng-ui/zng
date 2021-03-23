@@ -1,0 +1,5 @@
+error: property `id` already captured
+  --> $DIR/property_already_captured1.rs:12:32
+   |
+12 |     fn new(child: impl UiNode, id: WidgetId) {
+   |                                ^^

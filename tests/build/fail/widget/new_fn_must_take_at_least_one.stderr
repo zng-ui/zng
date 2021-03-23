@@ -1,0 +1,5 @@
+error: `new` must take at least one input that implements `UiNode`
+ --> $DIR/new_fn_must_take_at_least_one.rs:5:11
+  |
+5 |     fn new() {}
+  |           ^^

@@ -24,7 +24,11 @@ fn cmd_impl(cmd: &str, default_args: &[&str], user_args: &[&str], envs: &[(&str,
 
     let mut cmd = Command::new(cmd);
     cmd.args(&args[..]);
-    cmd.envs(envs.iter().filter(|t| !t.0.is_empty()).map(|&t| t));
+    cmd.envs(envs.iter().filter(|t| !t.0.is_empty() && !t.1.is_empty()).map(|&t| t));
+
+    for (remove, _) in envs.iter().filter(|t| !t.0.is_empty() && t.1.is_empty()) {
+        cmd.env_remove(remove);
+    }
 
     if info.dump {
         if let Some(stdout) = info.stdout_dump() {

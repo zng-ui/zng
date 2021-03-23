@@ -6,7 +6,7 @@ use syn::{
     braced,
     ext::IdentExt,
     parse::{Parse, ParseStream},
-    parse2, parse_macro_input,
+    parse2, parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     token, Attribute, FnArg, Ident, Item, ItemFn, ItemMacro, ItemMod, ItemUse, Path, Token,
@@ -94,10 +94,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     if let Some(fn_) = &new_child_fn {
         validate_new_fn(fn_, &mut errors);
     }
-    if let Some(fn_) = &new_fn {
+    if let Some(fn_) = &mut new_fn {
         validate_new_fn(fn_, &mut errors);
         if fn_.sig.inputs.is_empty() {
-            errors.push("`new` must take at least one input that implements `UiNode`", fn_.sig.inputs.span())
+            errors.push(
+                "`new` must take at least one input that implements `UiNode`",
+                fn_.sig.paren_token.span,
+            );
+            fn_.sig.inputs.push(parse_quote! { __child: impl #crate_core::UiNode });
         }
     }
 
@@ -120,6 +124,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
     let captures = captures;
 
+    // TODO set span of input names build test `new_fn_first_arg_not_impl_ui_node` 
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|f| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
@@ -147,7 +152,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #crate_core::debug::source_location!()
                 }
             });
-            let assigned_flags: Vec<_> = new_child.iter().map(|id| ident!("__{}_user_set", id)).collect();
+            let assigned_flags: Vec<_> = new_child
+                .iter()
+                .enumerate()
+                .map(|(i, id)| ident!("__{}_{}_user_set", i, id))
+                .collect();
             r.extend(quote! {
                 #[doc(hidden)]
                 #[allow(clippy::too_many_arguments)]
@@ -184,7 +193,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #crate_core::debug::source_location!()
                 }
             });
-            let assigned_flags: Vec<_> = new.iter().map(|id| ident!("__{}_user_set", id)).collect();
+            let assigned_flags: Vec<_> = new.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
             let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
             let wgt_name = ident.to_string();
             r.extend(quote! {

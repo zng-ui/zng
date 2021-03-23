@@ -1,0 +1,5 @@
+error: property `id` already captured in inherited fn `new`
+ --> $DIR/property_already_captured_inherited2.rs:9:18
+  |
+9 |     fn new_child(id: WidgetId) -> NilUiNode {
+  |                  ^^

@@ -41,6 +41,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut new_reexport = TokenStream::default();
     if !mixin {
         let last_not_mixin = inherits.iter().filter(|i| !i.mixin).last();
+        let mut new_child_is_default = false;
+        let mut new_is_default = false;
+
         if !new_child_declared {
             if let Some(source) = last_not_mixin {
                 let source_mod = &source.module;
@@ -73,6 +76,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 });
                 assert!(new_child.is_empty());
+                new_child_is_default = true;
             }
         }
         if !new_declared {
@@ -95,6 +99,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     }
                 };
                 new = vec![ident!("id")];
+                new_is_default = true;
             }
 
             #[cfg(debug_assertions)]
@@ -131,6 +136,28 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         self::__new(child, id)
                     }
                 });
+            }
+        }
+
+        if new_child_declared && !new_declared {
+            for user_cap in &new_child {
+                if new.iter().any(|id| id == user_cap) {
+                    let fn_source = if new_is_default { "default" } else { "inherited" };
+                    errors.push(
+                        format_args!("property `{}` already captured in {} fn `new`", user_cap, fn_source),
+                        user_cap.span(),
+                    );
+                }
+            }
+        } else if new_declared && !new_child_declared {
+            for user_cap in &new {
+                if new_child.iter().any(|id| id == user_cap) {
+                    let fn_source = if new_child_is_default { "default" } else { "inherited" };
+                    errors.push(
+                        format_args!("property `{}` already captured in {} fn `new_child`", user_cap, fn_source),
+                        user_cap.span(),
+                    );
+                }
             }
         }
     }
