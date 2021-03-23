@@ -15,5 +15,9 @@
     ],
     "rust-analyzer.files.excludeDirs": [
         "tests/build",
+    ],
+    "errorLens.exclude": [
+        "file not included in module tree",
+        "code is inactive due to #\\[cfg\\] directives: debug_assertions is enabled"
     ]
 }
