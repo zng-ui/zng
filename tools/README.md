@@ -9,3 +9,8 @@ Append this code to a tool crate `Cargo.toml` to exclude it from the main worksp
 ```toml
 [workspace] # Exclude from main workspace
 ```
+
+## Rust Analyzer
+
+If you want Rust Analyzer (VSCode) to analyze a tool crate you need to manually add it to the 
+`"rust-analyzer.linkedProjects"` setting in the  in `.vscode/settings.json`.

@@ -19,5 +19,9 @@
     "errorLens.exclude": [
         "file not included in module tree",
         "code is inactive due to #\\[cfg\\] directives: debug_assertions is enabled"
+    ],
+    "rust-analyzer.linkedProjects": [
+        "Cargo.toml",
+        "tools/do-tasks/Cargo.toml"
     ]
 }
