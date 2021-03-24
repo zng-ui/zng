@@ -142,11 +142,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let new_child_ty_span: Vec<_> = new_child
             .iter()
             .zip(new_child_ty_sp)
-            .map(|(id, ty_span)| {
-                let mut id = id.clone();
-                id.set_span(ty_span);
-                id
-            })
+            .enumerate()
+            .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
             .collect();
         let output = quote_spanned! {span=>
             impl #crate_core::UiNode
@@ -199,11 +196,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let new_ty_span: Vec<_> = new
             .iter()
             .zip(new_ty_sp)
-            .map(|(id, ty_span)| {
-                let mut id = id.clone();
-                id.set_span(ty_span);
-                id
-            })
+            .enumerate()
+            .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
             .collect();
         let output = &f.sig.output;
         #[allow(unused_mut)]
