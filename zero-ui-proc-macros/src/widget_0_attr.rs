@@ -107,14 +107,21 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // collects name of captured properties and validates inputs.
     let new_child_declared = new_child_fn.is_some();
-    let new_child = new_child_fn
+    let (new_child, new_child_ty_sp) = new_child_fn
         .as_ref()
         .map(|f| new_fn_captures(f.sig.inputs.iter(), &mut errors))
         .unwrap_or_default();
     let new_declared = new_fn.is_some();
-    let new = new_fn
+
+    let ((new, new_ty_sp), new_arg0_ty_span) = new_fn
         .as_ref()
-        .map(|f| new_fn_captures(f.sig.inputs.iter().skip(1), &mut errors))
+        .map(|f| {
+            // skip the first arg because we expect the arg0 to be `impl UiNode`
+            // but we still need the span of the arg0 type for error messages.
+            let mut args = f.sig.inputs.iter();
+            let new_arg0_ty_span = args.next().map(|a| if let FnArg::Typed(pt) = a { pt.ty.span() } else { a.span() });
+            (new_fn_captures(args, &mut errors), new_arg0_ty_span)
+        })
         .unwrap_or_default();
     let mut captures = HashSet::new();
     for capture in new_child.iter().chain(&new) {
@@ -124,7 +131,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
     let captures = captures;
 
-    // TODO set span of input names build test `new_fn_first_arg_not_impl_ui_node` 
+    // TODO set span of input names build test `new_fn_first_arg_not_impl_ui_node`
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|f| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
@@ -132,6 +139,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             syn::ReturnType::Default => f.block.span(),
             syn::ReturnType::Type(_, t) => t.span(),
         };
+        let new_child_ty_span: Vec<_> = new_child
+            .iter()
+            .zip(new_child_ty_sp)
+            .map(|(id, ty_span)| {
+                let mut id = id.clone();
+                id.set_span(ty_span);
+                id
+            })
+            .collect();
         let output = quote_spanned! {span=>
             impl #crate_core::UiNode
         };
@@ -139,8 +155,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
-            pub fn __new_child(#(#new_child : impl self::#p_new_child::Args),*) -> #output {
-                self::new_child(#(self::#p_new_child::Args::unwrap(#new_child)),*)
+            pub fn __new_child(#(#new_child_ty_span : impl self::#p_new_child::Args),*) -> #output {
+                self::new_child(#(self::#p_new_child::Args::unwrap(#new_child_ty_span)),*)
             }
         };
 
@@ -175,13 +191,27 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     });
     let new__ = new_fn.as_ref().map(|f| {
         let p_new: Vec<_> = new.iter().map(|id| ident!("__p_{}", id)).collect();
+        let new_arg0_ty_span = new_arg0_ty_span.unwrap();
+        let child_ident = ident_spanned!(new_arg0_ty_span=> "__child");
+        let child_ty = quote_spanned! {new_arg0_ty_span=>
+            impl #crate_core::UiNode
+        };
+        let new_ty_span: Vec<_> = new
+            .iter()
+            .zip(new_ty_sp)
+            .map(|(id, ty_span)| {
+                let mut id = id.clone();
+                id.set_span(ty_span);
+                id
+            })
+            .collect();
         let output = &f.sig.output;
         #[allow(unused_mut)]
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
-            pub fn __new(__child: impl #crate_core::UiNode, #(#new: impl self::#p_new::Args),*) #output {
-                self::new(__child, #(self::#p_new::Args::unwrap(#new)),*)
+            pub fn __new(#child_ident: #child_ty, #(#new_ty_span: impl self::#p_new::Args),*) #output {
+                self::new(#child_ident, #(self::#p_new::Args::unwrap(#new_ty_span)),*)
             }
         };
 
@@ -758,13 +788,14 @@ impl Parse for ArgPath {
     }
 }
 
-fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> Vec<Ident> {
-    let mut r = vec![];
+fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &'b mut Errors) -> (Vec<Ident>, Vec<Span>) {
+    let mut ids = vec![];
+    let mut spans = vec![];
     for input in fn_inputs {
         match input {
-            syn::FnArg::Typed(t) => {
+            syn::FnArg::Typed(pt) => {
                 // any pat : ty
-                match &*t.pat {
+                match &*pt.pat {
                     syn::Pat::Ident(ident_pat) => {
                         if let Some(subpat) = &ident_pat.subpat {
                             // ident @ sub_pat : type
@@ -781,7 +812,8 @@ fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &
                         } else {
                             // VALID
                             // ident: type
-                            r.push(ident_pat.ident.clone());
+                            ids.push(ident_pat.ident.clone());
+                            spans.push(pt.ty.span());
                         }
                     }
                     invalid => {
@@ -796,7 +828,9 @@ fn new_fn_captures<'a, 'b>(fn_inputs: impl Iterator<Item = &'a FnArg>, errors: &
             }
         }
     }
-    r
+
+    debug_assert_eq!(ids.len(), spans.len());
+    (ids, spans)
 }
 
 fn validate_new_fn(fn_: &ItemFn, errors: &mut Errors) {

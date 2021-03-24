@@ -1,0 +1,8 @@
+error[E0308]: mismatched types
+ --> $DIR/new_fn_first_arg_not_impl_ui_node.rs:7:42
+  |
+7 |     fn new(/* child: impl UiNode, */ id: WidgetId) {}
+  |                                          ^^^^^^^^ expected struct `WidgetId`, found type parameter `impl zero_ui::core::UiNode`
+  |
+  = note:      expected struct `WidgetId`
+          found type parameter `impl zero_ui::core::UiNode`
