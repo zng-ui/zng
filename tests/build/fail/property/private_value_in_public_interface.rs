@@ -9,3 +9,8 @@ pub fn bar(child: impl UiNode, value: PrivateFoo) -> impl UiNode {
 }
 
 fn main() {}
+
+// NOTE: this one is pretty bad, first Rust highlights the full function signature instead of just the private type,
+// second the types get expanded into the context of a struct member type, generics, trait method signatures and associated
+// types, all witch also generate the error highlighting more then the type, in the end we are getting multiple errors
+// (and warnings) at line 5, the warnings cannot be suppressed either.

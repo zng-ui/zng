@@ -1,0 +1,40 @@
+error[E0446]: private type `PrivateFoo` in public interface
+ --> $DIR/private_value_in_public_interface.rs:6:1
+  |
+3 | struct PrivateFoo;
+  | ------------------ `PrivateFoo` declared as private
+...
+6 | pub fn bar(child: impl UiNode, value: PrivateFoo) -> impl UiNode {
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ can't leak private type
+
+error[E0446]: private type `PrivateFoo` in public interface
+ --> $DIR/private_value_in_public_interface.rs:5:1
+  |
+3 | struct PrivateFoo;
+  | ------------------ `PrivateFoo` declared as private
+4 |
+5 | #[property(context, allowed_in_when = false)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ can't leak private type
+  |
+  = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: private type `PrivateFoo` in public interface (error E0446)
+ --> $DIR/private_value_in_public_interface.rs:5:1
+  |
+5 | #[property(context, allowed_in_when = false)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(private_in_public)]` on by default
+  = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #34537 <https://github.com/rust-lang/rust/issues/34537>
+  = note: this warning originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: private type `PrivateFoo` in public interface (error E0446)
+ --> $DIR/private_value_in_public_interface.rs:5:1
+  |
+5 | #[property(context, allowed_in_when = false)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = warning: this was previously accepted by the compiler but is being phased out; it will become a hard error in a future release!
+  = note: for more information, see issue #34537 <https://github.com/rust-lang/rust/issues/34537>
+  = note: this warning originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
