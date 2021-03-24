@@ -607,21 +607,389 @@ pub mod core {
     /// After expansion the only visible change to the module is in the documentation appended, the module is still usable
     /// as a namespace for any item you witch to add.
     ///
-    /// # `inherit!`
+    /// ```
+    /// # fn main() { }
+    /// use zero_ui::prelude::new_widget::*;
     ///
-    /// TODO
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     use super::*;
+    ///     
+    ///     // ..
+    /// }
+    /// ```
+    ///
+    /// The widget macro takes one argument, a path to the widget module from [`$crate`](https://doc.rust-lang.org/reference/macros-by-example.html#metavariables).
+    /// This is a temporary requirement that will be removed when macros-by-example can reference the `self` module.
     ///
     /// # `properties!`
     ///
+    /// Widgets are a *tree-rope* of [Ui nodes](zero_ui::core::UiNode), most of the nodes are defined and configured using
+    /// properties. Properties are defined using the `properties! { .. }` pseudo-macro. Multiple `properties!` items can be
+    /// used, they are merged during the widget compilation.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     use zero_ui::properties::*;
+    ///
+    ///     properties! {
+    ///         /// Margin applied by default.
+    ///         margin = 10;
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// ## Property Name
+    ///
+    /// Only a property of each name can exist in a widget, during the widget instantiation the user can
+    /// set these properties by their name without needing to import the property.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #   use zero_ui::properties::margin as foo;
+    /// properties! {
+    ///     /// Foo docs in this widget.
+    ///     foo;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// You can also use the full path to a property in place, in this case the property name is the last ident in the path.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// properties! {
+    ///     /// Margin docs in this widget.
+    ///     zero_ui::properties::margin;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// And finally you can give a property a new name in place, you can use this to allow the same underlying property multiple times.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// properties! {
+    ///     /// Foo docs.
+    ///     zero_ui::properties::margin as foo;
+    ///     /// Bar docs.
+    ///     zero_ui::properties::margin as bar;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// ## Default Values
+    ///
+    /// Properties without value are not applied unless the user sets then during instantiation. You can give a property
+    /// a default value so that it is always applied.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #   use zero_ui::properties::margin as foo;
+    /// properties! {
+    ///     /// Foo, default value `10`.
+    ///     foo = 10;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// Note that the property can be removed during instantiation by setting it to `unset!`.
+    ///
+    /// ## Special Values
+    ///
+    /// Properties can be *set* to a special value that changes how they are compiled instead of defining a default value.
+    ///
+    /// ### `required!`
+    ///
+    /// Marks a property as required, meaning, during the widget instantiation the user must set the property otherwise an
+    /// error is generated.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #   use zero_ui::properties::margin as bar;
+    /// properties! {
+    ///     bar = required!;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// Note that captured properties are also marked required without the need for the special value.
+    ///
+    /// ### `unset!`
+    ///
+    /// Removes an [inherited](#inherit) property from the widget.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #    inherit!(zero_ui::widgets::container);
+    /// #
+    /// properties! {
+    ///     content_align = unset!;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// Note that inherited captured properties no longer captured are automatically unset.
+    ///
+    /// ## Property Capture
+    ///
+    /// The two [initialization functions](#initialization-functions) can *capture* a property.
+    /// When a property is captured it is not set by the property implementation, the property value is redirected to
+    /// the function and can be used in any way inside, some properties are [capture-only](zero_ui::core::property#capture_only),
+    /// meaning they don't have an implementation and must be captured.
+    ///
+    /// ### Declare For Capture
+    ///
+    /// You can declare a capture-only property in place:
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #    use zero_ui::core::var::*;
+    /// #    use zero_ui::core::UiNode;
+    /// #    use zero_ui::core::text::formatx;
+    /// #    use zero_ui::widgets::text::text;
+    /// #
+    /// properties! {
+    ///     /// Capture-only property `foo` with default value `false`.
+    ///     foo: impl IntoVar<bool> = false;
+    /// }
+    ///
+    /// fn new_child(foo: impl IntoVar<bool>) -> impl UiNode {
+    ///     let label = foo.into_var().map(|f|formatx!("foo: {:?}", f));
+    ///     text(label)
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// A property declared like this **must** be captured, if does not to be given a value or explicitly marked [required](#required).
+    ///
+    /// You can set the property [`allowed_in_when`](zero_ui::core::property#when-integration) value using the pseudo-attribute
+    /// `#[allowed_in_when = <bool>]`.
+    ///
+    /// ## Property Order
+    ///
+    /// When a widget is initialized properties are set according with their [priority](zero_ui::core::property#priority) followed
+    /// by their declaration position. You can place a property in a [`child`](#child) block to have if be set before other properties.
+    ///
+    /// The property value is initialized by the order the properties are declared, all [`child`](#child) property values are initialized first.
+    ///
+    /// ### `child`
+    ///
+    /// Widgets have two *groups* of properties, one is presented as applying to the widget, the other as applying to the [*child*](#fn-new_child).
+    /// To define a property in the second group, you can use a `child { .. }` block inside `properties! { }`.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// # use zero_ui::properties::margin;
+    /// properties! {
+    ///     child {
+    ///         /// Spacing around the content.
+    ///         margin as padding = 10;
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// ## `when`
+    ///
+    /// Some widget properties need different values depending on widget state. You can manually implement this
+    /// using variable [mapping](zero_ui::core::var::Var::map) and [merging](zero_ui::core::var::merge_var) but that
+    /// gets unwieldy, enter the `when` block.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #    use zero_ui::prelude::new_widget::*;
+    /// #
+    /// properties! {
+    ///     background_color = colors::RED;
+    ///
+    ///     when self.is_hovered {
+    ///         background_color = colors::BLUE;
+    ///     }
+    ///     when self.is_pressed {
+    ///         background_color = colors::GREEN;
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// When blocks can be declared inside the `properties!` pseudo-macro, they take an expression followed by a block of
+    /// property assigns. You can reference widget properties in the expression by using the `self.` prefix.
+    ///
+    /// In the example above the value of `background_color` will change depending on the interaction with the pointer, if it
+    /// is over the widget the background changes to blue, if it is pressed the background changes to green. Subsequent *whens* that
+    /// affect the same property have higher priority the previous whens, so when the pointer is over the widget and pressed the last
+    /// *when* (pressed color) is applied.
+    ///
+    /// ### Variable References
+    ///
     /// TODO
     ///
-    /// # `fn new_child`
+    /// ### Default States
     ///
     /// TODO
     ///
-    /// # `fn new`
+    /// ### Auto-Disabling
     ///
     /// TODO
+    ///
+    /// # Initialization Functions
+    ///
+    /// Widgets are a *tree-rope* of [Ui nodes](zero_ui::core::UiNode), the two initialization functions define the
+    /// inner ([`new_child`](#fn-new_child)) and outer ([`new`](#fn-new)) boundary of the widget.
+    ///
+    /// The functions can *capture* properties by having an input of the same name as a widget property.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     use zero_ui::core::{NilUiNode, units::SideOffsets, var::IntoVar};
+    ///     use zero_ui::properties::margin;
+    ///
+    ///     properties! {
+    ///         margin = 10;
+    ///     }
+    ///
+    ///     fn new_child(margin: impl IntoVar<SideOffsets>) -> NilUiNode {
+    ///         // .. do something with margin.
+    ///         NilUiNode
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// In the example above the `margin` property is not applied during initialization,
+    /// its value is redirected the the `new_child` function. The input type must match the captured property type,
+    /// if the property has more then one member the input type is a tuple of the property types.
+    ///
+    /// Initialization functions are not required, a the new widget inherits from another the functions from the other
+    /// widget are used, if not a default implementation is provided. The functions don't need to be public either, only
+    /// make then public is there is an utility in calling then manually.
+    ///
+    /// The functions are identified by name and have extra constrains that are validated during compile time. In general
+    /// they cannot be `unsafe`, `async` nor `extern`, they also cannot declare lifetimes nor `const` generics.
+    ///
+    /// ## `fn new_child`
+    ///
+    /// The `new_child` initialization function defines the inner most node of the widget, it must output a type that implements
+    /// [`UiNode`](zero_ui::core::UiNode).
+    ///
+    /// The [default function](zero_ui::core::widget_base::default_widget_new_child) does not capture any property and simply outputs
+    /// the [`NilUiNode`](zero_ui::core::NilUiNode) value.
+    ///
+    /// ## `fn new`
+    ///
+    /// The `new` initialization function defines the outer most type of the widget, if must take at least one input that is a generic
+    /// that allows any type that implements [`UiNode`](zero_ui::core::UiNode), although not required you probably want to capture the
+    /// implicit [`id`](mod@zero_ui::core::widget_base::implicit_mixin#wp-id) property.
+    ///
+    /// The output can be any type, if you want the widget to be compatible with most layout slots the type must implement
+    /// [`Widget`](zero_ui::core::Widget) and it is recommended that you use the [default function](zero_ui::core::widget_base::default_widget_new)
+    /// to generate the widget.
+    ///
+    /// The [default function](zero_ui::core::widget_base::default_widget_new) captures the [`id`](mod@zero_ui::core::widget_base::implicit_mixin#wp-id)
+    /// property and returns a [`Widget`](zero_ui::core::Widget) that properly establishes a widget context during the
+    /// [`UiNode`](zero_ui::core::UiNode) method calls.
+    ///
+    /// # `inherit!`
+    ///
+    /// Widgets can inherit from one or more other widgets and mix-ins using the pseudo-macro `inherit!(widget::path);`.
+    /// An inherit is like an import/reexport of properties and initialization functions.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     inherit!(zero_ui::widgets::container);
+    ///
+    ///     // ..
+    /// }
+    /// ```
+    ///
+    /// In the example above, the new widget `foo` inherits all the properties and
+    /// initialization functions of [`container`](mod@zero_ui::widgets::container).
+    ///
+    /// ## Override
+    ///
+    /// Subsequent inherits override properties and functions with the same name as previously inherited, properties
+    /// and functions declared in the new widget override inherited items independent of the order the declaration appears
+    /// in the source-code.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// #[widget($crate::foo)]
+    /// pub mod foo {
+    ///     properties! {
+    ///         zero_ui::properties::margin = 10;
+    ///     }
+    ///
+    ///     fn new_child() -> zero_ui::core::NilUiNode {
+    ///         zero_ui::core::NilUiNode
+    ///     }
+    /// }
+    ///
+    /// #[widget($crate::bar)]
+    /// pub mod bar {
+    ///     properties! {
+    ///         zero_ui::properties::margin = 20;
+    ///     }
+    ///
+    ///     fn new_child() -> impl zero_ui::core::UiNode {
+    /// #       use zero_ui::widgets::text::text;
+    ///         text("Bar!")
+    ///     }
+    /// }
+    ///
+    /// #[widget($crate::foo_bar)]
+    /// pub mod foo_bar {
+    ///     inherit!(super::foo);
+    ///     inherit!(super::bar);
+    /// }
+    /// ```
+    ///
+    /// In the example above `foo_bar` has a property named `margin` with default value `20`, and its child
+    /// is a text widget that prints `"Bar!"`.
+    ///
+    /// ## Implicit
+    ///
+    /// Every widget inherits [`implicit_mixin`](mod@zero_ui::core::widget_base::implicit_mixin) after all other inherits.
+    ///
+    /// If an widget does not inherit from another widget and does not declare a initialization function the defaults,
+    /// [`default_widget_new_child`](zero_ui::core::widget_base::default_widget_new_child) and
+    /// [`default_widget_new`](zero_ui::core::widget_base::default_widget_new) are used.
     ///
     /// <div style='display:none'>
     pub use zero_ui_core::widget;
