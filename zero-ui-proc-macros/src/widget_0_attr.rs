@@ -1,4 +1,7 @@
-use std::{collections::HashSet, mem};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
@@ -14,7 +17,7 @@ use syn::{
 
 use crate::{
     util::{self, parse2_punctuated, parse_outer_attrs, Attributes, Errors},
-    widget_new::{PropertyValue, When},
+    widget_new::{PropertyValue, When, WhenExprToVar},
 };
 
 pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -131,7 +134,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
     let captures = captures;
 
-    // TODO set span of input names build test `new_fn_first_arg_not_impl_ui_node`
     // generate `__new_child` and `__new` if new functions are defined in the widget.
     let new_child__ = new_child_fn.as_ref().map(|f| {
         let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
@@ -436,6 +438,29 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         };
 
+        let mut skip = false;
+        let cond_properties: HashMap<_, _> = condition
+            .properties
+            .into_iter()
+            .filter_map(|((p_path, member), var)| {
+                if let Some(p) = p_path.get_ident() {
+                    Some(((p.clone(), member), var))
+                } else {
+                    skip = true;
+                    let suggestion = &p_path.segments.last().unwrap().ident;
+                    errors.push(
+                        format_args!("widget properties only have a single name, try `self.{}`", suggestion),
+                        p_path.span(),
+                    );
+                    None
+                }
+            })
+            .collect();
+
+        if skip {
+            continue;
+        }
+
         #[cfg(debug_assertions)]
         let mut assign_names = vec![];
         let mut assigns = HashSet::new();
@@ -505,24 +530,29 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             } else {
                 let suggestion = &assign.path.segments.last().unwrap().ident;
                 errors.push(
-                    format_args!("widget properties only have a single name, try `{}`", suggestion),
+                    format_args!("widget properties only have a single name, try `self.{}`", suggestion),
                     assign.path.span(),
                 );
             }
         }
 
         // properties used in the when condition.
-        let inputs: HashSet<_> = condition.properties.iter().map(|(p, _)| p).collect();
+        let mut visited_props = HashSet::new();
+        let inputs: Vec<_> = cond_properties
+            .keys()
+            .map(|(p, _)| p)
+            .filter(|&p| visited_props.insert(p.clone()))
+            .collect();
 
         // name of property inputs Args reference in the condition function.
         let input_idents: Vec<_> = inputs.iter().map(|p| ident!("__{}", p)).collect();
         // name of property inputs in the widget module.
         let prop_idents: Vec<_> = inputs.iter().map(|p| ident!("__p_{}", p)).collect();
 
-        // name of the fields for each interpolated property
-        let field_idents = condition.properties.iter().map(|(p, m)| ident!("__{}{}", p, m));
-        let input_ident_per_field = condition.properties.iter().map(|(p, _)| ident!("__{}", p));
-        let members = condition.properties.iter().map(|(_, m)| m);
+        // name of the fields for each interpolated property.
+        let field_idents = cond_properties.values();
+        let input_ident_per_field = cond_properties.keys().map(|(p, _)| ident!("__{}", p));
+        let members = cond_properties.keys().map(|(_, m)| m);
 
         let expr = condition.expr;
 
@@ -533,7 +563,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             pub fn #ident(
                 #(#input_idents : &impl self::#prop_idents::Args),*
             ) -> impl #crate_core::var::Var<bool> {
-                #(let #field_idents = #crate_core::var::IntoVar::into_var(
+                #(
+                    #[allow(non_snake_case)]
+                    let #field_idents;
+                    #field_idents = #crate_core::var::IntoVar::into_var(
                     std::clone::Clone::clone(#input_ident_per_field.#members()));
                 )*
                 #crate_core::var::expr_var! {
@@ -1172,71 +1205,6 @@ impl ToTokens for NamedField {
 mod keyword {
     pub use crate::widget_new::keyword::when;
     syn::custom_keyword!(child);
-}
-
-struct WhenExprToVar {
-    properties: HashSet<(Ident, Ident)>,
-    expr: TokenStream,
-}
-impl Parse for WhenExprToVar {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut properties = HashSet::new();
-        let mut expr = TokenStream::default();
-
-        while !input.is_empty() {
-            // look for `self.property(.member)?` and replace with `#{__property__member}`
-            if input.peek(Token![self]) && input.peek2(Token![.]) {
-                input.parse::<Token![self]>().unwrap();
-                input.parse::<Token![.]>().unwrap();
-
-                let property = input.parse::<Ident>()?; // parse::<Path> in widget_new.
-                let member_ident = if input.peek(Token![.]) {
-                    input.parse::<Token![.]>().unwrap();
-                    if input.peek(Ident) {
-                        let member = input.parse::<Ident>().unwrap();
-                        ident!("__{}", member)
-                    } else {
-                        let index = input.parse::<syn::Index>().unwrap();
-                        ident!("__{}", index.index)
-                    }
-                } else {
-                    ident!("__0")
-                };
-
-                let var_ident = ident!("__{}{}", property, member_ident);
-
-                expr.extend(quote! {
-                    #{#var_ident}
-                });
-
-                properties.insert((property, member_ident));
-            }
-            // recursive parse groups:
-            else if input.peek(token::Brace) {
-                let inner = WhenExprToVar::parse(&non_user_braced!(input))?;
-                properties.extend(inner.properties);
-                let inner = inner.expr;
-                expr.extend(quote! { { #inner } });
-            } else if input.peek(token::Paren) {
-                let inner = WhenExprToVar::parse(&non_user_parenthesized!(input))?;
-                properties.extend(inner.properties);
-                let inner = inner.expr;
-                expr.extend(quote! { ( #inner ) });
-            } else if input.peek(token::Bracket) {
-                let inner = WhenExprToVar::parse(&non_user_bracketed!(input))?;
-                properties.extend(inner.properties);
-                let inner = inner.expr;
-                expr.extend(quote! { [ #inner ] });
-            }
-            // keep other tokens the same:
-            else {
-                let tt = input.parse::<TokenTree>().unwrap();
-                tt.to_tokens(&mut expr)
-            }
-        }
-
-        Ok(WhenExprToVar { properties, expr })
-    }
 }
 
 struct AllowedInWhenInput {

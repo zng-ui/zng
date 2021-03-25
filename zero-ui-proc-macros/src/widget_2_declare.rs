@@ -540,12 +540,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
 
         // for each property in inputs and assigns that are not declared in widget or inherited.
-        for (property, p_cfg) in inputs.iter().map(|i| (i, None)).chain(
-            assigns
-                .iter()
-                .map(|a| (&a.property, if a.cfg.is_empty() { None } else { Some(a.cfg.clone()) }))
-                .filter(|(p, _)| !wgt_all_properties.contains(p)),
-        ) {
+        for (property, p_cfg) in inputs
+            .iter()
+            .map(|i| (i, None))
+            .chain(
+                assigns
+                    .iter()
+                    .map(|a| (&a.property, if a.cfg.is_empty() { None } else { Some(a.cfg.clone()) })),
+            )
+            .filter(|(p, _)| !wgt_all_properties.contains(p))
+        {
             let cfg = util::cfg_attr_or(bw_cfg.clone(), p_cfg.map(|tt| util::parse_attr(tt).unwrap()));
             match wgt_when_properties.entry(property.clone()) {
                 std::collections::hash_map::Entry::Occupied(mut e) => {

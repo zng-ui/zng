@@ -820,8 +820,8 @@ pub mod core {
     /// ## `when`
     ///
     /// Some widget properties need different values depending on widget state. You can manually implement this
-    /// using variable [mapping](zero_ui::core::var::Var::map) and [merging](zero_ui::core::var::merge_var) but that
-    /// gets unwieldy, enter the `when` block.
+    /// using variable [mapping](zero_ui::core::var::Var::map) and [merging](zero_ui::core::var::merge_var) but a
+    /// better way is to use the `when` block.
     ///
     /// ```
     /// # fn main() { }
@@ -851,9 +851,115 @@ pub mod core {
     /// affect the same property have higher priority the previous whens, so when the pointer is over the widget and pressed the last
     /// *when* (pressed color) is applied.
     ///
-    /// ### Variable References
+    /// ### When Expression
     ///
-    /// TODO
+    /// The when expression is a boolean similar to the `if` expression, the difference in that it can reference [variables](zero_ui::core::var::Var)
+    /// from properties or other sources, and when these variables updates the expression result updates.
+    ///
+    /// #### Reference Property
+    ///
+    /// Use `self.<property>` to reference to an widget property, the value resolves to the variable value of the first member of the property,
+    /// if the property has a default value it does not need to be defined in the widget before usage.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::{property, widget, UiNode, var::IntoVar};
+    /// #[property(context)]
+    /// pub fn foo(
+    ///     child: impl UiNode,
+    ///     member_a: impl IntoVar<bool>,
+    ///     member_b: impl IntoVar<u32>
+    /// ) -> impl UiNode {
+    ///     // ..
+    /// #   let _ = member_a;
+    /// #   let _ = member_b;
+    /// #   child
+    /// }
+    ///
+    /// #[widget($crate::bar)]
+    /// pub mod bar {
+    ///     use zero_ui::prelude::new_widget::*;
+    ///
+    ///     properties! {
+    ///         background_color = colors::BLACK;
+    ///         super::foo = true, 32;
+    ///
+    ///         when self.foo {
+    ///             background_color = colors::RED;
+    ///         }
+    ///
+    ///         when self.is_pressed {
+    ///             background_color = colors::BLUE;
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// In the example above `self.foo` is referencing the `member_a` variable value, note that `foo` was
+    /// defined in the widget first. [State](zero_ui::core::property#state-probing) variables have a default value so
+    /// `is_pressed` can be used without defining it first in the widget.
+    ///
+    /// #### Reference Property Member
+    ///
+    /// A property reference automatically uses the first member, you can reference other members by name or by index.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::{property, widget, UiNode, var::IntoVar};
+    /// #[property(context)]
+    /// # pub fn foo(child: impl UiNode, member_a: impl IntoVar<bool>, member_b: impl IntoVar<u32>) -> impl UiNode {  
+    /// #   let _ = member_a;
+    /// #   let _ = member_b;
+    /// #   child
+    /// # }
+    ///
+    /// # #[widget($crate::bar)]
+    /// # pub mod bar {
+    /// #    use zero_ui::prelude::new_widget::*;
+    /// properties! {
+    ///     background_color = colors::BLACK;
+    ///     super::foo = true, 32;
+    ///
+    ///     when self.foo.member_b == 32 {
+    ///         background_color = colors::RED;
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// In the example above `self.foo.member_b` is referencing the `member_b` variable value. Alternatively you can also use
+    /// tuple indexing, `self.foo.1` also references the `member_b` variable value.
+    ///
+    /// #### Reference Other Items
+    ///
+    /// Widget when expressions can reference any other `'static` item, not just properties. If the item is a variable and you want
+    /// the expression to update when a variable update quote it with `#{<var>}`.
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::{property, widget, UiNode, var::IntoVar};
+    /// #
+    /// # #[widget($crate::bar)]
+    /// # pub mod bar {
+    /// #    use zero_ui::prelude::new_widget::*;
+    /// static ST_VALUE: bool = true;
+    ///
+    /// context_var! { pub struct FooVar: bool = const true; }
+    ///
+    /// fn bar() -> bool { true }
+    ///
+    /// properties! {
+    ///     background_color = colors::BLACK;
+    ///
+    ///     when ST_VALUE && *#{FooVar::var().clone()} && bar() {
+    ///         background_color = colors::RED;
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// In the example above a static value `ST_VALUE`, a context var `FooVar` and a function `bar` are used in the expression. The expression
+    /// is (re)evaluated when the context var updates, `FooVar::var()` is evaluated only once during initialization.
     ///
     /// ### Default States
     ///
