@@ -1,0 +1,13 @@
+warning: unused import: `zero_ui::core::var::IntoVar`
+ --> $DIR/new_fn_mismatched_capture_type2.rs:5:9
+  |
+5 |     use zero_ui::core::var::IntoVar;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+error[E0308]: mismatched types
+  --> $DIR/new_fn_mismatched_capture_type2.rs:18:23
+   |
+18 |     fn new_child(foo: NotFoo) -> NilUiNode {
+   |                       ^^^^^^ expected struct `NotFoo`, found struct `Foo`

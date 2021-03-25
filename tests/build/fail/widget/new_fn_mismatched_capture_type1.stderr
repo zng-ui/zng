@@ -1,0 +1,12 @@
+error[E0277]: the trait bound `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: IntoVar<NotFoo>` is not satisfied
+  --> $DIR/new_fn_mismatched_capture_type1.rs:17:23
+   |
+17 |     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode {
+   |                       ^^^^ --------------- required by this bound in `new_child`
+   |                       |
+   |                       the trait `IntoVar<NotFoo>` is not implemented for `<foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo`
+   |
+help: consider further restricting the associated type
+   |
+17 |     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode where <foo_type_must_match_property_definition_0 as __p_foo_Args>::T_foo: IntoVar<NotFoo> {
+   |                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

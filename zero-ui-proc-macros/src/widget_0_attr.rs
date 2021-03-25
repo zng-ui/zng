@@ -135,18 +135,31 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let captures = captures;
 
     // generate `__new_child` and `__new` if new functions are defined in the widget.
+    //
+    // we use generic types to provide an error message for compile errors like the one in
+    // `widget/new_fn_mismatched_capture_type1.rs`
     let new_child__ = new_child_fn.as_ref().map(|f| {
-        let p_new_child: Vec<_> = new_child.iter().map(|id| ident!("__p_{}", id)).collect();
+        let (p_new_child, generic_tys): (Vec<_>, Vec<_>) = new_child
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (ident!("__p_{}", id), ident!("{}_type_must_match_property_definition_{}", id, i)))
+            .unzip();
         let span = match &f.sig.output {
             syn::ReturnType::Default => f.block.span(),
             syn::ReturnType::Type(_, t) => t.span(),
         };
-        let new_child_ty_span: Vec<_> = new_child
+        let spanned_new_child_ty: Vec<_> = new_child
             .iter()
             .zip(new_child_ty_sp)
             .enumerate()
             .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
             .collect();
+        let spanned_unwrap = p_new_child.iter().zip(spanned_new_child_ty.iter()).map(|(p, id)| {
+            quote_spanned! {id.span()=>
+                self::#p::Args::unwrap(#id)
+            }
+        });
+
         let output = quote_spanned! {span=>
             impl #crate_core::UiNode
         };
@@ -154,8 +167,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
-            pub fn __new_child(#(#new_child_ty_span : impl self::#p_new_child::Args),*) -> #output {
-                self::new_child(#(self::#p_new_child::Args::unwrap(#new_child_ty_span)),*)
+            pub fn __new_child<#(#generic_tys: #p_new_child::Args),*>(#(#spanned_new_child_ty : #generic_tys),*) -> #output {
+                self::new_child(#(#spanned_unwrap),*)
             }
         };
 
@@ -189,25 +202,34 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         r
     });
     let new__ = new_fn.as_ref().map(|f| {
-        let p_new: Vec<_> = new.iter().map(|id| ident!("__p_{}", id)).collect();
+        let (p_new, generic_tys): (Vec<_>, Vec<_>) = new
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (ident!("__p_{}", id), ident!("{}_type_must_match_property_definition_{}", id, i)))
+            .unzip();
         let new_arg0_ty_span = new_arg0_ty_span.unwrap();
         let child_ident = ident_spanned!(new_arg0_ty_span=> "__child");
         let child_ty = quote_spanned! {new_arg0_ty_span=>
             impl #crate_core::UiNode
         };
-        let new_ty_span: Vec<_> = new
+        let spanned_new_ty: Vec<_> = new
             .iter()
             .zip(new_ty_sp)
             .enumerate()
             .map(|(i, (id, ty_span))| ident_spanned!(ty_span=> "__{}_{}", i, id))
             .collect();
+        let spanned_unwrap = p_new.iter().zip(spanned_new_ty.iter()).map(|(p, id)| {
+            quote_spanned! {id.span()=>
+                self::#p::Args::unwrap(#id)
+            }
+        });
         let output = &f.sig.output;
         #[allow(unused_mut)]
         let mut r = quote! {
             #[doc(hidden)]
             #[allow(clippy::too_many_arguments)]
-            pub fn __new(#child_ident: #child_ty, #(#new_ty_span: impl self::#p_new::Args),*) #output {
-                self::new(#child_ident, #(self::#p_new::Args::unwrap(#new_ty_span)),*)
+            pub fn __new<#(#generic_tys: self::#p_new::Args),*>(#child_ident: #child_ty, #(#spanned_new_ty: #generic_tys),*) #output {
+                self::new(#child_ident, #(#spanned_unwrap),*)
             }
         };
 
