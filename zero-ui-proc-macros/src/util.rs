@@ -491,14 +491,14 @@ impl syn::parse::Parse for OuterAttr {
         })
     }
 }
-impl Into<Attribute> for OuterAttr {
-    fn into(self) -> Attribute {
+impl From<OuterAttr> for Attribute {
+    fn from(s: OuterAttr) -> Self {
         Attribute {
-            pound_token: self.pound_token,
-            style: self.style,
-            bracket_token: self.bracket_token,
-            path: self.path,
-            tokens: self.tokens,
+            pound_token: s.pound_token,
+            style: s.style,
+            bracket_token: s.bracket_token,
+            path: s.path,
+            tokens: s.tokens,
         }
     }
 }

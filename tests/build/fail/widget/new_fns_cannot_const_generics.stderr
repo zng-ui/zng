@@ -27,22 +27,6 @@ help: consider importing one of these items
 5 |     use zero_ui_core::keyboard::Key::N;
   |
 
-error[E0658]: const generics are unstable
-  --> $DIR/new_fns_cannot_const_generics.rs:10:24
-   |
-10 |     fn new_child<const N: usize>() -> [bool; N] {
-   |                        ^
-   |
-   = note: see issue #74878 <https://github.com/rust-lang/rust/issues/74878> for more information
-
-error[E0658]: const generics are unstable
- --> $DIR/new_fns_cannot_const_generics.rs:7:18
-  |
-7 |     fn new<const N: usize>(child: impl UiNode, id: WidgetId) -> [bool; N] {
-  |                  ^
-  |
-  = note: see issue #74878 <https://github.com/rust-lang/rust/issues/74878> for more information
-
 error[E0277]: the trait bound `[bool; _]: UiNode` is not satisfied
   --> $DIR/new_fns_cannot_const_generics.rs:10:39
    |

@@ -1314,12 +1314,7 @@ mod output {
                 #[doc(hidden)]
                 #[macro_export]
                 macro_rules! #macro_ident {
-                    (new $property_path:path, $ArgsImpl:ident { $($values:tt)+ }) => {
-                        {
-                            use $property_path::{ArgsImpl as $ArgsImpl};
-                            $ArgsImpl::new($($values)+)
-                        }
-                    };
+                    // named_new property::path, __ArgsImpl { a: a, b: b }
                     (named_new $property_path:path, $ArgsImpl:ident $fields_block:tt) => {
                         {
                             use $property_path::{__property_new};

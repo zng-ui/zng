@@ -1099,12 +1099,19 @@ impl PropertyValue {
     pub fn expr_tokens(&self, property_path: &TokenStream, span: Span, value_span: Span) -> Result<TokenStream, &'static str> {
         // property ArgsImpl alias with value span to show type errors involving generics in the
         // right place.
-        let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
+
         match self {
-            PropertyValue::Unnamed(args) => Ok(quote_spanned! {span=>
-                #property_path::code_gen! { new #property_path, #args_impl { #args } }
-            }),
+            PropertyValue::Unnamed(args) => {
+                let args_impl = quote_spanned!(value_span=> __ArgsImpl::new);
+                Ok(quote_spanned! {span=>
+                    {
+                        use #property_path::{ArgsImpl as __ArgsImpl};
+                        #args_impl(#args)
+                    }
+                })
+            }
             PropertyValue::Named(brace, fields) => {
+                let args_impl = ident_spanned!(value_span=> "__ArgsImpl");
                 let fields = quote_spanned! { brace.span=> { #fields } };
                 Ok(quote_spanned! {span=>
                     #property_path::code_gen! { named_new #property_path, #args_impl #fields }

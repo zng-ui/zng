@@ -1,9 +1,15 @@
 error[E0061]: this function takes 2 arguments but 1 argument was supplied
- --> $DIR/missing_arg1.rs:7:9
-  |
-7 |         background_gradient = 0.deg(), ;
-  |         ^^^^^^^^^^^^^^^^^^^   ------- supplied 1 argument
-  |         |
-  |         expected 2 arguments
-  |
-  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> $DIR/missing_arg1.rs:7:31
+   |
+7  |         background_gradient = 0.deg(), ;
+   |                               ^------
+   |                               |
+   |                               supplied 1 argument
+   |                               expected 2 arguments
+   |
+note: associated function defined here
+  --> $DIR/background.rs:69:1
+   |
+69 | #[property(inner)]
+   | ^^^^^^^^^^^^^^^^^^
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
