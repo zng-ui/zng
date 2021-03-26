@@ -21,7 +21,6 @@ fn main() {
 fn example() -> impl Widget {
     let t = var_from("Click Me!");
     let mut count = 0;
-    let _dsd = formatx!("unn");
 
     button! {
         on_click = enclose!{ (t) move |ctx, _| {

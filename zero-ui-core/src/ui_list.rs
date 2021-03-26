@@ -89,6 +89,80 @@ impl FromIterator<Box<dyn Widget>> for WidgetVec {
     }
 }
 
+/// A vector of boxed [`UiNode`] items.
+///
+/// This type is a [`UiNodeList`] that can be modified during runtime, the downside
+/// is the dynamic dispatch.
+///
+/// The [node_vec!] macro is provided to make initialization more convenient.
+///
+/// ```
+/// # use zero_ui_core::{node_vec, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_base::*;
+/// # fn text(fake: &str) -> impl UiNode { zero_ui_core::NilUiNode };
+/// # use text as foo;
+/// # use text as bar;
+/// let mut nodes = node_vec![];
+/// nodes.push(foo("Hello"));
+/// nodes.push(bar("Dynamic!"));
+/// ```
+#[derive(Default)]
+pub struct UiNodeVec(pub Vec<Box<dyn UiNode>>);
+impl UiNodeVec {
+    pub fn new() -> UiNodeVec {
+        Self::default()
+    }
+
+    /// Appends the node, automatically calls [`UiNode::boxed`].
+    pub fn push<N: UiNode>(&mut self, node: N) {
+        self.0.push(node.boxed());
+    }
+}
+impl Deref for UiNodeVec {
+    type Target = Vec<Box<dyn UiNode>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for UiNodeVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<'a> IntoIterator for &'a UiNodeVec {
+    type Item = &'a Box<dyn UiNode>;
+
+    type IntoIter = std::slice::Iter<'a, Box<dyn UiNode>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<'a> IntoIterator for &'a mut UiNodeVec {
+    type Item = &'a mut Box<dyn UiNode>;
+
+    type IntoIter = std::slice::IterMut<'a, Box<dyn UiNode>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
+}
+impl IntoIterator for UiNodeVec {
+    type Item = Box<dyn UiNode>;
+
+    type IntoIter = std::vec::IntoIter<Box<dyn UiNode>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+impl FromIterator<Box<dyn UiNode>> for UiNodeVec {
+    fn from_iter<T: IntoIterator<Item = Box<dyn UiNode>>>(iter: T) -> Self {
+        UiNodeVec(Vec::from_iter(iter))
+    }
+}
+
 /// Creates a [`WidgetVec`](crate::WidgetVec) containing the arguments.
 ///
 /// # Example
@@ -104,6 +178,7 @@ impl FromIterator<Box<dyn Widget>> for WidgetVec {
 ///     bar("World!")
 /// ];
 /// ```
+///
 /// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
 #[macro_export]
 macro_rules! widget_vec {
@@ -116,6 +191,35 @@ macro_rules! widget_vec {
 }
 #[doc(inline)]
 pub use crate::widget_vec;
+
+/// Creates a [`UiNodeVec`](crate::UiNodeVec) containing the arguments.
+///
+/// # Example
+///
+/// ```
+/// # use zero_ui_core::{node_vec, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_base::*;
+/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # use text as foo;
+/// # use text as bar;
+/// let widgets = node_vec![
+///     foo("Hello"),
+///     bar("World!")
+/// ];
+/// ```
+///
+/// `node_vec!` automatically calls [`UiNode::boxed`] for each item.
+#[macro_export]
+macro_rules! node_vec {
+    () => { $crate::UiNodeVec::new() };
+    ($($node:expr),+ $(,)?) => {
+        $crate::UiNodeVec(vec![
+            $($crate::UiNode::boxed($node)),*
+        ])
+    };
+}
+#[doc(inline)]
+pub use crate::node_vec;
 
 /// A generic view over a list of [`UiNode`] items.
 pub trait UiNodeList: 'static {
