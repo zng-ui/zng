@@ -153,6 +153,12 @@ fn test(mut args: Vec<&str>) {
                 cmd_env("cargo", &args, &[], &[("DO_TASKS_TEST_BUILD", test_name), ("TRYBUILD", overwrite)]);
             }
         }
+    } else if take_flag(&mut args, &["--examples"]) {
+        cmd("cargo", &[nightly, "--examples"], &args);
+    } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
+        for example in examples {
+            cmd("cargo", &[nightly, "--example", example], &args);
+        }
     } else {
         for test_crate in top_cargo_toml("test-crates") {
             cmd(
@@ -175,6 +181,12 @@ fn test(mut args: Vec<&str>) {
         cmd(
             "cargo",
             &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
+            &args,
+        );
+
+        cmd(
+            "cargo",
+            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", "--examples"],
             &args,
         );
     }
