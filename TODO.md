@@ -1,14 +1,20 @@
 # TODO
 
+<del>
+
 ## When Steps
 2 - widget! must generate function that takes property args reference and returns a `impl Var<bool>`.
 2.a - function generated must handle `{self|child}.{property}(.{{arg_index}|arg_name})`.
 3 - widget! must pass metadata about when functions to widget_new!
 4 - ?
 
+</del>
+
 ## Core
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
+
+<del>
 
 * Focusable
   * Know how a focus event was generated (what type of request).
@@ -18,6 +24,9 @@ Things that must be done first because they influence the core API design that i
   * Customizable focus indicators in focusable, (focused/remembered?/return target?/).
     * ESC hides focus indicator? Use knowledge of how focus was attained to show indicator?
   * Initial focus closest to mouse click?
+
+</del>
+
 * Enabled/Disabled.
 * Images.
 * Raw OpenGL textures.
