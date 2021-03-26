@@ -183,9 +183,9 @@ impl FromIterator<Box<dyn UiNode>> for UiNodeVec {
 #[macro_export]
 macro_rules! widget_vec {
     () => { $crate::WidgetVec::new() };
-    ($($node:expr),+ $(,)?) => {
+    ($($widget:expr),+ $(,)?) => {
         $crate::WidgetVec(vec![
-            $($crate::Widget::boxed_widget($node)),*
+            $($crate::Widget::boxed_widget($widget)),*
         ])
     };
 }
@@ -351,6 +351,80 @@ pub trait WidgetList: UiNodeList {
     fn render_filtered<O>(&self, origin: O, frame: &mut FrameBuilder)
     where
         O: FnMut(usize, &LazyStateMap) -> Option<LayoutPoint>;
+}
+
+/// Initialize an optimized [`WidgetList`].
+///
+/// The list type is opaque (`impl WidgetList`), and it changes depending on if the build is release or debug.
+/// In both cases the list cannot be modified and the only methods available are provided by [`WidgetList`].
+///
+/// This is the recommended way to declare the contents of layout panel.
+///
+/// # Example
+///
+/// ```todo
+/// # use zero_ui_core::{widgets, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_base::*;
+/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # use text as foo;
+/// # use text as bar;
+/// let items = widgets![
+///     foo("Hello "),
+///     bar("World!")
+/// ];
+/// ```
+#[macro_export]
+macro_rules! widgets {
+    () => {
+        compile_error!("not implemented")
+    };
+    ($($widget:expr),+ $(,)?) => {
+        compile_error!("not implemented")
+    };
+}
+#[doc(inline)]
+pub use crate::widgets;
+
+/// Initialize an optimized [`UiNodeList`].
+///
+/// The list type is opaque (`impl UiNodeList`), and it changes depending on if the build is release or debug.
+/// In both cases the list cannot be modified and the only methods available are provided by [`UiNodeList`].
+///
+/// This is the recommended way to declare the contents of a property that takes multiple [`UiNode`](crate::UiNode) implementers.
+///
+/// # Example
+///
+/// ```todo
+/// # use zero_ui_core::{nodes, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_base::*;
+/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # use text as foo;
+/// # use text as bar;
+/// let items = widgets![
+///     foo("Hello "),
+///     bar("World!")
+/// ];
+/// ```
+#[macro_export]
+macro_rules! nodes {
+    () => {
+        compile_error!("not implemented")
+    };
+    ($($node:expr),+ $(,)?) => {
+        compile_error!("not implemented")
+    };
+}
+#[doc(inline)]
+pub use crate::nodes;
+
+#[doc(hidden)]
+pub fn opaque_widgets(widgets: impl WidgetList) -> impl WidgetList {
+    widgets
+}
+
+#[doc(hidden)]
+pub fn opaque_nodes(nodes: impl UiNodeList) -> impl UiNodeList {
+    nodes
 }
 
 /// Two [`WidgetList`] lists chained.
