@@ -1,0 +1,13 @@
+error: expected warning @ line 15
+  --> $DIR/always_use_inherited_property.rs:28:5
+   |
+28 |     compile_error!("expected warning @ line 15")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `zero_ui::properties::margin`
+  --> $DIR/always_use_inherited_property.rs:15:9
+   |
+15 |     use zero_ui::properties::margin;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default

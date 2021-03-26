@@ -1,0 +1,29 @@
+error: expected `=`
+ --> $DIR/attr_allowed_in_when.rs:9:11
+  |
+9 |         #[allowed_in_when]
+  |           ^^^^^^^^^^^^^^^
+
+error: expected `=`
+  --> $DIR/attr_allowed_in_when.rs:12:26
+   |
+12 |         #[allowed_in_when(false)]
+   |                          ^^^^^^^
+
+error: expected `=`
+  --> $DIR/attr_allowed_in_when.rs:15:26
+   |
+15 |         #[allowed_in_when: false]
+   |                          ^
+
+error: unexpected end of input, expected boolean literal
+  --> $DIR/attr_allowed_in_when.rs:18:27
+   |
+18 |         #[allowed_in_when =]
+   |                           ^
+
+error: expected boolean literal
+  --> $DIR/attr_allowed_in_when.rs:21:29
+   |
+21 |         #[allowed_in_when = 0]
+   |                             ^

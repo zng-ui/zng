@@ -303,8 +303,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 let attr = attrs.others.remove(i);
                 match syn::parse2::<AllowedInWhenInput>(attr.tokens) {
                     Ok(args) => args.flag.value,
-                    Err(e) => {
+                    Err(mut e) => {
+                        if util::span_is_call_site(e.span()) {
+                            e = syn::Error::new(attr.path.span(), e);
+                        }
                         errors.push_syn(e);
+
                         false
                     }
                 }
@@ -314,8 +318,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         };
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
-                "only `doc`, `cfg` and lint attributes are allowed in properties",
-                invalid_attr.span(),
+                "only `doc`, `cfg`, `allowed_in_when` and lint attributes are allowed in properties",
+                util::path_span(&invalid_attr.path),
             );
         }
 
@@ -1230,14 +1234,19 @@ mod keyword {
 }
 
 struct AllowedInWhenInput {
-    _eq_token: Token![=],
     flag: syn::LitBool,
 }
 impl Parse for AllowedInWhenInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let eq: Token![=] = input.parse()?;
         Ok(AllowedInWhenInput {
-            _eq_token: input.parse()?,
-            flag: input.parse()?,
+            flag: input.parse().map_err(|e| {
+                if util::span_is_call_site(e.span()) {
+                    syn::Error::new(eq.span(), e)
+                } else {
+                    e
+                }
+            })?,
         })
     }
 }
