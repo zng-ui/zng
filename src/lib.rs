@@ -444,7 +444,7 @@ pub mod core {
     /// #[impl_ui_node(child)]
     /// impl MyNode {
     ///     fn do_the_thing(&mut self, ctx: &mut WidgetContext) {
-    ///         // TODO
+    ///         // ..
     ///     }
     ///
     ///     #[UiNode]
@@ -963,11 +963,26 @@ pub mod core {
     ///
     /// ### Default States
     ///
-    /// TODO
+    /// Properties need to be assigned in a widget to participate in `when` blocks, this is because the generated code needs
+    /// to observe changes caused by the property, in the condition expression, or set the property to a default value when no
+    /// condition is active, assigned in when.
+    ///
+    /// If the property has a default value and is not manually set in the widget it is set to the default value automatically.
+    ///
+    /// Properties added automatically show in the widget documentation like manual properties, the widget user can see and set
+    /// then manually.
+    ///
+    /// Currently only state properties have a default value, this will probably change in the future.
     ///
     /// ### Auto-Disabling
     ///
-    /// TODO
+    /// It is not an error to use a property without default value (manual or auto) in a widget `when` block. If such a property is used
+    /// in the condition expression the `when` block is only used during initialization if the user sets the property.
+    ///
+    /// If such a property is assigned in a `when` block it is also only used if it is set during initialization. In this case other
+    /// properties set in the same `when` block still use it.
+    ///
+    /// You can use this to setup custom widget effects that are only activated if the widget instance actually uses a property.
     ///
     /// # Initialization Functions
     ///
@@ -1263,8 +1278,17 @@ pub mod prelude {
     /// Use glob import (`*`) and start implement your custom widgets.
     ///
     /// ```
+    /// # fn main() { }
     /// use zero_ui::prelude::new_widget::*;
-    /// // TODO small example when new widget syntax is finished.
+    ///
+    /// #[widget($crate::my_widget)]
+    /// pub mod my_widget {
+    ///     use super::*;
+    ///
+    ///     properties! {
+    ///         background_color = colors::BLUE;
+    ///     }
+    /// }
     /// ```
     pub mod new_widget {
         #[doc(no_inline)]
