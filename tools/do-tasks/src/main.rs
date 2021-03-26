@@ -154,7 +154,7 @@ fn test(mut args: Vec<&str>) {
             }
         }
     } else if take_flag(&mut args, &["--examples"]) {
-        cmd("cargo", &[nightly, "--examples"], &args);
+        cmd("cargo", &[nightly, "test", "--examples"], &args);
     } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
         for example in examples {
             cmd("cargo", &[nightly, "--example", example], &args);
