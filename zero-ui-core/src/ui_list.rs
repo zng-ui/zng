@@ -6,35 +6,116 @@ use super::{
     render::{FrameBuilder, FrameUpdate},
     Widget, WidgetId,
 };
+use std::{
+    iter::FromIterator,
+    ops::{Deref, DerefMut},
+};
 
-/// A mixed vector of [`Widget`] types.
-pub type WidgetVec = Vec<Box<dyn Widget>>;
+/// A vector of boxed [`Widget`] items.
+///
+/// This type is a [`WidgetList`] that can be modified during runtime, the downside
+/// is the dynamic dispatch.
+///
+/// The [widget_vec!] macro is provided to make initialization more convenient.
+///
+/// ```
+/// # use zero_ui_core::{widget_vec, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::widget_base::*;
+/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # use text as foo;
+/// # use text as bar;
+/// let mut widgets = widget_vec![];
+/// widgets.push(foo("Hello"));
+/// widgets.push(bar("Dynamic!"));
+///
+/// for widget in widgets {
+///     println!("{}", widget.size());
+/// }
+/// ```
+#[derive(Default)]
+pub struct WidgetVec(pub Vec<Box<dyn Widget>>);
+impl WidgetVec {
+    pub fn new() -> WidgetVec {
+        Self::default()
+    }
+
+    /// Appends the widget, automatically calls [`Widget::boxed_widget`].
+    pub fn push<W: Widget>(&mut self, widget: W) {
+        self.0.push(widget.boxed_widget());
+    }
+}
+impl Deref for WidgetVec {
+    type Target = Vec<Box<dyn Widget>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for WidgetVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl<'a> IntoIterator for &'a WidgetVec {
+    type Item = &'a Box<dyn Widget>;
+
+    type IntoIter = std::slice::Iter<'a, Box<dyn Widget>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<'a> IntoIterator for &'a mut WidgetVec {
+    type Item = &'a mut Box<dyn Widget>;
+
+    type IntoIter = std::slice::IterMut<'a, Box<dyn Widget>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
+}
+impl IntoIterator for WidgetVec {
+    type Item = Box<dyn Widget>;
+
+    type IntoIter = std::vec::IntoIter<Box<dyn Widget>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+impl FromIterator<Box<dyn Widget>> for WidgetVec {
+    fn from_iter<T: IntoIterator<Item = Box<dyn Widget>>>(iter: T) -> Self {
+        WidgetVec(Vec::from_iter(iter))
+    }
+}
 
 /// Creates a [`WidgetVec`](crate::WidgetVec) containing the arguments.
 ///
 /// # Example
 ///
 /// ```
-/// # use zero_ui_core::{ui_vec, UiNode, Widget, WidgetId, NilUiNode};
+/// # use zero_ui_core::{widget_vec, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
 /// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
-/// let widgets = ui_vec![
-///     text("Hello"),
-///     text("World!")
+/// # use text as foo;
+/// # use text as bar;
+/// let widgets = widget_vec![
+///     foo("Hello"),
+///     bar("World!")
 /// ];
 /// ```
-/// `ui_vec!` automatically boxes each widget.
+/// `widget_vec!` automatically calls [`Widget::boxed_widget`] for each item.
 #[macro_export]
-macro_rules! ui_vec {
+macro_rules! widget_vec {
     () => { $crate::WidgetVec::new() };
     ($($node:expr),+ $(,)?) => {
-        vec![
+        $crate::WidgetVec(vec![
             $($crate::Widget::boxed_widget($node)),*
-        ]
+        ])
     };
 }
 #[doc(inline)]
-pub use crate::ui_vec;
+pub use crate::widget_vec;
 
 /// A generic view over a list of [`UiNode`] items.
 pub trait UiNodeList: 'static {
@@ -609,7 +690,7 @@ macro_rules! impl_tuples {
         impl<$($W: Widget),+> WidgetList for ($($W,)+) {
             #[inline]
             fn boxed_widget_all(self) -> WidgetVec {
-                ui_vec![$(self.$n.boxed_widget()),+]
+                widget_vec![$(self.$n.boxed_widget()),+]
             }
 
             fn render_filtered<O>(&self, mut origin: O, frame: &mut FrameBuilder)
@@ -744,7 +825,7 @@ impl UiNodeList for () {
 impl WidgetList for () {
     #[inline]
     fn boxed_widget_all(self) -> WidgetVec {
-        ui_vec![]
+        widget_vec![]
     }
 
     fn render_filtered<O>(&self, _: O, _: &mut FrameBuilder)

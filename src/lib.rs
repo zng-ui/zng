@@ -1157,12 +1157,12 @@ pub mod prelude {
             formatx, FontFeatures, FontName, FontNames, FontStretch, FontStyle, FontWeight, Fonts, Hyphens, LineBreak, Text, TextAlign,
             TextTransformFn, ToText, WhiteSpace, WordBreak,
         },
-        ui_vec,
         units::{
             rotate, skew, translate, Alignment, AngleUnits, FactorUnits, Length, LengthUnits, Line, LineFromTuplesBuilder, LineHeight,
             Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
+        widget_vec,
         window::{AppRunWindow, CursorIcon, StartPosition, Window, Windows},
         UiNode, Widget, WidgetId, WidgetList, WidgetVec,
     };
@@ -1251,8 +1251,8 @@ pub mod prelude {
         pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, property, ui_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
-            LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, property, widget_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
+            WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
         pub use crate::properties::{set_widget_state, with_context_var};
@@ -1281,8 +1281,8 @@ pub mod prelude {
         pub use crate::core::var::*;
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, ui_vec, widget, widget_mixin, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList,
-            WidgetVec, LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, widget, widget_mixin, widget_vec, FillUiNode, UiNode, UiNodeList, Widget, WidgetId,
+            WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
         pub use crate::properties::background::{background, *};
