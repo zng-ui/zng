@@ -501,67 +501,28 @@ impl<W: Widget> WidgetList for Vec<W> {
     impl_iter! {}
 }
 
-macro_rules! impl_arrays {
-    ( $($L:tt),+ $(,)?) => {$(
-        impl<W: UiNode> UiNodeList for [W; $L] {
-            fn len(&self) -> usize {
-                $L
-            }
+impl<W: UiNode, const L: usize> UiNodeList for [W; L] {
+    fn len(&self) -> usize {
+        L
+    }
 
-            fn is_empty(&self) -> bool {
-                $L == 0
-            }
+    fn is_empty(&self) -> bool {
+        L == 0
+    }
 
-            fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
-                arrayvec::ArrayVec::from(self).into_iter().map(|w| w.boxed()).collect()
-            }
+    fn boxed_all(self) -> Vec<Box<dyn UiNode>> {
+        std::array::IntoIter::new(self).map(|w| w.boxed()).collect()
+    }
 
-            impl_iter_node! {}
-        }
-
-        impl<W: Widget> WidgetList for [W; $L] {
-            fn boxed_widget_all(self) -> WidgetVec {
-                arrayvec::ArrayVec::from(self).into_iter().map(|w| w.boxed_widget()).collect()
-            }
-
-            impl_iter! {}
-        }
-    )+};
+    impl_iter_node! {}
 }
-impl_arrays! {
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
+
+impl<W: Widget, const L: usize> WidgetList for [W; L] {
+    fn boxed_widget_all(self) -> WidgetVec {
+        std::array::IntoIter::new(self).map(|w| w.boxed_widget()).collect()
+    }
+
+    impl_iter! {}
 }
 
 macro_rules! impl_tuples {

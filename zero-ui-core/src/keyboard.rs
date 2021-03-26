@@ -485,7 +485,7 @@ pub enum Key {
     NavigateBackward,
     NextTrack,
     NoConvert,
-    OEM102,
+    Oem102,
     /// The '.' key, also called a dot.
     Period,
     PlayPause,
@@ -690,7 +690,7 @@ impl From<VKey> for Key {
             VKey::NavigateBackward => Key::NavigateBackward,
             VKey::NextTrack => Key::NextTrack,
             VKey::NoConvert => Key::NoConvert,
-            VKey::OEM102 => Key::OEM102,
+            VKey::OEM102 => Key::Oem102,
             VKey::Period => Key::Period,
             VKey::PlayPause => Key::PlayPause,
             VKey::Plus => Key::Plus,

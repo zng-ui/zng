@@ -705,36 +705,31 @@ impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<G
         OwnedVar(self.into())
     }
 }
-macro_rules! impl_from_color_arrays {
-    ($($N:tt),+ $(,)?) => {$(
-        impl<C: Into<Rgba> + Copy + 'static> From<[C; $N]> for GradientStops {
-            fn from(a: [C; $N]) -> Self {
-                GradientStops::from_colors(&a)
-            }
-        }
-        impl<C: Into<Rgba> + Copy + 'static> IntoVar<GradientStops> for [C; $N] {
-            type Var = OwnedVar<GradientStops>;
-
-            fn into_var(self) -> Self::Var {
-                OwnedVar(self.into())
-            }
-        }
-
-        impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> From<[(C, L); $N]> for GradientStops {
-            fn from(a: [(C, L); $N]) -> Self {
-                GradientStops::from_stops(&a)
-            }
-        }
-        impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static> IntoVar<GradientStops> for [(C, L); $N] {
-            type Var = OwnedVar<GradientStops>;
-
-            fn into_var(self) -> Self::Var {
-                OwnedVar(self.into())
-            }
-        }
-    )+};
+impl<C: Into<Rgba> + Copy + 'static, const N: usize> From<[C; N]> for GradientStops {
+    fn from(a: [C; N]) -> Self {
+        GradientStops::from_colors(&a)
+    }
 }
-impl_from_color_arrays!(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32);
+impl<C: Into<Rgba> + Copy + 'static, const N: usize> IntoVar<GradientStops> for [C; N] {
+    type Var = OwnedVar<GradientStops>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+
+impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static, const N: usize> From<[(C, L); N]> for GradientStops {
+    fn from(a: [(C, L); N]) -> Self {
+        GradientStops::from_stops(&a)
+    }
+}
+impl<C: Into<Rgba> + Copy + 'static, L: Into<Length> + Copy + 'static, const N: usize> IntoVar<GradientStops> for [(C, L); N] {
+    type Var = OwnedVar<GradientStops>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
 
 #[doc(hidden)]
 #[macro_export]

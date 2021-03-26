@@ -2796,7 +2796,6 @@ name = "zero-ui-core"
 version = "0.1.0"
 dependencies = [
  "array-init",
- "arrayvec",
  "async-global-executor",
  "bitflags",
  "colored",
