@@ -1125,26 +1125,16 @@ impl PropertyValue {
         value_stream: Result<(TokenStream, Option<Token![;]>), TokenStream>,
         group_start_span: Span,
     ) -> syn::Result<(Self, Span, Option<Token![;]>)> {
-        let value;
-        let value_span;
-        let semi;
-
         match value_stream {
-            Ok((value_stream, s)) => {
-                semi = s;
+            Ok((value_stream, semi)) => {
                 if value_stream.is_empty() {
                     // no value tokens
                     let span = semi.as_ref().map(|s| s.span()).unwrap_or(group_start_span);
                     return Err(util::recoverable_err(span, "expected property value"));
                 }
-                value_span = value_stream.span();
-                match syn::parse2::<PropertyValue>(value_stream) {
-                    Ok(v) => {
-                        value = v;
-                        Ok((value, value_span, semi))
-                    }
-                    Err(e) => Err(e),
-                }
+                let value_span = value_stream.span();
+
+                syn::parse2::<PropertyValue>(value_stream).map(|value| (value, value_span, semi))
             }
             Err(partial_value) => {
                 if partial_value.is_empty() {

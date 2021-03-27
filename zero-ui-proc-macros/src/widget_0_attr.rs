@@ -1108,11 +1108,65 @@ impl Parse for ItemProperty {
         }
         let path = input.parse()?;
         let alias = peek_parse![as];
-        let type_ = peek_parse![:];
 
-        let (value, value_span, semi) = if input.peek(Token![=]) {
-            let eq: Token![=] = input.parse()?;
+        let mut type_error = None;
+        let mut type_ = None;
+        let mut type_terminator = None;
+        if input.peek(Token![:]) {
+            let colon: Token![:] = input.parse().unwrap();
+            let type_stream = util::parse_soft_group(
+                input,
+                // terminates in the first `=` or `;`
+                |input| PropertyTypeTerm::parse(input).ok(),
+                |input| {
+                    // TODO can we peek next property in some cases?
+                    // we can't do `path = ` because the path can be a type path.Y
+                    let fork = input.fork();
+                    let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
+                    fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                },
+            );
 
+            let (r, term) = PropertyType::parse_soft_group(type_stream, colon.span());
+            type_terminator = term;
+            match r {
+                Ok(t) => {
+                    type_ = Some((colon, t));
+                }
+                Err(e) => {
+                    type_error = Some(e);
+                }
+            }
+        }
+
+        let mut value_start_eq = None;
+        let mut value = None;
+        let mut value_span = Span::call_site();
+        let mut semi = None;
+
+        if let Some(term) = type_terminator {
+            match term {
+                PropertyTypeTerm::Eq(eq) => {
+                    value_start_eq = Some(eq);
+                }
+                PropertyTypeTerm::Semi(s) => {
+                    semi = Some(s);
+                }
+            }
+        } else if input.peek(Token![=]) {
+            value_start_eq = Some(input.parse().unwrap());
+        } else if !input.is_empty() {
+            semi = Some(input.parse::<Token![;]>().map_err(|e| {
+                if let Some(mut ty_err) = type_error.take() {
+                    ty_err.extend(e);
+                    ty_err
+                } else {
+                    e
+                }
+            })?);
+        }
+
+        if let Some(eq) = value_start_eq {
             let value_stream = util::parse_soft_group(
                 input,
                 // terminates in the first `;` in the current level.
@@ -1120,6 +1174,7 @@ impl Parse for ItemProperty {
                 |input| {
                     // checks if the next tokens in the stream look like the start
                     // of another ItemProperty.
+                    // TODO can we anticipate `path: T = v;`
                     let fork = input.fork();
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
                     if fork.peek2(Token![=]) {
@@ -1132,13 +1187,20 @@ impl Parse for ItemProperty {
                 },
             );
 
-            let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
+            let r = PropertyValue::parse_soft_group(value_stream, eq.span).map_err(|e| {
+                if let Some(mut ty_err) = type_error {
+                    ty_err.extend(e);
+                    ty_err
+                } else {
+                    e
+                }
+            })?;
 
-            (Some((eq, value)), value_span, semi)
-        } else {
-            let semi = if input.is_empty() { None } else { Some(input.parse()?) };
-            (None, Span::call_site(), semi)
-        };
+            value = Some((eq, r.0));
+            value_span = r.1;
+            semi = r.2;
+        }
+
         let item_property = ItemProperty {
             attrs: vec![],
             path,
@@ -1202,6 +1264,54 @@ impl PropertyType {
                     quote! { #(#names: #unamed),* }
                 }
             }
+        }
+    }
+    fn parse_soft_group(
+        type_stream: Result<(TokenStream, Option<PropertyTypeTerm>), TokenStream>,
+        group_start_span: Span,
+    ) -> (syn::Result<Self>, Option<PropertyTypeTerm>) {
+        match type_stream {
+            Ok((type_stream, term)) => {
+                if type_stream.is_empty() {
+                    // no type tokens
+                    (Err(util::recoverable_err(group_start_span, "expected property type")), term)
+                } else {
+                    (syn::parse2::<PropertyType>(type_stream), term)
+                }
+            }
+            Err(partial_ty) => {
+                if partial_ty.is_empty() {
+                    // no type tokens
+                    (Err(util::recoverable_err(group_start_span, "expected property type")), None)
+                } else {
+                    // maybe missing next argument type (`,`) or terminator (`=`, `;`)
+                    let last_tt = partial_ty.into_iter().last().unwrap();
+                    let last_span = last_tt.span();
+                    let mut msg = "expected `,`, `=` or `;`";
+                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
+                        if p.as_char() == ',' {
+                            msg = "expected another property arg type";
+                        }
+                    }
+                    (Err(util::recoverable_err(last_span, msg)), None)
+                }
+            }
+        }
+    }
+}
+#[derive(Debug)]
+enum PropertyTypeTerm {
+    Eq(Token![=]),
+    Semi(Token![;]),
+}
+impl Parse for PropertyTypeTerm {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Token![=]) {
+            Ok(PropertyTypeTerm::Eq(input.parse().unwrap()))
+        } else if input.peek(Token![;]) {
+            Ok(PropertyTypeTerm::Semi(input.parse().unwrap()))
+        } else {
+            Err(syn::Error::new(input.span(), "expected `=` or `;`"))
         }
     }
 }
