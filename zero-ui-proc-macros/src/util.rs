@@ -215,6 +215,7 @@ pub struct Errors {
     tokens: TokenStream,
 }
 impl Errors {
+    /// Push a compile error.
     pub fn push(&mut self, error: impl ToString, span: Span) {
         let error = error.to_string();
         self.tokens.extend(quote_spanned! {span=>
@@ -222,11 +223,15 @@ impl Errors {
         })
     }
 
+    /// Push all compile errors in `error`.
     pub fn push_syn(&mut self, error: syn::Error) {
-        let span = error.span();
-        self.push(error, span)
+        for error in error {
+            let span = error.span();
+            self.push(error, span);
+        }
     }
 
+    /// Push all compile errors in `errors`.
     pub fn extend(&mut self, errors: Errors) {
         self.tokens.extend(errors.tokens)
     }
@@ -709,6 +714,7 @@ pub fn parse_soft_group<T>(
     input: ParseStream,
     mut correct_terminator: impl FnMut(ParseStream) -> Option<T>,
     mut peek_next_item: impl FnMut(ParseStream) -> bool,
+    generics_group_enabled: bool,
 ) -> Result<(TokenStream, Option<T>), TokenStream> {
     let mut g = TokenStream::new();
     while !input.is_empty() {
@@ -718,39 +724,84 @@ pub fn parse_soft_group<T>(
         if peek_next_item(input) {
             return Err(g);
         }
-        let tt: TokenTree = input.parse().unwrap();
-        tt.to_tokens(&mut g);
+
+        if generics_group_enabled && input.peek(Token![<]) {
+            while !input.is_empty() && !input.peek(Token![>]) {
+                let tt: TokenTree = input.parse().unwrap();
+                tt.to_tokens(&mut g);
+            }
+            if input.peek(Token![>]) {
+                let tt: TokenTree = input.parse().unwrap();
+                tt.to_tokens(&mut g);
+            } else {
+                return Err(g);
+            }
+        } else {
+            let tt: TokenTree = input.parse().unwrap();
+            tt.to_tokens(&mut g);
+        }
     }
     Ok((g, None))
 }
 
+/// New [`syn::Error`] marked [recoverable](ErrorRecoverable).
 pub fn recoverable_err(span: Span, msg: impl std::fmt::Display) -> syn::Error {
     syn::Error::new(span, msg).set_recoverable()
 }
 
+const RECOVERABLE_TAG: &str = "<recoverable>";
+fn recoverable_tag() -> syn::Error {
+    syn::Error::new(Span::call_site(), RECOVERABLE_TAG)
+}
+
+/// Extension to [`syn::Error`] that lets you mark an error as recoverable,
+/// meaning that a sequence of the parse stream is not correct but the parser
+/// manage to skip to the end of what was expected to be parsed.
 pub trait ErrorRecoverable {
+    /// Returns a new error that contains all the errors in `self` but is also marked recoverable.
     fn set_recoverable(self) -> Self;
+    /// Returns if `self` is recoverable and all the errors in `self`.
+    ///
+    /// Note: An error is considered recoverable only if all inner errors are marked recoverable.
     fn recoverable(self) -> (bool, Self);
 }
 impl ErrorRecoverable for syn::Error {
-    fn set_recoverable(mut self) -> Self {
-        self.combine(syn::Error::new(Span::call_site(), "<recoverable>"));
-        self
+    fn set_recoverable(self) -> Self {
+        let mut errors = self.into_iter();
+        let mut e = errors.next().unwrap();
+
+        debug_assert!(e.to_string() != RECOVERABLE_TAG);
+
+        e.combine(recoverable_tag());
+
+        for error in errors {
+            if e.to_string() != RECOVERABLE_TAG {
+                e.combine(error);
+                e.combine(recoverable_tag());
+            }
+        }
+
+        e
     }
     fn recoverable(self) -> (bool, Self) {
         let mut errors = self.into_iter();
         let mut e = errors.next().unwrap();
-        let mut recoverable = false;
+
+        debug_assert!(e.to_string() != RECOVERABLE_TAG);
+
+        let mut errors_count = 1;
+        let mut tags_count = 0;
 
         for error in errors {
-            if error.to_string() == "<recoverable>" {
-                recoverable = true;
+            if error.to_string() == RECOVERABLE_TAG {
+                tags_count += 1;
             } else {
+                errors_count += 1;
                 e.combine(error);
             }
         }
 
-        (recoverable, e)
+        (errors_count == tags_count, e)
     }
 }
 

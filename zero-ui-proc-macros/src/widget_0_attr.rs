@@ -16,7 +16,7 @@ use syn::{
 };
 
 use crate::{
-    util::{self, parse2_punctuated, parse_outer_attrs, Attributes, Errors},
+    util::{self, parse2_punctuated, parse_outer_attrs, Attributes, ErrorRecoverable, Errors},
     widget_new::{PropertyValue, When, WhenExprToVar},
 };
 
@@ -1086,29 +1086,18 @@ struct ItemProperty {
 }
 impl Parse for ItemProperty {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        macro_rules! peek_parse {
-            ($token:tt) => {
-                if input.peek(Token![$token]) {
-                    let tt0: Token![$token] = input.parse()?;
-                    let tt1 = input.parse().map_err(|e| {
-                        // change error span to last parsed token tree
-                        // if the error span is the default (call_site)
-                        if util::span_is_call_site(e.span()) {
-                            syn::Error::new(tt0.span(), e)
-                        } else {
-                            e
-                        }
-                    })?;
-
-                    Some((tt0, tt1))
-                } else {
-                    None
-                }
-            };
-        }
         let path = input.parse()?;
-        let alias = peek_parse![as];
 
+        // as ident
+        let alias = if input.peek(Token![as]) {
+            let as_ = input.parse::<Token![as]>().unwrap();
+            let name = input.parse::<Ident>()?;
+            Some((as_, name))
+        } else {
+            None
+        };
+
+        // : Type [=|;]
         let mut type_error = None;
         let mut type_ = None;
         let mut type_terminator = None;
@@ -1125,6 +1114,9 @@ impl Parse for ItemProperty {
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
                     fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
                 },
+                // skip generics (tokens within `< >`) because
+                // `impl Iterator<Item=u32>` is a valid type.
+                true,
             );
 
             let (r, term) = PropertyType::parse_soft_group(type_stream, colon.span());
@@ -1134,17 +1126,22 @@ impl Parse for ItemProperty {
                     type_ = Some((colon, t));
                 }
                 Err(e) => {
+                    // we don't return the error right now
+                    // so that we can try to parse to the end of the property
+                    // to make the error recoverable.
                     type_error = Some(e);
                 }
             }
         }
 
+        // = expr [;]
         let mut value_start_eq = None;
         let mut value = None;
         let mut value_span = Span::call_site();
         let mut semi = None;
-
         if let Some(term) = type_terminator {
+            // if there was a property type, did it terminate
+            // at the start of a value `=` or at the end of a property `;`?
             match term {
                 PropertyTypeTerm::Eq(eq) => {
                     value_start_eq = Some(eq);
@@ -1154,8 +1151,11 @@ impl Parse for ItemProperty {
                 }
             }
         } else if input.peek(Token![=]) {
+            // if there was no property type are we at the start of a value `=`?
             value_start_eq = Some(input.parse().unwrap());
         } else if !input.is_empty() {
+            // if we didn't have a type nor value but are also not at the
+            // end of the stream a `;` is expected.
             semi = Some(input.parse::<Token![;]>().map_err(|e| {
                 if let Some(mut ty_err) = type_error.take() {
                     ty_err.extend(e);
@@ -1165,8 +1165,9 @@ impl Parse for ItemProperty {
                 }
             })?);
         }
-
         if let Some(eq) = value_start_eq {
+            // if we are after a value start `=`
+
             let value_stream = util::parse_soft_group(
                 input,
                 // terminates in the first `;` in the current level.
@@ -1185,13 +1186,16 @@ impl Parse for ItemProperty {
                         fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
                     }
                 },
+                false,
             );
 
             let r = PropertyValue::parse_soft_group(value_stream, eq.span).map_err(|e| {
-                if let Some(mut ty_err) = type_error {
+                if let Some(mut ty_err) = type_error.take() {
+                    // we had a type error and now a value error.
                     ty_err.extend(e);
                     ty_err
                 } else {
+                    // we have just a value error.
                     e
                 }
             })?;
@@ -1199,6 +1203,11 @@ impl Parse for ItemProperty {
             value = Some((eq, r.0));
             value_span = r.1;
             semi = r.2;
+        }
+
+        if let Some(e) = type_error {
+            // we had a type error and no value or no value error.
+            return Err(e);
         }
 
         let item_property = ItemProperty {
@@ -1276,7 +1285,7 @@ impl PropertyType {
                     // no type tokens
                     (Err(util::recoverable_err(group_start_span, "expected property type")), term)
                 } else {
-                    (syn::parse2::<PropertyType>(type_stream), term)
+                    (syn::parse2::<PropertyType>(type_stream).map_err(|e| e.set_recoverable()), term)
                 }
             }
             Err(partial_ty) => {

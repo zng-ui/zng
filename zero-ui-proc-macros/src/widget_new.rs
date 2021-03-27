@@ -1069,6 +1069,7 @@ impl Parse for PropertyAssign {
             // next item is found after optional outer attributes.
             // then is an `ident =` OR a `when` OR a `property::path =`
             peek_next_assign,
+            false,
         );
 
         let (value, value_span, semi) = PropertyValue::parse_soft_group(value_stream, eq.span)?;
@@ -1134,7 +1135,9 @@ impl PropertyValue {
                 }
                 let value_span = value_stream.span();
 
-                syn::parse2::<PropertyValue>(value_stream).map(|value| (value, value_span, semi))
+                syn::parse2::<PropertyValue>(value_stream)
+                    .map(|value| (value, value_span, semi))
+                    .map_err(|e| e.set_recoverable())
             }
             Err(partial_value) => {
                 if partial_value.is_empty() {
