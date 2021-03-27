@@ -1044,7 +1044,14 @@ impl Parse for Properties {
                             p.attrs = attrs;
                             child_properties.push(p);
                         }
-                        Err(e) => errors.push_syn(e),
+                        Err(e) => {
+                            let (recoverable, e) = e.recoverable();
+                            if recoverable {
+                                errors.push_syn(e);
+                            } else {
+                                return Err(e);
+                            }
+                        }
                     }
                 }
             } else if input.peek(Ident::peek_any) {
@@ -1054,7 +1061,14 @@ impl Parse for Properties {
                         p.attrs = attrs;
                         properties.push(p);
                     }
-                    Err(e) => errors.push_syn(e),
+                    Err(e) => {
+                        let (recoverable, e) = e.recoverable();
+                        if recoverable {
+                            errors.push_syn(e);
+                        } else {
+                            return Err(e);
+                        }
+                    }
                 }
             } else {
                 errors.push("expected `when`, `child` or a property declaration", input.span());

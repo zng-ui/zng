@@ -227,7 +227,10 @@ impl Errors {
     pub fn push_syn(&mut self, error: syn::Error) {
         for error in error {
             let span = error.span();
-            self.push(error, span);
+            let msg = error.to_string();
+            if msg != RECOVERABLE_TAG {
+                self.push(error, span);
+            }
         }
     }
 
