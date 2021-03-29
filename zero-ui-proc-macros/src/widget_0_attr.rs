@@ -1167,17 +1167,19 @@ impl Parse for ItemProperty {
         } else if input.peek(Token![=]) {
             // if there was no property type are we at the start of a value `=`?
             value_start_eq = Some(input.parse().unwrap());
+        } else if input.peek(Token![;]) {
+            semi = Some(input.parse::<Token![;]>().unwrap());
         } else if !input.is_empty() {
             // if we didn't have a type nor value but are also not at the
-            // end of the stream a `;` is expected.
-            semi = Some(input.parse::<Token![;]>().map_err(|e| {
-                if let Some(mut ty_err) = type_error.take() {
-                    ty_err.extend(e);
-                    ty_err
-                } else {
-                    e
-                }
-            })?);
+            // end of the stream a `;` was expected.
+
+            let e = util::recoverable_err(input.span(), "expected `;`");
+            return Err(if let Some(mut ty_err) = type_error.take() {
+                ty_err.extend(e);
+                ty_err
+            } else {
+                e
+            });
         }
         if let Some(eq) = value_start_eq {
             // if we are after a value start `=`
