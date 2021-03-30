@@ -33,6 +33,8 @@ Things that must be done first because they influence the core API design that i
 * Scrolling.
   * Virtualization.
 * Images.
+* Sound.
+* Video.
 * Raw OpenGL textures.
 * Theming.
 * Async.
