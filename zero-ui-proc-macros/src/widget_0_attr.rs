@@ -3,7 +3,7 @@ use std::{
     mem,
 };
 
-use proc_macro2::{Span, TokenStream, TokenTree};
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 use syn::{
     braced,
@@ -16,7 +16,7 @@ use syn::{
 };
 
 use crate::{
-    util::{self, parse2_punctuated, parse_outer_attrs, Attributes, ErrorRecoverable, Errors},
+    util::{self, parse_outer_attrs, Attributes, ErrorRecoverable, Errors},
     widget_new::{PropertyValue, When, WhenExprToVar},
 };
 
@@ -109,12 +109,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     }
 
     // collects name of captured properties and validates inputs.
-    let new_child_declared = new_child_fn.is_some();
     let (new_child, new_child_ty_sp) = new_child_fn
         .as_ref()
         .map(|f| new_fn_captures(f.sig.inputs.iter(), &mut errors))
         .unwrap_or_default();
-    let new_declared = new_fn.is_some();
 
     let ((new, new_ty_sp), new_arg0_ty_span) = new_fn
         .as_ref()
@@ -770,9 +768,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #built_whens
                 }
 
-                new_child_declared { #new_child_declared }
+                new_child_declared { #new_child__ }
                 new_child { #(#new_child)* }
-                new_declared { #new_declared }
+                new_declared { #new__ }
                 new { #(#new)* }
 
                 mod_items {
@@ -780,9 +778,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #(#others)*
                     #new_child_fn
                     #new_fn
-
-                    #new_child__
-                    #new__
 
                     #property_declarations
 
@@ -1266,14 +1261,7 @@ impl Parse for PropertyType {
             let brace = braced!(named in input);
             Ok(PropertyType::Named(brace, Punctuated::parse_terminated(&named)?))
         } else {
-            let mut unnamed = TokenStream::default();
-            while !input.is_empty() {
-                if input.peek(Token![=]) || input.peek(Token![;]) {
-                    break;
-                }
-                input.parse::<TokenTree>().unwrap().to_tokens(&mut unnamed);
-            }
-            Ok(PropertyType::Unnamed(parse2_punctuated(unnamed)?))
+            Ok(PropertyType::Unnamed(Punctuated::parse_terminated(input)?))
         }
     }
 }
@@ -1301,7 +1289,13 @@ impl PropertyType {
                     // no type tokens
                     (Err(util::recoverable_err(group_start_span, "expected property type")), term)
                 } else {
-                    (syn::parse2::<PropertyType>(type_stream).map_err(|e| e.set_recoverable()), term)
+                    (syn::parse2::<PropertyType>(type_stream).map_err(|e| {
+                        if e.to_string() == "expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime" {
+                            util::recoverable_err(e.span(), "expected property type")
+                        } else {
+                            e.set_recoverable()
+                        }
+                    }), term)
                 }
             }
             Err(partial_ty) => {

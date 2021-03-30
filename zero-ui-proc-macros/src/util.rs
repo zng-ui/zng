@@ -6,7 +6,6 @@ use regex::Regex;
 use syn::{
     self,
     parse::{discouraged::Speculative, Parse, ParseStream},
-    punctuated::Punctuated,
     spanned::Spanned,
     Attribute, Token,
 };
@@ -195,18 +194,6 @@ pub fn uuid() -> String {
     } else {
         call_site.splitn(2, ' ').next().unwrap().replace('#', "u")
     }
-}
-
-struct PunctParser<T, P>(Punctuated<T, P>);
-impl<T: Parse, P: Parse> Parse for PunctParser<T, P> {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Punctuated::<T, P>::parse_terminated(input).map(Self)
-    }
-}
-
-/// [`Punctuated::parse_terminated`] from a token stream.
-pub fn parse2_punctuated<T: Parse, P: Parse>(input: TokenStream) -> syn::Result<Punctuated<T, P>> {
-    syn::parse2::<PunctParser<T, P>>(input).map(|r| r.0)
 }
 
 /// Collection of compile errors.

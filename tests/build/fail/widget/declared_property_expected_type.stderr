@@ -1,0 +1,11 @@
+error: expected property type
+ --> $DIR/declared_property_expected_type.rs:6:14
+  |
+6 |         foo: 10;
+  |              ^^
+
+error: expected property type
+ --> $DIR/declared_property_expected_type.rs:7:14
+  |
+7 |         bar: 32 = 10;
+  |              ^^

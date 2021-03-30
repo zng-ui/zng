@@ -44,7 +44,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let mut new_child_is_default = false;
         let mut new_is_default = false;
 
-        if !new_child_declared {
+        if new_child_declared.is_empty() {
             if let Some(source) = last_not_mixin {
                 let source_mod = &source.module;
                 new_child_reexport = quote! {
@@ -79,7 +79,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 new_child_is_default = true;
             }
         }
-        if !new_declared {
+        if new_declared.is_empty() {
             if let Some(source) = last_not_mixin {
                 let source_mod = &source.module;
                 new_reexport = quote! {
@@ -139,7 +139,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
 
-        if new_child_declared && !new_declared {
+        if !new_child_declared.is_empty() && new_declared.is_empty() {
             for user_cap in &new_child {
                 if new.iter().any(|id| id == user_cap) {
                     let fn_source = if new_is_default { "default" } else { "inherited" };
@@ -149,7 +149,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     );
                 }
             }
-        } else if new_declared && !new_child_declared {
+        } else if !new_declared.is_empty() && new_child_declared.is_empty() {
             for user_cap in &new {
                 if new_child.iter().any(|id| id == user_cap) {
                     let fn_source = if new_child_is_default { "default" } else { "inherited" };
@@ -747,6 +747,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #vis mod #ident {
             #mod_items
 
+            #new_child_declared
+            #new_declared
+
             #property_reexports
             #when_reexports
 
@@ -1014,9 +1017,9 @@ struct WidgetItem {
     properties: Vec<PropertyItem>,
     whens: Vec<BuiltWhen>,
 
-    new_child_declared: bool,
+    new_child_declared: TokenStream,
     new_child: Vec<Ident>,
-    new_declared: bool,
+    new_declared: TokenStream,
     new: Vec<Ident>,
 
     mod_items: TokenStream,
@@ -1047,14 +1050,12 @@ impl Parse for WidgetItem {
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 
             new_child_declared: named_braces!("new_child_declared")
-                .parse::<LitBool>()
-                .unwrap_or_else(|e| non_user_error!(e))
-                .value,
+                .parse()
+                .unwrap(),
             new_child: parse_all(&named_braces!("new_child")).unwrap_or_else(|e| non_user_error!(e)),
             new_declared: named_braces!("new_declared")
-                .parse::<LitBool>()
-                .unwrap_or_else(|e| non_user_error!(e))
-                .value,
+                .parse()
+                .unwrap(),
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
 
             mod_items: named_braces!("mod_items").parse().unwrap(),
