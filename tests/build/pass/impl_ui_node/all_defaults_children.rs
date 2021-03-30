@@ -1,4 +1,4 @@
-use zero_ui::core::{impl_ui_node, NilUiNode, UiNode, UiNodeList};
+use zero_ui::core::{impl_ui_node, nodes, NilUiNode, UiNode, UiNodeList};
 
 struct Node<C> {
     children: C,
@@ -9,5 +9,7 @@ impl<C: UiNodeList> UiNode for Node<C> {}
 fn type_assert<T: UiNode>(_: T) {}
 
 fn main() {
-    type_assert(Node { children: [NilUiNode] });
+    type_assert(Node {
+        children: nodes![NilUiNode],
+    });
 }

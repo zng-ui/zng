@@ -631,6 +631,10 @@ pub mod debug_var_util {
             let name = type_name::<T>();
             if name.starts_with("zero_ui_core::widget_base::WidgetNode<") {
                 OwnedVar("<widget!>".to_owned()).boxed()
+            } else if name == "zero_ui_core::ui_list::WidgetVec" || name.starts_with("zero_ui_core::ui_list::WidgetList") {
+                OwnedVar("<[widgets!]>".to_owned()).boxed()
+            } else if name == "zero_ui_core::ui_list::UiNodeVec" || name.starts_with("zero_ui_core::ui_list::UiNodeList") {
+                OwnedVar("<[nodes!]>".to_owned()).boxed()
             } else {
                 OwnedVar(format!("<{}>", name)).boxed()
             }

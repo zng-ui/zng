@@ -8,11 +8,11 @@ fn main() {
             title = "Button Example";
             content = v_stack! {
                 spacing = 5;
-                items = (
+                items = widgets![
                     example(),
                     example(),
                     disabled()
-                );
+                ];
             };
         }
     })

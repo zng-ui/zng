@@ -1049,13 +1049,9 @@ impl Parse for WidgetItem {
             properties: parse_all(&named_braces!("properties")).unwrap_or_else(|e| non_user_error!(e)),
             whens: parse_all(&named_braces!("whens")).unwrap_or_else(|e| non_user_error!(e)),
 
-            new_child_declared: named_braces!("new_child_declared")
-                .parse()
-                .unwrap(),
+            new_child_declared: named_braces!("new_child_declared").parse().unwrap(),
             new_child: parse_all(&named_braces!("new_child")).unwrap_or_else(|e| non_user_error!(e)),
-            new_declared: named_braces!("new_declared")
-                .parse()
-                .unwrap(),
+            new_declared: named_braces!("new_declared").parse().unwrap(),
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
 
             mod_items: named_braces!("mod_items").parse().unwrap(),

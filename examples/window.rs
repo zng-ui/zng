@@ -18,33 +18,33 @@ fn main() {
             title;
             content = h_stack! {
                 spacing = 40;
-                items = (
+                items = widgets![
                     v_stack! {
                         spacing = 20;
-                        items = (
-                            property_stack("position", [
+                        items = widgets![
+                            property_stack("position", widgets![
                                 set_position(0.0, 0.0, &position),
                                 set_position(490.0, 290.0, &position),
                                 set_position(500.0, 300.0, &position),
                             ]),
-                            property_stack("miscellaneous", (
+                            property_stack("miscellaneous", widgets![
                                 screenshot(),
                                 inspect(),
-                            )),
-                        );
+                            ]),
+                        ];
                     },
-                    property_stack("size", [
+                    property_stack("size", widgets![
                         set_size(1000.0, 900.0, &size),
                         set_size(500.0, 1000.0, &size),
                         set_size(800.0, 600.0, &size),
                     ]),
-                    property_stack("background_color", [
+                    property_stack("background_color", widgets![
                         set_background(rgb(0.1, 0.1, 0.1), "default", &background_color),
                         set_background(rgb(0.5, 0.0, 0.0), "red", &background_color),
                         set_background(rgb(0.0, 0.5, 0.0), "green", &background_color),
                         set_background(rgb(0.0, 0.0, 0.5), "blue", &background_color),
                     ])
-                );
+                ];
             };
         }
     })
@@ -53,7 +53,7 @@ fn main() {
 fn property_stack(header: &'static str, items: impl WidgetList) -> impl Widget {
     v_stack! {
         spacing = 5;
-        items = [text! {
+        items = widgets![text! {
             text = header;
             font_weight = FontWeight::BOLD;
             margin = (0, 4);

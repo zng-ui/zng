@@ -137,7 +137,7 @@ impl StackDimension for HorizontalD {
 /// # use zero_ui::prelude::*;
 /// let text = v_stack! {
 ///     spacing = 5.0;
-///     items = [
+///     items = widgets![
 ///         text("1. Hello"),
 ///         text("2. World"),
 ///     ];
@@ -156,7 +156,7 @@ pub mod h_stack {
             /// Space in-between items.
             spacing = 0.0;
             /// Widget items.
-            widget_children as items = ();
+            widget_children as items = widgets![];
             /// Items margin.
             margin as padding;
         }
@@ -176,7 +176,7 @@ pub mod h_stack {
 /// # use zero_ui::prelude::*;
 /// let text = h_stack! {
 ///     spacing = 5.0;
-///     items = [
+///     items = widgets![
 ///         text("Hello"),
 ///         text("World"),
 ///     ];
@@ -194,7 +194,7 @@ pub mod v_stack {
             /// Space in-between items.
             spacing = 0.0;
             /// Widget items.
-            widget_children as items = ();
+            widget_children as items = widgets![];
             /// Items margin.
             margin as padding;
         }
@@ -212,7 +212,7 @@ pub mod v_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = h_stack([
+/// let text = h_stack(widgets![
 ///     text("Hello "),
 ///     text("World"),
 /// ]);
@@ -234,7 +234,7 @@ pub fn h_stack(items: impl WidgetList) -> impl Widget {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = v_stack([
+/// let text = v_stack(widgets![
 ///     text("1. Hello"),
 ///     text("2. World"),
 /// ]);
@@ -264,7 +264,7 @@ impl<C: UiNodeList> UiNode for ZStackNode<C> {}
 /// # use zero_ui::prelude::*;
 /// let text = z_stack! {
 ///     padding = 5.0;
-///     items = [
+///     items = nodes![
 ///         text("under"),
 ///         text("over"),
 ///     ];
@@ -281,7 +281,7 @@ pub mod z_stack {
     properties! {
         child {
             /// UiNode items.
-            node_children as items = ();
+            node_children as items = nodes![];
             /// Items margin.
             margin as padding;
         }
@@ -299,7 +299,7 @@ pub mod z_stack {
 ///
 /// ```
 /// # use zero_ui::prelude::*;
-/// let text = z_stack([
+/// let text = z_stack(nodes![
 ///     text("under"),
 ///     text("over"),
 /// ]);

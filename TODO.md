@@ -25,25 +25,38 @@ Things that must be done first because they influence the core API design that i
     * ESC hides focus indicator? Use knowledge of how focus was attained to show indicator?
   * Initial focus closest to mouse click?
 
+* Enabled/Disabled.
+
 </del>
 
-* Enabled/Disabled.
+* Localization.
+* Scrolling.
+  * Virtualization.
 * Images.
 * Raw OpenGL textures.
-* Automatic screen reader integration (UI Automation).
-* Animation, transition and storyboarding.
-* Localization.
 * Theming.
-* Scrolling.
+* Async.
+  * IO bound workers.
+  * CPU bound workers.
+
+  <del>
+
+  * Timers.
+
+  </del>
+
+* Animation, transition and storyboarding.
+* Automatic screen reader integration (UI Automation).
 * Other DisplayListBuilder (iframe).
 * Drag-drop.
 * Modal Window.
 * Support for external input methods (IMEs).
-* Workers.
 * Integrate thread_profiler.
 * Diagnostics.
 * Better Ui related macros, reduce verbosity.
 * All events receive single args object.
+* State-of-art Text layout.
+* Widget Inspector (console).
 
 ## Basic Layout
 
@@ -69,6 +82,7 @@ Things that must be done first because they influence the core API design that i
 * ToolTip.
 * Resize parent.
 * MainMenu.
+* Basic markdown view.
 
 ## Virtualizing Widgets
 
@@ -101,13 +115,15 @@ Hard to-do but does not mess with the core API.
 * Plugins (run as a separate process that is hosted in an iframe like widget).
 * Hosting Ui in a custom OpenGL window.
 * Custom installers.
+* App Settings that auto-generate some UI.
+* Widget Inspector (UI).
+* Full static HTML support for full markdown and e-book viewers.
 
 ## Themes
 
 * Dark/Light default.
 * High contrast.
-* Fluent Design (Windows 10).
-* Material Design (Google).
+* OS imitation?
 
 ## OS Integration
 
@@ -128,4 +144,5 @@ Hard to-do but does not mess with the core API.
 * Browser hosting.
 * Parallax.
 * Morphing.
-* [List of Widgets](https://www.telerik.com/products/wpf/overview.aspx)
+* PropertyGrid.
+* Review widgets available in other frameworks?

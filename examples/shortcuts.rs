@@ -32,7 +32,7 @@ fn main() {
                 shortcut_color.set(ctx.vars, colors::SALMON);
             }};
             content = v_stack! {
-                items = (
+                items = widgets![
                     text!{
                         align = Alignment::CENTER;
                         font_size = 18.pt();
@@ -52,7 +52,7 @@ fn main() {
                         color = colors::LIGHT_SLATE_GRAY;
                         text = keypress_text;
                     }
-                );
+                ];
             };
         }
     })

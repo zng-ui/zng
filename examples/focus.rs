@@ -17,10 +17,10 @@ fn main() {
             };
             content_align = unset!;
             content = v_stack! {
-                items = (
+                items = widgets![
                     alt_scope(),
                     normal_scope(),
-                );
+                ];
             };
         }
     })
@@ -31,7 +31,7 @@ fn alt_scope() -> impl Widget {
         alt_focus_scope = true;
         spacing = 5;
         margin = 5;
-        items = [
+        items = widgets![
             button("alt", TabIndex::AUTO),
             button("scope", TabIndex::AUTO),
         ];
@@ -45,14 +45,14 @@ fn normal_scope() -> impl Widget {
         margin = (50, 0, 0, 0);
         align = Alignment::CENTER;
         spacing = 5;
-        items = (
+        items = widgets![
             text! { text = "TabIndex (T)"; font_weight = FontWeight::BOLD; align = Alignment::CENTER; },
             button("Button 5", TabIndex(5)),
             button("Button 4", TabIndex(3)),
             button("Button 3", TabIndex(2)),
             button("Button 1", TabIndex(0)),
             button("Button 2", TabIndex(0)),
-        );
+        ];
     }
 }
 
