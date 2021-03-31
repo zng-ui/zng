@@ -1,0 +1,11 @@
+error: expected `,`
+ --> $DIR/malformed_property_type3.rs:8:20
+  |
+8 |         foo: bool<!?> = 10;
+  |                    ^
+
+error: property `foo` is not inherited nor declared by the widget
+  --> $DIR/malformed_property_type3.rs:11:18
+   |
+11 |     fn new_child(foo: bool) -> NilUiNode {
+   |                  ^^^

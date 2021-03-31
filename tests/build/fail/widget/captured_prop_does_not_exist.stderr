@@ -1,0 +1,5 @@
+error: property `foo` is not inherited nor declared by the widget
+ --> $DIR/captured_prop_does_not_exist.rs:7:18
+  |
+7 |     fn new_child(foo: bool) -> NilUiNode {
+  |                  ^^^

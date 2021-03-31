@@ -232,7 +232,7 @@ impl<U: UiNode> UiNodeList for Vec<U> {
     }
 
     fn boxed_all(mut self) -> UiNodeVec {
-        if let Some(done) = Any::downcast_mut(&mut self) {
+        if let Some(done) = <dyn Any>::downcast_mut(&mut self) {
             UiNodeVec(mem::take(done))
         } else {
             UiNodeVec(self.into_iter().map(|u| u.boxed()).collect())
@@ -303,7 +303,7 @@ impl<U: UiNode> UiNodeList for Vec<U> {
 }
 impl<W: Widget> WidgetList for Vec<W> {
     fn boxed_widget_all(mut self) -> WidgetVec {
-        if let Some(done) = Any::downcast_mut(&mut self) {
+        if let Some(done) = <dyn Any>::downcast_mut(&mut self) {
             WidgetVec(mem::take(done))
         } else {
             WidgetVec(self.into_iter().map(|w| w.boxed_widget()).collect())

@@ -24,9 +24,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         properties_child,
         properties,
         whens,
-        new_child_declared,
+        mut new_child_declared,
         mut new_child,
-        new_declared,
+        mut new_declared,
         mut new,
         mod_items,
     } = widget;
@@ -510,6 +510,29 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|p| &p.ident)
         .chain(properties_child.iter().chain(properties.iter()).map(|p| &p.ident))
         .collect();
+
+    // validate captures exist.
+    let mut validate_captures = |declared: &mut TokenStream, captures| {
+        if declared.is_empty() {
+            return;
+        }
+        let mut invalid = false;
+        for capture in captures {
+            if !wgt_all_properties.contains::<Ident>(capture) {
+                errors.push(
+                    format_args!("property `{}` is not inherited nor declared by the widget", capture),
+                    capture.span(),
+                );
+                invalid = true;
+            }
+        }
+        if invalid {
+            *declared = TokenStream::default();
+        }
+    };
+    validate_captures(&mut new_child_declared, &new_child);
+    validate_captures(&mut new_declared, &new);
+
     // widget properties introduced first by use in when blocks, we validate for default value.
     // map of [property_without_value => combined_cfg_for_default_init]
     let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();

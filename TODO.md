@@ -1,33 +1,18 @@
 # TODO
 
-<del>
-
-## When Steps
-2 - widget! must generate function that takes property args reference and returns a `impl Var<bool>`.
-2.a - function generated must handle `{self|child}.{property}(.{{arg_index}|arg_name})`.
-3 - widget! must pass metadata about when functions to widget_new!
-4 - ?
-
-</del>
-
 ## Core
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-<del>
-
 * Focusable
-  * Know how a focus event was generated (what type of request).
-  * More focus request types.
   * Let focusable know if it is the remembered return focus of a parent scope.
+    * There is a property but we haven't used it yet.    
+  * Initial focus closest to mouse click?
   * Focus on the closest existing sibling or parent in case the focused element is deleted.
+    * Test this
   * Customizable focus indicators in focusable, (focused/remembered?/return target?/).
     * ESC hides focus indicator? Use knowledge of how focus was attained to show indicator?
-  * Initial focus closest to mouse click?
 
-* Enabled/Disabled.
-
-</del>
 
 * Localization.
 * Scrolling.
@@ -41,12 +26,6 @@ Things that must be done first because they influence the core API design that i
   * IO bound workers.
   * CPU bound workers.
 
-  <del>
-
-  * Timers.
-
-  </del>
-
 * Animation, transition and storyboarding.
 * Automatic screen reader integration (UI Automation).
 * Other DisplayListBuilder (iframe).
@@ -55,8 +34,6 @@ Things that must be done first because they influence the core API design that i
 * Support for external input methods (IMEs).
 * Integrate thread_profiler.
 * Diagnostics.
-* Better Ui related macros, reduce verbosity.
-* All events receive single args object.
 * State-of-art Text layout.
 * Widget Inspector (console).
 

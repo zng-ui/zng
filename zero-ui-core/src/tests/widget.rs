@@ -706,13 +706,13 @@ pub mod new_capture_property_wgt {
 
     properties! {
         #[allowed_in_when = false]
-        new_capture: &'static str = "new_capture-default";
+        new_capture: &'static str, u32 = "new_capture-default", 42;
     }
 
-    fn new_child(new_capture: &'static str) -> impl UiNode {
+    fn new_child(new_capture: (&'static str, u32)) -> impl UiNode {
         let msg = match new_capture {
-            "new_capture-default" => "captured new_capture (default)",
-            "new_capture-user" => "captured new_capture (user)",
+            ("new_capture-default", 42) => "captured new_capture (default)",
+            ("new_capture-user", 24) => "captured new_capture (user)",
             o => panic!("unexpected {:?}", o),
         };
         let node = crate::widget_base::default_widget_new_child();
@@ -729,7 +729,7 @@ pub fn wgt_new_capture_property() {
 #[test]
 pub fn wgt_new_capture_property_reassign() {
     let mut wgt = new_capture_property_wgt! {
-        new_capture = "new_capture-user"
+        new_capture = "new_capture-user", 24
     };
     wgt.test_init(&mut TestWidgetContext::wait_new());
 

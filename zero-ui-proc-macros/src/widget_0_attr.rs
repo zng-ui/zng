@@ -1269,12 +1269,13 @@ impl PropertyType {
     fn fn_input_tokens(&self, property: &Ident) -> TokenStream {
         match self {
             PropertyType::Named(_, fields) => fields.to_token_stream(),
-            PropertyType::Unnamed(unamed) => {
-                if unamed.len() == 1 {
-                    quote! { #property: #unamed }
+            PropertyType::Unnamed(unnamed) => {
+                if unnamed.len() == 1 {
+                    quote! { #property: #unnamed }
                 } else {
-                    let names = (0..unamed.len()).map(|i| ident!("arg{}", i));
-                    quote! { #(#names: #unamed),* }
+                    let names = (0..unnamed.len()).map(|i| ident!("arg{}", i));
+                    let unnamed = unnamed.iter();
+                    quote! { #(#names: #unnamed),* }
                 }
             }
         }
