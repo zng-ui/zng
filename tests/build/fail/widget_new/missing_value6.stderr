@@ -12,8 +12,8 @@ warning: unused import: `zero_ui::core::units::*`
   |
   = note: `#[warn(unused_imports)]` on by default
 
-warning: unused import: `background::background_gradient`
+warning: unused import: `background_gradient`
  --> $DIR/missing_value6.rs:2:27
   |
-2 | use zero_ui::properties::{background::background_gradient, margin};
-  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2 | use zero_ui::properties::{background_gradient, margin};
+  |                           ^^^^^^^^^^^^^^^^^^^

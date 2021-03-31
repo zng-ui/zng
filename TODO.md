@@ -4,6 +4,9 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
+* Custom default property values.
+* required!(default-value) in widgets.
+
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.
     * There is a property but we haven't used it yet.    

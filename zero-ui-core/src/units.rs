@@ -1199,8 +1199,10 @@ pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 
 /// `x` and `y` alignment.
 ///
-/// The numbers indicate how much to the right and bottom the content is moved within
-/// a larger available space.
+/// The values indicate how much to the right and bottom the content is moved within
+/// a larger available space. An `x` value of `0.0` means the content left border touches
+/// the container left border, a value of `1.0` means the content right border touches the
+/// container right border.
 #[derive(PartialEq, Clone, Copy)]
 pub struct Alignment {
     pub x: FactorNormal,

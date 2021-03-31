@@ -1,5 +1,5 @@
 use zero_ui::core::color::colors;
-use zero_ui::properties::{background::background_color, margin};
+use zero_ui::properties::{background_color, margin};
 use zero_ui::widgets::blank;
 
 fn main() {

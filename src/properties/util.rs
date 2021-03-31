@@ -1,34 +1,4 @@
-//! Properties that attach a value to a widget and/or its branch.
-
-use crate::core::context::*;
-use crate::core::impl_ui_node;
-use crate::core::var::*;
-use crate::core::UiNode;
-
-struct WithContextVarNode<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> {
-    child: U,
-    var: C,
-    value: V,
-}
-#[impl_ui_node(child)]
-impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for WithContextVarNode<U, T, C, V> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
-    }
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
-    }
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
-    }
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
-    }
-}
+use zero_ui::prelude::new_property::*;
 
 /// Helper for declaring properties that set a context var.
 ///
@@ -49,43 +19,40 @@ impl<U: UiNode, T: VarValue, C: ContextVar<Type = T>, V: Var<T>> UiNode for With
 /// }
 /// ```
 pub fn with_context_var<T: VarValue>(child: impl UiNode, var: impl ContextVar<Type = T>, value: impl IntoVar<T>) -> impl UiNode {
+    struct WithContextVarNode<U, C, V> {
+        child: U,
+        var: C,
+        value: V,
+    }
+    #[impl_ui_node(child)]
+    impl<U, T, C, V> UiNode for WithContextVarNode<U, C, V>
+    where
+        U: UiNode,
+        T: VarValue,
+        C: ContextVar<Type = T>,
+        V: Var<T>,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.init(ctx));
+        }
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.deinit(ctx));
+        }
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.update(ctx));
+        }
+        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.vars.with_context_bind(self.var, &self.value, || child.update_hp(ctx));
+        }
+    }
     WithContextVarNode {
         child,
         var,
         value: value.into_var(),
-    }
-}
-
-struct SetWidgetStateNode<U, K, V>
-where
-    U: UiNode,
-    K: StateKey,
-    K::Type: VarValue,
-    V: Var<K::Type>,
-{
-    child: U,
-    key: K,
-    var: V,
-}
-
-#[impl_ui_node(child)]
-impl<U, K, V> UiNode for SetWidgetStateNode<U, K, V>
-where
-    U: UiNode,
-    K: StateKey,
-    K::Type: VarValue,
-    V: Var<K::Type>,
-{
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        ctx.widget_state.set(self.key, self.var.get(ctx.vars).clone());
-        self.child.init(ctx);
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if let Some(new) = self.var.get_new(ctx.vars) {
-            ctx.widget_state.set(self.key, new.clone());
-        }
-        self.child.update(ctx);
     }
 }
 
@@ -127,6 +94,31 @@ where
     K::Type: VarValue,
     V: IntoVar<K::Type>,
 {
+    struct SetWidgetStateNode<U, K, V> {
+        child: U,
+        key: K,
+        var: V,
+    }
+    #[impl_ui_node(child)]
+    impl<U, K, V> UiNode for SetWidgetStateNode<U, K, V>
+    where
+        U: UiNode,
+        K: StateKey,
+        K::Type: VarValue,
+        V: Var<K::Type>,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            ctx.widget_state.set(self.key, self.var.get(ctx.vars).clone());
+            self.child.init(ctx);
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if let Some(new) = self.var.get_new(ctx.vars) {
+                ctx.widget_state.set(self.key, new.clone());
+            }
+            self.child.update(ctx);
+        }
+    }
     SetWidgetStateNode {
         child,
         key,

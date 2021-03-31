@@ -1189,8 +1189,6 @@ pub mod prelude {
     pub use crate::widgets::*;
 
     #[doc(no_inline)]
-    pub use crate::properties::background::{background, *};
-    #[doc(no_inline)]
     pub use crate::properties::border::*;
     #[doc(no_inline)]
     pub use crate::properties::events::{focus::*, gesture::*, keyboard::*};
@@ -1198,8 +1196,6 @@ pub mod prelude {
     pub use crate::properties::filters::*;
     #[doc(no_inline)]
     pub use crate::properties::focus::*;
-    #[doc(no_inline)]
-    pub use crate::properties::foreground::{foreground, *};
     #[doc(no_inline)]
     pub use crate::properties::size::{size, *};
     #[doc(no_inline)]
@@ -1310,8 +1306,6 @@ pub mod prelude {
             Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
-        pub use crate::properties::background::{background, *};
-        #[doc(no_inline)]
         pub use crate::properties::border::{border, *};
         #[doc(no_inline)]
         pub use crate::properties::capture_only::*;
@@ -1323,8 +1317,6 @@ pub mod prelude {
         pub use crate::properties::focus::focusable;
         #[doc(no_inline)]
         pub use crate::properties::focus::*;
-        #[doc(no_inline)]
-        pub use crate::properties::foreground::{foreground, *};
         #[doc(no_inline)]
         pub use crate::properties::size::{size, *};
         #[doc(no_inline)]
