@@ -3,7 +3,6 @@
 //! Setting these properties in a widget that does not reexport them is an error.
 use crate::core::gesture::Shortcut;
 use crate::prelude::new_property::*;
-use crate::widgets::{LineOrientation, LineStyle};
 
 /// [`Widget`] child node.
 ///
@@ -44,26 +43,6 @@ pub fn text_value(text: impl IntoVar<Text>) -> ! {}
 /// A [`Shortcut`] variable.
 #[property(capture_only)]
 pub fn key_shortcut(shortcut: impl IntoVar<Shortcut>) -> ! {}
-
-/// A [`line!`](crate::widgets::line) orientation.
-#[property(capture_only)]
-pub fn line_orientation(orientation: impl IntoVar<LineOrientation>) -> ! {}
-
-/// `Rgba` value.
-#[property(capture_only)]
-pub fn color(color: impl IntoVar<Rgba>) -> ! {}
-
-/// A 'f32' width.
-#[property(capture_only)]
-pub fn width(width: impl IntoVar<f32>) -> ! {}
-
-/// A [`line!`](crate::widgets::line) length.
-#[property(capture_only)]
-pub fn length(length: impl IntoVar<f32>) -> ! {}
-
-/// A [`line!`](crate::widgets::line) style.
-#[property(capture_only)]
-pub fn line_style(style: impl IntoVar<LineStyle>) -> ! {}
 
 /// An [`usize`] that represents a zero-based index.
 #[property(capture_only)]

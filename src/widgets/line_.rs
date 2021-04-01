@@ -1,5 +1,4 @@
 use crate::prelude::new_widget::*;
-use crate::properties::capture_only::color;
 use webrender_api as w_api;
 
 pub use w_api::LineOrientation;
@@ -103,21 +102,21 @@ pub mod line_w {
 
     properties! {
         /// Line orientation.
-        line_orientation as orientation = LineOrientation::Horizontal;
+        orientation: impl IntoVar<LineOrientation> = LineOrientation::Horizontal;
 
         /// Line color.
-        color = rgb(0, 0, 0);
+        color: impl IntoVar<Rgba> = rgb(0, 0, 0);
 
         /// Line stroke thickness.
-        width = 1.0;
+        width: impl IntoVar<f32> = 1.0;
 
         /// Line length.
         ///
         /// Set to `f32::INFINITY` to fill the available space.
-        length = f32::INFINITY;
+        length: impl IntoVar<f32> = f32::INFINITY;
 
         /// Line style.
-        line_style as style = LineStyle::Solid;
+        style: impl IntoVar<LineStyle> = LineStyle::Solid;
     }
 
     fn new_child(

@@ -19,7 +19,6 @@ pub mod events;
 pub mod filters;
 pub mod focus;
 mod hit_testable_;
-pub mod size;
 pub mod states;
 pub mod text_theme;
 pub mod transform;

@@ -1198,8 +1198,6 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::properties::focus::*;
     #[doc(no_inline)]
-    pub use crate::properties::size::{size, *};
-    #[doc(no_inline)]
     pub use crate::properties::states::*;
     #[doc(no_inline)]
     pub use crate::properties::text_theme::{
@@ -1320,8 +1318,6 @@ pub mod prelude {
         pub use crate::properties::focus::focusable;
         #[doc(no_inline)]
         pub use crate::properties::focus::*;
-        #[doc(no_inline)]
-        pub use crate::properties::size::{size, *};
         #[doc(no_inline)]
         pub use crate::properties::states::*;
         #[doc(no_inline)]
