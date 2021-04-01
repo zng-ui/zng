@@ -22,12 +22,8 @@ mod hit_testable_;
 pub mod size;
 pub mod states;
 pub mod text_theme;
-mod title_;
 pub mod transform;
-mod visibility_;
 
 pub use capture_mouse_::*;
 pub use cursor_::*;
 pub use hit_testable_::*;
-pub use title_::*;
-pub use visibility_::*;

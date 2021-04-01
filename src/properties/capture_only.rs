@@ -2,7 +2,6 @@
 //!
 //! Setting these properties in a widget that does not reexport them is an error.
 use crate::core::gesture::Shortcut;
-use crate::core::window::{AutoSize, StartPosition};
 use crate::prelude::new_property::*;
 use crate::widgets::{LineOrientation, LineStyle};
 
@@ -73,15 +72,3 @@ pub fn index(index: impl IntoVar<usize>) -> ! {}
 /// An [`usize`] that represents a list length.
 #[property(capture_only)]
 pub fn len(len: impl IntoVar<usize>) -> ! {}
-
-/// A [`bool`] that enables a feature.
-#[property(capture_only)]
-pub fn enabled(enabled: impl IntoVar<bool>) -> ! {}
-
-/// An [`AutoSize`] config.
-#[property(capture_only)]
-pub fn auto_size(config: impl IntoVar<AutoSize>) -> ! {}
-
-/// A ['StartPosition'] config.
-#[property(capture_only, allowed_in_when = false)]
-pub fn start_position(position: impl Into<StartPosition> + Clone + std::fmt::Debug + 'static) -> ! {}

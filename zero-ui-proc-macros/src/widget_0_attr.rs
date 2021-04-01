@@ -332,7 +332,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         // declare new capture properties.
         if let Some((_, new_type)) = &property.type_ {
-            if !captures.contains(p_ident) {
+            if !mixin && !captures.contains(p_ident) {
                 // new capture properties must be captured by new *new* functions.
                 errors.push(
                     format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
@@ -343,8 +343,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             let p_mod_ident = ident!("__p_{}", p_ident);
             let inputs = new_type.fn_input_tokens(p_ident);
 
+            let docs = &attrs.docs;
+
             property_declarations.extend(quote! {
-                #[doc(hidden)]
+                #(#docs)*
                 #[#crate_core::property(capture_only, allowed_in_when = #allowed_in_when)]
                 pub fn #p_mod_ident(#inputs) -> ! { }
             });

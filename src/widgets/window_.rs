@@ -29,9 +29,11 @@ pub mod window {
 
     properties! {
         /// Window title.
-        title = "";
+        title: impl IntoVar<Text> = "";
 
-        start_position = StartPosition::Default;
+        /// Window position when it opens.
+        #[allowed_in_when = false]
+        start_position: impl Into<StartPosition> = StartPosition::Default;
 
         /// Window position (left, top).
         ///
@@ -64,10 +66,10 @@ pub mod window {
             r
         };
 
-        /// Window auto size config.
+        /// Window auto size to content.
         ///
         /// If enabled overwrites the other sizes with the content size.
-        auto_size = false;
+        auto_size: impl IntoVar<AutoSize> = false;
 
         /// Window clear color.
         ///
@@ -103,10 +105,11 @@ pub mod window {
         ///
         /// Not that the window can still change size, this only disables
         /// the OS window frame controls that change size.
-        enabled as resizable = true;
+        resizable: impl IntoVar<bool> = true;
 
         /// If the window is visible.
-        enabled as visible = true;
+        visible: impl IntoVar<bool> = true;
+        visibility = unset!;
     }
 
     #[inline]

@@ -616,7 +616,7 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-use crate::properties::{Visibility, VisibilityContext, WidgetVisibilityExt};
+use crate::core::widget_base::{Visibility, VisibilityContext, WidgetVisibilityExt};
 
 use super::{IsHitTestable, WidgetHitTestableExt};
 

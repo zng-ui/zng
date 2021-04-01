@@ -1178,6 +1178,7 @@ pub mod prelude {
             Point, Rect, RectFromTuplesBuilder, SideOffsets, Size, TimeUnits,
         },
         var::{merge_var, state_var, switch_var, var, var_from, RcVar, Var, VarObj, Vars},
+        widget_base::Visibility,
         widget_vec, widgets,
         window::{AppRunWindow, CursorIcon, StartPosition, Window, Windows},
         UiNode, Widget, WidgetId, WidgetList, WidgetVec,
@@ -1263,8 +1264,9 @@ pub mod prelude {
         pub use crate::core::widget_base::{IsEnabled, WidgetEnabledExt};
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, node_vec, nodes, property, widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget,
-            WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, node_vec, nodes, property,
+            widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
+            widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
         pub use crate::properties::{set_widget_state, with_context_var};
@@ -1302,8 +1304,9 @@ pub mod prelude {
         pub use crate::core::var::*;
         #[doc(no_inline)]
         pub use crate::core::{
-            impl_ui_node, is_layout_any_size, node_vec, nodes, widget, widget_mixin, widget_vec, widgets, FillUiNode, UiNode, UiNodeList,
-            Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
+            impl_ui_node, is_layout_any_size, node_vec, nodes, widget,
+            widget_base::{Visibility, VisibilityContext, WidgetListVisibilityExt, WidgetVisibilityExt},
+            widget_mixin, widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
         pub use crate::properties::border::{border, *};

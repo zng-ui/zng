@@ -6,6 +6,8 @@ Things that must be done first because they influence the core API design that i
 
 * Custom default property values.
 * required!(default-value) in widgets.
+* Fix docs links to inherited widget/mixin.
+* Show default value of widget properties in docs.
 
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.
