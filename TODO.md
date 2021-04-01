@@ -8,6 +8,7 @@ Things that must be done first because they influence the core API design that i
 * required!(default-value) in widgets.
 * Fix docs links to inherited widget/mixin.
 * Show default value of widget properties in docs.
+* Rename unset! to remove! in widget declarations? (or another word?)
 
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.

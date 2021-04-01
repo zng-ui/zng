@@ -186,7 +186,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
         fn render(&self, frame: &mut FrameBuilder) {
             self.child.render(frame);
-            self.foreground.render(frame);// TODO, disable events and focus for this?
+            self.foreground.render(frame); // TODO, disable events and focus for this?
         }
     }
     ForegroundNode { child, foreground }

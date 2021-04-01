@@ -1,6 +1,6 @@
 use zero_ui::core::widget;
 
-#[widget($crate::widget, invalid)]
+#[widget($crate::test_widget, invalid)]
 pub mod test_widget {}
 
 fn main() {}

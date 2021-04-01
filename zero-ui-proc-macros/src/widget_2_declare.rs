@@ -203,8 +203,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == unset) {
                 inherited_props.remove(i);
             }
+        } else {
+            errors.push("can only unset inherited property", unset_span);
         }
-        // else was unset in a new property that must be a warning when that is stable
     }
 
     let inherited_properties = inherited_properties;

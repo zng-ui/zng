@@ -1,0 +1,5 @@
+error: can only unset inherited property
+ --> $DIR/invalid_unset1.rs:6:39
+  |
+6 |         zero_ui::properties::margin = unset!;
+  |                                       ^^^^^

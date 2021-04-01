@@ -1,0 +1,25 @@
+error: only `doc`, `cfg` and lint attributes are allowed in when
+  --> $DIR/invalid_when_attributes.rs:11:11
+   |
+11 |         #[foo(bar)]
+   |           ^^^
+
+error: only `doc`, `cfg` and lint attributes are allowed in when
+  --> $DIR/invalid_when_attributes.rs:12:16
+   |
+12 |         #[foo::bar(true)]
+   |                ^^^
+
+error: only `doc`, `cfg` and lint attributes are allowed in when
+  --> $DIR/invalid_when_attributes.rs:24:11
+   |
+24 |         #[inline] // invalid attribute
+   |           ^^^^^^
+
+warning: unused import: `std::vec`
+  --> $DIR/invalid_when_attributes.rs:26:17
+   |
+26 |             use std::vec; // expect unused import warning here
+   |                 ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default

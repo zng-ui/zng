@@ -447,7 +447,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         let attrs = Attributes::new(when.attrs);
         for invalid_attr in attrs.others.into_iter().chain(attrs.inline) {
-            errors.push("only `doc`, `cfg` and lint attributes are allowed in when", invalid_attr.span());
+            errors.push(
+                "only `doc`, `cfg` and lint attributes are allowed in when",
+                util::path_span(&invalid_attr.path),
+            );
         }
         let cfg = attrs.cfg;
         let docs = attrs.docs;
@@ -554,9 +557,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     }
                 });
             } else {
+                // assign.path.get_ident() == None
                 let suggestion = &assign.path.segments.last().unwrap().ident;
                 errors.push(
-                    format_args!("widget properties only have a single name, try `self.{}`", suggestion),
+                    format_args!("widget properties only have a single name, try `{}`", suggestion),
                     assign.path.span(),
                 );
             }
