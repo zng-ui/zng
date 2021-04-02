@@ -1,0 +1,11 @@
+error[E0433]: failed to resolve: use of undeclared crate or module `is_pressed`
+ --> $DIR/when_property_does_not_exist2.rs:6:19
+  |
+6 |         when self.is_pressed { }
+  |                   ^^^^^^^^^^ use of undeclared crate or module `is_pressed`
+
+error[E0433]: failed to resolve: could not find `__p_is_pressed` in `self`
+ --> $DIR/when_property_does_not_exist2.rs:6:19
+  |
+6 |         when self.is_pressed { }
+  |                   ^^^^^^^^^^ could not find `__p_is_pressed` in `self`

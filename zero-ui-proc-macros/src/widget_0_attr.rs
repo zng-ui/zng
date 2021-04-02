@@ -580,7 +580,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // name of property inputs Args reference in the condition function.
         let input_idents: Vec<_> = inputs.iter().map(|p| ident!("__{}", p)).collect();
         // name of property inputs in the widget module.
-        let prop_idents: Vec<_> = inputs.iter().map(|p| ident!("__p_{}", p)).collect();
+        let prop_idents: Vec<_> = inputs.iter().map(|p| ident_spanned!(p.span()=> "__p_{}", p)).collect();
 
         // name of the fields for each interpolated property.
         let field_idents = cond_properties.values();
