@@ -7,6 +7,7 @@ if (document.property_fns === undefined) {
 } else {
     document.property_fns.push(local);
 }
+
 function move_properties() {
     let functions = document.querySelector('h2#functions.section-header');
     if (functions !== null) {
@@ -33,7 +34,7 @@ function move_properties() {
         let table = document.createElement('table');
         table.style = 'display:block;';
         let tbody = document.createElement('tbody');
-        document.property_fns.forEach(function (tr) {
+        document.property_fns.forEach(function(tr) {
             tbody.appendChild(tr);
         });
         document.property_fns = null;
@@ -47,10 +48,10 @@ function move_properties() {
             side_functions.remove();
         }
     }
+
     // the header script ends up in the sidebar tooltip, remove it here.
     // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
-    let fn_section = document.querySelector('div.block.fn');
-    fn_section.querySelectorAll('li a').forEach(function (a) {
+    document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
         a.title = a.title.replace(/var local=doc.*/, '');
     });
 }

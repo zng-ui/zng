@@ -5,7 +5,7 @@ var local = document.currentScript.closest('tr');
 if (document.widget_modules === undefined) {
     document.widget_modules = new Array(local);
 
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         var modules = document.querySelector('h2#modules.section-header');
         if (modules !== null) {
             // create section header
@@ -29,7 +29,7 @@ if (document.widget_modules === undefined) {
             var table = document.createElement('table');
             table.style = 'display:block;';
             var tbody = document.createElement('tbody');
-            document.widget_modules.forEach(function (tr) {
+            document.widget_modules.forEach(function(tr) {
                 tbody.appendChild(tr);
             });
             document.widget_modules = null;
@@ -42,6 +42,12 @@ if (document.widget_modules === undefined) {
                 modules.remove();
                 side_modules.remove();
             }
+
+            // the header script ends up in the sidebar tooltip, remove it here.
+            // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
+            document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
+                a.title = a.title.replace(/var local=doc.*/, '');
+            });
         }
     });
 } else {
