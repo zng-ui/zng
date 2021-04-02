@@ -7,7 +7,11 @@ pub mod focusable_mixin {
     use crate::core::color::rgba;
     use crate::core::units::SideOffsets;
     use crate::core::var::context_var;
-    use crate::properties::{border::BorderDetails, focus::focusable, foreground_highlight, states::is_focused_hgl};
+    use crate::properties::{
+        border::BorderDetails,
+        focus::{focusable, is_focused_hgl},
+        foreground_highlight,
+    };
 
     context_var! {
         pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);

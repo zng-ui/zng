@@ -3,15 +3,17 @@
 use std::time::Duration;
 
 use crate::core::mouse::*;
+use crate::core::sync::TimeElapsed;
 use crate::core::window::{WindowDeactivatedEvent, WindowIsActiveArgs};
-use crate::core::{focus::*, sync::TimeElapsed};
 use crate::prelude::new_property::*;
 
 /// If the mouse pointer is over the widget.
 ///
 /// This is always `false` when the widget is [disabled](IsEnabled).
 ///
-/// This TODO cap, use [`is_cap_hovered`](fn@is_cap_hovered) for that.
+/// This state property does not consider mouse capture, if the pointer is captured by the widget
+/// but is not actually over the widget this is `false`, use [`is_cap_hovered`](fn@is_cap_hovered) to
+/// include the captured state.
 #[property(context)]
 pub fn is_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsHoveredNode<C: UiNode> {
@@ -147,7 +149,11 @@ pub fn is_cap_hovered(child: impl UiNode, state: StateVar) -> impl UiNode {
 ///
 /// This is always `false` when the widget is [disabled](IsEnabled).
 ///
-/// This TODO cap.
+/// A keyboard shortcut press causes this to be `true` true for the [specified time period](Gestures::shortcut_pressed_duration).
+///
+/// This state property does not consider mouse capture, if the pointer is captured by the widget
+/// but is not actually over the widget this is `false`, use [`is_cap_pressed`](fn@is_cap_pressed) to
+/// include the captured state.
 #[property(context)]
 pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsPressedNode<C: UiNode> {
@@ -266,250 +272,120 @@ pub fn is_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
     }
 }
 
-/// If the widget has keyboard focus.
+/// If the pointer is pressed in the widget or was captured during press.
 ///
-/// This is only `true` if the widget itself is focused.
-/// You can use [`is_focus_within`] to check if the focused widget is within this one.
-///
-/// # Highlighting
-///
-/// TODO
+/// This is `true` when [`is_pressed`](fn@is_pressed) is `true` but also when
+/// the pointer is not over the widget but the widget captured the pointer during the press.
 #[property(context)]
-pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusedNode<C: UiNode> {
+pub fn is_cap_pressed(child: impl UiNode, state: StateVar) -> impl UiNode {
+    struct IsCapPressedNode<C: UiNode> {
         child: C,
         state: StateVar,
-        focus_changed: EventListener<FocusChangedArgs>,
+        is_down: bool,
+        is_captured: bool,
+        is_shortcut_press: bool,
+
+        mouse_input: EventListener<MouseInputArgs>,
+        click: EventListener<ClickArgs>,
+        mouse_captured: EventListener<MouseCaptureArgs>,
+        window_deactivate: EventListener<WindowIsActiveArgs>,
+        shortcut_release: EventListener<TimeElapsed>,
     }
     #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusedNode<C> {
+    impl<C: UiNode> UiNode for IsCapPressedNode<C> {
         fn init(&mut self, ctx: &mut WidgetContext) {
-            self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
             self.child.init(ctx);
+            self.mouse_input = ctx.events.listen::<MouseInputEvent>();
+            self.click = ctx.events.listen::<ClickEvent>();
+            self.mouse_captured = ctx.events.listen::<MouseCaptureEvent>();
+            self.window_deactivate = ctx.events.listen::<WindowDeactivatedEvent>();
         }
+
         fn deinit(&mut self, ctx: &mut WidgetContext) {
             if *self.state.get(ctx.vars) {
                 self.state.set(ctx.vars, false);
             }
-            self.focus_changed = FocusChangedEvent::never();
+            self.is_down = false;
+            self.is_captured = false;
+            self.is_shortcut_press = false;
+            self.mouse_input = MouseInputEvent::never();
+            self.click = ClickEvent::never();
+            self.mouse_captured = MouseCaptureEvent::never();
+            self.window_deactivate = WindowDeactivatedEvent::never();
+            self.shortcut_release = EventListener::response_never();
             self.child.deinit(ctx);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(u) = self.focus_changed.updates(ctx.events).last() {
-                let was_focused = *self.state.get(ctx.vars);
-                let is_focused = u
-                    .new_focus
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default();
-                if was_focused != is_focused {
-                    self.state.set(ctx.vars, is_focused);
+            self.child.update(ctx);
+
+            if IsEnabled::get(ctx.vars) {
+                for args in self.mouse_input.updates(ctx.events) {
+                    if args.is_primary() {
+                        match args.state {
+                            ElementState::Pressed => {
+                                if args.concerns_capture(ctx) {
+                                    self.is_down = true;
+                                }
+                            }
+                            ElementState::Released => {
+                                self.is_down = false;
+                            }
+                        }
+                    }
                 }
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsFocusedNode {
-        child,
-        state,
-        focus_changed: FocusChangedEvent::never(),
-    }
-}
-
-/// If the widget or one of its descendants has keyboard focus.
-///
-/// To check if only the widget has keyboard focus use [`is_focused`].
-#[property(context)]
-pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusWithinNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-        focus_changed: EventListener<FocusChangedArgs>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusWithinNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
-            self.child.init(ctx);
-        }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            if *self.state.get(ctx.vars) {
-                self.state.set(ctx.vars, false);
-            }
-            self.focus_changed = FocusChangedEvent::never();
-            self.child.deinit(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(u) = self.focus_changed.updates(ctx.events).last() {
-                let was_focused = *self.state.get(ctx.vars);
-                let is_focused = u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
-
-                if was_focused != is_focused {
-                    self.state.set(ctx.vars, is_focused);
+                for a in self.mouse_captured.updates(ctx.events) {
+                    if a.concerns_widget(ctx) {
+                        self.is_captured = a.is_got(ctx.path.widget_id());
+                    }
                 }
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsFocusWithinNode {
-        child,
-        state,
-        focus_changed: FocusChangedEvent::never(),
-    }
-}
-
-/// If the widget has keyboard focus and focus highlighting is enabled.
-///
-/// This is only `true` if the widget itself is focused and focus highlighting is enabled.
-/// You can use [`is_focus_within_hgl`] to check if the focused widget is within this one.
-///
-/// Also see [`is_focused`] to check if the widget is focused regardless of highlighting.
-#[property(context)]
-pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusedHglNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-        focus_changed: EventListener<FocusChangedArgs>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusedHglNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
-            self.child.init(ctx);
-        }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            if *self.state.get(ctx.vars) {
-                self.state.set(ctx.vars, false);
-            }
-            self.focus_changed = FocusChangedEvent::never();
-            self.child.deinit(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(u) = self.focus_changed.updates(ctx.events).last() {
-                let was_focused_hgl = *self.state.get(ctx.vars);
-                let is_focused_hgl = u.highlight
-                    && u.new_focus
-                        .as_ref()
-                        .map(|p| p.widget_id() == ctx.path.widget_id())
-                        .unwrap_or_default();
-                if was_focused_hgl != is_focused_hgl {
-                    self.state.set(ctx.vars, is_focused_hgl);
+                if self.window_deactivate.updates(ctx.events).iter().any(|a| a.concerns_widget(ctx)) {
+                    self.is_down = false;
                 }
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsFocusedHglNode {
-        child,
-        state,
-        focus_changed: FocusChangedEvent::never(),
-    }
-}
 
-/// If the widget or one of its descendants has keyboard focus and focus highlighting is enabled.
-///
-/// To check if only the widget has keyboard focus use [`is_focused_hgl`].
-///
-/// Also see [`is_focus_within`] to check if the widget has focus within regardless of highlighting.
-#[property(context)]
-pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsFocusWithinHglNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-        focus_changed: EventListener<FocusChangedArgs>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsFocusWithinHglNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.focus_changed = ctx.events.listen::<FocusChangedEvent>();
-            self.child.init(ctx);
-        }
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            if *self.state.get(ctx.vars) {
-                self.state.set(ctx.vars, false);
-            }
-            self.focus_changed = FocusChangedEvent::never();
-            self.child.deinit(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            if let Some(u) = self.focus_changed.updates(ctx.events).last() {
-                let was_focused_hgl = *self.state.get(ctx.vars);
-                let is_focused_hgl = u.highlight && u.new_focus.as_ref().map(|p| p.contains(ctx.path.widget_id())).unwrap_or_default();
-
-                if was_focused_hgl != is_focused_hgl {
-                    self.state.set(ctx.vars, is_focused_hgl);
-                }
-            }
-            self.child.update(ctx);
-        }
-    }
-    IsFocusWithinHglNode {
-        child,
-        state,
-        focus_changed: FocusChangedEvent::never(),
-    }
-}
-
-/// If the widget is focused when a parent scope is focused.
-#[property(context)]
-pub fn is_return_focus(child: impl UiNode, state: StateVar) -> impl UiNode {
-    struct IsReturnFocusNode<C: UiNode> {
-        child: C,
-        state: StateVar,
-        return_focus_changed: EventListener<ReturnFocusChangedArgs>,
-    }
-    #[impl_ui_node(child)]
-    impl<C: UiNode> UiNode for IsReturnFocusNode<C> {
-        fn init(&mut self, ctx: &mut WidgetContext) {
-            self.child.init(ctx);
-            self.return_focus_changed = ctx.events.listen::<ReturnFocusChangedEvent>();
-        }
-
-        fn deinit(&mut self, ctx: &mut WidgetContext) {
-            if *self.state.get(ctx.vars) {
-                self.state.set(ctx.vars, false);
-            }
-            self.return_focus_changed = ReturnFocusChangedEvent::never();
-            self.child.deinit(ctx);
-        }
-
-        fn update(&mut self, ctx: &mut WidgetContext) {
-            self.child.update(ctx);
-
-            let state = *self.state.get(ctx.vars);
-            let mut new_state = state;
-            for args in self.return_focus_changed.updates(ctx.events) {
-                if args
-                    .prev_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
+                if self
+                    .click
+                    .updates(ctx.events)
+                    .iter()
+                    .any(|a| a.concerns_widget(ctx) && a.shortcut().is_some())
                 {
-                    new_state = false;
+                    if self.is_shortcut_press {
+                        self.is_shortcut_press = false;
+                        self.shortcut_release = EventListener::response_never();
+                    } else {
+                        let duration = ctx.services.req::<Gestures>().shortcut_pressed_duration;
+                        if duration != Duration::default() {
+                            self.is_shortcut_press = true;
+                            self.shortcut_release = ctx.sync.update_after(duration);
+                        }
+                    }
                 }
-                if args
-                    .new_return
-                    .as_ref()
-                    .map(|p| p.widget_id() == ctx.path.widget_id())
-                    .unwrap_or_default()
-                {
-                    new_state = true;
+
+                if self.shortcut_release.has_updates(ctx.events) {
+                    self.is_shortcut_press = false;
                 }
+            } else {
+                self.is_down = false;
+                self.is_captured = false;
             }
 
-            if new_state != state {
-                self.state.set(ctx.vars, new_state);
+            let state = (self.is_down && self.is_captured) || self.is_shortcut_press;
+            if state != *self.state.get(ctx.vars) {
+                self.state.set(ctx.vars, state);
             }
         }
     }
-    IsReturnFocusNode {
+    IsCapPressedNode {
         child,
         state,
-        return_focus_changed: ReturnFocusChangedEvent::never(),
+        is_down: false,
+        is_captured: false,
+        is_shortcut_press: false,
+        mouse_input: MouseInputEvent::never(),
+        click: ClickEvent::never(),
+        mouse_captured: MouseCaptureEvent::never(),
+        window_deactivate: WindowDeactivatedEvent::never(),
+        shortcut_release: EventListener::response_never(),
     }
 }
 

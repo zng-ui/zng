@@ -57,7 +57,7 @@ Things that must be done first because they influence the core API design that i
 ## Basic Widgets
 
 * Progress indicator.
-* Button (work button, default, primary, cancel, etc.).
+* Button (work button, default, primary, cancel, progress disabled).
 * Validation.
 * TextInput.
 * CheckInput.

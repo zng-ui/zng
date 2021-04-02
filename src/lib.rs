@@ -1192,7 +1192,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::properties::border::*;
     #[doc(no_inline)]
-    pub use crate::properties::events::{focus::*, gesture::*, keyboard::*};
+    pub use crate::properties::events::{gesture::*, keyboard::*};
     #[doc(no_inline)]
     pub use crate::properties::filters::*;
     #[doc(no_inline)]

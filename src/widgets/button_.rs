@@ -45,7 +45,7 @@ pub mod button {
             };
         }
 
-        /// When the mouse or touch pressed on this button and has not yet released.
+        /// When the button is pressed in a way that press release will cause a button click.
         when self.is_pressed  {
             background_color = ButtonBackgroundPressedVar;
             border = {
@@ -54,6 +54,7 @@ pub mod button {
             };
         }
 
+        /// When the button is disabled.
         when self.is_disabled {
             background_color = ButtonBackgroundDisabledVar;
             border = {
