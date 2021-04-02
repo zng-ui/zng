@@ -1338,6 +1338,10 @@ mod output {
 
                     #if_default
 
+                    (if resolved=> $($tt:tt)*) => {
+                        $($tt)*
+                    };
+
                     (when $property_path:path {
                         $(
                             $(#[$meta:meta])*

@@ -1105,10 +1105,10 @@ impl PropertyValue {
             PropertyValue::Unnamed(args) => {
                 let args_impl = quote_spanned!(value_span=> __ArgsImpl::new);
                 Ok(quote_spanned! {span=>
-                    {
+                    #property_path::code_gen! {if resolved=>{
                         use #property_path::{ArgsImpl as __ArgsImpl};
                         #args_impl(#args)
-                    }
+                    }}
                 })
             }
             PropertyValue::Named(brace, fields) => {

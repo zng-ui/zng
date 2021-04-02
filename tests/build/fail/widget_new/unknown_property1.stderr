@@ -1,9 +1,3 @@
-error[E0432]: unresolved import `unknown`
- --> $DIR/unknown_property1.rs:5:9
-  |
-5 |         unknown = 0;
-  |         ^^^^^^^ use of undeclared crate or module `unknown`
-
 error[E0433]: failed to resolve: use of undeclared crate or module `unknown`
  --> $DIR/unknown_property1.rs:5:9
   |
