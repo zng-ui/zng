@@ -10,71 +10,134 @@ use crate::core::gesture::*;
 use crate::prelude::new_property::*;
 
 event_property! {
-    /// Adds a handler for clicks in the widget from any mouse button.
+    /// On widget click from any source and of any click count.
+    ///
+    /// This is the most general click handler, it raises for all possible sources of the [`ClickEvent`] and any number
+    /// of consecutive clicks. Use [`click`](fn@click) to handle only primary button clicks or [`on_any_single_click`](fn@on_any_single_click)
+    /// to not include double/triple clicks.
     pub fn any_click {
         event: ClickEvent,
         args: ClickArgs,
     }
 
+    /// On widget click from any source but excluding double/triple clicks.
+    ///
+    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is one. Use
+    /// [`on_single_click`](fn@on_single_click) to handle only primary button clicks.
     pub fn any_single_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_single(),
     }
 
+    /// On widget click from any source but exclusive double-clicks.
+    ///
+    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is two. Use
+    /// [`on_double_click`](fn@on_double_click) to handle only primary button clicks.
     pub fn any_double_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args|  args.concerns_widget(ctx) && args.is_double(),
     }
 
+    /// On widget click from any source but exclusive triple-clicks.
+    ///
+    /// This raises for all possible sources of [`ClickEvent`], but only when the click count is three. Use
+    /// [`on_triple_click`](fn@on_triple_click) to handle only primary button clicks.
     pub fn any_triple_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args|  args.concerns_widget(ctx) && args.is_triple(),
     }
 
-    /// Adds a handler for clicks in the widget from the left mouse button.
+    /// On widget click with the primary button and any click count.
+    ///
+    /// This raises only if the click [is primary](ClickArgs::is_primary), but raises for any click count (double/triple clicks).
+    /// Use [`on_any_click`](fn@on_any_click) to handle clicks from any button or [`on_single_click`](fn@on_single_click) to not include
+    /// double/triple clicks.
     pub fn click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary(),
     }
 
+    /// On widget click with the primary button, excluding double/triple clicks.
+    ///
+    /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is one. Use
+    /// [`on_any_single_click`](fn@on_any_single_click) to handle single clicks from any button.
     pub fn single_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_single(),
     }
 
+    /// On widget click with the primary button and exclusive double-clicks.
+    ///
+    /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is two. Use
+    /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn double_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_double(),
     }
 
+    /// On widget click with the primary button and exclusive triple-clicks.
+    ///
+    /// This raises only if the click [is primary](ClickArgs::is_primary) and the click count is three. Use
+    /// [`on_any_double_click`](fn@on_any_double_click) to handle double clicks from any button.
     pub fn triple_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_primary() && args.is_triple(),
     }
 
+    /// On widget click with the secondary/context button.
+    ///
+    /// This raises only if the click [is context](ClickArgs::is_context).
     pub fn context_click {
         event: ClickEvent,
         args: ClickArgs,
         filter: |ctx, args| args.concerns_widget(ctx) && args.is_context(),
     }
 
+    /// On keyboard shortcut press when the widget is focused.
     pub fn shortcut {
         event: ShortcutEvent,
         args: ShortcutArgs,
     }
 }
 
+/// Keyboard shortcuts that focus and clicks this widget.
+///
+/// When any of the `shortcuts` is pressed, focus and click this widget. The widget is only focused
+/// if the parent window is active and the widget is focusable.
+#[property(context)]
+pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
+    ClickShortcutNode {
+        child,
+        shortcuts: shortcuts.into_var(),
+        shortcut_listener: ShortcutEvent::never(),
+        kind: ShortcutClick::Primary,
+    }
+}
+/// Keyboard shortcuts that focus and [context clicks](fn@on_context_click) this widget.
+///
+/// When any of the `shortcuts` is pressed, focus and context clicks this widget. The widget is only focused
+/// if the parent window is active and the widget is focusable.
+#[property(context)]
+pub fn context_click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
+    ClickShortcutNode {
+        child,
+        shortcuts: shortcuts.into_var(),
+        shortcut_listener: ShortcutEvent::never(),
+        kind: ShortcutClick::Context,
+    }
+}
 struct ClickShortcutNode<C: UiNode, S: Var<Shortcuts>> {
     child: C,
     shortcuts: S,
     shortcut_listener: EventListener<ShortcutArgs>,
+    kind: ShortcutClick,
 }
 #[impl_ui_node(child)]
 impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
@@ -96,25 +159,14 @@ impl<C: UiNode, S: Var<Shortcuts>> UiNode for ClickShortcutNode<C, S> {
 
             for args in self.shortcut_listener.updates(ctx.events) {
                 if !args.stop_propagation_requested() && shortcuts.0.contains(&args.shortcut) {
-                    // focus on shortcut, if focusable
+                    // this request also focus the widget if the window is active
+                    // and the widget is focusable.
                     ctx.services
                         .req::<Gestures>()
-                        .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), args.clone());
+                        .click_shortcut(ctx.path.window_id(), ctx.path.widget_id(), self.kind, args.clone());
                     break;
                 }
             }
         }
-    }
-}
-
-/// Keyboard shortcuts that focus and clicks this widget.
-///
-/// When any of the `shortcuts` is pressed, focus and click this widget.
-#[property(context)]
-pub fn click_shortcut(child: impl UiNode, shortcuts: impl IntoVar<Shortcuts>) -> impl UiNode {
-    ClickShortcutNode {
-        child,
-        shortcuts: shortcuts.into_var(),
-        shortcut_listener: ShortcutEvent::never(),
     }
 }

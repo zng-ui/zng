@@ -139,7 +139,8 @@ impl ClickArgs {
     ///
     /// A primary click causes the default widget activation interaction.
     ///
-    /// Returns `true` if the click source is a left mouse button click or a shortcut.
+    /// Returns `true` if the click source is a left mouse button click or a
+    /// [primary click shortcut](Gestures::click_focused).
     #[inline]
     pub fn is_primary(&self) -> bool {
         match &self.source {
@@ -151,7 +152,7 @@ impl ClickArgs {
     /// If the event counts as a *context menu* request.
     ///
     /// Returns `true` if the [`click_count`](Self::click_count) is `1` and the
-    /// click source is a right mouse button click or the context shortcut. TODO
+    /// click source is a right mouse button click or a [context click shortcut](Gestures::context_click_focused).
     #[inline]
     pub fn is_context(&self) -> bool {
         self.click_count.get() == 1
@@ -836,8 +837,8 @@ impl Gestures {
 
     /// Schedules a click event for the next update. The click arguments will say that the
     /// click origin is the shortcut press.
-    pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, args: ShortcutArgs) {
-        self.click_shortcut.push((window_id, widget_id, ShortcutClick::Primary, args));
+    pub fn click_shortcut(&mut self, window_id: WindowId, widget_id: WidgetId, click_kind: ShortcutClick, args: ShortcutArgs) {
+        self.click_shortcut.push((window_id, widget_id, click_kind, args));
     }
 }
 

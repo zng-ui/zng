@@ -1,4 +1,4 @@
-//! Widget state properties, [`is_hovered`](fn@is_hovered), [`is_pressed`](fn@is_pressed), [`is_focused`](fn@is_focused) and more.
+//! Widget state properties, [`is_hovered`](fn@is_hovered), [`is_pressed`](fn@is_pressed) and more.
 
 use std::time::Duration;
 
