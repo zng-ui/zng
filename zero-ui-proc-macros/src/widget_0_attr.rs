@@ -499,7 +499,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             let attrs = Attributes::new(assign.attrs);
             for invalid_attr in attrs.others.into_iter().chain(attrs.inline).chain(attrs.docs) {
-                errors.push("only `cfg` and lint attributes are allowed in property assign", invalid_attr.span());
+                errors.push("only `cfg` and lint attributes are allowed in property assign", util::path_span(&invalid_attr.path));
             }
 
             if let Some(property) = assign.path.get_ident() {

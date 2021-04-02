@@ -1244,8 +1244,13 @@ impl When {
             let brace = syn::group::parse_braces(input).unwrap();
             let mut assigns = vec![];
             while !brace.content.is_empty() {
-                match brace.content.parse() {
-                    Ok(p) => assigns.push(p),
+                let attrs = parse_outer_attrs(&brace.content, errors);
+
+                match brace.content.parse::<PropertyAssign>() {
+                    Ok(mut p) => {
+                        p.attrs = attrs;
+                        assigns.push(p);
+                    }
                     Err(e) => {
                         let (recoverable, e) = e.recoverable();
                         errors.push_syn(e);
