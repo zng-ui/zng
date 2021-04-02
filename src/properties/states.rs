@@ -635,7 +635,7 @@ impl<C: UiNode> UiNode for IsVisibilityNode<C> {
         self.update_state(ctx);
     }
 }
-/// If the widget [`visibility`](super::visibility) is [`Visible`](super::Visibility::Visible).
+/// If the widget [`visibility`](fn@crate::core::widget_base::visibility) is [`Visible`](crate::core::widget_base::Visibility::Visible).
 #[property(context)]
 pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsVisibilityNode {
@@ -644,7 +644,7 @@ pub fn is_visible(child: impl UiNode, state: StateVar) -> impl UiNode {
         expected: Visibility::Visible,
     }
 }
-/// If the widget [`visibility`](super::visibility) is [`Hidden`](super::Visibility::Hidden).
+/// If the widget [`visibility`](fn@crate::core::widget_base::visibility) is [`Hidden`](crate::core::widget_base::Visibility::Hidden).
 #[property(context)]
 pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsVisibilityNode {
@@ -653,7 +653,7 @@ pub fn is_hidden(child: impl UiNode, state: StateVar) -> impl UiNode {
         expected: Visibility::Hidden,
     }
 }
-/// If the widget [`visibility`](super::visibility) is [`Collapsed`](super::Visibility::Collapsed).
+/// If the widget [`visibility`](fn@crate::core::widget_base::visibility) is [`Collapsed`](crate::core::widget_base::Visibility::Collapsed).
 #[property(context)]
 pub fn is_collapsed(child: impl UiNode, state: StateVar) -> impl UiNode {
     IsVisibilityNode {
