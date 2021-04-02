@@ -1309,8 +1309,6 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::properties::border::{border, *};
         #[doc(no_inline)]
-        pub use crate::properties::capture_only::*;
-        #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
         #[doc(no_inline)]
         pub use crate::properties::filters::*;

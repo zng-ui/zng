@@ -6,7 +6,8 @@ mod center {
 
     properties! {
         child {
-            widget_child as content = required!;
+            #[allowed_in_when = false]
+            content: impl Widget;
         }
     }
 

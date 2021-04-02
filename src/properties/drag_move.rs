@@ -4,23 +4,22 @@ use crate::core::keyboard::ModifiersState;
 use crate::core::mouse::MouseButton;
 use crate::prelude::new_property::*;
 
-struct DraggableNode<C: UiNode, E: Var<bool>> {
-    child: C,
-    enabled: E,
-}
-#[impl_ui_node(child)]
-impl<C: UiNode, E: Var<bool>> UiNode for DraggableNode<C, E> {
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-        if *self.enabled.get(ctx.vars) {
-            todo!();
-        }
-    }
-}
-
 /// Enable widget move by pressing and moving the pointer.
 #[property(outer)]
 pub fn draggable(child: impl UiNode, enabled: impl IntoVar<bool>) -> impl UiNode {
+    struct DraggableNode<C: UiNode, E: Var<bool>> {
+        child: C,
+        enabled: E,
+    }
+    #[impl_ui_node(child)]
+    impl<C: UiNode, E: Var<bool>> UiNode for DraggableNode<C, E> {
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+            if *self.enabled.get(ctx.vars) {
+                todo!();
+            }
+        }
+    }
     DraggableNode {
         child,
         enabled: enabled.into_var(),

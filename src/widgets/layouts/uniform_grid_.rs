@@ -177,14 +177,15 @@ pub mod uniform_grid {
     properties! {
         child {
             /// Widget items.
-            widget_children as items = widgets![];
+            #[allowed_in_when = false]
+            items: impl WidgetList = widgets![];
 
             /// Number of columns.
             ///
             /// Set to zero (`0`) for auto TODO.
-            len as columns = 0;
+            columns: impl IntoVar<usize> = 0;
             /// Number of rows.
-            len as rows = 0;
+            rows: impl IntoVar<usize> = 0;
             /// Number of empty cells in the first row.
             ///
             /// Value is ignored if is `>= columns`.
@@ -210,10 +211,10 @@ pub mod uniform_grid {
             /// ----|-----|----
             /// 0,1 | 1,1 | 2,1
             /// ```
-            index as first_column = 0;
+            first_column: impl IntoVar<usize> = 0;
 
             /// Space in-between items.
-            grid_spacing as spacing = 0.0;
+            spacing : impl IntoVar<GridSpacing> = 0.0;
 
             /// Margin around all items.
             margin as padding;

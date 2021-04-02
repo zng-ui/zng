@@ -8,7 +8,8 @@ pub mod container {
     properties! {
         child {
             /// Content UI.
-            widget_child as content = required!;
+            #[allowed_in_when = false]
+            content: impl UiNode = required!;
             /// Content margin.
             margin as padding;
             /// Content alignment.

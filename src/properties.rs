@@ -12,7 +12,6 @@ pub use visual::*;
 pub mod border;
 pub mod button_theme;
 mod capture_mouse_;
-pub mod capture_only;
 mod cursor_;
 pub mod drag_move;
 pub mod events;

@@ -328,77 +328,76 @@ impl From<BorderDetails> for w_api::BorderDetails {
     }
 }
 
-struct BorderNode<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> {
-    child: T,
-
-    widths: L,
-    details: B,
-    child_rect: LayoutRect,
-
-    final_widths: LayoutSideOffsets,
-    final_size: LayoutSize,
-    final_details: w_api::BorderDetails,
-
-    visible: bool,
-}
-
-#[impl_ui_node(child)]
-impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.child.init(ctx);
-
-        self.widths.init_local(ctx.vars);
-        let details = *self.details.get(ctx.vars);
-        self.final_details = details.into();
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        self.child.update(ctx);
-
-        if self.widths.update_local(ctx.vars).is_some() {
-            ctx.updates.layout()
-        }
-
-        if let Some(&details) = self.details.get_new(ctx.vars) {
-            self.final_details = details.into();
-            ctx.updates.render()
-        }
-    }
-
-    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
-
-        self.visible = self.final_widths.visible() && self.final_details.visible();
-
-        let size_inc = self.size_increment();
-        self.child.measure(available_size - size_inc, ctx) + size_inc
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
-        self.child_rect.size = final_size - self.size_increment();
-        self.final_size = final_size;
-        self.child.arrange(self.child_rect.size, ctx);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        if self.visible {
-            frame.push_border(LayoutRect::from_size(self.final_size), self.final_widths, self.final_details);
-        }
-        frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
-    }
-}
-
-impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
-    fn size_increment(&self) -> LayoutSize {
-        let rw = self.final_widths;
-        LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
-    }
-}
-
 /// Border property
 #[property(inner)]
 pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
+    struct BorderNode<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> {
+        child: T,
+
+        widths: L,
+        details: B,
+        child_rect: LayoutRect,
+
+        final_widths: LayoutSideOffsets,
+        final_size: LayoutSize,
+        final_details: w_api::BorderDetails,
+
+        visible: bool,
+    }
+
+    #[impl_ui_node(child)]
+    impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> UiNode for BorderNode<T, L, B> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.child.init(ctx);
+
+            self.widths.init_local(ctx.vars);
+            let details = *self.details.get(ctx.vars);
+            self.final_details = details.into();
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            self.child.update(ctx);
+
+            if self.widths.update_local(ctx.vars).is_some() {
+                ctx.updates.layout()
+            }
+
+            if let Some(&details) = self.details.get_new(ctx.vars) {
+                self.final_details = details.into();
+                ctx.updates.render()
+            }
+        }
+
+        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
+
+            self.visible = self.final_widths.visible() && self.final_details.visible();
+
+            let size_inc = self.size_increment();
+            self.child.measure(available_size - size_inc, ctx) + size_inc
+        }
+
+        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            self.child_rect.origin = LayoutPoint::new(self.final_widths.left, self.final_widths.top);
+            self.child_rect.size = final_size - self.size_increment();
+            self.final_size = final_size;
+            self.child.arrange(self.child_rect.size, ctx);
+        }
+
+        fn render(&self, frame: &mut FrameBuilder) {
+            if self.visible {
+                frame.push_border(LayoutRect::from_size(self.final_size), self.final_widths, self.final_details);
+            }
+            frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
+        }
+    }
+
+    impl<T: UiNode, L: VarLocal<SideOffsets>, B: Var<BorderDetails>> BorderNode<T, L, B> {
+        fn size_increment(&self) -> LayoutSize {
+            let rw = self.final_widths;
+            LayoutSize::new(rw.left + rw.right, rw.top + rw.bottom)
+        }
+    }
     BorderNode {
         child,
 

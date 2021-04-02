@@ -28,7 +28,7 @@ pub mod text {
             /// The [`Text`](crate::core::types::Text) value.
             ///
             /// Set to an empty string (`""`).
-            text_value as text = "";
+            text: impl IntoVar<Text> = "";
         }
 
         /// The text font. If not set inherits the `font_family` from the parent widget.
@@ -91,7 +91,7 @@ mod strong {
 
     properties! {
         child {
-            text_value as text;
+            text: impl IntoVar<Text>;
         }
     }
 
@@ -117,7 +117,7 @@ mod em {
 
     properties! {
         child {
-            text_value as text;
+            text: impl IntoVar<Text>;
         }
     }
 

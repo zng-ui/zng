@@ -154,9 +154,10 @@ pub mod h_stack {
     properties! {
         child {
             /// Space in-between items.
-            spacing = 0.0;
+            spacing: impl IntoVar<Length> = 0.0;
             /// Widget items.
-            widget_children as items = widgets![];
+            #[allowed_in_when = false]
+            items: impl WidgetList = widgets![];
             /// Items margin.
             margin as padding;
         }
@@ -192,9 +193,10 @@ pub mod v_stack {
     properties! {
         child {
             /// Space in-between items.
-            spacing = 0.0;
+            spacing: impl IntoVar<Length> = 0.0;
             /// Widget items.
-            widget_children as items = widgets![];
+            #[allowed_in_when = false]
+            items: impl WidgetList = widgets![];
             /// Items margin.
             margin as padding;
         }
@@ -281,7 +283,8 @@ pub mod z_stack {
     properties! {
         child {
             /// UiNode items.
-            node_children as items = nodes![];
+            #[allowed_in_when = false]
+            items: impl UiNodeList = nodes![];
             /// Items margin.
             margin as padding;
         }
