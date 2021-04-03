@@ -18,10 +18,10 @@ use crate::units::PixelGridExt;
 /// Mix-in inherited implicitly by all [widgets](widget!).
 #[widget_mixin($crate::widget_base::implicit_mixin)]
 pub mod implicit_mixin {
-    use super::{enabled, visibility, WidgetId};
+    use super::{enabled, hit_testable, visibility, WidgetId};
 
     properties! {
-        /// Widget id. Set to  a [unique id](WidgetId::new_unique()) by default.
+        /// Widget id. Set to  an [unique id](WidgetId::new_unique()) by default.
         #[allowed_in_when = false]
         id: WidgetId = WidgetId::new_unique();
     }
@@ -32,6 +32,9 @@ pub mod implicit_mixin {
 
         /// Widget visibility. `Visible` by default.
         visibility;
+
+        /// If the widget is visible during hit-testing, `true` by default.
+        hit_testable;
     }
 }
 
@@ -54,130 +57,122 @@ pub fn default_widget_new_child() -> impl UiNode {
 /// [`FrameBuilder::push_widget`](crate::render::FrameBuilder::push_widget) to define the widget.
 #[inline]
 pub fn default_widget_new(child: impl UiNode, id: WidgetId) -> impl Widget {
+    struct WidgetNode<T: UiNode> {
+        id: WidgetId,
+        transform_key: WidgetTransformKey,
+        state: LazyStateMap,
+        child: T,
+        size: LayoutSize,
+    }
+    #[impl_ui_node(child)]
+    impl<T: UiNode> UiNode for WidgetNode<T> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
+        }
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
+        }
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
+        }
+        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            let child = &mut self.child;
+            ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
+        }
+        fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            #[cfg(debug_assertions)]
+            {
+                fn valid_measure(f: f32) -> bool {
+                    f.is_finite() || crate::is_layout_any_size(f)
+                }
+
+                if !valid_measure(available_size.width) || !valid_measure(available_size.height) {
+                    error_println!(
+                        "{:?} `UiNode::measure` called with invalid `available_size: {:?}`, must be finite or `LAYOUT_ANY_SIZE`",
+                        self.id,
+                        available_size
+                    );
+                }
+            }
+
+            let child_size = self.child.measure(available_size, ctx);
+
+            #[cfg(debug_assertions)]
+            {
+                if !child_size.width.is_finite() || !child_size.height.is_finite() {
+                    error_println!("{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
+                } else if !child_size.is_aligned_to(ctx.pixel_grid()) {
+                    let snapped = child_size.snap_to(ctx.pixel_grid());
+                    error_println!(
+                        "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
+                        self.id,
+                        child_size,
+                        snapped
+                    );
+                    return snapped;
+                }
+            }
+            child_size
+        }
+        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            self.size = final_size;
+
+            #[cfg(debug_assertions)]
+            {
+                if !final_size.width.is_finite() || !final_size.height.is_finite() {
+                    error_println!(
+                        "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
+                        self.id,
+                        final_size
+                    );
+                } else if !final_size.is_aligned_to(ctx.pixel_grid()) {
+                    self.size = final_size.snap_to(ctx.pixel_grid());
+                    error_println!(
+                        "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
+                        self.id,
+                        final_size,
+                        self.size
+                    );
+                }
+            }
+
+            self.child.arrange(self.size, ctx);
+        }
+        fn render(&self, frame: &mut FrameBuilder) {
+            frame.push_widget(self.id, self.transform_key, self.size, &self.child);
+        }
+        fn render_update(&self, update: &mut FrameUpdate) {
+            update.update_widget(self.id, self.transform_key, &self.child);
+        }
+    }
+    impl<T: UiNode> Widget for WidgetNode<T> {
+        #[inline]
+        fn id(&self) -> WidgetId {
+            self.id
+        }
+        #[inline]
+        fn state(&self) -> &LazyStateMap {
+            &self.state
+        }
+        #[inline]
+        fn state_mut(&mut self) -> &mut LazyStateMap {
+            &mut self.state
+        }
+        #[inline]
+        fn size(&self) -> LayoutSize {
+            self.size
+        }
+    }
+
     WidgetNode {
         id,
         transform_key: WidgetTransformKey::new_unique(),
         state: LazyStateMap::default(),
         child,
         size: LayoutSize::zero(),
-    }
-}
-
-struct WidgetNode<T: UiNode> {
-    id: WidgetId,
-    transform_key: WidgetTransformKey,
-    state: LazyStateMap,
-    child: T,
-    size: LayoutSize,
-}
-
-#[impl_ui_node(child)]
-impl<T: UiNode> UiNode for WidgetNode<T> {
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.widget_context(self.id, &mut self.state, |ctx| child.init(ctx));
-    }
-
-    fn deinit(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.widget_context(self.id, &mut self.state, |ctx| child.deinit(ctx));
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.widget_context(self.id, &mut self.state, |ctx| child.update(ctx));
-    }
-
-    fn update_hp(&mut self, ctx: &mut WidgetContext) {
-        let child = &mut self.child;
-        ctx.widget_context(self.id, &mut self.state, |ctx| child.update_hp(ctx));
-    }
-
-    fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        #[cfg(debug_assertions)]
-        {
-            fn valid_measure(f: f32) -> bool {
-                f.is_finite() || crate::is_layout_any_size(f)
-            }
-
-            if !valid_measure(available_size.width) || !valid_measure(available_size.height) {
-                error_println!(
-                    "{:?} `UiNode::measure` called with invalid `available_size: {:?}`, must be finite or `LAYOUT_ANY_SIZE`",
-                    self.id,
-                    available_size
-                );
-            }
-        }
-
-        let child_size = self.child.measure(available_size, ctx);
-
-        #[cfg(debug_assertions)]
-        {
-            if !child_size.width.is_finite() || !child_size.height.is_finite() {
-                error_println!("{:?} `UiNode::measure` result is not finite: `{:?}`", self.id, child_size);
-            } else if !child_size.is_aligned_to(ctx.pixel_grid()) {
-                let snapped = child_size.snap_to(ctx.pixel_grid());
-                error_println!(
-                    "{:?} `UiNode::measure` result not aligned, was: `{:?}`, expected: `{:?}`",
-                    self.id,
-                    child_size,
-                    snapped
-                );
-                return snapped;
-            }
-        }
-        child_size
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        self.size = final_size;
-
-        #[cfg(debug_assertions)]
-        {
-            if !final_size.width.is_finite() || !final_size.height.is_finite() {
-                error_println!(
-                    "{:?} `UiNode::arrange` called with invalid `final_size: {:?}`, must be finite",
-                    self.id,
-                    final_size
-                );
-            } else if !final_size.is_aligned_to(ctx.pixel_grid()) {
-                self.size = final_size.snap_to(ctx.pixel_grid());
-                error_println!(
-                    "{:?} `UiNode::arrange` called with not aligned value, was: `{:?}`, expected: `{:?}`",
-                    self.id,
-                    final_size,
-                    self.size
-                );
-            }
-        }
-
-        self.child.arrange(self.size, ctx);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        frame.push_widget(self.id, self.transform_key, self.size, &self.child);
-    }
-
-    fn render_update(&self, update: &mut FrameUpdate) {
-        update.update_widget(self.id, self.transform_key, &self.child);
-    }
-}
-impl<T: UiNode> Widget for WidgetNode<T> {
-    #[inline]
-    fn id(&self) -> WidgetId {
-        self.id
-    }
-    #[inline]
-    fn state(&self) -> &LazyStateMap {
-        &self.state
-    }
-    #[inline]
-    fn state_mut(&mut self) -> &mut LazyStateMap {
-        &mut self.state
-    }
-    #[inline]
-    fn size(&self) -> LayoutSize {
-        self.size
     }
 }
 
@@ -528,5 +523,118 @@ impl VisibilityContext {
     #[inline]
     pub fn get(vars: &Vars) -> Visibility {
         *VisibilityVar::var().get(vars)
+    }
+}
+
+/// If the widget and its descendants are visible during hit-testing.
+///
+/// This property sets the hit-test visibility of the widget, to probe the state in `when` clauses
+/// use [`is_hit_testable`](fn@is_hit_testable). To probe from inside the implementation of widgets use [`IsHitTestable::get`].
+/// To probe the widget state use [`WidgetHitTestableExt`].
+///
+/// Widgets are hit-testable by default, so setting this property to `true` has the same effect as unsetting it.
+///
+/// # Events
+///
+/// Events that use hit-testing to work are effectively disabled by setting this to `false`. That includes
+/// all mouse and touch events.
+#[property(context)]
+pub fn hit_testable(child: impl UiNode, hit_testable: impl IntoVar<bool>) -> impl UiNode {
+    struct HitTestableNode<U: UiNode, H: VarLocal<bool>> {
+        child: U,
+        hit_testable: H,
+    }
+    impl<U: UiNode, H: VarLocal<bool>> HitTestableNode<U, H> {
+        fn with_context(&mut self, vars: &Vars, f: impl FnOnce(&mut U)) {
+            if IsHitTestable::get(vars) {
+                if *self.hit_testable.get(vars) {
+                    // context already hit-testable
+                    f(&mut self.child);
+                } else {
+                    // we are disabling
+                    let child = &mut self.child;
+                    vars.with_context_bind(IsHitTestableVar, &self.hit_testable, || f(child));
+                }
+            } else {
+                // context already not hit-testable
+                f(&mut self.child);
+            }
+        }
+    }
+    #[impl_ui_node(child)]
+    impl<U: UiNode, H: VarLocal<bool>> UiNode for HitTestableNode<U, H> {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            if !*self.hit_testable.init_local(ctx.vars) {
+                ctx.widget_state.set(HitTestableState, false);
+            }
+            self.with_context(ctx.vars, |c| c.init(ctx));
+        }
+
+        fn deinit(&mut self, ctx: &mut WidgetContext) {
+            self.with_context(ctx.vars, |c| c.deinit(ctx));
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if let Some(&state) = self.hit_testable.update_local(ctx.vars) {
+                ctx.widget_state.set(HitTestableState, state);
+                ctx.updates.render();
+            }
+            self.with_context(ctx.vars, |c| c.update(ctx));
+        }
+
+        fn update_hp(&mut self, ctx: &mut WidgetContext) {
+            self.with_context(ctx.vars, |c| c.update_hp(ctx));
+        }
+
+        fn render(&self, frame: &mut FrameBuilder) {
+            if !self.hit_testable.get_local() {
+                frame.push_not_hit_testable(|frame| self.child.render(frame));
+            } else {
+                self.child.render(frame);
+            }
+        }
+    }
+    HitTestableNode {
+        child,
+        hit_testable: hit_testable.into_local(),
+    }
+}
+
+context_var! {
+    struct IsHitTestableVar: bool = return &true;
+}
+
+/// Contextual [`hit_testable`](fn@hit_testable) accessor.
+pub struct IsHitTestable;
+impl IsHitTestable {
+    /// Gets the hit-testable state in the current `vars` context.
+    pub fn get(vars: &Vars) -> bool {
+        *IsHitTestableVar::var().get(vars)
+    }
+}
+
+state_key! {
+    struct HitTestableState: bool;
+}
+
+/// Extension method for accessing the [`hit_testable`](fn@hit_testable) state of widgets.
+pub trait WidgetHitTestableExt {
+    /// Gets the widget hit-test visibility.
+    ///
+    /// The implementation for [`LazyStateMap`] only get the state configured
+    /// in `self`, if a parent widget is not hit-testable that does not show here. Use [`IsHitTestable`]
+    /// to get the inherited state from inside a widget.
+    ///
+    /// The implementation for [`WidgetInfo`] gets if the widget and all ancestors are hit-test visible.
+    fn hit_testable(&self) -> bool;
+}
+impl WidgetHitTestableExt for LazyStateMap {
+    fn hit_testable(&self) -> bool {
+        self.get(HitTestableState).copied().unwrap_or(true)
+    }
+}
+impl<'a> WidgetHitTestableExt for WidgetInfo<'a> {
+    fn hit_testable(&self) -> bool {
+        self.meta().hit_testable() && self.parent().map(|p| p.hit_testable()).unwrap_or(true)
     }
 }

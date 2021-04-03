@@ -2,6 +2,8 @@
 
 use std::time::Duration;
 
+use zero_ui_core::widget_base::{IsHitTestable, WidgetHitTestableExt};
+
 use crate::core::mouse::*;
 use crate::core::sync::TimeElapsed;
 use crate::core::window::{WindowDeactivatedEvent, WindowIsActiveArgs};
@@ -482,8 +484,6 @@ pub fn is_disabled(child: impl UiNode, state: StateVar) -> impl UiNode {
 }
 
 use crate::core::widget_base::{Visibility, VisibilityContext, WidgetVisibilityExt};
-
-use super::{IsHitTestable, WidgetHitTestableExt};
 
 struct IsVisibilityNode<C: UiNode> {
     child: C,

@@ -17,11 +17,9 @@ pub mod drag_move;
 pub mod events;
 pub mod filters;
 pub mod focus;
-mod hit_testable_;
 pub mod states;
 pub mod text_theme;
 pub mod transform;
 
 pub use capture_mouse_::*;
 pub use cursor_::*;
-pub use hit_testable_::*;

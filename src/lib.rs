@@ -1106,7 +1106,7 @@ pub mod core {
     ///
     /// ## Implicit
     ///
-    /// Every widget inherits [`implicit_mixin`](mod@zero_ui::core::widget_base::implicit_mixin) after all other inherits.
+    /// Every widget inherits [`implicit_mixin`](mod@zero_ui::core::widget_base::implicit_mixin) before all other inherits.
     ///
     /// If an widget does not inherit from another widget and does not declare a initialization function the defaults,
     /// [`default_widget_new_child`](zero_ui::core::widget_base::default_widget_new_child) and
