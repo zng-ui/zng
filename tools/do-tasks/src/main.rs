@@ -203,9 +203,19 @@ fn test(mut args: Vec<&str>) {
 //        Runs the "some_example" in release mode with the "app_profiler" feature.
 fn run(mut args: Vec<&str>) {
     if take_flag(&mut args, &["-p", "--profile"]) {
-        cmd("cargo", &["run", "--release", "--features", "app_profiler", "--example"], &args);
+        take_flag(&mut args, &["--release"]);
+        let rust_flags = release_rust_flags(true);
+        let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
+        cmd_env(
+            "cargo",
+            &["run", "--release", "--features", "app_profiler", "--example"],
+            &args,
+            rust_flags,
+        );
     } else {
-        cmd("cargo", &["run", "--example"], &args);
+        let rust_flags = release_rust_flags(args.contains(&"--release"));
+        let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
+        cmd_env("cargo", &["run", "--example"], &args, rust_flags);
     }
 }
 
@@ -313,17 +323,45 @@ fn fmt(args: Vec<&str>) {
 //    build --all
 //       Compile the root workspace and ./test-crates.
 fn build(mut args: Vec<&str>) {
+    let rust_flags = release_rust_flags(args.contains(&"--release"));
+    let rust_flags = &[(rust_flags.0, rust_flags.1.as_str())];
+
     if take_flag(&mut args, &["--all"]) {
         for test_crate in top_cargo_toml("test-crates") {
-            cmd("cargo", &["build", "--manifest-path", &test_crate], &args);
+            cmd_env("cargo", &["build", "--manifest-path", &test_crate], &args, rust_flags);
         }
-        cmd("cargo", &["build"], &args);
+        cmd_env("cargo", &["build"], &args, rust_flags);
     } else {
         if let Some(example) = args.iter_mut().find(|a| **a == "-e") {
             *example = "--example";
         }
-        cmd("cargo", &["build"], &args);
+        cmd_env("cargo", &["build"], &args, rust_flags);
     }
+}
+fn release_rust_flags(is_release: bool) -> (&'static str, String) {
+    let mut rust_flags = ("", String::new());
+    if is_release {
+        // remove user name from release build, unless machine is already
+        // configured to "--remap-path-prefix"
+        let mut remap = String::new();
+        remap.push_str("--remap-path-prefix ");
+        let cargo_home = env!("CARGO_HOME");
+        let i = cargo_home.find(".cargo").unwrap();
+        remap.push_str(&cargo_home[..i - 1]);
+        remap.push_str("=~");
+        match std::env::var("RUSTFLAGS") {
+            Ok(mut flags) if !flags.contains("--remap-path-prefix") => {
+                flags.push(' ');
+                flags.push_str(&remap);
+                rust_flags = ("RUSTFLAGS", flags);
+            }
+            Err(std::env::VarError::NotPresent) => {
+                rust_flags = ("RUSTFLAGS", remap);
+            }
+            _ => {}
+        };
+    }
+    rust_flags
 }
 
 // do clean [--test-crates] [--tools] [--workspace] [<cargo-clean-args>]
