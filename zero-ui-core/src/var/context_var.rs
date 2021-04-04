@@ -149,10 +149,12 @@ impl<C: ContextVar> IntoVar<C::Type> for ContextVarProxy<C> {
     }
 }
 /// See `ContextVar::thread_local_value`.
+#[doc(hidden)]
 pub struct ContextVarValue<V: ContextVar> {
     _var: PhantomData<V>,
     value: Cell<(*const V::Type, bool, u32)>,
 }
+#[allow(missing_docs)]
 impl<V: ContextVar> ContextVarValue<V> {
     #[inline]
     pub fn init() -> Self {
@@ -168,6 +170,7 @@ impl<V: ContextVar> ContextVarValue<V> {
 pub struct ContextVarLocalKey<V: ContextVar> {
     local: &'static LocalKey<ContextVarValue<V>>,
 }
+#[allow(missing_docs)]
 impl<V: ContextVar> ContextVarLocalKey<V> {
     #[inline]
     pub fn new(local: &'static LocalKey<ContextVarValue<V>>) -> Self {

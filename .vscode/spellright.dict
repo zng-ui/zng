@@ -63,3 +63,5 @@ ffn
 rustfmt
 trybuild
 wp
+circ
+pct

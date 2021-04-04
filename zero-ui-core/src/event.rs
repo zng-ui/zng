@@ -497,6 +497,7 @@ macro_rules! event_args {
             stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
         }
         impl $Args {
+            /// New args from values that convert [into](Into) the argument types.
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {
@@ -716,6 +717,7 @@ macro_rules! cancelable_event_args {
             stop_propagation: std::rc::Rc<std::cell::Cell<bool>>,
         }
         impl $Args {
+            /// New args from values that convert [into](Into) the argument types.
             #[inline]
             #[allow(clippy::too_many_arguments)]
             pub fn new(timestamp: impl Into<std::time::Instant>, $($arg : impl Into<$arg_ty>),*) -> Self {

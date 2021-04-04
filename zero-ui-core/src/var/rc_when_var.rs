@@ -105,6 +105,7 @@ macro_rules! impl_rc_when_var {
 
             self_version: Cell<u32>,
         }
+        #[allow(missing_docs)]// this is hidden
         impl<O: VarValue, D: Var<O>, $($C: Var<bool>),+ , $($V: Var<O>),+> $RcMergeVar<O, D, $($C),+ , $($V),+> {
             pub fn new(default_value: D, conditions: ($($C,)+), values: ($($V,)+)) -> Self {
                 Self(
@@ -352,6 +353,7 @@ struct RcWhenVarData<O: VarValue> {
     self_version: Cell<u32>,
 }
 impl<O: VarValue> RcWhenVar<O> {
+    #[doc(hidden)]
     pub fn new(default_: BoxedVar<O>, whens: Box<[(BoxedVar<bool>, BoxedVar<O>)]>) -> Self {
         RcWhenVar(Rc::new(RcWhenVarData {
             default_,
@@ -371,6 +373,7 @@ impl<O: VarValue> Clone for RcWhenVar<O> {
     }
 }
 impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
+    /// Gets the the first variable with `true` condition or the default variable.
     fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
@@ -380,6 +383,13 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         self.0.default_.get(vars)
     }
 
+    /// Gets the first variable with `true` condition if that condition or previous conditions are new.
+    ///
+    /// Gets the first variable with `true` condition if that variable value is new.
+    ///
+    /// Gets the default variable if any of the conditions are new and all are `false`.
+    ///
+    /// Gets the default variable if all conditions are `false` and the default variable value is new.
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a O> {
         let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
@@ -401,6 +411,9 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         }
     }
 
+    /// Gets if [`get_new`](Self::get_new) will return `Some(_)` if called.
+    ///
+    /// This is slightly more performant than `when_var.get_new(vars).is_some()`.
     fn is_new(&self, vars: &Vars) -> bool {
         let mut condition_is_new = false;
         for (c, v) in self.0.whens.iter() {
@@ -412,6 +425,9 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         condition_is_new || self.0.default_.is_new(vars)
     }
 
+    /// Gets the version.
+    ///
+    /// The version is new when any of the condition and value variables version is new.
     fn version(&self, vars: &Vars) -> u32 {
         let mut changed = false;
 
@@ -441,6 +457,7 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         self.0.self_version.get()
     }
 
+    /// If the [current value variable](Self::get) is read-only.
     fn is_read_only(&self, vars: &Vars) -> bool {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
@@ -450,14 +467,17 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         self.0.default_.is_read_only(vars)
     }
 
+    /// If all value variables (including default) are always read-only.
     fn always_read_only(&self) -> bool {
-        self.0.whens.iter().all(|(_, v)| v.always_read_only())
+        self.0.whens.iter().all(|(_, v)| v.always_read_only()) && self.0.default_.always_read_only()
     }
 
+    /// Always `true`.
     fn can_update(&self) -> bool {
         true
     }
 
+    /// Sets the [current value variable](Self::get).
     fn set(&self, vars: &Vars, new_value: O) -> Result<(), VarIsReadOnly> {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
@@ -467,6 +487,7 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
         self.0.default_.set(vars, new_value)
     }
 
+    /// Modify the [current value variable](Self::get).
     fn modify_boxed(&self, vars: &Vars, change: Box<dyn FnOnce(&mut O)>) -> Result<(), VarIsReadOnly> {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
@@ -554,6 +575,7 @@ pub struct WhenVarBuilderDyn<O: VarValue> {
     default_: BoxedVar<O>,
     whens: Vec<(BoxedVar<bool>, BoxedVar<O>)>,
 }
+#[allow(missing_docs)] // this is hidden
 impl<O: VarValue> WhenVarBuilderDyn<O> {
     pub fn new<D: IntoVar<O>>(default_: D) -> Self {
         Self {
@@ -578,6 +600,7 @@ pub struct WhenVarBuilder<O: VarValue, D: Var<O>> {
     _v: PhantomData<O>,
     default_value: D,
 }
+#[allow(missing_docs)] // this is hidden
 impl<O: VarValue, D: Var<O>> WhenVarBuilder<O, D> {
     /// Start the builder with the last item, it is the only *condition* that cannot be excluded by #[cfg(..)].
     pub fn new<ID: IntoVar<O, Var = D>>(default_value: ID) -> Self {
@@ -637,6 +660,7 @@ macro_rules! impl_when_var_builder {
             condition: ($($C,)*),
             value: ($($V,)*),
         }
+        #[allow(missing_docs)] // this is hidden
         impl<
             O: VarValue,
             D: Var<O>,

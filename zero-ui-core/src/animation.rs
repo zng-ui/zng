@@ -125,54 +125,64 @@ pub mod easing {
         EasingStep(time.get())
     }
 
-    /// Quadratic transition.
+    /// Quadratic transition (t²).
     #[inline]
     pub fn quad(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(t * t)
     }
 
+    /// Cubic transition (t³).
     #[inline]
     pub fn cubic(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(t * t * t)
     }
 
+    /// Fourth power transition (t⁴).
     #[inline]
     pub fn quart(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(t * t * t * t)
     }
 
+    /// Fifth power transition (t⁵).
     #[inline]
     pub fn quint(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(t * t * t * t * t)
     }
 
+    /// Sine transition. Slow start, fast end.
     #[inline]
     pub fn sine(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(1.0 - (t * FRAC_PI_2 * (1.0 - t)).sin())
     }
 
+    /// Exponential transition. Very slow start, very fast end.
     #[inline]
     pub fn expo(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep((10.0 * (t - 1.0)).powf(2.0))
     }
 
+    /// Cubic transition with slightly slowed start then [`cubic`].
     #[inline]
     pub fn circ(time: EasingTime) -> EasingStep {
         EasingStep(1.0 - (1.0 - time.get()).sqrt())
     }
 
+    /// Cubic transition that goes slightly negative to start and ends very fast.
+    ///
+    /// Like it backs-up and the shoots out.
     #[inline]
     pub fn back(time: EasingTime) -> EasingStep {
         let t = time.get();
         EasingStep(t * t * (2.70158 * t - 1.70158))
     }
 
+    /// Oscillating transition that grows in magnitude, goes negative twice.
     #[inline]
     pub fn elastic(time: EasingTime) -> EasingStep {
         let t = time.get();
@@ -180,6 +190,8 @@ pub mod easing {
         EasingStep(t2 * t2 * (t * PI * 4.5).sin())
     }
 
+    /// Oscillating transition that grows in magnitude, does not goes negative, when the curve
+    /// is about to to go negative sharply transitions to a new arc of larger magnitude.
     #[inline]
     pub fn bounce(time: EasingTime) -> EasingStep {
         let t = time.get();
@@ -197,7 +209,7 @@ pub mod easing {
         EasingStep(Bezier::new(x1, y1, x2, y2).solve(t, 0.00001) as f32)
     }
 
-    /// Always `1.0`.
+    /// Always `1.0`, that is, the completed transition.
     #[inline]
     pub fn none(_: EasingTime) -> EasingStep {
         EasingStep(1.0)
@@ -245,48 +257,69 @@ pub fn ease_in_out_fn<'s>(ease_fn: impl Fn(EasingTime) -> EasingStep + 's) -> im
     move |t| ease_in_out(|t| ease_fn(t), t)
 }
 
-/// Common easing functions as an enum.
-#[derive(Debug, Clone, Copy)]
+/// Common [easing functions](easing) as an enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EasingFn {
+    /// [`linear`](easing::linear).
     Linear,
+    /// [`sine`](easing::sine).
     Sine,
+    /// [`quad`](easing::quad).
     Quad,
+    /// [`cubic`](easing::cubic).
     Cubic,
+    /// [`quart`](easing::quart).
     Quart,
+    /// [`quint`](easing::quint).
     Quint,
+    /// [`expo`](easing::expo).
     Expo,
+    /// [`circ`](easing::circ).
     Circ,
+    /// [`back`](easing::back).
     Back,
+    /// [`elastic`](easing::elastic).
     Elastic,
+    /// [`bounce`](easing::bounce).
     Bounce,
 }
-
 impl EasingFn {
+    /// Calls the easing function that `self` matches too.
     #[inline]
     pub fn ease_in(self, time: EasingTime) -> EasingStep {
-        match self {
-            EasingFn::Linear => easing::linear(time),
-            EasingFn::Sine => easing::sine(time),
-            EasingFn::Quad => easing::quad(time),
-            EasingFn::Cubic => easing::cubic(time),
-            EasingFn::Quart => easing::quad(time),
-            EasingFn::Quint => easing::quint(time),
-            EasingFn::Expo => easing::expo(time),
-            EasingFn::Circ => easing::circ(time),
-            EasingFn::Back => easing::back(time),
-            EasingFn::Elastic => easing::elastic(time),
-            EasingFn::Bounce => easing::bounce(time),
-        }
+        (self.ease_fn())(time)
     }
 
+    /// Calls the easing function that `self` matches too and inverts the value using
+    /// [`ease_out`](ease_out).
     #[inline]
     pub fn ease_out(self, time: EasingTime) -> EasingStep {
         ease_out(|t| self.ease_in(t), time)
     }
 
+    /// Calls the easing function that `self` matches too and transforms the value using
+    /// [`ease_in_out`](ease_in_out).
     #[inline]
     pub fn ease_in_out(self, time: EasingTime) -> EasingStep {
         ease_in_out(|t| self.ease_in(t), time)
+    }
+
+    /// Gets the [`easing`] function that `self` matches too.
+    #[inline]
+    pub fn ease_fn(self) -> fn(EasingTime) -> EasingStep {
+        match self {
+            EasingFn::Linear => easing::linear,
+            EasingFn::Sine => easing::sine,
+            EasingFn::Quad => easing::quad,
+            EasingFn::Cubic => easing::cubic,
+            EasingFn::Quart => easing::quad,
+            EasingFn::Quint => easing::quint,
+            EasingFn::Expo => easing::expo,
+            EasingFn::Circ => easing::circ,
+            EasingFn::Back => easing::back,
+            EasingFn::Elastic => easing::elastic,
+            EasingFn::Bounce => easing::bounce,
+        }
     }
 }
 
@@ -308,6 +341,7 @@ pub struct Transition<T: TransitionValue, E: Fn(EasingTime) -> EasingStep> {
 }
 
 impl<T: TransitionValue, E: Fn(EasingTime) -> EasingStep> Transition<T, E> {
+    /// Transition `from` value, `to` value, with a custom `easing` function.
     pub fn new(from: T, to: T, easing: E) -> Self {
         Self {
             plus: to - from.clone(),
@@ -316,6 +350,7 @@ impl<T: TransitionValue, E: Fn(EasingTime) -> EasingStep> Transition<T, E> {
         }
     }
 
+    /// Calculates the transition at the `time` offset.
     pub fn step(&self, time: EasingTime) -> T {
         self.from.clone() + self.plus.clone() * (self.easing)(time)
     }

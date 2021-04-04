@@ -1122,6 +1122,7 @@ impl FontFeatureExclusiveSetState for NumFraction {
 /// converts into this one for each font you wish to use.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[repr(u8)]
+#[allow(missing_docs)]
 pub enum FontStyleSet {
     /// Don't use alternative style set.
     Auto = 0,

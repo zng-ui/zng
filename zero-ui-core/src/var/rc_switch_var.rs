@@ -103,12 +103,14 @@ macro_rules! impl_rc_switch_var {
             self_version: Cell<u32>,
         }
 
+        #[allow(missing_docs)] // this is hidden
         impl<O: VarValue, $($V: Var<O>,)+ VI: Var<usize>> $RcSwitchVar<O, $($V,)+ VI> {
             pub fn new<$($IV: IntoVar<O, Var=$V>),+>(index: VI, vars: ($($IV),+)) -> Self {
                 Self::from_vars(index, ($(vars.$n.into_var()),+))
             }
         }
 
+        #[allow(missing_docs)] // this is hidden
         impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>> $RcSwitchVar<O, $($V,)+ VI> {
             pub fn from_vars(index: VI, vars: ($($V),+)) -> Self {
                 Self(Rc::new($RcSwitchVarData {
@@ -307,6 +309,7 @@ struct RcSwitchVarData<O: VarValue, VI: VarObj<usize>> {
     self_version: Cell<u32>,
 }
 impl<O: VarValue, VI: VarObj<usize>> RcSwitchVar<O, VI> {
+    #[doc(hidden)]
     pub fn from_vars(index: VI, vars: Box<[BoxedVar<O>]>) -> Self {
         assert!(vars.len() >= 2);
         Self(Rc::new(RcSwitchVarData {
@@ -508,6 +511,7 @@ pub struct RcSwitchVarBuilder<O: VarValue, VI: Var<usize>> {
     index: VI,
     vars: Vec<BoxedVar<O>>,
 }
+#[allow(missing_docs)] // this is all hidden
 impl<O: VarValue, VI: Var<usize>> RcSwitchVarBuilder<O, VI> {
     pub fn new(index: VI) -> Self {
         RcSwitchVarBuilder { index, vars: vec![] }

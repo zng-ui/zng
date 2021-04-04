@@ -39,6 +39,7 @@ pub struct SegmentedText {
     segs: Vec<TextSegment>,
 }
 impl SegmentedText {
+    /// New segmented text from any text type.
     pub fn new(text: impl Into<Text>) -> Self {
         Self::new_text(text.into())
     }

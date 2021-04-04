@@ -1,4 +1,4 @@
-//! Color types.
+//! Color types, functions and macros, [`Rgba`], [`Filter`], [`hex!`](crate::color::hex), [`opacity`] and more.
 
 use crate::{context::LayoutContext, render::FrameBinding, units::*};
 use std::fmt;
@@ -48,13 +48,13 @@ pub type RenderColor = webrender::api::ColorF;
 /// RGB + alpha.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rgba {
-    /// [0.0..1.0]
+    /// Red channel value, in the `[0.0..=1.0]` range.
     pub red: f32,
-    /// [0.0..1.0]
+    /// Green channel value, in the `[0.0..=1.0]` range.
     pub green: f32,
-    /// [0.0..1.0]
+    /// Blue channel value, in the `[0.0..=1.0]` range.
     pub blue: f32,
-    /// [0.0..1.0]
+    /// Alpha channel value, in the `[0.0..=1.0]` range.
     pub alpha: f32,
 }
 impl Rgba {
@@ -63,34 +63,48 @@ impl Rgba {
         Self { red, green, blue, alpha }
     }
 
+    /// Set the [`red`](Rgba::red) component from any type that converts to [`RgbaComponent`].
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_red<R: Into<RgbaComponent>>(&mut self, red: R) {
         self.red = clamp_normal(red.into().0)
     }
 
+    // Set the [`green`](Rgba::green) component from any type that converts to [`RgbaComponent`].
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_green<G: Into<RgbaComponent>>(&mut self, green: G) {
         self.green = clamp_normal(green.into().0)
     }
 
+    // Set the [`blue`](Rgba::blue) component from any type that converts to [`RgbaComponent`].
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_blue<B: Into<RgbaComponent>>(&mut self, blue: B) {
         self.blue = clamp_normal(blue.into().0)
     }
 
+    // Set the [`alpha`](Rgba::alpha) component from any type that converts to [`RgbaComponent`].
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<RgbaComponent>>(&mut self, alpha: A) {
         self.alpha = clamp_normal(alpha.into().0)
     }
 
-    /// Returns a copy of the color with the alpha set to 0.
+    /// Returns a copy of the color with the alpha set to `0`.
     #[inline]
     pub fn transparent(mut self) -> Self {
         self.alpha = 0.0;
         self
     }
 
+    /// Convert a copy of the color to [`Hsla`].
     #[inline]
     pub fn to_hsla(self) -> Hsla {
         self.into()
     }
 
+    /// Convert a copy of the color to [`Hsva`].
     #[inline]
     pub fn to_hsva(self) -> Hsva {
         self.into()
@@ -113,49 +127,80 @@ impl fmt::Display for Rgba {
 /// HSL + alpha.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Hsla {
-    /// [0.0..=360.0]
+    /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
-    /// [0.0..1.0]
+    /// Saturation amount in the `[0.0..=1.0]` range, zero is gray, one is full color.
     pub saturation: f32,
-    /// [0.0..1.0]
+    /// Lightness amount in the `[0.0..=1.0]` range, zero is black, one is white.
     pub lightness: f32,
-    /// [0.0..1.0]
+    /// Alpha channel in the `[0.0..=1.0]` range, zero is invisible, one is opaque.
     pub alpha: f32,
 }
 impl Hsla {
-    pub fn lighten<A: Into<FactorNormal>>(self, ammount: A) -> Self {
+    /// Adds the `amount` to the [`lightness`](Self::lightness).
+    ///
+    /// The `lightness` is clamped to the `[0.0..=1.0]` range.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zero_ui_core::color::*;
+    /// # use zero_ui_core::units::*;
+    /// colors::DARK_RED.to_hsla().lighten(10.pct()).to_rgba()
+    /// # ;
+    /// ```
+    ///
+    /// Adds `10%` more light to the `DARK_RED` color.
+    pub fn lighten<A: Into<FactorNormal>>(self, amount: A) -> Self {
         let mut lighter = self;
-        lighter.lightness = clamp_normal(lighter.lightness + ammount.into().0);
+        lighter.lightness = clamp_normal(lighter.lightness + amount.into().0);
         lighter
     }
 
-    pub fn darken<A: Into<FactorNormal>>(self, ammount: A) -> Self {
+    /// Subtracts the `amount` from the [`lightness`](Self::lightness).
+    ///
+    /// The `lightness` is clamped to the `[0.0..=1.0]` range.
+    pub fn darken<A: Into<FactorNormal>>(self, amount: A) -> Self {
         let mut darker = self;
-        darker.lightness = clamp_normal(darker.lightness - ammount.into().0);
+        darker.lightness = clamp_normal(darker.lightness - amount.into().0);
         darker
     }
 
+    /// Sets the [`hue`](Self::hue) color angle.
+    ///
+    /// The value is normalized to be in the `[0.0..=360.0]` range, that is `362.deg()` becomes `2.0`.
     pub fn set_hue<H: Into<AngleDegree>>(&mut self, hue: H) {
         self.hue = hue.into().modulo().0
     }
 
+    /// Sets the [`lightness`](Self::lightness) value.
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_lightness<L: Into<FactorNormal>>(&mut self, lightness: L) {
         self.lightness = lightness.into().clamp_range().0;
     }
 
+    /// Sets the [`saturation`](Self::saturation) value.
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
         self.saturation = saturation.into().clamp_range().0;
     }
 
+    /// Sets the [`alpha`](Self::alpha) value.
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
         self.alpha = alpha.into().clamp_range().0
     }
 
+    /// Converts a copy of this color to [`Rgba`].
     #[inline]
     pub fn to_rgba(self) -> Rgba {
         self.into()
     }
 
+    /// Converts a copy of this color to [`Hsva`].
     #[inline]
     pub fn to_hsva(self) -> Hsva {
         self.into()
@@ -179,44 +224,56 @@ impl fmt::Display for Hsla {
 /// HSV + alpha
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Hsva {
-    /// [0.0..=360.0]
+    /// Hue color angle in the `[0.0..=360.0]` range.
     pub hue: f32,
-    /// [0.0..1.0]
+    /// Saturation amount in the `[0.0..=1.0]` range, zero is gray, one is full color.
     pub saturation: f32,
-    /// [0.0..1.0]
+    /// Brightness amount in the `[0.0..=1.0]` range, zero is black, one is white.
     pub value: f32,
-    /// [0.0..1.0]
+    /// Alpha channel in the `[0.0..=1.0]` range, zero is invisible, one is opaque.
     pub alpha: f32,
 }
-
 impl Hsva {
+    /// Sets the [`hue`](Self::hue) color angle.
+    ///
+    /// The value is normalized to be in the `[0.0..=360.0]` range, that is `362.deg()` becomes `2.0`.
     pub fn set_hue<H: Into<AngleDegree>>(&mut self, hue: H) {
         self.hue = hue.into().modulo().0
     }
 
+    /// Sets the [`value`](Self::value).
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_value<L: Into<FactorNormal>>(&mut self, value: L) {
         self.value = value.into().clamp_range().0;
     }
 
+    /// Sets the [`saturation`](Self::saturation) value.
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_saturation<L: Into<FactorNormal>>(&mut self, saturation: L) {
         self.saturation = saturation.into().clamp_range().0;
     }
 
+    /// Sets the [`alpha`](Self::alpha) value.
+    ///
+    /// The value is clamped to the `[0.0..=1.0]` range.
     pub fn set_alpha<A: Into<FactorNormal>>(&mut self, alpha: A) {
         self.alpha = alpha.into().clamp_range().0
     }
 
+    /// Converts a copy of this color to [`Rgba`].
     #[inline]
     pub fn to_rgba(self) -> Rgba {
         self.into()
     }
 
+    /// Converts a copy of this color to [`Hsla`].
     #[inline]
     pub fn to_hsla(self) -> Hsla {
         self.into()
     }
 }
-
 impl fmt::Display for Hsva {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fn p(n: f32) -> f32 {
@@ -527,10 +584,47 @@ pub fn hsla<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(
     }
 }
 
+/// HSV color, opaque, alpha is set to `1.0`.
+///
+/// # Arguments
+///
+/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// range or a [percentage](FactorPercent).
+///
+/// The `saturation` and `value` arguments must be of the same type.
+///
+/// # Example
+///
+/// ```
+/// use zero_ui_core::color::hsv;
+/// use zero_ui_core::units::*;
+///
+/// let red = hsv(0.deg(), 100.pct(), 50.pct());
+/// let green = hsv(115.deg(), 1.0, 0.5);
+/// ```
 pub fn hsv<H: Into<AngleDegree>, N: Into<FactorNormal>>(hue: H, saturation: N, value: N) -> Hsva {
     hsva(hue, saturation, value, 1.0)
 }
 
+/// HSVA color.
+///
+/// # Arguments
+///
+/// The first argument `hue` can be any [angle unit](AngleUnits). The other two arguments can be [`f32`] in the `0.0..=1.0`
+/// range or a [percentage](FactorPercent).
+///
+/// The `saturation` and `value` arguments must be of the same type.
+///
+/// # Example
+///
+/// ```
+/// use zero_ui_core::color::hsva;
+/// use zero_ui_core::units::*;
+///
+/// let red = hsva(0.deg(), 100.pct(), 50.pct(), 1.0);
+/// let green = hsva(115.deg(), 1.0, 0.5, 100.pct());
+/// let transparent = hsva(0.deg(), 1.0, 0.5, 0.0);
+/// ```
 pub fn hsva<H: Into<AngleDegree>, N: Into<FactorNormal>, A: Into<FactorNormal>>(hue: H, saturation: N, value: N, alpha: A) -> Hsva {
     Hsva {
         hue: hue.into().0,
@@ -586,24 +680,65 @@ mod tests {
     // }
 }
 
-/// [`rgb`](rgb()) and [`rgba`] argument conversion helper.
-pub struct RgbaComponent(pub f32);
+/// Color functions argument conversion helper.
+///
+/// Don't use this value directly, if a function takes `Into<RgbaComponent>` you can use one of the
+/// types this converts from:
+///
+/// * [`f32`], [`f64`] and [`FactorNormal`] for a value in the `0.0` to `1.0` range.
+/// * [`u8`] for a value in the `0` to `255` range.
+/// * [`FactorPercent`] for a percentage value.
+#[derive(Clone, Copy)]
+pub struct RgbaComponent(f32);
+/// Color channel value is in the [0..=1] range.
 impl From<f32> for RgbaComponent {
     fn from(f: f32) -> Self {
         RgbaComponent(f)
     }
 }
+/// Color channel value is in the [0..=1] range.
+impl From<f64> for RgbaComponent {
+    fn from(f: f64) -> Self {
+        RgbaComponent(f as f32)
+    }
+}
+/// Color channel value is in the [0..=255] range.
 impl From<u8> for RgbaComponent {
     fn from(u: u8) -> Self {
         RgbaComponent(f32::from(u) / 255.)
     }
 }
+/// Color channel value is in the [0..=100] range.
 impl From<FactorPercent> for RgbaComponent {
     fn from(p: FactorPercent) -> Self {
         RgbaComponent(p.0 / 100.)
     }
 }
+/// Color channel value is in the [0..=1] range.
+impl From<FactorNormal> for RgbaComponent {
+    fn from(f: FactorNormal) -> Self {
+        RgbaComponent(f.0)
+    }
+}
 
+/// A color filter or combination of filters.
+///
+/// You can start a filter from one of the standalone filter functions, and then combine more filters using
+/// the builder call style.
+///
+/// The standalone filter functions are all in the [`color`](crate::color) module and have the same name
+/// as methods of this type.
+///
+/// # Example
+///
+/// ```
+/// use zero_ui_core::color::opacity;
+/// use zero_ui_core::units::*;
+///
+/// let filter = opacity(50.pct()).blur(3);
+/// ```
+///
+/// The example above creates a filter that lowers the opacity to `50%` and blurs by `3px`.
 #[derive(Clone, Default, Debug)]
 pub struct Filter {
     filters: Vec<FilterData>,
@@ -614,6 +749,12 @@ impl Filter {
         self
     }
 
+    /// Compute a [`RenderFilter`].
+    ///
+    /// Most filters convert one-to-one, effects that have a [`Length`] value use the `available_size`
+    /// and layout context to calculate relative values.
+    ///
+    /// Relative blur radius lengths are calculated using the `available_size.width` value.
     pub fn to_render(&self, available_size: LayoutSize, ctx: &LayoutContext) -> RenderFilter {
         self.filters
             .iter()
@@ -633,28 +774,36 @@ impl Filter {
             .collect()
     }
 
+    /// Add an opacity adjustment to the filter, zero is fully transparent, one is the input transparency.
     pub fn opacity<A: Into<FactorNormal>>(self, alpha: A) -> Self {
         let alpha_value = alpha.into().0;
         self.op(FilterOp::Opacity(FrameBinding::Value(alpha_value), alpha_value))
     }
 
+    /// Add a color inversion filter, zero does not invert, one fully inverts.
     pub fn invert<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Invert(amount.into().0))
     }
 
+    /// Add a blue effect to the filter, the blue `radius` is defined by a [`Length`].
+    ///
+    /// Relative lengths are calculated by the width of the available space.
     pub fn blur<R: Into<Length>>(mut self, radius: R) -> Self {
         self.filters.push(FilterData::Blur(radius.into()));
         self
     }
 
+    /// Add a sepia color effect to the filter, zero is the input color, one is the full desaturated brown look.
     pub fn sepia<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Sepia(amount.into().0))
     }
 
+    /// Add a grayscale color effect to the filter, zero is the input color, one if the full grayscale.
     pub fn grayscale<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Grayscale(amount.into().0))
     }
 
+    /// Add a drop-shadow to the effect.
     pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(mut self, offset: O, blur_radius: R, color: C) -> Self {
         self.filters.push(FilterData::DropShadow {
             offset: offset.into(),
@@ -664,22 +813,28 @@ impl Filter {
         self
     }
 
+    /// Add a brightness adjustment to the filter, zero removes all brightness, one is the input brightness.
     pub fn brightness<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Brightness(amount.into().0))
     }
 
+    /// Add a contrast adjustment to the filter, zero removes all contrast, one is the input contrast.
     pub fn contrast<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Contrast(amount.into().0))
     }
 
+    /// Add a saturation adjustment to the filter, zero fully desaturates, one is the input saturation.
     pub fn saturate<A: Into<FactorNormal>>(self, amount: A) -> Self {
         self.op(FilterOp::Saturate(amount.into().0))
     }
 
+    /// Add a filter that adds the `angle` to each color [`hue`](Hsla::hue) value.
     pub fn hue_rotate<A: Into<AngleDegree>>(self, angle: A) -> Self {
         self.op(FilterOp::HueRotate(angle.into().0))
     }
 }
+
+/// A computed [`Filter`], ready for Webrender.
 pub type RenderFilter = Vec<FilterOp>;
 
 #[derive(Clone, Debug)]
@@ -689,33 +844,43 @@ enum FilterData {
     DropShadow { offset: Point, blur_radius: Length, color: Rgba },
 }
 
+/// New [`Filter::opacity`].
 pub fn opacity<A: Into<FactorNormal>>(alpha: A) -> Filter {
     Filter::default().opacity(alpha)
 }
+/// New [`Filter::invert`].
 pub fn invert<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().invert(amount)
 }
+/// New [`Filter::blur`].
 pub fn blur<R: Into<Length>>(radius: R) -> Filter {
     Filter::default().blur(radius)
 }
+/// New [`Filter::sepia`].
 pub fn sepia<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().sepia(amount)
 }
+/// New [`Filter::grayscale`].
 pub fn grayscale<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().grayscale(amount)
 }
+/// New [`Filter::drop_shadow`].
 pub fn drop_shadow<O: Into<Point>, R: Into<Length>, C: Into<Rgba>>(offset: O, blur_radius: R, color: C) -> Filter {
     Filter::default().drop_shadow(offset, blur_radius, color)
 }
+/// New [`Filter::brightness`].
 pub fn brightness<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().brightness(amount)
 }
+/// New [`Filter::contrast`].
 pub fn contrast<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().contrast(amount)
 }
+/// New [`Filter::saturate`].
 pub fn saturate<A: Into<FactorNormal>>(amount: A) -> Filter {
     Filter::default().saturate(amount)
 }
+/// New [`Filter::hue_rotate`].
 pub fn hue_rotate<A: Into<AngleDegree>>(angle: A) -> Filter {
     Filter::default().hue_rotate(angle)
 }

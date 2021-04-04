@@ -1,5 +1,9 @@
 use super::*;
 
+/// A bidirectional referencing mapping variable.
+///
+/// The variable is read-write, the value is
+/// referenced from the value of another variable.
 pub struct MapBidiRefVar<I, O, V, F, G>
 where
     I: VarValue,
@@ -38,7 +42,7 @@ where
     F: Fn(&I) -> &O + Clone + 'static,
     G: Fn(&mut I) -> &mut O + Clone + 'static,
 {
-    pub fn new(var: V, map: F, map_mut: G) -> Self {
+    pub(super) fn new(var: V, map: F, map_mut: G) -> Self {
         Self {
             _p: PhantomData,
             var,

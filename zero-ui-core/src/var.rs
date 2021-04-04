@@ -75,7 +75,7 @@ pub trait ContextVar: Clone + Copy + 'static {
     /// Use [`context_var!`] to implement context vars.
     ///
     /// If that is not possible copy the `thread_local` implementation generated
-    // by the macro as close as possible.
+    /// by the macro as close as possible.
     #[doc(hidden)]
     fn thread_local_value() -> ContextVarLocalKey<Self>;
 }

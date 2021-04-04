@@ -1,7 +1,7 @@
 use super::{
     font_features::HFontFeatures, Font, FontList, FontMetrics, GlyphInstance, Script, SegmentedText, TextSegment, TextSegmentKind,
 };
-use crate::units::{LayoutPoint, LayoutSize};
+use crate::units::{FactorNormal, FactorPercent, LayoutPoint, LayoutSize};
 
 /// Extra configuration for [`shape_text`](Font::shape_text).
 #[derive(Debug, Clone)]
@@ -36,7 +36,8 @@ pub struct TextShapingArgs {
 
     /// Extra space before the start of the first line.
     pub text_indent: f32,
-    // Finalized font features.
+
+    /// Finalized font features.
     pub font_features: HFontFeatures,
 }
 impl Default for TextShapingArgs {
@@ -63,6 +64,7 @@ impl TextShapingArgs {
         self.line_height.unwrap_or_else(|| metrics.line_height())
     }
 
+    /// Gets the custom tab advance.
     #[inline]
     pub fn tab_size(&self, space_advance: f32) -> f32 {
         match self.tab_size {
@@ -72,9 +74,15 @@ impl TextShapingArgs {
     }
 }
 
+/// Unit of a text shaping size like [`tab_size`](TextShapingArgs::tab_size).
 #[derive(Debug, Clone)]
 pub enum TextShapingUnit {
+    /// The exact size in layout pixels.
     Exact(f32),
+    /// A multiplicator for the base size.
+    ///
+    /// For `tab_size` the base size is the `space` advance, so setting
+    /// it to `Relative(3.0)` gives the tab a size of three spaces.
     Relative(f32),
 }
 impl Default for TextShapingUnit {
@@ -82,7 +90,24 @@ impl Default for TextShapingUnit {
         TextShapingUnit::Exact(0.0)
     }
 }
+/// Initializes the factor as a [`Relative`](TextShapingUnit::Relative) value.
+impl From<FactorNormal> for TextShapingUnit {
+    fn from(f: FactorNormal) -> Self {
+        TextShapingUnit::Relative(f.0)
+    }
+}
+/// Initializes the factor as a [`Relative`](TextShapingUnit::Relative) value, dividing by `100`.
+impl From<FactorPercent> for TextShapingUnit {
+    fn from(p: FactorPercent) -> Self {
+        TextShapingUnit::Relative(p.0 / 100.0)
+    }
+}
 
+/// Output of [text layout](Font::shape_text).
+
+/// Contains a sequence of glyphs positioned in straight [segments](Text Segment).
+/// This means that further text wrapping layout can be calculated from this `ShapedText`
+/// without needing font information.
 #[derive(Clone, Debug, Default)]
 pub struct ShapedText {
     glyphs: Vec<GlyphInstance>,
@@ -125,6 +150,7 @@ impl Font {
         buffer
     }
 
+    /// Calculates a [`ShapedText`].
     // see https://raphlinus.github.io/text/2020/10/26/text-layout.html
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         let mut out = ShapedText::default();
@@ -200,6 +226,7 @@ impl Font {
         out
     }
 
+    /// Gets vector paths that outline the shaped text.
     pub fn glyph_outline(&self, _text: &ShapedText) {
         todo!("Implement this after full text shaping")
         // https://docs.rs/font-kit/0.10.0/font_kit/loaders/freetype/struct.Font.html#method.outline
@@ -209,6 +236,7 @@ impl Font {
 }
 
 impl FontList {
+    /// Calculates a [`ShapedText`] using the [best](FontList::best) font in this list.
     pub fn shape_text(&self, text: &SegmentedText, config: &TextShapingArgs) -> ShapedText {
         // TODO inspect result of best for unknown glyphs, try unknown segments in fallback fonts.
         self.best().shape_text(text, config)

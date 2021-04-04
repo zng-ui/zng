@@ -17,7 +17,7 @@ where
     V: Var<I>,
     F: Fn(&I) -> &O + Clone + 'static,
 {
-    pub fn new(var: V, f: F) -> Self {
+    pub(super) fn new(var: V, f: F) -> Self {
         MapRefVar { _p: PhantomData, var, f }
     }
 }

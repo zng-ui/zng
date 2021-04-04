@@ -92,6 +92,7 @@ macro_rules! impl_rc_merge_var {
             last_update_id: Cell<Option<u32>>,
         }
 
+        #[allow(missing_docs)]// this is all hidden.
         impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static> $RcMergeVar<$($I,)+ O, $($V,)+ F> {
             pub fn new(vars: ($($V),+), f: F) -> Self {
                 Self(Rc::new($RcMergeVarData {

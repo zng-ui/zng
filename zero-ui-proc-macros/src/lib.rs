@@ -1,6 +1,7 @@
 //! [`zero-ui`](../zero_ui_proc_macros/index.html) proc-macros.
 
-extern crate proc_macro;
+#![warn(unused_extern_crates)]
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate quote;

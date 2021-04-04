@@ -10,7 +10,7 @@ use super::*;
 ///
 /// # New and Share
 ///
-/// Use [`var`] or [`RcVar::new`] to create a new variable, use [`RcVar::clone`] to create another reference
+/// Use [`var`] to create a new variable, use `RcVar::clone` to create another reference
 /// to the same variable.
 ///
 /// Use the [`Sync`](crate::sync::Sync) variable methods to access the variable from other threads.
@@ -22,7 +22,7 @@ struct RcVarData<T> {
 }
 impl<T: VarValue> protected::Var for RcVar<T> {}
 impl<T: VarValue> RcVar<T> {
-    pub fn new(value: T) -> Self {
+    pub(super) fn new(value: T) -> Self {
         RcVar(Rc::new(RcVarData {
             data: UnsafeCell::new(value),
             last_updated: Cell::new(0),

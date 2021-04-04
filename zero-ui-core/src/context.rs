@@ -206,6 +206,12 @@ pub struct StateMap {
     map: AnyMap,
 }
 impl StateMap {
+    /// Set the `key` `value`.
+    ///
+    /// # Key
+    ///
+    /// Use [`state_key!`](crate::context::state_key) to generate a key, it is expected to be a unit type
+    /// we take a key value here for convenience, the actual map key is the [type id](TypeId).
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
         let _ = key;
         self.map
@@ -220,11 +226,13 @@ impl StateMap {
             .map(|any| *any.downcast::<S>().unwrap())
     }
 
+    /// Gets if the `key` is set in this map.
     pub fn contains<S: StateKey>(&self, key: S) -> bool {
         let _ = key;
         self.map.contains_key(&TypeId::of::<S>())
     }
 
+    /// Reference the `key` value set in this map.
     pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
         let _ = key;
         if let Some(any) = self.map.get(&TypeId::of::<S>()) {
@@ -234,6 +242,7 @@ impl StateMap {
         }
     }
 
+    /// Mutable borrow the `key` value set in this map.
     pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
         let _ = key;
         if let Some(any) = self.map.get_mut(&TypeId::of::<S>()) {
@@ -255,6 +264,8 @@ impl StateMap {
     /// Sets a state key without value.
     ///
     /// Returns if the state key was already flagged.
+    ///
+    /// Note that there is no *remove* method so this flag is permanent.
     pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
         self.set(key, ()).is_some()
     }
@@ -320,6 +331,9 @@ impl LazyStateMap {
         self.m.get_or_insert_with(|| Box::new(StateMap::default()))
     }
 
+    /// Gets if the `key` is set in this map.
+    ///
+    /// This method does not initializes the map.
     pub fn contains<S: StateKey>(&self, key: S) -> bool {
         if let Some(m) = self.m.as_ref() {
             m.contains(key)
@@ -328,41 +342,58 @@ impl LazyStateMap {
         }
     }
 
+    /// Set the `key` `value`.
+    ///
+    /// This method initializes the map.
     pub fn set<S: StateKey>(&mut self, key: S, value: S::Type) -> Option<S::Type> {
         self.borrow_mut().set(key, value)
     }
 
     /// Sets a value that is its own [`StateKey`].
+    ///
+    /// This method initializes the map.
     pub fn set_single<S: StateKey<Type = S>>(&mut self, value: S) -> Option<S> {
         self.borrow_mut().set_single(value)
     }
 
+    /// Reference the `key` value set in this map.
+    ///
+    /// This method does not initializes the map.
     pub fn get<S: StateKey>(&self, key: S) -> Option<&S::Type> {
         self.m.as_ref().and_then(|m| m.get(key))
     }
 
+    // Mutable borrow the `key` value set in this map.
+    ///
+    /// This method does not initializes the map.
     pub fn get_mut<S: StateKey>(&mut self, key: S) -> Option<&mut S::Type> {
         self.m.as_mut().and_then(|m| m.get_mut(key))
     }
 
     /// Gets the given key's corresponding entry in the map for in-place manipulation.
     ///
-    /// This causes lazy map initialization to an empty map even if you don't insert a value using the entry.
+    /// This method initializes the map, even if you don't insert a value using the entry.
     pub fn entry<S: StateKey>(&mut self, key: S) -> StateMapEntry<S> {
         self.borrow_mut().entry(key)
     }
 
     /// Sets a state key without value.
+    ///
+    /// This method does not initializes the map.
     pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
         self.borrow_mut().flag(key)
     }
 
     /// Gets if a state key without value is set.
+    ///
+    /// This method does not initializes the map.
     pub fn flagged<S: StateKey<Type = ()>>(&self, key: S) -> bool {
         self.get(key).is_some()
     }
 
     /// If no state is set.
+    ///
+    /// This method does not initializes the map.
     pub fn is_empty(&self) -> bool {
         self.m.as_ref().map(|m| m.is_empty()).unwrap_or(true)
     }
@@ -372,6 +403,7 @@ impl LazyStateMap {
 pub struct OwnedUpdates(Updates);
 
 impl OwnedUpdates {
+    /// New `OwnedUpdates`, the `event_loop` reference is used to create an [`UpdateNotifier`].
     pub fn new(event_loop: EventLoopProxy) -> Self {
         Self(Updates::new(event_loop))
     }
@@ -552,6 +584,7 @@ impl OwnedAppContext {
         self.headless_state.as_mut()
     }
 
+    /// Borrow the app context as an [`AppInitContext`].
     pub fn borrow_init(&mut self) -> AppInitContext {
         AppInitContext {
             app_state: &mut self.app_state,
@@ -566,6 +599,7 @@ impl OwnedAppContext {
         }
     }
 
+    /// Borrow the app context as an [`AppContext`].
     pub fn borrow<'a>(&'a mut self, event_loop: EventLoopWindowTarget<'a>) -> AppContext<'a> {
         AppContext {
             app_state: &mut self.app_state,
@@ -786,7 +820,9 @@ impl<'a> AppContext<'a> {
 
 /// A window context.
 pub struct WindowContext<'a> {
+    /// Id of the context window.
     pub window_id: ReadOnly<WindowId>,
+    ///
     pub render_api: &'a Arc<RenderApi>,
 
     /// State that lives for the duration of the application.
@@ -818,6 +854,7 @@ pub struct WindowContext<'a> {
 #[derive(Clone, Copy)]
 pub struct ReadOnly<T>(T);
 impl<T: Copy> ReadOnly<T> {
+    /// Gets a copy of the read-only value.
     #[inline]
     pub fn get(self) -> T {
         self.0
@@ -1067,6 +1104,13 @@ pub struct LayoutContext {
 }
 
 impl LayoutContext {
+    /// New layout context.
+    ///
+    /// # Arguments
+    ///
+    /// * `root_font_size` - The layout font size in the root widget.
+    /// * `viewport_size` - The root widget layout size.
+    /// * `pixel_grid` - The grid for pixel alignment, derived by the scale factor of surface that is rendering the root widget.
     #[inline]
     pub fn new(root_font_size: f32, viewport_size: LayoutSize, pixel_grid: PixelGrid) -> Self {
         LayoutContext {
@@ -1083,26 +1127,31 @@ impl LayoutContext {
         self.font_size
     }
 
+    /// Computed font size at the root widget.
     #[inline]
     pub fn root_font_size(&self) -> f32 {
         self.root_font_size
     }
 
+    /// Pixel grid of the surface that is rendering the root widget.
     #[inline]
     pub fn pixel_grid(&self) -> PixelGrid {
         self.pixel_grid
     }
 
+    /// Size of the root widget.
     #[inline]
     pub fn viewport_size(&self) -> LayoutSize {
         self.viewport_size
     }
 
+    /// Smallest dimension of the [`viewport_size`](Self::viewport_size).
     #[inline]
     pub fn viewport_min(&self) -> f32 {
         self.viewport_size.width.min(self.viewport_size.height)
     }
 
+    /// Largest dimension of the [`viewport_size`](Self::viewport_size).
     #[inline]
     pub fn viewport_max(&self) -> f32 {
         self.viewport_size.width.max(self.viewport_size.height)
