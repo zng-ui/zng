@@ -74,7 +74,7 @@ event_args! {
         /// This is always `1` for clicks initiated by the keyboard.
         pub click_count: NonZeroU32,
 
-        // What modifier keys where pressed when this event happened.
+        /// What modifier keys where pressed when this event happened.
         pub modifiers: ModifiersState,
 
         /// The mouse input top-most hit or the focused element at the time of the key input.
@@ -109,7 +109,7 @@ event_args! {
 
         ..
 
-        // If the widget is in [`target`](Self::target).
+        /// If the widget is in [`target`](Self::target).
         fn concerns_widget(&self, ctx: &mut WidgetContext) -> bool {
             self.target.contains(ctx.path.widget_id())
         }
@@ -223,11 +223,14 @@ impl ClickArgs {
 /// A keyboard combination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct KeyGesture {
+    /// The key.
     pub key: GestureKey,
+    /// The key modifiers.
     pub modifiers: ModifiersState,
 }
 impl KeyGesture {
     #[inline]
+    #[allow(missing_docs)]
     pub fn new(modifiers: ModifiersState, key: GestureKey) -> Self {
         KeyGesture { modifiers, key }
     }
@@ -263,9 +266,13 @@ impl Display for KeyGesture {
 /// A modifier key press and release without any other key press in between.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum ModifierGesture {
+    /// Any of the Windows/Apple keys.
     Logo,
+    /// Any of the CTRL keys.
     Ctrl,
+    /// Any of the SHIFT keys.
     Shift,
+    /// Any of the ALT keys.
     Alt,
 }
 impl Display for ModifierGesture {
@@ -319,8 +326,11 @@ impl Display for KeyChord {
 /// Keyboard gesture or chord associated with a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Shortcut {
+    /// Key-press plus modifiers.
     Gesture(KeyGesture),
+    /// Sequence of two key gestures.
     Chord(KeyChord),
+    /// Modifier press and release.
     Modifier(ModifierGesture),
 }
 impl Display for Shortcut {
@@ -382,57 +392,25 @@ impl_from_and_into_var! {
         Shortcuts(shortcuts)
     }
 }
-macro_rules! impl_shortcuts_from_array {
-    ($($N:tt),+ $(,)?) => {
-        impl_from_and_into_var! {
-            $(
-            fn from(font_names: [Shortcut; $N]) -> Shortcuts {
-                Shortcuts(font_names.into())
-            }
-            )+
-        }
-    };
+impl<const N: usize> From<[Shortcut; N]> for Shortcuts {
+    fn from(a: [Shortcut; N]) -> Self {
+        Shortcuts(a.into())
+    }
 }
-impl_shortcuts_from_array! {
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
+impl<const N: usize> crate::var::IntoVar<Shortcuts> for [Shortcut; N] {
+    type Var = crate::var::OwnedVar<Shortcuts>;
+
+    fn into_var(self) -> Self::Var {
+        crate::var::OwnedVar(self.into())
+    }
 }
 
 /// Multiple shortcuts.
 #[derive(Debug, Default, Clone)]
 pub struct Shortcuts(pub Vec<Shortcut>);
 impl Shortcuts {
+    /// New default (empty).
+    #[inline]
     pub fn new() -> Self {
         Self::default()
     }
@@ -934,12 +912,16 @@ macro_rules! gesture_key_name {
 }
 
 macro_rules! gesture_keys {
-    ($($key:ident $(= $name:expr)?),+ $(,)?) => {
+    ($($(#[$docs:meta])* $key:ident $(= $name:expr)?),+ $(,)?) => {
         /// The set of keys that can be used in a [`KeyGesture`].
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
         #[repr(u32)]
+        #[allow(missing_docs)] // they are mostly self-explanatory.
         pub enum GestureKey {
-            $($key),+
+            $(
+                $(#[$docs])*
+                $key
+            ),+
         }
         impl TryFrom<Key> for GestureKey {
             type Error = Key;
@@ -972,15 +954,25 @@ macro_rules! gesture_keys {
 }
 
 gesture_keys! {
+    /// The '1' key over the letters.
     Key1 = "1",
+    /// The '2' key over the letters.
     Key2 = "2",
+    /// The '3' key over the letters.
     Key3 = "3",
+    /// The '4' key over the letters.
     Key4 = "4",
+    /// The '5' key over the letters.
     Key5 = "5",
+    /// The '6' key over the letters.
     Key6 = "6",
+    /// The '7' key over the letters.
     Key7 = "7",
+    /// The '8' key over the letters.
     Key8 = "8",
+    /// The '9' key over the letters.
     Key9 = "9",
+    /// The '0' key over the 'O' and 'P' keys.
     Key0 = "0",
     A,
     B,
@@ -1008,6 +1000,7 @@ gesture_keys! {
     X,
     Y,
     Z,
+    /// The Escape key, next to F1.
     Escape = "Esc",
     F1,
     F2,
@@ -1039,8 +1032,11 @@ gesture_keys! {
     Up,
     Right,
     Down,
+    /// The Backspace key, right over Enter.
     Backspace,
+    /// The Return key.
     Enter,
+    /// The space bar.
     Space,
     Plus = "+",
     Asterisk = "*",
@@ -1074,9 +1070,11 @@ gesture_keys! {
 /// Shortcut, gesture parsing error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+    /// Error message, usually in the pattern "`{invalid-input}` is not a {shortcut/modifier}".
     pub error: String,
 }
 impl ParseError {
+    #[allow(missing_docs)]
     pub fn new(error: impl ToString) -> Self {
         ParseError { error: error.to_string() }
     }

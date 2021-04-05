@@ -401,11 +401,12 @@ pub struct EventReceiver<T: Clone + Send + 'static> {
     receiver: Receiver<T>,
 }
 impl<T: Clone + Send + 'static> EventReceiver<T> {
+    /// A blocking iterator over the updated received.
     pub fn updates(&self) -> flume::Iter<T> {
         self.receiver.iter()
     }
 
-    /// A non-blocking iterator over the updates received
+    /// A non-blocking iterator over the updates received.
     #[inline]
     pub fn try_updates(&self) -> flume::TryIter<T> {
         self.receiver.try_iter()

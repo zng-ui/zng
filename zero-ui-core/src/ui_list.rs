@@ -169,6 +169,8 @@ pub trait WidgetList: UiNodeList {
 #[derive(Default)]
 pub struct WidgetVec(pub Vec<Box<dyn Widget>>);
 impl WidgetVec {
+    /// New empty (default).
+    #[inline]
     pub fn new() -> WidgetVec {
         Self::default()
     }
@@ -441,6 +443,8 @@ impl WidgetList for WidgetVec {
 #[derive(Default)]
 pub struct UiNodeVec(pub Vec<Box<dyn UiNode>>);
 impl UiNodeVec {
+    /// New empty (default).
+    #[inline]
     pub fn new() -> UiNodeVec {
         Self::default()
     }

@@ -225,6 +225,7 @@ pub struct Keyboard {
     char_input: EventEmitter<CharInputArgs>,
 }
 impl Keyboard {
+    /// New keyboard service. Used `events` to register the keyboard events.
     pub fn new(events: &mut Events) -> Self {
         let self_ = Keyboard {
             modifiers: ModifiersState::empty(),
@@ -323,6 +324,7 @@ impl Keyboard {
 // Symbolic name for a keyboard key.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 #[repr(u32)]
+#[allow(missing_docs)] // some of these are self-explanatory.
 pub enum Key {
     /// The '1' key over the letters.
     Key1,

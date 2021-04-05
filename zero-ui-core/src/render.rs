@@ -81,6 +81,18 @@ bitflags! {
     }
 }
 impl FrameBuilder {
+    /// New builder.
+    ///
+    /// * `frame_id` - Id of the new frame.
+    /// * `window_id` - Id of the window that will render the frame.
+    /// * `pipeline_id` - Id of the pipeline that will render the frame, usually a single pipeline per window.
+    /// * `api` - The render API that will render the frame, usually one per window.
+    /// * `root_id` - Id of the root widget of the frame, usually the window root.
+    /// * `root_transform_key` - Frame binding for the root widget layout transform.
+    /// * `root_size` - Layout size of the root widget, defines root hit area and the clear rectangle.
+    /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
+    /// * `clear_color` - Color of the clear rectangle, a rect that fills the `root_size`, we need this here
+    /// because WebRender does not let us change the initial clear color.
     #[allow(clippy::too_many_arguments)]
     #[inline]
     pub fn new(
@@ -522,6 +534,7 @@ impl FrameBuilder {
         self.offset -= offset;
     }
 
+    /// Calls `f` inside a new reference frame transformed by `transform`.
     #[inline]
     pub fn push_transform(&mut self, transform: FrameBinding<LayoutTransform>, f: impl FnOnce(&mut FrameBuilder)) {
         if self.cancel_widget {
@@ -651,6 +664,7 @@ impl FrameBuilder {
             .push_gradient(&self.common_item_properties(rect), rect, gradient, tile_size, tile_spacing);
     }
 
+    /// Push a styled vertical or horizontal line.
     #[inline]
     pub fn push_line(
         &mut self,
@@ -678,7 +692,9 @@ impl FrameBuilder {
         );
     }
 
-    /// Draws a dot at the offset.  
+    /// Push a `color` dot to mark the `offset`.
+    ///
+    /// The *dot* is a 4px/4px circle of the `color` that has two outlines white then black to increase contrast.
     #[inline]
     pub fn push_debug_dot(&mut self, offset: LayoutPoint, color: impl Into<RenderColor>) {
         // TODO use radial gradient to draw a dot.
@@ -717,6 +733,11 @@ impl FrameBuilder {
 pub struct WidgetStartedError;
 
 /// A frame quick update.
+///
+/// A frame update causes a frame render without needing to fully rebuild the display list. It
+/// is a more performant but also more limited way of generating a frame.
+///
+/// Any [`FrameBindingKey`] used in the creation of the frame can be used for updating the frame.
 pub struct FrameUpdate {
     bindings: DynamicProperties,
     frame_id: FrameId,
@@ -727,6 +748,12 @@ pub struct FrameUpdate {
     cancel_widget: bool,
 }
 impl FrameUpdate {
+    /// New frame update builder.
+    ///
+    /// * `window_id` - Id of the window that owns the frame.
+    /// * `root_id` - Id of the widget at the root of the frame.
+    /// * `root_transform_key` - Frame binding for the root widget layout transform.
+    /// * `frame_id` - Id of the frame that will be updated.
     pub fn new(window_id: WindowId, root_id: WidgetId, root_transform_key: WidgetTransformKey, frame_id: FrameId) -> Self {
         FrameUpdate {
             bindings: DynamicProperties::default(),
@@ -898,8 +925,11 @@ fn unpack_cursor(raw: u16) -> CursorIcon {
 /// A hit-test hit.
 #[derive(Clone, Debug)]
 pub struct HitInfo {
+    /// ID of widget hit.
     pub widget_id: WidgetId,
+    /// Exact hit point in the widget space.
     pub point: LayoutPoint,
+    /// Cursor icon selected for the widget.
     pub cursor: CursorIcon,
 }
 
@@ -1162,11 +1192,13 @@ impl FrameInfo {
         self.tree.root().descendants().map(move |n| WidgetInfo::new(self, n.id()))
     }
 
+    /// ID of the window that rendered the frame.
     #[inline]
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
+    /// ID of the rendered frame.
     #[inline]
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
@@ -1203,7 +1235,7 @@ impl FrameInfo {
     #[inline]
     pub fn get_or_parent(&self, path: &WidgetPath) -> Option<WidgetInfo> {
         self.get(path)
-            .or_else(|| path.ancestors().iter().rev().filter_map(|&id| self.find(id)).next())
+            .or_else(|| path.ancestors().iter().rev().find_map(|&id| self.find(id)))
     }
 }
 
@@ -1727,9 +1759,13 @@ fn is_in_direction(direction: WidgetOrientation, origin: LayoutPoint, candidate:
 /// Orientation of a [`WidgetInfo`] relative to another point.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum WidgetOrientation {
+    /// Widget is to the left of the reference point.
     Left,
+    /// Widget is to the right of the reference point.
     Right,
+    /// Widget is above the reference point.
     Above,
+    /// Widget is below the reference point.
     Below,
 }
 

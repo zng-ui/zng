@@ -3,7 +3,7 @@
 // outside the main function, because they generate a `mod` with `use super::*;`
 // that does not import `use` clauses declared inside the parent function.
 #![allow(clippy::needless_doctest_main)]
-// #![warn(missing_docs)] TODO
+#![warn(missing_docs)]
 
 //! Core infrastructure required for creating components and running an app.
 

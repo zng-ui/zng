@@ -1098,6 +1098,7 @@ mod output {
                 }
 
                 #cfg
+                #[allow(missing_docs)]
                 #[allow(non_camel_case_types)]
                 impl #generic_decl #args_impl_ident #generic_use {
                     #[inline]
@@ -1117,6 +1118,7 @@ mod output {
                 }
 
                 #cfg
+                #[allow(missing_docs)]
                 #[allow(non_camel_case_types)]
                 impl #generic_decl #args_ident for #args_impl_ident #generic_use {
                     #assoc_connect

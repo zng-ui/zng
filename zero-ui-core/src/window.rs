@@ -46,8 +46,8 @@ pub trait AppRunWindow {
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run_window(|_| {
     ///     window! {
-    ///         title: "Window 1";
-    ///         content: text("Window 1");
+    ///         title = "Window 1";
+    ///         content = text("Window 1");
     ///     }
     /// })   
     /// ```
@@ -60,8 +60,8 @@ pub trait AppRunWindow {
     /// App::default().run(|ctx| {
     ///     ctx.services.req::<Windows>().open(|_| {
     ///         window! {
-    ///             title: "Window 1";
-    ///             content: text("Window 1");
+    ///             title = "Window 1";
+    ///             content = text("Window 1");
     ///         }
     ///     });
     /// })   
@@ -109,7 +109,9 @@ event_args! {
 
     /// [`WindowResizeEvent`] args.
     pub struct WindowResizeArgs {
+        /// Window ID.
         pub window_id: WindowId,
+        /// New window size.
         pub new_size: LayoutSize,
 
         ..
@@ -122,7 +124,9 @@ event_args! {
 
     /// [`WindowMoveEvent`] args.
     pub struct WindowMoveArgs {
+        /// Window ID.
         pub window_id: WindowId,
+        /// New window position.
         pub new_position: LayoutPoint,
 
         ..
@@ -135,8 +139,11 @@ event_args! {
 
     /// [`WindowScaleChangedEvent`] args.
     pub struct WindowScaleChangedArgs {
+        /// Window ID.
         pub window_id: WindowId,
+        /// New scale factor.
         pub new_scale_factor: f32,
+        /// New window size, given by the OS.
         pub new_size: LayoutSize,
 
         ..
@@ -150,6 +157,7 @@ event_args! {
 cancelable_event_args! {
     /// [`WindowCloseRequestedEvent`] args.
     pub struct WindowCloseRequestedArgs {
+        /// Window ID.
         pub window_id: WindowId,
         group: CloseTogetherGroup,
 
@@ -702,6 +710,18 @@ pub struct Window {
 }
 
 impl Window {
+    /// New window configuration.
+    ///
+    /// * `root_id` - Widget ID of `child`.
+    /// * `title` - Window title, in the title-bar.
+    /// * `start_position` - Position of the window when it first opens.
+    /// * `position` - Position of the window, can be updated back by the window.
+    /// * `size` - Size of the window, can be updated back by the window.
+    /// * `auto_size` - If the window will auto-size to fit the `child`.
+    /// * `resizable` - If the user can resize the window.
+    /// * `clear_color` - Color used to clear a frame, works like a background color applied before `child`.
+    /// * `visible` - If the window is visible, TODO diff. minimized.
+    /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
         root_id: WidgetId,
@@ -934,6 +954,7 @@ impl OpenWindow {
         w
     }
 
+    /// Window ID.
     #[inline]
     pub fn id(&self) -> WindowId {
         self.gl_ctx.borrow().window().id()

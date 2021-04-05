@@ -288,6 +288,9 @@ pub trait Var<T: VarValue>: VarObj<T> + Clone + IntoVar<T> {
 
 /// A value-to-[var](Var) conversion that consumes the value.
 pub trait IntoVar<T: VarValue>: Clone {
+    /// Variable type that will wrap the `T` value.
+    ///
+    /// This is the [`OwnedVar`] for most types.
     type Var: Var<T>;
 
     /// Converts the source value into a var.

@@ -2,7 +2,12 @@
 
 use super::units::{LayoutPoint, LayoutRect, LayoutSize};
 use derive_more as dm;
-use std::{borrow::Cow, fmt, ops::Deref, rc::Rc};
+use std::{
+    borrow::Cow,
+    fmt,
+    ops::{Deref, DerefMut},
+    rc::Rc,
+};
 pub use webrender::api::GlyphInstance;
 
 pub use unicode_script::{self, Script};
@@ -92,13 +97,18 @@ pub enum TextAlign {
     /// `Right` in LTR or `Left` in RTL.
     End,
 
+    /// Left visually, independent of LTR/RTL.
     Left,
+
+    /// Center visually.
     Center,
+
+    /// Right visually, independent of LTR/RTL.
     Right,
 
     /// Adjust spacing to fill the available width.
     ///
-    /// The justify can be configured using [`Justify`].
+    /// The justify spacing can be configured using [`Justify`].
     Justify(Justify),
 }
 impl TextAlign {
@@ -181,6 +191,7 @@ pub struct FontFaceMetrics {
     pub bounding_box: euclid::Rect<f32, FontUnit>,
 }
 impl FontFaceMetrics {
+    /// Compute [`FontMetrics`] given a font size in pixels.
     pub fn sized(&self, font_size_px: f32) -> FontMetrics {
         let em = self.units_per_em as f32;
         let s = move |f: f32| f / em * font_size_px;
@@ -349,6 +360,12 @@ impl FontName {
         }
     }
 
+    /// New font name.
+    ///
+    /// Note that the inner name value is a [`Text`] so you can define a font name using `&'static str` or `String`.
+    ///
+    /// Font names are case insensitive but the input casing is preserved, this casing shows during display and in
+    /// the value of [`name`](Self::name).
     #[inline]
     pub fn new(name: impl Into<Text>) -> Self {
         let text = name.into();
@@ -441,8 +458,49 @@ impl AsRef<str> for FontName {
     }
 }
 
+/// A list of [font names](FontName) in priority order.
+///
+/// # Example
+///
+/// This type is usually initialized using conversion:
+///
+/// ```
+/// # use zero_ui_core::text::*;
+/// fn foo(font_names: impl Into<FontNames>) { }
+///
+/// foo(["Arial", "sans-serif", "monospace"]);
+/// ```
+///
+/// You can also use the specialized [`push`](Self::push) that converts:
+///
+/// ```
+/// # use zero_ui_core::text::*;
+/// let user_preference = "Comic Sans".to_owned();
+///
+/// let mut names = FontNames::empty();
+/// names.push(user_preference);
+/// names.push("Arial");
+/// names.extend(FontNames::default());
+/// ```
+///
+/// # Default
+///
+/// The default value is [`sans_serif`](FontName::sans_serif), [`serif`](FontName::serif),
+/// [`monospace`](FontName::sans_serif), [`cursive`](FontName::sans_serif) and [`fantasy`](FontName::sans_serif).
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct FontNames(pub Vec<FontName>);
+impl FontNames {
+    /// Empty list.
+    #[inline]
+    pub fn empty() -> Self {
+        FontNames(vec![])
+    }
+
+    /// Push a font name from any type that converts to [`FontName`].
+    pub fn push(&mut self, font_name: impl Into<FontName>) {
+        self.0.push(font_name.into())
+    }
+}
 impl Default for FontNames {
     fn default() -> Self {
         FontNames(vec![
@@ -484,66 +542,78 @@ impl_from_and_into_var! {
     }
 }
 impl Deref for FontNames {
-    type Target = [FontName];
+    type Target = Vec<FontName>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
-macro_rules! impl_font_names_from_array {
-    ($($N:tt),+ $(,)?) => {
-        impl_from_and_into_var! {
-            $(
-            fn from(font_names: [FontName; $N]) -> FontNames {
-                FontNames(font_names.into())
-            }
-
-            fn from(font_names: [&'static str; $N]) -> FontNames {
-                FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
-            }
-
-            fn from(font_names: [String; $N]) -> FontNames {
-                FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
-            }
-
-            )+
-        }
-    };
+impl DerefMut for FontNames {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
-impl_font_names_from_array! {
-    0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    32,
+impl std::iter::Extend<FontName> for FontNames {
+    fn extend<T: IntoIterator<Item = FontName>>(&mut self, iter: T) {
+        self.0.extend(iter)
+    }
+}
+impl IntoIterator for FontNames {
+    type Item = FontName;
+
+    type IntoIter = std::vec::IntoIter<FontName>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+impl<const N: usize> From<[FontName; N]> for FontNames {
+    fn from(font_names: [FontName; N]) -> Self {
+        FontNames(font_names.into())
+    }
+}
+impl<const N: usize> IntoVar<FontNames> for [FontName; N] {
+    type Var = OwnedVar<FontNames>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl<const N: usize> From<[&'static str; N]> for FontNames {
+    fn from(font_names: [&'static str; N]) -> Self {
+        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+    }
+}
+impl<const N: usize> IntoVar<FontNames> for [&'static str; N] {
+    type Var = OwnedVar<FontNames>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl<const N: usize> From<[String; N]> for FontNames {
+    fn from(font_names: [String; N]) -> Self {
+        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+    }
+}
+impl<const N: usize> IntoVar<FontNames> for [String; N] {
+    type Var = OwnedVar<FontNames>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
+}
+impl<const N: usize> From<[Text; N]> for FontNames {
+    fn from(font_names: [Text; N]) -> Self {
+        FontNames(std::array::IntoIter::new(font_names).map(FontName::new).collect())
+    }
+}
+impl<const N: usize> IntoVar<FontNames> for [Text; N] {
+    type Var = OwnedVar<FontNames>;
+
+    fn into_var(self) -> Self::Var {
+        OwnedVar(self.into())
+    }
 }
 
 /// Text string type, can be either a `&'static str` or a `String`.
@@ -766,6 +836,20 @@ impl PartialEq<Text> for String {
 ///
 /// You can use [`formatx!`](macro.formatx.html) to `format!` a text.
 pub trait ToText {
+    /// Converts the given value to an owned [`Text`].
+    ///
+    /// # Example
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use zero_ui_core::text::*;
+    ///
+    /// let expected = formatx!("10");
+    /// let actual = 10.to_text();
+    ///
+    /// assert_eq!(expected, actual);
+    /// ```
     fn to_text(&self) -> Text;
 }
 impl<T: ToString> ToText for T {
@@ -785,14 +869,19 @@ pub struct TextPoint {
     pub index: usize,
 }
 impl TextPoint {
+    /// New text point.
     #[inline]
     pub fn new(line: usize, index: usize) -> Self {
         TextPoint { line, index }
     }
 
-    /// *Ln 1, Col 1* display info.
+    /// Compute a [`TextPointDisplay`] given the `line` that is pointed by `self`.
     ///
-    /// `line` if the pointed line.
+    /// The raw text point is not what a user expects, the first line is `0` and the *column* is a byte count not a character count.
+    /// The return value can be displayed as a *Ln 1, Col 1* label.
+    ///
+    /// The input is the [`line`](Self::line) pointed by `self`, this method **panics** if the `line` length cannot accommodate
+    /// the byte [`index`](Self::index).
     #[inline]
     pub fn display(self, line: &str) -> TextPointDisplay {
         TextPointDisplay::new(line, self)
@@ -800,6 +889,8 @@ impl TextPoint {
 }
 
 /// *Ln 1, Col 1* display info of a [`TextPoint`].
+///
+/// You can compute this value from [`TextPoint::display`].
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub struct TextPointDisplay {
     /// Line number, 1 based.
@@ -808,9 +899,8 @@ pub struct TextPointDisplay {
     pub column: usize,
 }
 impl TextPointDisplay {
-    /// `line` is the pointed line.
     #[inline]
-    pub fn new(line: &str, point: TextPoint) -> Self {
+    fn new(line: &str, point: TextPoint) -> Self {
         TextPointDisplay {
             line: point.line + 1,
             column: line[0..point.index].chars().count(),
@@ -919,3 +1009,4 @@ macro_rules! formatx {
 }
 #[doc(inline)]
 pub use crate::formatx;
+use crate::var::{IntoVar, OwnedVar};

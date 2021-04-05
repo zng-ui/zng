@@ -160,6 +160,7 @@ impl FocusChangedArgs {
         }
     }
 
+    /// If `widget_id` is the new focus or a parent of the new focus and was not a parent of the previous focus.
     #[inline]
     pub fn is_focus_enter(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
@@ -169,6 +170,7 @@ impl FocusChangedArgs {
         }
     }
 
+    /// If `widget_id` is the previous focus or a parent of the previous focus and is not a parent of the new focus.
     #[inline]
     pub fn is_focus_leave(&self, widget_id: WidgetId) -> bool {
         match (&self.prev_focus, &self.new_focus) {
@@ -297,8 +299,9 @@ pub enum DirectionalNav {
     None,
     /// Arrows move the focus through the scope continuing out of the edges.
     Continue,
-    ///
+    /// Arrows move the focus inside the scope only, stops at the edges.
     Contained,
+    /// Arrows move the focus inside the scope only, cycles back to oppose edges.
     Cycle,
 }
 
@@ -488,8 +491,8 @@ pub struct Focus {
     alt_return: Option<(WidgetId, WidgetPath)>,
     is_highlighting: bool,
 }
-
 impl Focus {
+    /// New focus service, the `update_notifier` is used to flag an update after a focus change request.
     #[inline]
     #[must_use]
     pub fn new(update_notifier: UpdateNotifier) -> Self {
@@ -545,53 +548,103 @@ impl Focus {
         self.update_notifier.update();
     }
 
-    /// Focus the widget if it is focusable.
+    /// Focus the widget if it is focusable and change the highlight.
+    ///
+    /// If the widget is not focusable the focus does not move, in this case the highlight changes
+    /// for the current focused widget.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::direct`].
     #[inline]
     pub fn focus_widget(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct(widget_id, highlight))
     }
 
-    /// Focus the widget if it is focusable, else focus the first focusable parent.
+    /// Focus the widget if it is focusable, else focus the first focusable parent, also changes the highlight.
+    ///
+    /// If the widget and no parent if focusable the focus does not move, in this case the highlight changes
+    /// for the current focused widget.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::direct_or_parent`].
     #[inline]
     pub fn focus_widget_or_parent(&mut self, widget_id: WidgetId, highlight: bool) {
         self.focus(FocusRequest::direct_or_parent(widget_id, highlight))
     }
 
+    /// Focus the logical next widget from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::next`].
     #[inline]
     pub fn focus_next(&mut self) {
         self.focus(FocusRequest::next(self.is_highlighting));
     }
 
+    /// Focus the logical previous widget from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::prev`].
     #[inline]
     pub fn focus_prev(&mut self) {
         self.focus(FocusRequest::prev(self.is_highlighting));
     }
 
+    /// Focus the closest upward widget from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::up`].
     #[inline]
     pub fn focus_up(&mut self) {
         self.focus(FocusRequest::up(self.is_highlighting));
     }
 
+    /// Focus the closest widget to the right of the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::right`].
     #[inline]
     pub fn focus_right(&mut self) {
         self.focus(FocusRequest::right(self.is_highlighting));
     }
 
+    /// Focus the closest downward widget from the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::down`].
     #[inline]
     pub fn focus_down(&mut self) {
         self.focus(FocusRequest::down(self.is_highlighting));
     }
 
+    /// Focus the closest widget to the left of the current focus.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::left`].
     #[inline]
     pub fn focus_left(&mut self) {
         self.focus(FocusRequest::left(self.is_highlighting));
     }
 
+    /// Focus the ALT scope from the current focused widget.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::alt`].
     #[inline]
     pub fn focus_alt(&mut self) {
         self.focus(FocusRequest::alt(self.is_highlighting));
     }
 
+    /// Focus the previous focused widget before the focus was moved to the ALT scope.
+    ///
+    /// Does nothing if no widget is focused. Continues highlighting the new focus if the current is highlighted.
+    ///
+    /// This is makes a [`focus`](Self::focus) request using [`FocusRequest::escape_alt`].
     #[inline]
     pub fn escape_alt(&mut self) {
         self.focus(FocusRequest::escape_alt(self.is_highlighting));
@@ -928,55 +981,57 @@ pub struct FocusRequest {
 
 impl FocusRequest {
     #[inline]
+    #[allow(missing_docs)]
     pub fn new(target: FocusTarget, highlight: bool) -> Self {
         Self { target, highlight }
     }
 
+    /// New [`FocusTarget::Direct`] request.
     #[inline]
     pub fn direct(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::Direct(widget_id), highlight)
     }
-
+    /// New [`FocusTarget::DirectOrParent`] request.
     #[inline]
     pub fn direct_or_parent(widget_id: WidgetId, highlight: bool) -> Self {
         Self::new(FocusTarget::DirectOrParent(widget_id), highlight)
     }
-
+    /// New [`FocusTarget::Next`] request.
     #[inline]
     pub fn next(highlight: bool) -> Self {
         Self::new(FocusTarget::Next, highlight)
     }
-
+    /// New [`FocusTarget::Prev`] request.
     #[inline]
     pub fn prev(highlight: bool) -> Self {
         Self::new(FocusTarget::Prev, highlight)
     }
-
+    /// New [`FocusTarget::Up`] request.
     #[inline]
     pub fn up(highlight: bool) -> Self {
         Self::new(FocusTarget::Up, highlight)
     }
-
+    /// New [`FocusTarget::Right`] request.
     #[inline]
     pub fn right(highlight: bool) -> Self {
         Self::new(FocusTarget::Right, highlight)
     }
-
+    /// New [`FocusTarget::Down`] request.
     #[inline]
     pub fn down(highlight: bool) -> Self {
         Self::new(FocusTarget::Down, highlight)
     }
-
+    /// New [`FocusTarget::Left`] request.
     #[inline]
     pub fn left(highlight: bool) -> Self {
         Self::new(FocusTarget::Left, highlight)
     }
-
+    /// New [`FocusTarget::Alt`] request.
     #[inline]
     pub fn alt(highlight: bool) -> Self {
         Self::new(FocusTarget::Alt, highlight)
     }
-
+    /// New [`FocusTarget::EscapeAlt`] request.
     #[inline]
     pub fn escape_alt(highlight: bool) -> Self {
         Self::new(FocusTarget::EscapeAlt, highlight)
@@ -1018,6 +1073,7 @@ pub struct FrameFocusInfo<'a> {
     pub info: &'a FrameInfo,
 }
 impl<'a> FrameFocusInfo<'a> {
+    /// Wrap a `frame_info` reference to enable focus info querying.
     #[inline]
     pub fn new(frame_info: &'a FrameInfo) -> Self {
         FrameFocusInfo { info: frame_info }
@@ -1098,6 +1154,7 @@ macro_rules! DirectionFn {
     (right) => { |from_pt, cand_c| (from_pt.x, cand_c.x, cand_c.y, from_pt.y) };
 }
 impl<'a> WidgetFocusInfo<'a> {
+    /// Wrap a `widget_info` reference to enable focus info querying.
     #[inline]
     pub fn new(widget_info: WidgetInfo<'a>) -> Self {
         WidgetFocusInfo { info: widget_info }
@@ -1732,6 +1789,7 @@ impl<'a> WidgetFocusInfo<'a> {
 
 /// Filter-maps an iterator of [`WidgetInfo`] to [`WidgetFocusInfo`].
 pub trait IterFocusable<'a, I: Iterator<Item = WidgetInfo<'a>>> {
+    /// Returns an iterator of only the focusable widgets.
     fn focusable(self) -> std::iter::FilterMap<I, fn(WidgetInfo<'a>) -> Option<WidgetFocusInfo<'a>>>;
 }
 impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
@@ -1743,16 +1801,26 @@ impl<'a, I: Iterator<Item = WidgetInfo<'a>>> IterFocusable<'a, I> for I {
 /// Focus metadata associated with a widget in a frame.
 #[derive(Debug, Clone, Copy)]
 pub enum FocusInfo {
+    /// The widget is not focusable.
     NotFocusable,
+    /// The widget is focusable as a single item.
     Focusable {
+        /// Tab index of the widget.
         tab_index: TabIndex,
+        /// If the widget is skipped during directional navigation from outside.
         skip_directional: bool,
     },
+    /// The widget is a focusable focus scope.
     FocusScope {
+        /// Tab index of the widget.
         tab_index: TabIndex,
+        /// If the widget is skipped during directional navigation from outside.
         skip_directional: bool,
+        /// Tab navigation inside the focus scope.
         tab_nav: TabNav,
+        /// Directional navigation inside the focus scope.
         directional_nav: DirectionalNav,
+        /// Behavior of the widget when receiving direct focus.
         on_focus: FocusScopeOnFocus,
         /// If this scope is focused when the ALT key is pressed.
         alt: bool,
@@ -1882,19 +1950,61 @@ impl FocusInfo {
 /// Use the [`FocusInfoKey`] to access the builder for the widget state in a frame.
 #[derive(Default)]
 pub struct FocusInfoBuilder {
+    /// If the widget is focusable and the value was explicitly set.
     pub focusable: Option<bool>,
 
+    /// If the widget is a focus scope and the value was explicitly set.
     pub scope: Option<bool>,
+    /// If the widget is an ALT focus scope when it is a focus scope.
     pub alt_scope: bool,
+    /// When the widget is a focus scope, its behavior on receiving direct focus.
     pub on_focus: FocusScopeOnFocus,
 
+    /// Widget TAB index and if the index was explicitly set.
     pub tab_index: Option<TabIndex>,
+
+    /// TAB navigation within this widget, if set turns the widget into a focus scope.
     pub tab_nav: Option<TabNav>,
+    /// Directional navigation within this widget, if set turns the widget into a focus scope.
     pub directional_nav: Option<DirectionalNav>,
 
+    /// If directional navigation skips over this widget.
     pub skip_directional: Option<bool>,
 }
 impl FocusInfoBuilder {
+    /// Build a [`FocusInfo`] from the collected configuration in `self`.
+    ///
+    /// The widget is not focusable nor a focus scope if it set [`focusable`](Self::focusable) to `false`.
+    ///
+    /// The widget is a *focus scope* if it set [`scope`](Self::scope) to `true` **or** if it set [`tab_nav`](Self::tab_nav) or
+    /// [`directional_nav`](Self::directional_nav) and did not set [`scope`](Self::scope) to `false`.
+    ///
+    /// The widget is *focusable* if it set [`focusable`](Self::focusable) to `true` **or** if it set the [`tab_index`](Self::tab_index).
+    ///
+    /// The widget is not focusable if it did not set any of the members mentioned.
+    ///
+    /// ## Tab Index
+    ///
+    /// If the [`tab_index`](Self::tab_index) was not set but the widget is focusable or a focus scope, the [`TabIndex::AUTO`]
+    /// is used for the widget.
+    ///
+    /// ## Skip Directional
+    ///
+    /// If the [`skip_directional`](Self::skip_directional) was not set but the widget is focusable or a focus scope, it is
+    /// set to `false` for the widget.
+    ///
+    /// ## Focus Scope
+    ///
+    /// If the widget is a focus scope, it is configured using [`alt_scope`](Self::alt_scope) and [`on_focus`](Self::on_focus).
+    /// If the widget is not a scope these members are ignored.
+    ///
+    /// ### Tab Navigation
+    ///
+    /// If [`tab_nav`](Self::tab_nav) is not set but the widget is a focus scope, [`TabNav::Continue`] is used.
+    ///
+    /// ### Directional Navigation
+    ///
+    /// If [`directional_nav`](Self::directional_nav) is not set but the widget is a focus scope, [`DirectionalNav::Continue`] is used.
     #[inline]
     pub fn build(&self) -> FocusInfo {
         match (self.focusable, self.scope, self.tab_index, self.tab_nav, self.directional_nav) {

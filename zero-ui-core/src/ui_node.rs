@@ -85,9 +85,12 @@ impl UiNode for Box<dyn UiNode> {
 
 /// Represents an widget [`UiNode`].
 pub trait Widget: UiNode {
+    /// Id of the widget.
     fn id(&self) -> WidgetId;
 
+    /// Reference the widget lazy state.
     fn state(&self) -> &LazyStateMap;
+    /// Exclusive borrow the widget lazy state.
     fn state_mut(&mut self) -> &mut LazyStateMap;
 
     /// Last arranged size.

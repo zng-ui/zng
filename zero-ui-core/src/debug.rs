@@ -111,11 +111,17 @@ pub struct PropertyArgInfo {
 /// See [the property doc](crate::property#priority) for more details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropertyPriority {
+    /// [Context](crate::property#context) property.
     Context,
+    /// [Event](crate::property#event) property.
     Event,
+    /// [Outer](crate::property#outer) property.
     Outer,
+    /// [Size](crate::property#size) property.
     Size,
+    /// [Inner](crate::property#inner) property.
     Inner,
+    /// [Capture-only](crate::property#capture_only) property.
     CaptureOnly,
 }
 
@@ -137,31 +143,48 @@ impl PropertyPriority {
 /// The durations is the sum of all descendent nodes.
 #[derive(Debug, Clone, Default)]
 pub struct UiNodeDurations {
+    /// Duration of [`UiNode::init`] call.
     pub init: Duration,
+    /// Duration of [`UiNode::deinit`] call.
     pub deinit: Duration,
+    /// Duration of [`UiNode::update`] call.
     pub update: Duration,
+    /// Duration of [`UiNode::update_hp`] call.
     pub update_hp: Duration,
+    /// Duration of [`UiNode::measure`] call.
     pub measure: Duration,
+    /// Duration of [`UiNode::arrange`] call.
     pub arrange: Duration,
+    /// Duration of [`UiNode::render`] call.
     pub render: Duration,
+    /// Duration of [`UiNode::render_update`] call.
     pub render_update: Duration,
 }
 
 /// Number of times a [`UiNode`] method was called in a property branch.
 ///
-/// The durations is the sum of all descendent nodes.
+/// The counts is only the property node call, not a sum of descendant nodes.
 #[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub struct UiNodeCounts {
+    /// Count of calls to [`UiNode::init`].
     pub init: usize,
+    /// Count of calls to [`UiNode::deinit`].
     pub deinit: usize,
+    /// Count of calls to [`UiNode::update`].
     pub update: usize,
+    /// Count of calls to [`UiNode::update_hp`].
     pub update_hp: usize,
+    /// Count of calls to [`UiNode::measure`].
     pub measure: usize,
+    /// Count of calls to [`UiNode::arrange`].
     pub arrange: usize,
+    /// Count of calls to [`UiNode::render`].
     pub render: usize,
+    /// Count of calls to [`UiNode::render_update`].
     pub render_update: usize,
 }
 
+/// Debug info about a widget instance.
 #[derive(Debug, Clone)]
 pub struct WidgetInstanceInfo {
     /// Unique ID of the widget instantiation.
@@ -190,7 +213,7 @@ pub struct WidgetInstanceInfo {
     pub parent_property: &'static str,
 }
 
-/// Debug information about a *property* captured by a widget instance.
+/// Debug info about a *property* captured by a widget instance.
 #[derive(Debug, Clone)]
 pub struct CapturedPropertyInfo {
     /// Name of the property in the widget.
@@ -241,7 +264,7 @@ state_key! {
 unique_id! {
     /// Unique ID of a widget instance.
     ///
-    /// This is different from the `WidgetId` in that it cannot manipulated by the user
+    /// This is different from the `WidgetId` in that it cannot be manipulated by the user
     /// and identifies the widget *instantiation* event during debug mode.
     pub struct WidgetInstanceId;
 }
@@ -277,6 +300,7 @@ pub struct WhenInfoV1 {
     pub decl_location: SourceLocation,
     pub user_declared: bool,
 }
+#[allow(missing_docs)] // this is all hidden
 impl WidgetInstanceInfoNode {
     pub fn new_v1(
         node: Box<dyn UiNode>,
@@ -435,6 +459,7 @@ pub struct PropertyInfoNode {
     arg_debug_vars: Box<[BoxedVar<String>]>,
     info: PropertyInstance,
 }
+#[allow(missing_docs)] // this is all hidden
 impl PropertyInfoNode {
     #[allow(clippy::too_many_arguments)]
     pub fn new_v1(
@@ -572,7 +597,7 @@ impl UiNode for PropertyInfoNode {
 pub struct NewChildMarkerNode {
     child: Box<dyn UiNode>,
 }
-
+#[allow(missing_docs)] // this is hidden
 impl NewChildMarkerNode {
     pub fn new_v1(child: Box<dyn UiNode>) -> Self {
         NewChildMarkerNode { child }
@@ -770,6 +795,7 @@ impl WriteFrameState {
         }
     }
 
+    /// State represents no property update.
     pub fn is_none(&self) -> bool {
         self.widgets.is_empty()
     }
@@ -806,6 +832,7 @@ impl WriteFrameState {
         WriteFrameState { widgets }
     }
 
+    /// Gets the change in a property argument.
     pub fn arg_diff(&self, widget_id: WidgetInstanceId, property_name: &'static str, arg: &PropertyArgInfo) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
@@ -823,6 +850,7 @@ impl WriteFrameState {
         None
     }
 
+    /// Gets the change in the widget outer size.
     pub fn outer_size_diff(&self, widget_id: WidgetInstanceId, outer_size: LayoutSize) -> Option<WriteArgDiff> {
         if !self.is_none() {
             if let Some(wgt_state) = self.widgets.get(&widget_id) {
@@ -835,8 +863,11 @@ impl WriteFrameState {
     }
 }
 
+/// Represents the change in a property argument calculated by [`WriteFrameState`].
 pub enum WriteArgDiff {
+    /// The argument is equal the previous one, but the variable version changed.
     NewVersion,
+    /// The argument is not equal the previous one.
     NewValue,
 }
 
@@ -851,7 +882,6 @@ pub fn write_frame<W: std::io::Write>(frame: &FrameInfo, updates_from: &WriteFra
     write_tree(updates_from, frame.root(), "", &mut fmt);
     fmt.write_legend();
 }
-
 fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetInfo, parent_name: &str, fmt: &mut print_fmt::Fmt<W>) {
     if let Some(info) = widget.instance() {
         let wgt = info.borrow();
@@ -929,7 +959,6 @@ fn write_tree<W: std::io::Write>(updates_from: &WriteFrameState, widget: WidgetI
         fmt.close_widget("<unknown>");
     }
 }
-
 mod print_fmt {
     use super::WriteArgDiff;
     use colored::*;

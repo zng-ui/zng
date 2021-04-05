@@ -34,6 +34,9 @@ impl AngleRadian {
     pub fn modulo(self) -> Self {
         AngleGradian::from(self).modulo().into()
     }
+    /// Change type to [`LayoutAngle`].
+    ///
+    /// Note that layout angle is in radians so no computation happens.
     #[inline]
     pub fn to_layout(self) -> LayoutAngle {
         self.into()
@@ -406,6 +409,7 @@ impl_from_and_into_var! {
     }
 }
 impl Length {
+    /// Length of exact zero.
     #[inline]
     pub fn zero() -> Length {
         Length::Exact(0.0)
@@ -613,7 +617,9 @@ macro_rules! impl_length_comp_conversions {
 /// 2D point in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Point {
+    /// *x* offset in length units.
     pub x: Length,
+    /// *y* offset in length units.
     pub y: Length,
 }
 impl fmt::Display for Point {
@@ -626,58 +632,76 @@ impl fmt::Display for Point {
     }
 }
 impl Point {
+    /// New x, y from any [`Length`] unit.
     pub fn new<X: Into<Length>, Y: Into<Length>>(x: X, y: Y) -> Self {
         Point { x: x.into(), y: y.into() }
     }
 
+    /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`].
     #[inline]
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
     }
 
     /// Point at the top-middle of the available space.
+    ///
+    /// ***x:*** [`Length::half`], ***y:*** [`Length::zero`]
     #[inline]
     pub fn top() -> Self {
         Self::new(Length::half(), Length::zero())
     }
 
     /// Point at the bottom-middle of the available space.
+    ///
+    /// ***x:*** [`Length::half`], ***y:*** [`Length::fill`]
     #[inline]
     pub fn bottom() -> Self {
         Self::new(Length::half(), Length::fill())
     }
 
     /// Point at the middle-left of the available space.
+    ///
+    /// ***x:*** [`Length::zero`], ***y:*** [`Length::half`]
     #[inline]
     pub fn left() -> Self {
         Self::new(Length::zero(), Length::half())
     }
 
     /// Point at the middle-right of the available space.
+    ///
+    /// ***x:*** [`Length::fill`], ***y:*** [`Length::half`]
     #[inline]
     pub fn right() -> Self {
         Self::new(Length::fill(), Length::half())
     }
 
     /// Point at the top-left of the available space.
+    ///
+    /// ***x:*** [`Length::zero`], ***y:*** [`Length::zero`]
     #[inline]
     pub fn top_left() -> Self {
         Self::zero()
     }
 
     /// Point at the top-right of the available space.
+    ///
+    /// ***x:*** [`Length::fill`], ***y:*** [`Length::zero`]
     #[inline]
     pub fn top_right() -> Self {
         Self::new(Length::fill(), Length::zero())
     }
 
     /// Point at the bottom-left of the available space.
+    ///
+    /// ***x:*** [`Length::zero`], ***y:*** [`Length::fill`]
     #[inline]
     pub fn bottom_left() -> Self {
         Self::new(Length::zero(), Length::fill())
     }
 
     /// Point at the bottom-right of the available space.
+    ///
+    /// ***x:*** [`Length::fill`], ***y:*** [`Length::fill`]
     #[inline]
     pub fn bottom_right() -> Self {
         Self::new(Length::fill(), Length::fill())
@@ -689,12 +713,13 @@ impl Point {
         Point { y: self.x, x: self.y }
     }
 
+    /// Returns `(x, y)`.
     #[inline]
     pub fn to_tuple(self) -> (Length, Length) {
         (self.x, self.y)
     }
 
-    /// Compute the point in a context.
+    /// Compute the point in a layout context.
     #[inline]
     pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutPoint {
         LayoutPoint::from_lengths(
@@ -715,7 +740,9 @@ pub type LayoutPoint = wr::LayoutPoint;
 /// 2D size in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Size {
+    /// *width* in length units.
     pub width: Length,
+    /// *width* in length units.
     pub height: Length,
 }
 impl fmt::Display for Size {
@@ -728,6 +755,7 @@ impl fmt::Display for Size {
     }
 }
 impl Size {
+    /// New width, height from any [`Length`] unit.
     pub fn new<W: Into<Length>, H: Into<Length>>(width: W, height: H) -> Self {
         Size {
             width: width.into(),
@@ -735,22 +763,27 @@ impl Size {
         }
     }
 
+    /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
     #[inline]
     pub fn zero() -> Self {
         Self::new(Length::zero(), Length::zero())
     }
 
     /// Size that fills the available space.
+    ///
+    /// ***width:*** [`Length::fill`], ***height:*** [`Length::fill`]
     #[inline]
     pub fn fill() -> Self {
         Self::new(Length::fill(), Length::fill())
     }
 
+    /// Returns `(width, height)`.
     #[inline]
     pub fn to_tuple(self) -> (Length, Length) {
         (self.width, self.height)
     }
 
+    /// Compute the size in a layout context.
     #[inline]
     pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSize {
         LayoutSize::from_lengths(
@@ -768,15 +801,16 @@ impl_length_comp_conversions! {
 /// Computed [`Size`].
 pub type LayoutSize = wr::LayoutSize;
 
-/// Spacing in-between grid cells.
+/// Spacing in-between grid cells in [`Length`] units.
 #[derive(Debug, Clone)]
 pub struct GridSpacing {
-    /// Spacing in-between columns.
+    /// Spacing in-between columns, in length units.
     pub column: Length,
-    /// Spacing in-between rows.
+    /// Spacing in-between rows, in length units.
     pub row: Length,
 }
 impl GridSpacing {
+    /// New column, row from any [`Length`] unit..
     pub fn new<C: Into<Length>, R: Into<Length>>(column: C, row: R) -> Self {
         GridSpacing {
             column: column.into(),
@@ -790,7 +824,7 @@ impl GridSpacing {
         GridSpacing { column: same, row: same }
     }
 
-    /// Compute the spacing in a context.
+    /// Compute the spacing in a layout context.
     #[inline]
     pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutGridSpacing {
         LayoutGridSpacing {
@@ -832,14 +866,18 @@ impl_from_and_into_var! {
 /// Computed [`GridSpacing`].
 #[derive(Clone, Copy, Debug)]
 pub struct LayoutGridSpacing {
+    /// Spacing in-between columns, in layout pixels.
     pub column: f32,
+    /// Spacing in-between rows, in layout pixels.
     pub row: f32,
 }
 
 /// 2D rect in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect {
+    /// Top-left origin of the rectangle in length units.
     pub origin: Point,
+    /// Size of the rectangle in length units.
     pub size: Size,
 }
 impl fmt::Display for Rect {
@@ -852,6 +890,10 @@ impl fmt::Display for Rect {
     }
 }
 impl Rect {
+    /// New rectangle defined by an origin point (top-left) and a size, both in any type that converts to
+    /// [`Point`] and [`Size`].
+    ///
+    /// Also see [`RectFromTuplesBuilder`] for another way of initializing a rectangle value.
     pub fn new<O: Into<Point>, S: Into<Size>>(origin: O, size: S) -> Self {
         Rect {
             origin: origin.into(),
@@ -859,10 +901,12 @@ impl Rect {
         }
     }
 
+    /// New rectangle at origin [zero](Point::zero). The size is in any [`Length`] unit.
     pub fn from_size<S: Into<Size>>(size: S) -> Self {
         Self::new(Point::zero(), size)
     }
 
+    /// New rectangle at origin [zero](Point::zero) and size [zero](Size::zero).
     #[inline]
     pub fn zero() -> Self {
         Self::new(Point::zero(), Size::zero())
@@ -874,6 +918,7 @@ impl Rect {
         Self::from_size(Size::fill())
     }
 
+    /// Compute the rectangle in a layout context.
     #[inline]
     pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutRect {
         LayoutRect::new(self.origin.to_layout(available_size, ctx), self.size.to_layout(available_size, ctx))
@@ -919,7 +964,9 @@ pub type LayoutRect = wr::LayoutRect;
 /// 2D line in [`Length`] units.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Line {
+    /// Start point in length units.
     pub start: Point,
+    /// End point in length units.
     pub end: Point,
 }
 impl fmt::Display for Line {
@@ -932,6 +979,9 @@ impl fmt::Display for Line {
     }
 }
 impl Line {
+    /// New line defined by two points of any type that converts to [`Point`].
+    ///
+    /// Also see [`LineFromTuplesBuilder`] for another way of initializing a line value.
     pub fn new<S: Into<Point>, E: Into<Point>>(start: S, end: E) -> Self {
         Line {
             start: start.into(),
@@ -939,7 +989,7 @@ impl Line {
         }
     }
 
-    /// Line from (0, 0) to (0, 0).
+    /// Line from [zero](Point::zero) to [zero](Point::zero).
     #[inline]
     pub fn zero() -> Line {
         Line {
@@ -948,7 +998,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [bottom](Point::bottom) to [top](Point::top).
+    /// Line that fills the available length from [bottom](Point::bottom) to [top](Point::top).
     #[inline]
     pub fn to_top() -> Line {
         Line {
@@ -957,7 +1007,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [top](Point::top) to [bottom](Point::bottom).
+    /// Line that traces the length from [top](Point::top) to [bottom](Point::bottom).
     #[inline]
     pub fn to_bottom() -> Line {
         Line {
@@ -966,7 +1016,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [left](Point::left) to [right](Point::right).
+    /// Line that traces the length from [left](Point::left) to [right](Point::right).
     #[inline]
     pub fn to_right() -> Line {
         Line {
@@ -975,7 +1025,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [right](Point::right) to [left](Point::left).
+    /// Line that traces the length from [right](Point::right) to [left](Point::left).
     #[inline]
     pub fn to_left() -> Line {
         Line {
@@ -984,7 +1034,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [bottom-right](Point::bottom_right) to [top-left](Point::top_left).
+    /// Line that traces the length from [bottom-right](Point::bottom_right) to [top-left](Point::top_left).
     #[inline]
     pub fn to_top_left() -> Line {
         Line {
@@ -993,7 +1043,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [bottom-left](Point::bottom_left) to [top-right](Point::top_right).
+    /// Line that traces the length from [bottom-left](Point::bottom_left) to [top-right](Point::top_right).
     #[inline]
     pub fn to_top_right() -> Line {
         Line {
@@ -1002,7 +1052,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [top-right](Point::top_right) to [bottom-left](Point::bottom_left).
+    /// Line that traces the length from [top-right](Point::top_right) to [bottom-left](Point::bottom_left).
     #[inline]
     pub fn to_bottom_left() -> Line {
         Line {
@@ -1011,7 +1061,7 @@ impl Line {
         }
     }
 
-    /// Line from that fills the available length from [top-left](Point::top_left) to [bottom-right](Point::bottom_right).
+    /// Line that traces the length from [top-left](Point::top_left) to [bottom-right](Point::bottom_right).
     #[inline]
     pub fn to_bottom_right() -> Line {
         Line {
@@ -1020,6 +1070,7 @@ impl Line {
         }
     }
 
+    /// Compute the line in a layout context.
     #[inline]
     pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutLine {
         LayoutLine {
@@ -1032,10 +1083,13 @@ impl Line {
 /// Computed [`Line`].
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LayoutLine {
+    /// Start point in layout units.
     pub start: LayoutPoint,
+    /// End point in layout units.
     pub end: LayoutPoint,
 }
 impl LayoutLine {
+    /// New layout line defined by two layout points.
     #[inline]
     pub fn new(start: LayoutPoint, end: LayoutPoint) -> Self {
         LayoutLine { start, end }
@@ -1047,13 +1101,13 @@ impl LayoutLine {
         LayoutLine::new(LayoutPoint::zero(), LayoutPoint::zero())
     }
 
-    /// Line length.
+    /// Line length in layout units.
     #[inline]
     pub fn length(&self) -> LayoutLength {
         LayoutLength::new(self.start.distance_to(self.end))
     }
 
-    /// Bounding box that fits the line points.
+    /// Bounding box that fits the line points, in layout units.
     #[inline]
     pub fn bounds(&self) -> LayoutRect {
         LayoutRect::from_points(&[self.start, self.end])
@@ -1099,14 +1153,21 @@ impl<W: Into<Length>, H: Into<Length>> RectFromTuplesBuilder for (W, H) {
 }
 
 /// 2D size offsets in [`Length`] units.
+///
+/// This unit defines spacing around all four sides of a box, a widget margin can be defined using a value of this type.
 #[derive(Copy, Clone, Debug)]
 pub struct SideOffsets {
+    /// Spacing above, in length units.
     pub top: Length,
+    /// Spacing to the right, in length units.
     pub right: Length,
+    /// Spacing bellow, in length units.
     pub bottom: Length,
+    /// Spacing to the left ,in length units.
     pub left: Length,
 }
 impl SideOffsets {
+    /// New top, right, bottom left offsets. From any [`Length`] type.
     pub fn new<T: Into<Length>, R: Into<Length>, B: Into<Length>, L: Into<Length>>(top: T, right: R, bottom: B, left: L) -> Self {
         SideOffsets {
             top: top.into(),
@@ -1116,7 +1177,7 @@ impl SideOffsets {
         }
     }
 
-    /// Top-Bottom and Left-Right equal.
+    /// Top-Bottom and Left-Right equal. From any [`Length`] type.
     pub fn new_dimension<TB: Into<Length>, LR: Into<Length>>(top_bottom: TB, left_right: LR) -> Self {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();
@@ -1128,7 +1189,7 @@ impl SideOffsets {
         }
     }
 
-    /// All sides equal.
+    /// All sides equal. From any [`Length`] type.
     pub fn new_all<T: Into<Length>>(all_sides: T) -> Self {
         let all_sides = all_sides.into();
         SideOffsets {
@@ -1139,11 +1200,13 @@ impl SideOffsets {
         }
     }
 
+    /// All sides [zero](Length::zero).
     #[inline]
     pub fn zero() -> Self {
         Self::new_all(Length::zero())
     }
 
+    /// Compute the offsets in a layout context.
     #[inline]
     pub fn to_layout(&self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutSideOffsets {
         let width = LayoutLength::new(available_size.width);
@@ -1203,9 +1266,14 @@ pub type LayoutSideOffsets = wr::LayoutSideOffsets;
 /// a larger available space. An `x` value of `0.0` means the content left border touches
 /// the container left border, a value of `1.0` means the content right border touches the
 /// container right border.
+///
+/// There is a constant for each of the usual alignment values, the alignment is defined as two factors like this
+/// primarily for animating transition between alignments.
 #[derive(PartialEq, Clone, Copy)]
 pub struct Alignment {
+    /// *x* alignment in a `[0.0..=1.0]` range.
     pub x: FactorNormal,
+    /// *y* alignment in a `[0.0..=1.0]` range.
     pub y: FactorNormal,
 }
 impl<X: Into<FactorNormal>, Y: Into<FactorNormal>> From<(X, Y)> for Alignment {
@@ -1459,9 +1527,12 @@ pub type TabLength = Length;
 /// Types that can be aligned with this grid implement [`PixelGridExt`].
 #[derive(Copy, Clone, Debug)]
 pub struct PixelGrid {
+    /// The scale factor that defines the pixel grid.
     pub scale_factor: f32,
 }
 impl PixelGrid {
+    /// New from a scale factor. Layout pixels are adjusted so that when the renderer calculates device pixels
+    /// no *half pixels* are generated.
     #[inline]
     pub fn new(scale_factor: f32) -> Self {
         PixelGrid { scale_factor }

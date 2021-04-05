@@ -430,6 +430,7 @@ macro_rules! service_types {
             value: Cell<*mut S>,
             assert_count: Rc<()>
         }
+        #[allow(missing_docs)]// this is hidden
         impl<S: $Trait> [<$Trait Value>]<S> {
             pub fn init() -> Self {
                 Self { value: Cell::new(ptr::null_mut()), assert_count: Rc::new(()) }
@@ -440,7 +441,7 @@ macro_rules! service_types {
         pub struct [<$Trait Entry>]<S: $Trait> {
             local: &'static LocalKey<[<$Trait Value>]<S>>,
         }
-
+        #[allow(missing_docs)] // this is hidden.
         impl<S: $Trait> [<$Trait Entry>]<S> {
             pub fn new(local: &'static LocalKey<[<$Trait Value>]<S>>) -> Self {
                 Self { local }

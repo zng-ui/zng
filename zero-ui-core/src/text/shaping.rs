@@ -105,7 +105,7 @@ impl From<FactorPercent> for TextShapingUnit {
 
 /// Output of [text layout](Font::shape_text).
 
-/// Contains a sequence of glyphs positioned in straight [segments](Text Segment).
+/// Contains a sequence of glyphs positioned in straight [segments](TextSegment).
 /// This means that further text wrapping layout can be calculated from this `ShapedText`
 /// without needing font information.
 #[derive(Clone, Debug, Default)]

@@ -1098,6 +1098,7 @@ pub struct CaptureInfo {
     ///
     /// This is the window root widget for capture mode `Window`.
     pub target: WidgetPath,
+    /// Capture mode, see [`allows`](Self::allows) for more details.
     pub mode: CaptureMode,
     /// Position of the pointer related to the `target` area.
     pub position: LayoutPoint,

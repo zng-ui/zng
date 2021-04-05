@@ -48,7 +48,14 @@ pub type RenderExtendMode = webrender::api::ExtendMode;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinearGradientAxis {
+    /// Line defined by an angle. 0º is a line from bottom-to-top, 90º is a line from left-to-right.
+    ///
+    /// The line end-points are calculated so that the full gradient is visible from corner-to-corner, this is
+    /// sometimes called *magic corners*.
     Angle(AngleRadian),
+
+    /// Line defined by two points. If the points are inside the fill area the gradient is extended-out in the
+    /// same direction defined by the line, according to the extend mode.
     Line(Line),
 }
 impl LinearGradientAxis {
@@ -99,10 +106,16 @@ impl_from_and_into_var! {
 /// A color stop in a gradient.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ColorStop {
+    /// The color.
     pub color: Rgba,
+    /// Offset point where the [`color`](Self::color) is fully visible.
+    ///
+    /// Relative lengths are calculated on the length of the gradient line. There is also a special
+    /// relative length (`f32::INFINITY`) that indicates this color stop [is positional](Self::is_positional).
     pub offset: Length,
 }
 impl ColorStop {
+    /// New color stop with a defined offset.
     #[inline]
     pub fn new(color: impl Into<Rgba>, offset: impl Into<Length>) -> Self {
         ColorStop {
@@ -154,6 +167,10 @@ impl ColorStop {
         !f32::is_finite(layout_offset)
     }
 
+    /// Compute a [`RenderGradientStop`].
+    ///
+    /// Note that if this color stop [is positional](Self::is_positional) the returned offset is [`f32::INFINITY`].
+    /// You can use [`ColorStop::is_layout_positional`] to check a layout offset.
     #[inline]
     pub fn to_layout(self, length: LayoutLength, ctx: &LayoutContext) -> RenderGradientStop {
         RenderGradientStop {
