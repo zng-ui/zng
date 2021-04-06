@@ -1177,7 +1177,7 @@ impl SideOffsets {
         }
     }
 
-    /// Top-Bottom and Left-Right equal. From any [`Length`] type.
+    /// Top-bottom and left-right equal. From any [`Length`] type.
     pub fn new_dimension<TB: Into<Length>, LR: Into<Length>>(top_bottom: TB, left_right: LR) -> Self {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();

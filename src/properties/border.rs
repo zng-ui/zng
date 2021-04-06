@@ -199,57 +199,85 @@ pub enum BorderStyle {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderSide {
+    /// Line color.
     pub color: Rgba,
+    /// Line style.
     pub style: BorderStyle,
 }
 impl BorderSide {
-    #[inline]
-    pub fn new(color: Rgba, style: BorderStyle) -> Self {
-        BorderSide { color, style }
+    /// New border side from color and style value.
+    pub fn new<C: Into<Rgba>, S: Into<BorderStyle>>(color: C, style: S) -> Self {
+        BorderSide {
+            color: color.into(),
+            style: style.into(),
+        }
     }
 
-    #[inline]
-    pub fn solid(color: Rgba) -> Self {
+    /// New border side with [`Solid`](BorderStyle::Solid) style.
+    pub fn solid<C: Into<Rgba>>(color: C) -> Self {
         Self::new(color, BorderStyle::Solid)
     }
-
-    #[inline]
-    pub fn dotted(color: Rgba) -> Self {
-        Self::new(color, BorderStyle::Dotted)
+    /// New border side with [`Double`](BorderStyle::Double) style.
+    pub fn double<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Double)
     }
 
-    #[inline]
-    pub fn dashed(color: Rgba) -> Self {
+    /// New border side with [`Solid`](BorderStyle::Dotted) style.
+    pub fn dotted<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Dotted)
+    }
+    /// New border side with [`Solid`](BorderStyle::Dashed) style.
+    pub fn dashed<C: Into<Rgba>>(color: C) -> Self {
         Self::new(color, BorderStyle::Dashed)
+    }
+
+    /// New border side with [`Groove`](BorderStyle::Groove) style.
+    pub fn groove<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Groove)
+    }
+    /// New border side with [`Ridge`](BorderStyle::Ridge) style.
+    pub fn ridge<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Ridge)
+    }
+
+    /// New border side with [`Inset`](BorderStyle::Inset) style.
+    pub fn inset<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Inset)
+    }
+
+    /// New border side with [`Outset`](BorderStyle::Outset) style.
+    pub fn outset<C: Into<Rgba>>(color: C) -> Self {
+        Self::new(color, BorderStyle::Outset)
+    }
+
+    /// New border side with [`Hidden`](BorderStyle::Hidden) style and transparent color.
+    #[inline]
+    pub fn hidden() -> Self {
+        Self::new(colors::BLACK.transparent(), BorderStyle::Hidden)
     }
 }
 
+/// The line style and color for each side of a widget's border, plus the radius of each corner.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderDetails {
+    /// Color and style of the left border.
     pub left: BorderSide,
+    /// Color and style of the right border.
     pub right: BorderSide,
+
+    /// Color and style of the top border.
     pub top: BorderSide,
+    /// Color and style of the bottom border.
     pub bottom: BorderSide,
+
+    /// Corner radius of each corner.
+    /// TODO, length based radius.
     pub radius: BorderRadius,
 }
 impl BorderDetails {
-    #[inline]
-    pub fn solid(color: Rgba) -> Self {
-        Self::new_all_same(BorderSide::solid(color))
-    }
-
-    #[inline]
-    pub fn dotted(color: Rgba) -> Self {
-        Self::new_all_same(BorderSide::dotted(color))
-    }
-
-    #[inline]
-    pub fn dashed(color: Rgba) -> Self {
-        Self::new_all_same(BorderSide::dashed(color))
-    }
-
-    #[inline]
-    pub fn new_all_same(side: BorderSide) -> Self {
+    /// All sides equal and square corners.
+    pub fn new_all<S: Into<BorderSide>>(side: S) -> Self {
+        let side = side.into();
         BorderDetails {
             left: side,
             right: side,
@@ -258,9 +286,79 @@ impl BorderDetails {
             radius: new_border_radius_all_same_circular(0.0),
         }
     }
+
+    /// Top-bottom and left-right equal and square corners.
+    pub fn new_dimension<TB: Into<BorderSide>, LR: Into<BorderSide>>(top_bottom: TB, left_right: LR) -> Self {
+        let top_bottom = top_bottom.into();
+        let left_right = left_right.into();
+        BorderDetails {
+            left: left_right,
+            right: left_right,
+            top: top_bottom,
+            bottom: top_bottom,
+            radius: new_border_radius_all_same_circular(0.0),
+        }
+    }
+    /// New top, right, bottom left and square corners.
+    pub fn new<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
+        top: T,
+        right: R,
+        bottom: B,
+        left: L,
+    ) -> Self {
+        BorderDetails {
+            left: left.into(),
+            right: right.into(),
+            top: top.into(),
+            bottom: bottom.into(),
+            radius: new_border_radius_all_same_circular(0.0),
+        }
+    }
+
+    /// All sides a solid color.
+    pub fn solid<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::solid(color))
+    }
+    /// All sides a double line solid color.
+    pub fn double<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::double(color))
+    }
+
+    /// All sides a dotted color.
+    pub fn dotted<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::dotted(color))
+    }
+    /// All sides a dashed color.
+    pub fn dashed<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::dashed(color))
+    }
+
+    /// All sides a grooved color.
+    pub fn groove<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::groove(color))
+    }
+    /// All sides a ridged color.
+    pub fn ridge<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::ridge(color))
+    }
+
+    /// All sides a inset color.
+    pub fn inset<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::inset(color))
+    }
+    /// All sides a outset color.
+    pub fn outset<C: Into<Rgba>>(color: C) -> Self {
+        Self::new_all(BorderSide::outset(color))
+    }
+
+    /// All sides hidden.
+    #[inline]
+    pub fn hidden() -> Self {
+        Self::new_all(BorderSide::hidden())
+    }
 }
 
-pub fn new_border_radius_all_same(corner_radii: LayoutSize) -> BorderRadius {
+fn new_border_radius_all_same(corner_radii: LayoutSize) -> BorderRadius {
     BorderRadius {
         top_left: corner_radii,
         top_right: corner_radii,
@@ -269,7 +367,7 @@ pub fn new_border_radius_all_same(corner_radii: LayoutSize) -> BorderRadius {
     }
 }
 
-pub fn new_border_radius_all_same_circular(corner_radius: f32) -> BorderRadius {
+fn new_border_radius_all_same_circular(corner_radius: f32) -> BorderRadius {
     new_border_radius_all_same(LayoutSize::new(corner_radius, corner_radius))
 }
 

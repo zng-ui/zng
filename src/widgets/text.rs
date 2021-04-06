@@ -170,6 +170,9 @@ pub struct TextNode<T: Var<Text>> {
 }
 
 impl<T: Var<Text>> TextNode<T> {
+    /// New text node from a [`Text`] variable.
+    ///
+    /// All other text configuration is taken from context variables.
     pub fn new(text: T) -> TextNode<T> {
         TextNode {
             text_var: text,

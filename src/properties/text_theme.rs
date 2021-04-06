@@ -397,35 +397,53 @@ pub fn font_ea_width(child: impl UiNode, state: impl IntoVar<EastAsianWidth>) ->
 #[derive(Debug)]
 pub struct TextContext<'a> {
     /* Affects font */
+    /// The [`font_family`](fn@font_family) value.
     pub font_family: &'a [FontName],
+    /// The [`font_style`](fn@font_style) value.
     pub font_style: FontStyle,
+    /// The [`font_weight`](fn@font_weight) value.
     pub font_weight: FontWeight,
+    /// The [`font_stretch`](fn@font_stretch) value.
     pub font_stretch: FontStretch,
 
     /* Affects text characters */
+    /// The [`text_transform`](fn@text_transform) value.
     pub text_transform: TextTransformFn,
+    /// The [`white_space`](fn@white_space) value.
     pub white_space: WhiteSpace,
 
     /* Affects font instance */
+    /// The [`font_size`](fn@font_size) value.
     pub font_size: Length,
 
     /* Affects measure */
+    /// The [`line_height`](fn@line_height) value.
     pub line_height: LineHeight,
+    /// The [`letter_spacing`](fn@letter_spacing) value.
     pub letter_spacing: LetterSpacing,
+    /// The [`word_spacing`](fn@word_spacing) value.
     pub word_spacing: WordSpacing,
+    /// The [`line_spacing`](fn@line_spacing) value.
     pub line_spacing: Length,
+    /// The [`word_break`](fn@word_break) value.
     pub word_break: WordBreak,
+    /// The [`line_break`](fn@line_break) value.
     pub line_break: LineBreak,
+    /// The [`tab_length`](fn@tab_length) value.
     pub tab_length: TabLength,
+    /// The [`font_features`](fn@font_features) value.
     pub font_features: Option<std::cell::Ref<'a, FontFeatures>>,
 
     /* Affects arrange */
+    /// The [`text_align`](fn@text_align) value.
     pub text_align: TextAlign,
 
     /* Affects render only */
+    /// The [`text_color`](fn@text_color) value.
     pub text_color: Rgba,
 
     /* Maybe affects render only */
+    /// The [`font_synthesis`](fn@font_synthesis) value.
     pub font_synthesis: FontSynthesis,
 }
 impl<'a> TextContext<'a> {

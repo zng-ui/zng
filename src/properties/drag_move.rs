@@ -94,6 +94,7 @@ event_args! {
     }
 }
 
+/// Source of a drag-move event.
 #[derive(Debug, Clone)]
 pub enum DragEventSource {
     /// Drag started by mouse press.
@@ -120,13 +121,22 @@ pub enum DragEventSource {
 /// Direction of a keyboard drag move.
 #[derive(Debug, Clone, Copy)]
 pub enum MoveDirection {
+    /// Move up.
     Up,
+    /// Move down.
     Down,
+    /// Move left.
     Left,
+    /// Move right.
     Right,
+
+    /// Move up and right at the same time.
     UpRight,
+    /// Move up and left at the same time.
     UpLeft,
+    /// Move down and right at the same time.
     DownRight,
+    /// Move down and left at the same time.
     DownLeft,
 }
 

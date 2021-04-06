@@ -87,7 +87,7 @@ impl<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rg
                     LineOrientation::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, self.bounds.width),
                     LineOrientation::Horizontal => LayoutSideOffsets::new(self.bounds.height, 0.0, 0.0, 0.0),
                 };
-                let details = BorderDetails::new_all_same(BorderSide { color, style });
+                let details = BorderDetails::new_all(BorderSide { color, style });
 
                 frame.push_border(bounds, widths, details.into());
             }
@@ -154,14 +154,28 @@ enum RenderLineCommand {
     Border(BorderStyle),
 }
 
+/// Represents a line style.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LineStyle {
+    /// A solid line.
     Solid,
+    /// Two solid lines in parallel.
     Double,
+
+    /// Dotted line.
     Dotted,
+    /// Dashed line.
     Dashed,
+
+    /// Faux shadow with carved appearance.
     Groove,
+    /// Faux shadow with extruded appearance.
     Ridge,
+
+    /// A wavy line, like an error underline.
+    ///
+    /// The wave magnitude is defined by the overall line thickness, the associated value
+    /// here defines the thickness of the wavy line.
     Wavy(f32),
 }
 

@@ -1,15 +1,19 @@
 use crate::core::gradient::*;
 use crate::prelude::new_widget::*;
 
-/// Paints a linear gradient with a line defined by angle or points.
+/// Linear gradient with a line defined by angle or points.
+///
+/// The extend mode is [`Clamp`](ExtendMode::Clamp).
 pub fn linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Clamp)
 }
 
+/// Linear gradient with extend mode [`Repeat`](ExtendMode::Repeat).
 pub fn repeating_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Repeat)
 }
 
+/// Linear gradient with extend mode [`Reflect`](ExtendMode::Reflect).
 pub fn reflecting_linear_gradient(axis: impl IntoVar<LinearGradientAxis>, stops: impl IntoVar<GradientStops>) -> impl UiNode {
     linear_gradient_ext(axis, stops, ExtendMode::Reflect)
 }
