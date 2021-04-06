@@ -152,9 +152,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else if !new_declared.is_empty() && new_child_declared.is_empty() {
             for user_cap in &new {
                 if new_child.iter().any(|id| id == user_cap) {
-                    let fn_source = if new_child_is_default { "default" } else { "inherited" };
+                    if new_child_is_default {
+                        non_user_error! {"new_child does not capture anything"}
+                    }
                     errors.push(
-                        format_args!("property `{}` already captured in {} fn `new_child`", user_cap, fn_source),
+                        format_args!("property `{}` already captured in inherited fn `new_child`", user_cap),
                         user_cap.span(),
                     );
                 }

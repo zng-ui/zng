@@ -42,9 +42,9 @@ impl Parse for Input {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(Input {
             // inherit { #( #Path ; )* }, only the first path is parsed.
-            inherit: non_user_braced!(input, "inherit").parse()?,
+            inherit: non_user_braced!(input, "inherit").parse().unwrap_or_else(|e| non_user_error!(e)),
             // inherited and new widget data without parsing.
-            rest: input.parse()?,
+            rest: input.parse().unwrap_or_else(|e| non_user_error!(e)),
         })
     }
 }
@@ -55,21 +55,20 @@ struct Inherit {
     /// Other inherit paths without parsing.
     rest: TokenStream,
 }
-
 impl Parse for Inherit {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         // peek an attribute #[cfg(..)] or the first ident of a path or the first keyword of a path (super, self).
         if input.peek(Token![#]) || input.peek(Ident::peek_any) {
             // peeked an inherit item.
             Ok(Inherit {
-                next_inherit: Some(input.parse()?),
-                rest: input.parse()?,
+                next_inherit: Some(input.parse().unwrap_or_else(|e| non_user_error!(e))),
+                rest: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             })
         } else {
             // did not peeked an inherit item, assert it is empty.
             let r = Inherit {
                 next_inherit: None,
-                rest: input.parse()?,
+                rest: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             };
             assert!(r.rest.is_empty(), "expected r.rest.is_empty() but was: `{}`", r.rest);
             Ok(r)
@@ -83,11 +82,14 @@ struct InheritItem {
 }
 impl Parse for InheritItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut attrs = syn::Attribute::parse_outer(input)?;
+        let mut attrs = syn::Attribute::parse_outer(input).unwrap_or_else(|e| non_user_error!(e));
         let cfg = attrs.pop();
         if !attrs.is_empty() {
             non_user_error!("expected none or single #[cfg(..)] attribute")
         }
-        Ok(InheritItem { cfg, path: input.parse()? })
+        Ok(InheritItem {
+            cfg,
+            path: input.parse().unwrap_or_else(|e| non_user_error!(e)),
+        })
     }
 }

@@ -1,5 +1,25 @@
 error: can only unset inherited property
- --> $DIR/invalid_unset1.rs:6:39
+ --> $DIR/invalid_unset1.rs:8:39
   |
-6 |         zero_ui::properties::margin = unset!;
+8 |         zero_ui::properties::cursor = unset!;
   |                                       ^^^^^
+
+error: can only unset inherited property
+ --> $DIR/invalid_unset1.rs:9:29
+  |
+9 |         margin as spacing = unset!;
+  |                             ^^^^^
+
+error: can only unset inherited property
+  --> $DIR/invalid_unset1.rs:10:18
+   |
+10 |         margin = unset!;
+   |                  ^^^^^
+
+warning: unused import: `zero_ui::properties::margin`
+ --> $DIR/invalid_unset1.rs:5:9
+  |
+5 |     use zero_ui::properties::margin;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

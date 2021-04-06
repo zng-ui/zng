@@ -515,9 +515,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     );
                     skip = true;
                 }
-                // validate value not one of the special commands (`unset!`, `required!`).
+                // validate value is not one of the special commands (`unset!`, `required!`).
                 if let PropertyValue::Special(sp, _) = &assign.value {
-                    errors.push(format_args!("`{}` not allowed in `when` block", sp), sp.span());
+                    if sp == "unset" || sp == "required" {
+                        errors.push(format_args!("`{}!` not allowed in `when` block", sp), sp.span());
+                    } else {
+                        // unknown special.
+                        errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
+                    }
+
                     skip = true;
                 }
 
@@ -1127,7 +1133,7 @@ impl Parse for ItemProperty {
                 |input| PropertyTypeTerm::parse(input).ok(),
                 |input| {
                     // TODO can we peek next property in some cases?
-                    // we can't do `path = ` because the path can be a type path.Y
+                    // we can't do `path = ` because path can be a type
                     let fork = input.fork();
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
                     fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
