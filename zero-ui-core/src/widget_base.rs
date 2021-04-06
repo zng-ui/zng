@@ -27,13 +27,21 @@ pub mod implicit_mixin {
     }
 
     properties! {
-        /// If events are enabled in the widget and descendants, `true` by default.
+        /// If events are enabled in the widget and descendants.
+        ///
+        /// Widgets are enabled by default, you can set this to `false` to disable.
         enabled;
 
-        /// Widget visibility. `Visible` by default.
+        /// Widget visibility.
+        ///
+        /// Widgets are visible by default, you can set this to [`Collapsed`](zero_ui_core::widget_base::Visibility::Collapsed)
+        /// to remove the widget from layout & render.
         visibility;
 
-        /// If the widget is visible during hit-testing, `true` by default.
+        /// If the widget is visible during hit-testing.
+        ///
+        /// Widgets are hit-testable by default, you can set this to `false` to make the widget transparent to
+        /// hit-tests.
         hit_testable;
     }
 }

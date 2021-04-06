@@ -917,6 +917,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             &format!("wp-{}", property.ident),
             &property.ident.to_string(),
             &format!("fn.__p_{}.html", property.ident),
+            property.has_default,
         );
 
         if property.docs.is_empty() {
@@ -925,9 +926,6 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             docs.extend(property.docs);
         }
 
-        if property.has_default {
-            doc_extend!(docs, "\n\n*This property has a default value set by the widget.*");
-        }
         if let Some(widget_path) = property.inherited_from_path {
             let widget_path = widget_path.to_string().replace(" ", "");
             let widget_name = if let Some(i) = widget_path.rfind(':') {
@@ -959,15 +957,26 @@ fn docs_section_header(docs: &mut TokenStream, title: &'static str, id: &'static
 fn docs_close_section(docs: &mut TokenStream) {
     doc_extend!(docs, "</div>");
 }
-fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str) {
+fn docs_property_header(docs: &mut TokenStream, id: &str, property: &str, url: &str, has_default: bool) {
     doc_extend!(docs, "\n\n");
-    doc_extend!(
-        docs,
-        r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
-        id,
-        property,
-        url
-    );
+    if has_default {
+        doc_extend!(
+            docs,
+            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a> = <span title='Property is set by the widget.'>…</span></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            id,
+            property,
+            url
+        );
+    } else {
+        doc_extend!(
+            docs,
+            r##"<h3 id="{0}" class="method in-band"><code><a style="margin-left:10px" href="{2}" class="fnname">{1}</a></code><a href="#{0}" class="anchor" style="left:-10px"></a></h3><div class="docblock">"##,
+            id,
+            property,
+            url
+        );
+    }
+
     doc_extend!(docs, "\n\n");
 }
 fn docs_close_property(docs: &mut TokenStream) {

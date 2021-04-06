@@ -24,4 +24,8 @@ pub mod test_widget {
     }
 }
 
-fn main() {}
+fn main() {
+    let _ = test_widget! {
+        //margin = 10;
+    };
+}

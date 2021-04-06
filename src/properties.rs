@@ -10,7 +10,6 @@ mod visual;
 pub use visual::*;
 
 pub mod border;
-pub mod button_theme;
 mod capture_mouse_;
 mod cursor_;
 pub mod drag_move;

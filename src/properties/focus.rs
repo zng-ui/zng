@@ -361,7 +361,7 @@ event_property! {
 /// If the widget has keyboard focus.
 ///
 /// This is only `true` if the widget itself is focused.
-/// You can use [`is_focus_within`] to check if the focused widget is within this one.
+/// You can use [`is_focus_within`](fn@zero_ui::properties::focus::is_focus_within) to check if the focused widget is within this one.
 ///
 /// # Highlighting
 ///
@@ -411,7 +411,7 @@ pub fn is_focused(child: impl UiNode, state: StateVar) -> impl UiNode {
 
 /// If the widget or one of its descendants has keyboard focus.
 ///
-/// To check if only the widget has keyboard focus use [`is_focused`].
+/// To check if only the widget has keyboard focus use [`is_focused`](fn@zero_ui::properties::focus::is_focused).
 #[property(context)]
 pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusWithinNode<C: UiNode> {
@@ -455,9 +455,9 @@ pub fn is_focus_within(child: impl UiNode, state: StateVar) -> impl UiNode {
 /// If the widget has keyboard focus and focus highlighting is enabled.
 ///
 /// This is only `true` if the widget itself is focused and focus highlighting is enabled.
-/// You can use [`is_focus_within_hgl`] to check if the focused widget is within this one.
+/// You can use [`is_focus_within_hgl`](fn@zero_ui::properties::focus::is_focus_within_hgl) to check if the focused widget is within this one.
 ///
-/// Also see [`is_focused`] to check if the widget is focused regardless of highlighting.
+/// Also see [`is_focused`](fn@zero_ui::properties::focus::is_focused) to check if the widget is focused regardless of highlighting.
 #[property(context)]
 pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusedHglNode<C: UiNode> {
@@ -503,9 +503,10 @@ pub fn is_focused_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
 
 /// If the widget or one of its descendants has keyboard focus and focus highlighting is enabled.
 ///
-/// To check if only the widget has keyboard focus use [`is_focused_hgl`].
+/// To check if only the widget has keyboard focus use [`is_focused_hgl`](fn@zero_ui::properties::focus::is_focused_hgl).
 ///
-/// Also see [`is_focus_within`] to check if the widget has focus within regardless of highlighting.
+/// Also see [`is_focus_within`](fn@zero_ui::properties::focus::is_focus_within) to check if the widget has
+/// focus within regardless of highlighting.
 #[property(context)]
 pub fn is_focus_within_hgl(child: impl UiNode, state: StateVar) -> impl UiNode {
     struct IsFocusWithinHglNode<C: UiNode> {
