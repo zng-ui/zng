@@ -12,6 +12,21 @@ pub mod button {
 
     properties! {
         /// Button click event.
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use zero_ui::prelude::*;
+        ///
+        /// button! {
+        ///     on_click = |ctx, click_args| {
+        ///         assert!(click_args.is_primary());
+        ///         println!("button {:?} clicked!", ctx.path.widget_id());
+        ///     };
+        ///     content = text("Click Me!");
+        /// }
+        /// # ;
+        /// ```
         on_click;
 
         /// Button background color.

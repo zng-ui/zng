@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
 use regex::Regex;
-use syn::{parse::Parse, spanned::Spanned, Ident, LitBool};
+use syn::{parse::Parse, spanned::Spanned, Ident, LitBool, LitStr};
 
 use crate::{
     util::{self, parse_all, Errors},
@@ -167,17 +167,24 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new = new;
 
     // collect inherited properties. Late inherits of the same ident overrides early inherits.
+    // [property_ident => (property_path, crate_name)]
     let mut inherited_properties = HashMap::new();
     let mut inherited_props_child = vec![];
     let mut inherited_props = vec![];
     for inherited in inherits.iter().rev() {
         for p_child in inherited.properties_child.iter().rev() {
-            if inherited_properties.insert(&p_child.ident, &inherited.module).is_none() {
+            if inherited_properties
+                .insert(&p_child.ident, (&inherited.module, &inherited.crate_name))
+                .is_none()
+            {
                 inherited_props_child.push(p_child);
             }
         }
         for p in inherited.properties.iter().rev() {
-            if inherited_properties.insert(&p.ident, &inherited.module).is_none() {
+            if inherited_properties
+                .insert(&p.ident, (&inherited.module, &inherited.crate_name))
+                .is_none()
+            {
                 inherited_props.push(p);
             }
         }
@@ -270,7 +277,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: ident.to_string(),
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
-            inherited_from_path: Some(inherited_properties[ident].clone()),
+            inherited_from_path: Some({
+                let &(p, c) = &inherited_properties[ident];
+                (p.clone(), c.clone())
+            }),
             has_default: *default,
         });
 
@@ -286,7 +296,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         // generate re-export.
-        let path = inherited_properties.get(&ip.ident).unwrap();
+        let path = inherited_properties[&ip.ident].0;
         let p_ident = ident!("__p_{}", ip.ident);
         property_reexports.extend(quote! {
             #cfg
@@ -373,7 +383,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         match p.kind() {
             PropertyItemKind::Ident => {
-                if let Some(inherited_source) = inherited_properties.get(&p.ident) {
+                if let Some((inherited_source, _)) = inherited_properties.get(&p.ident) {
                     // re-export inherited property.
                     property_reexports.extend(quote! {
                         #cfg
@@ -384,7 +394,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
             PropertyItemKind::AliasedIdent(maybe_inherited) => {
-                if let Some(inherited_source) = inherited_properties.get(&maybe_inherited) {
+                if let Some((inherited_source, _)) = inherited_properties.get(&maybe_inherited) {
                     // re-export inherited property as a new name.
                     let inherited_ident = ident!("__p_{}", maybe_inherited);
                     property_reexports.extend(quote! {
@@ -631,7 +641,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: inherited_properties.get(w_prop).map(|&tt| tt.clone()),
+            inherited_from_path: inherited_properties.get(w_prop).map(|&(p, c)| (p.clone(), c.clone())),
             has_default: true,
         });
 
@@ -706,6 +716,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
+    let crate_name = std::env::var("CARGO_PKG_NAME")
+        .unwrap_or_else(|_| non_user_error!("expected env var CARGO_PKG_NAME"))
+        .replace("-", "_");
+
     let macro_ident = ident!("{}_{}", ident, util::uuid());
     let inherit_macro = quote! {
         (
@@ -728,6 +742,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
                 inherited {
                     mixin { #mixin }
+                    crate_name { #crate_name }
 
                     #built_data
                 }
@@ -804,7 +819,7 @@ struct PropertyDocs {
     ident: String,
     docs: TokenStream,
     doc_hidden: bool,
-    inherited_from_path: Option<TokenStream>,
+    inherited_from_path: Option<(TokenStream, String)>,
     has_default: bool,
 }
 struct WhenDocs {
@@ -926,8 +941,8 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             docs.extend(property.docs);
         }
 
-        if let Some(widget_path) = property.inherited_from_path {
-            let widget_path = widget_path.to_string().replace(" ", "");
+        if let Some((widget_path, crate_name)) = property.inherited_from_path {
+            let widget_path = widget_path.to_string().replace(" ", "").replace("$crate", &crate_name);
             let widget_name = if let Some(i) = widget_path.rfind(':') {
                 &widget_path[i + 1..]
             } else {
@@ -935,7 +950,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             };
             doc_extend!(
                 docs,
-                "\n\n*Inherited from [`{}`]({}#wp-{}).*",
+                "\n\n*Inherited from [`{}`](mod@{}#wp-{}).*",
                 widget_name,
                 widget_path,
                 property.ident
@@ -1012,6 +1027,7 @@ impl Parse for Items {
 /// Inherited widget or mixin data.
 struct InheritedItem {
     mixin: bool,
+    crate_name: String,
     module: TokenStream,
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
@@ -1026,6 +1042,10 @@ impl Parse for InheritedItem {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
+            crate_name: non_user_braced!(input, "crate_name")
+                .parse::<LitStr>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value(),
             module: non_user_braced!(input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
