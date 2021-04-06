@@ -3,79 +3,72 @@ use webrender_api as w_api;
 
 pub use w_api::LineOrientation;
 
-struct LineNode<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> {
+struct LineNode<W, L, O, C, S>
+where
+    W: VarLocal<Length>,
+    L: VarLocal<Length>,
+    O: VarLocal<LineOrientation>,
+    C: VarLocal<Rgba>,
+    S: Var<LineStyle>,
+{
     width: W,
     length: L,
     orientation: O,
     color: C,
     style: S,
+
     render_command: RenderLineCommand,
     bounds: LayoutSize,
 }
 #[impl_ui_node(none)]
-impl<W: Var<f32>, L: VarLocal<f32>, O: VarLocal<LineOrientation>, C: VarLocal<Rgba>, S: Var<LineStyle>> LineNode<W, L, O, C, S> {
-    fn refresh(&mut self, ctx: &mut WidgetContext) {
-        let length = *self.length.get(ctx.vars);
-        let width = *self.width.get(ctx.vars);
-        self.bounds = match *self.orientation.get(ctx.vars) {
-            LineOrientation::Horizontal => LayoutSize::new(length, width),
-            LineOrientation::Vertical => LayoutSize::new(width, length),
-        };
-        self.render_command = self.style.get(ctx.vars).render_command();
-    }
-
-    #[UiNode]
+impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
+where
+    W: VarLocal<Length>,
+    L: VarLocal<Length>,
+    O: VarLocal<LineOrientation>,
+    C: VarLocal<Rgba>,
+    S: Var<LineStyle>,
+{
     fn init(&mut self, ctx: &mut WidgetContext) {
+        self.width.init_local(ctx.vars);
         self.length.init_local(ctx.vars);
         self.color.init_local(ctx.vars);
         self.orientation.init_local(ctx.vars);
-        self.refresh(ctx);
+        self.render_command = self.style.get(ctx.vars).render_command();
     }
 
-    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.width.is_new(ctx.vars) || self.length.update_local(ctx.vars).is_some() || self.orientation.update_local(ctx.vars).is_some()
+        if self.width.update_local(ctx.vars).is_some()
+            | self.length.update_local(ctx.vars).is_some()
+            | self.orientation.update_local(ctx.vars).is_some()
         {
-            self.refresh(ctx);
             ctx.updates.layout();
-        } else if self.color.update_local(ctx.vars).is_some() || self.style.is_new(ctx.vars) {
-            self.refresh(ctx);
+        }
+        if self.color.update_local(ctx.vars).is_some() {
+            ctx.updates.render();
+        }
+        if let Some(style) = self.style.get_new(ctx.vars) {
+            self.render_command = style.render_command();
             ctx.updates.render();
         }
     }
 
-    #[UiNode]
-    fn measure(&mut self, _: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        if is_layout_any_size(*self.length.get_local()) {
-            // if length is infinity we use the available size.
-            match *self.orientation.get_local() {
-                LineOrientation::Vertical => {
-                    self.bounds.height = 0.0;
-                }
-                LineOrientation::Horizontal => {
-                    self.bounds.width = 0.0;
-                }
-            }
-        }
-        self.bounds = self.bounds.snap_to(ctx.pixel_grid());
-        self.bounds
+    fn measure(&mut self, available_space: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+        let (width, height) = match *self.orientation.get_local() {
+            LineOrientation::Horizontal => (self.length.get_local(), self.width.get_local()),
+            LineOrientation::Vertical => (self.width.get_local(), self.length.get_local()),
+        };
+
+        let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
+        let height = height.to_layout(LayoutLength::new(available_space.height), ctx);
+
+        LayoutSize::new(width.0, height.0)
     }
 
-    #[UiNode]
-    fn arrange(&mut self, final_size: LayoutSize, _: &mut LayoutContext) {
-        if is_layout_any_size(*self.length.get_local()) {
-            match *self.orientation.get_local() {
-                LineOrientation::Vertical => {
-                    self.bounds.height = final_size.height;
-                }
-                LineOrientation::Horizontal => {
-                    self.bounds.width = final_size.width;
-                }
-            }
-        }
+    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+        self.bounds = self.measure(final_size, ctx);
     }
 
-    #[UiNode]
     fn render(&self, frame: &mut FrameBuilder) {
         let bounds = LayoutRect::from_size(self.bounds);
         let orientation = *self.orientation.get_local();
@@ -108,12 +101,10 @@ pub mod line_w {
         color: impl IntoVar<Rgba> = rgb(0, 0, 0);
 
         /// Line stroke thickness.
-        width: impl IntoVar<f32> = 1.0;
+        width: impl IntoVar<Length> = 1;
 
         /// Line length.
-        ///
-        /// Set to `f32::INFINITY` to fill the available space.
-        length: impl IntoVar<f32> = f32::INFINITY;
+        length: impl IntoVar<Length> = 100.pct();
 
         /// Line style.
         style: impl IntoVar<LineStyle> = LineStyle::Solid;
@@ -121,8 +112,8 @@ pub mod line_w {
 
     fn new_child(
         orientation: impl IntoVar<LineOrientation>,
-        length: impl IntoVar<f32>,
-        width: impl IntoVar<f32>,
+        length: impl IntoVar<Length>,
+        width: impl IntoVar<Length>,
         color: impl IntoVar<Rgba>,
         style: impl IntoVar<LineStyle>,
     ) -> impl UiNode {
@@ -131,7 +122,7 @@ pub mod line_w {
             render_command: RenderLineCommand::Line(w_api::LineStyle::Solid, 0.0),
             orientation: orientation.into_local(),
             length: length.into_local(),
-            width: width.into_var(),
+            width: width.into_local(),
             color: color.into_local(),
             style: style.into_var(),
         }
@@ -141,8 +132,8 @@ pub mod line_w {
 /// Draws a horizontal or vertical line.
 pub fn line_w(
     orientation: impl IntoVar<LineOrientation> + 'static,
-    length: impl IntoVar<f32> + 'static,
-    width: impl IntoVar<f32> + 'static,
+    length: impl IntoVar<Length> + 'static,
+    width: impl IntoVar<Length> + 'static,
     color: impl IntoVar<Rgba> + 'static,
     style: impl IntoVar<LineStyle> + 'static,
 ) -> impl Widget {
@@ -177,6 +168,9 @@ pub enum LineStyle {
     /// The wave magnitude is defined by the overall line thickness, the associated value
     /// here defines the thickness of the wavy line.
     Wavy(f32),
+
+    /// Fully transparent line.
+    Hidden,
 }
 
 impl LineStyle {
@@ -190,6 +184,7 @@ impl LineStyle {
             LineStyle::Groove => Border(BorderStyle::Groove),
             LineStyle::Ridge => Border(BorderStyle::Ridge),
             LineStyle::Wavy(thickness) => Line(w_api::LineStyle::Wavy, thickness),
+            LineStyle::Hidden => Border(BorderStyle::Hidden),
         }
     }
 }
