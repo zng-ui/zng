@@ -44,7 +44,7 @@ pub fn linear_gradient_full(
     }
 }
 
-struct LinearGradientNode<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> {
+struct LinearGradientNode<A, S, E> {
     axis: A,
     stops: S,
     extend_mode: E,
@@ -54,8 +54,13 @@ struct LinearGradientNode<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientS
 
     final_size: LayoutSize,
 }
-
-impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> LinearGradientNode<A, S, E> {
+#[impl_ui_node(none)]
+impl<A, S, E> LinearGradientNode<A, S, E>
+where
+    A: VarLocal<LinearGradientAxis>,
+    S: VarLocal<GradientStops>,
+    E: VarLocal<ExtendMode>,
+{
     fn new(axis: A, stops: S, extend_mode: E) -> Self {
         Self {
             axis,
@@ -66,16 +71,14 @@ impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<Ex
             final_size: LayoutSize::zero(),
         }
     }
-}
 
-#[impl_ui_node(none)]
-impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>> UiNode for LinearGradientNode<A, S, E> {
+    #[UiNode]
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.axis.init_local(ctx.vars);
         self.extend_mode.init_local(ctx.vars);
         self.stops.init_local(ctx.vars);
     }
-
+    #[UiNode]
     fn update(&mut self, ctx: &mut WidgetContext) {
         if self.axis.update_local(ctx.vars).is_some() {
             ctx.updates.layout();
@@ -87,7 +90,7 @@ impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<Ex
             ctx.updates.layout();
         }
     }
-
+    #[UiNode]
     fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
         self.final_size = final_size;
         self.render_line = self.axis.get_local().layout(final_size, ctx);
@@ -102,7 +105,7 @@ impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<Ex
             &mut self.render_stops,
         );
     }
-
+    #[UiNode]
     fn render(&self, frame: &mut FrameBuilder) {
         frame.push_linear_gradient(
             LayoutRect::from_size(self.final_size),
@@ -115,13 +118,7 @@ impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<Ex
     }
 }
 
-struct LinearGradientFullNode<
-    A: VarLocal<LinearGradientAxis>,
-    S: VarLocal<GradientStops>,
-    E: VarLocal<ExtendMode>,
-    T: VarLocal<Size>,
-    TS: VarLocal<Size>,
-> {
+struct LinearGradientFullNode<A, S, E, T, TS> {
     g: LinearGradientNode<A, S, E>,
 
     tile_size: T,
@@ -132,8 +129,13 @@ struct LinearGradientFullNode<
 }
 
 #[impl_ui_node(none)]
-impl<A: VarLocal<LinearGradientAxis>, S: VarLocal<GradientStops>, E: VarLocal<ExtendMode>, T: VarLocal<Size>, TS: VarLocal<Size>> UiNode
-    for LinearGradientFullNode<A, S, E, T, TS>
+impl<A, S, E, T, TS> UiNode for LinearGradientFullNode<A, S, E, T, TS>
+where
+    A: VarLocal<LinearGradientAxis>,
+    S: VarLocal<GradientStops>,
+    E: VarLocal<ExtendMode>,
+    T: VarLocal<Size>,
+    TS: VarLocal<Size>,
 {
     fn init(&mut self, ctx: &mut WidgetContext) {
         self.g.init(ctx);

@@ -8,36 +8,6 @@ pub enum View<U: UiNode> {
     Same,
 }
 
-struct ViewNode<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U>> {
-    data: V,
-    child: U,
-    presenter: P,
-    _d: std::marker::PhantomData<D>,
-}
-#[impl_ui_node(child)]
-impl<D: VarValue, U: UiNode, V: Var<D>, P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static> ViewNode<D, U, V, P> {
-    fn refresh_child(&mut self, ctx: &mut WidgetContext) {
-        if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
-            self.child = new_child;
-            ctx.updates.layout();
-        }
-    }
-
-    #[UiNode]
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.refresh_child(ctx);
-        self.child.init(ctx);
-    }
-
-    #[UiNode]
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.data.is_new(ctx.vars) {
-            self.refresh_child(ctx);
-        }
-        self.child.update(ctx);
-    }
-}
-
 /// Dynamically presents a data variable.
 ///
 /// # Arguments
@@ -119,6 +89,42 @@ where
     V: Var<D>,
     P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static,
 {
+    struct ViewNode<D, U, V, P> {
+        data: V,
+        child: U,
+        presenter: P,
+        _d: std::marker::PhantomData<D>,
+    }
+    #[impl_ui_node(child)]
+    impl<D, U, V, P> ViewNode<D, U, V, P>
+    where
+        D: VarValue,
+        U: UiNode,
+        V: Var<D>,
+        P: FnMut(&V, &mut WidgetContext) -> View<U> + 'static,
+    {
+        fn refresh_child(&mut self, ctx: &mut WidgetContext) {
+            if let View::Update(new_child) = (self.presenter)(&self.data, ctx) {
+                self.child = new_child;
+                ctx.updates.layout();
+            }
+        }
+
+        #[UiNode]
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.refresh_child(ctx);
+            self.child.init(ctx);
+        }
+
+        #[UiNode]
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.data.is_new(ctx.vars) {
+                self.refresh_child(ctx);
+            }
+            self.child.update(ctx);
+        }
+    }
+
     ViewNode {
         data,
         child: initial_ui,

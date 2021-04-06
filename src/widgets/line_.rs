@@ -3,91 +3,6 @@ use webrender_api as w_api;
 
 pub use w_api::LineOrientation;
 
-struct LineNode<W, L, O, C, S>
-where
-    W: VarLocal<Length>,
-    L: VarLocal<Length>,
-    O: VarLocal<LineOrientation>,
-    C: VarLocal<Rgba>,
-    S: Var<LineStyle>,
-{
-    width: W,
-    length: L,
-    orientation: O,
-    color: C,
-    style: S,
-
-    render_command: RenderLineCommand,
-    bounds: LayoutSize,
-}
-#[impl_ui_node(none)]
-impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
-where
-    W: VarLocal<Length>,
-    L: VarLocal<Length>,
-    O: VarLocal<LineOrientation>,
-    C: VarLocal<Rgba>,
-    S: Var<LineStyle>,
-{
-    fn init(&mut self, ctx: &mut WidgetContext) {
-        self.width.init_local(ctx.vars);
-        self.length.init_local(ctx.vars);
-        self.color.init_local(ctx.vars);
-        self.orientation.init_local(ctx.vars);
-        self.render_command = self.style.get(ctx.vars).render_command();
-    }
-
-    fn update(&mut self, ctx: &mut WidgetContext) {
-        if self.width.update_local(ctx.vars).is_some()
-            | self.length.update_local(ctx.vars).is_some()
-            | self.orientation.update_local(ctx.vars).is_some()
-        {
-            ctx.updates.layout();
-        }
-        if self.color.update_local(ctx.vars).is_some() {
-            ctx.updates.render();
-        }
-        if let Some(style) = self.style.get_new(ctx.vars) {
-            self.render_command = style.render_command();
-            ctx.updates.render();
-        }
-    }
-
-    fn measure(&mut self, available_space: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
-        let (width, height) = match *self.orientation.get_local() {
-            LineOrientation::Horizontal => (self.length.get_local(), self.width.get_local()),
-            LineOrientation::Vertical => (self.width.get_local(), self.length.get_local()),
-        };
-
-        let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
-        let height = height.to_layout(LayoutLength::new(available_space.height), ctx);
-
-        LayoutSize::new(width.0, height.0)
-    }
-
-    fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
-        self.bounds = self.measure(final_size, ctx);
-    }
-
-    fn render(&self, frame: &mut FrameBuilder) {
-        let bounds = LayoutRect::from_size(self.bounds);
-        let orientation = *self.orientation.get_local();
-        let color = *self.color.get_local();
-        match self.render_command {
-            RenderLineCommand::Line(style, thickness) => frame.push_line(bounds, orientation, &color.into(), style, thickness),
-            RenderLineCommand::Border(style) => {
-                let widths = match orientation {
-                    LineOrientation::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, self.bounds.width),
-                    LineOrientation::Horizontal => LayoutSideOffsets::new(self.bounds.height, 0.0, 0.0, 0.0),
-                };
-                let details = BorderDetails::new_all(BorderSide { color, style });
-
-                frame.push_border(bounds, widths, details.into());
-            }
-        }
-    }
-}
-
 /// Draws a horizontal or vertical line.
 #[widget($crate::widgets::line_w)]
 pub mod line_w {
@@ -125,6 +40,84 @@ pub mod line_w {
             width: width.into_local(),
             color: color.into_local(),
             style: style.into_var(),
+        }
+    }
+
+    struct LineNode<W, L, O, C, S> {
+        width: W,
+        length: L,
+        orientation: O,
+        color: C,
+        style: S,
+
+        render_command: RenderLineCommand,
+        bounds: LayoutSize,
+    }
+    #[impl_ui_node(none)]
+    impl<W, L, O, C, S> UiNode for LineNode<W, L, O, C, S>
+    where
+        W: VarLocal<Length>,
+        L: VarLocal<Length>,
+        O: VarLocal<LineOrientation>,
+        C: VarLocal<Rgba>,
+        S: Var<LineStyle>,
+    {
+        fn init(&mut self, ctx: &mut WidgetContext) {
+            self.width.init_local(ctx.vars);
+            self.length.init_local(ctx.vars);
+            self.color.init_local(ctx.vars);
+            self.orientation.init_local(ctx.vars);
+            self.render_command = self.style.get(ctx.vars).render_command();
+        }
+
+        fn update(&mut self, ctx: &mut WidgetContext) {
+            if self.width.update_local(ctx.vars).is_some()
+                | self.length.update_local(ctx.vars).is_some()
+                | self.orientation.update_local(ctx.vars).is_some()
+            {
+                ctx.updates.layout();
+            }
+            if self.color.update_local(ctx.vars).is_some() {
+                ctx.updates.render();
+            }
+            if let Some(style) = self.style.get_new(ctx.vars) {
+                self.render_command = style.render_command();
+                ctx.updates.render();
+            }
+        }
+
+        fn measure(&mut self, available_space: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
+            let (width, height) = match *self.orientation.get_local() {
+                LineOrientation::Horizontal => (self.length.get_local(), self.width.get_local()),
+                LineOrientation::Vertical => (self.width.get_local(), self.length.get_local()),
+            };
+
+            let width = width.to_layout(LayoutLength::new(available_space.width), ctx);
+            let height = height.to_layout(LayoutLength::new(available_space.height), ctx);
+
+            LayoutSize::new(width.0, height.0)
+        }
+
+        fn arrange(&mut self, final_size: LayoutSize, ctx: &mut LayoutContext) {
+            self.bounds = self.measure(final_size, ctx);
+        }
+
+        fn render(&self, frame: &mut FrameBuilder) {
+            let bounds = LayoutRect::from_size(self.bounds);
+            let orientation = *self.orientation.get_local();
+            let color = *self.color.get_local();
+            match self.render_command {
+                RenderLineCommand::Line(style, thickness) => frame.push_line(bounds, orientation, &color.into(), style, thickness),
+                RenderLineCommand::Border(style) => {
+                    let widths = match orientation {
+                        LineOrientation::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, self.bounds.width),
+                        LineOrientation::Horizontal => LayoutSideOffsets::new(self.bounds.height, 0.0, 0.0, 0.0),
+                    };
+                    let details = BorderDetails::new_all(BorderSide { color, style });
+
+                    frame.push_border(bounds, widths, details.into());
+                }
+            }
         }
     }
 }

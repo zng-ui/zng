@@ -98,36 +98,6 @@ impl<C: WidgetList, S: VarLocal<Length>, D: StackDimension> StackNode<C, S, D> {
         self.children.render_all(|i| self.rectangles[i].origin, frame);
     }
 }
-struct VerticalD;
-impl StackDimension for VerticalD {
-    fn length(size: LayoutSize) -> f32 {
-        size.height
-    }
-    fn ort_length(size: LayoutSize) -> f32 {
-        size.width
-    }
-    fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
-        (&mut size.height, &mut size.width)
-    }
-    fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
-        &mut origin.y
-    }
-}
-struct HorizontalD;
-impl StackDimension for HorizontalD {
-    fn length(size: LayoutSize) -> f32 {
-        size.width
-    }
-    fn ort_length(size: LayoutSize) -> f32 {
-        size.height
-    }
-    fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
-        (&mut size.width, &mut size.height)
-    }
-    fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
-        &mut origin.x
-    }
-}
 
 /// Horizontal stack layout.
 ///
@@ -167,6 +137,22 @@ pub mod h_stack {
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
         StackNode::new(items, spacing.into_local(), HorizontalD)
     }
+
+    struct HorizontalD;
+    impl StackDimension for HorizontalD {
+        fn length(size: LayoutSize) -> f32 {
+            size.width
+        }
+        fn ort_length(size: LayoutSize) -> f32 {
+            size.height
+        }
+        fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
+            (&mut size.width, &mut size.height)
+        }
+        fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
+            &mut origin.x
+        }
+    }
 }
 
 /// Vertical stack layout.
@@ -205,6 +191,22 @@ pub mod v_stack {
     #[inline]
     fn new_child(items: impl WidgetList, spacing: impl IntoVar<Length>) -> impl UiNode {
         StackNode::new(items, spacing.into_local(), VerticalD)
+    }
+
+    struct VerticalD;
+    impl StackDimension for VerticalD {
+        fn length(size: LayoutSize) -> f32 {
+            size.height
+        }
+        fn ort_length(size: LayoutSize) -> f32 {
+            size.width
+        }
+        fn lengths_mut(size: &mut LayoutSize) -> (&mut f32, &mut f32) {
+            (&mut size.height, &mut size.width)
+        }
+        fn origin_mut(origin: &mut LayoutPoint) -> &mut f32 {
+            &mut origin.y
+        }
     }
 }
 
@@ -252,12 +254,6 @@ pub fn v_stack(items: impl WidgetList) -> impl Widget {
     }
 }
 
-struct ZStackNode<C: UiNodeList> {
-    children: C,
-}
-#[impl_ui_node(children)]
-impl<C: UiNodeList> UiNode for ZStackNode<C> {}
-
 /// Layering stack layout.
 ///
 /// # Example
@@ -294,6 +290,12 @@ pub mod z_stack {
     fn new_child(items: impl UiNodeList) -> impl UiNode {
         ZStackNode { children: items }
     }
+
+    struct ZStackNode<C: UiNodeList> {
+        children: C,
+    }
+    #[impl_ui_node(children)]
+    impl<C: UiNodeList> UiNode for ZStackNode<C> {}
 }
 
 /// Basic layering stack layout.
