@@ -1,16 +1,16 @@
-error: can only unset inherited property
+error: cannot unset, property `cursor` is not inherited
  --> $DIR/invalid_unset1.rs:8:39
   |
 8 |         zero_ui::properties::cursor = unset!;
   |                                       ^^^^^
 
-error: can only unset inherited property
+error: cannot unset, property `spacing` is not inherited
  --> $DIR/invalid_unset1.rs:9:29
   |
 9 |         margin as spacing = unset!;
   |                             ^^^^^
 
-error: can only unset inherited property
+error: cannot unset, property `margin` is not inherited
   --> $DIR/invalid_unset1.rs:10:18
    |
 10 |         margin = unset!;

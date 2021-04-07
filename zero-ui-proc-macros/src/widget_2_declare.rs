@@ -24,9 +24,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         properties_child,
         properties,
         whens,
-        mut new_child_declared,
+        new_child_declared,
         mut new_child,
-        mut new_declared,
+        new_declared,
         mut new,
         mod_items,
     } = widget;
@@ -39,10 +39,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // inherits `new_child` and `new`.
     let mut new_child_reexport = TokenStream::default();
     let mut new_reexport = TokenStream::default();
+    let mut new_child_is_default = false;
+    let mut new_is_default = false;
     if !mixin {
         let last_not_mixin = inherits.iter().filter(|i| !i.mixin).last();
-        let mut new_child_is_default = false;
-        let mut new_is_default = false;
 
         if new_child_declared.is_empty() {
             if let Some(source) = last_not_mixin {
@@ -165,6 +165,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     let new_child = new_child;
     let new = new;
+    let new_child_is_default = new_child_is_default;
+    let new_is_default = new_is_default;
 
     // collect inherited properties. Late inherits of the same ident overrides early inherits.
     // [property_ident => (property_path, crate_name)]
@@ -202,9 +204,33 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // apply unsets.
     for (unset, &unset_span) in &properties_unset {
-        if inherited_required.contains(unset) {
+        let cannot_unset_reason = if inherited_required.contains(unset) {
+            Some("required")
+        } else if new_child.contains(unset) {
+            if new_child_declared.is_empty() {
+                if new_child_is_default {
+                    non_user_error!("new_child does not capture anything")
+                }
+                Some("captured in inherited fn `new_child`")
+            } else {
+                Some("captured in fn `new_child`")
+            }
+        } else if new.contains(unset) {
+            if new_declared.is_empty() {
+                if new_is_default {
+                    Some("captured in default fn `new`")
+                } else {
+                    Some("captured in inherited fn `new`")
+                }
+            } else {
+                Some("captured in fn `new`")
+            }
+        } else {
+            None
+        };
+        if let Some(reason) = cannot_unset_reason {
             // cannot unset
-            errors.push(format_args!("property `{}` is required", unset), unset_span);
+            errors.push(format_args!("cannot unset, property `{}` is {}", unset, reason), unset_span);
         } else if inherited_properties.remove(unset).is_some() {
             // can unset
             if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == unset) {
@@ -213,7 +239,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 inherited_props.remove(i);
             }
         } else {
-            errors.push("can only unset inherited property", unset_span);
+            errors.push(format_args!("cannot unset, property `{}` is not inherited", unset), unset_span);
         }
     }
 
@@ -525,9 +551,9 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .collect();
 
     // validate captures exist.
-    let mut validate_captures = |declared: &mut TokenStream, captures| {
+    let mut validate_captures = |declared: TokenStream, captures| {
         if declared.is_empty() {
-            return;
+            return declared;
         }
         let mut invalid = false;
         for capture in captures {
@@ -540,11 +566,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         }
         if invalid {
-            *declared = TokenStream::default();
+            TokenStream::default()
+        } else {
+            declared
         }
     };
-    validate_captures(&mut new_child_declared, &new_child);
-    validate_captures(&mut new_declared, &new);
+    let new_child_declared = validate_captures(new_child_declared, &new_child);
+    let new_declared = validate_captures(new_declared, &new);
 
     // widget properties introduced first by use in when blocks, we validate for default value.
     // map of [property_without_value => combined_cfg_for_default_init]

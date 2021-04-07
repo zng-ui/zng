@@ -362,9 +362,16 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
                 if sp == "unset" {
-                    if property.alias.is_some() || property.path.get_ident().is_none() {
+                    let new_property = if let Some(alias) = &property.alias {
+                        Some(&alias.1)
+                    } else if property.path.get_ident().is_none() {
+                        property.path.segments.last().map(|s| &s.ident)
+                    } else {
+                        None
+                    };
+                    if let Some(new_p) = new_property {
                         // only single name path without aliases can be referencing an inherited property.
-                        errors.push("can only unset inherited property", sp.span());
+                        errors.push(format_args!("cannot unset, property `{}` is not inherited", new_p), sp.span());
                         continue;
                     }
                     // the final inherit validation is done in "widget_2_declare.rs".

@@ -10,14 +10,19 @@ trait StackDimension: 'static {
     fn origin_mut(origin: &mut LayoutPoint) -> &mut f32;
 }
 
-struct StackNode<C: WidgetList, S: VarLocal<Length>, D: StackDimension> {
+struct StackNode<C, S, D> {
     children: C,
     rectangles: Box<[LayoutRect]>,
     spacing: S,
     _d: PhantomData<D>,
 }
 #[impl_ui_node(children)]
-impl<C: WidgetList, S: VarLocal<Length>, D: StackDimension> StackNode<C, S, D> {
+impl<C, S, D> StackNode<C, S, D>
+where
+    C: WidgetList,
+    S: VarLocal<Length>,
+    D: StackDimension,
+{
     fn new(children: C, spacing: S, _dimension: D) -> Self {
         StackNode {
             rectangles: vec![LayoutRect::zero(); children.len()].into_boxed_slice(),
