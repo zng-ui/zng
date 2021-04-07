@@ -4,10 +4,11 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
+* Rename unset! to remove! in widget declarations? (or another word, or as a block `remove { a, b }`?)
 * Custom default property values.
 * required!(default-value) in widgets.
 * Link property declaration to their source-code point.
-* Rename unset! to remove! in widget declarations? (or another word?)
+* FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
 
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.
