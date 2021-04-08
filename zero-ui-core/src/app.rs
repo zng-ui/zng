@@ -570,8 +570,16 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Initializes extensions in headless mode and returns an [`HeadlessApp`].
+    ///
+    /// # Tests
+    ///
+    /// If called in a test (`cfg(test)`) this blocks until no other instance of [`HeadlessApp`] and
+    /// [`TestWidgetContext`] are running.
     #[inline]
     pub fn run_headless(self) -> HeadlessApp<E> {
+        #[cfg(test)]
+        let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
@@ -596,6 +604,9 @@ impl<E: AppExtension> AppExtended<E> {
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
+
+            #[cfg(test)]
+            _lock: lock,
         }
     }
 }
@@ -624,29 +635,55 @@ pub struct HeadlessApp<E: AppExtension> {
     control_flow: ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
+    #[cfg(test)]
+    _lock: std::sync::MutexGuard<'static, ()>,
 }
 
 impl<E: AppExtension> HeadlessApp<E> {
     /// Headless state.
-    pub fn state(&self) -> &StateMap {
+    ///
+    /// Can be accessed in a context using [`HeadlessInfo`].
+    pub fn headless_state(&self) -> &StateMap {
         self.owned_ctx.headless_state().unwrap()
     }
 
     /// Mutable headless state.
-    pub fn state_mut(&mut self) -> &mut StateMap {
+    pub fn headliess_state_mut(&mut self) -> &mut StateMap {
         self.owned_ctx.headless_state_mut().unwrap()
     }
 
+    /// App state.
+    pub fn app_state(&self) -> &StateMap {
+        self.owned_ctx.app_state()
+    }
+
+    /// Mutable app state.
+    pub fn app_state_mut(&mut self) -> &mut StateMap {
+        self.owned_ctx.app_state_mut()
+    }
+
     /// If headless rendering is enabled.
+    ///
+    /// This is disabled by default.
+    ///
+    /// See [`enable_render`](Self::enable_render) for more details.
     pub fn render_enabled(&self) -> bool {
-        self.state().get(HeadlessRenderEnabledKey).copied().unwrap_or_default()
+        self.headless_state().get(HeadlessRenderEnabledKey).copied().unwrap_or_default()
     }
 
     /// Enable or disable headless rendering.
     ///
-    /// This sets the [`HeadlessRenderEnabledKey`] state.
+    /// Note that *render* here means actually sending instructions to a renderer that generates textures, when
+    /// disabled [`UiNode::render`](crate::UiNode::render) is still called and *frames* are still generated and can be queried.
+    ///
+    /// When enabled windows are still not visible but you can request [screenshots](crate::window::OpenWindow::screenshot)
+    /// to get the frame image.
+    ///
+    /// Render is disabled by default in a headless app.
+    ///
+    /// This sets the [`HeadlessRenderEnabledKey`] state in the [headless state](Self::headless_state).
     pub fn enable_render(&mut self, enabled: bool) {
-        self.state_mut().set(HeadlessRenderEnabledKey, enabled);
+        self.headliess_state_mut().set(HeadlessRenderEnabledKey, enabled);
     }
 
     /// Notifies extensions of a [device event](DeviceEvent).
@@ -663,10 +700,10 @@ impl<E: AppExtension> HeadlessApp<E> {
             .on_window_event(window_id, event, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
     }
 
-    /// Notifies extensions of an [app event](AppEvent).
-    pub fn on_app_event(&mut self, event: &AppEvent) {
+    /// Pushes an [app event](AppEvent).
+    pub fn on_app_event(&mut self, event: AppEvent) {
         profile_scope!("headless_app::on_app_event");
-        todo!("use {:?}", event);
+        self.event_loop.create_proxy().send_event(event);
     }
 
     /// Takes the last requested [app events](AppEvent).
@@ -682,6 +719,8 @@ impl<E: AppExtension> HeadlessApp<E> {
 
     /// Does updates after events and custom actions.
     pub fn update(&mut self) -> ControlFlow {
+        // TODO unify this with the headed app update?
+
         let mut event_update = self.owned_ctx.take_request();
         let mut sequence_update = UpdateDisplayRequest::None;
 
@@ -734,6 +773,8 @@ impl<E: AppExtension> HeadlessApp<E> {
 
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
+    ///
+    /// See [`HeadlessApp::enable_render`] for for details.
     pub struct HeadlessRenderEnabledKey: bool;
 }
 
@@ -906,5 +947,59 @@ impl AppExtension for Vec<Box<dyn AppExtension>> {
         for ext in self {
             ext.deinit(ctx);
         }
+    }
+}
+
+#[cfg(test)]
+mod headless_tests {
+    use super::*;
+
+    #[test]
+    fn new_default() {
+        let mut app = App::default().run_headless();
+        app.update();
+    }
+
+    #[test]
+    fn new_empty() {
+        let mut app = App::empty().run_headless();
+        app.update();
+    }
+
+    #[test]
+    pub fn new_window_no_render() {
+        let mut app = App::default().run_headless();
+        assert!(!app.render_enabled());
+
+        app.with_context(|ctx| {
+            let render_enabled = ctx
+                .headless
+                .state()
+                .and_then(|s| s.get(HeadlessRenderEnabledKey).copied())
+                .unwrap_or_default();
+
+            assert!(!render_enabled);
+        });
+
+        app.update();
+    }
+
+    #[test]
+    pub fn new_window_with_render() {
+        let mut app = App::default().run_headless();
+        app.enable_render(true);
+        assert!(app.render_enabled());
+
+        app.with_context(|ctx| {
+            let render_enabled = ctx
+                .headless
+                .state()
+                .and_then(|s| s.get(HeadlessRenderEnabledKey).copied())
+                .unwrap_or_default();
+
+            assert!(render_enabled);
+        });
+
+        app.update();
     }
 }

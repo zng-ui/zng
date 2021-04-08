@@ -9,6 +9,7 @@ Things that must be done first because they influence the core API design that i
 * required!(default-value) in widgets.
 * Link property declaration to their source-code point.
 * FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
+  - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
 
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.

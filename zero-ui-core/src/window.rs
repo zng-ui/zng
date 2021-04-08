@@ -1714,3 +1714,51 @@ impl GlContext {
         };
     }
 }
+
+#[cfg(test_TODO)]
+mod headless_tests {
+    use super::*;
+    use crate::app::App;
+    use crate::color::colors;
+    use crate::NilUiNode;
+
+    #[test]
+    pub fn new_window_no_render() {
+        let mut app = App::default().run_headless();
+        assert!(!app.render_enabled());
+
+        app.with_context(|ctx| {
+            ctx.services.req::<Windows>().open(|_| test_window());
+        });
+
+        app.update();
+    }
+
+    #[test]
+    pub fn new_window_with_render() {
+        let mut app = App::default().run_headless();
+        app.enable_render(true);
+        assert!(app.render_enabled());
+
+        app.with_context(|ctx| {
+            ctx.services.req::<Windows>().open(|_| test_window());
+        });
+
+        app.update();
+    }
+
+    fn test_window() -> Window {
+        Window::new(
+            WidgetId::new_unique(),
+            "",
+            StartPosition::Default,
+            (0, 0),
+            (10, 10),
+            false,
+            false,
+            colors::RED,
+            true,
+            NilUiNode,
+        )
+    }
+}

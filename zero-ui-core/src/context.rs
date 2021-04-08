@@ -558,7 +558,11 @@ impl OwnedAppContext {
         let updates = OwnedUpdates::new(event_loop.clone());
         OwnedAppContext {
             app_state: StateMap::default(),
-            headless_state: None,
+            headless_state: if event_loop.is_headless() {
+                Some(StateMap::default())
+            } else {
+                None
+            },
             vars: Vars::instance(),
             events: Events::instance(),
             services: AppServicesInit::default(),
@@ -582,6 +586,16 @@ impl OwnedAppContext {
     /// State that lives for the duration of a headless application.
     pub fn headless_state_mut(&mut self) -> Option<&mut StateMap> {
         self.headless_state.as_mut()
+    }
+
+    /// State that lives for the duration of an application, including a headless application.
+    pub fn app_state(&self) -> &StateMap {
+        &self.app_state
+    }
+
+    /// State that lives for the duration of an application, including a headless application.
+    pub fn app_state_mut(&mut self) -> &mut StateMap {
+        &mut self.app_state
     }
 
     /// Borrow the app context as an [`AppInitContext`].
@@ -656,7 +670,7 @@ impl<'a> HeadlessInfo<'a> {
     }
 
     /// State that lives for the duration of the headless application.
-    pub fn state(&'a mut self) -> Option<&'a mut StateMap> {
+    pub fn state(&mut self) -> Option<&mut StateMap> {
         match &mut self.state {
             None => None,
             Some(state) => Some(state),
@@ -892,34 +906,88 @@ impl<'a> WindowContext<'a> {
     }
 }
 
-/// A mock [`WidgetContext`] for testing.
+/// <span class="stab portability" title="This is supported on `test` only"><code>test</code></span> A mock [`WidgetContext`] for testing widgets.
 ///
-/// Only a single instance of this type exists at a time, see [`Self::wait_new`] for details.
-#[cfg(test)]
+/// Only a single instance of this type can exist at a time, see [`Self::wait_new`] for details.
+///
+/// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`](crate::app::HeadlessApp)
+/// for more complex integration tests.
+///
+/// # `#[cfg(test)]`
+///
+/// This is supported on `test` only.
+#[cfg(any(test, doc))]
 pub struct TestWidgetContext {
-    /// WARNING: Default value is [`WindowId::dummy()`] which is unsafe.
+    /// Id of the pretend window that owns the pretend root widget.
+    ///
+    /// WARNING: The default value is [`WindowId::dummy()`] which is unsafe.
     pub window_id: WindowId,
+    /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,
+
+    /// The [`app_state`](WidgetContext::app_state) value. Empty by default.
     pub app_state: StateMap,
+    /// The [`window_state`](WidgetContext::window_state) value. Empty by default.
     pub window_state: StateMap,
+
+    /// The [`event_state`](WidgetContext::event_state) value. Empty by default.
+    ///
+    /// WARNING: In a real context this is reset for each update, in this test context the same map is reused.
     pub event_state: StateMap,
+
+    /// The [`services`](WidgetContext::services) repository. Empty by default.
+    ///
+    /// WARNING: In a real app services can only be registered at the start of the application.
+    /// In this context you can always register a service, you should probably not reuse a test widget
+    /// instance after registering a service.
     pub services: AppServicesInit,
+
+    /// A headless event loop.
+    ///
+    /// WARNING: In a full headless app this is drained of app events in each update.
+    /// Call [`take_headless_app_events`](crate::app::EventLoop::take_headless_app_events) to
+    /// do this manually. You should probably use the full [`HeadlessApp`](crate::app::HeadlessApp) if you
+    /// are needing to do this.
     pub event_loop: crate::app::EventLoop,
+
+    /// The [`updates`](WidgetContext::updates) repository. No request by default.
+    ///
+    /// WARNING: This is drained of requests after each update, you can do this manually by calling
+    /// [`apply_updates`](Self::apply_updates).
     pub updates: OwnedUpdates,
+
+    /// The [`vars`](WidgetContext::vars) instance.
     pub vars: Vars,
+
+    /// The [`events`](WidgetContext::events) instance.
+    ///
+    /// WARNING: In a real app events can only be registered at the start of the application.
+    /// In this context you can always register a service, you should probably not reuse a test widget
+    /// instance after registering an event.
     pub events: Events,
+
+    /// The [`window_services`](WidgetContext::window_services) instance.
+    ///
+    /// TODO: This is always empty for now, not implemented.
     pub window_services: WindowServices,
+
+    /// The [`sync`](WidgetContext::sync) instance.
+    ///
+    /// TODO: Implement a timers pump for this.
     pub sync: Sync,
+
     _lock: std::sync::MutexGuard<'static, ()>,
 }
 
-#[cfg(test)]
-static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
+#[cfg(any(test, doc))]
+pub(crate) static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
 
-#[cfg(test)]
+#[cfg(any(test, doc))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
     /// **blocks until the other instance is dropped**.
+    ///
+    /// This also blocks if there is a [`HeadlessApp`](crate::app::HeadlessApp) running.
     pub fn wait_new() -> Self {
         let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let event_loop = crate::app::EventLoop::new(true);
@@ -943,6 +1011,7 @@ impl TestWidgetContext {
         }
     }
 
+    /// Calls `action` within a fake widget context.
     pub fn widget_context<R>(&mut self, widget_state: &mut LazyStateMap, action: impl FnOnce(&mut WidgetContext) -> R) -> R {
         action(&mut WidgetContext {
             path: &mut WidgetContextPath::new(self.window_id, self.root_id),
@@ -951,7 +1020,7 @@ impl TestWidgetContext {
             widget_state,
             event_state: &mut self.event_state,
             vars: &mut self.vars,
-            events: &mut self.events,
+            events: &self.events,
             services: self.services.services(),
             window_services: &mut self.window_services,
             sync: &mut self.sync,
