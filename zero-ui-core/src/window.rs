@@ -794,6 +794,8 @@ impl Default for StartPosition {
 
 /// An open window.
 pub struct OpenWindow {
+    mode: WindowMode,
+
     gl_ctx: RefCell<GlContext>,
     wn_ctx: Rc<RefCell<OwnedWindowContext>>,
 
@@ -815,6 +817,48 @@ pub struct OpenWindow {
     subclass_id: std::cell::Cell<usize>,
 }
 
+/// Mode of an [`OpenWindow`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WindowMode {
+    /// Normal mode, shows a system window with content rendered.
+    Headed,
+
+    /// Headless mode, no system window and no renderer. The window does layout and calls [`UiNode::render`] but
+    /// it does not actually generates frame textures.
+    Headless,
+    /// Headless mode, no visible system window but with a renderer. The window does everything a [`Headed`](WindowMode::Headed)
+    /// window does, except presenting frame textures in a system window.
+    HeadlessWithRenderer,
+}
+impl WindowMode {
+    /// If is the [`Headed`](WindowMode::Headed) mode.
+    #[inline]
+    pub fn is_headed(self) -> bool {
+        match self {
+            WindowMode::Headed => true,
+            WindowMode::Headless | WindowMode::HeadlessWithRenderer => false,
+        }
+    }
+
+    /// If is the [`Headless`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::Headed) modes.
+    #[inline]
+    pub fn is_headless(self) -> bool {
+        match self {
+            WindowMode::Headless | WindowMode::HeadlessWithRenderer => true,
+            WindowMode::Headed => false,
+        }
+    }
+
+    /// If is the [`Headed`](WindowMode::Headed) or [`HeadlessWithRenderer`](WindowMode::HeadlessWithRenderer) modes.
+    #[inline]
+    pub fn has_renderer(self) -> bool {
+        match self {
+            WindowMode::Headed | WindowMode::HeadlessWithRenderer => true,
+            WindowMode::Headless => false,
+        }
+    }
+}
+
 impl OpenWindow {
     fn new(
         new_window: Box<dyn FnOnce(&mut AppContext) -> Window>,
@@ -825,23 +869,44 @@ impl OpenWindow {
     ) -> Self {
         let root = new_window(ctx);
 
-        let window_builder = WindowBuilder::new()
-            .with_visible(false) // not visible until first render, to avoid flickering
-            .with_resizable(*root.resizable.get(ctx.vars))
-            .with_title(root.title.get(ctx.vars).to_owned())
-            .with_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT);
+        let mode = if let Some(headless) = ctx.headless.state() {
+            if headless.get(app::HeadlessRenderEnabledKey).copied().unwrap_or_default() {
+                WindowMode::HeadlessWithRenderer
+            } else {
+                WindowMode::Headless
+            }
+        } else {
+            WindowMode::Headed
+        };
 
-        let mut gl_ctx = GlContext::new(window_builder, event_loop.headed_target().expect("headless window not implemented"));
+        let mut gl_ctx = match mode {
+            WindowMode::Headed => {
+                let window_builder = WindowBuilder::new()
+                    .with_visible(false) // not visible until first render, to avoid flickering
+                    .with_resizable(*root.resizable.get(ctx.vars))
+                    .with_title(root.title.get(ctx.vars).to_owned())
+                    .with_resizable(*root.auto_size.get(ctx.vars) != AutoSize::CONTENT);
+
+                GlContext::new(window_builder, event_loop.headed_target().unwrap())
+            }
+            WindowMode::HeadlessWithRenderer => GlContext::new_headless(),
+            WindowMode::Headless => GlContext::new_null(),
+        };
 
         // set the user initial position.
 
         let (available_size, dpi_factor) = {
-            let monitor = gl_ctx.window().current_monitor().expect("did not find current monitor");
-            let size = monitor.size();
-            let scale = monitor.scale_factor() as f32;
-            (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
+            if let Some(monitor) = gl_ctx.window().current_monitor() {
+                let size = monitor.size();
+                let scale = monitor.scale_factor() as f32;
+                (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
+            } else {
+                #[cfg(debug_assertions)]
+                warn_println!("no monitor found");
+                (LayoutSize::zero(), 1.0)
+            }
         };
-        let system_init_pos = gl_ctx.window().outer_position().expect("only desktop windows are supported");
+        let system_init_pos = gl_ctx.window().outer_position().expect("only desktop windows are implemented");
         let system_init_size = gl_ctx.window().inner_size();
 
         let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
@@ -901,7 +966,7 @@ impl OpenWindow {
         });
 
         let start_size = units::DeviceIntSize::new(valid_init_size.width as i32, valid_init_size.height as i32);
-        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl.clone(), notifier, opts, None, start_size).unwrap();
+        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl().clone(), notifier, opts, None, start_size).unwrap();
         let api = Arc::new(sender.create_api());
         let document_id = api.add_document(start_size, 0);
 
@@ -913,6 +978,7 @@ impl OpenWindow {
         let frame_info = FrameInfo::blank(window_id, root.id);
 
         let w = OpenWindow {
+            mode,
             gl_ctx: RefCell::new(gl_ctx),
             wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
                 api,
@@ -952,6 +1018,12 @@ impl OpenWindow {
         }
 
         w
+    }
+
+    /// Window mode.
+    #[inline]
+    pub fn mode(&self) -> WindowMode {
+        self.mode
     }
 
     /// Window ID.
@@ -1054,18 +1126,15 @@ impl OpenWindow {
 
         gl_ctx.make_current();
         gl_ctx.swap_buffers();
-
-        let pixels = gl_ctx
-            .gl
-            .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
+        let gl = gl_ctx.gl();
+        let pixels = gl.read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
 
         gl_ctx.swap_buffers();
 
-        let error = gl_ctx.gl.get_error();
+        let error = gl.get_error();
         if error != gl::NO_ERROR {
             panic!("read_pixels error: {:#x}", error)
         }
-
         gl_ctx.make_not_current();
 
         let mut pixels_flipped = Vec::with_capacity(pixels.len());
@@ -1638,12 +1707,15 @@ impl RendererState {
 enum GlContextState {
     Current(WindowedContext<PossiblyCurrent>),
     NotCurrent(WindowedContext<NotCurrent>),
+    HeadlessCurrent(glutin::Context<PossiblyCurrent>),
+    HeadlessNotCurrent(glutin::Context<NotCurrent>),
     Changing,
+    None,
 }
 
 struct GlContext {
     ctx: GlContextState,
-    gl: Rc<dyn gl::Gl>,
+    gl: Option<Rc<dyn gl::Gl>>,
 }
 
 impl GlContext {
@@ -1666,28 +1738,110 @@ impl GlContext {
 
         GlContext {
             ctx: GlContextState::Current(context),
-            gl,
+            gl: Some(gl),
         }
+    }
+
+    fn new_headless() -> Self {
+        let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
+            opengl_version: (3, 2),
+            opengles_version: (3, 0),
+        });
+
+        let event_loop = glutin::event_loop::EventLoop::new();
+        let size = glutin::dpi::PhysicalSize::new(1, 1);
+
+        #[cfg(unix)]
+        let context = {
+            use glutin::platform::unix::HeadlessContextExt;
+
+            match context.build_surfaceless(&event_loop) {
+                Ok(c) => c,
+                Err(e) => {
+                    error_println!("failed to build a surfaceless context, {}", e);
+
+                    match context.build_headless(&event_loop, size) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            error_println!("failed to build a fallback headless context, {}", e);
+
+                            match context.build_osmesa(size) {
+                                Ok(c) => c,
+                                Err(e) => {
+                                    error_println!("failed to build a fallback osmesa context, {}", e);
+                                    Self::new_headless_hidden_window_ctx(&event_loop)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        #[cfg(not(unix))]
+        let context = {
+            match context.build_headless(&event_loop, size) {
+                Ok(c) => c,
+                Err(e) => {
+                    error_println!("failed to build a headless context, {}", e);
+                    Self::new_headless_hidden_window_ctx(&event_loop)
+                }
+            }
+        };
+
+        let context = unsafe { context.make_current().expect("couldn't make `GlContext` current") };
+
+        let gl = match context.get_api() {
+            Api::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+            Api::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+            Api::WebGl => panic!("WebGl is not supported"),
+        };
+
+        GlContext {
+            ctx: GlContextState::HeadlessCurrent(context),
+            gl: Some(gl),
+        }
+    }
+    fn new_headless_hidden_window_ctx(_event_loop: &glutin::event_loop::EventLoop<()>) -> glutin::Context<NotCurrent> {
+        unimplemented!("headless hidden window fallback not implemented")
+    }
+
+    fn new_null() -> Self {
+        GlContext {
+            ctx: GlContextState::None,
+            gl: None,
+        }
+    }
+
+    fn gl(&self) -> &Rc<dyn gl::Gl> {
+        self.gl.as_ref().expect("headless renderless")
     }
 
     fn window(&self) -> &GlutinWindow {
         match &self.ctx {
             GlContextState::Current(c) => c.window(),
             GlContextState::NotCurrent(c) => c.window(),
+            GlContextState::HeadlessCurrent(_) | GlContextState::HeadlessNotCurrent(_) => panic!("GlContext is headless"),
             GlContextState::Changing => unreachable!(),
+            GlContextState::None => panic!("headless renderless"),
         }
     }
 
     fn make_current(&mut self) {
         self.ctx = match std::mem::replace(&mut self.ctx, GlContextState::Changing) {
-            GlContextState::Current(_) => {
+            GlContextState::Current(_) | GlContextState::HeadlessCurrent(_) => {
                 panic!("`GlContext` already is current");
             }
             GlContextState::NotCurrent(c) => {
                 let c = unsafe { c.make_current().expect("couldn't make `GlContext` current") };
                 GlContextState::Current(c)
             }
+            GlContextState::HeadlessNotCurrent(c) => {
+                let c = unsafe { c.make_current().expect("couldn't make `GlContext` current") };
+                GlContextState::HeadlessCurrent(c)
+            }
             GlContextState::Changing => unreachable!(),
+            GlContextState::None => panic!("headless renderless"),
         }
     }
 
@@ -1697,25 +1851,35 @@ impl GlContext {
                 let c = unsafe { c.make_not_current().expect("couldn't make `GlContext` not current") };
                 GlContextState::NotCurrent(c)
             }
-            GlContextState::NotCurrent(_) => {
+            GlContextState::HeadlessCurrent(c) => {
+                let c = unsafe { c.make_not_current().expect("couldn't make `GlContext` not current") };
+                GlContextState::HeadlessNotCurrent(c)
+            }
+            GlContextState::NotCurrent(_) | GlContextState::HeadlessNotCurrent(_) => {
                 panic!("`GlContext` already is not current");
             }
             GlContextState::Changing => unreachable!(),
+            GlContextState::None => panic!("headless renderless"),
         }
     }
 
     fn swap_buffers(&self) {
         match &self.ctx {
             GlContextState::Current(c) => c.swap_buffers().expect("failed to swap buffers"),
-            GlContextState::NotCurrent(_) => {
+            GlContextState::HeadlessCurrent(_) => {
+                // no error because we may be using a hidden window fallback
+                // and it is presented as a headless context by the API.
+            }
+            GlContextState::NotCurrent(_) | &GlContextState::HeadlessNotCurrent(_) => {
                 panic!("can only swap buffers of current contexts");
             }
             GlContextState::Changing => unreachable!(),
+            GlContextState::None => panic!("headless renderless"),
         };
     }
 }
 
-#[cfg(test_TODO)]
+#[cfg(test)]
 mod headless_tests {
     use super::*;
     use crate::app::App;

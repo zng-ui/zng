@@ -673,13 +673,13 @@ impl<E: AppExtension> HeadlessApp<E> {
 
     /// Enable or disable headless rendering.
     ///
-    /// Note that *render* here means actually sending instructions to a renderer that generates textures, when
+    /// Note that *render* here means actually creating a renderer and producing textures, when
     /// disabled [`UiNode::render`](crate::UiNode::render) is still called and *frames* are still generated and can be queried.
     ///
     /// When enabled windows are still not visible but you can request [screenshots](crate::window::OpenWindow::screenshot)
-    /// to get the frame image.
+    /// to get the frame image. Render is disabled by default in a headless app.
     ///
-    /// Render is disabled by default in a headless app.
+    /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method.
     ///
     /// This sets the [`HeadlessRenderEnabledKey`] state in the [headless state](Self::headless_state).
     pub fn enable_render(&mut self, enabled: bool) {
