@@ -81,18 +81,20 @@ fn test(mut args: Vec<&str>) {
         }
         args.push("--skip");
         args.push("build_tests");
-        cmd(
+        cmd_env(
             "cargo",
             &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
             &args,
+            &[("RUST_BACKTRACE", "1")],
         );
     } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
         // exclude ./test-crates and integration tests
         for test_name in unit_tests {
-            cmd(
+            cmd_env(
                 "cargo",
                 &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", test_name],
                 &args,
+                &[("RUST_BACKTRACE", "1")],
             );
         }
     } else if take_flag(&mut args, &["--doc"]) {
@@ -109,7 +111,7 @@ fn test(mut args: Vec<&str>) {
             t_args.push("--test");
             t_args.push(it);
         }
-        cmd("cargo", &t_args, &args);
+        cmd_env("cargo", &t_args, &args, &[("RUST_BACKTRACE", "1")]);
     } else if take_flag(&mut args, &["-b", "--build"]) {
         // build_tests
         let fails = take_option(&mut args, &["-f", "--fail"], "<fail-test-pat>").unwrap_or_default();
@@ -154,14 +156,17 @@ fn test(mut args: Vec<&str>) {
             }
         }
     } else if take_flag(&mut args, &["--examples"]) {
-        cmd("cargo", &[nightly, "test", "--examples"], &args);
+        // example tests
+        cmd_env("cargo", &[nightly, "test", "--examples"], &args, &[("RUST_BACKTRACE", "1")]);
     } else if let Some(examples) = take_option(&mut args, &["--example"], "<NAME>") {
+        // named example tests
         for example in examples {
-            cmd("cargo", &[nightly, "--example", example], &args);
+            cmd_env("cargo", &[nightly, "--example", example], &args, &[("RUST_BACKTRACE", "1")]);
         }
-    } else {
+    } else if take_flag(&mut args, &["--test-crates"]) {
+        // all ./test-crates
         for test_crate in top_cargo_toml("test-crates") {
-            cmd(
+            cmd_env(
                 "cargo",
                 &[
                     nightly,
@@ -173,22 +178,14 @@ fn test(mut args: Vec<&str>) {
                     &test_crate,
                 ],
                 &args,
+                &[("RUST_BACKTRACE", "1")],
             );
         }
-        if take_flag(&mut args, &["--test-crates"]) {
-            return; // --test-crates only.
-        }
-        cmd(
-            "cargo",
-            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features"],
-            &args,
-        );
-
-        cmd(
-            "cargo",
-            &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", "--examples"],
-            &args,
-        );
+    } else {
+        test(vec!["--workspace"]);
+        test(vec!["--examples"]);
+        test(vec!["--build"]);
+        test(vec!["--test-crates"]);
     }
 }
 
