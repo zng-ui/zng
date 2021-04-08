@@ -1204,6 +1204,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "is_main_thread"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc060c21b9763fcee4ef4fb59ddb9480e7f89a2d07f3982059b083a546fd1a13"
+dependencies = [
+ "libc",
+ "objc",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2809,6 +2820,7 @@ dependencies = [
  "glutin",
  "harfbuzz_rs",
  "image",
+ "is_main_thread",
  "lazy_static",
  "once_cell",
  "paste",

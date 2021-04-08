@@ -1172,7 +1172,6 @@ pub struct FrameInfo {
     tree: Tree<WidgetInfoInner>,
     lookup: fnv::FnvHashMap<WidgetId, ego_tree::NodeId>,
 }
-
 impl FrameInfo {
     /// Blank window frame that contains only the root widget taking no space.
     #[inline]

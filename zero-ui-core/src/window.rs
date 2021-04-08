@@ -870,7 +870,7 @@ impl OpenWindow {
         let root = new_window(ctx);
 
         let mode = if let Some(headless) = ctx.headless.state() {
-            if headless.get(app::HeadlessRenderEnabledKey).copied().unwrap_or_default() {
+            if headless.get(app::HeadlessRendererEnabledKey).copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
             } else {
                 WindowMode::Headless
@@ -1743,6 +1743,10 @@ impl GlContext {
     }
 
     fn new_headless() -> Self {
+        if !is_main_thread::is_main_thread().unwrap_or(true) {
+            panic!("can only init renderer in the main thread")
+        }
+
         let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
             opengl_version: (3, 2),
             opengles_version: (3, 0),
@@ -1889,7 +1893,7 @@ mod headless_tests {
     #[test]
     pub fn new_window_no_render() {
         let mut app = App::default().run_headless();
-        assert!(!app.render_enabled());
+        assert!(!app.renderer_enabled());
 
         app.with_context(|ctx| {
             ctx.services.req::<Windows>().open(|_| test_window());
@@ -1899,10 +1903,11 @@ mod headless_tests {
     }
 
     #[test]
+    #[should_panic(expected = "can only init renderer in the main thread")]
     pub fn new_window_with_render() {
         let mut app = App::default().run_headless();
-        app.enable_render(true);
-        assert!(app.render_enabled());
+        app.enable_renderer(true);
+        assert!(app.renderer_enabled());
 
         app.with_context(|ctx| {
             ctx.services.req::<Windows>().open(|_| test_window());

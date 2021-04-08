@@ -442,8 +442,17 @@ impl<E: AppExtension> AppExtended<E> {
     }
 
     /// Runs the application event loop calling `start` once at the beginning.
+    ///
+    /// # Panics
+    ///
+    /// Panics if not called by the main thread. This means you cannot run an app in unit tests, use a headless
+    /// app without renderer for that. The main thread is required by some operating systems and OpenGL.
     #[inline]
     pub fn run(self, start: impl FnOnce(&mut AppContext)) -> ! {
+        if !is_main_thread::is_main_thread().unwrap_or(true) {
+            panic!("can only init headed app in the main thread")
+        }
+
         #[cfg(feature = "app_profiler")]
         register_thread_with_profiler();
 
@@ -666,24 +675,27 @@ impl<E: AppExtension> HeadlessApp<E> {
     ///
     /// This is disabled by default.
     ///
-    /// See [`enable_render`](Self::enable_render) for more details.
-    pub fn render_enabled(&self) -> bool {
-        self.headless_state().get(HeadlessRenderEnabledKey).copied().unwrap_or_default()
+    /// See [`enable_renderer`](Self::enable_renderer) for more details.
+    pub fn renderer_enabled(&self) -> bool {
+        self.headless_state().get(HeadlessRendererEnabledKey).copied().unwrap_or_default()
     }
 
     /// Enable or disable headless rendering.
     ///
-    /// Note that *render* here means actually creating a renderer and producing textures, when
-    /// disabled [`UiNode::render`](crate::UiNode::render) is still called and *frames* are still generated and can be queried.
-    ///
     /// When enabled windows are still not visible but you can request [screenshots](crate::window::OpenWindow::screenshot)
-    /// to get the frame image. Render is disabled by default in a headless app.
+    /// to get the frame image. Renderer is disabled by default in a headless app.
     ///
-    /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method.
+    /// Only windows opened after enabling have a renderer. Already open windows are not changed by this method. When enabled
+    /// headless windows can only be initialized in the main thread due to limitations of OpenGL, this means you cannot run
+    /// a headless renderer in units tests.
     ///
-    /// This sets the [`HeadlessRenderEnabledKey`] state in the [headless state](Self::headless_state).
-    pub fn enable_render(&mut self, enabled: bool) {
-        self.headliess_state_mut().set(HeadlessRenderEnabledKey, enabled);
+    /// Note that [`UiNode::render`](crate::UiNode::render) is still called when a renderer is disabled and you can still
+    /// query the latest frame from [`OpenWindow::frame_info`](crate::window::OpenWindow::frame_info). The only thing that
+    /// is disabled is WebRender and the generation of frame textures.
+    ///
+    /// This sets the [`HeadlessRendererEnabledKey`] state in the [headless state](Self::headless_state).
+    pub fn enable_renderer(&mut self, enabled: bool) {
+        self.headliess_state_mut().set(HeadlessRendererEnabledKey, enabled);
     }
 
     /// Notifies extensions of a [device event](DeviceEvent).
@@ -774,8 +786,8 @@ impl<E: AppExtension> HeadlessApp<E> {
 state_key! {
     /// If render is enabled in [headless mode](AppExtended::run_headless).
     ///
-    /// See [`HeadlessApp::enable_render`] for for details.
-    pub struct HeadlessRenderEnabledKey: bool;
+    /// See [`HeadlessApp::enable_renderer`] for for details.
+    pub struct HeadlessRendererEnabledKey: bool;
 }
 
 #[cfg(not(debug_assertions))]
@@ -969,13 +981,13 @@ mod headless_tests {
     #[test]
     pub fn new_window_no_render() {
         let mut app = App::default().run_headless();
-        assert!(!app.render_enabled());
+        assert!(!app.renderer_enabled());
 
         app.with_context(|ctx| {
             let render_enabled = ctx
                 .headless
                 .state()
-                .and_then(|s| s.get(HeadlessRenderEnabledKey).copied())
+                .and_then(|s| s.get(HeadlessRendererEnabledKey).copied())
                 .unwrap_or_default();
 
             assert!(!render_enabled);
@@ -987,14 +999,14 @@ mod headless_tests {
     #[test]
     pub fn new_window_with_render() {
         let mut app = App::default().run_headless();
-        app.enable_render(true);
-        assert!(app.render_enabled());
+        app.enable_renderer(true);
+        assert!(app.renderer_enabled());
 
         app.with_context(|ctx| {
             let render_enabled = ctx
                 .headless
                 .state()
-                .and_then(|s| s.get(HeadlessRenderEnabledKey).copied())
+                .and_then(|s| s.get(HeadlessRendererEnabledKey).copied())
                 .unwrap_or_default();
 
             assert!(render_enabled);
