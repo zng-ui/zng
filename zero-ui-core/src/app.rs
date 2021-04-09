@@ -17,7 +17,7 @@ use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
-use std::any::{type_name, TypeId};
+use std::{any::{type_name, TypeId}, time::Duration};
 use std::{
     mem,
     sync::{Arc, Mutex},
@@ -721,6 +721,19 @@ impl<E: AppExtension> HeadlessApp<E> {
     /// Takes the last requested [app events](AppEvent).
     pub fn take_app_events(&mut self) -> Vec<AppEvent> {
         self.event_loop.take_headless_app_events()
+    }
+
+    /// **Blocks** until a new frame event is received.
+    pub fn wait_frame(&mut self) -> AppEvent {
+        // TODO move this to OpenWindow.
+        loop {
+            for event in self.take_app_events() {
+                if matches!(event, AppEvent::NewFrameReady(_)) {
+                    return event;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
     }
 
     /// Runs a custom action in the headless app context.

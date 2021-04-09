@@ -25,7 +25,7 @@ use glutin::{
 };
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{cell::RefCell, mem, num::NonZeroU16, rc::Rc, sync::Arc};
-use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
+use webrender::api::{units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
 
 pub use glutin::{event::WindowEvent, window::CursorIcon};
 
@@ -1125,8 +1125,13 @@ impl OpenWindow {
             device_init_size = units::DeviceIntSize::new((valid_size.width * dpi_factor) as i32, (valid_size.height * dpi_factor) as i32);
         }
 
-        // initialize the window_id and renderer.
-        let window_id;
+        let window_id = if mode.is_headed() {
+            WindowId::System(gl_ctx.window().id())
+        } else {
+            WindowId::new_unique()
+        };
+
+        // initialize renderer.
         let api;
         let document_id;
         let pipeline_id;
@@ -1134,8 +1139,6 @@ impl OpenWindow {
         let renderless_event_sender;
 
         if mode.has_renderer() {
-            window_id = WindowId::System(gl_ctx.window().id());
-
             let clear_color = *root.clear_color.get(ctx.vars);
             let opts = webrender::RendererOptions {
                 device_pixel_ratio: dpi_factor,
@@ -1160,8 +1163,6 @@ impl OpenWindow {
             renderer = RendererState::Running(renderer_);
             pipeline_id = PipelineId(1, 0);
         } else {
-            window_id = WindowId::new_unique();
-
             document_id = DocumentId::INVALID;
             api = None;
             renderer = RendererState::Renderless;
@@ -1341,18 +1342,31 @@ impl OpenWindow {
 
         // calculate intersection with window in physical pixels.
         let (x, y, width, height, dpi) = {
-            let window = gl_ctx.window();
-            let dpi = window.scale_factor() as f32;
-            let max_size = window.inner_size();
-            let max_rect = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(max_size.width as f32, max_size.height as f32));
-            let rect = rect * euclid::Scale::new(dpi);
-            let rect = rect.intersection(&max_rect).unwrap_or_default();
+            let dpi;
+            let max_rect;
+            let final_rect;
+
+            if let Some(window) = gl_ctx.window_opt() {
+                // headed mode.
+                dpi = window.scale_factor() as f32;
+                let max_size = window.inner_size();
+                max_rect = LayoutRect::from_size(LayoutSize::new(max_size.width as f32, max_size.height as f32));
+                let rect = rect * dpi;
+                final_rect = rect.intersection(&max_rect).unwrap_or_default();
+            } else {
+                // headless mode.
+                dpi = self.headless_config.scale_factor;
+                let max_size = self.headless_size;
+                max_rect = LayoutRect::from_size(max_size * dpi);
+                let rect = rect * dpi;
+                final_rect = rect.intersection(&max_rect).unwrap_or_default();
+            }
             (
-                rect.origin.x as u32,
+                final_rect.origin.x as u32,
                 // read_pixels (0, 0) is the lower left corner.
-                (max_rect.size.height - rect.origin.y - rect.size.height).max(0.0) as u32,
-                rect.size.width as u32,
-                rect.size.height as u32,
+                (max_rect.size.height - final_rect.origin.y - final_rect.size.height).max(0.0) as u32,
+                final_rect.size.width as u32,
+                final_rect.size.height as u32,
                 dpi,
             )
         };
