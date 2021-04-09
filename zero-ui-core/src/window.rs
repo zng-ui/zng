@@ -14,6 +14,7 @@ use crate::{
     UiNode, WidgetId,
 };
 
+use app::AppEvent;
 use fnv::FnvHashMap;
 
 use gleam::gl;
@@ -862,6 +863,10 @@ pub struct OpenWindow {
     gl_ctx: RefCell<GlContext>,
     wn_ctx: Rc<RefCell<OwnedWindowContext>>,
 
+    // Copy for when `wn_ctx` is borrowed.
+    mode: WindowMode,
+    id: WindowId,
+
     renderer: RendererState,
     pipeline_id: PipelineId,
     document_id: DocumentId,
@@ -878,6 +883,13 @@ pub struct OpenWindow {
 
     #[cfg(windows)]
     subclass_id: std::cell::Cell<usize>,
+
+    headless_config: WindowHeadlessConfig,
+    headless_position: LayoutPoint,
+    headless_size: LayoutSize,
+
+    // used in renderless mode to notify new frames.
+    renderless_event_sender: Option<EventLoopProxy>,
 }
 
 /// Mode of an [`OpenWindow`].
@@ -971,6 +983,10 @@ impl OpenWindow {
         // initial size for WebRender.
         let device_init_size;
 
+        // initial headless position and size.
+        let headless_position;
+        let headless_size;
+
         if mode.is_headed() {
             // init position, size & dpi in headed mode.
 
@@ -1047,6 +1063,9 @@ impl OpenWindow {
             // the system values where used.
             set_position_var = pos_used_fallback && !root.position.is_read_only(ctx.vars);
             set_size_var = size_used_fallback && !root.position.is_read_only(ctx.vars);
+
+            headless_position = LayoutPoint::zero();
+            headless_size = LayoutSize::zero();
         } else {
             // init position, size & dpi in headless mode.
 
@@ -1066,8 +1085,7 @@ impl OpenWindow {
 
             let mut used_fallback = false;
 
-            // TODO support this for testing window move.
-            let _valid_pos = LayoutPoint::new(
+            let valid_pos = LayoutPoint::new(
                 if user_init_pos.x.is_finite() {
                     user_init_pos.x
                 } else {
@@ -1081,6 +1099,7 @@ impl OpenWindow {
                     fallback_pos.y
                 },
             );
+            headless_position = valid_pos;
 
             set_position_var = used_fallback && !root.position.is_read_only(ctx.vars);
             used_fallback = false;
@@ -1099,6 +1118,7 @@ impl OpenWindow {
                     fallback_size.height
                 },
             );
+            headless_size = valid_size;
 
             set_size_var = used_fallback && !root.size.is_read_only(ctx.vars);
 
@@ -1111,6 +1131,8 @@ impl OpenWindow {
         let document_id;
         let pipeline_id;
         let renderer;
+        let renderless_event_sender;
+
         if mode.has_renderer() {
             window_id = WindowId::System(gl_ctx.window().id());
 
@@ -1122,6 +1144,8 @@ impl OpenWindow {
                 // TODO expose more options to the user.
                 ..webrender::RendererOptions::default()
             };
+
+            renderless_event_sender = None;
 
             let notifier = Box::new(Notifier {
                 window_id,
@@ -1142,6 +1166,8 @@ impl OpenWindow {
             api = None;
             renderer = RendererState::Renderless;
             pipeline_id = PipelineId::dummy();
+
+            renderless_event_sender = Some(event_loop_proxy);
         }
 
         let (state, services) = ctx.new_window(window_id, mode, &api);
@@ -1154,6 +1180,9 @@ impl OpenWindow {
 
         let w = OpenWindow {
             gl_ctx: RefCell::new(gl_ctx),
+
+            headless_config: root.headless_config.clone(),
+
             wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
                 mode,
                 api,
@@ -1165,6 +1194,9 @@ impl OpenWindow {
                 update: UpdateDisplayRequest::Layout,
             })),
 
+            mode,
+            id: window_id,
+
             renderer,
             document_id,
             pipeline_id,
@@ -1175,6 +1207,11 @@ impl OpenWindow {
             doc_view: units::DeviceIntRect::from_size(device_init_size),
             doc_view_changed: false,
             is_active: true, // just opened it?
+
+            headless_position,
+            headless_size,
+
+            renderless_event_sender,
 
             #[cfg(windows)]
             subclass_id: std::cell::Cell::new(0),
@@ -1199,13 +1236,13 @@ impl OpenWindow {
     /// Window mode.
     #[inline]
     pub fn mode(&self) -> WindowMode {
-        self.wn_ctx.borrow().mode
+        self.mode
     }
 
     /// Window ID.
     #[inline]
     pub fn id(&self) -> WindowId {
-        self.wn_ctx.borrow().window_id
+        self.id
     }
 
     /// If the window is the foreground window.
@@ -1217,27 +1254,39 @@ impl OpenWindow {
     /// Position of the window.
     #[inline]
     pub fn position(&self) -> LayoutPoint {
-        let gl_ctx = self.gl_ctx.borrow();
-        let wn = gl_ctx.window();
-        let s = wn.scale_factor() as f32;
-        let pos = wn.outer_position().expect("only desktop windows are supported");
-        LayoutPoint::new(pos.x as f32 / s, pos.y as f32 / s)
+        if self.mode().is_headed() {
+            let gl_ctx = self.gl_ctx.borrow();
+            let wn = gl_ctx.window();
+            let s = wn.scale_factor() as f32;
+            let pos = wn.outer_position().expect("only desktop windows are supported");
+            LayoutPoint::new(pos.x as f32 / s, pos.y as f32 / s)
+        } else {
+            self.headless_position
+        }
     }
 
     /// Size of the window content.
     #[inline]
     pub fn size(&self) -> LayoutSize {
-        let gl_ctx = self.gl_ctx.borrow();
-        let wn = gl_ctx.window();
-        let s = wn.scale_factor() as f32;
-        let p_size = wn.inner_size();
-        LayoutSize::new(p_size.width as f32 / s, p_size.height as f32 / s)
+        if self.mode().is_headed() {
+            let gl_ctx = self.gl_ctx.borrow();
+            let wn = gl_ctx.window();
+            let s = wn.scale_factor() as f32;
+            let p_size = wn.inner_size();
+            LayoutSize::new(p_size.width as f32 / s, p_size.height as f32 / s)
+        } else {
+            self.headless_size
+        }
     }
 
     /// Scale factor used by this window, all `Layout*` values are scaled by this value by the renderer.
     #[inline]
     pub fn scale_factor(&self) -> f32 {
-        self.gl_ctx.borrow().window().scale_factor() as f32
+        if self.mode().is_headed() {
+            self.gl_ctx.borrow().window().scale_factor() as f32
+        } else {
+            self.headless_config.scale_factor
+        }
     }
 
     /// Pixel grid of this window, all `Layout*` values are aligned with this grid during layout.
@@ -1274,11 +1323,19 @@ impl OpenWindow {
     }
 
     /// Take a screenshot of the full window area.
+    ///
+    /// # Panics
+    ///
+    /// Panics if running in [renderless mode](Self::mode).
     pub fn screenshot(&self) -> ScreenshotData {
         self.screenshot_rect(LayoutRect::from_size(self.size()))
     }
 
     /// Take a screenshot of a window area.
+    ///
+    /// # Panics
+    ///
+    /// Panics if running in [renderless mode](Self::mode).
     pub fn screenshot_rect(&self, rect: LayoutRect) -> ScreenshotData {
         let mut gl_ctx = self.gl_ctx.borrow_mut();
 
@@ -1450,16 +1507,19 @@ impl OpenWindow {
             // headless update.
 
             wn_ctx.root.title.update_local(vars);
-
-            // TODO review position need fake an event here?
-
             wn_ctx.root.auto_size.update_local(vars);
-
-            // TODO review size need to do something here?
-
             wn_ctx.root.clear_color.update_local(vars);
 
-            // TODO review headless respects visible?
+            let available_size = self.headless_config.screen_size;
+            let layout_ctx = LayoutContext::new(14.0, available_size, PixelGrid::new(wn_ctx.root.headless_config.scale_factor));
+
+            if let Some(size) = wn_ctx.root.size.get_new(vars) {
+                self.headless_size = size.to_layout(available_size, &layout_ctx);
+            }
+            if let Some(pos) = wn_ctx.root.position.get_new(vars) {
+                self.headless_position = pos.to_layout(available_size, &layout_ctx);
+            }
+
             if let Some(&vis) = wn_ctx.root.visible.update_local(vars) {
                 if !self.first_draw && vis {
                     updates.layout();
@@ -1578,7 +1638,10 @@ impl OpenWindow {
                 api.send_transaction(self.document_id, txn);
             } else {
                 // in renderless mode the frame is ready already.
-                unimplemented!("renderless frame ready notification")
+                self.renderless_event_sender
+                    .as_ref()
+                    .unwrap()
+                    .send_event(AppEvent::NewFrameReady(self.id));
             }
         }
     }
@@ -1605,7 +1668,10 @@ impl OpenWindow {
                     api.send_transaction(self.document_id, txn);
                 } else {
                     // in renderless mode the frame is updated already.
-                    unimplemented!("renderless frame ready notification")
+                    self.renderless_event_sender
+                        .as_ref()
+                        .unwrap()
+                        .send_event(AppEvent::NewFrameReady(self.id));
                 }
             }
         }
@@ -2127,7 +2193,7 @@ mod headless_tests {
     use super::*;
     use crate::app::App;
     use crate::color::colors;
-    use crate::NilUiNode;
+    use crate::{impl_ui_node, UiNode};
 
     #[test]
     pub fn new_window_no_render() {
@@ -2155,19 +2221,62 @@ mod headless_tests {
         app.update();
     }
 
+    #[test]
+    pub fn query_frame() {
+        let mut app = App::default().run_headless();
+
+        app.with_context(|ctx| {
+            ctx.services.req::<Windows>().open(|_| test_window());
+        });
+
+        app.update();
+
+        let events = app.take_app_events();
+
+        assert!(events.iter().any(|ev| matches!(ev, AppEvent::NewFrameReady(_))));
+
+        app.with_context(|ctx| {
+            let wn = ctx.services.req::<Windows>().windows().next().unwrap();
+
+            assert_eq!(wn.id(), wn.frame_info().window_id());
+
+            let root = wn.frame_info().root();
+
+            let expected = Some(true);
+            let actual = root.meta().get(FooMetaKey).copied();
+            assert_eq!(expected, actual);
+
+            let expected = LayoutRect::new(LayoutPoint::zero(), LayoutSize::new(20.0, 10.0));
+            let actual = *root.bounds();
+            assert_eq!(expected, actual);
+        })
+    }
+
     fn test_window() -> Window {
         Window::new(
             WidgetId::new_unique(),
             "",
             StartPosition::Default,
             (0, 0),
-            (10, 10),
+            (20, 10),
             false,
             false,
             colors::RED,
             true,
             WindowHeadlessConfig::default(),
-            NilUiNode,
+            SetFooMetaNode,
         )
+    }
+
+    state_key! {
+        struct FooMetaKey: bool;
+    }
+
+    struct SetFooMetaNode;
+    #[impl_ui_node(none)]
+    impl UiNode for SetFooMetaNode {
+        fn render(&self, frame: &mut FrameBuilder) {
+            frame.meta().set(FooMetaKey, true);
+        }
     }
 }
