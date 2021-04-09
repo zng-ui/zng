@@ -26,13 +26,51 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{cell::RefCell, mem, num::NonZeroU16, rc::Rc, sync::Arc};
 use webrender::api::{euclid, units, DocumentId, Epoch, HitTestFlags, PipelineId, RenderApi, RenderNotifier, Transaction};
 
-pub use glutin::{
-    event::WindowEvent,
-    window::{CursorIcon, WindowId},
-};
+pub use glutin::{event::WindowEvent, window::CursorIcon};
 
 type HeadedEventLoopWindowTarget = glutin::event_loop::EventLoopWindowTarget<app::AppEvent>;
 type CloseTogetherGroup = Option<NonZeroU16>;
+
+unique_id! {
+    /// Unique identifier of a headless window.
+    ///
+    /// See [`WindowId`] for more details.
+    pub struct LogicalWindowId;
+}
+
+/// Unique identifier of a headed window or a headless window backed by a hidden system window.
+///
+/// See [`WindowId`] for more details.
+pub type SystemWindowId = glutin::window::WindowId;
+
+/// Unique identifier of a [`OpenWindow`].
+///
+/// Can be obtained from [`OpenWindow::id`] or [`WindowContext::window_id`] or [`WidgetContext::path`].
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum WindowId {
+    /// The id for a *real* system window, this is the case for all windows in [headed mode](OpenWindow::mode)
+    /// and also for headless windows with renderer enabled in compatibility mode, when a hidden window is used.
+    System(SystemWindowId),
+    /// The id for a headless window, when the window is not backed by a system window.
+    Logical(LogicalWindowId),
+}
+impl WindowId {
+    /// New unique [`Logical`](Self::Logical) window id.
+    #[inline]
+    pub fn new_unique() -> Self {
+        WindowId::Logical(LogicalWindowId::new_unique())
+    }
+}
+impl From<SystemWindowId> for WindowId {
+    fn from(id: SystemWindowId) -> Self {
+        WindowId::System(id)
+    }
+}
+impl From<LogicalWindowId> for WindowId {
+    fn from(id: LogicalWindowId) -> Self {
+        WindowId::Logical(id)
+    }
+}
 
 /// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`]
 pub trait AppRunWindow {
@@ -706,9 +744,9 @@ pub struct Window {
     resizable: BoxedVar<bool>,
     clear_color: BoxedLocalVar<Rgba>,
     visible: BoxedLocalVar<bool>,
+    headless_config: WindowHeadlessConfig,
     child: Box<dyn UiNode>,
 }
-
 impl Window {
     /// New window configuration.
     ///
@@ -721,6 +759,7 @@ impl Window {
     /// * `resizable` - If the user can resize the window.
     /// * `clear_color` - Color used to clear a frame, works like a background color applied before `child`.
     /// * `visible` - If the window is visible, TODO diff. minimized.
+    /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
     #[allow(clippy::clippy::too_many_arguments)]
     pub fn new(
@@ -733,6 +772,7 @@ impl Window {
         resizable: impl IntoVar<bool>,
         clear_color: impl IntoVar<Rgba>,
         visible: impl IntoVar<bool>,
+        headless_config: WindowHeadlessConfig,
         child: impl UiNode,
     ) -> Self {
         Window {
@@ -746,7 +786,32 @@ impl Window {
             resizable: resizable.into_var().boxed(),
             clear_color: clear_color.into_local().boxed_local(),
             visible: visible.into_local().boxed_local(),
+            headless_config,
             child: child.boxed(),
+        }
+    }
+}
+
+/// Configuration of a window in [headless mode](WindowMode::is_headless).
+#[derive(Debug, Clone)]
+pub struct WindowHeadlessConfig {
+    /// The scale factor used for the headless layout and rendering.
+    ///
+    /// `1.0` by default.
+    pub scale_factor: f32,
+
+    /// Size of the imaginary monitor screen that contains the headless window.
+    ///
+    /// This is used to calculate relative lengths in the window size definition.
+    ///
+    /// `(1920.0, 1080.0)` by default.
+    pub screen_size: LayoutSize,
+}
+impl Default for WindowHeadlessConfig {
+    fn default() -> Self {
+        WindowHeadlessConfig {
+            scale_factor: 1.0,
+            screen_size: LayoutSize::new(1920.0, 1080.0),
         }
     }
 }
@@ -794,8 +859,6 @@ impl Default for StartPosition {
 
 /// An open window.
 pub struct OpenWindow {
-    mode: WindowMode,
-
     gl_ctx: RefCell<GlContext>,
     wn_ctx: Rc<RefCell<OwnedWindowContext>>,
 
@@ -869,6 +932,7 @@ impl OpenWindow {
     ) -> Self {
         let root = new_window(ctx);
 
+        // figure-out mode.
         let mode = if let Some(headless) = ctx.headless.state() {
             if headless.get(app::HeadlessRendererEnabledKey).copied().unwrap_or_default() {
                 WindowMode::HeadlessWithRenderer
@@ -879,6 +943,7 @@ impl OpenWindow {
             WindowMode::Headed
         };
 
+        // Init OpenGL context.
         let mut gl_ctx = match mode {
             WindowMode::Headed => {
                 let window_builder = WindowBuilder::new()
@@ -890,97 +955,207 @@ impl OpenWindow {
                 GlContext::new(window_builder, event_loop.headed_target().unwrap())
             }
             WindowMode::HeadlessWithRenderer => GlContext::new_headless(),
-            WindowMode::Headless => GlContext::new_null(),
+            WindowMode::Headless => GlContext::new_renderless(),
         };
 
-        // set the user initial position.
+        // set the user initial position, size & dpi.
 
-        let (available_size, dpi_factor) = {
+        // dpi will be taken from monitor or headless config.
+        let dpi_factor;
+
+        // if the position and size property variables need to be set back during initialization.
+        // this is the case when they are read-write and did not define the initial window size/pos.
+        let set_position_var;
+        let set_size_var;
+
+        // initial size for WebRender.
+        let device_init_size;
+
+        if mode.is_headed() {
+            // init position, size & dpi in headed mode.
+
+            // the `available_size` used to calculate relative lengths in the user pos/size values.
+            // is the monitor size or (800, 600) fallback if there is not monitor plugged.
+            let available_size;
             if let Some(monitor) = gl_ctx.window().current_monitor() {
                 let size = monitor.size();
                 let scale = monitor.scale_factor() as f32;
-                (LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale), scale)
+                available_size = LayoutSize::new(size.width as f32 * scale, size.height as f32 * scale);
+                dpi_factor = scale;
             } else {
                 #[cfg(debug_assertions)]
                 warn_println!("no monitor found");
-                (LayoutSize::zero(), 1.0)
+                available_size = LayoutSize::new(800.0, 600.0);
+                dpi_factor = 1.0;
+            };
+
+            // the init position and size selected by the operating system.
+            let system_init_pos = gl_ctx.window().outer_position().expect("only desktop windows are implemented");
+            let system_init_size = gl_ctx.window().inner_size();
+
+            // layout context for the user pos/size values.
+            let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
+
+            // calculate the user pos/size in physical units.
+            let user_init_pos = root.position.get(ctx.vars).to_layout(available_size, &layout_ctx);
+            let user_init_size = root.size.get(ctx.vars).to_layout(available_size, &layout_ctx);
+            // the use can set the variable but not the value (LAYOUT_ANY_SIZE)
+            // in this case se fallback to the system selected value.
+            let mut pos_used_fallback = false;
+            let valid_init_pos = glutin::dpi::PhysicalPosition::new(
+                if user_init_pos.x.is_finite() {
+                    (user_init_pos.x * dpi_factor) as i32
+                } else {
+                    pos_used_fallback = true;
+                    system_init_pos.x
+                },
+                if user_init_pos.y.is_finite() {
+                    (user_init_pos.y * dpi_factor) as i32
+                } else {
+                    pos_used_fallback = true;
+                    system_init_pos.y
+                },
+            );
+            let mut size_used_fallback = false;
+            let valid_init_size = glutin::dpi::PhysicalSize::new(
+                if user_init_size.width.is_finite() {
+                    (user_init_size.width * dpi_factor) as u32
+                } else {
+                    size_used_fallback = true;
+                    system_init_size.width
+                },
+                if user_init_size.height.is_finite() {
+                    (user_init_size.height * dpi_factor) as u32
+                } else {
+                    size_used_fallback = true;
+                    system_init_size.height
+                },
+            );
+
+            device_init_size = units::DeviceIntSize::new(valid_init_size.width as i32, valid_init_size.height as i32);
+
+            // propagate pos & size
+            //
+            // we need to set the system size if all/some of the user values where valid ..
+            if valid_init_pos != system_init_pos {
+                gl_ctx.window().set_outer_position(valid_init_pos);
             }
-        };
-        let system_init_pos = gl_ctx.window().outer_position().expect("only desktop windows are implemented");
-        let system_init_size = gl_ctx.window().inner_size();
-
-        let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
-
-        let user_init_pos = root.position.get(ctx.vars).to_layout(available_size, &layout_ctx);
-        let user_init_size = root.size.get(ctx.vars).to_layout(available_size, &layout_ctx);
-
-        let valid_init_pos = glutin::dpi::PhysicalPosition::new(
-            if user_init_pos.x.is_finite() {
-                (user_init_pos.x * dpi_factor) as i32
-            } else {
-                system_init_pos.x
-            },
-            if user_init_pos.y.is_finite() {
-                (user_init_pos.y * dpi_factor) as i32
-            } else {
-                system_init_pos.y
-            },
-        );
-        let valid_init_size = glutin::dpi::PhysicalSize::new(
-            if user_init_size.width.is_finite() {
-                (user_init_size.width * dpi_factor) as u32
-            } else {
-                system_init_size.width
-            },
-            if user_init_size.height.is_finite() {
-                (user_init_size.height * dpi_factor) as u32
-            } else {
-                system_init_size.height
-            },
-        );
-
-        let mut set_position_var = false;
-        let mut set_size_var = false;
-        if valid_init_pos != system_init_pos {
-            gl_ctx.window().set_outer_position(valid_init_pos);
+            if valid_init_size != system_init_size {
+                gl_ctx.window().set_inner_size(valid_init_size);
+            }
+            // .. and we need to set the user variables they are read/write and all/some of
+            // the system values where used.
+            set_position_var = pos_used_fallback && !root.position.is_read_only(ctx.vars);
+            set_size_var = size_used_fallback && !root.position.is_read_only(ctx.vars);
         } else {
-            set_position_var = !root.position.is_read_only(ctx.vars);
+            // init position, size & dpi in headless mode.
+
+            dpi_factor = root.headless_config.scale_factor;
+            let available_size = root.headless_config.screen_size;
+
+            // values used for when the user size/pos values are LAYOUT_ANY_SIZE
+            let fallback_pos = LayoutPoint::zero();
+            let fallback_size = available_size;
+
+            // layout context for the user pos/size values.
+            let layout_ctx = LayoutContext::new(12.0, available_size, PixelGrid::new(dpi_factor));
+
+            // calculate the user pos/size in physical units.
+            let user_init_pos = root.position.get(ctx.vars).to_layout(available_size, &layout_ctx);
+            let user_init_size = root.size.get(ctx.vars).to_layout(available_size, &layout_ctx);
+
+            let mut used_fallback = false;
+
+            // TODO support this for testing window move.
+            let _valid_pos = LayoutPoint::new(
+                if user_init_pos.x.is_finite() {
+                    user_init_pos.x
+                } else {
+                    used_fallback = true;
+                    fallback_pos.x
+                },
+                if user_init_pos.y.is_finite() {
+                    user_init_pos.y
+                } else {
+                    used_fallback = true;
+                    fallback_pos.y
+                },
+            );
+
+            set_position_var = used_fallback && !root.position.is_read_only(ctx.vars);
+            used_fallback = false;
+
+            let valid_size = LayoutSize::new(
+                if user_init_size.width.is_finite() {
+                    user_init_size.width
+                } else {
+                    used_fallback = true;
+                    fallback_size.width
+                },
+                if user_init_size.height.is_finite() {
+                    user_init_size.height
+                } else {
+                    used_fallback = true;
+                    fallback_size.height
+                },
+            );
+
+            set_size_var = used_fallback && !root.size.is_read_only(ctx.vars);
+
+            device_init_size = units::DeviceIntSize::new((valid_size.width * dpi_factor) as i32, (valid_size.height * dpi_factor) as i32);
         }
-        if valid_init_size != system_init_size {
-            gl_ctx.window().set_inner_size(valid_init_size);
+
+        // initialize the window_id and renderer.
+        let window_id;
+        let api;
+        let document_id;
+        let pipeline_id;
+        let renderer;
+        if mode.has_renderer() {
+            window_id = WindowId::System(gl_ctx.window().id());
+
+            let clear_color = *root.clear_color.get(ctx.vars);
+            let opts = webrender::RendererOptions {
+                device_pixel_ratio: dpi_factor,
+                clear_color: Some(clear_color.into()),
+                workers: Some(ui_threads),
+                // TODO expose more options to the user.
+                ..webrender::RendererOptions::default()
+            };
+
+            let notifier = Box::new(Notifier {
+                window_id,
+                event_loop: event_loop_proxy,
+            });
+
+            let (renderer_, sender) = webrender::Renderer::new(gl_ctx.gl().clone(), notifier, opts, None, device_init_size).unwrap();
+            let api_ = Arc::new(sender.create_api());
+            document_id = api_.add_document(device_init_size, 0);
+
+            api = Some(api_);
+            renderer = RendererState::Running(renderer_);
+            pipeline_id = PipelineId(1, 0);
         } else {
-            set_size_var = !root.position.is_read_only(ctx.vars);
+            window_id = WindowId::new_unique();
+
+            document_id = DocumentId::INVALID;
+            api = None;
+            renderer = RendererState::Renderless;
+            pipeline_id = PipelineId::dummy();
         }
 
-        let clear_color = *root.clear_color.get(ctx.vars);
-        let opts = webrender::RendererOptions {
-            device_pixel_ratio: dpi_factor,
-            clear_color: Some(clear_color.into()),
-            workers: Some(ui_threads),
-            ..webrender::RendererOptions::default()
-        };
+        let (state, services) = ctx.new_window(window_id, mode, &api);
 
-        let notifier = Box::new(Notifier {
-            window_id: gl_ctx.window().id(),
-            event_loop: event_loop_proxy,
-        });
-
-        let start_size = units::DeviceIntSize::new(valid_init_size.width as i32, valid_init_size.height as i32);
-        let (renderer, sender) = webrender::Renderer::new(gl_ctx.gl().clone(), notifier, opts, None, start_size).unwrap();
-        let api = Arc::new(sender.create_api());
-        let document_id = api.add_document(start_size, 0);
-
-        let window_id = gl_ctx.window().id();
-        let (state, services) = ctx.new_window(window_id, &api);
-
-        gl_ctx.make_not_current();
+        if mode.has_renderer() {
+            gl_ctx.make_not_current();
+        }
 
         let frame_info = FrameInfo::blank(window_id, root.id);
 
         let w = OpenWindow {
-            mode,
             gl_ctx: RefCell::new(gl_ctx),
             wn_ctx: Rc::new(RefCell::new(OwnedWindowContext {
+                mode,
                 api,
                 root,
                 state,
@@ -989,14 +1164,15 @@ impl OpenWindow {
                 root_transform_key: WidgetTransformKey::new_unique(),
                 update: UpdateDisplayRequest::Layout,
             })),
-            renderer: RendererState::Running(renderer),
+
+            renderer,
             document_id,
-            pipeline_id: PipelineId(1, 0),
+            pipeline_id,
 
             first_draw: true,
             frame_info,
 
-            doc_view: units::DeviceIntRect::from_size(start_size),
+            doc_view: units::DeviceIntRect::from_size(device_init_size),
             doc_view_changed: false,
             is_active: true, // just opened it?
 
@@ -1023,13 +1199,13 @@ impl OpenWindow {
     /// Window mode.
     #[inline]
     pub fn mode(&self) -> WindowMode {
-        self.mode
+        self.wn_ctx.borrow().mode
     }
 
     /// Window ID.
     #[inline]
     pub fn id(&self) -> WindowId {
-        self.gl_ctx.borrow().window().id()
+        self.wn_ctx.borrow().window_id
     }
 
     /// If the window is the foreground window.
@@ -1071,16 +1247,25 @@ impl OpenWindow {
     }
 
     /// Hit-test the latest frame.
+    ///
+    /// # Renderless
+    ///
+    /// Hit-testing needs a renderer for pixel accurate results. In [renderless mode](Self::mode) a fallback
+    /// layout based hit-testing algorithm is used, it probably generates different results.
     #[inline]
     pub fn hit_test(&self, point: LayoutPoint) -> FrameHitInfo {
-        let r = self.wn_ctx.borrow().api.hit_test(
-            self.document_id,
-            Some(self.pipeline_id),
-            units::WorldPoint::new(point.x, point.y),
-            HitTestFlags::all(),
-        );
+        if let Some(api) = &self.wn_ctx.borrow().api {
+            let r = api.hit_test(
+                self.document_id,
+                Some(self.pipeline_id),
+                units::WorldPoint::new(point.x, point.y),
+                HitTestFlags::all(),
+            );
 
-        FrameHitInfo::new(self.id(), self.frame_info.frame_id(), point, r)
+            FrameHitInfo::new(self.id(), self.frame_info.frame_id(), point, r)
+        } else {
+            unimplemented!("hit-test fallback for renderless mode not implemented");
+        }
     }
 
     /// Latest frame info.
@@ -1163,98 +1348,120 @@ impl OpenWindow {
         profile_scope!("window::update_window_vars");
 
         let gl_ctx = self.gl_ctx.borrow();
-        let window = gl_ctx.window();
         let mut wn_ctx = self.wn_ctx.borrow_mut();
 
-        // title
-        if let Some(title) = wn_ctx.root.title.update_local(vars) {
-            window.set_title(title);
-        }
+        if let Some(window) = gl_ctx.window_opt() {
+            // headed update.
 
-        // position
-        if let Some(&new_pos) = wn_ctx.root.position.get_new(vars) {
-            let current_pos = window.outer_position().expect("only desktop windows are supported");
-
-            let layout_ctx = self.monitor_layout_ctx();
-            let dpi_factor = layout_ctx.pixel_grid().scale_factor;
-            let new_pos = new_pos.to_layout(layout_ctx.viewport_size(), &layout_ctx);
-
-            let valid_pos = glutin::dpi::PhysicalPosition::new(
-                if new_pos.x.is_finite() {
-                    (new_pos.x * dpi_factor) as i32
-                } else {
-                    current_pos.x
-                },
-                if new_pos.y.is_finite() {
-                    (new_pos.y * dpi_factor) as i32
-                } else {
-                    current_pos.y
-                },
-            );
-
-            if valid_pos != current_pos {
-                // the position variable was changed to set the position size.
-                window.set_outer_position(valid_pos);
-            }
-        }
-
-        // auto-size
-        if wn_ctx.root.auto_size.update_local(vars).is_some() {
-            updates.layout();
-        }
-
-        // size
-        if let Some(&new_size) = wn_ctx.root.size.get_new(vars) {
-            let current_size = window.inner_size();
-
-            let layout_ctx = self.monitor_layout_ctx();
-            let dpi_factor = layout_ctx.pixel_grid().scale_factor;
-            let new_size = new_size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
-
-            let auto_size = *wn_ctx.root.auto_size.get_local();
-
-            let valid_size = glutin::dpi::PhysicalSize::new(
-                if !auto_size.contains(AutoSize::CONTENT_WIDTH) && new_size.width.is_finite() {
-                    (new_size.width * dpi_factor) as u32
-                } else {
-                    current_size.width
-                },
-                if !auto_size.contains(AutoSize::CONTENT_HEIGHT) && new_size.height.is_finite() {
-                    (new_size.height * dpi_factor) as u32
-                } else {
-                    current_size.height
-                },
-            );
-
-            if auto_size == AutoSize::CONTENT {
-                window.set_resizable(false);
-            } else {
-                // TODO disable resize in single dimension?
-                window.set_resizable(true);
+            // title
+            if let Some(title) = wn_ctx.root.title.update_local(vars) {
+                window.set_title(title);
             }
 
-            if valid_size != current_size {
-                // the size var was changed to set the position size.
-                window.set_inner_size(valid_size);
+            // position
+            if let Some(&new_pos) = wn_ctx.root.position.get_new(vars) {
+                let current_pos = window.outer_position().expect("only desktop windows are supported");
+
+                let layout_ctx = self.monitor_layout_ctx();
+                let dpi_factor = layout_ctx.pixel_grid().scale_factor;
+                let new_pos = new_pos.to_layout(layout_ctx.viewport_size(), &layout_ctx);
+
+                let valid_pos = glutin::dpi::PhysicalPosition::new(
+                    if new_pos.x.is_finite() {
+                        (new_pos.x * dpi_factor) as i32
+                    } else {
+                        current_pos.x
+                    },
+                    if new_pos.y.is_finite() {
+                        (new_pos.y * dpi_factor) as i32
+                    } else {
+                        current_pos.y
+                    },
+                );
+
+                if valid_pos != current_pos {
+                    // the position variable was changed to set the position size.
+                    window.set_outer_position(valid_pos);
+                }
             }
-        }
 
-        // resizable
-        if let Some(&resizable) = wn_ctx.root.resizable.get_new(vars) {
-            window.set_resizable(resizable);
-        }
+            // auto-size
+            if wn_ctx.root.auto_size.update_local(vars).is_some() {
+                updates.layout();
+            }
 
-        // background_color
-        if wn_ctx.root.clear_color.update_local(vars).is_some() {
-            wn_ctx.update |= UpdateDisplayRequest::Render;
-            updates.render();
-        }
+            // size
+            if let Some(&new_size) = wn_ctx.root.size.get_new(vars) {
+                let current_size = window.inner_size();
 
-        // visibility
-        if let Some(&vis) = wn_ctx.root.visible.update_local(vars) {
-            if !self.first_draw {
-                window.set_visible(vis);
-                if vis {
+                let layout_ctx = self.monitor_layout_ctx();
+                let dpi_factor = layout_ctx.pixel_grid().scale_factor;
+                let new_size = new_size.to_layout(layout_ctx.viewport_size(), &layout_ctx);
+
+                let auto_size = *wn_ctx.root.auto_size.get_local();
+
+                let valid_size = glutin::dpi::PhysicalSize::new(
+                    if !auto_size.contains(AutoSize::CONTENT_WIDTH) && new_size.width.is_finite() {
+                        (new_size.width * dpi_factor) as u32
+                    } else {
+                        current_size.width
+                    },
+                    if !auto_size.contains(AutoSize::CONTENT_HEIGHT) && new_size.height.is_finite() {
+                        (new_size.height * dpi_factor) as u32
+                    } else {
+                        current_size.height
+                    },
+                );
+
+                if auto_size == AutoSize::CONTENT {
+                    window.set_resizable(false);
+                } else {
+                    // TODO disable resize in single dimension?
+                    window.set_resizable(true);
+                }
+
+                if valid_size != current_size {
+                    // the size var was changed to set the position size.
+                    window.set_inner_size(valid_size);
+                }
+            }
+
+            // resizable
+            if let Some(&resizable) = wn_ctx.root.resizable.get_new(vars) {
+                window.set_resizable(resizable);
+            }
+
+            // background_color
+            if wn_ctx.root.clear_color.update_local(vars).is_some() {
+                wn_ctx.update |= UpdateDisplayRequest::Render;
+                updates.render();
+            }
+
+            // visibility
+            if let Some(&vis) = wn_ctx.root.visible.update_local(vars) {
+                if !self.first_draw {
+                    window.set_visible(vis);
+                    if vis {
+                        updates.layout();
+                    }
+                }
+            }
+        } else {
+            // headless update.
+
+            wn_ctx.root.title.update_local(vars);
+
+            // TODO review position need fake an event here?
+
+            wn_ctx.root.auto_size.update_local(vars);
+
+            // TODO review size need to do something here?
+
+            wn_ctx.root.clear_color.update_local(vars);
+
+            // TODO review headless respects visible?
+            if let Some(&vis) = wn_ctx.root.visible.update_local(vars) {
+                if !self.first_draw && vis {
                     updates.layout();
                 }
             }
@@ -1342,7 +1549,7 @@ impl OpenWindow {
                 frame_id,
                 ctx.window_id,
                 self.pipeline_id,
-                Arc::clone(&ctx.api),
+                ctx.api.clone(),
                 ctx.root.id,
                 ctx.root_transform_key,
                 size,
@@ -1356,17 +1563,23 @@ impl OpenWindow {
 
             self.frame_info = frame_info;
 
-            let mut txn = Transaction::new();
-            txn.set_display_list(frame_id, Some(clear_color), size, display_list_data, true);
-            txn.set_root_pipeline(self.pipeline_id);
+            if let Some(api) = &ctx.api {
+                // send request if has a renderer.
+                let mut txn = Transaction::new();
+                txn.set_display_list(frame_id, Some(clear_color), size, display_list_data, true);
+                txn.set_root_pipeline(self.pipeline_id);
 
-            if self.doc_view_changed {
-                self.doc_view_changed = false;
-                txn.set_document_view(self.doc_view, self.scale_factor());
+                if self.doc_view_changed {
+                    self.doc_view_changed = false;
+                    txn.set_document_view(self.doc_view, self.scale_factor());
+                }
+
+                txn.generate_frame();
+                api.send_transaction(self.document_id, txn);
+            } else {
+                // in renderless mode the frame is ready already.
+                unimplemented!("renderless frame ready notification")
             }
-
-            txn.generate_frame();
-            ctx.api.send_transaction(self.document_id, txn);
         }
     }
 
@@ -1383,11 +1596,17 @@ impl OpenWindow {
 
             let update = update.finalize();
             if !update.transforms.is_empty() || !update.floats.is_empty() {
-                let mut txn = Transaction::new();
-                txn.set_root_pipeline(self.pipeline_id);
-                txn.update_dynamic_properties(update);
-                txn.generate_frame();
-                ctx.api.send_transaction(self.document_id, txn);
+                if let Some(api) = &ctx.api {
+                    // send request if has a renderer.
+                    let mut txn = Transaction::new();
+                    txn.set_root_pipeline(self.pipeline_id);
+                    txn.update_dynamic_properties(update);
+                    txn.generate_frame();
+                    api.send_transaction(self.document_id, txn);
+                } else {
+                    // in renderless mode the frame is updated already.
+                    unimplemented!("renderless frame ready notification")
+                }
             }
         }
     }
@@ -1487,6 +1706,10 @@ impl OpenWindow {
     ///
     /// * [`Self::generate_subclass_id`]
     /// * [`Self::set_raw_windows_event_handler`]
+    ///
+    /// # Panics
+    ///
+    /// Panics in headless mode.
     #[inline]
     pub fn hwnd(&self) -> winapi::shared::windef::HWND {
         use glutin::platform::windows::WindowExtWindows;
@@ -1513,6 +1736,10 @@ impl OpenWindow {
     /// The handler must return `Some(LRESULT)` to stop the propagation of a specific message.
     ///
     /// The handler is dropped after it receives the `WM_DESTROY` message.
+    ///
+    /// # Panics
+    ///
+    /// Panics in headless mode.
     pub fn set_raw_windows_event_handler<
         H: FnMut(
                 winapi::shared::windef::HWND,
@@ -1600,11 +1827,12 @@ impl ScreenshotData {
 
 struct OwnedWindowContext {
     window_id: WindowId,
+    mode: WindowMode,
     root_transform_key: WidgetTransformKey,
     state: WindowState,
     services: WindowServices,
     root: Window,
-    api: Arc<RenderApi>,
+    api: Option<Arc<RenderApi>>,
     update: UpdateDisplayRequest,
 }
 
@@ -1612,7 +1840,7 @@ impl OwnedWindowContext {
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;
 
-        ctx.window_context(self.window_id, &mut self.state, &mut self.services, &self.api, |ctx| {
+        ctx.window_context(self.window_id, self.mode, &mut self.state, &mut self.services, &self.api, |ctx| {
             let child = &mut root.child;
             ctx.widget_context(root.id, &mut root.meta, |ctx| {
                 f(child, ctx);
@@ -1682,6 +1910,7 @@ impl RenderNotifier for Notifier {
 enum RendererState {
     Running(webrender::Renderer),
     Deinited,
+    Renderless,
 }
 
 impl RendererState {
@@ -1689,6 +1918,7 @@ impl RendererState {
         match mem::replace(self, RendererState::Deinited) {
             RendererState::Running(r) => r.deinit(),
             RendererState::Deinited => panic!("renderer already deinited"),
+            RendererState::Renderless => {}
         }
     }
 
@@ -1696,6 +1926,7 @@ impl RendererState {
         match self {
             RendererState::Running(wr) => wr,
             RendererState::Deinited => panic!("cannot borrow deinited renderer"),
+            RendererState::Renderless => panic!("cannot borrow, running in renderless mode"),
         }
     }
 
@@ -1710,7 +1941,7 @@ enum GlContextState {
     HeadlessCurrent(glutin::Context<PossiblyCurrent>),
     HeadlessNotCurrent(glutin::Context<NotCurrent>),
     Changing,
-    None,
+    Renderless,
 }
 
 struct GlContext {
@@ -1810,24 +2041,32 @@ impl GlContext {
         unimplemented!("headless hidden window fallback not implemented")
     }
 
-    fn new_null() -> Self {
+    fn new_renderless() -> Self {
         GlContext {
-            ctx: GlContextState::None,
+            ctx: GlContextState::Renderless,
             gl: None,
         }
     }
 
     fn gl(&self) -> &Rc<dyn gl::Gl> {
-        self.gl.as_ref().expect("headless renderless")
+        self.gl.as_ref().expect("no Gl in renderless mode")
     }
 
     fn window(&self) -> &GlutinWindow {
         match &self.ctx {
             GlContextState::Current(c) => c.window(),
             GlContextState::NotCurrent(c) => c.window(),
-            GlContextState::HeadlessCurrent(_) | GlContextState::HeadlessNotCurrent(_) => panic!("GlContext is headless"),
+            GlContextState::HeadlessCurrent(_) | GlContextState::HeadlessNotCurrent(_) => panic!("no window in headless mode"),
             GlContextState::Changing => unreachable!(),
-            GlContextState::None => panic!("headless renderless"),
+            GlContextState::Renderless => panic!("no window in renderless mode"),
+        }
+    }
+
+    fn window_opt(&self) -> Option<&GlutinWindow> {
+        match &self.ctx {
+            GlContextState::Current(c) => Some(c.window()),
+            GlContextState::NotCurrent(c) => Some(c.window()),
+            _ => None,
         }
     }
 
@@ -1845,7 +2084,7 @@ impl GlContext {
                 GlContextState::HeadlessCurrent(c)
             }
             GlContextState::Changing => unreachable!(),
-            GlContextState::None => panic!("headless renderless"),
+            GlContextState::Renderless => panic!("no Gl context in renderless mode"),
         }
     }
 
@@ -1863,7 +2102,7 @@ impl GlContext {
                 panic!("`GlContext` already is not current");
             }
             GlContextState::Changing => unreachable!(),
-            GlContextState::None => panic!("headless renderless"),
+            GlContextState::Renderless => panic!("no Gl context in renderless mode"),
         }
     }
 
@@ -1878,7 +2117,7 @@ impl GlContext {
                 panic!("can only swap buffers of current contexts");
             }
             GlContextState::Changing => unreachable!(),
-            GlContextState::None => panic!("headless renderless"),
+            GlContextState::Renderless => panic!("cannot swap buffer in renderless mode"),
         };
     }
 }
@@ -1927,6 +2166,7 @@ mod headless_tests {
             false,
             colors::RED,
             true,
+            WindowHeadlessConfig::default(),
             NilUiNode,
         )
     }

@@ -198,6 +198,7 @@ macro_rules! state_key {
 
 #[doc(inline)]
 pub use crate::state_key;
+use crate::window::WindowMode;
 
 /// A map of [state keys](StateKey) to values of their associated types that exists for
 /// a stage of the application.
@@ -776,13 +777,19 @@ pub type WindowState = StateMap;
 
 impl<'a> AppContext<'a> {
     /// Initializes state and services for a new window.
-    pub fn new_window(&mut self, window_id: WindowId, render_api: &Arc<RenderApi>) -> (WindowState, WindowServices) {
+    pub fn new_window(
+        &mut self,
+        window_id: WindowId,
+        mode: WindowMode,
+        render_api: &Option<Arc<RenderApi>>,
+    ) -> (WindowState, WindowServices) {
         let mut window_state = StateMap::default();
         let mut event_state = StateMap::default();
 
         let mut window_services = WindowServices::new();
         let ctx = WindowContext {
             window_id: ReadOnly(window_id),
+            mode: ReadOnly(mode),
             render_api,
             app_state: self.app_state,
             window_state: &mut window_state,
@@ -804,9 +811,10 @@ impl<'a> AppContext<'a> {
     pub fn window_context(
         &mut self,
         window_id: WindowId,
+        mode: WindowMode,
         window_state: &mut WindowState,
         window_services: &mut WindowServices,
-        render_api: &Arc<RenderApi>,
+        render_api: &Option<Arc<RenderApi>>,
         f: impl FnOnce(&mut WindowContext),
     ) -> UpdateDisplayRequest {
         self.updates.win_display_update = UpdateDisplayRequest::None;
@@ -816,6 +824,7 @@ impl<'a> AppContext<'a> {
 
         f(&mut WindowContext {
             window_id: ReadOnly(window_id),
+            mode: ReadOnly(mode),
             render_api,
             app_state: self.app_state,
             window_state,
@@ -836,8 +845,14 @@ impl<'a> AppContext<'a> {
 pub struct WindowContext<'a> {
     /// Id of the context window.
     pub window_id: ReadOnly<WindowId>,
+
+    /// Window mode, headed or not, renderer or not.
+    pub mode: ReadOnly<WindowMode>,
+
+    /// Reference to the render API of the window.
     ///
-    pub render_api: &'a Arc<RenderApi>,
+    /// This is `None` if the [`mode`](Self::mode) is [`Headless`](WindowMode::Headless).
+    pub render_api: &'a Option<Arc<RenderApi>>,
 
     /// State that lives for the duration of the application.
     pub app_state: &'a mut StateMap,
@@ -920,7 +935,7 @@ impl<'a> WindowContext<'a> {
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
-    /// WARNING: The default value is [`WindowId::dummy()`] which is unsafe.
+    /// This is a new unique [logical window id](WindowId::Logical).
     pub window_id: WindowId,
     /// Id of the pretend root widget that is the context widget.
     pub root_id: WidgetId,
@@ -994,8 +1009,7 @@ impl TestWidgetContext {
         let updates = OwnedUpdates::new(event_loop.create_proxy());
         let update_notifier = updates.0.notifier().clone();
         Self {
-            // SAFETY: this is test only code and we have documentation warning users.
-            window_id: unsafe { WindowId::dummy() },
+            window_id: WindowId::new_unique(),
             root_id: WidgetId::new_unique(),
             app_state: StateMap::default(),
             window_state: StateMap::default(),

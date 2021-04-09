@@ -50,7 +50,7 @@ pub trait Font {
 
 /// A full frame builder.
 pub struct FrameBuilder {
-    api: Arc<RenderApi>,
+    api: Option<Arc<RenderApi>>,
 
     scale_factor: f32,
     display_list: DisplayListBuilder,
@@ -86,7 +86,7 @@ impl FrameBuilder {
     /// * `frame_id` - Id of the new frame.
     /// * `window_id` - Id of the window that will render the frame.
     /// * `pipeline_id` - Id of the pipeline that will render the frame, usually a single pipeline per window.
-    /// * `api` - The render API that will render the frame, usually one per window.
+    /// * `api` - The render API that will render the frame, usually one per window, is `None` in renderless mode.
     /// * `root_id` - Id of the root widget of the frame, usually the window root.
     /// * `root_transform_key` - Frame binding for the root widget layout transform.
     /// * `root_size` - Layout size of the root widget, defines root hit area and the clear rectangle.
@@ -99,7 +99,7 @@ impl FrameBuilder {
         frame_id: FrameId,
         window_id: WindowId,
         pipeline_id: PipelineId,
-        api: Arc<RenderApi>,
+        api: Option<Arc<RenderApi>>,
         root_id: WidgetId,
         root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
@@ -172,10 +172,22 @@ impl FrameBuilder {
         &mut self.display_list
     }
 
-    /// Reference webrender API.
+    /// If is building a frame for a headless and renderless window.
+    ///
+    /// In this mode only the meta and layout information will be used as a *frame*. Methods still
+    /// push to the [`display_list`](Self::display_list) when possible, custom methods should ignore this
+    /// unless they need access to the [`render_api`](Self::render_api).
     #[inline]
-    pub fn render_api(&self) -> &Arc<RenderApi> {
-        &self.api
+    pub fn is_renderless(&self) -> bool {
+        self.api.is_none()
+    }
+
+    /// Reference webrender API.
+    ///
+    /// Returns `None` when in [renderless](Self::is_renderless) mode.
+    #[inline]
+    pub fn render_api(&self) -> Option<&Arc<RenderApi>> {
+        self.api.as_ref()
     }
 
     /// Window that owns the frame.
@@ -585,12 +597,14 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        let instance_key = font.instance_key(&self.api, synthesis);
+        if let Some(api) = &self.api {
+            let instance_key = font.instance_key(api, synthesis);
 
-        debug_assert_eq!(self.api.get_namespace_id(), instance_key.0);
+            debug_assert_eq!(api.get_namespace_id(), instance_key.0);
 
-        self.display_list
-            .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
+            self.display_list
+                .push_text(&self.common_item_properties(rect), rect, glyphs, instance_key, color, None);
+        }
     }
 
     /// Calls `f` while [`item_tag`](FrameBuilder::item_tag) indicates the `cursor`.

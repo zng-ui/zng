@@ -1,6 +1,6 @@
 use crate::core::focus::*;
 use crate::core::gesture::*;
-use crate::core::window::{AutoSize, StartPosition, Window};
+use crate::core::window::{AutoSize, StartPosition, Window, WindowHeadlessConfig};
 use crate::prelude::new_widget::*;
 
 /// A window container.
@@ -103,13 +103,23 @@ pub mod window {
 
         /// If the user can resize the window.
         ///
-        /// Not that the window can still change size, this only disables
+        /// Note that the window can still change size, this only disables
         /// the OS window frame controls that change size.
         resizable: impl IntoVar<bool> = true;
 
         /// If the window is visible.
+        ///
+        /// When set to `false` the window and its *taskbar* icon are not visible, that is different
+        /// from a minimized window where the icon is still visible.
         visible: impl IntoVar<bool> = true;
         visibility = unset!;
+
+        /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
+        ///
+        /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
+        /// is taken from the monitor. In headless mode these values can be configured manually.
+        #[allowed_in_when = false]
+        headless_config: WindowHeadlessConfig = Default::default();
     }
 
     #[inline]
@@ -125,6 +135,7 @@ pub mod window {
         resizable: impl IntoVar<bool>,
         clear_color: impl IntoVar<Rgba>,
         visible: impl IntoVar<bool>,
+        headless_config: WindowHeadlessConfig,
     ) -> Window {
         Window::new(
             root_id,
@@ -136,6 +147,7 @@ pub mod window {
             resizable,
             clear_color,
             visible,
+            headless_config,
             child,
         )
     }

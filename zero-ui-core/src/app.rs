@@ -500,7 +500,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 GEvent::WindowEvent { window_id, event } => {
                     profile_scope!("app::on_window_event");
-                    extensions.on_window_event(window_id, &event, &mut owned_ctx.borrow(event_loop));
+                    extensions.on_window_event(window_id.into(), &event, &mut owned_ctx.borrow(event_loop));
                 }
                 GEvent::UserEvent(AppEvent::NewFrameReady(window_id)) => {
                     profile_scope!("app::on_new_frame_ready");
@@ -520,7 +520,7 @@ impl<E: AppExtension> AppExtended<E> {
 
                 GEvent::RedrawRequested(window_id) => {
                     profile_scope!("app::on_redraw_requested");
-                    extensions.on_redraw_requested(window_id, &mut owned_ctx.borrow(event_loop))
+                    extensions.on_redraw_requested(window_id.into(), &mut owned_ctx.borrow(event_loop))
                 }
 
                 #[cfg(feature = "app_profiler")]

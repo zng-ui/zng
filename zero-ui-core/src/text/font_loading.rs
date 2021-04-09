@@ -139,23 +139,25 @@ impl AppExtension for FontManager {
 
             #[cfg(windows)]
             if self.window_open.has_updates(ctx.events) {
-                // attach subclass WM_FONTCHANGE monitor to new windows.
+                // attach subclass WM_FONTCHANGE monitor to new headed windows.
                 let windows = ctx.services.req::<Windows>();
                 for w in self.window_open.updates(ctx.events) {
                     if let Ok(w) = windows.window(w.window_id) {
-                        let notifier = ctx.updates.notifier().clone();
-                        let flag = Rc::clone(&self.system_fonts_changed);
-                        let ok = w.set_raw_windows_event_handler(move |_, msg, _, _| {
-                            if msg == winapi::um::winuser::WM_FONTCHANGE {
-                                flag.set(true);
-                                notifier.update();
-                                Some(0)
-                            } else {
-                                None
+                        if w.mode().is_headed() {
+                            let notifier = ctx.updates.notifier().clone();
+                            let flag = Rc::clone(&self.system_fonts_changed);
+                            let ok = w.set_raw_windows_event_handler(move |_, msg, _, _| {
+                                if msg == winapi::um::winuser::WM_FONTCHANGE {
+                                    flag.set(true);
+                                    notifier.update();
+                                    Some(0)
+                                } else {
+                                    None
+                                }
+                            });
+                            if !ok {
+                                error_println!("failed to set WM_FONTCHANGE subclass monitor");
                             }
-                        });
-                        if !ok {
-                            error_println!("failed to set WM_FONTCHANGE subclass monitor");
                         }
                     }
                 }
