@@ -3,7 +3,7 @@ use std::{
     mem,
 };
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
@@ -1035,6 +1035,7 @@ struct Properties {
     errors: Errors,
     child_properties: Vec<ItemProperty>,
     properties: Vec<ItemProperty>,
+    removes: Vec<Ident>,
     whens: Vec<When>,
 }
 impl Parse for Properties {
@@ -1042,6 +1043,7 @@ impl Parse for Properties {
         let mut errors = Errors::default();
         let mut child_properties = vec![];
         let mut properties = vec![];
+        let mut removes = vec![];
         let mut whens = vec![];
 
         while !input.is_empty() {
@@ -1069,6 +1071,40 @@ impl Parse for Properties {
                                 return Err(e);
                             }
                         }
+                    }
+                }
+            } else if input.peek(keyword::remove) && input.peek2(syn::token::Brace) {
+                let input = non_user_braced!(input, "remove");
+                while !input.is_empty() {
+                    if input.peek2(Token![::]) && input.peek(Ident::peek_any) {
+                        if let Ok(p) = input.parse::<Path>() {
+                            errors.push("expected inherited property ident, found path", p.span());
+                            let _ = input.parse::<Token![;]>();
+                        }
+                    }
+                    match input.parse::<Ident>() {
+                        Ok(ident) => {
+                            if input.is_empty() {
+                                // found valid last item
+                                removes.push(ident);
+                                break;
+                            } else {
+                                match input.parse::<Token![;]>() {
+                                    Ok(_) => {
+                                        // found valid item
+                                        removes.push(ident);
+                                        continue;
+                                    }
+                                    Err(e) => errors.push_syn(e),
+                                }
+                            }
+                        }
+                        Err(e) => errors.push("expected inherited property ident", e.span()),
+                    }
+
+                    // seek next valid item
+                    while !(input.is_empty() || input.peek(Ident) && input.peek2(Token![;])) {
+                        input.parse::<TokenTree>().unwrap();
                     }
                 }
             } else if input.peek(Ident::peek_any) {
@@ -1101,6 +1137,7 @@ impl Parse for Properties {
             errors,
             child_properties,
             properties,
+            removes,
             whens,
         })
     }
@@ -1143,7 +1180,7 @@ impl Parse for ItemProperty {
                     // we can't do `path = ` because path can be a type
                     let fork = input.fork();
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
-                    fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                    fork.peek(keyword::when) || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
                 },
                 // skip generics (tokens within `< >`) because
                 // `impl Iterator<Item=u32>` is a valid type.
@@ -1216,7 +1253,8 @@ impl Parse for ItemProperty {
                     } else if fork.peek2(Token![::]) {
                         fork.parse::<Path>().is_ok() && fork.peek(Token![=])
                     } else {
-                        fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                        fork.peek(keyword::when)
+                            || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
                     }
                 },
                 false,
@@ -1383,6 +1421,7 @@ impl ToTokens for NamedField {
 mod keyword {
     pub use crate::widget_new::keyword::when;
     syn::custom_keyword!(child);
+    syn::custom_keyword!(remove);
 }
 
 struct AllowedInWhenInput {
