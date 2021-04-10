@@ -17,7 +17,10 @@ use glutin::event::StartCause as GEventStartCause;
 use glutin::event_loop::{
     ControlFlow, EventLoop as GEventLoop, EventLoopProxy as GEventLoopProxy, EventLoopWindowTarget as GEventLoopWindowTarget,
 };
-use std::{any::{type_name, TypeId}, time::Duration};
+use std::{
+    any::{type_name, TypeId},
+    time::Duration,
+};
 use std::{
     mem,
     sync::{Arc, Mutex},
@@ -149,7 +152,7 @@ pub struct App;
 impl App {
     /// Application without any extension.
     #[inline]
-    pub fn empty() -> AppExtended<()> {
+    pub fn blank() -> AppExtended<()> {
         AppExtended { extensions: () }
     }
 
@@ -167,7 +170,7 @@ impl App {
     /// * [FocusManager]
     #[inline]
     pub fn default() -> AppExtended<impl AppExtension> {
-        App::empty()
+        App::blank()
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
@@ -182,7 +185,7 @@ impl App {
 #[cfg(debug_assertions)]
 impl App {
     /// Application without any extension.
-    pub fn empty() -> AppExtended<Vec<Box<dyn AppExtension>>> {
+    pub fn blank() -> AppExtended<Vec<Box<dyn AppExtension>>> {
         AppExtended { extensions: vec![] }
     }
 
@@ -199,7 +202,7 @@ impl App {
     /// * [FontManager]
     /// * [FocusManager]
     pub fn default() -> AppExtended<Vec<Box<dyn AppExtension>>> {
-        App::empty()
+        App::blank()
             .extend(MouseManager::default())
             .extend(KeyboardManager::default())
             .extend(GestureManager::default())
@@ -728,7 +731,9 @@ impl<E: AppExtension> HeadlessApp<E> {
         // TODO move this to OpenWindow.
         loop {
             for event in self.take_app_events() {
-                if matches!(event, AppEvent::NewFrameReady(_)) {
+                if let AppEvent::NewFrameReady(id) = event {
+                    self.extensions
+                        .on_new_frame_ready(id, &mut self.owned_ctx.borrow(self.event_loop.window_target()));
                     return event;
                 }
             }
@@ -987,7 +992,7 @@ mod headless_tests {
 
     #[test]
     fn new_empty() {
-        let mut app = App::empty().run_headless();
+        let mut app = App::blank().run_headless();
         app.update();
     }
 

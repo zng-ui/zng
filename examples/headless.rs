@@ -3,7 +3,7 @@ use zero_ui::prelude::*;
 fn main() {
     println!("-=Headless Example=-\n");
     // This example uses a headless window to render an image.
-    
+
     // we only need the window services.
     let mut app = App::default().run_headless();
 
@@ -28,8 +28,10 @@ fn main() {
             let wn = wns.windows().next().unwrap();
 
             // copy the frame to a ScreenshotData and save it.
-            println!("saving to ./screenshot.png ...");
+            print!("saving ./screenshot.png ... ");
+            flush_stdout();
             wn.screenshot().save("screenshot.png").expect("error saving screenshot");
+            println!("done");
 
             wn.id()
         };
@@ -72,4 +74,9 @@ fn image() -> Window {
             color = colors::WHITE;
         };
     }
+}
+
+fn flush_stdout() {
+    use std::io::Write;
+    std::io::stdout().lock().flush().ok();
 }

@@ -1122,7 +1122,11 @@ impl OpenWindow {
 
             set_size_var = used_fallback && !root.size.is_read_only(ctx.vars);
 
-            device_init_size = units::DeviceIntSize::new((valid_size.width * dpi_factor) as i32, (valid_size.height * dpi_factor) as i32);
+            device_init_size = if mode.has_renderer() {
+                units::DeviceIntSize::new((valid_size.width * dpi_factor) as i32, (valid_size.height * dpi_factor) as i32)
+            } else {
+                units::DeviceIntSize::zero()
+            };
         }
 
         let window_id = if mode.is_headed() {
@@ -1131,7 +1135,7 @@ impl OpenWindow {
             WindowId::new_unique()
         };
 
-        // initialize renderer.
+        // initialize renderer data.
         let api;
         let document_id;
         let pipeline_id;
@@ -1148,8 +1152,7 @@ impl OpenWindow {
                 ..webrender::RendererOptions::default()
             };
 
-            renderless_event_sender = None;
-
+            // WebRender causes this to send an `AppEvent::NewFrameReady(window_id)`
             let notifier = Box::new(Notifier {
                 window_id,
                 event_loop: event_loop_proxy,
@@ -1162,6 +1165,8 @@ impl OpenWindow {
             api = Some(api_);
             renderer = RendererState::Running(renderer_);
             pipeline_id = PipelineId(1, 0);
+
+            renderless_event_sender = None;
         } else {
             document_id = DocumentId::INVALID;
             api = None;
@@ -1171,6 +1176,7 @@ impl OpenWindow {
             renderless_event_sender = Some(event_loop_proxy);
         }
 
+        // init window state and services.
         let (state, services) = ctx.new_window(window_id, mode, &api);
 
         if mode.has_renderer() {
@@ -1207,7 +1213,7 @@ impl OpenWindow {
 
             doc_view: units::DeviceIntRect::from_size(device_init_size),
             doc_view_changed: false,
-            is_active: true, // just opened it?
+            is_active: true, // TODO figure out if window can open inactive.
 
             headless_position,
             headless_size,
@@ -1694,50 +1700,58 @@ impl OpenWindow {
     /// Notifies the OS to redraw the window, will receive WindowEvent::RedrawRequested
     /// from the OS after calling this.
     fn request_redraw(&mut self) {
-        if self.first_draw {
-            let gl_ctx = self.gl_ctx.borrow();
-            let window = gl_ctx.window();
+        match self.mode {
+            WindowMode::Headed => {
+                if self.first_draw {
+                    let gl_ctx = self.gl_ctx.borrow();
+                    let window = gl_ctx.window();
 
-            match self.wn_ctx.borrow().root.start_position {
-                StartPosition::Default => {}
-                StartPosition::CenterScreen => {
-                    let size = window.outer_size();
-                    let available_size = window
-                        .current_monitor()
-                        .map(|m| m.size())
-                        .unwrap_or_else(|| glutin::dpi::PhysicalSize::new(0, 0));
-                    let position = glutin::dpi::PhysicalPosition::new(
-                        if size.width < available_size.width {
-                            (available_size.width - size.width) / 2
-                        } else {
-                            0
-                        },
-                        if size.height < available_size.height {
-                            (available_size.height - size.height) / 2
-                        } else {
-                            0
-                        },
-                    );
-                    window.set_outer_position(position)
-                }
-                StartPosition::CenterOwner => {
-                    todo!()
+                    match self.wn_ctx.borrow().root.start_position {
+                        StartPosition::Default => {}
+                        StartPosition::CenterScreen => {
+                            let size = window.outer_size();
+                            let available_size = window
+                                .current_monitor()
+                                .map(|m| m.size())
+                                .unwrap_or_else(|| glutin::dpi::PhysicalSize::new(0, 0));
+                            let position = glutin::dpi::PhysicalPosition::new(
+                                if size.width < available_size.width {
+                                    (available_size.width - size.width) / 2
+                                } else {
+                                    0
+                                },
+                                if size.height < available_size.height {
+                                    (available_size.height - size.height) / 2
+                                } else {
+                                    0
+                                },
+                            );
+                            window.set_outer_position(position)
+                        }
+                        StartPosition::CenterOwner => {
+                            todo!()
+                        }
+                    }
+
+                    self.first_draw = false;
+                    drop(gl_ctx);
+
+                    // draws the first frame before showing
+                    // because we can still flash white here.
+                    self.redraw();
+
+                    // apply user initial visibility
+                    if *self.wn_ctx.borrow().root.visible.get_local() {
+                        self.gl_ctx.borrow().window().set_visible(true);
+                    }
+                } else {
+                    self.gl_ctx.borrow().window().request_redraw();
                 }
             }
-
-            self.first_draw = false;
-            drop(gl_ctx);
-
-            // draws the first frame before showing
-            // because we can still flash white here.
-            self.redraw();
-
-            // apply user initial visibility
-            if *self.wn_ctx.borrow().root.visible.get_local() {
-                self.gl_ctx.borrow().window().set_visible(true);
+            WindowMode::HeadlessWithRenderer => {
+                self.redraw();
             }
-        } else {
-            self.gl_ctx.borrow().window().request_redraw();
+            WindowMode::Headless => {}
         }
     }
 
@@ -1756,8 +1770,14 @@ impl OpenWindow {
         let renderer = self.renderer.borrow_mut();
         renderer.update();
 
-        let size = context.window().inner_size();
-        let device_size = units::DeviceIntSize::new(size.width as i32, size.height as i32);
+        let device_size = if let Some(window) = context.window_opt() {
+            let size = window.inner_size();
+            units::DeviceIntSize::new(size.width as i32, size.height as i32)
+        } else {
+            let size = self.headless_size;
+            let dpi = self.headless_config.scale_factor;
+            units::DeviceIntSize::new((size.width * dpi) as i32, (size.height * dpi) as i32)
+        };
 
         renderer.render(device_size).unwrap();
         let _ = renderer.flush_pipeline_info();
