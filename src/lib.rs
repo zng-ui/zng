@@ -623,7 +623,7 @@ pub mod core {
     /// The widget macro takes one argument, a path to the widget module from [`$crate`](https://doc.rust-lang.org/reference/macros-by-example.html#metavariables).
     /// This is a temporary requirement that will be removed when macros-by-example can reference the `self` module.
     ///
-    /// # `properties!`
+    /// # Properties
     ///
     /// Widgets are a *tree-rope* of [Ui nodes](zero_ui::core::UiNode), most of the nodes are defined and configured using
     /// properties. Properties are defined using the `properties! { .. }` pseudo-macro. Multiple `properties!` items can be
@@ -709,7 +709,7 @@ pub mod core {
     /// # }
     /// ```
     ///
-    /// Note that the property can be removed during instantiation by setting it to `unset!`.
+    /// Note that the property can be removed during instantiation by using [`remove`](#remove).
     ///
     /// ## Special Values
     ///
@@ -734,7 +734,7 @@ pub mod core {
     ///
     /// Note that captured properties are also marked required without the need for the special value.
     ///
-    /// ### `unset!`
+    /// ### Remove
     ///
     /// Removes an [inherited](#inherit) property from the widget.
     ///
@@ -746,12 +746,12 @@ pub mod core {
     /// #    inherit!(zero_ui::widgets::container);
     /// #
     /// properties! {
-    ///     content_align = unset!;
+    ///     remove { content_align }
     /// }
     /// # }
     /// ```
     ///
-    /// Note that inherited captured properties no longer captured are automatically unset.
+    /// Note that inherited captured properties no longer captured are automatically removed.
     ///
     /// ## Property Capture
     ///
@@ -818,7 +818,7 @@ pub mod core {
     /// # }
     /// ```
     ///
-    /// ## `when`
+    /// ## When
     ///
     /// Some widget properties need different values depending on widget state. You can manually implement this
     /// using variable [mapping](zero_ui::core::var::Var::map) and [merging](zero_ui::core::var::merge_var) but a

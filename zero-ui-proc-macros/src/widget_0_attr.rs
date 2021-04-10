@@ -3,7 +3,7 @@ use std::{
     mem,
 };
 
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
     braced,
@@ -76,6 +76,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     } = WidgetItems::new(items, &mut errors);
 
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
+    let removes: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.removes)).collect();
     let mut child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
@@ -282,7 +283,22 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut property_defaults = TokenStream::default();
     let mut property_declarations = TokenStream::default();
     let mut property_declared_idents = TokenStream::default();
-    let mut property_unsets = TokenStream::default();
+    let mut property_removes = TokenStream::default();
+
+    // process removes
+    let mut visited_removes = HashSet::new();
+    for ident in &removes {
+        if !visited_removes.insert(ident) {
+            errors.push(format_args!("property `{}` already removed", ident), ident.span());
+            continue;
+        }
+
+        ident.to_tokens(&mut property_removes);
+    }
+    drop(visited_removes);
+    drop(removes);
+
+    // process declarations
     for (property, is_child_property) in child_properties
         .iter_mut()
         .map(|p| (p, true))
@@ -361,31 +377,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // process default value or special value.
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
-                if sp == "unset" {
-                    let new_property = if let Some(alias) = &property.alias {
-                        Some(&alias.1)
-                    } else if property.path.get_ident().is_none() {
-                        property.path.segments.last().map(|s| &s.ident)
-                    } else {
-                        None
-                    };
-                    if let Some(new_p) = new_property {
-                        // only single name path without aliases can be referencing an inherited property.
-                        errors.push(format_args!("cannot unset, property `{}` is not inherited", new_p), sp.span());
-                        continue;
-                    }
-                    // the final inherit validation is done in "widget_2_declare.rs".
-                    property_unsets.extend(quote! {
-                        #p_ident {
-                            #sp // span sample
-                        }
-                    });
-                    continue;
-                } else if sp == "required" {
+                if sp == "required" {
                     required = true;
                 } else {
                     // unknown special.
-                    errors.push(format_args!("unexpected `{}!` in default value", sp), sp.span());
+                    errors.push(format_args!("unexpected `{}!` as default value", sp), sp.span());
                     continue;
                 }
             } else {
@@ -522,10 +518,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     );
                     skip = true;
                 }
-                // validate value is not one of the special commands (`unset!`, `required!`).
+                // validate value is not one of the special commands (`required!`).
                 if let PropertyValue::Special(sp, _) = &assign.value {
-                    if sp == "unset" || sp == "required" {
-                        errors.push(format_args!("`{}!` not allowed in `when` block", sp), sp.span());
+                    if sp == "required" {
+                        errors.push("`required!` not allowed in `when` block", sp.span());
                     } else {
                         // unknown special.
                         errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
@@ -773,8 +769,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 ident { #ident }
                 mixin { #mixin }
 
-                properties_unset {
-                    #property_unsets
+                properties_remove {
+                    #property_removes
                 }
                 properties_declared {
                     #property_declared_idents
@@ -1035,6 +1031,7 @@ struct Properties {
     errors: Errors,
     child_properties: Vec<ItemProperty>,
     properties: Vec<ItemProperty>,
+    removes: Vec<Ident>,
     whens: Vec<When>,
 }
 impl Parse for Properties {
@@ -1042,6 +1039,7 @@ impl Parse for Properties {
         let mut errors = Errors::default();
         let mut child_properties = vec![];
         let mut properties = vec![];
+        let mut removes = vec![];
         let mut whens = vec![];
 
         while !input.is_empty() {
@@ -1069,6 +1067,40 @@ impl Parse for Properties {
                                 return Err(e);
                             }
                         }
+                    }
+                }
+            } else if input.peek(keyword::remove) && input.peek2(syn::token::Brace) {
+                let input = non_user_braced!(input, "remove");
+                while !input.is_empty() {
+                    if input.peek2(Token![::]) && input.peek(Ident::peek_any) {
+                        if let Ok(p) = input.parse::<Path>() {
+                            errors.push("expected inherited property ident, found path", p.span());
+                            let _ = input.parse::<Token![;]>();
+                        }
+                    }
+                    match input.parse::<Ident>() {
+                        Ok(ident) => {
+                            if input.is_empty() {
+                                // found valid last item
+                                removes.push(ident);
+                                break;
+                            } else {
+                                match input.parse::<Token![;]>() {
+                                    Ok(_) => {
+                                        // found valid item
+                                        removes.push(ident);
+                                        continue;
+                                    }
+                                    Err(e) => errors.push_syn(e),
+                                }
+                            }
+                        }
+                        Err(e) => errors.push("expected inherited property ident", e.span()),
+                    }
+
+                    // seek next valid item
+                    while !(input.is_empty() || input.peek(Ident) && input.peek2(Token![;])) {
+                        input.parse::<TokenTree>().unwrap();
                     }
                 }
             } else if input.peek(Ident::peek_any) {
@@ -1101,6 +1133,7 @@ impl Parse for Properties {
             errors,
             child_properties,
             properties,
+            removes,
             whens,
         })
     }
@@ -1143,7 +1176,7 @@ impl Parse for ItemProperty {
                     // we can't do `path = ` because path can be a type
                     let fork = input.fork();
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
-                    fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                    fork.peek(keyword::when) || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
                 },
                 // skip generics (tokens within `< >`) because
                 // `impl Iterator<Item=u32>` is a valid type.
@@ -1216,7 +1249,8 @@ impl Parse for ItemProperty {
                     } else if fork.peek2(Token![::]) {
                         fork.parse::<Path>().is_ok() && fork.peek(Token![=])
                     } else {
-                        fork.peek(keyword::when) || fork.peek(keyword::child) && fork.peek2(syn::token::Brace)
+                        fork.peek(keyword::when)
+                            || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
                     }
                 },
                 false,
@@ -1383,6 +1417,7 @@ impl ToTokens for NamedField {
 mod keyword {
     pub use crate::widget_new::keyword::when;
     syn::custom_keyword!(child);
+    syn::custom_keyword!(remove);
 }
 
 struct AllowedInWhenInput {

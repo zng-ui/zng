@@ -1,17 +1,11 @@
-error: `unset!` not allowed in `when` block
+error: `required!` not allowed in `when` block
  --> $DIR/when_property_assign_special_not_allowed.rs:9:22
   |
-9 |             margin = unset!;
-  |                      ^^^^^
-
-error: `required!` not allowed in `when` block
-  --> $DIR/when_property_assign_special_not_allowed.rs:12:22
-   |
-12 |             margin = required!;
-   |                      ^^^^^^^^
+9 |             margin = required!;
+  |                      ^^^^^^^^
 
 error: unexpected `foo!` in property value
-  --> $DIR/when_property_assign_special_not_allowed.rs:15:22
+  --> $DIR/when_property_assign_special_not_allowed.rs:12:22
    |
-15 |             margin = foo!;
+12 |             margin = foo!;
    |                      ^^^

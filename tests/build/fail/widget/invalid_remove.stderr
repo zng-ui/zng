@@ -1,0 +1,25 @@
+error: expected inherited property ident, found path
+ --> $DIR/invalid_remove.rs:9:18
+  |
+9 |         remove { zero_ui::properties::cursor }
+  |                  ^^^^^^^
+
+error: expected inherited property ident
+ --> $DIR/invalid_remove.rs:9:16
+  |
+9 |         remove { zero_ui::properties::cursor }
+  |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: cannot remove, property `margin` is not inherited
+ --> $DIR/invalid_remove.rs:8:18
+  |
+8 |         remove { margin }
+  |                  ^^^^^^
+
+warning: unused import: `zero_ui::properties::margin`
+ --> $DIR/invalid_remove.rs:5:9
+  |
+5 |     use zero_ui::properties::margin;
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default

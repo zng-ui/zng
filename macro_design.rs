@@ -150,3 +150,11 @@ properties! {
     #[required]
     foo;
 }
+
+// 
+properties! {
+    remove { //renamed unset to remove
+        inherited_property1;
+        inherited_property2
+    }
+}

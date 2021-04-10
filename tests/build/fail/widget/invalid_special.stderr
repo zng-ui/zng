@@ -1,4 +1,4 @@
-error: unexpected `foo!` in default value
+error: unexpected `foo!` as default value
  --> $DIR/invalid_special.rs:8:18
   |
 8 |         margin = foo!;

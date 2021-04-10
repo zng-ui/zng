@@ -1,17 +1,17 @@
-error: cannot unset, property `margin` is captured in fn `new_child`
- --> $DIR/cannot_unset_inherited_captured2.rs:9:18
+error: cannot remove, property `margin` is captured in fn `new_child`
+ --> $DIR/cannot_remove_inherited_captured2.rs:9:18
   |
-9 |         margin = unset!;
-  |                  ^^^^^
+9 |         remove { margin }
+  |                  ^^^^^^
 
 error: property `margin` is not inherited nor declared by the widget
-  --> $DIR/cannot_unset_inherited_captured2.rs:12:18
+  --> $DIR/cannot_remove_inherited_captured2.rs:12:18
    |
 12 |     fn new_child(margin: impl IntoVar<SideOffsets>) -> NilUiNode {
    |                  ^^^^^^
 
 warning: unused import: `zero_ui::properties::margin`
- --> $DIR/cannot_unset_inherited_captured2.rs:6:9
+ --> $DIR/cannot_remove_inherited_captured2.rs:6:9
   |
 6 |     use zero_ui::properties::margin;
   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
