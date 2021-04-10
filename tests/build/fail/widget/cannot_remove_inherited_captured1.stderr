@@ -1,0 +1,5 @@
+error: cannot remove, property `margin` is captured in inherited fn `new_child`
+  --> $DIR/cannot_remove_inherited_captured1.rs:23:18
+   |
+23 |         remove { margin }
+   |                  ^^^^^^

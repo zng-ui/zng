@@ -139,19 +139,19 @@ pub fn wgt_property_from_path() {
 }
 
 /*
- * Tests unsetting inherited property.
+ * Tests removing inherited property.
  */
-#[widget($crate::tests::widget::unset_property_wgt)]
-pub mod unset_property_wgt {
+#[widget($crate::tests::widget::remove_property_wgt)]
+pub mod remove_property_wgt {
     inherit!(super::foo_mixin);
 
     properties! {
-        foo_trace = unset!;
+        remove { foo_trace }
     }
 }
 #[test]
-pub fn wgt_unset_property() {
-    let mut default = unset_property_wgt!();
+pub fn wgt_remove_property() {
+    let mut default = remove_property_wgt!();
     default.test_init(&mut TestWidgetContext::wait_new());
 
     assert!(!util::traced(&default, "foo_mixin"));
@@ -238,7 +238,6 @@ pub mod required_inherited_default_wgt {
     inherit!(super::required_mixin);
 
     properties! {
-        //required_trace = unset!; // this line must cause a compile error.
         required_trace = "required_inherited_default_wgt";
     }
 }
@@ -247,7 +246,7 @@ pub mod required_inherited_default_depth2_wgt {
     inherit!(super::required_inherited_default_wgt);
 
     properties! {
-        //required_trace = unset!; // this line must cause a compile error.
+        //remove { required_trace } // this line must cause a compile error.
     }
 }
 #[test]

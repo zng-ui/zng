@@ -76,6 +76,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     } = WidgetItems::new(items, &mut errors);
 
     let whens: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.whens)).collect();
+    let removes: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.removes)).collect();
     let mut child_properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.child_properties)).collect();
     let mut properties: Vec<_> = properties.iter_mut().flat_map(|p| mem::take(&mut p.properties)).collect();
 
@@ -282,7 +283,22 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut property_defaults = TokenStream::default();
     let mut property_declarations = TokenStream::default();
     let mut property_declared_idents = TokenStream::default();
-    let mut property_unsets = TokenStream::default();
+    let mut property_removes = TokenStream::default();
+
+    // process removes
+    let mut visited_removes = HashSet::new();
+    for ident in &removes {
+        if !visited_removes.insert(ident) {
+            errors.push(format_args!("property `{}` already removed", ident), ident.span());
+            continue;
+        }
+
+        ident.to_tokens(&mut property_removes);
+    }
+    drop(visited_removes);
+    drop(removes);
+
+    // process declarations
     for (property, is_child_property) in child_properties
         .iter_mut()
         .map(|p| (p, true))
@@ -361,31 +377,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         // process default value or special value.
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
-                if sp == "unset" {
-                    let new_property = if let Some(alias) = &property.alias {
-                        Some(&alias.1)
-                    } else if property.path.get_ident().is_none() {
-                        property.path.segments.last().map(|s| &s.ident)
-                    } else {
-                        None
-                    };
-                    if let Some(new_p) = new_property {
-                        // only single name path without aliases can be referencing an inherited property.
-                        errors.push(format_args!("cannot unset, property `{}` is not inherited", new_p), sp.span());
-                        continue;
-                    }
-                    // the final inherit validation is done in "widget_2_declare.rs".
-                    property_unsets.extend(quote! {
-                        #p_ident {
-                            #sp // span sample
-                        }
-                    });
-                    continue;
-                } else if sp == "required" {
+                if sp == "required" {
                     required = true;
                 } else {
                     // unknown special.
-                    errors.push(format_args!("unexpected `{}!` in default value", sp), sp.span());
+                    errors.push(format_args!("unexpected `{}!` as default value", sp), sp.span());
                     continue;
                 }
             } else {
@@ -522,10 +518,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     );
                     skip = true;
                 }
-                // validate value is not one of the special commands (`unset!`, `required!`).
+                // validate value is not one of the special commands (`required!`).
                 if let PropertyValue::Special(sp, _) = &assign.value {
-                    if sp == "unset" || sp == "required" {
-                        errors.push(format_args!("`{}!` not allowed in `when` block", sp), sp.span());
+                    if sp == "required" {
+                        errors.push("`required!` not allowed in `when` block", sp.span());
                     } else {
                         // unknown special.
                         errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
@@ -773,8 +769,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 ident { #ident }
                 mixin { #mixin }
 
-                properties_unset {
-                    #property_unsets
+                properties_remove {
+                    #property_removes
                 }
                 properties_declared {
                     #property_declared_idents

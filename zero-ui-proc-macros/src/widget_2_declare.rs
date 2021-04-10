@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
 use regex::Regex;
-use syn::{parse::Parse, spanned::Spanned, Ident, LitBool, LitStr};
+use syn::{parse::Parse, Ident, LitBool, LitStr};
 
 use crate::{
     util::{self, parse_all, Errors},
@@ -19,7 +19,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         vis,
         ident,
         mixin,
-        properties_unset,
+        properties_remove,
         properties_declared,
         properties_child,
         properties,
@@ -30,7 +30,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mut new,
         mod_items,
     } = widget;
-    let properties_unset: HashMap<_, _> = properties_unset.into_iter().map(|u| (u.property, u.unset.span())).collect();
+    let properties_remove: HashSet<_> = properties_remove.into_iter().collect();
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
     let crate_core = util::crate_core();
@@ -202,11 +202,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .map(|p| &p.ident)
         .collect();
 
-    // apply unsets.
-    for (unset, &unset_span) in &properties_unset {
-        let cannot_unset_reason = if inherited_required.contains(unset) {
+    // apply removes.
+    for ident in &properties_remove {
+        let cannot_remove_reason = if inherited_required.contains(ident) {
             Some("required")
-        } else if new_child.contains(unset) {
+        } else if new_child.contains(ident) {
             if new_child_declared.is_empty() {
                 if new_child_is_default {
                     non_user_error!("new_child does not capture anything")
@@ -215,7 +215,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             } else {
                 Some("captured in fn `new_child`")
             }
-        } else if new.contains(unset) {
+        } else if new.contains(ident) {
             if new_declared.is_empty() {
                 if new_is_default {
                     Some("captured in default fn `new`")
@@ -228,18 +228,18 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else {
             None
         };
-        if let Some(reason) = cannot_unset_reason {
-            // cannot unset
-            errors.push(format_args!("cannot unset, property `{}` is {}", unset, reason), unset_span);
-        } else if inherited_properties.remove(unset).is_some() {
-            // can unset
-            if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == unset) {
+        if let Some(reason) = cannot_remove_reason {
+            // cannot remove
+            errors.push(format_args!("cannot remove, property `{}` is {}", ident, reason), ident.span());
+        } else if inherited_properties.remove(ident).is_some() {
+            // can remove
+            if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
                 inherited_props_child.remove(i);
-            } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == unset) {
+            } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
                 inherited_props.remove(i);
             }
         } else {
-            errors.push(format_args!("cannot unset, property `{}` is not inherited", unset), unset_span);
+            errors.push(format_args!("cannot remove, property `{}` is not inherited", ident), ident.span());
         }
     }
 
@@ -484,8 +484,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let mut assigns_tt = TokenStream::default();
             let mut defaults_tt = TokenStream::default();
             for BuiltWhenAssign { property, cfg, value_fn } in assigns {
-                if properties_unset.contains_key(&property) {
-                    continue; // inherited removed by unset!.
+                if properties_remove.contains(&property) {
+                    continue; // inherited was removed.
                 }
 
                 docs_whens.push(WhenDocs {
@@ -507,7 +507,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 });
             }
             if assigns_tt.is_empty() {
-                continue; // all properties unset!, remove when block.
+                continue; // all properties removed, remove when block.
             }
 
             #[cfg(debug_assertions)]
@@ -1093,7 +1093,7 @@ struct WidgetItem {
     ident: Ident,
     mixin: bool,
 
-    properties_unset: Vec<UnsetItem>,
+    properties_remove: Vec<Ident>,
     properties_declared: Vec<Ident>,
 
     properties_child: Vec<PropertyItem>,
@@ -1125,7 +1125,7 @@ impl Parse for WidgetItem {
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
 
-            properties_unset: parse_all(&named_braces!("properties_unset")).unwrap_or_else(|e| non_user_error!(e)),
+            properties_remove: parse_all(&named_braces!("properties_remove")).unwrap_or_else(|e| non_user_error!(e)),
             properties_declared: parse_all(&named_braces!("properties_declared")).unwrap_or_else(|e| non_user_error!(e)),
 
             properties_child: parse_all(&named_braces!("properties_child")).unwrap_or_else(|e| non_user_error!(e)),
@@ -1138,19 +1138,6 @@ impl Parse for WidgetItem {
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
 
             mod_items: named_braces!("mod_items").parse().unwrap(),
-        })
-    }
-}
-struct UnsetItem {
-    property: Ident,
-    /// for the span of the unset keyword.
-    unset: TokenStream,
-}
-impl Parse for UnsetItem {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        Ok(Self {
-            property: input.parse().unwrap_or_else(|e| non_user_error!(e)),
-            unset: non_user_braced!(input).parse().unwrap(),
         })
     }
 }

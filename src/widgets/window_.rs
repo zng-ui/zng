@@ -84,7 +84,6 @@ pub mod window {
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]
         root_id: WidgetId = WidgetId::new_unique();
-        id = unset!;
 
         /// Windows are focus scopes by default.
         focus_scope = true;
@@ -112,7 +111,6 @@ pub mod window {
         /// When set to `false` the window and its *taskbar* icon are not visible, that is different
         /// from a minimized window where the icon is still visible.
         visible: impl IntoVar<bool> = true;
-        visibility = unset!;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
@@ -120,6 +118,13 @@ pub mod window {
         /// is taken from the monitor. In headless mode these values can be configured manually.
         #[allowed_in_when = false]
         headless_config: WindowHeadlessConfig = Default::default();
+
+        remove {
+            // replaced with `root_id` to more clearly indicate that it is not the window ID.
+            id;
+            // replaced with `visible` because Visibility::Hidden is not a thing for windows.
+            visibility
+        }
     }
 
     #[inline]

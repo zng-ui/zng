@@ -1,5 +1,0 @@
-error: cannot unset, property `margin` is required
-  --> $DIR/cannot_unset_inherited_required.rs:17:18
-   |
-17 |         margin = unset!;
-   |                  ^^^^^

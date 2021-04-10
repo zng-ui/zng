@@ -1,5 +1,0 @@
-error: cannot unset, property `id` is captured in default fn `new`
- --> $DIR/cannot_unset_default_captured.rs:7:14
-  |
-7 |         id = unset!;
-  |              ^^^^^

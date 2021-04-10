@@ -4,7 +4,7 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Rename unset! to remove! in widget declarations? (or another word, or as a block `remove { a, b }`?)
+* Validate `#[widget($crate::this::path)]`.
 * Custom default property values.
 * required!(default-value) in widgets.
 * Link property declaration to their source-code point.

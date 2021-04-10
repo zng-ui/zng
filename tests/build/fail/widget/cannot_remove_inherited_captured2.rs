@@ -6,7 +6,7 @@ pub mod test_widget {
     use zero_ui::properties::margin;
 
     properties! {
-        margin = unset!;
+        remove { margin }
     }
 
     fn new_child(margin: impl IntoVar<SideOffsets>) -> NilUiNode {
