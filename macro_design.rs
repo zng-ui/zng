@@ -84,6 +84,19 @@ pub fn bar(child: impl UiNode, a: impl IntoVar<u32>, b: impl IntoVar<u32>) -> im
     child
 }
 
+// New #c
+#[property(context, default = {
+    b: 10,
+    a: 10,
+})]
+pub fn foo(child: impl UiNode, a: impl IntoVar<u32>, b: impl IntoVar<u32>) -> impl UiNode {
+    child
+}
+#[property(context, default = 10, 20)]
+pub fn bar(child: impl UiNode, a: impl IntoVar<u32>, b: impl IntoVar<u32>) -> impl UiNode {
+    child
+}
+
 /*
     Required + Default Value
 */

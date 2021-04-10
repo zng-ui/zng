@@ -5,8 +5,8 @@
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
 * Validate `#[widget($crate::this::path)]`.
-* Custom default property values.
-* required!(default-value) in widgets.
+* Implement `#[required]`.
+* Custom default property values, `#[property(context, default <see macro_design.rs>)]`.
 * Link property declaration to their source-code point.
 * FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
   - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
