@@ -104,6 +104,7 @@ Hard to-do but does not mess with the core API.
 * App Settings that auto-generate some UI.
 * Widget Inspector (UI).
 * Full static HTML support for full markdown and e-book viewers.
+* Use one renderer for all windows.
 
 ## Themes
 
