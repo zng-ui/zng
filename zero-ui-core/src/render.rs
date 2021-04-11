@@ -1980,7 +1980,7 @@ mod renderer {
                 context,
                 size,
                 config.wr_options(window.scale_factor() as f32),
-                Box::new(Notifier(render_callback)),
+                Box::new(Notifier(render_callback, Some(window.id()))),
                 false,
             )?;
 
@@ -1992,7 +1992,7 @@ mod renderer {
         /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
-        pub fn new(size: RenderSize, pixel_ratio: f32, config: RendererConfig, render_callback: impl RenderCallback) -> Result<Self, ()> {
+        pub fn new(size: RenderSize, pixel_ratio: f32, config: RendererConfig, render_callback: impl RenderCallback) -> Result<Self, RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
                 // if we don't do this we get a much more cryptic panic from something DX related.
                 panic!("can only init renderer in the main thread")
@@ -2293,7 +2293,10 @@ mod renderer {
     }
 
     /// Arguments for the [`RenderCallback`].
-    pub struct NewFrameArgs {}
+    pub struct NewFrameArgs {
+        /// The window that owns the frame in headed mode.
+        pub window_id: Option<glutin::window::WindowId>,
+    }
 
     /// A callback called by a [`Renderer`] every time a frame is ready to be presented.
     pub trait RenderCallback: Send + Clone + 'static {
@@ -2306,16 +2309,16 @@ mod renderer {
         }
     }
 
-    struct Notifier<C>(C);
+    struct Notifier<C>(C, Option<glutin::window::WindowId>);
     impl<C: RenderCallback> webrender::api::RenderNotifier for Notifier<C> {
         fn clone(&self) -> Box<dyn webrender::api::RenderNotifier> {
-            Box::new(Notifier(self.0.clone()))
+            Box::new(Notifier(self.0.clone(), self.1))
         }
 
         fn wake_up(&self) {}
 
         fn new_frame_ready(&self, _: webrender::api::DocumentId, _scrolled: bool, _composite_needed: bool, _render_time_ns: Option<u64>) {
-            self.0.on_new_frame(NewFrameArgs {})
+            self.0.on_new_frame(NewFrameArgs { window_id: self.1 })
         }
     }
 }
