@@ -1903,33 +1903,32 @@ mod renderer {
 
     /// A renderer instance.
     ///
-    /// TODO
+    /// The renderer can be connected to a window ([headed](#headed)), or not connected with any window ([headless](#headless)).
+    /// In both cases the renderer can only be initialized in the main thread due to limitations of OpenGL.
     ///
     /// # Headed
     ///
-    /// TODO
+    /// A headed renderer is connected to a [glutin window](https://docs.rs/glutin/*/glutin/window/struct.Window.html).
+    /// It is initialized by the [`new_with_glutin`](Renderer::new_with_glutin) function. The windows opened using
+    /// [`Windows::open`](crate::windows::Windows::open) use this internally so you probably don't want to use this directly.
     ///
     /// # Headless
     ///
-    /// TODO
+    /// A headless renderer TODO.
     ///
     /// # Callback
     ///
-    /// TODO
+    /// Frames are rendered in background threads, the renderer notifies when a frame is ready to present using a
+    /// [`RenderCallback`].
     pub struct Renderer {
-        // glutin:
-        //
         context: Option<ContextWrapper<NotCurrent, ()>>, // Some(_) when not in use.
         gl: Rc<dyn gl::Gl>,
 
-        // webrender stuff:
-        //
         renderer: Option<webrender::Renderer>, // Some(_) until drop.
         api: Arc<webrender::api::RenderApi>,
         document_id: webrender::api::DocumentId,
         pipeline_id: webrender::api::PipelineId,
 
-        // our stuff:
         headless: bool,
         size: RenderSize,
         pixel_ratio: f32,
@@ -1953,11 +1952,11 @@ mod renderer {
         /// # Panics
         ///
         /// Panics if not called by in the main thread.
-        pub fn new_with_glutin<E: 'static>(
+        pub fn new_with_glutin<E: 'static, C: RenderCallback>(
             window: WindowBuilder,
             event_loop: &glutin::event_loop::EventLoopWindowTarget<E>,
             config: RendererConfig,
-            render_callback: impl RenderCallback,
+            render_callback: C,
         ) -> Result<(Self, glutin::window::Window), RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
                 // if we don't do this we get a much more cryptic panic from something DX related.
@@ -1992,7 +1991,12 @@ mod renderer {
         /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
-        pub fn new(size: RenderSize, pixel_ratio: f32, config: RendererConfig, render_callback: impl RenderCallback) -> Result<Self, RendererError> {
+        pub fn new<C: RenderCallback>(
+            size: RenderSize,
+            pixel_ratio: f32,
+            config: RendererConfig,
+            render_callback: C,
+        ) -> Result<Self, RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
                 // if we don't do this we get a much more cryptic panic from something DX related.
                 panic!("can only init renderer in the main thread")
