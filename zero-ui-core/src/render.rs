@@ -1809,3 +1809,516 @@ impl_from_and_into_var! {
         if enabled { FontSynthesis::ENABLED } else { FontSynthesis::DISABLED }
     }
 }
+
+mod renderer {
+    use std::{rc::Rc, sync::Arc};
+
+    use gleam::gl;
+    use glutin::{window::WindowBuilder, Api as GApi, ContextBuilder, ContextWrapper, GlRequest, NotCurrent};
+    use rayon::ThreadPool;
+    use webrender::api::Transaction;
+
+    use crate::{
+        color::RenderColor,
+        units::{LayoutPoint, LayoutSize},
+    };
+
+    use super::FrameId;
+
+    /// Size in device pixels.
+    ///
+    /// To convert from [`LayoutSize`](crate::units::LayoutSize) multiply by the pixel scaling factor (dpi)
+    /// and then cast to [`i32`].
+    ///
+    /// TODO move this to units?
+    pub type RenderSize = webrender::api::units::DeviceIntSize;
+
+    /// Init config of a [`Renderer`].
+    #[derive(Debug)]
+    pub struct RendererConfig {
+        /// `rayon` thread-pool for the renderer workers.
+        pub workers: Option<Arc<ThreadPool>>,
+
+        /// Color used to clear the frame buffer for a new rendering.
+        pub clear_color: Option<RenderColor>,
+    }
+    impl Default for RendererConfig {
+        fn default() -> Self {
+            Self {
+                workers: None,
+                clear_color: None,
+            }
+        }
+    }
+    impl RendererConfig {
+        fn wr_options(self, device_pixel_ratio: f32) -> webrender::RendererOptions {
+            webrender::RendererOptions {
+                device_pixel_ratio,
+                workers: self.workers,
+                clear_color: self.clear_color,
+                // TODO expose more options to the user.
+                ..Default::default()
+            }
+        }
+    }
+
+    /// Errors that can happen in a [`Renderer`].
+    #[derive(Debug)]
+    pub enum RendererError {
+        /// Error during the renderer initialization.
+        ///
+        /// Happens only in the `new` functions. If headed the window is also lost.
+        Creation(glutin::CreationError),
+
+        /// Error during manipulation of the renderer OpenGL context.
+        ///
+        /// If you get this error from a method the [`Renderer`] is still in a valid state.
+        Context(glutin::ContextError),
+
+        /// Error during manipulation of the renderer OpenGL context.
+        ///
+        /// The OpenGl context was **not** recovered, the [`Renderer`] object must be dropped.
+        ContextLost(glutin::ContextError),
+
+        /// Errors during rendering of last frame.
+        ///
+        /// The OpenGL context was recovered so you can try rendering again.
+        RenderRecovered(Vec<webrender::RendererError>),
+        /// Errors during rendering of last frame.
+        ///
+        /// The OpenGL context was **not** recovered, the [`Renderer`] object must be dropped.
+        RenderNotRecovered(Vec<webrender::RendererError>, glutin::ContextError),
+    }
+    impl From<glutin::CreationError> for RendererError {
+        fn from(e: glutin::CreationError) -> Self {
+            RendererError::Creation(e)
+        }
+    }
+    impl From<glutin::ContextError> for RendererError {
+        fn from(e: glutin::ContextError) -> Self {
+            // TODO detect with ContextLost here?
+            RendererError::Context(e)
+        }
+    }
+
+    /// A renderer instance.
+    ///
+    /// TODO
+    ///
+    /// # Headed
+    ///
+    /// TODO
+    ///
+    /// # Headless
+    ///
+    /// TODO
+    ///
+    /// # Callback
+    ///
+    /// TODO
+    pub struct Renderer {
+        // glutin:
+        //
+        context: Option<ContextWrapper<NotCurrent, ()>>, // Some(_) when not in use.
+        gl: Rc<dyn gl::Gl>,
+
+        // webrender stuff:
+        //
+        renderer: Option<webrender::Renderer>, // Some(_) until drop.
+        api: Arc<webrender::api::RenderApi>,
+        document_id: webrender::api::DocumentId,
+        pipeline_id: webrender::api::PipelineId,
+
+        // our stuff:
+        headless: bool,
+        size: RenderSize,
+        pixel_ratio: f32,
+        resized: bool,
+        clear_color: Option<RenderColor>,
+    }
+    impl Renderer {
+        /// Create a renderer that presents to a `glutin` window.
+        ///
+        /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
+        ///
+        /// # Returns
+        ///
+        /// Returns the `Renderer` and glutin `Window` instances. They are linked internally, the renderer manages
+        /// the window OpenGL context.
+        ///
+        /// ## Safety
+        ///
+        /// The renderer **must** be dropped before dropping the returned `Window`.
+        ///
+        /// # Panics
+        ///
+        /// Panics if not called by in the main thread.
+        pub fn new_with_glutin<E: 'static>(
+            window: WindowBuilder,
+            event_loop: &glutin::event_loop::EventLoopWindowTarget<E>,
+            config: RendererConfig,
+            render_callback: impl RenderCallback,
+        ) -> Result<(Self, glutin::window::Window), RendererError> {
+            if !is_main_thread::is_main_thread().unwrap_or(true) {
+                // if we don't do this we get a much more cryptic panic from something DX related.
+                panic!("can only init renderer in the main thread")
+            }
+
+            let context = ContextBuilder::new()
+                .with_gl(GlRequest::GlThenGles {
+                    opengl_version: (3, 2),
+                    opengles_version: (3, 0),
+                })
+                .build_windowed(window, &event_loop)?;
+
+            let (context, window) = unsafe { context.split() };
+
+            let size = window.inner_size();
+            let size = RenderSize::new(size.width as i32, size.height as i32);
+
+            let renderer = Self::new_(
+                context,
+                size,
+                config.wr_options(window.scale_factor() as f32),
+                Box::new(Notifier(render_callback)),
+                false,
+            )?;
+
+            Ok((renderer, window))
+        }
+
+        /// Create a headless renderer.
+        ///
+        /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
+        ///
+        /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
+        pub fn new(size: RenderSize, pixel_ratio: f32, config: RendererConfig, render_callback: impl RenderCallback) -> Result<Self, ()> {
+            if !is_main_thread::is_main_thread().unwrap_or(true) {
+                // if we don't do this we get a much more cryptic panic from something DX related.
+                panic!("can only init renderer in the main thread")
+            }
+
+            let _ = (size, pixel_ratio, config, render_callback);
+
+            todo!();
+        }
+
+        fn new_(
+            context: ContextWrapper<NotCurrent, ()>,
+            size: RenderSize,
+            opts: webrender::RendererOptions,
+            notifier: Box<dyn webrender::api::RenderNotifier>,
+            headless: bool,
+        ) -> Result<Self, RendererError> {
+            // INIT gl stuff.
+            //
+            let context = unsafe { context.make_current().map_err(|(_, e)| e)? };
+
+            let gl = match context.get_api() {
+                GApi::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+                GApi::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
+                GApi::WebGl => panic!("WebGl is not supported"),
+            };
+
+            // INIT webrender (renderer, api, ids):
+            //
+            let clear_color = opts.clear_color;
+            let pixel_ratio = opts.device_pixel_ratio;
+
+            let (renderer, sender) = webrender::Renderer::new(Rc::clone(&gl), notifier, opts, None, size).unwrap();
+
+            let api = Arc::new(sender.create_api());
+            let document_id = api.add_document(size, 0);
+
+            let pipeline_id = webrender::api::PipelineId(1, 0);
+
+            // TODO refactor this context operations to only exist in two functions.
+            let context = unsafe {
+                match context.make_not_current() {
+                    Ok(ctx) => ctx,
+                    Err((_, e)) => {
+                        renderer.deinit();
+                        return Err(RendererError::Context(e));
+                    }
+                }
+            };
+
+            Ok(Self {
+                context: Some(context),
+                gl,
+
+                renderer: Some(renderer),
+                api,
+                document_id,
+                pipeline_id,
+
+                size,
+                pixel_ratio,
+                resized: false,
+                clear_color,
+                headless,
+            })
+        }
+
+        /// If this renderer is not connected with any window.
+        #[inline]
+        pub fn headless(&self) -> bool {
+            self.headless
+        }
+
+        /// The WebRender API.
+        #[inline]
+        pub fn api(&self) -> &Arc<webrender::api::RenderApi> {
+            &self.api
+        }
+
+        /// The main pipeline.
+        #[inline]
+        pub fn pipeline_id(&self) -> webrender::api::PipelineId {
+            self.pipeline_id
+        }
+
+        /// Resize the renderer surface.
+        ///
+        /// The `new_size` must be already scaled by the `new_pixel_ratio`.
+        ///
+        /// This must be called even when the renderer was created from a window.
+        ///
+        /// This does not render a new frame, you must call [`render`](Self::render) before presenting the new size.
+        pub fn resize(&mut self, new_size: RenderSize, new_pixel_ratio: f32) -> Result<(), RendererError> {
+            if self.headless {
+                todo!()
+            }
+
+            self.size = new_size;
+            self.pixel_ratio = new_pixel_ratio;
+            self.resized = true;
+
+            Ok(())
+        }
+
+        /// Start rendering a new frame.
+        ///
+        /// The [callback](#callback) will be called when the frame is ready to be [presented](Self::present).
+        pub fn render(
+            &mut self,
+            display_list_data: (webrender::api::PipelineId, LayoutSize, webrender::api::BuiltDisplayList),
+            frame_id: FrameId,
+        ) {
+            let viewport_size = LayoutSize::new(
+                self.size.width as f32 * self.pixel_ratio,
+                self.size.height as f32 * self.pixel_ratio,
+            );
+
+            let mut txn = Transaction::new();
+            txn.set_display_list(frame_id, self.clear_color, viewport_size, display_list_data, true);
+            txn.set_root_pipeline(self.pipeline_id);
+
+            if self.resized {
+                self.resized = false;
+                txn.set_document_view(self.size.into(), self.pixel_ratio);
+            }
+
+            txn.generate_frame();
+            self.api.send_transaction(self.document_id, txn);
+        }
+
+        /// Start rendering a new frame based on the data of the last frame.
+        pub fn render_update(&mut self, updates: webrender::api::DynamicProperties) {
+            let mut txn = Transaction::new();
+            txn.set_root_pipeline(self.pipeline_id);
+            txn.update_dynamic_properties(updates);
+
+            if self.resized {
+                self.resized = false;
+                txn.set_document_view(self.size.into(), self.pixel_ratio);
+            }
+
+            txn.generate_frame();
+            self.api.send_transaction(self.document_id, txn);
+        }
+
+        /// Present the last rendered frame.
+        pub fn present(&mut self) -> Result<(), RendererError> {
+            // draw:
+            let context = self.context.take().expect("renderer context already in use or dropped");
+
+            let context = unsafe {
+                match context.make_current() {
+                    Ok(ctx) => ctx,
+                    Err((ctx, e)) => {
+                        self.context = Some(ctx);
+                        return Err(RendererError::Context(e));
+                    }
+                }
+            };
+
+            let renderer = self.renderer.as_mut().expect("renderer dropped");
+
+            renderer.update();
+
+            if let Err(e) = renderer.render(self.size) {
+                return Err(match unsafe { context.make_not_current() } {
+                    Ok(ctx) => {
+                        self.context = Some(ctx);
+                        RendererError::RenderRecovered(e)
+                    }
+                    Err((_, e2)) => RendererError::RenderNotRecovered(e, e2),
+                });
+            }
+
+            // swap:
+            if self.headless {
+                todo!()
+            } else if let Err(e) = context.swap_buffers() {
+                match unsafe { context.make_not_current() } {
+                    Ok(ctx) => {
+                        self.context = Some(ctx);
+                        return Err(e.into());
+                    }
+                    Err(_) => {
+                        return Err(RendererError::ContextLost(e));
+                    }
+                }
+            }
+
+            let context = unsafe { context.make_not_current().map_err(|(_, e)| RendererError::ContextLost(e))? };
+
+            self.context = Some(context);
+
+            Ok(())
+        }
+
+        /// Does a hit-test on the current frame.
+        #[inline]
+        pub fn hit_test(&self, point: LayoutPoint) -> webrender::api::HitTestResult {
+            self.api.hit_test(
+                self.document_id,
+                Some(self.pipeline_id),
+                webrender::api::units::WorldPoint::new(point.x, point.y),
+                webrender::api::HitTestFlags::all(),
+            )
+        }
+
+        /// Read the pixels in the rectangle as a vec of RGB unsigned
+        #[inline]
+        pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
+            let _ = (x, y, width, height);
+            // gl::RGB, gl::UNSIGNED_BYTE
+
+            let context = self.context.take().expect("renderer context already in use or dropped");
+
+            let context = unsafe {
+                match context.make_current() {
+                    Ok(ctx) => ctx,
+                    Err((ctx, e)) => {
+                        self.context = Some(ctx);
+                        return Err(RendererError::Context(e));
+                    }
+                }
+            };
+
+            let pixels = self
+                .gl
+                .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
+
+            match unsafe { context.make_not_current() } {
+                Ok(ctx) => {
+                    self.context = Some(ctx);
+                    Ok(pixels)
+                }
+                Err((_, e)) => Err(RendererError::ContextLost(e)),
+            }
+        }
+
+        /// If the renderer is headless, renders a new [`UiNode`](crate::UiNode).
+        ///
+        /// This method calls `create_ui` and then:
+        ///
+        /// * Initializes the node (`UiNode::init`).
+        /// * Calls the update methods until there is no more update.
+        /// * Layouts the node using the renderer size.
+        /// * Builds a frame from the node (`UiNode::render`).
+        /// * De-initializes the node (`UiNode::deinit`).
+        /// * Start rendering the frame, like a call to [`render`](Self::render).
+        ///
+        /// No services or events are available in the contexts passed to the new UI node.
+        ///
+        /// # Panics
+        ///
+        /// Panics if the renderer is not [headless](Self::is_headless).
+        pub fn render_new_ui<O: crate::UiNode, F: FnOnce(&mut crate::context::WindowContext) -> O>(&mut self, create_ui: F) {
+            if !self.headless() {
+                panic!("can only `render_new_ui` with headless renderer");
+            }
+
+            let _ = create_ui;
+
+            todo!()
+        }
+
+        /// If the renderer is headless, renders an existing [`UiNode`](crate::UiNode).
+        ///
+        /// This method does:
+        ///
+        /// * Layout the `ui` using the renderer size.
+        /// * Builds a frame from the node (`UiNode::render`).
+        /// * Start rendering the frame, like a call to [`render`](Self::render).
+        ///
+        /// # Panics
+        ///
+        /// Panics if the renderer is not [headless](Self::is_headless).
+        pub fn render_ui<U: crate::UiNode>(&mut self, ui: &mut U) {
+            if !self.headless() {
+                panic!("can only `render_ui` with headless renderer");
+            }
+            let _ = ui;
+        }
+    }
+    impl Drop for Renderer {
+        fn drop(&mut self) {
+            if let Some(renderer) = self.renderer.take() {
+                if let Some(ctx) = self.context.take() {
+                    if let Ok(ctx) = unsafe { ctx.make_current() } {
+                        renderer.deinit();
+                        let _ = unsafe { ctx.make_not_current() };
+                        return; // safe drop.
+                    }
+                }
+
+                // this panics, I think.
+                renderer.deinit();
+            }
+        }
+    }
+
+    /// Arguments for the [`RenderCallback`].
+    pub struct NewFrameArgs {}
+
+    /// A callback called by a [`Renderer`] every time a frame is ready to be presented.
+    pub trait RenderCallback: Send + Clone + 'static {
+        /// The callback.
+        fn on_new_frame(&self, args: NewFrameArgs);
+    }
+    impl<F: Fn(NewFrameArgs) + Send + Clone + 'static> RenderCallback for F {
+        fn on_new_frame(&self, args: NewFrameArgs) {
+            (self)(args)
+        }
+    }
+
+    struct Notifier<C>(C);
+    impl<C: RenderCallback> webrender::api::RenderNotifier for Notifier<C> {
+        fn clone(&self) -> Box<dyn webrender::api::RenderNotifier> {
+            Box::new(Notifier(self.0.clone()))
+        }
+
+        fn wake_up(&self) {}
+
+        fn new_frame_ready(&self, _: webrender::api::DocumentId, _scrolled: bool, _composite_needed: bool, _render_time_ns: Option<u64>) {
+            self.0.on_new_frame(NewFrameArgs {})
+        }
+    }
+}
+
+#[doc(inline)]
+pub use renderer::*;
