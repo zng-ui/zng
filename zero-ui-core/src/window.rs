@@ -1244,8 +1244,8 @@ impl OpenWindow {
 
             let mut pixels_flipped = Vec::with_capacity(pixels.len());
             for v in (0..height as _).rev() {
-                let s = 3 * v as usize * width as usize;
-                let o = 3 * width as usize;
+                let s = 4 * v as usize * width as usize;
+                let o = 4 * width as usize;
                 pixels_flipped.extend_from_slice(&pixels[s..(s + o)]);
             }
             ScreenshotData {
@@ -1725,7 +1725,7 @@ impl Drop for OpenWindow {
 
 /// Window screenshot image data.
 pub struct ScreenshotData {
-    /// RGB8
+    /// RGBA8
     pub pixels: Vec<u8>,
     /// Width in pixels.
     pub width: u32,
@@ -1737,7 +1737,7 @@ pub struct ScreenshotData {
 impl ScreenshotData {
     /// Encode and save the screenshot image.
     pub fn save(&self, path: impl AsRef<std::path::Path>) -> image::ImageResult<()> {
-        image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgb8)
+        image::save_buffer(path, &self.pixels, self.width, self.height, image::ColorType::Rgba8)
     }
 }
 
@@ -1751,7 +1751,6 @@ struct OwnedWindowContext {
     api: Option<Arc<RenderApi>>,
     update: UpdateDisplayRequest,
 }
-
 impl OwnedWindowContext {
     fn root_context(&mut self, ctx: &mut AppContext, f: impl FnOnce(&mut Box<dyn UiNode>, &mut WidgetContext)) -> UpdateDisplayRequest {
         let root = &mut self.root;

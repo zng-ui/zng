@@ -2157,7 +2157,7 @@ mod renderer {
                 // manually create a surface for headless.
                 let render_buf = gl.gen_renderbuffers(1)[0];
                 gl.bind_renderbuffer(gl::RENDERBUFFER, render_buf);
-                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGB8, size.width, size.height);
+                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
                 let fb = gl.gen_framebuffers(1)[0];
                 gl.bind_framebuffer(gl::FRAMEBUFFER, fb);
                 gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, render_buf);
@@ -2331,7 +2331,7 @@ mod renderer {
             )
         }
 
-        /// Read the pixels in the rectangle as a vec of RGB unsigned
+        /// Read the pixels in the rectangle as a vec of RGBA unsigned
         #[inline]
         pub fn read_pixels(&mut self, x: u32, y: u32, width: u32, height: u32) -> Result<Vec<u8>, RendererError> {
             let _ = (x, y, width, height);
@@ -2341,7 +2341,7 @@ mod renderer {
 
             let pixels = self
                 .gl
-                .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
+                .read_pixels(x as _, y as _, width as _, height as _, gl::RGBA, gl::UNSIGNED_BYTE);
 
             self.context = context.make_not_current()?;
 
