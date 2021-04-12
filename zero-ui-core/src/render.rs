@@ -1818,7 +1818,7 @@ mod renderer {
         event_loop::EventLoop, window::WindowBuilder, Api as GApi, Context, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent,
     };
     use rayon::ThreadPool;
-    use webrender::api::Transaction;
+    use webrender::{api::Transaction, RendererKind};
 
     use crate::{
         color::RenderColor,
@@ -1853,11 +1853,13 @@ mod renderer {
         }
     }
     impl RendererConfig {
-        fn wr_options(self, device_pixel_ratio: f32) -> webrender::RendererOptions {
+        fn wr_options(self, device_pixel_ratio: f32, renderer_kind: RendererKind) -> webrender::RendererOptions {
             webrender::RendererOptions {
                 device_pixel_ratio,
+                renderer_kind,
                 workers: self.workers,
                 clear_color: self.clear_color,
+                //panic_on_gl_error: true,
                 // TODO expose more options to the user.
                 ..Default::default()
             }
@@ -1914,7 +1916,7 @@ mod renderer {
 
     enum GlContext {
         Windowed(glutin::ContextWrapper<NotCurrent, ()>),
-        Headless(Context<NotCurrent>, EventLoop<()>),
+        Headless(Context<NotCurrent>, HeadlessData),
         InUse,
     }
     impl GlContext {
@@ -1944,7 +1946,7 @@ mod renderer {
 
     enum GlContextCurrent {
         Windowed(glutin::ContextWrapper<PossiblyCurrent, ()>),
-        Headless(glutin::Context<PossiblyCurrent>, EventLoop<()>),
+        Headless(glutin::Context<PossiblyCurrent>, HeadlessData),
     }
     impl GlContextCurrent {
         pub fn make_not_current(self) -> Result<GlContext, RendererError> {
@@ -1974,16 +1976,6 @@ mod renderer {
             }
         }
 
-        pub fn resize(&self, size: RenderSize) {
-            let size = glutin::dpi::PhysicalSize::new(size.width as u32, size.height as u32);
-            match self {
-                GlContextCurrent::Windowed(ctx) => ctx.resize(size),
-                GlContextCurrent::Headless(_, _) => {
-                    // TODO
-                }
-            }
-        }
-
         pub fn swap_buffers(&self) -> Result<(), RendererError> {
             match self {
                 GlContextCurrent::Windowed(ctx) => ctx.swap_buffers()?,
@@ -1996,8 +1988,18 @@ mod renderer {
     }
 
     struct HeadlessData {
-        render_buffer: u32,
-        frame_buffer: u32,
+        _el: EventLoop<()>,
+        render_buffer: [u32; 1],
+        frame_buffer: [u32; 1],
+    }
+    impl HeadlessData {
+        fn partial(el: EventLoop<()>) -> Self {
+            HeadlessData {
+                _el: el,
+                render_buffer: [0; 1],
+                frame_buffer: [0; 1],
+            }
+        }
     }
 
     /// A renderer instance.
@@ -2028,7 +2030,7 @@ mod renderer {
         document_id: webrender::api::DocumentId,
         pipeline_id: webrender::api::PipelineId,
 
-        headless: Option<HeadlessData>,
+        headless: bool,
         size: RenderSize,
         pixel_ratio: f32,
         resized: bool,
@@ -2076,9 +2078,8 @@ mod renderer {
             let renderer = Self::new_(
                 GlContext::Windowed(context),
                 size,
-                config.wr_options(window.scale_factor() as f32),
+                config.wr_options(window.scale_factor() as f32, RendererKind::Native),
                 Box::new(Notifier(render_callback, Some(window.id()))),
-                false,
             )?;
 
             Ok((renderer, window))
@@ -2110,29 +2111,43 @@ mod renderer {
 
             let size_one = glutin::dpi::PhysicalSize::new(1, 1);
 
+            let renderer_kind;
+
             #[cfg(target_os = "linux")]
             let context = {
                 use glutin::platform::unix::HeadlessContextExt;
                 match context.build_surfaceless(&el) {
-                    Ok(ctx) => ctx,
+                    Ok(ctx) => {
+                        renderer_kind = RendererKind::Native;
+                        ctx
+                    }
                     Err(suf_e) => match context.build_headless(&el, size_one) {
-                        Ok(ctx) => ctx,
+                        Ok(ctx) => {
+                            renderer_kind = RendererKind::Native;
+                            ctx
+                        }
                         Err(hea_e) => match context.build_osmesa(size_one) {
-                            Ok(ctx) => ctx,
+                            Ok(ctx) => {
+                                renderer_kind = RendererKind::OSMesa;
+                                ctx
+                            }
                             Err(osm_e) => return Err(RendererError::CreationLinux()),
                         },
                     },
                 }
             };
             #[cfg(not(target_os = "linux"))]
-            let context = context.build_headless(&el, size_one)?;
+            let context = {
+                let c = context.build_headless(&el, size_one)?;
+                renderer_kind = RendererKind::Native;
+                c
+            };
 
             Self::new_(
-                GlContext::Headless(context, el),
+                GlContext::Headless(context, HeadlessData::partial(el)),
                 size,
-                config.wr_options(pixel_ratio),
+                config.wr_options(pixel_ratio, renderer_kind),
                 Box::new(Notifier(render_callback, None)),
-                true,
             )
         }
 
@@ -2141,11 +2156,10 @@ mod renderer {
             size: RenderSize,
             opts: webrender::RendererOptions,
             notifier: Box<dyn webrender::api::RenderNotifier>,
-            headless: bool,
         ) -> Result<Self, RendererError> {
             // INIT openGl (context, gl).
             //
-            let context = context.make_current()?;
+            let mut context = context.make_current()?;
 
             let gl = match context.get_api() {
                 GApi::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
@@ -2153,22 +2167,27 @@ mod renderer {
                 GApi::WebGl => panic!("WebGl is not supported"),
             };
 
-            let headless = if headless {
+            let headless = if let GlContextCurrent::Headless(_, data) = &mut context {
+                #[cfg(debug_assertions)]
+                let gl = gleam::gl::ErrorCheckingGl::wrap(gl.clone());
+
                 // manually create a surface for headless.
-                let render_buf = gl.gen_renderbuffers(1)[0];
-                gl.bind_renderbuffer(gl::RENDERBUFFER, render_buf);
+                let render_buf = gl.gen_renderbuffers(1);
+                gl.bind_renderbuffer(gl::RENDERBUFFER, render_buf[0]);
                 gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
+
                 let fb = gl.gen_framebuffers(1)[0];
                 gl.bind_framebuffer(gl::FRAMEBUFFER, fb);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, render_buf);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, render_buf[0]);
+
                 gl.viewport(0, 0, size.width, size.height);
 
-                Some(HeadlessData {
-                    render_buffer: render_buf,
-                    frame_buffer: fb,
-                })
+                data.frame_buffer = [fb];
+                data.render_buffer = [render_buf[0]];
+
+                true
             } else {
-                None
+                false
             };
 
             // INIT webrender (renderer, api, ids):
@@ -2211,7 +2230,7 @@ mod renderer {
         /// If this renderer is not connected with any window.
         #[inline]
         pub fn headless(&self) -> bool {
-            self.headless.is_some()
+            self.headless
         }
 
         /// The WebRender API.
@@ -2236,7 +2255,15 @@ mod renderer {
         pub fn resize(&mut self, new_size: RenderSize, new_pixel_ratio: f32) -> Result<(), RendererError> {
             let context = self.context.make_current()?;
 
-            context.resize(new_size);
+            match &context {
+                GlContextCurrent::Windowed(ctx) => {
+                    let size = glutin::dpi::PhysicalSize::new(new_size.width as u32, new_size.height as u32);
+                    ctx.resize(size);
+                }
+                GlContextCurrent::Headless(_, _) => {
+                    self.gl.viewport(0, 0, new_size.width, new_size.height);
+                }
+            }
 
             self.context = context.make_not_current()?;
 
@@ -2395,12 +2422,12 @@ mod renderer {
     impl Drop for Renderer {
         fn drop(&mut self) {
             if let Some(renderer) = self.renderer.take() {
-                if let Ok(ctx) = self.context.make_current() {
+                if let Ok(mut ctx) = self.context.make_current() {
                     renderer.deinit();
 
-                    if let Some(data) = self.headless.take() {
-                        self.gl.delete_framebuffers(&[data.frame_buffer]);
-                        self.gl.delete_renderbuffers(&[data.render_buffer]);
+                    if let GlContextCurrent::Headless(_, data) = &mut ctx {
+                        self.gl.delete_framebuffers(&data.frame_buffer);
+                        self.gl.delete_renderbuffers(&data.render_buffer);
                     }
 
                     let _ = ctx.make_not_current();

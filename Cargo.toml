@@ -23,6 +23,7 @@ enclose = "1.1.8"
 meval = "0.2.0"
 serial_test = "0.5.1"
 trybuild = "1.0.41"
+stderrlog = "0.5.1"
 
 [workspace]
 members = ["zero-ui-proc-macros", "zero-ui-core"]
