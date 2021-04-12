@@ -71,6 +71,7 @@ fn image() -> Window {
         content = text! {
             text = "Hello World!";
             font_size = 72;
+            font_family = ["Consolas", "monospace"];
             color = colors::WHITE;
         };
     }

@@ -1811,10 +1811,12 @@ impl_from_and_into_var! {
 }
 
 mod renderer {
-    use std::{rc::Rc, sync::Arc};
+    use std::{mem, rc::Rc, sync::Arc};
 
     use gleam::gl;
-    use glutin::{window::WindowBuilder, Api as GApi, ContextBuilder, ContextWrapper, GlRequest, NotCurrent};
+    use glutin::{
+        event_loop::EventLoop, window::WindowBuilder, Api as GApi, Context, ContextBuilder, GlRequest, NotCurrent, PossiblyCurrent,
+    };
     use rayon::ThreadPool;
     use webrender::api::Transaction;
 
@@ -1870,6 +1872,16 @@ mod renderer {
         /// Happens only in the `new` functions. If headed the window is also lost.
         Creation(glutin::CreationError),
 
+        /// Error during a headless initialization in Linux.
+        ///
+        /// The errors are for each fallback context tried:
+        ///
+        /// * `[0]` - Error starting a surfaceless context.
+        /// * `[1]` - Error starting a headless context.
+        /// * `[2]` - Error starting a osmesa context.
+        #[cfg(target_os = "linux")]
+        CreationHeadlessLinux([glutin::CreationError; 3]),
+
         /// Error during manipulation of the renderer OpenGL context.
         ///
         /// If you get this error from a method the [`Renderer`] is still in a valid state.
@@ -1878,7 +1890,7 @@ mod renderer {
         /// Error during manipulation of the renderer OpenGL context.
         ///
         /// The OpenGl context was **not** recovered, the [`Renderer`] object must be dropped.
-        ContextLost(glutin::ContextError),
+        ContextNotRecovered(glutin::ContextError),
 
         /// Errors during rendering of last frame.
         ///
@@ -1896,9 +1908,96 @@ mod renderer {
     }
     impl From<glutin::ContextError> for RendererError {
         fn from(e: glutin::ContextError) -> Self {
-            // TODO detect with ContextLost here?
             RendererError::Context(e)
         }
+    }
+
+    enum GlContext {
+        Windowed(glutin::ContextWrapper<NotCurrent, ()>),
+        Headless(Context<NotCurrent>, EventLoop<()>),
+        InUse,
+    }
+    impl GlContext {
+        pub fn make_current(&mut self) -> Result<GlContextCurrent, RendererError> {
+            match mem::replace(self, GlContext::InUse) {
+                GlContext::Windowed(ctx) => match unsafe { ctx.make_current() } {
+                    Ok(ctx) => Ok(GlContextCurrent::Windowed(ctx)),
+                    Err((ctx, e)) => {
+                        // TODO figure out what ContextLost means here?
+                        *self = GlContext::Windowed(ctx);
+                        Err(e.into())
+                    }
+                },
+                GlContext::Headless(ctx, el) => match unsafe { ctx.make_current() } {
+                    Ok(ctx) => Ok(GlContextCurrent::Headless(ctx, el)),
+                    Err((ctx, e)) => {
+                        *self = GlContext::Headless(ctx, el);
+                        Err(e.into())
+                    }
+                },
+                GlContext::InUse => {
+                    panic!("gl context already in use")
+                }
+            }
+        }
+    }
+
+    enum GlContextCurrent {
+        Windowed(glutin::ContextWrapper<PossiblyCurrent, ()>),
+        Headless(glutin::Context<PossiblyCurrent>, EventLoop<()>),
+    }
+    impl GlContextCurrent {
+        pub fn make_not_current(self) -> Result<GlContext, RendererError> {
+            match self {
+                GlContextCurrent::Windowed(ctx) => {
+                    let ctx = unsafe { ctx.make_not_current().map_err(|(_, e)| RendererError::ContextNotRecovered(e))? };
+                    Ok(GlContext::Windowed(ctx))
+                }
+                GlContextCurrent::Headless(ctx, el) => {
+                    let ctx = unsafe { ctx.make_not_current().map_err(|(_, e)| RendererError::ContextNotRecovered(e))? };
+                    Ok(GlContext::Headless(ctx, el))
+                }
+            }
+        }
+
+        pub fn get_api(&self) -> GApi {
+            match self {
+                GlContextCurrent::Windowed(ctx) => ctx.get_api(),
+                GlContextCurrent::Headless(ctx, _) => ctx.get_api(),
+            }
+        }
+
+        pub fn get_proc_address(&self, addr: &str) -> *const core::ffi::c_void {
+            match self {
+                GlContextCurrent::Windowed(ctx) => ctx.get_proc_address(addr),
+                GlContextCurrent::Headless(ctx, _) => ctx.get_proc_address(addr),
+            }
+        }
+
+        pub fn resize(&self, size: RenderSize) {
+            let size = glutin::dpi::PhysicalSize::new(size.width as u32, size.height as u32);
+            match self {
+                GlContextCurrent::Windowed(ctx) => ctx.resize(size),
+                GlContextCurrent::Headless(_, _) => {
+                    // TODO
+                }
+            }
+        }
+
+        pub fn swap_buffers(&self) -> Result<(), RendererError> {
+            match self {
+                GlContextCurrent::Windowed(ctx) => ctx.swap_buffers()?,
+                GlContextCurrent::Headless(_, _) => {
+                    // TODO
+                }
+            }
+            Ok(())
+        }
+    }
+
+    struct HeadlessData {
+        render_buffer: u32,
+        frame_buffer: u32,
     }
 
     /// A renderer instance.
@@ -1921,7 +2020,7 @@ mod renderer {
     /// Frames are rendered in background threads, the renderer notifies when a frame is ready to present using a
     /// [`RenderCallback`].
     pub struct Renderer {
-        context: Option<ContextWrapper<NotCurrent, ()>>, // Some(_) when not in use.
+        context: GlContext,
         gl: Rc<dyn gl::Gl>,
 
         renderer: Option<webrender::Renderer>, // Some(_) until drop.
@@ -1929,7 +2028,7 @@ mod renderer {
         document_id: webrender::api::DocumentId,
         pipeline_id: webrender::api::PipelineId,
 
-        headless: bool,
+        headless: Option<HeadlessData>,
         size: RenderSize,
         pixel_ratio: f32,
         resized: bool,
@@ -1959,7 +2058,6 @@ mod renderer {
             render_callback: C,
         ) -> Result<(Self, glutin::window::Window), RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
-                // if we don't do this we get a much more cryptic panic from something DX related.
                 panic!("can only init renderer in the main thread")
             }
 
@@ -1976,7 +2074,7 @@ mod renderer {
             let size = RenderSize::new(size.width as i32, size.height as i32);
 
             let renderer = Self::new_(
-                context,
+                GlContext::Windowed(context),
                 size,
                 config.wr_options(window.scale_factor() as f32),
                 Box::new(Notifier(render_callback, Some(window.id()))),
@@ -1991,6 +2089,8 @@ mod renderer {
         /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
+        ///
+        /// Use [`new_in_headed_app`](Self::)
         pub fn new<C: RenderCallback>(
             size: RenderSize,
             pixel_ratio: f32,
@@ -1998,30 +2098,77 @@ mod renderer {
             render_callback: C,
         ) -> Result<Self, RendererError> {
             if !is_main_thread::is_main_thread().unwrap_or(true) {
-                // if we don't do this we get a much more cryptic panic from something DX related.
                 panic!("can only init renderer in the main thread")
             }
 
-            let _ = (size, pixel_ratio, config, render_callback);
+            let el = glutin::event_loop::EventLoop::new();
 
-            todo!();
+            let context = ContextBuilder::new().with_gl(GlRequest::GlThenGles {
+                opengl_version: (3, 2),
+                opengles_version: (3, 0),
+            });
+
+            let size_one = glutin::dpi::PhysicalSize::new(1, 1);
+
+            #[cfg(target_os = "linux")]
+            let context = {
+                use glutin::platform::unix::HeadlessContextExt;
+                match context.build_surfaceless(&el) {
+                    Ok(ctx) => ctx,
+                    Err(suf_e) => match context.build_headless(&el, size_one) {
+                        Ok(ctx) => ctx,
+                        Err(hea_e) => match context.build_osmesa(size_one) {
+                            Ok(ctx) => ctx,
+                            Err(osm_e) => return Err(RendererError::CreationLinux()),
+                        },
+                    },
+                }
+            };
+            #[cfg(not(target_os = "linux"))]
+            let context = context.build_headless(&el, size_one)?;
+
+            Self::new_(
+                GlContext::Headless(context, el),
+                size,
+                config.wr_options(pixel_ratio),
+                Box::new(Notifier(render_callback, None)),
+                true,
+            )
         }
 
         fn new_(
-            context: ContextWrapper<NotCurrent, ()>,
+            mut context: GlContext,
             size: RenderSize,
             opts: webrender::RendererOptions,
             notifier: Box<dyn webrender::api::RenderNotifier>,
             headless: bool,
         ) -> Result<Self, RendererError> {
-            // INIT gl stuff.
+            // INIT openGl (context, gl).
             //
-            let context = unsafe { context.make_current().map_err(|(_, e)| e)? };
+            let context = context.make_current()?;
 
             let gl = match context.get_api() {
                 GApi::OpenGl => unsafe { gl::GlFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
                 GApi::OpenGlEs => unsafe { gl::GlesFns::load_with(|symbol| context.get_proc_address(symbol) as *const _) },
                 GApi::WebGl => panic!("WebGl is not supported"),
+            };
+
+            let headless = if headless {
+                // manually create a surface for headless.
+                let render_buf = gl.gen_renderbuffers(1)[0];
+                gl.bind_renderbuffer(gl::RENDERBUFFER, render_buf);
+                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGB8, size.width, size.height);
+                let fb = gl.gen_framebuffers(1)[0];
+                gl.bind_framebuffer(gl::FRAMEBUFFER, fb);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, render_buf);
+                gl.viewport(0, 0, size.width, size.height);
+
+                Some(HeadlessData {
+                    render_buffer: render_buf,
+                    frame_buffer: fb,
+                })
+            } else {
+                None
             };
 
             // INIT webrender (renderer, api, ids):
@@ -2036,19 +2183,16 @@ mod renderer {
 
             let pipeline_id = webrender::api::PipelineId(1, 0);
 
-            // TODO refactor this context operations to only exist in two functions.
-            let context = unsafe {
-                match context.make_not_current() {
-                    Ok(ctx) => ctx,
-                    Err((_, e)) => {
-                        renderer.deinit();
-                        return Err(RendererError::Context(e));
-                    }
+            let context = match context.make_not_current() {
+                Ok(ctx) => ctx,
+                Err(e) => {
+                    renderer.deinit();
+                    return Err(e);
                 }
             };
 
             Ok(Self {
-                context: Some(context),
+                context,
                 gl,
 
                 renderer: Some(renderer),
@@ -2067,7 +2211,7 @@ mod renderer {
         /// If this renderer is not connected with any window.
         #[inline]
         pub fn headless(&self) -> bool {
-            self.headless
+            self.headless.is_some()
         }
 
         /// The WebRender API.
@@ -2090,9 +2234,11 @@ mod renderer {
         ///
         /// This does not render a new frame, you must call [`render`](Self::render) before presenting the new size.
         pub fn resize(&mut self, new_size: RenderSize, new_pixel_ratio: f32) -> Result<(), RendererError> {
-            if self.headless {
-                todo!()
-            }
+            let context = self.context.make_current()?;
+
+            context.resize(new_size);
+
+            self.context = context.make_not_current()?;
 
             self.size = new_size;
             self.pixel_ratio = new_pixel_ratio;
@@ -2145,50 +2291,31 @@ mod renderer {
         /// Present the last rendered frame.
         pub fn present(&mut self) -> Result<(), RendererError> {
             // draw:
-            let context = self.context.take().expect("renderer context already in use or dropped");
-
-            let context = unsafe {
-                match context.make_current() {
-                    Ok(ctx) => ctx,
-                    Err((ctx, e)) => {
-                        self.context = Some(ctx);
-                        return Err(RendererError::Context(e));
-                    }
-                }
-            };
+            let context = self.context.make_current()?;
 
             let renderer = self.renderer.as_mut().expect("renderer dropped");
 
             renderer.update();
 
             if let Err(e) = renderer.render(self.size) {
-                return Err(match unsafe { context.make_not_current() } {
+                let e = match context.make_not_current() {
                     Ok(ctx) => {
-                        self.context = Some(ctx);
+                        self.context = ctx;
                         RendererError::RenderRecovered(e)
                     }
-                    Err((_, e2)) => RendererError::RenderNotRecovered(e, e2),
-                });
+                    Err(RendererError::ContextNotRecovered(e2)) => RendererError::RenderNotRecovered(e, e2),
+                    Err(e3) => unreachable!("{:?}", e3),
+                };
+                return Err(e);
             }
 
             // swap:
-            if self.headless {
-                todo!()
-            } else if let Err(e) = context.swap_buffers() {
-                match unsafe { context.make_not_current() } {
-                    Ok(ctx) => {
-                        self.context = Some(ctx);
-                        return Err(e.into());
-                    }
-                    Err(_) => {
-                        return Err(RendererError::ContextLost(e));
-                    }
-                }
+            if let Err(e) = context.swap_buffers() {
+                self.context = context.make_not_current()?;
+                return Err(e);
             }
 
-            let context = unsafe { context.make_not_current().map_err(|(_, e)| RendererError::ContextLost(e))? };
-
-            self.context = Some(context);
+            self.context = context.make_not_current()?;
 
             Ok(())
         }
@@ -2210,29 +2337,15 @@ mod renderer {
             let _ = (x, y, width, height);
             // gl::RGB, gl::UNSIGNED_BYTE
 
-            let context = self.context.take().expect("renderer context already in use or dropped");
-
-            let context = unsafe {
-                match context.make_current() {
-                    Ok(ctx) => ctx,
-                    Err((ctx, e)) => {
-                        self.context = Some(ctx);
-                        return Err(RendererError::Context(e));
-                    }
-                }
-            };
+            let context = self.context.make_current()?;
 
             let pixels = self
                 .gl
                 .read_pixels(x as _, y as _, width as _, height as _, gl::RGB, gl::UNSIGNED_BYTE);
 
-            match unsafe { context.make_not_current() } {
-                Ok(ctx) => {
-                    self.context = Some(ctx);
-                    Ok(pixels)
-                }
-                Err((_, e)) => Err(RendererError::ContextLost(e)),
-            }
+            self.context = context.make_not_current()?;
+
+            Ok(pixels)
         }
 
         /// If the renderer is headless, renders a new [`UiNode`](crate::UiNode).
@@ -2282,15 +2395,18 @@ mod renderer {
     impl Drop for Renderer {
         fn drop(&mut self) {
             if let Some(renderer) = self.renderer.take() {
-                if let Some(ctx) = self.context.take() {
-                    if let Ok(ctx) = unsafe { ctx.make_current() } {
-                        renderer.deinit();
-                        let _ = unsafe { ctx.make_not_current() };
-                        return; // safe drop.
-                    }
-                }
+                if let Ok(ctx) = self.context.make_current() {
+                    renderer.deinit();
 
-                // this panics, I think.
+                    if let Some(data) = self.headless.take() {
+                        self.gl.delete_framebuffers(&[data.frame_buffer]);
+                        self.gl.delete_renderbuffers(&[data.render_buffer]);
+                    }
+
+                    let _ = ctx.make_not_current();
+                    return;
+                }
+                // TODO does this panic?
                 renderer.deinit();
             }
         }
