@@ -1,7 +1,6 @@
 //! App windows manager.
 use crate::{
     app::{self, AppExtended, AppExtension, AppProcess, EventLoopProxy, EventLoopWindowTarget, ShutdownRequestedArgs},
-    color::Rgba,
     context::*,
     event::*,
     profiler::profile_scope,
@@ -738,7 +737,6 @@ pub struct Window {
     size: BoxedVar<Size>,
     auto_size: BoxedLocalVar<AutoSize>,
     resizable: BoxedVar<bool>,
-    clear_color: BoxedLocalVar<Rgba>,
     visible: BoxedLocalVar<bool>,
     headless_config: WindowHeadlessConfig,
     child: Box<dyn UiNode>,
@@ -753,7 +751,6 @@ impl Window {
     /// * `size` - Size of the window, can be updated back by the window.
     /// * `auto_size` - If the window will auto-size to fit the `child`.
     /// * `resizable` - If the user can resize the window.
-    /// * `clear_color` - Color used to clear a frame, works like a background color applied before `child`.
     /// * `visible` - If the window is visible, TODO diff. minimized.
     /// * `headless_config` - Extra config for the window when run in [headless mode](WindowMode::is_headless).
     /// * `child` - The root widget outermost node, the window sets-up the root widget using this and the `root_id`.
@@ -766,7 +763,6 @@ impl Window {
         size: impl IntoVar<Size>,
         auto_size: impl IntoVar<AutoSize>,
         resizable: impl IntoVar<bool>,
-        clear_color: impl IntoVar<Rgba>,
         visible: impl IntoVar<bool>,
         headless_config: WindowHeadlessConfig,
         child: impl UiNode,
@@ -780,7 +776,6 @@ impl Window {
             size: size.into_var().boxed(),
             auto_size: auto_size.into_local().boxed_local(),
             resizable: resizable.into_var().boxed(),
-            clear_color: clear_color.into_local().boxed_local(),
             visible: visible.into_local().boxed_local(),
             headless_config,
             child: child.boxed(),
@@ -952,7 +947,7 @@ impl OpenWindow {
         let renderless_event_sender;
 
         let renderer_config = RendererConfig {
-            clear_color: Some(From::from(*root.clear_color.get(ctx.vars))),
+            clear_color: None,
             workers: Some(ui_threads),
         };
         match mode {
@@ -1341,12 +1336,6 @@ impl OpenWindow {
                 window.set_resizable(resizable && auto_size != AutoSize::CONTENT);
             }
 
-            // fake clear color
-            if ctx.root.clear_color.update_local(vars).is_some() {
-                ctx.update |= UpdateDisplayRequest::Render;
-                updates.render();
-            }
-
             // visibility
             if let Some(&vis) = ctx.root.visible.update_local(vars) {
                 if !self.first_draw {
@@ -1360,7 +1349,6 @@ impl OpenWindow {
             ctx.root.title.update_local(vars);
             // TODO do we need to update size for this?
             ctx.root.auto_size.update_local(vars);
-            ctx.root.clear_color.update_local(vars);
 
             if let Some(position) = ctx.root.position.get_new(vars) {
                 let layout_ctx = self.outer_layout_context();
@@ -1482,7 +1470,6 @@ impl OpenWindow {
         });
 
         let size = self.size();
-        let clear_color = (*ctx.root.clear_color.get_local()).into();
 
         let pipeline_id = if let Some(renderer) = &self.renderer {
             renderer.borrow().pipeline_id()
@@ -1499,7 +1486,6 @@ impl OpenWindow {
             ctx.root_transform_key,
             size,
             self.scale_factor(),
-            clear_color,
         );
 
         ctx.root.child.render(&mut frame);
@@ -1768,7 +1754,6 @@ impl OwnedWindowContext {
         profile_scope!("window::init");
 
         self.root.title.init_local(ctx.vars);
-        self.root.clear_color.init_local(ctx.vars);
         self.root.visible.init_local(ctx.vars);
         self.root.auto_size.init_local(ctx.vars);
 
@@ -1808,7 +1793,6 @@ impl OwnedWindowContext {
 mod headless_tests {
     use super::*;
     use crate::app::App;
-    use crate::color::colors;
     use crate::{impl_ui_node, UiNode};
 
     #[test]
@@ -1877,7 +1861,6 @@ mod headless_tests {
             (20, 10),
             false,
             false,
-            colors::RED,
             true,
             WindowHeadlessConfig::default(),
             SetFooMetaNode,

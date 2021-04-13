@@ -71,13 +71,6 @@ pub mod window {
         /// If enabled overwrites the other sizes with the content size.
         auto_size: impl IntoVar<AutoSize> = false;
 
-        /// Window clear color.
-        ///
-        /// Changes to this property are ignored, only the initial value is used.
-        ///
-        /// Color filters applied to the window don't affect this color.
-        background_color as clear_color = rgb(0.1, 0.1, 0.1);
-
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
 
@@ -138,7 +131,6 @@ pub mod window {
         size: impl IntoVar<Size>,
         auto_size: impl IntoVar<AutoSize>,
         resizable: impl IntoVar<bool>,
-        clear_color: impl IntoVar<Rgba>,
         visible: impl IntoVar<bool>,
         headless_config: WindowHeadlessConfig,
     ) -> Window {
@@ -150,7 +142,6 @@ pub mod window {
             size,
             auto_size,
             resizable,
-            clear_color,
             visible,
             headless_config,
             child,

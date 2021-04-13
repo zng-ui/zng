@@ -91,7 +91,6 @@ impl FrameBuilder {
     /// * `root_transform_key` - Frame binding for the root widget layout transform.
     /// * `root_size` - Layout size of the root widget, defines root hit area and the clear rectangle.
     /// * `scale_factor` - Scale factor that will be used to render the frame, usually the scale factor of the screen the window is at.
-    /// * `clear_color` - Color of the clear rectangle, a rect that fills the `root_size`, we need this here
     /// because WebRender does not let us change the initial clear color.
     #[allow(clippy::too_many_arguments)]
     #[inline]
@@ -104,7 +103,6 @@ impl FrameBuilder {
         root_transform_key: WidgetTransformKey,
         root_size: LayoutSize,
         scale_factor: f32,
-        clear_color: RenderColor,
     ) -> Self {
         debug_assert_aligned!(root_size, PixelGrid::new(scale_factor));
         let info = FrameInfoBuilder::new(window_id, frame_id, root_id, root_size);
@@ -129,7 +127,6 @@ impl FrameBuilder {
             offset: LayoutPoint::zero(),
         };
         new.push_widget_hit_area(root_id, root_size);
-        new.push_color(LayoutRect::from_size(root_size), clear_color);
         new.widget_stack_ctx_data = Some((LayoutTransform::identity(), Vec::default()));
         new
     }
@@ -1848,7 +1845,7 @@ mod renderer {
         fn default() -> Self {
             Self {
                 workers: None,
-                clear_color: None,
+                clear_color: Some(RenderColor::new(1.0, 1.0, 1.0, 1.0)), // same as wr default
             }
         }
     }
