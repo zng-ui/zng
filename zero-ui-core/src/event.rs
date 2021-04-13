@@ -4,11 +4,11 @@ use crate::context::{AlreadyRegistered, UpdateRequest, Updates, WidgetContext};
 use crate::profiler::profile_scope;
 use crate::widget_base::IsEnabled;
 use crate::{impl_ui_node, AnyMap, UiNode};
-use std::any::*;
 use std::cell::{Cell, RefCell, UnsafeCell};
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::time::Instant;
+use std::{any::*, collections::VecDeque};
 
 /// [`Event`] arguments.
 pub trait EventArgs: Debug + Clone + 'static {
@@ -144,6 +144,30 @@ impl<T: 'static> EventChannel<T> {
         self.r.listener_count.set(self.r.listener_count.get() - 1)
     }
 }
+impl<T: Clone> EventChannel<T> {
+    pub fn buffered_listener(&self, events: &Events) -> BufferedEventListener<T> {
+        let buffer = BufferedEventListener { queue: Default::default() };
+        let buffer_ = buffer.clone();
+        let self_ = self.clone();
+        events.push_buffer(Box::new(move || {
+            // we keep this buffer alive only if there is a copy of it alive out there.
+            let retain = Rc::strong_count(&buffer_.queue) > 1;
+            if retain {
+                // SAFETY: this is safe because Events requires a mutable reference to apply changes
+                // and is till borrowed as mutable but has finished applying changes.
+                let data = unsafe { &*self_.r.data.get() };
+                if !data.is_empty() {
+                    let mut buf = buffer_.queue.borrow_mut();
+                    for e in data {
+                        buf.push_back(e.clone());
+                    }
+                }
+            }
+            retain
+        }));
+        buffer
+    }
+}
 
 /// Read-only reference to an event channel.
 pub struct EventListener<T: 'static> {
@@ -190,7 +214,19 @@ impl<T: EventArgs> EventListener<T> {
         self.updates(events).iter().filter(|a| !a.stop_propagation_requested())
     }
 }
-
+impl<T: Clone> EventListener<T> {
+    /// Updates are only visible for one update cycle, this is very efficient but
+    /// you can miss updates if you are not checking updates for every update call.
+    ///
+    /// A buffered event listener avoids this by cloning every update and keeping it in a FILO queue
+    /// that can be drained any time, without the need for the `events` reference even.
+    ///
+    /// Every call to this method creates a new buffer, independent of any previous generated buffers,
+    /// the buffer objects can be cloned and clones all point to the same buffer.
+    pub fn make_buffered(&self, events: &Events) -> BufferedEventListener<T> {
+        self.chan.buffered_listener(events)
+    }
+}
 impl<T: 'static> Drop for EventListener<T> {
     fn drop(&mut self) {
         self.chan.on_drop_listener();
@@ -267,6 +303,61 @@ impl<T: 'static> EventEmitter<T> {
         EventListener::new(self.chan)
     }
 }
+impl<T: Clone> EventEmitter<T> {
+    /// Create a buffered event listener.
+    ///
+    /// See [`EventListener::make_buffered`] for more details.
+    pub fn buffered_listener(&self, events: &Events) -> BufferedEventListener<T> {
+        self.chan.buffered_listener(events)
+    }
+}
+
+/// A buffered [`EventListener`].
+///
+/// This `struct` can be created by calling [`EventListener::make_buffered`] or [`EventEmitter::buffered_listener`]
+/// the documentation of `make_buffered` contains more details.
+///
+/// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
+/// is not `Send`, you can use a [`Sync::event_receiver`](crate::sync::Sync::event_receiver) for that.
+#[derive(Clone)]
+pub struct BufferedEventListener<T: Clone> {
+    queue: Rc<RefCell<VecDeque<T>>>,
+}
+impl<T: Clone> BufferedEventListener<T> {
+    /// If there are any updates in the buffer.
+    #[inline]
+    pub fn has_updates(&self) -> bool {
+        !self.queue.borrow().is_empty()
+    }
+
+    /// Take the oldest event in the buffer.
+    #[inline]
+    pub fn pop_oldest(&self) -> Option<T> {
+        self.queue.borrow_mut().pop_front()
+    }
+
+    /// Take the oldest `n` events from the buffer.
+    ///
+    /// The result is sorted from oldest to newer.
+    #[inline]
+    pub fn pop_oldest_n(&self, n: usize) -> Vec<T> {
+        self.queue.borrow_mut().drain(..n).collect()
+    }
+
+    /// Take all the events from the buffer.
+    ///
+    /// The result is sorted from oldest to newest.
+    #[inline]
+    pub fn pop_all(&self) -> Vec<T> {
+        self.queue.borrow_mut().drain(..).collect()
+    }
+
+    /// Create an empty buffer that will always stay empty.
+    #[inline]
+    pub fn never() -> Self {
+        BufferedEventListener { queue: Default::default() }
+    }
+}
 
 singleton_assert!(SingletonEvents);
 
@@ -278,6 +369,7 @@ pub struct Events {
     update_id: u32,
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
+    buffers: RefCell<Vec<Box<dyn Fn() -> Retain>>>,
     _singleton: SingletonEvents,
 }
 
@@ -290,6 +382,7 @@ impl Events {
             events: Default::default(),
             update_id: 0,
             pending: RefCell::default(),
+            buffers: RefCell::default(),
             _singleton: SingletonEvents::assert_new(),
         }
     }
@@ -352,6 +445,10 @@ impl Events {
         self.pending.borrow_mut().push(change);
     }
 
+    pub(super) fn push_buffer(&self, buffer: Box<dyn Fn() -> Retain>) {
+        self.buffers.borrow_mut().push(buffer);
+    }
+
     pub(super) fn apply(&mut self, updates: &mut Updates) {
         self.update_id = self.update_id.wrapping_add(1);
 
@@ -362,9 +459,13 @@ impl Events {
                 f(self.update_id, &mut ups);
             }
             updates.schedule_updates(ups);
+
+            self.buffers.borrow_mut().retain(|b| b());
         }
     }
 }
+
+type Retain = bool;
 
 /// Declares new [`EventArgs`](crate::event::EventArgs) types.
 ///
