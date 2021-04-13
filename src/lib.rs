@@ -800,7 +800,7 @@ pub mod core {
     ///
     /// ### `child`
     ///
-    /// Widgets have two *groups* of properties, one is presented as applying to the widget, the other as applying to the [*child*](#fn-new_child).
+    /// Widgets have two *groups* of properties, one is understood as applying to the widget, the other as applying to the [*child*](#fn-new_child).
     /// To define a property in the second group, you can use a `child { .. }` block inside `properties! { }`.
     ///
     /// ```

@@ -650,7 +650,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // node__ @ call_site
     let node__ = ident!("node__");
 
-    for set_calls in vec![child_prop_set_calls, prop_set_calls] {
+    for (set_calls, child_priority) in vec![(child_prop_set_calls, true), (prop_set_calls, false)] {
+        #[cfg(not(debug_assertions))]
+        let _ = child_priority;
+
         for set_call in &set_calls {
             #[cfg(debug_assertions)]
             let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
@@ -675,7 +678,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 property_set_calls.extend(quote_spanned! {*p_span=>
                     #cfg
                     #p_mod::code_gen! {
-                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #user_assigned, #set
+                        set #priority, #node__, #p_mod, #p_var_ident, #p_name, #source_loc, #child_priority, #user_assigned, #set
                     }
                 });
             }

@@ -2011,7 +2011,7 @@ mod renderer {
     ///
     /// A headed renderer is connected to a [glutin window](https://docs.rs/glutin/*/glutin/window/struct.Window.html).
     /// It is initialized by the [`new_with_glutin`](Renderer::new_with_glutin) function. The windows opened using
-    /// [`Windows::open`](crate::windows::Windows::open) use this internally so you probably don't want to use this directly.
+    /// [`Windows::open`](crate::window::Windows::open) use this internally so you probably don't want to use this directly.
     ///
     /// # Headless
     ///
@@ -2090,8 +2090,6 @@ mod renderer {
         /// The `size` must be already scaled by the `pixel_ratio`. The `pixel_ratio` is usually `1.0` for headless rendering.
         ///
         /// The `render_callback` is called every time a new frame is ready to be [presented](Self::present).
-        ///
-        /// Use [`new_in_headed_app`](Self::)
         pub fn new<C: RenderCallback>(
             size: RenderSize,
             pixel_ratio: f32,
@@ -2394,7 +2392,7 @@ mod renderer {
         ///
         /// # Panics
         ///
-        /// Panics if the renderer is not [headless](Self::is_headless).
+        /// Panics if the renderer is not [`headless`](Self::headless).
         pub fn render_new_ui<O: crate::UiNode, F: FnOnce(&mut crate::context::WindowContext) -> O>(&mut self, create_ui: F) {
             if !self.headless() {
                 panic!("can only `render_new_ui` with headless renderer");
@@ -2415,7 +2413,7 @@ mod renderer {
         ///
         /// # Panics
         ///
-        /// Panics if the renderer is not [headless](Self::is_headless).
+        /// Panics if the renderer is not [`headless`](Self::headless).
         pub fn render_ui<U: crate::UiNode>(&mut self, ui: &mut U) {
             if !self.headless() {
                 panic!("can only `render_ui` with headless renderer");
