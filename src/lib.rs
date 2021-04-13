@@ -711,14 +711,10 @@ pub mod core {
     ///
     /// Note that the property can be removed during instantiation by using [`remove`](#remove).
     ///
-    /// ## Special Values
-    /// TODO: revise this now that special values aren't a thing anymore in widgets.
-    /// Properties can be *set* to a special value that changes how they are compiled instead of defining a default value.
+    /// ## Required
     ///
-    /// ### `#[required]`
-    ///
-    /// Marks a property as required, meaning, during the widget instantiation the user must set the property otherwise an
-    /// error is generated.
+    /// You can mark a property as *required*, meaning, the property must have a value during the widget instantiation,
+    /// and the property cannot be unset or removed. To mark the property use the pseudo-attribute `#[required]`.
     ///
     /// ```
     /// # fn main() { }
@@ -733,9 +729,29 @@ pub mod core {
     /// # }
     /// ```
     ///
-    /// Note that captured properties are also marked required without the need for the special value.
+    /// In the example above the required property must be set during the widget instantiation or a compile error is generated.
+    /// If another widget inherits from this one is also cannot remove the required property.
     ///
-    /// ### Remove
+    /// You can also give the required property a default value:
+    ///
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// # #[widget($crate::foo)]
+    /// # pub mod foo {
+    /// #   use zero_ui::properties::margin as bar;
+    /// properties! {
+    ///     #[required]
+    ///     bar = 42;
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// In this case the property does not need to be set during instantiation, but it cannot be unset.
+    ///
+    /// Note that captured properties are also marked required without the need for the pseudo-attribute.
+    ///
+    /// ## Remove
     ///
     /// Removes an [inherited](#inherit) property from the widget.
     ///
@@ -751,8 +767,6 @@ pub mod core {
     /// }
     /// # }
     /// ```
-    ///
-    /// Note that inherited captured properties no longer captured are automatically removed.
     ///
     /// ## Property Capture
     ///
@@ -787,10 +801,19 @@ pub mod core {
     /// # }
     /// ```
     ///
-    /// A property declared like this **must** be captured, if does not to be given a value or explicitly marked [required](#required).
+    /// A property declared like this must be captured by the widget that is declaring it, a compile error is generated if it isn't.
     ///
     /// You can set the property [`allowed_in_when`](zero_ui::core::property#when-integration) value using the pseudo-attribute
     /// `#[allowed_in_when = <bool>]`.
+    ///
+    /// ### Captures Are Required
+    ///
+    /// Captured properties are marked as [required](#required) in the widgets that declare then, there is no need to explicitly
+    /// annotate then with `#[required]`, for widget instance users it behaves exactly like a required property. 
+    ///
+    /// If the property is not explicitly marked however, widget inheritors can *remove* the property by declaring new
+    /// initialization functions that no longer capture the property. If it **is** marked explicitly then in must be captured
+    /// by inheritors, even if the source property was not `capture_only`.
     ///
     /// ## Property Order
     ///
