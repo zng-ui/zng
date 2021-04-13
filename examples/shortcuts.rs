@@ -11,7 +11,7 @@ fn main() {
         window! {
             title = "Shortcuts Example";
             auto_size = true;
-            margin = 50;
+            padding = 50;
             start_position = StartPosition::CenterScreen;
             on_shortcut = enclose! { (shortcut_text, shortcut_color) move |ctx, args| {
                 shortcut_text.set(ctx.vars, args.shortcut.to_text());
