@@ -1989,14 +1989,14 @@ mod renderer {
 
     struct HeadlessData {
         _el: EventLoop<()>,
-        render_buffer: [u32; 1],
+        render_buffer: [u32; 2],
         frame_buffer: [u32; 1],
     }
     impl HeadlessData {
         fn partial(el: EventLoop<()>) -> Self {
             HeadlessData {
                 _el: el,
-                render_buffer: [0; 1],
+                render_buffer: [0; 2],
                 frame_buffer: [0; 1],
             }
         }
@@ -2172,18 +2172,22 @@ mod renderer {
                 let gl = gleam::gl::ErrorCheckingGl::wrap(gl.clone());
 
                 // manually create a surface for headless.
-                let render_buf = gl.gen_renderbuffers(1);
-                gl.bind_renderbuffer(gl::RENDERBUFFER, render_buf[0]);
+                let rb = gl.gen_renderbuffers(2);
+                gl.bind_renderbuffer(gl::RENDERBUFFER, rb[0]);
                 gl.renderbuffer_storage(gl::RENDERBUFFER, gl::RGBA8, size.width, size.height);
+
+                gl.bind_renderbuffer(gl::RENDERBUFFER, rb[1]);
+                gl.renderbuffer_storage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, size.width, size.height);
 
                 let fb = gl.gen_framebuffers(1)[0];
                 gl.bind_framebuffer(gl::FRAMEBUFFER, fb);
-                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, render_buf[0]);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, rb[0]);
+                gl.framebuffer_renderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, rb[1]);
 
                 gl.viewport(0, 0, size.width, size.height);
 
                 data.frame_buffer = [fb];
-                data.render_buffer = [render_buf[0]];
+                data.render_buffer = [rb[0], rb[1]];
 
                 true
             } else {

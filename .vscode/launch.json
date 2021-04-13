@@ -79,5 +79,23 @@
             "args": [],
             "cwd": "${workspaceFolder}"
         },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Example: headless",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=headless",
+                    "--package=zero-ui"
+                ],
+                "filter": {
+                    "name": "headless",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

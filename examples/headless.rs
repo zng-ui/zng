@@ -48,6 +48,9 @@ fn image() -> Window {
     window! {
         size = (800, 600);
 
+        // TODO remove this when background order bug is fixed.
+        background_color = unset!;
+
         background = z_stack({
             fn gradient(angle: i32, mut color: Rgba) -> impl UiNode {
                 color.alpha = 0.3;
@@ -68,6 +71,7 @@ fn image() -> Window {
                 gradient(280, colors::BLUE),
             ]
         });
+
         content = text! {
             text = "Hello World!";
             font_size = 72;
