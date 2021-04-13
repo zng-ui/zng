@@ -96,3 +96,74 @@ pub fn foo(child: impl UiNode, a: impl IntoVar<u32>, b: impl IntoVar<u32>) -> im
 pub fn bar(child: impl UiNode, a: impl IntoVar<u32>, b: impl IntoVar<u32>) -> impl UiNode {
     child
 }
+
+/*
+    Property Order Analysis
+*/
+
+macro_rules! __ {
+    () => {
+        // the widget:
+        blank! {
+            context1 = 'a';
+            context2 = 'b';
+
+            outer1 = 0;
+            outer2 = 1;
+
+            inner1 = RED;
+            inner2 = GREEN;
+        }
+
+        // expands to:
+        let node = new_child();
+
+        let node = inner1::set(node, RED);
+        let node = inner2::set(node, GREEN);
+
+        let node = outer1::set(node, 0);
+        let node = outer2::set(node, 1);
+
+        let node = context1::set(node, 'a');
+        let node = context2::set(node, 'b');
+
+        // so the widget node is:
+        context2 {
+            sets: 'b'
+
+            context1 {
+                sets: 'a'
+
+                outer2 {
+                    sets: 1
+
+                    outer1 {
+                        sets: 0
+
+                        inner2 {
+                            sets: GREEN
+
+                            inner1 {
+                                sets: RED
+
+                                new_child()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // so the final values are:
+        context = 'a'
+        outer = 1
+        inner = RED
+
+        // but we expected, right?
+        context = 'b'
+        outer = 1
+        inner = GREEN
+
+        //   note that we already have to invert for the priority to work.
+    };
+}
