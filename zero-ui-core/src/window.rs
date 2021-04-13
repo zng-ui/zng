@@ -68,15 +68,15 @@ impl From<LogicalWindowId> for WindowId {
     }
 }
 
-/// Extension trait, adds [`run_window`](AppRunWindow::run_window) to [`AppExtended`]
-pub trait AppRunWindow {
+/// Extension trait, adds [`run_window`](AppRunWindowExt::run_window) to [`AppExtended`].
+pub trait AppRunWindowExt {
     /// Runs the application event loop and requests a new window.
     ///
     /// # Example
     ///
     /// ```no_run
     /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::window::AppRunWindow;
+    /// # use zero_ui_core::window::AppRunWindowExt;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run_window(|_| {
     ///     window! {
@@ -89,7 +89,7 @@ pub trait AppRunWindow {
     /// Which is a shortcut for:
     /// ```no_run
     /// # use zero_ui_core::app::App;
-    /// # use zero_ui_core::window::{AppRunWindow, Windows};
+    /// # use zero_ui_core::window::Windows;
     /// # macro_rules! window { ($($tt:tt)*) => { todo!() } }
     /// App::default().run(|ctx| {
     ///     ctx.services.req::<Windows>().open(|_| {
@@ -102,12 +102,42 @@ pub trait AppRunWindow {
     /// ```
     fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static);
 }
-
-impl<E: AppExtension> AppRunWindow for AppExtended<E> {
+impl<E: AppExtension> AppRunWindowExt for AppExtended<E> {
     fn run_window(self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) {
         self.run(|ctx| {
             ctx.services.req::<Windows>().open(new_window);
         })
+    }
+}
+
+/// Extension trait, adds [`open_window`](HeadlessAppOpenWindowExt::open_window) to [`HeadlessApp`](app::HeadlessApp).
+pub trait HeadlessAppOpenWindowExt {
+    /// Open a new headless window and returns the new window ID.
+    fn open_window(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> WindowId;
+
+    /// Cause the headless window to think it is focused in the screen.
+    fn activate_window(&mut self, window_id: WindowId);
+}
+impl HeadlessAppOpenWindowExt for app::HeadlessApp {
+    fn open_window(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> WindowId {
+        let listener = self.with_context(|ctx| ctx.services.req::<crate::window::Windows>().open(new_window));
+        let mut window_id = None;
+        self.update_observed(|_, ctx| {
+            if let Some(opened) = listener.updates(ctx.events).first() {
+                window_id = Some(opened.window_id);
+            }
+        });
+        let window_id = window_id.expect("window did not open");
+
+        self.activate_window(window_id);
+
+        window_id
+    }
+
+    fn activate_window(&mut self, window_id: WindowId) {
+        let event = WindowEvent::Focused(true);
+        self.on_window_event(window_id, &event);
+        self.update();
     }
 }
 

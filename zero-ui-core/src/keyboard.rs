@@ -740,3 +740,39 @@ impl From<Key> for VKey {
         unsafe { std::mem::transmute(key) }
     }
 }
+
+/// Extension trait that adds keyboard simulation methods to [`HeadlessApp`].
+pub trait HeadlessAppKeyboardExt {
+    /// Does a keyboard input event.
+    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState);
+
+    /// Does a key-down, key-up and updates.
+    fn press_key(&mut self, window_id: WindowId, key: Key);
+}
+impl HeadlessAppKeyboardExt for HeadlessApp {
+    fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState) {
+        #[allow(deprecated)]
+        let raw_event = WindowEvent::KeyboardInput {
+            device_id: unsafe { DeviceId::dummy() },
+            input: KeyboardInput {
+                scancode: 0,
+                state,
+                virtual_keycode: Some(key.into()),
+
+                // what can we
+                modifiers: ModifiersState::empty(),
+            },
+            is_synthetic: false,
+        };
+
+        self.on_window_event(window_id, &raw_event);
+    }
+
+    fn press_key(&mut self, window_id: WindowId, key: Key) {
+        self.on_keyboard_input(window_id, key, ElementState::Pressed);
+        self.on_keyboard_input(window_id, key, ElementState::Released);
+        self.update();
+
+        // TODO: The Keyboard service already does something like this?
+    }
+}

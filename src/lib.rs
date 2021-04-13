@@ -809,7 +809,7 @@ pub mod core {
     /// ### Captures Are Required
     ///
     /// Captured properties are marked as [required](#required) in the widgets that declare then, there is no need to explicitly
-    /// annotate then with `#[required]`, for widget instance users it behaves exactly like a required property. 
+    /// annotate then with `#[required]`, for widget instance users it behaves exactly like a required property.
     ///
     /// If the property is not explicitly marked however, widget inheritors can *remove* the property by declaring new
     /// initialization functions that no longer capture the property. If it **is** marked explicitly then in must be captured
@@ -1205,8 +1205,8 @@ pub mod prelude {
         var::{merge_var, state_var, switch_var, var, var_from, IntoVar, RcVar, Var, VarObj, Vars},
         widget_base::Visibility,
         widget_vec, widgets,
-        window::{AppRunWindow, CursorIcon, StartPosition, Window, Windows},
-        UiNode, Widget, WidgetId, WidgetList, WidgetVec,
+        window::{AppRunWindowExt, CursorIcon, StartPosition, Window, Windows},
+        UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec,
     };
 
     #[doc(no_inline)]
