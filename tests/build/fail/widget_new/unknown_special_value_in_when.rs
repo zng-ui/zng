@@ -5,13 +5,6 @@ fn main() {
     let _ = blank! {
         margin = 0;
         when self.is_pressed {
-            margin = required!;
-        }
-    };
-
-    let _ = blank! {
-        margin = 0;
-        when self.is_pressed {
             margin = foo!;
         }
     };

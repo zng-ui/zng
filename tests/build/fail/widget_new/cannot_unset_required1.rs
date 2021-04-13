@@ -9,7 +9,8 @@ pub fn foo(child: impl UiNode, value: bool) -> impl UiNode {
 #[widget($crate::test_widget)]
 pub mod test_widget {
     properties! {
-        super::foo = required!;
+        #[required]
+        super::foo;
     }
 }
 

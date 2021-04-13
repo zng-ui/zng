@@ -1,14 +1,8 @@
-error: unknown value `required!`
+error: unknown value `foo!`
  --> $DIR/unknown_special_value.rs:6:18
   |
-6 |         margin = required!;
-  |                  ^^^^^^^^
-
-error: unknown value `foo!`
-  --> $DIR/unknown_special_value.rs:10:18
-   |
-10 |         margin = foo!;
-   |                  ^^^
+6 |         margin = foo!;
+  |                  ^^^
 
 warning: unused import: `zero_ui::properties::margin`
  --> $DIR/unknown_special_value.rs:1:5

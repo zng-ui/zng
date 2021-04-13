@@ -1,11 +1,5 @@
-error: unknown value `required!`
+error: unknown value `foo!`
  --> $DIR/unknown_special_value_in_when.rs:8:22
   |
-8 |             margin = required!;
-  |                      ^^^^^^^^
-
-error: unknown value `foo!`
-  --> $DIR/unknown_special_value_in_when.rs:15:22
-   |
-15 |             margin = foo!;
-   |                      ^^^
+8 |             margin = foo!;
+  |                      ^^^

@@ -194,7 +194,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     inherited_props_child.reverse();
     inherited_props.reverse();
 
-    // inherited properties that are required!
+    // inherited properties that are required.
     let inherited_required: HashSet<_> = inherited_props_child
         .iter()
         .chain(inherited_props.iter())

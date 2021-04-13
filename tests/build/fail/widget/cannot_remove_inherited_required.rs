@@ -5,7 +5,8 @@ pub mod base_widget {
     use zero_ui::properties::margin;
 
     properties! {
-        margin = required!;
+        #[required]
+        margin;
     }
 }
 

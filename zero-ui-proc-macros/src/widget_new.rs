@@ -1091,7 +1091,7 @@ impl Parse for PropertyAssign {
 /// Value [assigned](PropertyAssign) to a property.
 #[derive(Debug)]
 pub enum PropertyValue {
-    /// `unset!` or `required!`.
+    /// `unset!`. // TODO: rename Special to Unset.
     Special(Ident, Token![!]),
     /// `arg0, arg1,`
     Unnamed(Punctuated<Expr, Token![,]>),

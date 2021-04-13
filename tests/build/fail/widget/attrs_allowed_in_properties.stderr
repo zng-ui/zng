@@ -1,16 +1,16 @@
-error: only `doc`, `cfg`, `allowed_in_when` and lint attributes are allowed in properties
+error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
   --> $DIR/attrs_allowed_in_properties.rs:20:11
    |
 20 |         #[inline]
    |           ^^^^^^
 
-error: only `doc`, `cfg`, `allowed_in_when` and lint attributes are allowed in properties
+error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
   --> $DIR/attrs_allowed_in_properties.rs:23:11
    |
 23 |         #[foo(bar)]
    |           ^^^
 
-error: only `doc`, `cfg`, `allowed_in_when` and lint attributes are allowed in properties
+error: only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties
   --> $DIR/attrs_allowed_in_properties.rs:26:16
    |
 26 |         #[foo::bar(true)]

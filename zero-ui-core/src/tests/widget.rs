@@ -189,8 +189,10 @@ pub mod required_properties_wgt {
     inherit!(super::foo_mixin);
 
     properties! {
-        super::util::trace = required!;
-        foo_trace = required!;
+        #[required]
+        super::util::trace;
+        #[required]
+        foo_trace;
     }
 }
 #[test]
@@ -209,7 +211,8 @@ pub fn wgt_required_property() {
 #[widget_mixin($crate::tests::widget::required_mixin)]
 pub mod required_mixin {
     properties! {
-        super::util::trace as required_trace = required!;
+        #[required]
+        super::util::trace as required_trace;
     }
 }
 
@@ -274,7 +277,8 @@ pub mod required_inherited_default_required_wgt {
     inherit!(super::required_inherited_default_wgt);
 
     properties! {
-        required_trace = required!;
+        #[required]
+        required_trace;
     }
 }
 #[test]

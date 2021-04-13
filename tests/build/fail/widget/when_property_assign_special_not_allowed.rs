@@ -6,9 +6,6 @@ pub mod test_widget {
     properties! {
         margin = 0;
         when self.is_pressed {
-            margin = required!;
-        }
-        when self.is_pressed {
             margin = foo!;
         }
     }

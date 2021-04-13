@@ -11,7 +11,8 @@ pub mod container {
             ///
             /// Can be any type that implements [`UiNode`](zero_ui::core::UiNode), any widget.
             #[allowed_in_when = false]
-            content: impl UiNode = required!;
+            #[required]
+            content: impl UiNode;
             /// Content margin.
             margin as padding;
             /// Content alignment.

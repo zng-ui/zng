@@ -330,9 +330,24 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 true
             }
         };
+        let required = {
+            if let Some(i) = attrs
+                .others
+                .iter()
+                .position(|a| a.path.get_ident().map(|id| id == "required").unwrap_or_default())
+            {
+                let attr = attrs.others.remove(i);
+                if !attr.tokens.is_empty() {
+                    errors.push("unexpected token", attr.tokens.span());
+                }
+                true
+            } else {
+                false
+            }
+        };
         for invalid_attr in attrs.others.iter().chain(attrs.inline.iter()) {
             errors.push(
-                "only `doc`, `cfg`, `allowed_in_when` and lint attributes are allowed in properties",
+                "only `allowed_in_when`, `cfg`, `doc`, `required` and lint attributes are allowed in properties",
                 util::path_span(&invalid_attr.path),
             );
         }
@@ -372,18 +387,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         }
 
         let mut default = false;
-        let mut required = false;
 
         // process default value or special value.
         if let Some((_, default_value)) = &property.value {
             if let PropertyValue::Special(sp, _) = default_value {
-                if sp == "required" {
-                    required = true;
-                } else {
-                    // unknown special.
-                    errors.push(format_args!("unexpected `{}!` as default value", sp), sp.span());
-                    continue;
-                }
+                errors.push(format_args!("unexpected `{}!` as default value", sp), sp.span());
+                continue;
             } else {
                 default = true;
                 let cfg = &attrs.cfg;
@@ -518,14 +527,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     );
                     skip = true;
                 }
-                // validate value is not one of the special commands (`required!`).
+                // validate value is not one of the special commands. 
+                // TODO: change the error message, or revise this after `Special` becomes `Unset`.
                 if let PropertyValue::Special(sp, _) = &assign.value {
-                    if sp == "required" {
-                        errors.push("`required!` not allowed in `when` block", sp.span());
-                    } else {
-                        // unknown special.
-                        errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
-                    }
+                    // unknown special.
+                    errors.push(format_args!("unexpected `{}!` in property value", sp), sp.span());
 
                     skip = true;
                 }

@@ -712,10 +712,10 @@ pub mod core {
     /// Note that the property can be removed during instantiation by using [`remove`](#remove).
     ///
     /// ## Special Values
-    ///
+    /// TODO: revise this now that special values aren't a thing anymore in widgets.
     /// Properties can be *set* to a special value that changes how they are compiled instead of defining a default value.
     ///
-    /// ### `required!`
+    /// ### `#[required]`
     ///
     /// Marks a property as required, meaning, during the widget instantiation the user must set the property otherwise an
     /// error is generated.
@@ -727,7 +727,8 @@ pub mod core {
     /// # pub mod foo {
     /// #   use zero_ui::properties::margin as bar;
     /// properties! {
-    ///     bar = required!;
+    ///     #[required]
+    ///     bar;
     /// }
     /// # }
     /// ```
