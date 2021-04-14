@@ -654,6 +654,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         #[cfg(not(debug_assertions))]
         let _ = child_priority;
 
+        // generate capture_only asserts.
         for set_call in &set_calls {
             #[cfg(debug_assertions)]
             let (p_mod, _, p_name, _, cfg, _, p_span, _) = set_call;
@@ -670,9 +671,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             })
         }
+
         for priority in &crate::property::Priority::all_settable() {
             #[cfg(debug_assertions)]
-            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in &set_calls {
+            for (p_mod, p_var_ident, p_name, source_loc, cfg, user_assigned, p_span, val_span) in set_calls.iter().rev() {
                 // __set @ value span
                 let set = ident_spanned!(*val_span=> "__set");
                 property_set_calls.extend(quote_spanned! {*p_span=>
@@ -683,7 +685,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 });
             }
             #[cfg(not(debug_assertions))]
-            for (p_mod, p_var_ident, _, cfg, p_span, val_span) in &set_calls {
+            for (p_mod, p_var_ident, _, cfg, p_span, val_span) in set_calls.iter().rev() {
                 // __set @ value span
                 let set = ident_spanned!(*val_span=> "__set");
                 property_set_calls.extend(quote_spanned! {*p_span=>
