@@ -154,11 +154,11 @@ macro_rules! singleton_assert {
             }
 
             pub fn assert_new() -> Self {
-                if Self::flag().load(std::sync::atomic::Ordering::Acquire) {
+                if Self::flag().load(std::sync::atomic::Ordering::SeqCst) {
                     panic!("only a single instance of `{}` can exist at at time", stringify!($Singleton))
                 }
 
-                Self::flag().store(true, std::sync::atomic::Ordering::Release);
+                Self::flag().store(true, std::sync::atomic::Ordering::SeqCst);
 
                 $Singleton {}
             }
@@ -166,7 +166,7 @@ macro_rules! singleton_assert {
 
         impl Drop for $Singleton {
             fn drop(&mut self) {
-                Self::flag().store(false, std::sync::atomic::Ordering::Release);
+                Self::flag().store(false, std::sync::atomic::Ordering::SeqCst);
             }
         }
     };

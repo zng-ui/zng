@@ -470,9 +470,12 @@ pub enum Key {
     Grave,
     Kana,
     Kanji,
+    /// Left Alt
     LAlt,
     LBracket,
+    /// Left Control
     LCtrl,
+    /// Left Shift
     LShift,
     LLogo,
     Mail,
@@ -494,6 +497,7 @@ pub enum Key {
     Plus,
     Power,
     PrevTrack,
+    /// Right Alt.
     RAlt,
     RBracket,
     RControl,

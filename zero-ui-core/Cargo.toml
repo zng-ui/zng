@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 app_profiler = ["serde_json", "lazy_static"]
+integration_test = []
 
 [dependencies]
 # local

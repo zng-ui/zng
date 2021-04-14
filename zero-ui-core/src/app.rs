@@ -590,14 +590,14 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`TestWidgetContext`] are running.
     #[inline]
     pub fn run_headless(self) -> HeadlessApp {
-        #[cfg(test)]
-        let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        #[cfg(any(test, feature = "integration_test"))]
+        let lock = TestContextLock::wait_new();
 
         #[cfg(feature = "app_profiler")]
-        register_thread_with_profiler();
-
-        #[cfg(feature = "app_profiler")]
-        let profile_scope = ProfileScope::new("app::run_headless");
+        let profile_scope = {
+            register_thread_with_profiler();
+            ProfileScope::new("app::run_headless")
+        };
 
         let event_loop = EventLoop::new(true);
 
@@ -617,8 +617,7 @@ impl<E: AppExtension> AppExtended<E> {
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
-
-            #[cfg(test)]
+            #[cfg(any(test, feature = "integration_test"))]
             _lock: lock,
         }
     }
@@ -638,9 +637,7 @@ pub enum AppEvent {
 /// A headless app controller.
 ///
 /// Headless apps don't cause external side-effects like visible windows and don't listen to system events.
-/// They can be used for creating apps like a command line app that renders widgets, or for creating some integration tests.
-///
-/// TODO, HeadlessApp needs to be properly designed and implemented.
+/// They can be used for creating apps like a command line app that renders widgets, or for creating integration tests.
 pub struct HeadlessApp {
     event_loop: EventLoop,
     extensions: Box<dyn AppExtension>,
@@ -648,10 +645,9 @@ pub struct HeadlessApp {
     control_flow: ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
-    #[cfg(test)]
-    _lock: std::sync::MutexGuard<'static, ()>,
+    #[cfg(any(test, feature = "integration_test"))]
+    _lock: TestContextLock,
 }
-
 impl HeadlessApp {
     /// Headless state.
     ///

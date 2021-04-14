@@ -921,6 +921,20 @@ impl<'a> WindowContext<'a> {
     }
 }
 
+#[cfg(any(test, doc, feature = "integration_test"))]
+pub(crate) struct TestContextLock(std::sync::MutexGuard<'static, ()>);
+#[cfg(any(test, doc, feature = "integration_test"))]
+impl TestContextLock {
+    pub(crate) fn wait_new() -> Self {
+        static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
+        let guard = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| {
+            error_println!("TestContextLock poisoned, ignoring");
+            e.into_inner()
+        });
+        Self(guard)
+    }
+}
+
 /// <span class="stab portability" title="This is supported on `test` only"><code>test</code></span> A mock [`WidgetContext`] for testing widgets.
 ///
 /// Only a single instance of this type can exist at a time, see [`Self::wait_new`] for details.
@@ -991,12 +1005,8 @@ pub struct TestWidgetContext {
     /// TODO: Implement a timers pump for this.
     pub sync: Sync,
 
-    _lock: std::sync::MutexGuard<'static, ()>,
+    _lock: TestContextLock,
 }
-
-#[cfg(any(test, doc))]
-pub(crate) static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
-
 #[cfg(any(test, doc))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
@@ -1004,7 +1014,7 @@ impl TestWidgetContext {
     ///
     /// This also blocks if there is a [`HeadlessApp`](crate::app::HeadlessApp) running.
     pub fn wait_new() -> Self {
-        let lock = TEST_CONTEXT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let lock = TestContextLock::wait_new();
         let event_loop = crate::app::EventLoop::new(true);
         let updates = OwnedUpdates::new(event_loop.create_proxy());
         let update_notifier = updates.0.notifier().clone();
