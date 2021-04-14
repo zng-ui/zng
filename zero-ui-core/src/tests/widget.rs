@@ -363,15 +363,15 @@ pub fn wgt_same_priority_order() {
     // values evaluated in typed order.
     assert_eq!(util::sorted_value_init(&wgt), ["inner_a", "inner_b"]);
 
-    // properties with the same priority are set in the typed order.
-    // inner_a is set before inner_b who therefore contains inner_a:
-    // let node = inner_a(child, ..);
+    // properties with the same priority are set in reversed typed order.
+    // inner_a is set after inner_b so it will contain inner_b:
     // let node = inner_b(node, ..);
-    assert_eq!(util::sorted_node_init(&wgt), ["inner_b", "inner_a"]);
+    // let node = inner_a(child, ..);
+    assert_eq!(util::sorted_node_init(&wgt), ["inner_a", "inner_b"]);
 
     Position::reset();
-    // order of declaration doesn't impact the order of evaluation,
-    // only the order of use does.
+    // order of declaration(in the widget) doesn't impact the order of evaluation,
+    // only the order of use does (in here).
     let mut wgt = same_priority_order_wgt! {
         inner_b = Position::next("inner_b");
         inner_a = Position::next("inner_a");
@@ -379,7 +379,7 @@ pub fn wgt_same_priority_order() {
     wgt.test_init(&mut TestWidgetContext::wait_new());
 
     assert_eq!(util::sorted_value_init(&wgt), ["inner_b", "inner_a"]);
-    assert_eq!(util::sorted_node_init(&wgt), ["inner_a", "inner_b"]);
+    assert_eq!(util::sorted_node_init(&wgt), ["inner_b", "inner_a"]);
 }
 
 /*
@@ -985,26 +985,26 @@ fn assert_node_order(wgt: &impl Widget) {
         [
             // each property wraps the next one and takes a position number before
             // delegating to the next property (child node).
-            "count_context2",
             "count_context1",
-            "count_event2",
+            "count_context2",
             "count_event1",
-            "count_outer2",
+            "count_event2",
             "count_outer1",
-            "count_size2",
+            "count_outer2",
             "count_size1",
-            "count_inner2",
+            "count_size2",
             "count_inner1",
-            "child_count_context2",
+            "count_inner2",
             "child_count_context1",
-            "child_count_event2",
+            "child_count_context2",
             "child_count_event1",
-            "child_count_outer2",
+            "child_count_event2",
             "child_count_outer1",
-            "child_count_size2",
+            "child_count_outer2",
             "child_count_size1",
-            "child_count_inner2",
+            "child_count_size2",
             "child_count_inner1",
+            "child_count_inner2",
         ]
     );
 }
