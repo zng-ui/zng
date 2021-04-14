@@ -5,8 +5,23 @@ authors = ["Samuel Guerra <sam.rodr.g@gmail.com>", "Well <well-r@hotmail.com>"]
 edition = "2018"
 
 [features]
+# Enable the zero_ui_core::profiler module.
+#
+# USAGE:
+#
+# `#[cfg(feature = "app_profiler")` or just use the `profile_scope!` macro.
 app_profiler = ["serde_json", "lazy_static"]
-integration_test = []
+
+# like cfg(test) but also visible in docs and integration tests.
+#
+# USAGE:
+#
+# For zero-ui-core maintainers, use `#[cfg(pub_test)]` in the helper types and places where
+# the types are used. Use `do` to run integration tests.
+#
+# For external dependents, build with this feature to use the test helper types that show
+# in the documentation.
+pub_test = []
 
 [dependencies]
 # local
@@ -52,3 +67,6 @@ lazy_static = { version = "1", optional = true }
 
 [dev-dependencies]
 serial_test = "0.5.1"
+
+[build-dependencies]
+cfg_aliases = "0.1.1"

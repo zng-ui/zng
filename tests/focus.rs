@@ -15,13 +15,10 @@ fn basic_cycle() {
     let mut app = TestApp::new(v_stack(buttons));
 
     assert_eq!(Some(ids[0]), app.focused());
-
     app.press_tab();
     assert_eq!(Some(ids[1]), app.focused());
-
     app.press_tab();
     assert_eq!(Some(ids[2]), app.focused());
-
     app.press_tab();
     assert_eq!(Some(ids[0]), app.focused());
 }

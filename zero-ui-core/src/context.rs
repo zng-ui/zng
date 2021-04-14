@@ -921,9 +921,9 @@ impl<'a> WindowContext<'a> {
     }
 }
 
-#[cfg(any(test, doc, feature = "integration_test"))]
+#[cfg(pub_test)]
 pub(crate) struct TestContextLock(std::sync::MutexGuard<'static, ()>);
-#[cfg(any(test, doc, feature = "integration_test"))]
+#[cfg(pub_test)]
 impl TestContextLock {
     pub(crate) fn wait_new() -> Self {
         static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
@@ -935,17 +935,17 @@ impl TestContextLock {
     }
 }
 
-/// <span class="stab portability" title="This is supported on `test` only"><code>test</code></span> A mock [`WidgetContext`] for testing widgets.
+/// <span class="stab portability" title="This is supported on `pub_test` only"><code>pub_test</code></span> A mock [`WidgetContext`] for testing widgets.
 ///
 /// Only a single instance of this type can exist at a time, see [`Self::wait_new`] for details.
 ///
 /// This is less cumbersome to use then a full headless app, but also more limited. Use a [`HeadlessApp`](crate::app::HeadlessApp)
 /// for more complex integration tests.
 ///
-/// # `#[cfg(test)]`
+/// # Conditional Compilation
 ///
-/// This is supported on `test` only.
-#[cfg(any(test, doc))]
+/// This is only compiled with the `pub_test` feature enabled.
+#[cfg(pub_test)]
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
