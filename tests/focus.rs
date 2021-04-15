@@ -17,34 +17,26 @@ pub fn window_tab_cycle() {
 
     let mut app = TestApp::new(v_stack(buttons));
 
+    // advance normally..
     assert_eq!(Some(ids[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[2]), app.focused());
+    // then cycles back.
     app.press_tab();
     assert_eq!(Some(ids[0]), app.focused());
-}
-#[test]
-pub fn window_prev_tab_cycle() {
-    // default window! cycles TAB navigation
 
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
-
-    let mut app = TestApp::new(v_stack(buttons));
-
-    assert_eq!(Some(ids[0]), app.focused());
+    // same backwards.
     app.press_shift_tab();
     assert_eq!(Some(ids[2]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids[1]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids[0]), app.focused());
+    // cycles back.
+    app.press_shift_tab();
+    assert_eq!(Some(ids[2]), app.focused());
 }
 
 #[test]
@@ -70,87 +62,71 @@ pub fn window_tab_cycle_and_alt_scope() {
         v_stack(buttons)
     ]));
 
+    // cycle in the window scope does not enter the ALT scope.
     assert_eq!(Some(ids[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[0]), app.focused());
+    // and back.
+    app.press_shift_tab();
+    assert_eq!(Some(ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids[0]), app.focused());
+
+    // make the "Button 1" be the return focus from the ALT scope.
     app.press_tab();
     assert_eq!(Some(ids[1]), app.focused());
 
+    // goes to the ALT scope.
     app.press_alt();
     assert_eq!(Some(alt_ids[0]), app.focused());
 
+    // cycle in the ALT scope.
     app.press_tab();
     assert_eq!(Some(alt_ids[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(alt_ids[2]), app.focused());
     app.press_tab();
     assert_eq!(Some(alt_ids[0]), app.focused());
+    // and back.
+    app.press_shift_tab();
+    assert_eq!(Some(alt_ids[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(alt_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(alt_ids[0]), app.focused());
 
+    // return to the window scope that focus on the "Button 1".
     app.press_esc();
     assert_eq!(Some(ids[1]), app.focused());
+
+    // we are back to cycling the window scope.
     app.press_tab();
     assert_eq!(Some(ids[0]), app.focused());
-}
-#[test]
-pub fn window_prev_cycle_and_alt_scope() {
-    // default window! with an ALT scope, TAB navigation cycles
-    // by default in the ALT scope too.
-
-    let buttons = widgets![button! { content = text("Button 0") }, button! { content = text("Button 1") },];
-    let ids: Vec<_> = (0..2).map(|i| buttons.widget_id(i)).collect();
-
-    let alt_buttons = widgets![
-        button! { content = text("Alt 0") },
-        button! { content = text("Alt 1") },
-        button! { content = text("Alt 2") },
-    ];
-    let alt_ids: Vec<_> = (0..3).map(|i| alt_buttons.widget_id(i)).collect();
-
-    let mut app = TestApp::new(v_stack(widgets![
-        h_stack! {
-            alt_focus_scope = true;
-            items = alt_buttons;
-        },
-        v_stack(buttons)
-    ]));
-
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids[1]), app.focused());
 
+    // also can return from ALT scope by pressing ALT again.
     app.press_alt();
     assert_eq!(Some(alt_ids[0]), app.focused());
-
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[2]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[0]), app.focused());
-
-    app.press_alt(); // alt toggles when there is no inner alt scope.
+    app.press_alt();
     assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
 }
 
 #[test]
 pub fn window_tab_contained() {
-    // window with TabNav::Contained.
-    window_tab_contained_(TabNav::Contained);
+    // TabNav::Contained stops at the last item and back
+    // the root scope behaves just like any other Contained scope.
+    window_tab_contained_and_continue(TabNav::Contained);
 }
 #[test]
 pub fn window_tab_continue() {
-    // same as Contained for root widgets.
-    window_tab_contained_(TabNav::Continue);
+    // TabNav::Continue in the root scope behaves like a Contained
+    // scope because there is no outer-scope to continue to.
+    window_tab_contained_and_continue(TabNav::Continue);
 }
-fn window_tab_contained_(tab_nav: TabNav) {
+fn window_tab_contained_and_continue(tab_nav: TabNav) {
     let buttons = widgets![
         button! { content = text("Button 0") },
         button! { content = text("Button 1") },
@@ -163,45 +139,17 @@ fn window_tab_contained_(tab_nav: TabNav) {
         content = v_stack(buttons);
     });
 
+    // navigates normally forward.
     assert_eq!(Some(ids[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[2]), app.focused());
+    // but after reaching the end does not move.
     app.press_tab();
-    // did not move.
     assert_eq!(Some(ids[2]), app.focused());
-}
-#[test]
-pub fn window_prev_tab_contained() {
-    // window with TabNav::Contained.
-    window_prev_tab_contained_(TabNav::Contained);
-}
-#[test]
-pub fn window_prev_tab_continue() {
-    // same as Contained for root widgets.
-    window_prev_tab_contained_(TabNav::Continue);
-}
-fn window_prev_tab_contained_(tab_nav: TabNav) {
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
 
-    let mut app = TestApp::new_w(window! {
-        tab_nav;
-        content = v_stack(buttons);
-    });
-
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_shift_tab();
-    // did not move
-    assert_eq!(Some(ids[0]), app.focused());
-
-    app.focus(ids[2]);
-    assert_eq!(Some(ids[2]), app.focused());
+    // same backwards.
     app.press_shift_tab();
     assert_eq!(Some(ids[1]), app.focused());
     app.press_shift_tab();
@@ -213,14 +161,14 @@ fn window_prev_tab_contained_(tab_nav: TabNav) {
 #[test]
 pub fn window_tab_once() {
     // we already start focused inside so Once==None in root widgets.
-    window_tab_once_(TabNav::Once);
+    window_tab_once_and_none(TabNav::Once);
 }
 #[test]
 pub fn window_tab_none() {
     // we already start focused inside so Once==None in root widgets.
-    window_tab_once_(TabNav::None);
+    window_tab_once_and_none(TabNav::None);
 }
-fn window_tab_once_(tab_nav: TabNav) {
+fn window_tab_once_and_none(tab_nav: TabNav) {
     let buttons = widgets![
         button! { content = text("Button 0") },
         button! { content = text("Button 1") },
@@ -236,53 +184,30 @@ fn window_tab_once_(tab_nav: TabNav) {
     assert_eq!(Some(ids[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids[0]), app.focused());
-}
-#[test]
-pub fn window_prev_tab_once() {
-    // we already start focused inside so Once==None in root widgets.
-    window_prev_tab_once_(TabNav::Once);
-}
-#[test]
-pub fn window_prev_tab_none() {
-    // we already start focused inside so Once==None in root widgets.
-    window_prev_tab_once_(TabNav::None);
-}
-fn window_prev_tab_once_(tab_nav: TabNav) {
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
-
-    let mut app = TestApp::new_w(window! {
-        content = v_stack(buttons);
-        tab_nav;
-    });
-
-    assert_eq!(Some(ids[0]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids[0]), app.focused());
 
-    app.focus(ids[2]);
-    assert_eq!(Some(ids[2]), app.focused());
+    app.focus(ids[1]);
+
+    app.press_tab();
+    assert_eq!(Some(ids[1]), app.focused());
     app.press_shift_tab();
-    assert_eq!(Some(ids[2]), app.focused());
+    assert_eq!(Some(ids[1]), app.focused());
 }
 
 #[test]
 pub fn two_continue_scopes_in_tab_cycle_window() {
     // TabNav::Continue in non-root widget scopes that are
     // FocusScopeOnFocus::FirstDescendant just behaves like normal containers.
-    two_continue_scopes_in_tab_cycle_window_(true);
+    two_continue_scopes_or_containers_in_tab_cycle_window(true);
 }
 #[test]
 pub fn two_containers_in_tab_cycle_window() {
     // the containers are not focus scopes, but they naturally
     // behave like one with TabNav::Continue.
-    two_continue_scopes_in_tab_cycle_window_(false);
+    two_continue_scopes_or_containers_in_tab_cycle_window(false);
 }
-fn two_continue_scopes_in_tab_cycle_window_(focus_scope: bool) {
+fn two_continue_scopes_or_containers_in_tab_cycle_window(focus_scope: bool) {
     let buttons_a = widgets![
         button! { content = text("Button 0") },
         button! { content = text("Button 1") },
@@ -309,64 +234,27 @@ fn two_continue_scopes_in_tab_cycle_window_(focus_scope: bool) {
     };
     let mut app = TestApp::new(h_stack(widgets![a, b]));
 
+    // forward nav goes through the first stack.
     assert_eq!(Some(ids_a[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids_a[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids_a[2]), app.focused());
     app.press_tab();
-
+    // and then the second stack.
     assert_eq!(Some(ids_b[0]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids_b[1]), app.focused());
     app.press_tab();
     assert_eq!(Some(ids_b[2]), app.focused());
+
+    // and then cycles back to the first item in the first stack.
     app.press_tab();
-
     assert_eq!(Some(ids_a[0]), app.focused());
-    app.press_tab();
-}
 
-#[test]
-pub fn two_continue_scopes_in_tab_cycle_window_prev_tab() {
-    // TabNav::Continue in non-root widget scopes that are
-    // FocusScopeOnFocus::FirstDescendant just behaves like normal containers.
-    two_continue_scopes_in_tab_cycle_window_prev_tab_(true);
-}
-#[test]
-pub fn two_containers_in_tab_cycle_window_prev_tab() {
-    // the containers are not focus scopes, but they naturally
-    // behave like one with TabNav::Continue.
-    two_continue_scopes_in_tab_cycle_window_prev_tab_(false);
-}
-fn two_continue_scopes_in_tab_cycle_window_prev_tab_(focus_scope: bool) {
-    let buttons_a = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+    // backward nav does the same in reverse.
 
-    let buttons_b = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
-
-    let a = v_stack! {
-        items = buttons_a;
-        focus_scope;
-        tab_nav = TabNav::Continue;
-    };
-    let b = v_stack! {
-        items = buttons_b;
-        focus_scope;
-        tab_nav = TabNav::Continue;
-    };
-    let mut app = TestApp::new(h_stack(widgets![a, b]));
-
-    assert_eq!(Some(ids_a[0]), app.focused());
+    // cycles back to the last item of the last stack.
     app.press_shift_tab();
     assert_eq!(Some(ids_b[2]), app.focused());
     app.press_shift_tab();
@@ -374,13 +262,14 @@ fn two_continue_scopes_in_tab_cycle_window_prev_tab_(focus_scope: bool) {
     app.press_shift_tab();
     assert_eq!(Some(ids_b[0]), app.focused());
 
+    // then moves back to the last item of the first stack.
     app.press_shift_tab();
     assert_eq!(Some(ids_a[2]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids_a[1]), app.focused());
     app.press_shift_tab();
     assert_eq!(Some(ids_a[0]), app.focused());
-
+    // then cycles again.
     app.press_shift_tab();
     assert_eq!(Some(ids_b[2]), app.focused());
 }
@@ -578,7 +467,163 @@ pub fn tab_skip_inner_scope_continue() {
     assert_eq!(Some(item_ids[2]), app.focused());
 }
 
+#[test]
+pub fn tab_inner_scope_cycle() {
+    // we expect tab navigation to enter the inner scope and get trapped in there.
 
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::Cycle;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    // focus starts outside of inner cycle.
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+
+    // focus enters the inner cycle.
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    // we still are in the inner cycle.
+    app.press_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+
+    // same in reverse.
+    app.focus(item_ids[2]);
+    assert_eq!(Some(item_ids[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+}
+
+#[test]
+pub fn tab_inner_scope_contained() {
+    // we expect tab navigation to enter the inner scope and get trapped in there.
+
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::Contained;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    // focus starts outside of inner container.
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+
+    // focus enters the inner container.
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    // we still are in the inner container.
+    app.press_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+
+    // same in reverse.
+    app.focus(item_ids[2]);
+    assert_eq!(Some(item_ids[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+}
+
+#[test]
+pub fn tab_inner_scope_once() {
+    // we expect tab navigation to enter the inner scope but then leave it.
+
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::Once;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    // focus starts outside of inner scope.
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+
+    // focus enters the inner scope.
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    // and we leave it already.
+    assert_eq!(Some(item_ids[2]), app.focused());
+
+    // same in reverse.
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(item_ids[0]), app.focused());
+}
+
+#[test]
+pub fn tab_inner_scope_none() {
+    // we expect tab navigation to enter the inner scope and then not move.
+
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::None;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    // focus starts outside of inner scope.
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+
+    // focus enters the inner scope.
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    // and we did not move.
+    assert_eq!(Some(inner_ids[0]), app.focused());
+
+    // same in reverse.
+    app.focus(item_ids[2]);
+    assert_eq!(Some(item_ids[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+}
 
 struct TestApp {
     app: HeadlessApp,

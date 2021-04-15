@@ -35,7 +35,7 @@
 //!
 //! TODO
 //!
-//! ## Alt Focus Scopes
+//! ### Alt Scopes
 //!
 //! TODO
 
@@ -306,7 +306,7 @@ impl Default for TabIndex {
 /// See the [module level](crate::focus#tab-navigation) for an overview of tab navigation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TabNav {
-    /// Tab does not move the focus inside the scope.
+    /// Tab moves into the scope but does not move the focus inside the scope.
     None,
     /// Tab moves the focus through the scope continuing out after the last item.
     Continue,
