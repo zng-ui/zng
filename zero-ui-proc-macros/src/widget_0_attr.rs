@@ -687,6 +687,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // module that exports the inherited items
     let inherits_mod_ident = ident!("__{}_inherit_{}", ident, util::uuid());
+    let assert_mod_path = ident!("__{}_assert_mod_path_{}", ident, util::uuid());
     let inherit_reexports = cfgs
         .clone()
         .zip(paths.clone())
@@ -753,6 +754,16 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     let r = quote! {
         #errors
+
+        #[allow(unused)]
+        mod #assert_mod_path {
+            macro_rules! #assert_mod_path {
+                () => {
+                    use #mod_path;
+                };
+            }
+            #assert_mod_path!{}
+        }
 
         #[allow(unused)]
         mod #inherits_mod_ident {

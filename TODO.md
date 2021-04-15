@@ -4,7 +4,6 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Validate `#[widget($crate::this::path)]`.
 * Test capture *required* properties, they are different then just marking `#[required]`.
 * Custom default property values, `#[property(context, default <see macro_design.rs>)]`.
 * Link property declaration to their source-code point.

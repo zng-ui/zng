@@ -273,7 +273,7 @@ fn window_prev_tab_once_(tab_nav: TabNav) {
 #[test]
 fn two_continue_scopes_in_tab_cycle_window() {
     // TabNav::Continue in non-root widget scopes that are
-    // FocusScopeOnFocus::FirstDescendant just behaves like normal containers. 
+    // FocusScopeOnFocus::FirstDescendant just behaves like normal containers.
     two_continue_scopes_in_tab_cycle_window_(true);
 }
 #[test]
@@ -328,7 +328,7 @@ fn two_continue_scopes_in_tab_cycle_window_(focus_scope: bool) {
 #[test]
 fn two_continue_scopes_in_tab_cycle_window_prev_tab() {
     // TabNav::Continue in non-root widget scopes that are
-    // FocusScopeOnFocus::FirstDescendant just behaves like normal containers. 
+    // FocusScopeOnFocus::FirstDescendant just behaves like normal containers.
     two_continue_scopes_in_tab_cycle_window_prev_tab_(true);
 }
 #[test]

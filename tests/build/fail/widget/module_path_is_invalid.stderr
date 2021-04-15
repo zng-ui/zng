@@ -1,0 +1,7 @@
+error[E0433]: failed to resolve: maybe a missing crate `not`?
+ --> $DIR/module_path_is_invalid.rs:3:18
+  |
+3 | #[widget($crate::not::a::valid::path)]
+  |                  ^^^ maybe a missing crate `not`?
+  |
+  = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
