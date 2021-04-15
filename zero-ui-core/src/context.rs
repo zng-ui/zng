@@ -1007,7 +1007,7 @@ pub struct TestWidgetContext {
 
     _lock: TestContextLock,
 }
-#[cfg(any(test, doc))]
+#[cfg(pub_test)]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
     /// **blocks until the other instance is dropped**.

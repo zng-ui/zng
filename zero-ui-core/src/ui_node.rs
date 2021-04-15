@@ -105,7 +105,7 @@ pub trait Widget: UiNode {
     }
 
     /// Run [`UiNode::init`] using the [`TestWidgetContext`].
-    #[cfg(test)]
+    #[cfg(pub_test)]
     fn test_init(&mut self, ctx: &mut TestWidgetContext) {
         ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
             self.init(ctx);
@@ -113,7 +113,7 @@ pub trait Widget: UiNode {
     }
 
     /// Run [`UiNode::update`] using the [`TestWidgetContext`].
-    #[cfg(test)]
+    #[cfg(pub_test)]
     fn test_update(&mut self, ctx: &mut TestWidgetContext) {
         ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
             self.update(ctx);
