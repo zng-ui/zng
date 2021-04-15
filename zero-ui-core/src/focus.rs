@@ -241,7 +241,6 @@ state_key! {
 /// The index is zero based, zero first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub struct TabIndex(pub u32);
-
 impl TabIndex {
     /// Widget is skipped during tab navigation.
     ///

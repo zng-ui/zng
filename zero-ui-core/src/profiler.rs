@@ -75,21 +75,24 @@ mod profiler_impl {
         }
 
         fn register_thread(&mut self) {
-            let id = ThreadId(self.threads.len());
-            let name = match thread::current().name() {
-                Some(s) => s.to_string(),
-                None => format!("<unnamed-{}>", id.0),
-            };
+            let registered_name = THREAD_PROFILER.with(|profiler| {
+                if profiler.borrow().is_none() {
+                    let id = ThreadId(self.threads.len());
 
-            self.threads.push(ThreadInfo { name });
+                    let thread_profiler = ThreadProfiler { id, tx: self.tx.clone() };
+                    *profiler.borrow_mut() = Some(thread_profiler);
 
-            THREAD_PROFILER.with(|profiler| {
-                assert!(profiler.borrow().is_none());
-
-                let thread_profiler = ThreadProfiler { id, tx: self.tx.clone() };
-
-                *profiler.borrow_mut() = Some(thread_profiler);
+                    Some(match thread::current().name() {
+                        Some(s) => s.to_string(),
+                        None => format!("<unnamed-{}>", id.0),
+                    })
+                } else {
+                    None
+                }
             });
+            if let Some(name) = registered_name {
+                self.threads.push(ThreadInfo { name });
+            }
         }
 
         fn write_profile(&self, filename: &str, ignore_0ms: bool) {
@@ -189,6 +192,8 @@ mod profiler_impl {
     }
 
     /// Registers the current thread with the global profiler.
+    ///
+    /// Does nothing if the thread is already registered.
     #[inline]
     pub fn register_thread_with_profiler() {
         GLOBAL_PROFILER.lock().unwrap().register_thread();

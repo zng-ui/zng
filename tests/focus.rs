@@ -5,38 +5,51 @@ use zero_ui::core::window::{HeadlessAppOpenWindowExt, WindowId};
 use zero_ui::prelude::*;
 
 #[test]
-pub fn window_tab_cycle() {
+pub fn window_tab_cycle_index_auto() {
     // default window! cycles TAB navigation
+    t(|_| TabIndex::AUTO);
+    t(TabIndex);
+    t(|i| TabIndex(TabIndex::AUTO.0 - i - 1));
 
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    fn t(make_index: impl FnMut(u32) -> TabIndex) {
+        // all TAB navigation must respect the `tab_index` value
+        // that by default is AUTO, but can be not in the same order
+        // as the widgets are declared.
+        let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
-    let mut app = TestApp::new(v_stack(buttons));
+        let buttons = widgets![
+            button! { content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { content = text("Button 2"); tab_index = tab_ids[2] },
+        ];
+        // we collect the widget_id values in the TAB navigation order.
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        ids.sort_by_key(|(_, ti)| *ti);
+        let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
-    // advance normally..
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[2]), app.focused());
-    // then cycles back.
-    app.press_tab();
-    assert_eq!(Some(ids[0]), app.focused());
+        let mut app = TestApp::new(v_stack(buttons));
 
-    // same backwards.
-    app.press_shift_tab();
-    assert_eq!(Some(ids[2]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
-    // cycles back.
-    app.press_shift_tab();
-    assert_eq!(Some(ids[2]), app.focused());
+        // advance normally..
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[2]), app.focused());
+        // then cycles back.
+        app.press_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+
+        // same backwards.
+        app.press_shift_tab();
+        assert_eq!(Some(ids[2]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+        // cycles back.
+        app.press_shift_tab();
+        assert_eq!(Some(ids[2]), app.focused());
+    }
 }
 
 #[test]

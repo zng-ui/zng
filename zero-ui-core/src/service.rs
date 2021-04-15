@@ -33,7 +33,11 @@ impl AppServicesInit {
         let mut service = Box::new(service);
         let prev = S::thread_local_entry().init(service.as_mut() as _);
         if prev.is_null() {
-            self.m.services.push(service);
+            let deiniter = Box::new(|| S::thread_local_entry().deinit());
+            self.m.services.push(ServiceEntry {
+                _instance: service,
+                deiniter,
+            });
             Ok(())
         } else {
             S::thread_local_entry().init(prev);
@@ -50,7 +54,7 @@ impl AppServicesInit {
     /// Panics if another instance of the service is already registered.
     #[track_caller]
     pub fn register<S: AppService + Sized>(&mut self, service: S) {
-        self.try_register(service).unwrap()
+        self.try_register(service).expect("service already registered")
     }
 
     /// Reference the [`AppServices`].
@@ -59,9 +63,19 @@ impl AppServicesInit {
     }
 }
 
+struct ServiceEntry {
+    _instance: Box<dyn AppService>,
+    deiniter: Box<dyn Fn()>,
+}
+impl Drop for ServiceEntry {
+    fn drop(&mut self) {
+        (self.deiniter)();
+    }
+}
+
 /// Access to application services.
 pub struct AppServices {
-    services: Vec<Box<dyn AppService>>,
+    services: Vec<ServiceEntry>,
 }
 impl AppServices {
     /// Gets a service reference if the service is registered in the application.
@@ -83,7 +97,7 @@ impl AppServices {
     /// If  the service is not registered in the application.
     pub fn req<S: AppService>(&mut self) -> &mut S {
         self.get::<S>()
-            .unwrap_or_else(|| panic!("service `{}` is required", type_name::<S>()))
+            .unwrap_or_else(|| panic!("app service `{}` is required", type_name::<S>()))
     }
 
     /// Gets multiple service references if all services are registered in the application.
@@ -146,7 +160,7 @@ impl WindowServicesInit {
                 let _ = S::thread_local_entry().init(service_ptr);
             });
             let unloader = Box::new(|| {
-                let _ = S::thread_local_entry().init(ptr::null_mut());
+                let _ = S::thread_local_entry().deinit();
             });
             (service, loader, unloader)
         }));
@@ -166,7 +180,7 @@ impl WindowServicesInit {
     /// Panics if the window service type is already registered.
     #[track_caller]
     pub fn register<S: WindowService>(&mut self, new: impl Fn(&WindowContext) -> S + 'static) {
-        self.try_register(new).unwrap()
+        self.try_register(new).expect("window service type already registered")
     }
 
     /// Schedules a visitor that is called once for each open window.
@@ -449,6 +463,10 @@ macro_rules! service_types {
 
             fn init(&self, service: *mut S) -> *mut S {
                 self.local.with(move |l| l.value.replace(service))
+            }
+
+            fn deinit(&self) {
+                self.init(ptr::null_mut());
             }
 
             fn get(&self) -> *mut S {
