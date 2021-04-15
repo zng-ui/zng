@@ -70,6 +70,9 @@ event_args! {
         /// Some widgets, like *text input*, may ignore this field and always indicate that they are focused.
         pub highlight: bool,
 
+        /// What caused this event.
+        pub cause: FocusChangedCause,
+
         ..
 
         /// If the widget is [`prev_focus`](Self::prev_focus) or
@@ -198,6 +201,31 @@ impl ReturnFocusChangedArgs {
         match (&self.prev_return, &self.new_return) {
             (Some(prev), None) => !prev.contains(self.scope_id),
             (None, Some(new)) => !new.contains(self.scope_id),
+            _ => false,
+        }
+    }
+}
+
+/// The cause of a [`FocusChangedEvent`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusChangedCause {
+    /// The focus changed trying to fulfill the request.
+    Request(FocusRequest),
+
+    /// A focus scope got focus causing its [`FocusScopeOnFocus`] action to execute.
+    ///
+    /// The associated `bool` indicates if the focus was reversed in.
+    ScopeGotFocus(bool),
+
+    /// A previously focused widget, was removed or moved.
+    Recovery,
+}
+impl FocusChangedCause {
+    /// If the change cause by a request to the previous widget, by tab index.
+    #[inline]
+    pub fn is_prev_request(self) -> bool {
+        match self {
+            FocusChangedCause::Request(r) => matches!(r.target, FocusTarget::Prev),
             _ => false,
         }
     }
@@ -460,12 +488,13 @@ impl AppExtension for FocusManager {
 impl FocusManager {
     fn notify(&mut self, args: Option<FocusChangedArgs>, focus: &mut Focus, windows: &mut Windows, events: &Events) {
         if let Some(args) = args {
+            let reverse = args.cause.is_prev_request();
             let prev_focus = args.prev_focus.clone();
             self.focused = args.new_focus.clone();
             self.focus_changed.notify(events, args);
 
             // may have focused scope.
-            while let Some(after_args) = focus.move_after_focus(windows) {
+            while let Some(after_args) = focus.move_after_focus(windows, reverse) {
                 self.focused = after_args.new_focus.clone();
                 self.focus_changed.notify(events, after_args);
             }
@@ -653,8 +682,8 @@ impl Focus {
     #[must_use]
     fn fulfill_request(&mut self, request: FocusRequest, windows: &Windows) -> Option<FocusChangedArgs> {
         match (&self.focused, request.target) {
-            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, windows),
-            (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, true, windows),
+            (_, FocusTarget::Direct(widget_id)) => self.focus_direct(widget_id, request.highlight, false, windows, request),
+            (_, FocusTarget::DirectOrParent(widget_id)) => self.focus_direct(widget_id, request.highlight, true, windows, request),
             (Some(prev), move_) => {
                 if let Ok(w) = windows.window(prev.window_id()) {
                     let frame = FrameFocusInfo::new(w.frame_info());
@@ -662,8 +691,8 @@ impl Focus {
                         let mut can_only_highlight = true;
                         if let Some(new_focus) = match move_ {
                             // tabular
-                            FocusTarget::Next => w.next_tab(),
-                            FocusTarget::Prev => w.prev_tab(),
+                            FocusTarget::Next => w.next_tab(false),
+                            FocusTarget::Prev => w.prev_tab(false),
                             // directional
                             FocusTarget::Up => w.next_up(),
                             FocusTarget::Right => w.next_right(),
@@ -689,7 +718,7 @@ impl Focus {
                             FocusTarget::Direct { .. } | FocusTarget::DirectOrParent { .. } => unreachable!(),
                         } {
                             // found `new_focus`
-                            self.move_focus(Some(new_focus.info.path()), request.highlight)
+                            self.move_focus(Some(new_focus.info.path()), request.highlight, FocusChangedCause::Request(request))
                         } else {
                             // no `new_focus`, maybe update highlight and widget path.
                             self.continue_focus_highlight(
@@ -723,15 +752,15 @@ impl Focus {
                     if let Some(widget) = window.frame_info().find(focused.widget_id()).map(|w| w.as_focus_info()) {
                         if widget.is_focusable() {
                             // :-) probably in the same place, maybe moved inside same window.
-                            self.move_focus(Some(widget.info.path()), self.is_highlighting)
+                            self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
                         } else {
                             // widget no longer focusable
                             if let Some(parent) = widget.parent() {
                                 // move to focusable parent
-                                self.move_focus(Some(parent.info.path()), self.is_highlighting)
+                                self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
                             } else {
                                 // no focusable parent, is this an error?
-                                self.move_focus(None, false)
+                                self.move_focus(None, false, FocusChangedCause::Recovery)
                             }
                         }
                     } else {
@@ -761,15 +790,15 @@ impl Focus {
                 if window.is_active() {
                     return if widget.is_focusable() {
                         // same widget, moved to another window
-                        self.move_focus(Some(widget.info.path()), self.is_highlighting)
+                        self.move_focus(Some(widget.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
                     } else {
                         // widget no longer focusable
                         if let Some(parent) = widget.parent() {
                             // move to focusable parent
-                            self.move_focus(Some(parent.info.path()), self.is_highlighting)
+                            self.move_focus(Some(parent.info.path()), self.is_highlighting, FocusChangedCause::Recovery)
                         } else {
                             // no focusable parent, is this an error?
-                            self.move_focus(None, false)
+                            self.move_focus(None, false, FocusChangedCause::Recovery)
                         }
                     };
                 }
@@ -788,7 +817,12 @@ impl Focus {
             Some(args)
         } else if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            Some(FocusChangedArgs::now(self.focused.clone(), self.focused.clone(), highlight))
+            Some(FocusChangedArgs::now(
+                self.focused.clone(),
+                self.focused.clone(),
+                highlight,
+                FocusChangedCause::Recovery,
+            ))
         } else {
             None
         }
@@ -801,15 +835,16 @@ impl Focus {
         highlight: bool,
         fallback_to_parents: bool,
         windows: &Windows,
+        request: FocusRequest,
     ) -> Option<FocusChangedArgs> {
         for w in windows.windows() {
             let frame = w.frame_info();
             if let Some(w) = frame.find(widget_id).map(|w| w.as_focus_info()) {
                 if w.is_focusable() {
-                    return self.move_focus(Some(w.info.path()), highlight);
+                    return self.move_focus(Some(w.info.path()), highlight, FocusChangedCause::Request(request));
                 } else if fallback_to_parents {
                     if let Some(w) = w.parent() {
-                        return self.move_focus(Some(w.info.path()), highlight);
+                        return self.move_focus(Some(w.info.path()), highlight, FocusChangedCause::Request(request));
                     } else {
                         // no focusable parent, just activate window?
                         //TODO
@@ -819,14 +854,19 @@ impl Focus {
             }
         }
 
-        self.change_highlight(highlight)
+        self.change_highlight(highlight, request)
     }
 
     #[must_use]
-    fn change_highlight(&mut self, highlight: bool) -> Option<FocusChangedArgs> {
+    fn change_highlight(&mut self, highlight: bool, request: FocusRequest) -> Option<FocusChangedArgs> {
         if self.is_highlighting != highlight {
             self.is_highlighting = highlight;
-            Some(FocusChangedArgs::now(self.focused.clone(), self.focused.clone(), highlight))
+            Some(FocusChangedArgs::now(
+                self.focused.clone(),
+                self.focused.clone(),
+                highlight,
+                FocusChangedCause::Request(request),
+            ))
         } else {
             None
         }
@@ -839,40 +879,44 @@ impl Focus {
             let root = frame.root();
             if root.is_focusable() {
                 // found active window and it is focusable.
-                self.move_focus(Some(root.info.path()), highlight)
+                self.move_focus(Some(root.info.path()), highlight, FocusChangedCause::Recovery)
             } else {
                 // has active window but it is not focusable
-                self.move_focus(None, false)
+                self.move_focus(None, false, FocusChangedCause::Recovery)
             }
         } else {
             // no active window
-            self.move_focus(None, false)
+            self.move_focus(None, false, FocusChangedCause::Recovery)
         }
     }
 
     #[must_use]
-    fn move_focus(&mut self, new_focus: Option<WidgetPath>, highlight: bool) -> Option<FocusChangedArgs> {
+    fn move_focus(&mut self, new_focus: Option<WidgetPath>, highlight: bool, cause: FocusChangedCause) -> Option<FocusChangedArgs> {
         let prev_highlight = std::mem::replace(&mut self.is_highlighting, highlight);
 
         if self.focused != new_focus {
-            let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone(), self.is_highlighting);
+            let args = FocusChangedArgs::now(self.focused.take(), new_focus.clone(), self.is_highlighting, cause);
             self.focused = new_focus;
             Some(args)
         } else if prev_highlight != highlight {
-            Some(FocusChangedArgs::now(new_focus.clone(), new_focus, highlight))
+            Some(FocusChangedArgs::now(new_focus.clone(), new_focus, highlight, cause))
         } else {
             None
         }
     }
 
     #[must_use]
-    fn move_after_focus(&mut self, windows: &Windows) -> Option<FocusChangedArgs> {
+    fn move_after_focus(&mut self, windows: &Windows, reverse: bool) -> Option<FocusChangedArgs> {
         if let Some(focused) = &self.focused {
             if let Ok(window) = windows.window(focused.window_id()) {
                 if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
                     if widget.is_scope() {
-                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused(id)) {
-                            return self.move_focus(Some(widget.info.path()), self.is_highlighting);
+                        if let Some(widget) = widget.on_focus_scope_move(|id| self.return_focused(id), reverse) {
+                            return self.move_focus(
+                                Some(widget.info.path()),
+                                self.is_highlighting,
+                                FocusChangedCause::ScopeGotFocus(reverse),
+                            );
                         }
                     }
                 }
@@ -970,7 +1014,7 @@ impl Focus {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Focus change request.
 pub struct FocusRequest {
     /// Where to move the focus.
@@ -1039,7 +1083,7 @@ impl FocusRequest {
 }
 
 /// Focus request target.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FocusTarget {
     /// Move focus to widget.
     Direct(WidgetId),
@@ -1287,7 +1331,8 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// # Input
     ///
-    /// `last_focused`: A function that returns the last focused widget within a focus scope identified by `WidgetId`.
+    /// * `last_focused`: A function that returns the last focused widget within a focus scope identified by `WidgetId`.
+    /// * `reverse`: If the focus is *reversing* into `self`.
     ///
     /// # Returns
     ///
@@ -1295,10 +1340,20 @@ impl<'a> WidgetFocusInfo<'a> {
     ///
     /// If `self` is not a [`FocusScope`](FocusInfo::FocusScope) always returns `None`.
     #[inline]
-    pub fn on_focus_scope_move<'p>(self, last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>) -> Option<WidgetFocusInfo<'a>> {
+    pub fn on_focus_scope_move<'p>(
+        self,
+        last_focused: impl FnOnce(WidgetId) -> Option<&'p WidgetPath>,
+        reverse: bool,
+    ) -> Option<WidgetFocusInfo<'a>> {
         match self.focus_info() {
             FocusInfo::FocusScope { on_focus, .. } => match on_focus {
-                FocusScopeOnFocus::FirstDescendant => self.first_tab_descendant(),
+                FocusScopeOnFocus::FirstDescendant => {
+                    if reverse {
+                        self.last_tab_descendant()
+                    } else {
+                        self.first_tab_descendant()
+                    }
+                }
                 FocusScopeOnFocus::LastFocused => last_focused(self.info.widget_id())
                     .and_then(|path| self.info.frame().get(path))
                     .and_then(|w| w.as_focusable())
@@ -1309,7 +1364,13 @@ impl<'a> WidgetFocusInfo<'a> {
                             None
                         }
                     })
-                    .or_else(|| self.first_tab_descendant()), // fallback
+                    .or_else(|| {
+                        if reverse {
+                            self.last_tab_descendant()
+                        } else {
+                            self.first_tab_descendant()
+                        }
+                    }), // fallback
                 FocusScopeOnFocus::Self_ => None,
             },
             FocusInfo::NotFocusable | FocusInfo::Focusable { .. } => None,
@@ -1378,6 +1439,28 @@ impl<'a> WidgetFocusInfo<'a> {
         r
     }
 
+    /// Last descendant considering TAB index.
+    #[inline]
+    pub fn last_tab_descendant(self) -> Option<WidgetFocusInfo<'a>> {
+        let mut descendants = self.descendants_skip_tab();
+
+        if let Some(d) = descendants.next() {
+            let mut r_index = d.focus_info().tab_index();
+            let mut r = Some(d);
+            for d in descendants {
+                let ti = d.focus_info().tab_index();
+
+                if ti >= r_index {
+                    r = Some(d);
+                    r_index = ti;
+                }
+            }
+            r
+        } else {
+            None
+        }
+    }
+
     /// Iterator over all focusable widgets in the same scope after this widget.
     #[inline]
     pub fn next_focusables(self) -> impl Iterator<Item = WidgetFocusInfo<'a>> {
@@ -1397,14 +1480,15 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Next focusable in the same scope after this widget respecting the TAB index.
     ///
-    /// If `self` is `TabIndex::SKIP` returns the next non-skip focusable in the same scope after this widget.
+    /// If `self` is `TabIndex::SKIP` or `skip_self` is set returns the next non-skip
+    /// focusable in the same scope after this widget.
     ///
     /// If `self` is the last item in scope returns the sorted descendants of the parent scope.
-    pub fn next_tab_focusable(self) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
+    pub fn next_tab_focusable(self, skip_self: bool) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
         let self_index = self.focus_info().tab_index();
         let mut siblings = self.scope().map(|s| s.tab_descendants()).unwrap_or_default();
 
-        if self_index == TabIndex::SKIP {
+        if self_index == TabIndex::SKIP || skip_self {
             // TAB from skip, goes to next in widget tree.
 
             while let Some(next) = self.info.next_sibling().map(|s| s.as_focus_info()) {
@@ -1479,14 +1563,15 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Previous focusable in the same scope before this widget respecting the TAB index.
     ///
-    /// If `self` is `TabIndex::SKIP` returns the previous non-skip focusable in the same scope before this widget.
+    /// If `self` is `TabIndex::SKIP` or `skip_self` is set returns the previous non-skip
+    /// focusable in the same scope before this widget.
     ///
     /// If `self` is the first item in scope returns the sorted descendants of the parent scope.
-    pub fn prev_tab_focusable(self) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
+    pub fn prev_tab_focusable(self, skip_self: bool) -> Result<WidgetFocusInfo<'a>, Vec<WidgetFocusInfo<'a>>> {
         let self_index = self.focus_info().tab_index();
         let mut siblings = self.scope().map(|s| s.tab_descendants()).unwrap_or_default();
 
-        if self_index == TabIndex::SKIP {
+        if self_index == TabIndex::SKIP || skip_self {
             // TAB from skip, goes to prev in widget tree.
             while let Some(prev) = self.info.prev_sibling().map(|s| s.as_focus_info()) {
                 if prev.focus_info().tab_index() != TabIndex::SKIP {
@@ -1533,17 +1618,19 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget to focus when pressing TAB from this widget.
     ///
+    /// Set `skip_self` to not enter `self`, that is, the focus goes to the next sibling or next sibling descendant.
+    ///
     /// Returns `None` if the focus does not move to another widget.
     #[inline]
-    pub fn next_tab(self) -> Option<WidgetFocusInfo<'a>> {
+    pub fn next_tab(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
                 TabNav::None => None,
-                TabNav::Continue => self.next_tab_focusable().ok().or_else(|| scope.next_tab()),
-                TabNav::Contained => self.next_tab_focusable().ok(),
+                TabNav::Continue => self.next_tab_focusable(skip_self).ok().or_else(|| scope.next_tab(true)),
+                TabNav::Contained => self.next_tab_focusable(skip_self).ok(),
                 TabNav::Cycle => self
-                    .next_tab_focusable()
+                    .next_tab_focusable(skip_self)
                     .or_else(|sorted_siblings| {
                         if let Some(first) = sorted_siblings.into_iter().find(|f| f.focus_info().tab_index() != TabIndex::SKIP) {
                             if first == self {
@@ -1556,7 +1643,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         }
                     })
                     .ok(),
-                TabNav::Once => scope.next_tab(),
+                TabNav::Once => scope.next_tab(true),
             }
         } else {
             None
@@ -1565,17 +1652,19 @@ impl<'a> WidgetFocusInfo<'a> {
 
     /// Widget to focus when pressing SHIFT+TAB from this widget.
     ///
+    /// Set `skip_self` to not enter `self`, that is, the focus goes to the previous sibling or previous sibling descendant.
+    ///
     /// Returns `None` if the focus does not move to another widget.
     #[inline]
-    pub fn prev_tab(self) -> Option<WidgetFocusInfo<'a>> {
+    pub fn prev_tab(self, skip_self: bool) -> Option<WidgetFocusInfo<'a>> {
         if let Some(scope) = self.scope() {
             let scope_info = scope.focus_info();
             match scope_info.tab_nav() {
                 TabNav::None => None,
-                TabNav::Continue => self.prev_tab_focusable().ok().or_else(|| scope.prev_tab()),
-                TabNav::Contained => self.prev_tab_focusable().ok(),
+                TabNav::Continue => self.prev_tab_focusable(skip_self).ok().or_else(|| scope.prev_tab(true)),
+                TabNav::Contained => self.prev_tab_focusable(skip_self).ok(),
                 TabNav::Cycle => self
-                    .prev_tab_focusable()
+                    .prev_tab_focusable(skip_self)
                     .or_else(|sorted_siblings| {
                         if let Some(last) = sorted_siblings.into_iter().rfind(|f| f.focus_info().tab_index() != TabIndex::SKIP) {
                             if last == self {
@@ -1588,7 +1677,7 @@ impl<'a> WidgetFocusInfo<'a> {
                         }
                     })
                     .ok(),
-                TabNav::Once => scope.prev_tab(),
+                TabNav::Once => scope.prev_tab(true),
             }
         } else {
             None
@@ -1834,6 +1923,8 @@ pub enum FocusScopeOnFocus {
     Self_,
     /// Focus the first descendant considering the TAB index, if the scope has no descendants
     /// behaves like [`Self_`](Self::Self_).
+    ///
+    /// Focus the last descendant if the focus is *reversing* in, e.g. in a SHIFT+TAB action.
     FirstDescendant,
     /// Focus the descendant that was last focused before focus moved out of the scope. If the
     /// scope cannot return focus, behaves like [`FirstDescendant`](Self::FirstDescendant).

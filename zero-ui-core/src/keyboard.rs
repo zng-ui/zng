@@ -750,8 +750,14 @@ pub trait HeadlessAppKeyboardExt {
     /// Does a keyboard input event.
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState);
 
+    /// Does a keyboard modifiers changed event.
+    fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState);
+
     /// Does a key-down, key-up and updates.
     fn press_key(&mut self, window_id: WindowId, key: Key);
+
+    /// Does a modifiers changed, key-down, key-up, reset modifiers and updates.
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key);
 }
 impl HeadlessAppKeyboardExt for HeadlessApp {
     fn on_keyboard_input(&mut self, window_id: WindowId, key: Key, state: ElementState) {
@@ -772,11 +778,60 @@ impl HeadlessAppKeyboardExt for HeadlessApp {
         self.on_window_event(window_id, &raw_event);
     }
 
+    fn on_modifiers_changed(&mut self, window_id: WindowId, modifiers: ModifiersState) {
+        let raw_event = WindowEvent::ModifiersChanged(modifiers);
+        self.on_window_event(window_id, &raw_event);
+    }
+
     fn press_key(&mut self, window_id: WindowId, key: Key) {
         self.on_keyboard_input(window_id, key, ElementState::Pressed);
         self.on_keyboard_input(window_id, key, ElementState::Released);
         self.update();
+    }
 
-        // TODO: The Keyboard service already does something like this?
+    fn press_modified_key(&mut self, window_id: WindowId, modifiers: ModifiersState, key: Key) {
+        if modifiers.is_empty() {
+            self.press_key(window_id, key);
+        } else {
+            if modifiers.logo() {
+                self.on_keyboard_input(window_id, Key::LLogo, ElementState::Pressed);
+            }
+            if modifiers.ctrl() {
+                self.on_keyboard_input(window_id, Key::LCtrl, ElementState::Pressed);
+            }
+            if modifiers.shift() {
+                self.on_keyboard_input(window_id, Key::LShift, ElementState::Pressed);
+            }
+            if modifiers.alt() {
+                self.on_keyboard_input(window_id, Key::LAlt, ElementState::Pressed);
+            }
+            self.on_modifiers_changed(window_id, modifiers);
+
+            // pressed the modifiers.
+            self.update();
+
+            self.on_keyboard_input(window_id, key, ElementState::Pressed);
+            self.on_keyboard_input(window_id, key, ElementState::Released);
+
+            // pressed the key.
+            self.update();
+
+            self.on_modifiers_changed(window_id, ModifiersState::default());
+            if modifiers.logo() {
+                self.on_keyboard_input(window_id, Key::LLogo, ElementState::Released);
+            }
+            if modifiers.ctrl() {
+                self.on_keyboard_input(window_id, Key::LCtrl, ElementState::Released);
+            }
+            if modifiers.shift() {
+                self.on_keyboard_input(window_id, Key::LShift, ElementState::Released);
+            }
+            if modifiers.alt() {
+                self.on_keyboard_input(window_id, Key::LAlt, ElementState::Released);
+            }
+
+            // released the modifiers.
+            self.update();
+        }
     }
 }

@@ -298,6 +298,14 @@ impl TryFrom<Key> for ModifierGesture {
     }
 }
 impl ModifierGesture {
+    fn left_key(&self) -> Key {
+        match self {
+            ModifierGesture::Logo => Key::LLogo,
+            ModifierGesture::Ctrl => Key::LCtrl,
+            ModifierGesture::Shift => Key::LShift,
+            ModifierGesture::Alt => Key::LAlt,
+        }
+    }
     fn modifiers_state(&self) -> ModifiersState {
         match self {
             ModifierGesture::Logo => ModifiersState::LOGO,
@@ -933,6 +941,13 @@ macro_rules! gesture_keys {
                 }
             }
         }
+        impl From<GestureKey> for Key {
+            fn from(key: GestureKey) -> Key {
+                match key {
+                    $(GestureKey::$key => Key::$key,)+
+                }
+            }
+        }
         impl Display for GestureKey {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
@@ -1085,3 +1100,26 @@ impl fmt::Display for ParseError {
     }
 }
 impl std::error::Error for ParseError {}
+
+/// Extension trait that adds gesture simulation methods to [`HeadlessApp`].
+pub trait HeadlessAppGestureExt {
+    /// Does key presses to mimic the shortcut and updates.
+    fn press_shortcut(&mut self, window_id: WindowId, shortcut: impl Into<Shortcut>);
+}
+impl HeadlessAppGestureExt for HeadlessApp {
+    fn press_shortcut(&mut self, window_id: WindowId, shortcut: impl Into<Shortcut>) {
+        let shortcut = shortcut.into();
+        match shortcut {
+            Shortcut::Modifier(m) => {
+                self.press_key(window_id, m.left_key());
+            }
+            Shortcut::Gesture(g) => {
+                self.press_modified_key(window_id, g.modifiers, g.key.into());
+            }
+            Shortcut::Chord(c) => {
+                self.press_shortcut(window_id, c.starter);
+                self.press_shortcut(window_id, c.complement);
+            }
+        }
+    }
+}
