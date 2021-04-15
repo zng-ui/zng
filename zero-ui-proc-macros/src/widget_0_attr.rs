@@ -39,15 +39,33 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut errors = Errors::default();
 
     let crate_core = util::crate_core();
+    let ident = mod_.ident;
 
     // a `$crate` path to the widget module.
-    let mod_path = match syn::parse::<ArgPath>(args) {
-        Ok(a) => a.path,
+    let mod_path;
+    let mod_path_assert;
+    match syn::parse::<ArgPath>(args) {
+        Ok(a) => {
+            let assert_mod_path = ident!("__{}_assert_mod_path_{}", ident, util::uuid());
+            mod_path = a.path;
+            mod_path_assert = quote! {
+                #[allow(unused)]
+                mod #assert_mod_path {
+                    macro_rules! #assert_mod_path {
+                        () => {
+                            use #mod_path;
+                        };
+                    }
+                    #assert_mod_path!{}
+                }
+            }
+        }
         Err(e) => {
             errors.push_syn(e);
-            quote! { $crate::missing_widget_path}
+            mod_path = quote! { $crate::missing_widget_path};
+            mod_path_assert = quote! {};
         }
-    };
+    }
 
     let Attributes {
         cfg: wgt_cfg,
@@ -64,7 +82,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let wgt_attrs = wgt_attrs;
 
     let vis = mod_.vis;
-    let ident = mod_.ident;
 
     let WidgetItems {
         uses,
@@ -687,7 +704,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
     // module that exports the inherited items
     let inherits_mod_ident = ident!("__{}_inherit_{}", ident, util::uuid());
-    let assert_mod_path = ident!("__{}_assert_mod_path_{}", ident, util::uuid());
     let inherit_reexports = cfgs
         .clone()
         .zip(paths.clone())
@@ -755,15 +771,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let r = quote! {
         #errors
 
-        #[allow(unused)]
-        mod #assert_mod_path {
-            macro_rules! #assert_mod_path {
-                () => {
-                    use #mod_path;
-                };
-            }
-            #assert_mod_path!{}
-        }
+        #mod_path_assert
 
         #[allow(unused)]
         mod #inherits_mod_ident {
