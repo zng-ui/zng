@@ -491,6 +491,95 @@ pub fn tab_skip_inner_container() {
     assert_eq!(Some(item_ids[2]), app.focused());
 }
 
+#[test]
+pub fn tab_inner_scope_continue() {
+    // sanity check for `tab_skip_inner_scope_continue`.
+
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::Continue;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(item_ids[2]), app.focused());
+
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(item_ids[0]), app.focused());
+}
+
+#[test]
+pub fn tab_skip_inner_scope_continue() {
+    // we expect that TabIndex::SKIP skips the full widget branch
+    // but that the items inside will still tab navigate if focused
+    // directly.
+
+    let inner_buttons = widgets![button! { content = text("Button 1") }, button! { content = text("Button 2") },];
+    let inner_ids: Vec<_> = (0..2).map(|i| inner_buttons.widget_id(i)).collect();
+    let items = widgets![
+        button! { content = text("Button 0") },
+        v_stack! {
+            items = inner_buttons;
+            focus_scope = true;
+            tab_nav = TabNav::Continue;
+            tab_index = TabIndex::SKIP;
+        },
+        button! { content = text("Button 3") },
+    ];
+    let item_ids: Vec<_> = (0..3).map(|i| items.widget_id(i)).collect();
+
+    let mut app = TestApp::new(v_stack(items));
+
+    // assert skipped inner.
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(item_ids[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(item_ids[0]), app.focused());
+
+    // assert that focused directly it still works.
+    app.focus(inner_ids[0]);
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    // and continues normally.
+    app.press_tab();
+    assert_eq!(Some(item_ids[2]), app.focused());
+    // but is skipped from the outside.
+    app.press_shift_tab();
+    assert_eq!(Some(item_ids[0]), app.focused());
+
+    // and the same in reverse.
+    app.focus(inner_ids[1]);
+    assert_eq!(Some(inner_ids[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(inner_ids[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(item_ids[0]), app.focused());
+    app.press_tab();
+    assert_eq!(Some(item_ids[2]), app.focused());
+}
+
+
+
 struct TestApp {
     app: HeadlessApp,
     window_id: WindowId,
