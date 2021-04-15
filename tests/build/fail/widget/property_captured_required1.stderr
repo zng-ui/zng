@@ -1,0 +1,16 @@
+error: missing required property `foo`
+  --> $DIR/property_captured_required1.rs:29:17
+   |
+29 |       let _base = base_widget! {
+   |  _________________^
+30 | |         // expected missing required property error
+31 | |     };
+   | |_____^
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0433]: failed to resolve: use of undeclared crate or module `foo`
+  --> $DIR/property_captured_required1.rs:38:9
+   |
+38 |         foo = 42; // expected undeclared crate or module error
+   |         ^^^ use of undeclared crate or module `foo`

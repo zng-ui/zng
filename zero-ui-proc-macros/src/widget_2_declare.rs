@@ -168,7 +168,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new_child_is_default = new_child_is_default;
     let new_is_default = new_is_default;
 
-    // collect inherited properties. Late inherits of the same ident overrides early inherits.
+    // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => (property_path, crate_name)]
     let mut inherited_properties = HashMap::new();
     let mut inherited_props_child = vec![];
@@ -240,6 +240,20 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             }
         } else {
             errors.push(format_args!("cannot remove, property `{}` is not inherited", ident), ident.span());
+        }
+    }
+
+    // remove properties that are no longer captured
+    let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
+    for inherited in inherits.iter() {
+        for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
+            if !captured_properties.contains(ident) && inherited_properties.remove(ident).is_some() {
+                if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
+                    inherited_props_child.remove(i);
+                } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
+                    inherited_props.remove(i);
+                }
+            }
         }
     }
 
