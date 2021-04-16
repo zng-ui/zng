@@ -39,7 +39,25 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut errors = Errors::default();
 
     let crate_core = util::crate_core();
+
+    let vis = mod_.vis;
     let ident = mod_.ident;
+
+    let Attributes {
+        cfg: wgt_cfg,
+        docs,
+        lints,
+        others,
+        ..
+    } = Attributes::new(mod_.attrs);
+    let mut wgt_attrs = TokenStream::default();
+    wgt_attrs.extend(quote! { #(#others)* });
+    wgt_attrs.extend(quote! { #(#lints)* });
+
+    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js_tag!("widget_header.js"));
+    doc_extend!(wgt_attrs, "\n\n");
+    doc_extend!(wgt_attrs, js_tag!("widget_full.js"));
+    let wgt_attrs = wgt_attrs;
 
     // a `$crate` path to the widget module.
     let mod_path;
@@ -49,6 +67,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             let assert_mod_path = ident!("__{}_assert_mod_path_{}", ident, util::uuid());
             mod_path = a.path;
             mod_path_assert = quote! {
+                #wgt_cfg
                 #[allow(unused)]
                 mod #assert_mod_path {
                     macro_rules! #assert_mod_path {
@@ -66,22 +85,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             mod_path_assert = quote! {};
         }
     }
-
-    let Attributes {
-        cfg: wgt_cfg,
-        docs,
-        lints,
-        others,
-        ..
-    } = Attributes::new(mod_.attrs);
-    let mut wgt_attrs = TokenStream::default();
-    wgt_attrs.extend(quote! { #(#others)* });
-    wgt_attrs.extend(quote! { #(#lints)* });
-    util::docs_with_first_line_js(&mut wgt_attrs, &docs, js_tag!("widget_header.js"));
-
-    let wgt_attrs = wgt_attrs;
-
-    let vis = mod_.vis;
 
     let WidgetItems {
         uses,
@@ -699,36 +702,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         })
         .collect();
     let mut cfgs = inherits.iter().map(|(c, _)| c);
-    let paths = inherits.iter().map(|(_, p)| p);
-    let mut inherit_names = paths.clone().map(|p| {
-        (
-            ident!("__{}", util::display_path(p).replace("::", "_")),
-            &p.segments.last().unwrap().ident,
-        )
-    });
-
-    // module that exports the inherited items
-    let inherits_mod_ident = ident!("__{}_inherit_{}", ident, util::uuid());
-    let inherit_reexports = cfgs
-        .clone()
-        .zip(paths.clone())
-        .zip(inherit_names.clone())
-        .map(|((cfg, path), (name, _))| {
-            quote! {
-                #path! {
-                    reexport=> #name #cfg
-                }
-            }
-        });
-
-    // inherited mods are only used in the inherit mod, this can cause
-    // lints for unused imports in the widget module.
-    let disable_unused_warnings_for_inherits = quote! {
-        #[allow(unused)]
-        fn __use_inherits() {
-            #(use #paths;)*
-        }
-    };
+    let mut inherit_paths = inherits.iter().map(|(_, p)| p);
 
     if mixin {
         // mixins don't inherit the implicit_mixin so we go directly to stage_2_declare or to the first inherit.
@@ -738,20 +712,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         } else {
             let cfg = cfgs.next().unwrap();
             let not_cfg = util::cfg_attr_not(cfg.clone());
-            let (next_path, inherit_span) = inherit_names.next().unwrap();
-            let inherited_spans = inherit_names.clone().map(|(_, s)| s);
-            let other_paths = inherit_names.map(|(n, _)| n);
-            stage_path = quote!(#inherits_mod_ident::#next_path!);
+            let next_path = inherit_paths.next();
+            stage_path = quote!(#next_path!);
             stage_extra = quote! {
                 inherit=>
                 cfg { #cfg }
                 not_cfg { #not_cfg }
-                inherit_span { #inherit_span }
+                inherit_use { #next_path }
                 inherit {
                     #(
                         #cfgs
-                        #inherited_spans
-                        #inherits_mod_ident::#other_paths
+                        #inherit_paths
                     )*
                 }
             }
@@ -759,18 +730,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     } else {
         // not-mixins inherit from the implicit_mixin first so we call inherit=> for that:
         stage_path = quote!(#crate_core::widget_base::implicit_mixin!);
-        let inherit_spans = inherit_names.clone().map(|(_, s)| s);
-        let inherit_names = inherit_names.map(|(n, _)| n);
         stage_extra = quote! {
             inherit=>
             cfg { }
             not_cfg { #[cfg(zero_ui_never_set)] }
-            inherit_span { implicit_mixin }
+            inherit_use { #crate_core::widget_base::implicit_mixin }
             inherit {
                 #(
                     #cfgs
-                    #inherit_spans
-                    #inherits_mod_ident::#inherit_names
+                    #inherit_paths
                 )*
             }
         };
@@ -781,76 +749,90 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     #[cfg(not(debug_assertions))]
     let debug_reexport = TokenStream::default();
 
+    let errors_mod = ident!("__{}_stage0_errors_{}", ident, util::uuid());
+
+    let final_macro_ident = ident!("__{}_{}_final", ident, util::uuid());
+
     let r = quote! {
-        #errors
+        #wgt_cfg
+        mod #errors_mod {
+            #errors
+        }
 
         #mod_path_assert
 
-        #[allow(unused)]
-        mod #inherits_mod_ident {
-            #(#uses)*
-            #(#inherit_reexports)*
-        }
+        #wgt_cfg
+        #wgt_attrs
+        #vis mod #ident {
+            // inherit=> will include an `inherited { .. }` block with the widget data after the
+            // `inherit { .. }` block and take the next `inherit` path turn that into an `inherit=>` call.
+            // This way we "eager" expand the inherited data recursively, when there no more path to inherit
+            // a call to `widget_declare!` is made.
+            #stage_path {
+                #stage_extra
 
-        // inherit=> will include an `inherited { .. }` block with the widget data after the
-        // `inherit { .. }` block and take the next `inherit` path turn that into an `inherit=>` call.
-        // This way we "eager" expand the inherited data recursively, when there no more path to inherit
-        // a call to `widget_declare!` is made.
-        #stage_path {
-            #stage_extra
+                widget {
+                    module { #mod_path }
+                    ident { #ident }
+                    mixin { #mixin }
 
-            widget {
-                module { #mod_path }
-                attrs { #wgt_attrs }
-                cfg { #wgt_cfg }
-                vis { #vis }
-                ident { #ident }
-                mixin { #mixin }
-
-                properties_remove {
-                    #property_removes
-                }
-                properties_declared {
-                    #property_declared_idents
-                }
-
-                properties_child {
-                    #built_properties_child
-                }
-                properties {
-                    #built_properties
-                }
-                whens {
-                    #built_whens
-                }
-
-                new_child_declared { #new_child__ }
-                new_child { #(#new_child)* }
-                new_declared { #new__ }
-                new { #(#new)* }
-
-                mod_items {
-                    #(#uses)*
-                    #(#others)*
-                    #new_child_fn
-                    #new_fn
-
-                    #property_declarations
-
-                    #property_defaults
-
-                    #when_conditions
-                    #when_defaults
-
-                    #[doc(hidden)]
-                    pub mod __core {
-                        pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
+                    properties_remove {
+                        #property_removes
+                    }
+                    properties_declared {
+                        #property_declared_idents
                     }
 
-                    #disable_unused_warnings_for_inherits
+                    properties_child {
+                        #built_properties_child
+                    }
+                    properties {
+                        #built_properties
+                    }
+                    whens {
+                        #built_whens
+                    }
+
+                    new_child_declared { #new_child__ }
+                    new_child { #(#new_child)* }
+                    new_declared { #new__ }
+                    new { #(#new)* }
                 }
             }
+
+            #(#uses)*
+
+            // custom items
+            #(#others)*
+
+            #new_child_fn
+            #new_fn
+
+            #property_declarations
+
+            #property_defaults
+
+            #when_conditions
+            #when_defaults
+
+            #[doc(hidden)]
+            pub mod __core {
+                pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
+            }
         }
+
+        #wgt_cfg
+        #[doc(hidden)]
+        #[macro_export]
+        macro_rules! #final_macro_ident {
+            ($($tt:tt)*) => {
+                #mod_path::__widget_macro! { $($tt)* }
+            };
+        }
+
+        #wgt_cfg
+        #[doc(hidden)]
+        pub use #final_macro_ident as #ident;
     };
 
     r.into()

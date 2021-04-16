@@ -14,9 +14,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     //let enable_trace = widget.ident == "reset_wgt";
     let WidgetItem {
         module,
-        attrs,
-        cfg,
-        vis,
         ident,
         mixin,
         properties_remove,
@@ -28,7 +25,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         mut new_child,
         new_declared,
         mut new,
-        mod_items,
     } = widget;
     let properties_remove: HashSet<_> = properties_remove.into_iter().collect();
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
@@ -254,9 +250,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     errors.push(
                         format_args!(
                             "inherited widget `{}` requires property `{}` to be captured",
-                            inherited.inherit_span, ident
+                            inherited.inherit_use.segments.last().map(|s| &s.ident).unwrap(),
+                            ident
                         ),
-                        inherited.inherit_span.span(),
+                        util::path_span(&inherited.inherit_use),
                     );
                 } else if inherited_properties.remove(ident).is_some() {
                     // remove property
@@ -775,13 +772,12 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .unwrap_or_else(|_| non_user_error!("expected env var CARGO_PKG_NAME"))
         .replace("-", "_");
 
-    let macro_ident = ident!("{}_{}", ident, util::uuid());
     let inherit_macro = quote! {
         (
             inherit=>
             cfg { $(#[$cfg:meta])? }
             not_cfg { #[$not_cfg:meta] }
-            inherit_span { $inherit_span:ident }
+            inherit_use { $inherit_use:path }
             inherit { $(
                 $(#[$inh_cfg:meta])?
                 $inherit:path
@@ -797,7 +793,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     )*
                 }
                 inherited {
-                    inherit_span { $inherit_span }
+                    inherit_use { $inherit_use }
                     mixin { #mixin }
                     crate_name { #crate_name }
 
@@ -836,38 +832,34 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let auto_docs = auto_docs(docs_required, docs_default, docs_state, docs_other, docs_whens);
 
+    let macro_ident = ident!("__{}_{}", ident, util::uuid());
+
     let r = quote! {
+        #auto_docs
+        pub mod __inner_docs { }
+
         #errors
 
-        #attrs
-        #auto_docs
-        #cfg
-        #vis mod #ident {
-            #mod_items
+        #new_child_declared
+        #new_declared
 
-            #new_child_declared
-            #new_declared
+        #property_reexports
+        #when_reexports
 
-            #property_reexports
-            #when_reexports
+        #new_child_reexport
+        #new_reexport
 
-            #new_child_reexport
-            #new_reexport
+        #when_condition_default_props
 
-            #when_condition_default_props
-        }
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #macro_ident {
-            (reexport=> $as_ident:ident $(#[$cfg:meta])?) => {
-                $(#[$cfg])?
-                pub use #module as $as_ident;
-            };
             #inherit_macro
             #new_macro
         }
+
         #[doc(hidden)]
-        pub use #macro_ident as #ident;
+        pub use #macro_ident as __widget_macro;
     };
 
     r.into()
@@ -895,7 +887,6 @@ fn auto_docs(
     #[allow(unused)]
     use util::is_doc_hidden;
     let mut r = TokenStream::default();
-    doc_extend!(r, js_tag!("widget_full.js"));
 
     doc_extend!(r, "\n</div>");
 
@@ -1083,7 +1074,7 @@ impl Parse for Items {
 
 /// Inherited widget or mixin data.
 struct InheritedItem {
-    inherit_span: Ident,
+    inherit_use: syn::Path,
     mixin: bool,
     crate_name: String,
     module: TokenStream,
@@ -1096,7 +1087,7 @@ struct InheritedItem {
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(InheritedItem {
-            inherit_span: non_user_braced!(input, "inherit_span")
+            inherit_use: non_user_braced!(input, "inherit_use")
                 .parse()
                 .unwrap_or_else(|e| non_user_error!(e)),
             mixin: non_user_braced!(input, "mixin")
@@ -1120,9 +1111,6 @@ impl Parse for InheritedItem {
 /// New widget or mixin.
 struct WidgetItem {
     module: TokenStream,
-    attrs: TokenStream,
-    cfg: TokenStream,
-    vis: TokenStream,
     ident: Ident,
     mixin: bool,
 
@@ -1137,8 +1125,6 @@ struct WidgetItem {
     new_child: Vec<Ident>,
     new_declared: TokenStream,
     new: Vec<Ident>,
-
-    mod_items: TokenStream,
 }
 impl Parse for WidgetItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -1149,9 +1135,6 @@ impl Parse for WidgetItem {
         }
         Ok(WidgetItem {
             module: named_braces!("module").parse().unwrap(),
-            attrs: named_braces!("attrs").parse().unwrap(),
-            cfg: named_braces!("cfg").parse().unwrap(),
-            vis: named_braces!("vis").parse().unwrap(),
             ident: named_braces!("ident").parse().unwrap_or_else(|e| non_user_error!(e)),
             mixin: named_braces!("mixin")
                 .parse::<LitBool>()
@@ -1169,8 +1152,6 @@ impl Parse for WidgetItem {
             new_child: parse_all(&named_braces!("new_child")).unwrap_or_else(|e| non_user_error!(e)),
             new_declared: named_braces!("new_declared").parse().unwrap(),
             new: parse_all(&named_braces!("new")).unwrap_or_else(|e| non_user_error!(e)),
-
-            mod_items: named_braces!("mod_items").parse().unwrap(),
         })
     }
 }

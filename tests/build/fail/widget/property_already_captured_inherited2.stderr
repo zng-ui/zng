@@ -1,5 +1,16 @@
-error: property `id` already captured in inherited fn `new`
- --> $DIR/property_already_captured_inherited2.rs:9:18
-  |
-9 |     fn new_child(id: WidgetId) -> NilUiNode {
-  |                  ^^
+error[E0433]: failed to resolve: unresolved import
+  --> $DIR/property_already_captured_inherited2.rs:10:21
+   |
+10 |     inherit!(super::base_widget);
+   |                     ^^^^^^^^^^^ unresolved import
+
+error: cannot find attribute `wdiget` in this scope
+  --> $DIR/property_already_captured_inherited2.rs:3:3
+   |
+3  | #[wdiget($crate::base_widget)]
+   |   ^^^^^^ help: an attribute macro with a similar name exists: `widget`
+   |
+  ::: $WORKSPACE/zero-ui-proc-macros/src/lib.rs
+   |
+   | pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
+   | ------------------------------------------------------------------- similarly named attribute macro `widget` defined here
