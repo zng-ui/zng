@@ -243,7 +243,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     }
 
-    // remove properties that are no longer captured
+    // remove properties that are no longer captured.
     let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
     for inherited in inherits.iter() {
         for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
