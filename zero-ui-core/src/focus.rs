@@ -299,6 +299,12 @@ impl Default for TabIndex {
         TabIndex::AUTO
     }
 }
+impl_from_and_into_var! {
+    /// Calls [`TabIndex::not_skip`].
+    fn from(index: u32) -> TabIndex {
+        TabIndex::not_skip(index)
+    }
+}
 
 /// Tab navigation configuration of a focus scope.
 ///

@@ -254,7 +254,8 @@ pub fn two_continue_scopes_in_tab_cycle_window() {
 #[test]
 pub fn two_containers_in_tab_cycle_window() {
     // the containers are not focus scopes, but they naturally
-    // behave like one with TabNav::Continue.
+    // behave like one with TabNav::Continue, as long as the tab-indexes
+    // are linear or AUTO.
     two_continue_scopes_or_containers_in_tab_cycle_window(false);
 }
 fn two_continue_scopes_or_containers_in_tab_cycle_window(focus_scope: bool) {
@@ -322,6 +323,149 @@ fn two_continue_scopes_or_containers_in_tab_cycle_window(focus_scope: bool) {
     // then cycles again.
     app.press_shift_tab();
     assert_eq!(Some(ids_b[2]), app.focused());
+}
+
+#[test]
+pub fn two_continue_scopes_with_mixed_indexes() {
+    // the tab_index sequence goes back and forth, but
+    // because the containers are scopes they do each container
+    // at a time.
+    //
+    // we are testing that scopes contain their navigation here,
+    // and because scopes exclude their branch when navigating out
+    // it all works here. But you can break this by adding another
+    // scope or other widgets with weird tab indexes in the root scope,
+    // because the navigation goes back to the root momentarily, it can
+    // jump back to a higher priority index without visiting all indexes.
+    //
+    // TODO review if this is a problem to be solved, or we mixing indexes is a user error?
+
+    let buttons_a = widgets![
+        button! { content = text("Button 0"); tab_index = 0; },
+        button! { content = text("Button 2"); tab_index = 5; },
+        button! { content = text("Button 1"); tab_index = 3; },
+    ];
+    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+
+    let buttons_b = widgets![
+        button! { content = text("Button 3"); tab_index = 2; },
+        button! { content = text("Button 4"); tab_index = 4; },
+        button! { content = text("Button 5"); tab_index = 6; },
+    ];
+    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
+
+    let a = v_stack! {
+        items = buttons_a;
+        focus_scope = true;
+        tab_nav = TabNav::Continue;
+    };
+    let b = v_stack! {
+        items = buttons_b;
+        focus_scope = true;
+        tab_nav = TabNav::Continue;
+    };
+    let mut app = TestApp::new(h_stack(widgets![a, b]));
+
+    // window starts at (0), that is also inside `a`.
+    assert_eq!(Some(ids_a[0]), app.focused());
+
+    // goes to next index in the same scope (3), does not goes to (2)
+    app.press_tab();
+    assert_eq!(Some(ids_a[2]), app.focused());
+
+    // goes to next index in the same scope (5), again did not go to (4)
+    app.press_tab();
+    assert_eq!(Some(ids_a[1]), app.focused());
+
+    // goes to (2) in the `b` scope now.
+    app.press_tab();
+    assert_eq!(Some(ids_b[0]), app.focused());
+    // goes next to (4)
+    app.press_tab();
+    assert_eq!(Some(ids_b[1]), app.focused());
+    // goes next to (6)
+    app.press_tab();
+    assert_eq!(Some(ids_b[2]), app.focused());
+
+    // cycle back to (0)
+    app.press_tab();
+    assert_eq!(Some(ids_a[0]), app.focused());
+
+    // the same backwards.
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[0]), app.focused());
+}
+
+#[test]
+pub fn two_containers_with_mixed_indexes() {
+    // the tab-indexes go back and forth in the containers
+    // and because they are not each a scope the focus jumps
+    // from on container to another.
+
+    let buttons_a = widgets![
+        button! { content = text("Button 0"); tab_index = 0; },
+        button! { content = text("Button 2"); tab_index = 5; },
+        button! { content = text("Button 1"); tab_index = 3; },
+    ];
+    let ids_a: Vec<_> = (0..3).map(|i| buttons_a.widget_id(i)).collect();
+
+    let buttons_b = widgets![
+        button! { content = text("Button 3"); tab_index = 2; },
+        button! { content = text("Button 4"); tab_index = 4; },
+        button! { content = text("Button 5"); tab_index = 6; },
+    ];
+    let ids_b: Vec<_> = (0..3).map(|i| buttons_b.widget_id(i)).collect();
+
+    let a = v_stack(buttons_a);
+    let b = v_stack(buttons_b);
+    let mut app = TestApp::new(h_stack(widgets![a, b]));
+
+    // forward.
+
+    // starts at `0`
+    assert_eq!(Some(ids_a[0]), app.focused());
+    // goes to `2` in `b`
+    app.press_tab();
+    assert_eq!(Some(ids_b[0]), app.focused());
+    // goes to `3` back in `a`
+    app.press_tab();
+    assert_eq!(Some(ids_a[2]), app.focused());
+    // goes to `4` back in `b`
+    app.press_tab();
+    assert_eq!(Some(ids_b[1]), app.focused());
+    // goes to `5` back in `a`
+    app.press_tab();
+    assert_eq!(Some(ids_a[1]), app.focused());
+    // goes to `6` back in `b`
+    app.press_tab();
+    assert_eq!(Some(ids_b[2]), app.focused());
+    // cycle back to `0` in `a`
+    app.press_tab();
+    assert_eq!(Some(ids_a[0]), app.focused());
+
+    // backward.
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[1]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[2]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_b[0]), app.focused());
+    app.press_shift_tab();
+    assert_eq!(Some(ids_a[0]), app.focused());
 }
 
 #[test]
