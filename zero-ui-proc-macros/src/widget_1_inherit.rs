@@ -13,11 +13,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         let path = inherit.path;
         let cfg = inherit.cfg;
         let not_cfg = util::cfg_attr_not(cfg.clone());
+        let inherit_span = inherit.inherit_span;
         quote! {
             #path! {
                 inherit=>
                 cfg { #cfg }
                 not_cfg { #not_cfg }
+                inherit_span { #inherit_span }
                 inherit { #inherit_rest }
                 #rest
             }
@@ -78,6 +80,7 @@ impl Parse for Inherit {
 
 struct InheritItem {
     cfg: Option<syn::Attribute>,
+    inherit_span: Ident,
     path: Path,
 }
 impl Parse for InheritItem {
@@ -89,6 +92,7 @@ impl Parse for InheritItem {
         }
         Ok(InheritItem {
             cfg,
+            inherit_span: input.parse().unwrap_or_else(|e| non_user_error!(e)),
             path: input.parse().unwrap_or_else(|e| non_user_error!(e)),
         })
     }

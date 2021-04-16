@@ -247,11 +247,24 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let captured_properties: HashSet<_> = new_child.iter().chain(&new).collect();
     for inherited in inherits.iter() {
         for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
-            if !captured_properties.contains(ident) && inherited_properties.remove(ident).is_some() {
-                if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
-                    inherited_props_child.remove(i);
-                } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
-                    inherited_props.remove(i);
+            if !captured_properties.contains(ident) {
+                // if no longer captured
+                if inherited_required.contains(ident) {
+                    // but was explicitly marked required
+                    errors.push(
+                        format_args!(
+                            "inherited widget `{}` requires property `{}` to be captured",
+                            inherited.inherit_span, ident
+                        ),
+                        inherited.inherit_span.span(),
+                    );
+                } else if inherited_properties.remove(ident).is_some() {
+                    // remove property
+                    if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
+                        inherited_props_child.remove(i);
+                    } else if let Some(i) = inherited_props.iter().position(|p| &p.ident == ident) {
+                        inherited_props.remove(i);
+                    }
                 }
             }
         }
@@ -768,6 +781,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             inherit=>
             cfg { $(#[$cfg:meta])? }
             not_cfg { #[$not_cfg:meta] }
+            inherit_span { $inherit_span:ident }
             inherit { $(
                 $(#[$inh_cfg:meta])?
                 $inherit:path
@@ -783,6 +797,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     )*
                 }
                 inherited {
+                    inherit_span { $inherit_span }
                     mixin { #mixin }
                     crate_name { #crate_name }
 
@@ -1068,6 +1083,7 @@ impl Parse for Items {
 
 /// Inherited widget or mixin data.
 struct InheritedItem {
+    inherit_span: Ident,
     mixin: bool,
     crate_name: String,
     module: TokenStream,
@@ -1080,6 +1096,9 @@ struct InheritedItem {
 impl Parse for InheritedItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         Ok(InheritedItem {
+            inherit_span: non_user_braced!(input, "inherit_span")
+                .parse()
+                .unwrap_or_else(|e| non_user_error!(e)),
             mixin: non_user_braced!(input, "mixin")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))

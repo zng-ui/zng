@@ -700,7 +700,12 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         .collect();
     let mut cfgs = inherits.iter().map(|(c, _)| c);
     let paths = inherits.iter().map(|(_, p)| p);
-    let mut inherit_names = paths.clone().map(|p| ident!("__{}", util::display_path(p).replace("::", "_")));
+    let mut inherit_names = paths.clone().map(|p| {
+        (
+            ident!("__{}", util::display_path(p).replace("::", "_")),
+            &p.segments.last().unwrap().ident,
+        )
+    });
 
     // module that exports the inherited items
     let inherits_mod_ident = ident!("__{}_inherit_{}", ident, util::uuid());
@@ -708,7 +713,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         .clone()
         .zip(paths.clone())
         .zip(inherit_names.clone())
-        .map(|((cfg, path), name)| {
+        .map(|((cfg, path), (name, _))| {
             quote! {
                 #path! {
                     reexport=> #name #cfg
@@ -733,16 +738,20 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         } else {
             let cfg = cfgs.next().unwrap();
             let not_cfg = util::cfg_attr_not(cfg.clone());
-            let next_path = inherit_names.next().unwrap();
+            let (next_path, inherit_span) = inherit_names.next().unwrap();
+            let inherited_spans = inherit_names.clone().map(|(_, s)| s);
+            let other_paths = inherit_names.map(|(n, _)| n);
             stage_path = quote!(#inherits_mod_ident::#next_path!);
             stage_extra = quote! {
                 inherit=>
                 cfg { #cfg }
                 not_cfg { #not_cfg }
+                inherit_span { #inherit_span }
                 inherit {
                     #(
                         #cfgs
-                        #inherits_mod_ident::#inherit_names
+                        #inherited_spans
+                        #inherits_mod_ident::#other_paths
                     )*
                 }
             }
@@ -750,13 +759,17 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     } else {
         // not-mixins inherit from the implicit_mixin first so we call inherit=> for that:
         stage_path = quote!(#crate_core::widget_base::implicit_mixin!);
+        let inherit_spans = inherit_names.clone().map(|(_, s)| s);
+        let inherit_names = inherit_names.map(|(n, _)| n);
         stage_extra = quote! {
             inherit=>
             cfg { }
             not_cfg { #[cfg(zero_ui_never_set)] }
+            inherit_span { implicit_mixin }
             inherit {
                 #(
                     #cfgs
+                    #inherit_spans
                     #inherits_mod_ident::#inherit_names
                 )*
             }
