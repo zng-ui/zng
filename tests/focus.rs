@@ -6,7 +6,7 @@ use zero_ui::prelude::*;
 
 #[test]
 pub fn window_tab_cycle_index_auto() {
-    // default window! cycles TAB navigation
+    // default window! cycles TAB navigation.
     t(|_| TabIndex::AUTO);
     t(TabIndex);
     t(|i| TabIndex(TabIndex::AUTO.0 - i - 1));
@@ -29,7 +29,7 @@ pub fn window_tab_cycle_index_auto() {
 
         let mut app = TestApp::new(v_stack(buttons));
 
-        // advance normally..
+        // advance normally.
         assert_eq!(Some(ids[0]), app.focused());
         app.press_tab();
         assert_eq!(Some(ids[1]), app.focused());
@@ -57,74 +57,89 @@ pub fn window_tab_cycle_and_alt_scope() {
     // default window! with an ALT scope, TAB navigation cycles
     // by default in the ALT scope too.
 
-    let buttons = widgets![button! { content = text("Button 0") }, button! { content = text("Button 1") },];
-    let ids: Vec<_> = (0..2).map(|i| buttons.widget_id(i)).collect();
+    t(|_| TabIndex::AUTO);
+    t(TabIndex);
+    t(|i| TabIndex(TabIndex::AUTO.0 - i - 1));
 
-    let alt_buttons = widgets![
-        button! { content = text("Alt 0") },
-        button! { content = text("Alt 1") },
-        button! { content = text("Alt 2") },
-    ];
-    let alt_ids: Vec<_> = (0..3).map(|i| alt_buttons.widget_id(i)).collect();
+    fn t(make_index: impl FnMut(u32) -> TabIndex) {
+        let tab_ids: Vec<_> = (0..5).map(make_index).collect();
 
-    let mut app = TestApp::new(v_stack(widgets![
-        h_stack! {
-            alt_focus_scope = true;
-            items = alt_buttons;
-        },
-        v_stack(buttons)
-    ]));
+        let buttons = widgets![
+            button! { content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { content = text("Button 1"); tab_index = tab_ids[1] },
+        ];
+        let mut ids: Vec<_> = (0..2).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        ids.sort_by_key(|(_, ti)| *ti);
+        let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
-    // cycle in the window scope does not enter the ALT scope.
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[0]), app.focused());
-    // and back.
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
+        let alt_buttons = widgets![
+            button! { content = text("Alt 0"); tab_index = tab_ids[2] },
+            button! { content = text("Alt 1"); tab_index = tab_ids[3] },
+            button! { content = text("Alt 2"); tab_index = tab_ids[4] },
+        ];
+        let mut alt_ids: Vec<_> = (0..3).map(|i| (alt_buttons.widget_id(i), tab_ids[i + 2])).collect();
+        alt_ids.sort_by_key(|(_, ti)| *ti);
+        let alt_ids: Vec<_> = alt_ids.into_iter().map(|(id, _)| id).collect();
 
-    // make the "Button 1" be the return focus from the ALT scope.
-    app.press_tab();
-    assert_eq!(Some(ids[1]), app.focused());
+        let mut app = TestApp::new(v_stack(widgets![
+            h_stack! {
+                alt_focus_scope = true;
+                items = alt_buttons;
+            },
+            v_stack(buttons)
+        ]));
 
-    // goes to the ALT scope.
-    app.press_alt();
-    assert_eq!(Some(alt_ids[0]), app.focused());
+        // cycle in the window scope does not enter the ALT scope.
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+        // and back.
+        app.press_shift_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[0]), app.focused());
 
-    // cycle in the ALT scope.
-    app.press_tab();
-    assert_eq!(Some(alt_ids[1]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(alt_ids[2]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(alt_ids[0]), app.focused());
-    // and back.
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[2]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(alt_ids[0]), app.focused());
+        // make the "Button 1" be the return focus from the ALT scope.
+        app.press_tab();
+        assert_eq!(Some(ids[1]), app.focused());
 
-    // return to the window scope that focus on the "Button 1".
-    app.press_esc();
-    assert_eq!(Some(ids[1]), app.focused());
+        // goes to the ALT scope.
+        app.press_alt();
+        assert_eq!(Some(alt_ids[0]), app.focused());
 
-    // we are back to cycling the window scope.
-    app.press_tab();
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
+        // cycle in the ALT scope.
+        app.press_tab();
+        assert_eq!(Some(alt_ids[1]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(alt_ids[2]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(alt_ids[0]), app.focused());
+        // and back.
+        app.press_shift_tab();
+        assert_eq!(Some(alt_ids[2]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(alt_ids[1]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(alt_ids[0]), app.focused());
 
-    // also can return from ALT scope by pressing ALT again.
-    app.press_alt();
-    assert_eq!(Some(alt_ids[0]), app.focused());
-    app.press_alt();
-    assert_eq!(Some(ids[1]), app.focused());
+        // return to the window scope that focus on the "Button 1".
+        app.press_esc();
+        assert_eq!(Some(ids[1]), app.focused());
+
+        // we are back to cycling the window scope.
+        app.press_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+
+        // also can return from ALT scope by pressing ALT again.
+        app.press_alt();
+        assert_eq!(Some(alt_ids[0]), app.focused());
+        app.press_alt();
+        assert_eq!(Some(ids[1]), app.focused());
+    }
 }
 
 #[test]
@@ -140,35 +155,46 @@ pub fn window_tab_continue() {
     window_tab_contained_and_continue(TabNav::Continue);
 }
 fn window_tab_contained_and_continue(tab_nav: TabNav) {
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    t(tab_nav, |_| TabIndex::AUTO);
+    t(tab_nav, TabIndex);
+    t(tab_nav, |i| TabIndex(TabIndex::AUTO.0 - i - 1));
 
-    let mut app = TestApp::new_w(window! {
-        tab_nav;
-        content = v_stack(buttons);
-    });
+    fn t(tab_nav: TabNav, make_index: impl FnMut(u32) -> TabIndex) {
+        let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
-    // navigates normally forward.
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[2]), app.focused());
-    // but after reaching the end does not move.
-    app.press_tab();
-    assert_eq!(Some(ids[2]), app.focused());
+        let buttons = widgets![
+            button! { content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { content = text("Button 2"); tab_index = tab_ids[2] },
+        ];
+        // we collect the widget_id values in the TAB navigation order.
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        ids.sort_by_key(|(_, ti)| *ti);
+        let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
-    // same backwards.
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
+        let mut app = TestApp::new_w(window! {
+            tab_nav;
+            content = v_stack(buttons);
+        });
+
+        // navigates normally forward.
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[2]), app.focused());
+        // but after reaching the end does not move.
+        app.press_tab();
+        assert_eq!(Some(ids[2]), app.focused());
+
+        // same backwards.
+        app.press_shift_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+    }
 }
 
 #[test]
@@ -182,30 +208,41 @@ pub fn window_tab_none() {
     window_tab_once_and_none(TabNav::None);
 }
 fn window_tab_once_and_none(tab_nav: TabNav) {
-    let buttons = widgets![
-        button! { content = text("Button 0") },
-        button! { content = text("Button 1") },
-        button! { content = text("Button 2") },
-    ];
-    let ids: Vec<_> = (0..3).map(|i| buttons.widget_id(i)).collect();
+    t(tab_nav, |_| TabIndex::AUTO);
+    t(tab_nav, TabIndex);
+    t(tab_nav, |i| TabIndex(TabIndex::AUTO.0 - i - 1));
 
-    let mut app = TestApp::new_w(window! {
-        content = v_stack(buttons);
-        tab_nav;
-    });
+    fn t(tab_nav: TabNav, make_index: impl FnMut(u32) -> TabIndex) {
+        let tab_ids: Vec<_> = (0..3).map(make_index).collect();
 
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_tab();
-    assert_eq!(Some(ids[0]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[0]), app.focused());
+        let buttons = widgets![
+            button! { content = text("Button 0"); tab_index = tab_ids[0] },
+            button! { content = text("Button 1"); tab_index = tab_ids[1] },
+            button! { content = text("Button 2"); tab_index = tab_ids[2] },
+        ];
+        // we collect the widget_id values in the TAB navigation order.
+        let mut ids: Vec<_> = (0..3).map(|i| (buttons.widget_id(i), tab_ids[i])).collect();
+        ids.sort_by_key(|(_, ti)| *ti);
+        let ids: Vec<_> = ids.into_iter().map(|(id, _)| id).collect();
 
-    app.focus(ids[1]);
+        let mut app = TestApp::new_w(window! {
+            content = v_stack(buttons);
+            tab_nav;
+        });
 
-    app.press_tab();
-    assert_eq!(Some(ids[1]), app.focused());
-    app.press_shift_tab();
-    assert_eq!(Some(ids[1]), app.focused());
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[0]), app.focused());
+
+        app.focus(ids[1]);
+
+        app.press_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+        app.press_shift_tab();
+        assert_eq!(Some(ids[1]), app.focused());
+    }
 }
 
 #[test]
