@@ -1034,7 +1034,7 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
         );
 
         if property.docs.is_empty() {
-            doc_extend!(docs, "<script>default_help('{}')</script>", property.ident);
+            doc_extend!(docs, "<div class='default-help' data-ident='{}'></div>", property.ident);
         } else {
             docs.extend(property.docs);
         }

@@ -1,28 +1,6 @@
 // Script inserted in each widget module's full page after the user docs.
 // It changes the page to highlight the widget property aspects.
 
-function default_help(property) {
-    if (document.widget_property_fns === undefined) {
-        document.widget_property_fns = [];
-    }
-    document.widget_property_fns.push({
-        property: property,
-        target: document.currentScript.parentNode
-    });
-}
-
-function load_default_help() {
-    console.log('called');
-    // fullfill summary requests for properties without help.
-    if (document.widget_property_fns !== undefined && document.widget_property_summaries !== undefined) {
-        let parse = document.createElement('div');
-        document.widget_property_fns.forEach(function(request) {
-            parse.innerHTML = summaries['__p_' + request.property];
-            request.target.prepend(parse.firstChild);
-        });
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     // patch title
     document.querySelector('h1 span').childNodes[0].nodeValue = 'Widget Module ';
@@ -46,8 +24,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // remove __inner_docs
     let modules_h2 = document.querySelector('h2#modules.section-header');
-    modules_h2.nextSibling.remove();
-    modules_h2.remove();
+    modules_h2.nextElementSibling.querySelectorAll('tr').forEach(function(tr) {
+        let td = tr.querySelectorAll('td');
+        if (td[0].innerText.includes('__inner_docs')) {
+            tr.remove();
+        }
+    });
+    if (modules_h2.nextElementSibling.querySelector('tr') === null) {
+        modules_h2.nextElementSibling.remove();
+        modules_h2.remove();
+    }
 
     // the header script ends up in the sidebar tooltip, remove it here.
     // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
@@ -58,10 +44,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('message', function(a) {
     if (a.data.inner_docs !== undefined) {
+        // insert the docs
         let inner_docs = document.createElement("div");
         inner_docs.innerHTML = a.data.inner_docs;
         let frame = document.getElementById('inner-docs-frame');
         frame.parentElement.insertAdjacentElement('afterend', inner_docs);
         frame.remove();
+
+        // fix relative anchors
+        inner_docs.querySelectorAll('a').forEach(function(a) {
+            let href = a.getAttribute('href');
+            if (href.startsWith('../')) {
+                href = href.substr('../'.length);
+                a.setAttribute('href', href);
+            }
+        });
+
+        // fullfill summary requests for properties without help.
+        inner_docs.querySelectorAll('.default-help').forEach(function(div) {
+            let parse = document.createElement('div');
+            parse.innerHTML = document.widget_property_summaries['__p_' + div.getAttribute('data-ident')];
+            div.replaceWith(parse.childNodes[0])
+        });
     }
 });
