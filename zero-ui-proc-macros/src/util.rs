@@ -330,6 +330,11 @@ pub fn display_path(path: &syn::Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
 }
 
+/// Convert a [`TokenStream`] to a formatted [`String`].
+pub fn display_path_tt(path: &TokenStream) -> String {
+    path.to_string().replace(" ", "")
+}
+
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();

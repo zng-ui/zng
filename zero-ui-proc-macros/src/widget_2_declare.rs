@@ -37,6 +37,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut new_reexport = TokenStream::default();
     let mut new_child_is_default = false;
     let mut new_is_default = false;
+    let mut inherited_new_child_source = None;
+    let mut inherited_new_source = None;
     if !mixin {
         let last_not_mixin = inherits.iter().filter(|i| !i.mixin).last();
 
@@ -53,6 +55,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     pub use #source_mod::__new_child_debug;
                 });
                 new_child = source.new_child.clone();
+                inherited_new_child_source = Some(&source.module);
             } else {
                 // zero_ui::core::widget_base::default_widget_new_child()
                 new_child_reexport = quote! {
@@ -85,6 +88,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // we don't reexport __new_debug, it must always be redeclared
                 // with the metadata of the new widget.
                 new = source.new.clone();
+                inherited_new_source = Some(&source.module);
             } else {
                 // zero_ui::core::widget_base::default_widget_new(id)
                 new_reexport = quote! {
@@ -165,30 +169,74 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new_is_default = new_is_default;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
-    // [property_ident => (property_path, crate_name)]
+    // [property_ident => inherit]
     let mut inherited_properties = HashMap::new();
     let mut inherited_props_child = vec![];
     let mut inherited_props = vec![];
     for inherited in inherits.iter().rev() {
         for p_child in inherited.properties_child.iter().rev() {
-            if inherited_properties
-                .insert(&p_child.ident, (&inherited.module, &inherited.crate_name))
-                .is_none()
-            {
+            if inherited_properties.insert(&p_child.ident, inherited).is_none() {
                 inherited_props_child.push(p_child);
             }
         }
         for p in inherited.properties.iter().rev() {
-            if inherited_properties
-                .insert(&p.ident, (&inherited.module, &inherited.crate_name))
-                .is_none()
-            {
+            if inherited_properties.insert(&p.ident, inherited).is_none() {
                 inherited_props.push(p);
             }
         }
     }
     inherited_props_child.reverse();
     inherited_props.reverse();
+
+    /*if let Some(new_child_source) = inherited_new_child_source {
+        for property in &new_child {
+            if let Some(p) = inherited_properties.get(property) {
+                if !util::token_stream_eq(p.module.clone(), new_child_source.clone()) {
+                    errors.push(
+                        format_args!(
+                            "inherited property `{}` is captured in `{}`'s `new_child`, but is then overwritten in `{}`\n\
+                            a new `new_child` must be declared to resolve this conflict.",
+                            property,
+                            util::display_path_tt(new_child_source),
+                            util::display_path_tt(&p.module)
+                        ),
+                        util::last_span(p.module.clone()),
+                    )
+                }
+            }
+        }
+    }
+    if let Some(new_source) = inherited_new_source {
+        for property in &new {
+            if let Some(p) = inherited_properties.get(property) {
+                if !util::token_stream_eq(p.module.clone(), new_source.clone()) {
+                    errors.push(
+                        format_args!(
+                            "inherited property `{}` is captured in `{}`'s `new`, but is then overwritten in `{}`\n\
+                            a new `new` must be declared to resolve this conflict.",
+                            property,
+                            util::display_path_tt(new_source),
+                            util::display_path_tt(&p.module)
+                        ),
+                        util::last_span(p.module.clone()),
+                    )
+                }
+            }
+        }
+    } else if new_is_default {
+        if let Some(p) = inherited_properties.get(&new[0]) {
+            if !util::token_stream_eq(p.module.clone(), inherits[0].module.clone()) {
+                errors.push(
+                    format_args!(
+                        "inherited property `id` is captured in the default/implicit `new`, but is then overwritten in `{}`\n\
+                        a new `new` must be declared to resolve this conflict.",
+                        util::display_path_tt(&p.module)
+                    ),
+                    util::last_span(p.module.clone()),
+                )
+            }
+        }
+    }*/
 
     // inherited properties that are required.
     let inherited_required: HashSet<_> = inherited_props_child
@@ -328,8 +376,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             docs: docs.clone(),
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited_from_path: Some({
-                let &(p, c) = &inherited_properties[ident];
-                (p.clone(), c.clone())
+                let i = &inherited_properties[ident];
+                (i.module.clone(), i.crate_name.clone())
             }),
             has_default: *default,
         });
@@ -346,7 +394,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         });
 
         // generate re-export.
-        let path = inherited_properties[&ip.ident].0;
+        let path = &inherited_properties[&ip.ident].module;
         let p_ident = ident!("__p_{}", ip.ident);
         property_reexports.extend(quote! {
             #cfg
@@ -433,7 +481,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
         match p.kind() {
             PropertyItemKind::Ident => {
-                if let Some((inherited_source, _)) = inherited_properties.get(&p.ident) {
+                if let Some(inherited) = inherited_properties.get(&p.ident) {
+                    let inherited_source = &inherited.module;
                     // re-export inherited property.
                     property_reexports.extend(quote! {
                         #cfg
@@ -444,7 +493,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             }
             PropertyItemKind::AliasedIdent(maybe_inherited) => {
-                if let Some((inherited_source, _)) = inherited_properties.get(&maybe_inherited) {
+                if let Some(inherited) = inherited_properties.get(&maybe_inherited) {
+                    let inherited_source = &inherited.module;
                     // re-export inherited property as a new name.
                     let inherited_ident = ident!("__p_{}", maybe_inherited);
                     property_reexports.extend(quote! {
@@ -693,7 +743,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: inherited_properties.get(w_prop).map(|&(p, c)| (p.clone(), c.clone())),
+            inherited_from_path: inherited_properties.get(w_prop).map(|i| (i.module.clone(), i.crate_name.clone())),
             has_default: true,
         });
 
