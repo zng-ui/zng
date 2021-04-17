@@ -2,19 +2,16 @@
 // inner docs back yo the main page.
 
 function default_help(property) {
-    if (document.widget_property_fns === undefined) {
-        document.widget_property_fns = [];
-    }
-    document.widget_property_fns.push({
-        property: property,
-        target: document.currentScript.parentNode
-    });
+    // placeholder
+}
+
+function load_default_help() {
+    // placeholder
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     let message = {
-        docs: document.getElementById("inner-docs"),
-        default_requests: document.widget_property_fns
+        inner_docs: document.getElementById("inner-docs").innerHTML,
     };
     window.parent.postMessage(message, "*")
 })

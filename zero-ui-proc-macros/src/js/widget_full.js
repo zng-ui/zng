@@ -11,38 +11,57 @@ function default_help(property) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // patch title
-    document.querySelector("h1 span").childNodes[0].nodeValue = "Widget Module ";
-
-    // remove property functions __p_* and collect the summary of each.
-    let summaries = {};
-    let functions_h2 = document.querySelector('h2#functions.section-header');
-    functions_h2.nextElementSibling.querySelectorAll("tr").forEach(function(tr) {
-        let td = tr.querySelectorAll("td");
-        if (td[0].innerText.includes("__p_")) {
-            td[1].querySelector("script").remove();
-            summaries[td[0].innerText] = td[1].innerHTML;
-            tr.remove();
-        }
-    });
-    // remove functions section if it is empty.
-    if (functions_h2.nextElementSibling.querySelector("tr") === null) {
-        functions_h2.nextElementSibling.remove();
-        functions_h2.remove();
-    }
+function load_default_help() {
+    console.log('called');
     // fullfill summary requests for properties without help.
-    if (document.widget_property_fns !== undefined) {
-        let parse = document.createElement("div");
+    if (document.widget_property_fns !== undefined && document.widget_property_summaries !== undefined) {
+        let parse = document.createElement('div');
         document.widget_property_fns.forEach(function(request) {
             parse.innerHTML = summaries['__p_' + request.property];
             request.target.prepend(parse.firstChild);
         });
     }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // patch title
+    document.querySelector('h1 span').childNodes[0].nodeValue = 'Widget Module ';
+
+    // remove property functions __p_* and collect the summary of each.
+    document.widget_property_summaries = {};
+    let functions_h2 = document.querySelector('h2#functions.section-header');
+    functions_h2.nextElementSibling.querySelectorAll('tr').forEach(function(tr) {
+        let td = tr.querySelectorAll('td');
+        if (td[0].innerText.includes('__p_')) {
+            td[1].querySelector('script').remove();
+            document.widget_property_summaries[td[0].innerText] = td[1].innerHTML;
+            tr.remove();
+        }
+    });
+    // remove functions section if it is empty.
+    if (functions_h2.nextElementSibling.querySelector('tr') === null) {
+        functions_h2.nextElementSibling.remove();
+        functions_h2.remove();
+    }
+
+    // remove __inner_docs
+    let modules_h2 = document.querySelector('h2#modules.section-header');
+    modules_h2.nextSibling.remove();
+    modules_h2.remove();
 
     // the header script ends up in the sidebar tooltip, remove it here.
     // note, the bad tooltips still show from an item page we don't control (like a struct in the same mod).
     document.querySelectorAll('div.block.fn li a, div.block.mod li a').forEach(function(a) {
         a.title = a.title.replace(/var local=doc.*/, '');
     });
+});
+
+window.addEventListener('message', function(a) {
+    if (a.data.inner_docs !== undefined) {
+        let inner_docs = document.createElement("div");
+        inner_docs.innerHTML = a.data.inner_docs;
+        let frame = document.getElementById('inner-docs-frame');
+        frame.parentElement.insertAdjacentElement('afterend', inner_docs);
+        frame.remove();
+    }
 });
