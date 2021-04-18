@@ -606,7 +606,7 @@ pub mod core {
     /// and [`new`](#fn-new).
     ///
     /// After expansion the only visible change to the module is in the documentation appended, the module is still usable
-    /// as a namespace for any item you witch to add.
+    /// as a namespace for any item you wish to add.
     ///
     /// ```
     /// # fn main() { }

@@ -377,7 +377,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             doc_hidden: util::is_doc_hidden_tt(docs.clone()),
             inherited_from_path: Some({
                 let i = &inherited_properties[ident];
-                (i.module.clone(), i.crate_name.clone())
+                i.inherit_use.clone()
             }),
             has_default: *default,
         });
@@ -743,7 +743,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ident: w_prop_str,
             docs: TokenStream::default(),
             doc_hidden: false,
-            inherited_from_path: inherited_properties.get(w_prop).map(|i| (i.module.clone(), i.crate_name.clone())),
+            inherited_from_path: inherited_properties.get(w_prop).map(|i| i.inherit_use.clone()),
             has_default: true,
         });
 
@@ -818,10 +818,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let crate_name = std::env::var("CARGO_PKG_NAME")
-        .unwrap_or_else(|_| non_user_error!("expected env var CARGO_PKG_NAME"))
-        .replace("-", "_");
-
     let inherit_macro = quote! {
         (
             inherit=>
@@ -845,7 +841,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 inherited {
                     inherit_use { $inherit_use }
                     mixin { #mixin }
-                    crate_name { #crate_name }
 
                     #built_data
                 }
@@ -918,7 +913,7 @@ struct PropertyDocs {
     ident: String,
     docs: TokenStream,
     doc_hidden: bool,
-    inherited_from_path: Option<(TokenStream, String)>,
+    inherited_from_path: Option<syn::Path>,
     has_default: bool,
 }
 struct WhenDocs {
@@ -1039,8 +1034,8 @@ fn docs_section(docs: &mut TokenStream, properties: Vec<PropertyDocs>, title: &'
             docs.extend(property.docs);
         }
 
-        if let Some((widget_path, crate_name)) = property.inherited_from_path {
-            let widget_path = widget_path.to_string().replace(" ", "").replace("$crate", &crate_name);
+        if let Some(widget_path) = property.inherited_from_path {
+            let widget_path = util::display_path(&widget_path);
             let widget_name = if let Some(i) = widget_path.rfind(':') {
                 &widget_path[i + 1..]
             } else {
@@ -1126,7 +1121,6 @@ impl Parse for Items {
 struct InheritedItem {
     inherit_use: syn::Path,
     mixin: bool,
-    crate_name: String,
     module: TokenStream,
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
@@ -1144,10 +1138,6 @@ impl Parse for InheritedItem {
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,
-            crate_name: non_user_braced!(input, "crate_name")
-                .parse::<LitStr>()
-                .unwrap_or_else(|e| non_user_error!(e))
-                .value(),
             module: non_user_braced!(input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(input, "properties")).unwrap_or_else(|e| non_user_error!(e)),

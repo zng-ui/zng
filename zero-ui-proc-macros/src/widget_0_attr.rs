@@ -55,12 +55,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     wgt_attrs.extend(quote! { #(#lints)* });
 
     util::docs_with_first_line_js(&mut wgt_attrs, &docs, js_tag!("widget_header.js"));
-    doc_extend!(wgt_attrs, "\n\n");
+    wgt_attrs.extend(quote! {
+        ///
+        ///
+    });
     doc_extend!(wgt_attrs, js_tag!("widget_full.js"));
-    doc_extend!(
-        wgt_attrs,
-        "<iframe id='inner-docs-frame' src='__inner_docs/index.html' style='position: absolute;width:0;height:0;border:0;'></iframe>"
-    );
+    wgt_attrs.extend(quote! {
+        /// <iframe id='inner-docs-frame' src='__inner_docs/index.html' style='position: absolute;width:0;height:0;border:0;'></iframe>
+    });
     let wgt_attrs = wgt_attrs;
 
     // a `$crate` path to the widget module.
