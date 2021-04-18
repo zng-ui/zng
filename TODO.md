@@ -8,6 +8,7 @@ Things that must be done first because they influence the core API design that i
 * Change capture-only in widget declaration to need type tokens in a tt group, improve validation after doing this.
 * Custom default property values, `#[property(context, default <see macro_design.rs>)]`.
 * Test `#[cfg(..)]` support in widget declarations.
+* Use something like this [https://docs.rs/crate/xss-probe/0.2.0/source/build.rs] to patch docs.
 * Link property declaration to their source-code point.
 * FIX: Reexported properties in widgets become the target of intra-doc links in some cases.
   - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
