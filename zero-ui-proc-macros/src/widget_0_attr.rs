@@ -770,6 +770,26 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         #wgt_cfg
         #wgt_attrs
         #vis mod #ident {
+            // use items
+            #(#uses)*
+
+            // custom items
+            #(#others)*
+
+            #new_child_fn
+            #new_fn
+
+            #property_declarations
+            #property_defaults
+
+            #when_conditions
+            #when_defaults
+
+            #[doc(hidden)]
+            pub mod __core {
+                pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
+            }
+
             // inherit=> will include an `inherited { .. }` block with the widget data after the
             // `inherit { .. }` block and take the next `inherit` path turn that into an `inherit=>` call.
             // This way we "eager" expand the inherited data recursively, when there no more path to inherit
@@ -804,26 +824,6 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     new_declared { #new__ }
                     new { #(#new)* }
                 }
-            }
-
-            #(#uses)*
-
-            // custom items
-            #(#others)*
-
-            #new_child_fn
-            #new_fn
-
-            #property_declarations
-
-            #property_defaults
-
-            #when_conditions
-            #when_defaults
-
-            #[doc(hidden)]
-            pub mod __core {
-                pub use #crate_core::{widget_inherit, widget_new, var, #debug_reexport};
             }
         }
 
