@@ -2111,12 +2111,12 @@ mod renderer {
             #[cfg(target_os = "linux")]
             let context = {
                 use glutin::platform::unix::HeadlessContextExt;
-                match context.build_surfaceless(&el) {
+                match context.clone().build_surfaceless(&el) {
                     Ok(ctx) => {
                         renderer_kind = RendererKind::Native;
                         ctx
                     }
-                    Err(suf_e) => match context.build_headless(&el, size_one) {
+                    Err(suf_e) => match context.clone().build_headless(&el, size_one) {
                         Ok(ctx) => {
                             renderer_kind = RendererKind::Native;
                             ctx
@@ -2126,7 +2126,7 @@ mod renderer {
                                 renderer_kind = RendererKind::OSMesa;
                                 ctx
                             }
-                            Err(osm_e) => return Err(RendererError::CreationLinux()),
+                            Err(osm_e) => return Err(RendererError::CreationHeadlessLinux([suf_e, hea_e, osm_e])),
                         },
                     },
                 }
