@@ -1202,6 +1202,71 @@ pub fn when_property_member_indexed_method() {
     assert!(util::traced(&wgt, "true"));
 }
 
+/*
+* Inherit override
+*/
+#[widget($crate::tests::widget::override_test_base_a)]
+pub mod override_test_base_a {
+    use crate::{NilUiNode, UiNode, WidgetId, Widget};
+    use super::util::trace;
+
+    properties! {
+        trace = "base_a::property";
+    }
+
+    fn new_child() -> impl UiNode {
+        trace(NilUiNode, "base_a::new_child")
+    }
+
+    fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
+        let child = trace(child, "base_a::new");
+        crate::widget_base::default_widget_new(child, id)
+    }
+}
+#[widget($crate::tests::widget::override_test_base_b)]
+pub mod override_test_base_b {
+    use crate::{NilUiNode, UiNode, WidgetId, Widget};
+    use super::util::trace;
+
+    properties! {
+        trace = "base_b::property";
+    }
+
+    fn new_child() -> impl UiNode {
+        trace(NilUiNode, "base_b::new_child")
+    }
+
+    fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
+        let child = trace(child, "base_b::new");
+        crate::widget_base::default_widget_new(child, id)
+    }
+}
+#[widget($crate::tests::widget::override_test1)]
+pub mod override_test1 {
+    inherit!(super::override_test_base_a);
+    inherit!(super::override_test_base_b);
+}
+#[test]
+pub fn test_override1() {
+    let mut wgt = override_test1!();
+ 
+     let mut ctx = TestWidgetContext::wait_new();
+     wgt.test_init(&mut ctx);
+     assert!(util::traced(&wgt, "base_b::new"));
+     assert!(util::traced(&wgt, "base_b::new_child"));
+     assert!(util::traced(&wgt, "base_b::property"));
+
+     assert!(!util::traced(&wgt, "base_a::new"));
+     assert!(!util::traced(&wgt, "base_a::new_child"));
+     assert!(!util::traced(&wgt, "base_a::property"));
+
+}
+#[widget($crate::tests::widget::override_test1)]
+pub mod override_test2 {
+    inherit!(super::override_test_base_a);
+    inherit!(super::override_test_base_b);
+}
+
 mod util {
     use std::{
         collections::{HashMap, HashSet},

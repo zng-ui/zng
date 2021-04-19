@@ -1089,9 +1089,8 @@ pub mod core {
     ///
     /// ## Override
     ///
-    /// Subsequent inherits override properties and functions with the same name as previously inherited, properties
-    /// and functions declared in the new widget override inherited items independent of the order the declaration appears
-    /// in the source-code.
+    /// Subsequent inherits override properties and functions with the same name as previously inherited. Properties
+    /// and functions declared in the new widget override inherited items.
     ///
     /// ```
     /// # fn main() { }
