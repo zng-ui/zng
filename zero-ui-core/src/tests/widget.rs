@@ -1205,10 +1205,10 @@ pub fn when_property_member_indexed_method() {
 /*
 * Inherit override
 */
-#[widget($crate::tests::widget::override_test_base_a)]
-pub mod override_test_base_a {
-    use crate::{NilUiNode, UiNode, WidgetId, Widget};
+#[widget($crate::tests::widget::inherit_override_base_a)]
+pub mod inherit_override_base_a {
     use super::util::trace;
+    use crate::{NilUiNode, UiNode, Widget, WidgetId};
 
     properties! {
         trace = "base_a::property";
@@ -1223,10 +1223,10 @@ pub mod override_test_base_a {
         crate::widget_base::default_widget_new(child, id)
     }
 }
-#[widget($crate::tests::widget::override_test_base_b)]
-pub mod override_test_base_b {
-    use crate::{NilUiNode, UiNode, WidgetId, Widget};
+#[widget($crate::tests::widget::inherit_override_base_b)]
+pub mod inherit_override_base_b {
     use super::util::trace;
+    use crate::{NilUiNode, UiNode, Widget, WidgetId};
 
     properties! {
         trace = "base_b::property";
@@ -1241,30 +1241,40 @@ pub mod override_test_base_b {
         crate::widget_base::default_widget_new(child, id)
     }
 }
-#[widget($crate::tests::widget::override_test1)]
-pub mod override_test1 {
-    inherit!(super::override_test_base_a);
-    inherit!(super::override_test_base_b);
+#[widget($crate::tests::widget::inherit_override_wgt1)]
+pub mod inherit_override_wgt1 {
+    inherit!(super::inherit_override_base_a);
+    inherit!(super::inherit_override_base_b);
+}
+#[widget($crate::tests::widget::inherit_override_wgt2)]
+pub mod inherit_override_wgt2 {
+    inherit!(super::inherit_override_base_b);
+    inherit!(super::inherit_override_base_a);
 }
 #[test]
-pub fn test_override1() {
-    let mut wgt = override_test1!();
- 
-     let mut ctx = TestWidgetContext::wait_new();
-     wgt.test_init(&mut ctx);
-     assert!(util::traced(&wgt, "base_b::new"));
-     assert!(util::traced(&wgt, "base_b::new_child"));
-     assert!(util::traced(&wgt, "base_b::property"));
+pub fn inherit_override() {
+    let mut wgt = inherit_override_wgt1!();
 
-     assert!(!util::traced(&wgt, "base_a::new"));
-     assert!(!util::traced(&wgt, "base_a::new_child"));
-     assert!(!util::traced(&wgt, "base_a::property"));
+    let mut ctx = TestWidgetContext::wait_new();
+    wgt.test_init(&mut ctx);
+    assert!(util::traced(&wgt, "base_b::new"));
+    assert!(util::traced(&wgt, "base_b::new_child"));
+    assert!(util::traced(&wgt, "base_b::property"));
 
-}
-#[widget($crate::tests::widget::override_test1)]
-pub mod override_test2 {
-    inherit!(super::override_test_base_a);
-    inherit!(super::override_test_base_b);
+    assert!(!util::traced(&wgt, "base_a::new"));
+    assert!(!util::traced(&wgt, "base_a::new_child"));
+    assert!(!util::traced(&wgt, "base_a::property"));
+
+    let mut wgt = inherit_override_wgt2!();
+
+    wgt.test_init(&mut ctx);
+    assert!(!util::traced(&wgt, "base_b::new"));
+    assert!(!util::traced(&wgt, "base_b::new_child"));
+    assert!(!util::traced(&wgt, "base_b::property"));
+
+    assert!(util::traced(&wgt, "base_a::new"));
+    assert!(util::traced(&wgt, "base_a::new_child"));
+    assert!(util::traced(&wgt, "base_a::property"));
 }
 
 mod util {

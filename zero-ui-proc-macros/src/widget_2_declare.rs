@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use proc_macro2::TokenStream;
 use regex::Regex;
-use syn::{parse::Parse, Ident, LitBool, LitStr};
+use syn::{parse::Parse, Ident, LitBool};
 
 use crate::{
     util::{self, parse_all, Errors},
@@ -40,7 +40,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut inherited_new_child_source = None;
     let mut inherited_new_source = None;
     if !mixin {
-        let last_not_mixin = inherits.iter().filter(|i| !i.mixin).last();
+        let last_not_mixin = inherits.iter().find(|i| !i.mixin);
 
         if new_child_declared.is_empty() {
             if let Some(source) = last_not_mixin {
