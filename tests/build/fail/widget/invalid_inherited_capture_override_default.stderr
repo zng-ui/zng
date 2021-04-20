@@ -1,0 +1,6 @@
+error: inherited property `id` is captured in the default/implicit `new`, but is then overwritten in `super::base2_mixin`
+a new `new` must be declared to resolve this conflict.
+  --> $DIR/invalid_inherited_capture_override_default.rs:15:21
+   |
+15 |     inherit!(super::base2_mixin);
+   |                     ^^^^^^^^^^^
