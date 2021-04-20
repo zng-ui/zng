@@ -888,6 +888,17 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let macro_ident = ident!("__{}_{}", ident, util::uuid());
 
+    let export_macro = if errors.is_empty() {
+        quote! {
+            #[doc(hidden)]
+            pub use #macro_ident as __widget_macro;
+        }
+    } else {
+        // in case there is an attempt to instantiate a widget
+        // that is not compiling.
+        TokenStream::new()
+    };
+
     let r = quote! {
         #auto_docs
         pub mod __inner_docs { }
@@ -911,9 +922,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             #inherit_macro
             #new_macro
         }
-
-        #[doc(hidden)]
-        pub use #macro_ident as __widget_macro;
+        #export_macro
     };
 
     r.into()
