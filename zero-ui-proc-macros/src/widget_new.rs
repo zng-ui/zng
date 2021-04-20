@@ -817,6 +817,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #(#cap_user_set,)*
                 captured_new_child__,
                 when_infos__,
+                #module::__decl_location(),
                 #module::__core::source_location!()
             )
         }

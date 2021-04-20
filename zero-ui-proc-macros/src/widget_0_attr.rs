@@ -267,7 +267,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 }
             });
             let assigned_flags: Vec<_> = new.iter().enumerate().map(|(i, id)| ident!("__{}_{}_user_set", i, id)).collect();
-            let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+
             let wgt_name = ident.to_string();
             r.extend(quote! {
                 #[doc(hidden)]
@@ -278,6 +278,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     #(#assigned_flags: bool,)*
                      __new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
                      __whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                     __decl_location: #crate_core::debug::SourceLocation,
                      __instance_location: #crate_core::debug::SourceLocation,
                 ) #output {
                     let __child = #crate_core::UiNode::boxed(__child);
@@ -287,7 +288,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     let __child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
                         __child,
                         #wgt_name,
-                        #decl_location,
+                        __decl_location,
                         __instance_location,
                         __new_child_captures,
                         __new_captures,
@@ -300,6 +301,20 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         r
     });
+
+    #[cfg(debug_assertions)]
+    let debug_info = {
+        let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+        quote! {
+            #[doc(hidden)]
+            pub fn __decl_location() -> #crate_core::debug::SourceLocation {
+                #decl_location
+            }
+        }
+    };
+    #[cfg(not(debug_assertions))]
+    let debug_info = TokenStream::new();
+
     // captured property existence validation happens "widget_2_declare.rs"
 
     // process properties
@@ -775,6 +790,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
             // custom items
             #(#others)*
+
+            #debug_info
 
             #new_child_fn
             #new_fn

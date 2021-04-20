@@ -85,51 +85,14 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     #[doc(hidden)]
                     pub use #source_mod::__new;
                 };
-                // we don't reexport __new_debug, it must always be redeclared
-                // with the metadata of the new widget.
+                #[cfg(debug_assertions)]
+                new_child_reexport.extend(quote! {
+                    #[doc(hidden)]
+                    pub use #source_mod::__new_debug;
+                });
+
                 new = source.new.clone();
                 inherited_new_source = Some(source);
-                let new_output = quote!(TODO);
-
-                #[cfg(debug_assertions)]
-                {
-                    let wgt_name = ident.to_string();
-                    let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
-                    let new_p: Vec<_> = new.iter().map(|p| ident!("__p_{}", p)).collect();
-                    let new_user_set: Vec<_> = new.iter().map(|p| ident!("{}_user_set", p)).collect();
-                    let new_s = new.iter().map(|p| p.to_string());
-                    new_reexport.extend(quote! {
-                        #[doc(hidden)]
-                        #[inline]
-                        pub fn __new_debug(
-                            child: impl #crate_core::UiNode,
-                            #(#new: impl self::#new_p::Args, #new_user_set: bool,)*
-                            new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
-                            whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                            instance_location: #crate_core::debug::SourceLocation,
-                        ) -> #new_output {
-                            let child = #crate_core::UiNode::boxed(child);
-                            let new_captures = std::vec![
-                                #(
-                                    self::#new_p::captured_debug(
-                                        &#new, #new_s,
-                                         #crate_core::debug::source_location!(), #new_user_set
-                                    )
-                                )*
-                            ];
-                            let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
-                                child,
-                                #wgt_name,
-                                #decl_location,
-                                instance_location,
-                                new_child_captures,
-                                new_captures,
-                                whens,
-                            );
-                            self::__new(child, #(#new),*)
-                        }
-                    });
-                }
             } else {
                 // zero_ui::core::widget_base::default_widget_new(id)
                 new_reexport = quote! {
@@ -145,7 +108,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 #[cfg(debug_assertions)]
                 {
                     let wgt_name = ident.to_string();
-                    let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+
                     new_reexport.extend(quote! {
                         #[doc(hidden)]
                         #[inline]
@@ -155,6 +118,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             id_user_set: bool,
                             new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
                             whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                            decl_location: #crate_core::debug::SourceLocation,
                             instance_location: #crate_core::debug::SourceLocation,
                         ) -> impl #crate_core::Widget {
                             let child = #crate_core::UiNode::boxed(child);
@@ -167,7 +131,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
                                 child,
                                 #wgt_name,
-                                #decl_location,
+                                decl_location,
                                 instance_location,
                                 new_child_captures,
                                 new_captures,

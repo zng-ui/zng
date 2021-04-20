@@ -1,0 +1,13 @@
+error: inherited property `foo` is captured in `super::base1_widget`'s `new_child`, but is then overwritten in `super::base2_mixin`
+a new `new_child` must be declared to resolve this conflict.
+  --> $DIR/invalid_inherited_capture_override.rs:35:21
+   |
+35 |     inherit!(super::base2_mixin);
+   |                     ^^^^^^^^^^^
+
+error: inherited property `bar` is captured in `super::base1_widget`'s `new`, but is then overwritten in `super::base2_mixin`
+a new `new` must be declared to resolve this conflict.
+  --> $DIR/invalid_inherited_capture_override.rs:35:21
+   |
+35 |     inherit!(super::base2_mixin);
+   |                     ^^^^^^^^^^^
