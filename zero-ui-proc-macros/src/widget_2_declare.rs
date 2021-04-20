@@ -868,7 +868,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
     };
     let new_macro = if mixin {
-        TokenStream::default()
+        quote! {
+            ($($invalid:tt)*) => {
+                std::compile_error!{"cannot instantiate widget mix-ins"}
+            };
+        }
     } else {
         quote! {
             ($($tt:tt)*) => {
