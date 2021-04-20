@@ -330,11 +330,6 @@ pub fn display_path(path: &syn::Path) -> String {
     path.to_token_stream().to_string().replace(" ", "")
 }
 
-/// Convert a [`TokenStream`] to a formatted [`String`].
-pub fn display_path_tt(path: &TokenStream) -> String {
-    path.to_string().replace(" ", "")
-}
-
 /// Generate a [`String`] that is a valid [`Ident`] from an arbitrary [`TokenStream`].
 pub fn tokens_to_ident_str(tokens: &TokenStream) -> String {
     let tokens = tokens.to_string();
@@ -822,9 +817,11 @@ pub mod debug_trace {
 
     static ENABLED: AtomicBool = AtomicBool::new(false);
 
-    pub fn enable() {
-        ENABLED.store(true, Ordering::SeqCst);
-        eprintln!("zero-ui-proc-macros::debug_trace enabled");
+    pub fn enable(enable: bool) {
+        let prev = ENABLED.swap(enable, Ordering::SeqCst);
+        if prev != enable {
+            eprintln!("zero-ui-proc-macros::debug_trace {}", if enable { "enabled" } else { "disabled" });
+        }
     }
 
     pub fn display(msg: impl std::fmt::Display) {
@@ -838,12 +835,10 @@ pub mod debug_trace {
 #[cfg(debug_assertions)]
 macro_rules! enable_trace {
     () => {
-        $crate::util::debug_trace::enable();
+        $crate::util::debug_trace::enable(true);
     };
     (if $bool_expr:expr) => {
-        if $bool_expr {
-            $crate::util::debug_trace::enable();
-        }
+        $crate::util::debug_trace::enable($bool_expr);
     };
 }
 #[allow(unused)]

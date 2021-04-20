@@ -1,40 +1,38 @@
-use zero_ui::core::widget;
+use zero_ui::core::{widget, widget_mixin};
 
 #[widget($crate::base1_widget)]
 pub mod base1_widget {
-    use zero_ui::core::{var::IntoVar, NilUiNode};
+    use zero_ui::core::{var::IntoVar, NilUiNode, UiNode};
 
     properties! {
-        margin: impl IntoVar<bool>;
+        foo: impl IntoVar<bool>;
+        bar: impl IntoVar<bool>;
     }
 
-    fn new_child(margin: impl IntoVar<bool>) -> NilUiNode {
-        let _ = margin;
+    fn new_child(foo: impl IntoVar<bool>) -> NilUiNode {
+        let _ = foo;
         NilUiNode
+    }
+
+    fn new(child: impl UiNode, bar: impl IntoVar<bool>) {
+        let _ = (child, bar);
     }
 }
 
-#[widget($crate::base2_widget)]
-pub mod base2_widget {
+#[widget_mixin($crate::base2_mixin)]
+pub mod base2_mixin {
     use zero_ui::properties::margin;
 
     properties! {
-        margin = 10;
+        margin as foo = 10;
+        margin as bar = 20;
     }
 }
 
 #[widget($crate::test_widget)]
 pub mod test_widget {
     inherit!(super::base1_widget);
-    inherit!(super::base2_widget);
+    inherit!(super::base2_mixin);
 }
 
-fn main() {
-    let _ = test_widget!();
-    let _ = test_widget! {
-        margin = true;
-    };
-    let _ = test_widget! {
-        margin = 20;
-    };
-}
+fn main() {}

@@ -55,7 +55,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     pub use #source_mod::__new_child_debug;
                 });
                 new_child = source.new_child.clone();
-                inherited_new_child_source = Some(&source.module);
+                inherited_new_child_source = Some(source);
             } else {
                 // zero_ui::core::widget_base::default_widget_new_child()
                 new_child_reexport = quote! {
@@ -88,7 +88,48 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 // we don't reexport __new_debug, it must always be redeclared
                 // with the metadata of the new widget.
                 new = source.new.clone();
-                inherited_new_source = Some(&source.module);
+                inherited_new_source = Some(source);
+                let new_output = quote!(TODO);
+
+                #[cfg(debug_assertions)]
+                {
+                    let wgt_name = ident.to_string();
+                    let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+                    let new_p: Vec<_> = new.iter().map(|p| ident!("__p_{}", p)).collect();
+                    let new_user_set: Vec<_> = new.iter().map(|p| ident!("{}_user_set", p)).collect();
+                    let new_s = new.iter().map(|p| p.to_string());
+                    new_reexport.extend(quote! {
+                        #[doc(hidden)]
+                        #[inline]
+                        pub fn __new_debug(
+                            child: impl #crate_core::UiNode,
+                            #(#new: impl self::#new_p::Args, #new_user_set: bool,)*
+                            new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                            whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                            instance_location: #crate_core::debug::SourceLocation,
+                        ) -> #new_output {
+                            let child = #crate_core::UiNode::boxed(child);
+                            let new_captures = std::vec![
+                                #(
+                                    self::#new_p::captured_debug(
+                                        &#new, #new_s,
+                                         #crate_core::debug::source_location!(), #new_user_set
+                                    )
+                                )*
+                            ];
+                            let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                                child,
+                                #wgt_name,
+                                #decl_location,
+                                instance_location,
+                                new_child_captures,
+                                new_captures,
+                                whens,
+                            );
+                            self::__new(child, #(#new),*)
+                        }
+                    });
+                }
             } else {
                 // zero_ui::core::widget_base::default_widget_new(id)
                 new_reexport = quote! {
@@ -100,42 +141,42 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
                 new = vec![ident!("id")];
                 new_is_default = true;
-            }
 
-            #[cfg(debug_assertions)]
-            {
-                let wgt_name = ident.to_string();
-                let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
-                new_reexport.extend(quote! {
-                    #[doc(hidden)]
-                    #[inline]
-                    pub fn __new_debug(
-                        child: impl #crate_core::UiNode,
-                        id: impl self::__p_id::Args,
-                        id_user_set: bool,
-                        new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
-                        whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                        instance_location: #crate_core::debug::SourceLocation,
-                    ) -> impl #crate_core::Widget {
-                        let child = #crate_core::UiNode::boxed(child);
-                        let new_captures = std::vec![
-                            self::__p_id::captured_debug(
-                                &id, "id",
-                                 #crate_core::debug::source_location!(), id_user_set
-                            )
-                        ];
-                        let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
-                            child,
-                            #wgt_name,
-                            #decl_location,
-                            instance_location,
-                            new_child_captures,
-                            new_captures,
-                            whens,
-                        );
-                        self::__new(child, id)
-                    }
-                });
+                #[cfg(debug_assertions)]
+                {
+                    let wgt_name = ident.to_string();
+                    let decl_location = quote_spanned!(ident.span()=> #crate_core::debug::source_location!());
+                    new_reexport.extend(quote! {
+                        #[doc(hidden)]
+                        #[inline]
+                        pub fn __new_debug(
+                            child: impl #crate_core::UiNode,
+                            id: impl self::__p_id::Args,
+                            id_user_set: bool,
+                            new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
+                            whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
+                            instance_location: #crate_core::debug::SourceLocation,
+                        ) -> impl #crate_core::Widget {
+                            let child = #crate_core::UiNode::boxed(child);
+                            let new_captures = std::vec![
+                                self::__p_id::captured_debug(
+                                    &id, "id",
+                                     #crate_core::debug::source_location!(), id_user_set
+                                )
+                            ];
+                            let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
+                                child,
+                                #wgt_name,
+                                #decl_location,
+                                instance_location,
+                                new_child_captures,
+                                new_captures,
+                                whens,
+                            );
+                            self::__new(child, id)
+                        }
+                    });
+                }
             }
         }
 
@@ -188,19 +229,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     inherited_props_child.reverse();
     inherited_props.reverse();
 
-    /*if let Some(new_child_source) = inherited_new_child_source {
+    if let Some(new_child_source) = inherited_new_child_source {
         for property in &new_child {
             if let Some(p) = inherited_properties.get(property) {
-                if !util::token_stream_eq(p.module.clone(), new_child_source.clone()) {
+                if new_child_source.inherit_use != p.inherit_use {
                     errors.push(
                         format_args!(
                             "inherited property `{}` is captured in `{}`'s `new_child`, but is then overwritten in `{}`\n\
                             a new `new_child` must be declared to resolve this conflict.",
                             property,
-                            util::display_path_tt(new_child_source),
-                            util::display_path_tt(&p.module)
+                            util::display_path(&new_child_source.inherit_use),
+                            util::display_path(&p.inherit_use)
                         ),
-                        util::last_span(p.module.clone()),
+                        util::path_span(&p.inherit_use),
                     )
                 }
             }
@@ -208,35 +249,39 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     if let Some(new_source) = inherited_new_source {
         for property in &new {
-            if let Some(p) = inherited_properties.get(property) {
-                if !util::token_stream_eq(p.module.clone(), new_source.clone()) {
+            if let Some(p) = inherited_properties.get_mut(property) {
+                if new_source.inherit_use != p.inherit_use {
                     errors.push(
                         format_args!(
                             "inherited property `{}` is captured in `{}`'s `new`, but is then overwritten in `{}`\n\
                             a new `new` must be declared to resolve this conflict.",
                             property,
-                            util::display_path_tt(new_source),
-                            util::display_path_tt(&p.module)
+                            util::display_path(&new_source.inherit_use),
+                            util::display_path(&p.inherit_use)
                         ),
-                        util::last_span(p.module.clone()),
-                    )
+                        util::path_span(&p.inherit_use),
+                    );
+                    *p = new_source;
                 }
             }
         }
     } else if new_is_default {
-        if let Some(p) = inherited_properties.get(&new[0]) {
-            if !util::token_stream_eq(p.module.clone(), inherits[0].module.clone()) {
+        if let Some(p) = inherited_properties.get_mut(&new[0]) {
+            debug_assert!(!mixin);
+            let implicit_mixin = &inherits[inherits.len() - 1];
+            if p.inherit_use != implicit_mixin.inherit_use {
                 errors.push(
                     format_args!(
                         "inherited property `id` is captured in the default/implicit `new`, but is then overwritten in `{}`\n\
                         a new `new` must be declared to resolve this conflict.",
-                        util::display_path_tt(&p.module)
+                        util::display_path(&p.inherit_use)
                     ),
-                    util::last_span(p.module.clone()),
-                )
+                    util::path_span(&p.inherit_use),
+                );
+                *p = implicit_mixin;
             }
         }
-    }*/
+    }
 
     // inherited properties that are required.
     let inherited_required: HashSet<_> = inherited_props_child
