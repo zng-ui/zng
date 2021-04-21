@@ -968,9 +968,9 @@ impl Parse for UserInput {
         let input = non_user_braced!(input, "user");
 
         let call_site = non_user_braced!(&input, "call_site")
-            .parse::<Token![.]>()
-            .unwrap_or_else(|e| non_user_error!(e))
-            .span;
+            .parse::<proc_macro2::TokenTree>()
+            .unwrap()
+            .span();
 
         let mut errors = Errors::default();
         let mut properties = vec![];
