@@ -16,7 +16,7 @@ app_profiler = ["serde_json", "lazy_static"]
 #
 # USAGE:
 #
-# For zero-ui-core maintainers, use `#[cfg(pub_test)]` in the helper types and places where
+# For zero-ui-core maintainers, use `#[cfg(feature="pub_test")]` in the helper types and places where
 # the types are used. Use `do` to run integration tests.
 #
 # For external dependents, build with this feature to use the test helper types that show
@@ -67,6 +67,3 @@ lazy_static = { version = "1", optional = true }
 
 [dev-dependencies]
 serial_test = "0.5.1"
-
-[build-dependencies]
-cfg_aliases = "0.1.1"

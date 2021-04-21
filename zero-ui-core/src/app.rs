@@ -590,7 +590,7 @@ impl<E: AppExtension> AppExtended<E> {
     /// [`TestWidgetContext`] are running.
     #[inline]
     pub fn run_headless(self) -> HeadlessApp {
-        #[cfg(pub_test)]
+        #[cfg(any(test, doc, feature = "pub_test"))]
         let lock = TestContextLock::wait_new();
 
         #[cfg(feature = "app_profiler")]
@@ -617,7 +617,7 @@ impl<E: AppExtension> AppExtended<E> {
 
             #[cfg(feature = "app_profiler")]
             _pf: profile_scope,
-            #[cfg(pub_test)]
+            #[cfg(any(test, doc, feature = "pub_test"))]
             _lock: lock,
         }
     }
@@ -645,7 +645,7 @@ pub struct HeadlessApp {
     control_flow: ControlFlow,
     #[cfg(feature = "app_profiler")]
     _pf: ProfileScope,
-    #[cfg(pub_test)]
+    #[cfg(any(test, doc, feature = "pub_test"))]
     _lock: TestContextLock,
 }
 impl HeadlessApp {

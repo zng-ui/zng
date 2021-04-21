@@ -921,9 +921,9 @@ impl<'a> WindowContext<'a> {
     }
 }
 
-#[cfg(pub_test)]
+#[cfg(any(test, doc, feature = "pub_test"))]
 pub(crate) struct TestContextLock(std::sync::MutexGuard<'static, ()>);
-#[cfg(pub_test)]
+#[cfg(any(test, doc, feature = "pub_test"))]
 impl TestContextLock {
     pub(crate) fn wait_new() -> Self {
         static TEST_CONTEXT_LOCK: once_cell::sync::Lazy<std::sync::Mutex<()>> = once_cell::sync::Lazy::new(|| std::sync::Mutex::new(()));
@@ -935,7 +935,7 @@ impl TestContextLock {
     }
 }
 
-/// <span class="stab portability" title="This is supported on `pub_test` only"><code>pub_test</code></span> A mock [`WidgetContext`] for testing widgets.
+/// <span class="stab portability" title="This is supported on `any(test, doc, feature="pub_test")` only"><code>any(test, doc, feature="pub_test")</code></span> A mock [`WidgetContext`] for testing widgets.
 ///
 /// Only a single instance of this type can exist at a time, see [`Self::wait_new`] for details.
 ///
@@ -944,8 +944,8 @@ impl TestContextLock {
 ///
 /// # Conditional Compilation
 ///
-/// This is only compiled with the `pub_test` feature enabled.
-#[cfg(pub_test)]
+/// This is only compiled with the `any(test, doc, feature="pub_test")` feature enabled.
+#[cfg(any(test, doc, feature = "pub_test"))]
 pub struct TestWidgetContext {
     /// Id of the pretend window that owns the pretend root widget.
     ///
@@ -1007,7 +1007,7 @@ pub struct TestWidgetContext {
 
     _lock: TestContextLock,
 }
-#[cfg(pub_test)]
+#[cfg(any(test, doc, feature = "pub_test"))]
 impl TestWidgetContext {
     /// Gets a new [`TestWidgetContext`] instance. If another instance is alive in another thread
     /// **blocks until the other instance is dropped**.
