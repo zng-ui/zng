@@ -5,10 +5,10 @@ error: cannot unset required property `foo`
    |               ^^^^^
 
 error: missing required property `foo`
-  --> $DIR/cannot_unset_required2.rs:4:9
+  --> $DIR/cannot_unset_required2.rs:3:1
    |
-4  |   pub mod test_widget {
-   |           ^^^^^^^^^^^
+3  |   #[widget($crate::test_widget)]
+   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
 19 |       let _ = test_widget! {
    |  _____________-

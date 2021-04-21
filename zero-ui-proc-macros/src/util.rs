@@ -93,7 +93,7 @@ macro_rules! doc_extend {
         {
             let doc_comment = $str;
             for line in doc_comment.lines() {
-                $tokens.extend(quote!(#[doc=#line]));
+                $tokens.extend(quote_spanned!(proc_macro2::Span::call_site()=> #[doc=#line]));
             }
         }
     };
@@ -101,7 +101,7 @@ macro_rules! doc_extend {
         {
             let doc_comment = format!($($tt)*);
             for line in doc_comment.lines() {
-                $tokens.extend(quote!(#[doc=#line]));
+                $tokens.extend(quote_spanned!(proc_macro2::Span::call_site()=> #[doc=#line]));
             }
         }
     }

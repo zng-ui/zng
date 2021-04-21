@@ -822,6 +822,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                 #stage_extra
 
                 widget {
+                    call_site
                     module { #mod_path }
                     ident { #ident }
                     mixin { #mixin }
@@ -855,9 +856,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
         #[doc(hidden)]
         #[macro_export]
         macro_rules! #final_macro_ident {
-            ($($tt:tt)*) => {
-                #mod_path::__widget_macro! { $($tt)* }
-            };
+            (inherit=> $($tt:tt)*) => { #mod_path::__widget_macro! { inherit=> $($tt)* } };
+            ($($tt:tt)*) => { #mod_path::__widget_macro! { call_site { . } $($tt)* } };
         }
 
         #wgt_cfg

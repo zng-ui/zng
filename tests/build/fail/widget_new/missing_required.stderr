@@ -1,8 +1,8 @@
 error: missing required property `foo`
-  --> $DIR/missing_required.rs:10:9
+  --> $DIR/missing_required.rs:9:1
    |
-10 |   pub mod test_widget {
-   |           ^^^^^^^^^^^
+9  |   #[widget($crate::test_widget)]
+   |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
 18 |       let _ = test_widget! {
    |  _____________-

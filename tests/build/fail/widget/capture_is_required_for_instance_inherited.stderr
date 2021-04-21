@@ -1,8 +1,8 @@
 error: missing required property `foo`
-  --> $DIR/capture_is_required_for_instance_inherited.rs:18:9
+  --> $DIR/capture_is_required_for_instance_inherited.rs:17:1
    |
-18 | pub mod test_widget {
-   |         ^^^^^^^^^^^
+17 | #[widget($crate::test_widget)]
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ...
 23 |     let _ = test_widget!();
    |             -------------- in this macro invocation

@@ -39,6 +39,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     };
 
     let call_site = user_input.call_site;
+
     macro_rules! quote {
         ($($tt:tt)*) => {
             quote::quote_spanned! {call_site=>
@@ -964,8 +965,12 @@ struct UserInput {
 }
 impl Parse for UserInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let call_site = input.span();
         let input = non_user_braced!(input, "user");
+
+        let call_site = non_user_braced!(&input, "call_site")
+            .parse::<Token![.]>()
+            .unwrap_or_else(|e| non_user_error!(e))
+            .span;
 
         let mut errors = Errors::default();
         let mut properties = vec![];

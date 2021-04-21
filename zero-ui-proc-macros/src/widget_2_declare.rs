@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use regex::Regex;
 use syn::{parse::Parse, Ident, LitBool};
 
@@ -9,10 +9,28 @@ use crate::{
     widget_new::{BuiltProperty, BuiltWhen, BuiltWhenAssign},
 };
 
+#[allow(unused_macros)]
+macro_rules! quote {
+    ($($tt:tt)*) => {
+        compile_error!("don't use Span::call_site() in this file");
+
+        // we don't use [`Span::call_site()`] here because some of the inherited data
+        // span gets mixed with the call_site.
+    };
+}
+#[allow(unused_macros)]
+macro_rules! ident {
+    ($($tt:tt)*) => {
+        compile_error!("don't use Span::call_site() in this file");
+        // see quote! above
+    };
+}
+
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Items { inherits, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
     //let enable_trace = widget.ident == "reset_wgt";
     let WidgetItem {
+        call_site,
         module,
         ident,
         mixin,
@@ -26,6 +44,22 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         new_declared,
         mut new,
     } = widget;
+
+    macro_rules! quote {
+        ($($tt:tt)*) => {
+            quote::quote_spanned! {call_site.span=>
+                $($tt)*
+            }
+        }
+    }
+    macro_rules! ident {
+        ($($tt:tt)*) => {
+            ident_spanned! {call_site.span=>
+                $($tt)*
+            }
+        }
+    }
+
     let properties_remove: HashSet<_> = properties_remove.into_iter().collect();
     let properties_declared: HashSet<_> = properties_declared.into_iter().collect();
 
@@ -889,13 +923,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
     };
     let new_macro = if mixin {
-        quote_spanned! {ident.span()=>
+        quote! {
             ($($invalid:tt)*) => {
                 std::compile_error!{"cannot instantiate widget mix-ins"}
             };
         }
     } else {
-        quote_spanned! {ident.span()=>
+        quote! {
             ($($tt:tt)*) => {
                 #module::__core::widget_new! {
                     widget {
@@ -953,6 +987,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     r.into()
 }
+
 struct PropertyDocs {
     ident: String,
     docs: TokenStream,
@@ -1003,7 +1038,7 @@ fn auto_docs(
 
     other.push(PropertyDocs {
         ident: "*".to_owned(),
-        docs: quote! {
+        docs: quote_spanned! {Span::call_site()=>
             /// Widgets are open ended, all property functions can be used in any widget.
         },
         doc_hidden: false,
@@ -1194,6 +1229,7 @@ impl Parse for InheritedItem {
 
 /// New widget or mixin.
 struct WidgetItem {
+    call_site: keyword::call_site,
     module: TokenStream,
     ident: Ident,
     mixin: bool,
@@ -1218,6 +1254,7 @@ impl Parse for WidgetItem {
             };
         }
         Ok(WidgetItem {
+            call_site: input.parse::<keyword::call_site>().unwrap_or_else(|e| non_user_error!(e)),
             module: named_braces!("module").parse().unwrap(),
             ident: named_braces!("ident").parse().unwrap_or_else(|e| non_user_error!(e)),
             mixin: named_braces!("mixin")
@@ -1303,4 +1340,5 @@ pub enum PropertyItemKind {
 mod keyword {
     syn::custom_keyword!(inherited);
     syn::custom_keyword!(widget);
+    syn::custom_keyword!(call_site);
 }
