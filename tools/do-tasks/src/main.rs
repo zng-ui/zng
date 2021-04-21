@@ -131,7 +131,7 @@ fn test(mut args: Vec<&str>) {
 
         if fails.is_empty() && passes.is_empty() {
             // all build tests.
-            cmd("cargo", &build_tests_args, &args);
+            cmd_env("cargo", &build_tests_args, &args, &[("TRYBUILD", overwrite)]);
             return;
         }
 
@@ -144,7 +144,11 @@ fn test(mut args: Vec<&str>) {
                     "cargo",
                     &args,
                     &[],
-                    &[("DO_TASKS_TEST_BUILD", test_name), ("DO_TASKS_TEST_BUILD_MODE", "pass")],
+                    &[
+                        ("DO_TASKS_TEST_BUILD", test_name),
+                        ("DO_TASKS_TEST_BUILD_MODE", "pass"),
+                        ("TRYBUILD", overwrite),
+                    ],
                 );
             }
         }
