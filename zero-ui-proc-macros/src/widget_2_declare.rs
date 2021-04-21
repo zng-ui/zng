@@ -301,7 +301,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for inherited in inherits.iter() {
         for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
             if !captured_properties.contains(ident) {
-                println!("{} up for removal", ident);
                 // if no longer captured
                 if inherited_required.contains(ident) {
                     println!("{} cannot remove", ident);
