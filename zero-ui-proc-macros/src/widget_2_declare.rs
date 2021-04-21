@@ -303,7 +303,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             if !captured_properties.contains(ident) {
                 // if no longer captured
                 if inherited_required.contains(ident) {
-                    println!("{} cannot remove", ident);
                     // but was explicitly marked required
                     errors.push(
                         format_args!(
@@ -314,7 +313,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         util::path_span(&inherited.inherit_use),
                     );
                 } else if inherited_properties.remove(ident).is_some() {
-                    println!("{} removed", ident);
                     // remove property
                     if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
                         inherited_props_child.remove(i);
@@ -891,13 +889,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         };
     };
     let new_macro = if mixin {
-        quote! {
+        quote_spanned! {ident.span()=>
             ($($invalid:tt)*) => {
                 std::compile_error!{"cannot instantiate widget mix-ins"}
             };
         }
     } else {
-        quote! {
+        quote_spanned! {ident.span()=>
             ($($tt:tt)*) => {
                 #module::__core::widget_new! {
                     widget {

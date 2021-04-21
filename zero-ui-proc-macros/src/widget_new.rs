@@ -38,7 +38,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         Err(e) => non_user_error!(e),
     };
 
-    let call_site = widget_data.call_site;
+    let call_site = user_input.call_site;
     macro_rules! quote {
         ($($tt:tt)*) => {
             quote::quote_spanned! {call_site=>
@@ -856,7 +856,6 @@ impl Parse for Input {
 }
 
 struct WidgetData {
-    call_site: Span,
     module: TokenStream,
     properties_child: Vec<BuiltProperty>,
     properties: Vec<BuiltProperty>,
@@ -866,10 +865,8 @@ struct WidgetData {
 }
 impl Parse for WidgetData {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let call_site = input.span();
         let input = non_user_braced!(input, "widget");
         let r = Ok(Self {
-            call_site,
             module: non_user_braced!(&input, "module").parse().unwrap(),
             properties_child: parse_all(&non_user_braced!(&input, "properties_child")).unwrap_or_else(|e| non_user_error!(e)),
             properties: parse_all(&non_user_braced!(&input, "properties")).unwrap_or_else(|e| non_user_error!(e)),
@@ -960,12 +957,14 @@ impl Parse for BuiltWhenAssign {
 
 /// The content of the widget macro call.
 struct UserInput {
+    call_site: Span,
     errors: Errors,
     properties: Vec<PropertyAssign>,
     whens: Vec<When>,
 }
 impl Parse for UserInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let call_site = input.span();
         let input = non_user_braced!(input, "user");
 
         let mut errors = Errors::default();
@@ -1009,7 +1008,12 @@ impl Parse for UserInput {
             let _ = input.parse::<TokenStream>();
         }
 
-        Ok(UserInput { errors, properties, whens })
+        Ok(UserInput {
+            call_site,
+            errors,
+            properties,
+            whens,
+        })
     }
 }
 

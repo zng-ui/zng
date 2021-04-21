@@ -1,11 +1,14 @@
 error: missing required property `foo`
-  --> $DIR/property_captured_required1.rs:29:17
+  --> $DIR/property_captured_required1.rs:4:9
    |
+4  |   pub mod base_widget {
+   |           ^^^^^^^^^^^
+...
 29 |       let _base = base_widget! {
-   |  _________________^
+   |  _________________-
 30 | |         // expected missing required property error
 31 | |     };
-   | |_____^
+   | |_____- in this macro invocation
    |
    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)
 

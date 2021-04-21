@@ -5,12 +5,15 @@ error: cannot unset required property `foo`
    |               ^^^^^
 
 error: missing required property `foo`
-  --> $DIR/cannot_unset_required2.rs:19:13
+  --> $DIR/cannot_unset_required2.rs:4:9
    |
+4  |   pub mod test_widget {
+   |           ^^^^^^^^^^^
+...
 19 |       let _ = test_widget! {
-   |  _____________^
+   |  _____________-
 20 | |         foo = unset!;
 21 | |     };
-   | |_____^
+   | |_____- in this macro invocation
    |
    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

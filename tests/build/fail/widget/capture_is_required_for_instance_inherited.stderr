@@ -1,10 +1,10 @@
 error: missing required property `foo`
-  --> $DIR/capture_is_required_for_instance.rs:4:9
+  --> $DIR/capture_is_required_for_instance_inherited.rs:18:9
    |
-4  | pub mod test_widget {
+18 | pub mod test_widget {
    |         ^^^^^^^^^^^
 ...
-19 |     let _ = test_widget!();
+23 |     let _ = test_widget!();
    |             -------------- in this macro invocation
    |
    = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,8 +1,8 @@
 error: cannot instantiate widget mix-ins
- --> $DIR/cannot_instantiate_widget_mixin.rs:3:1
+ --> $DIR/cannot_instantiate_widget_mixin.rs:4:9
   |
-3 | #[widget_mixin($crate::test_mixin)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+4 | pub mod test_mixin {}
+  |         ^^^^^^^^^^
 ...
 7 |     let _ = test_mixin!();
   |             ------------- in this macro invocation
