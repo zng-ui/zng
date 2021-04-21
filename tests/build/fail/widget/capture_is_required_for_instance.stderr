@@ -1,0 +1,7 @@
+error: missing required property `foo`
+  --> $DIR/capture_is_required_for_instance.rs:19:13
+   |
+19 |     let _ = test_widget!();
+   |             ^^^^^^^^^^^^^^
+   |
+   = note: this error originates in a macro (in Nightly builds, run with -Z macro-backtrace for more info)

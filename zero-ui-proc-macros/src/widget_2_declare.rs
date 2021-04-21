@@ -301,8 +301,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     for inherited in inherits.iter() {
         for ident in inherited.new.iter().chain(inherited.new_child.iter()) {
             if !captured_properties.contains(ident) {
+                println!("{} up for removal", ident);
                 // if no longer captured
                 if inherited_required.contains(ident) {
+                    println!("{} cannot remove", ident);
                     // but was explicitly marked required
                     errors.push(
                         format_args!(
@@ -313,6 +315,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         util::path_span(&inherited.inherit_use),
                     );
                 } else if inherited_properties.remove(ident).is_some() {
+                    println!("{} removed", ident);
                     // remove property
                     if let Some(i) = inherited_props_child.iter().position(|p| &p.ident == ident) {
                         inherited_props_child.remove(i);
@@ -657,6 +660,27 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let new_child_declared = validate_captures(new_child_declared, &new_child);
     let new_declared = validate_captures(new_declared, &new);
 
+    // assert that properties not captured are not capture-only.
+    let mut assert_not_captures = TokenStream::new();
+    if !mixin {
+        for p in properties_child.iter().chain(properties.iter()) {
+            if new_child.contains(&p.ident) || new.contains(&p.ident) {
+                continue;
+            }
+
+            let msg = format!("property `{}` is capture-only, but is not captured by the widget", p.ident);
+            let p_mod = ident!("__p_{}", p.ident);
+            let cfg = &p.cfg;
+            assert_not_captures.extend(quote_spanned!(p.ident.span()=>
+                #cfg
+                self::#p_mod::code_gen! {
+                    if capture_only=> std::compile_error!{#msg}
+                }
+            ));
+        }
+    }
+    let assert_not_captures = assert_not_captures;
+
     // widget properties introduced first by use in when blocks, we validate for default value.
     // map of [property_without_value => combined_cfg_for_default_init]
     let mut wgt_when_properties: HashMap<Ident, Option<TokenStream>> = HashMap::new();
@@ -908,6 +932,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         pub mod __inner_docs { }
 
         #errors
+        #assert_not_captures
 
         #new_child_declared
         #new_declared

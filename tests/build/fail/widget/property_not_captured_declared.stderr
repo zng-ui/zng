@@ -1,5 +1,5 @@
 error: property `foo` is declared in widget, but is not captured by the widget
- --> $DIR/declared_property_not_captured.rs:8:9
+ --> $DIR/property_not_captured_declared.rs:8:9
   |
 8 |         foo: impl IntoVar<bool>;
   |         ^^^

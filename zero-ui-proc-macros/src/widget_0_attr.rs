@@ -402,6 +402,8 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             continue;
         }
 
+        let mut skip = false;
+
         // declare new capture properties.
         if let Some((_, new_type)) = &property.type_ {
             if !mixin && !captures.contains(p_ident) {
@@ -410,6 +412,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
                     p_ident.span(),
                 );
+                skip = true;
             }
 
             let p_mod_ident = ident!("__p_{}", p_ident);
@@ -464,6 +467,10 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     });
                 }
             }
+        }
+
+        if skip {
+            continue;
         }
 
         let docs = attrs.docs;
