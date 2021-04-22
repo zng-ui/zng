@@ -1,0 +1,5 @@
+error: cannot inherit from `super::base2_wgt` because is already inheriting from `super::base1_wgt`, can only inherit from a single full widget
+  --> $DIR/cannot_inherit_from_two_widgets.rs:12:21
+   |
+12 |     inherit!(super::base2_wgt); // error
+   |                     ^^^^^^^^^

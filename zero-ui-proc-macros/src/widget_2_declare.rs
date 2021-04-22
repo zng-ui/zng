@@ -93,11 +93,11 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 if let Some(parent) = found_parent {
                     errors.push(
                         format_args!(
-                            "cannot inherit from `{}` because is already inheriting from `{}`\n   can only inherit from a single full widget",
+                            "cannot inherit from `{}` because is already inheriting from `{}`, can only inherit from a single full widget",
                             util::display_path(&inherit.inherit_use),
                             util::display_path(&parent.inherit_use)
                         ),
-                        util::path_span(&parent.inherit_use),
+                        util::path_span(&inherit.inherit_use),
                     );
                     invalid_inherits = true;
                 } else {
