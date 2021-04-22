@@ -418,7 +418,7 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
                 );
                 skip = true;
             }
-            if !captures.contains(p_ident) {
+            else if !captures.contains(p_ident) {
                 // new capture properties must be captured by new *new* functions.
                 errors.push(
                     format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
