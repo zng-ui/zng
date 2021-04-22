@@ -306,8 +306,8 @@ pub trait IntoVar<T: VarValue>: Clone {
 
     #[doc(hidden)]
     #[allow(non_snake_case)]
-    fn allowed_in_when_property_requires_IntoVar_members(self) -> Self::Var {
-        self.into_var()
+    fn allowed_in_when_property_requires_IntoVar_members(&self) -> Self::Var {
+        self.clone().into_var()
     }
 }
 

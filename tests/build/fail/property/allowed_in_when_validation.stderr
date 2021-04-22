@@ -1,8 +1,64 @@
 error[E0283]: type annotations needed
- --> $DIR/allowed_in_when_validation.rs:5:43
+ --> $DIR/allowed_in_when_validation.rs:5:44
   |
-5 | pub fn invalid(child: impl UiNode, value: bool) -> impl UiNode {
-  |                                           ^^^^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
+5 | pub fn invalid1(child: impl UiNode, value: bool) -> impl UiNode {
+  |                                            ^^^^ cannot infer type for type parameter `T` declared on the trait `IntoVar`
   |
   = note: cannot satisfy `_: VarValue`
   = note: required by `allowed_in_when_property_requires_IntoVar_members`
+
+error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
+  --> $DIR/allowed_in_when_validation.rs:12:44
+   |
+12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+   |                                            ^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   |
+   = note: required by `allowed_in_when_property_requires_IntoVar_members`
+
+error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement `Debug`
+  --> $DIR/allowed_in_when_validation.rs:12:44
+   |
+12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+   |                                            ^^^^ `<impl invalid2_Args as invalid2_Args>::T_value` cannot be formatted using `{:?}` because it doesn't implement `Debug`
+   |
+   = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required because of the requirements on the impl of `IntoVar<<impl invalid2_Args as invalid2_Args>::T_value>` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required by `allowed_in_when_property_requires_IntoVar_members`
+
+error[E0277]: the trait bound `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>: UiNode` is not satisfied
+  --> $DIR/allowed_in_when_validation.rs:12:44
+   |
+11 | #[property(context)] // error because no allowed_in_when = false
+   | -------------------- required by `invalid2_ArgsImpl::<T_value>::new`
+12 | pub fn invalid2(child: impl UiNode, value: impl UiNode) -> impl UiNode {
+   |                                            ^^^^ the trait `UiNode` is not implemented for `OwnedVar<<impl invalid2_Args as invalid2_Args>::T_value>`
+
+error[E0277]: the trait bound `<impl invalid2_Args as invalid2_Args>::T_value: Clone` is not satisfied
+  --> $DIR/allowed_in_when_validation.rs:11:1
+   |
+11 | #[property(context)] // error because no allowed_in_when = false
+   | ^^^^^^^^^^^^^^^^^^^^ the trait `Clone` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   |
+  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
+   |
+   | pub struct OwnedVar<T: VarValue>(pub T);
+   |                        -------- required by this bound in `OwnedVar`
+   |
+   = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: `<impl invalid2_Args as invalid2_Args>::T_value` doesn't implement `Debug`
+  --> $DIR/allowed_in_when_validation.rs:11:1
+   |
+11 | #[property(context)] // error because no allowed_in_when = false
+   | ^^^^^^^^^^^^^^^^^^^^ `<impl invalid2_Args as invalid2_Args>::T_value` cannot be formatted using `{:?}` because it doesn't implement `Debug`
+   |
+  ::: $WORKSPACE/zero-ui-core/src/var/owned_var.rs
+   |
+   | pub struct OwnedVar<T: VarValue>(pub T);
+   |                        -------- required by this bound in `OwnedVar`
+   |
+   = help: the trait `Debug` is not implemented for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: required because of the requirements on the impl of `VarValue` for `<impl invalid2_Args as invalid2_Args>::T_value`
+   = note: this error originates in an attribute macro (in Nightly builds, run with -Z macro-backtrace for more info)

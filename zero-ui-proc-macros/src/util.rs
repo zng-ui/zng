@@ -799,8 +799,16 @@ impl ErrorRecoverable for syn::Error {
 pub fn set_span(token_stream: &mut TokenStream, span: Span) {
     let mut r = TokenStream::default();
     for mut tt in token_stream.clone() {
-        tt.set_span(span);
-        tt.to_tokens(&mut r);
+        if let TokenTree::Group(g) = tt {
+            let mut inner = g.stream();
+            set_span(&mut inner, span);
+            let mut g = proc_macro2::Group::new(g.delimiter(), inner);
+            g.set_span(span);
+            g.to_tokens(&mut r);
+        } else {
+            tt.set_span(span);
+            tt.to_tokens(&mut r);
+        }
     }
     *token_stream = r;
 }

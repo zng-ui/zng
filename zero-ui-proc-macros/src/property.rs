@@ -1063,14 +1063,15 @@ mod output {
                     .zip(arg_types.iter())
                     .map(|((a, m), t)| {
                         let span = t.span();
-                        let mut crate_core = crate_core.clone();
-                        crate::util::set_span(&mut crate_core, span);
-                        quote_spanned! {span=>
+                        let mut r = quote_spanned! {span=>
                             let #a = #crate_core::var::IntoVar::allowed_in_when_property_requires_IntoVar_members(
-                                std::clone::Clone::clone(#args_ident::#m(&__args))
+                                #args_ident::#m(&__args)
                             );
-                        }
+                        };
+                        crate::util::set_span(&mut r, span);
+                        r
                     });
+
                 quote! {
                     fn #assert_ident(__args: impl #args_ident) {
                         #(#declarations)*
