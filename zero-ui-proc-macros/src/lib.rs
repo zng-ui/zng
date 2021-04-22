@@ -77,7 +77,14 @@ pub fn derive_window_service(item: TokenStream) -> TokenStream {
 /// Read the documentation in the [`zero_ui::core::widget`](../zero_ui/core/attr.widget.html) page.
 #[proc_macro_attribute]
 pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
-    widget_0_attr::expand(false, args, input)
+    widget_0_attr::expand(false, false, args, input)
+}
+
+// used only once to declare the widget base.
+#[doc(hidden)]
+#[proc_macro_attribute]
+pub fn widget_base(args: TokenStream, input: TokenStream) -> TokenStream {
+    widget_0_attr::expand(false, true, args, input)
 }
 
 /// Expands a module to a widget mix-in module.
@@ -87,7 +94,7 @@ pub fn widget(args: TokenStream, input: TokenStream) -> TokenStream {
 /// Read the documentation in the [`zero_ui::core::widget_mixin`](../zero_ui/core/attr.widget_mixin.html) page.
 #[proc_macro_attribute]
 pub fn widget_mixin(args: TokenStream, input: TokenStream) -> TokenStream {
-    widget_0_attr::expand(true, args, input)
+    widget_0_attr::expand(true, false, args, input)
 }
 
 #[doc(hidden)]

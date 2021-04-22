@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use proc_macro2::{Span, TokenStream};
+use quote::ToTokens;
 use regex::Regex;
 use syn::{parse::Parse, Ident, LitBool};
 
@@ -27,13 +28,14 @@ macro_rules! ident {
 }
 
 pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let Items { inherits, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
+    let Items { mut inherits, widget } = syn::parse(input).unwrap_or_else(|e| non_user_error!(e));
     //let enable_trace = widget.ident == "reset_wgt";
     let WidgetItem {
         call_site,
         module,
         ident,
         mixin,
+        is_base,
         properties_remove,
         properties_declared,
         properties_child,
@@ -66,124 +68,101 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let crate_core = util::crate_core();
     let mut errors = Errors::default();
 
+    // validate inherits
+    inherits.reverse();
+    let mut invalid_inherits = false;
+    if mixin {
+        for inherit in inherits.iter() {
+            if !inherit.mixin {
+                errors.push(
+                    format_args!(
+                        "cannot inherit from `{}` because it is not a mix-in",
+                        util::display_path(&inherit.inherit_use)
+                    ),
+                    util::path_span(&inherit.inherit_use),
+                );
+                invalid_inherits = true;
+            }
+        }
+    } else if !is_base {
+        debug_assert!(!inherits[0].mixin);
+
+        let mut found_parent: Option<&InheritedItem> = None;
+        for inherit in &inherits[1..] {
+            if !inherit.mixin {
+                if let Some(parent) = found_parent {
+                    errors.push(
+                        format_args!(
+                            "cannot inherit from `{}` because is already inheriting from `{}`\n   can only inherit from a single full widget",
+                            util::display_path(&inherit.inherit_use),
+                            util::display_path(&parent.inherit_use)
+                        ),
+                        util::path_span(&parent.inherit_use),
+                    );
+                    invalid_inherits = true;
+                } else {
+                    found_parent = Some(inherit);
+                }
+            }
+        }
+        if found_parent.is_some() {
+            inherits.remove(0);
+        }
+    } else if !inherits.is_empty() {
+        non_user_error!("inherit directive in base widget declaration");
+    }
+    if invalid_inherits {
+        // returns early to avoid causing too many false positive errors.
+        return errors.to_token_stream().into();
+    }
+    let inherits = inherits;
+
     // inherits `new_child` and `new`.
     let mut new_child_reexport = TokenStream::default();
     let mut new_reexport = TokenStream::default();
-    let mut new_child_is_default = false;
-    let mut new_is_default = false;
     let mut inherited_new_child_source = None;
     let mut inherited_new_source = None;
-    if !mixin {
-        let last_not_mixin = inherits.iter().find(|i| !i.mixin);
+    if !mixin && !is_base {
+        let parent = inherits
+            .iter()
+            .find(|i| !i.mixin)
+            .unwrap_or_else(|| non_user_error!("expected a parent widget"));
 
         if new_child_declared.is_empty() {
-            if let Some(source) = last_not_mixin {
-                let source_mod = &source.module;
-                new_child_reexport = quote! {
-                    #[doc(hidden)]
-                    pub use #source_mod::__new_child;
-                };
-                #[cfg(debug_assertions)]
-                new_child_reexport.extend(quote! {
-                    #[doc(hidden)]
-                    pub use #source_mod::__new_child_debug;
-                });
-                new_child = source.new_child.clone();
-                inherited_new_child_source = Some(source);
-            } else {
-                // zero_ui::core::widget_base::default_widget_new_child()
-                new_child_reexport = quote! {
-                    #[doc(hidden)]
-                    #[inline]
-                    pub fn __new_child() -> impl #crate_core::UiNode {
-                        #crate_core::widget_base::default_widget_new_child()
-                    }
-                };
-                #[cfg(debug_assertions)]
-                new_child_reexport.extend(quote! {
-                    #[doc(hidden)]
-                    #[inline]
-                    pub fn __new_child_debug(_: &mut std::vec::Vec<#crate_core::debug::CapturedPropertyV1>)
-                        -> impl #crate_core::UiNode {
-                        self::__new_child()
-                    }
-                });
-                assert!(new_child.is_empty());
-                new_child_is_default = true;
-            }
+            let source_mod = &parent.module;
+            new_child_reexport = quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new_child;
+            };
+            #[cfg(debug_assertions)]
+            new_child_reexport.extend(quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new_child_debug;
+            });
+            new_child = parent.new_child.clone();
+            inherited_new_child_source = Some(parent);
         }
         if new_declared.is_empty() {
-            if let Some(source) = last_not_mixin {
-                let source_mod = &source.module;
-                new_reexport = quote! {
-                    #[doc(hidden)]
-                    pub use #source_mod::__new;
-                };
-                #[cfg(debug_assertions)]
-                new_child_reexport.extend(quote! {
-                    #[doc(hidden)]
-                    pub use #source_mod::__new_debug;
-                });
+            let source_mod = &parent.module;
+            new_reexport = quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new;
+            };
+            #[cfg(debug_assertions)]
+            new_child_reexport.extend(quote! {
+                #[doc(hidden)]
+                pub use #source_mod::__new_debug;
+            });
 
-                new = source.new.clone();
-                inherited_new_source = Some(source);
-            } else {
-                // zero_ui::core::widget_base::default_widget_new(id)
-                new_reexport = quote! {
-                    #[doc(hidden)]
-                    #[inline]
-                    pub fn __new(child: impl #crate_core::UiNode, id: impl self::__p_id::Args) -> impl #crate_core::Widget {
-                        #crate_core::widget_base::default_widget_new(child, self::__p_id::Args::unwrap(id))
-                    }
-                };
-                new = vec![ident!("id")];
-                new_is_default = true;
-
-                #[cfg(debug_assertions)]
-                {
-                    let wgt_name = ident.to_string();
-
-                    new_reexport.extend(quote! {
-                        #[doc(hidden)]
-                        #[inline]
-                        pub fn __new_debug(
-                            child: impl #crate_core::UiNode,
-                            id: impl self::__p_id::Args,
-                            id_user_set: bool,
-                            new_child_captures: std::vec::Vec<#crate_core::debug::CapturedPropertyV1>,
-                            whens: std::vec::Vec<#crate_core::debug::WhenInfoV1>,
-                            decl_location: #crate_core::debug::SourceLocation,
-                            instance_location: #crate_core::debug::SourceLocation,
-                        ) -> impl #crate_core::Widget {
-                            let child = #crate_core::UiNode::boxed(child);
-                            let new_captures = std::vec![
-                                self::__p_id::captured_debug(
-                                    &id, "id",
-                                     #crate_core::debug::source_location!(), id_user_set
-                                )
-                            ];
-                            let child = #crate_core::debug::WidgetInstanceInfoNode::new_v1(
-                                child,
-                                #wgt_name,
-                                decl_location,
-                                instance_location,
-                                new_child_captures,
-                                new_captures,
-                                whens,
-                            );
-                            self::__new(child, id)
-                        }
-                    });
-                }
-            }
+            new = parent.new.clone();
+            inherited_new_source = Some(parent);
         }
 
         if !new_child_declared.is_empty() && new_declared.is_empty() {
             for user_cap in &new_child {
                 if new.iter().any(|id| id == user_cap) {
-                    let fn_source = if new_is_default { "default" } else { "inherited" };
                     errors.push(
-                        format_args!("property `{}` already captured in {} fn `new`", user_cap, fn_source),
+                        format_args!("property `{}` already captured in inherited fn `new`", user_cap),
                         user_cap.span(),
                     );
                 }
@@ -191,9 +170,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         } else if !new_declared.is_empty() && new_child_declared.is_empty() {
             for user_cap in &new {
                 if new_child.iter().any(|id| id == user_cap) {
-                    if new_child_is_default {
-                        non_user_error! {"new_child does not capture anything"}
-                    }
                     errors.push(
                         format_args!("property `{}` already captured in inherited fn `new_child`", user_cap),
                         user_cap.span(),
@@ -204,8 +180,6 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
     let new_child = new_child;
     let new = new;
-    let new_child_is_default = new_child_is_default;
-    let new_is_default = new_is_default;
 
     // collect inherited properties. Late inherits of the same ident override early inherits.
     // [property_ident => inherit]
@@ -214,14 +188,16 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut inherited_props = vec![];
     for inherited in inherits.iter().rev() {
         for p_child in inherited.properties_child.iter().rev() {
-            if inherited_properties.insert(&p_child.ident, inherited).is_none() {
+            inherited_properties.entry(&p_child.ident).or_insert_with(|| {
                 inherited_props_child.push(p_child);
-            }
+                inherited
+            });
         }
         for p in inherited.properties.iter().rev() {
-            if inherited_properties.insert(&p.ident, inherited).is_none() {
+            inherited_properties.entry(&p.ident).or_insert_with(|| {
                 inherited_props.push(p);
-            }
+                inherited
+            });
         }
     }
     inherited_props_child.reverse();
@@ -229,7 +205,7 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     if let Some(new_child_source) = inherited_new_child_source {
         for property in &new_child {
-            if let Some(p) = inherited_properties.get(property) {
+            if let Some(p) = inherited_properties.get_mut(property) {
                 if new_child_source.inherit_use != p.inherit_use {
                     errors.push(
                         format_args!(
@@ -240,7 +216,8 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             util::display_path(&p.inherit_use)
                         ),
                         util::path_span(&p.inherit_use),
-                    )
+                    );
+                    invalid_inherits = true;
                 }
             }
         }
@@ -259,26 +236,15 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                         ),
                         util::path_span(&p.inherit_use),
                     );
-                    *p = new_source;
+                    invalid_inherits = true;
                 }
             }
         }
-    } else if new_is_default {
-        if let Some(p) = inherited_properties.get_mut(&new[0]) {
-            debug_assert!(!mixin);
-            let implicit_mixin = &inherits[inherits.len() - 1];
-            if p.inherit_use != implicit_mixin.inherit_use {
-                errors.push(
-                    format_args!(
-                        "inherited property `id` is captured in the default/implicit `new`, but is then overwritten in `{}`\n\
-                        a new `new` must be declared to resolve this conflict.",
-                        util::display_path(&p.inherit_use)
-                    ),
-                    util::path_span(&p.inherit_use),
-                );
-                *p = implicit_mixin;
-            }
-        }
+    }
+
+    if invalid_inherits {
+        // returns early to avoid causing too many false positive errors.
+        return errors.to_token_stream().into();
     }
 
     // inherited properties that are required.
@@ -295,20 +261,13 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             Some("required")
         } else if new_child.contains(ident) {
             if new_child_declared.is_empty() {
-                if new_child_is_default {
-                    non_user_error!("new_child does not capture anything")
-                }
                 Some("captured in inherited fn `new_child`")
             } else {
                 Some("captured in fn `new_child`")
             }
         } else if new.contains(ident) {
             if new_declared.is_empty() {
-                if new_is_default {
-                    Some("captured in default fn `new`")
-                } else {
-                    Some("captured in inherited fn `new`")
-                }
+                Some("captured in inherited fn `new`")
             } else {
                 Some("captured in fn `new`")
             }
@@ -693,7 +652,19 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     // assert that properties not captured are not capture-only.
     let mut assert_not_captures = TokenStream::new();
-    if !mixin {
+    if mixin {
+        for p in properties_child.iter().chain(properties.iter()) {
+            let msg = format!("property `{}` is capture-only, those are not allowed in mix-ins", p.ident);
+            let p_mod = ident!("__p_{}", p.ident);
+            let cfg = &p.cfg;
+            assert_not_captures.extend(quote_spanned!(p.ident.span()=>
+                #cfg
+                self::#p_mod::code_gen! {
+                    if capture_only=> std::compile_error!{#msg}
+                }
+            ));
+        }
+    } else {
         for p in properties_child.iter().chain(properties.iter()) {
             if new_child.contains(&p.ident) || new.contains(&p.ident) {
                 continue;
@@ -1233,6 +1204,7 @@ struct WidgetItem {
     module: TokenStream,
     ident: Ident,
     mixin: bool,
+    is_base: bool,
 
     properties_remove: Vec<Ident>,
     properties_declared: Vec<Ident>,
@@ -1258,6 +1230,10 @@ impl Parse for WidgetItem {
             module: named_braces!("module").parse().unwrap(),
             ident: named_braces!("ident").parse().unwrap_or_else(|e| non_user_error!(e)),
             mixin: named_braces!("mixin")
+                .parse::<LitBool>()
+                .unwrap_or_else(|e| non_user_error!(e))
+                .value,
+            is_base: named_braces!("is_base")
                 .parse::<LitBool>()
                 .unwrap_or_else(|e| non_user_error!(e))
                 .value,

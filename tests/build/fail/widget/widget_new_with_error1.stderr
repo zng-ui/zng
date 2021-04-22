@@ -1,4 +1,4 @@
-error: cannot remove, property `id` is captured in default fn `new`
+error: cannot remove, property `id` is captured in inherited fn `new`
  --> $DIR/widget_new_with_error1.rs:7:18
   |
 7 |         remove { id }

@@ -1051,26 +1051,25 @@ pub mod core {
     /// The `new_child` initialization function defines the inner most node of the widget, it must output a type that implements
     /// [`UiNode`](zero_ui::core::UiNode).
     ///
-    /// The [default function](zero_ui::core::widget_base::default_widget_new_child) does not capture any property and simply outputs
+    /// The [default function](zero_ui::core::widget_base::implicit_base::new_child) does not capture any property and simply outputs
     /// the [`NilUiNode`](zero_ui::core::NilUiNode) value.
     ///
     /// ## `fn new`
     ///
     /// The `new` initialization function defines the outer most type of the widget, if must take at least one input that is a generic
-    /// that allows any type that implements [`UiNode`](zero_ui::core::UiNode), although not required you probably want to capture the
-    /// implicit [`id`](mod@zero_ui::core::widget_base::implicit_mixin#wp-id) property.
+    /// that allows any [`UiNode`](zero_ui::core::UiNode), although not required you probably want to capture the
+    /// implicit [`id`](mod@zero_ui::core::widget_base::implicit_base#wp-id) property.
     ///
     /// The output can be any type, if you want the widget to be compatible with most layout slots the type must implement
-    /// [`Widget`](zero_ui::core::Widget) and it is recommended that you use the [default function](zero_ui::core::widget_base::default_widget_new)
+    /// [`Widget`](zero_ui::core::Widget) and it is recommended that you use the [default function](zero_ui::core::widget_base::implicit_base::new)
     /// to generate the widget.
     ///
-    /// The [default function](zero_ui::core::widget_base::default_widget_new) captures the [`id`](mod@zero_ui::core::widget_base::implicit_mixin#wp-id)
-    /// property and returns a [`Widget`](zero_ui::core::Widget) that properly establishes a widget context during the
-    /// [`UiNode`](zero_ui::core::UiNode) method calls.
+    /// The [default function](zero_ui::core::widget_base::implicit_base::new) captures the [`id`](mod@zero_ui::core::widget_base::implicit_base#wp-id)
+    /// property and returns a [`Widget`](zero_ui::core::Widget) node that establishes a widget context.
     ///
     /// # `inherit!`
     ///
-    /// Widgets can inherit from one or more other widgets and mix-ins using the pseudo-macro `inherit!(widget::path);`.
+    /// Widgets can inherit from one other widget and one or more other mix-ins using the pseudo-macro `inherit!(widget::path);`.
     /// An inherit is like an import/reexport of properties and initialization functions.
     ///
     /// ```
@@ -1089,32 +1088,23 @@ pub mod core {
     ///
     /// ## Override
     ///
-    /// Subsequent inherits override properties and functions with the same name as previously inherited. Properties
+    /// Subsequent inherits override properties with the same name as previously inherited. Properties
     /// and functions declared in the new widget override inherited items.
     ///
     /// ```
     /// # fn main() { }
-    /// # use zero_ui::core::widget;
-    /// #[widget($crate::foo)]
+    /// # use zero_ui::core::{widget, widget_mixin};
+    /// #[widget_mixin($crate::foo)]
     /// pub mod foo {
     ///     properties! {
     ///         zero_ui::properties::margin = 10;
     ///     }
-    ///
-    ///     fn new_child() -> zero_ui::core::NilUiNode {
-    ///         zero_ui::core::NilUiNode
-    ///     }
     /// }
     ///
-    /// #[widget($crate::bar)]
+    /// #[widget_mixin($crate::bar)]
     /// pub mod bar {
     ///     properties! {
     ///         zero_ui::properties::margin = 20;
-    ///     }
-    ///
-    ///     fn new_child() -> impl zero_ui::core::UiNode {
-    /// #       use zero_ui::widgets::text::text;
-    ///         text("Bar!")
     ///     }
     /// }
     ///
@@ -1122,6 +1112,11 @@ pub mod core {
     /// pub mod foo_bar {
     ///     inherit!(super::foo);
     ///     inherit!(super::bar);
+    ///
+    ///     fn new_child() -> impl zero_ui::core::UiNode {
+    /// #       use zero_ui::widgets::text::text;
+    ///         text("Bar!")
+    ///     }
     /// }
     /// ```
     ///
@@ -1130,11 +1125,18 @@ pub mod core {
     ///
     /// ## Implicit
     ///
-    /// Every widget inherits [`implicit_mixin`](mod@zero_ui::core::widget_base::implicit_mixin) before all other inherits.
+    /// Every widget that does not inherit from another widget automatically inherits from
+    /// [`implicit_base`](mod@zero_ui::core::widget_base::implicit_base) before all other inherits.
     ///
-    /// If an widget does not inherit from another widget and does not declare a initialization function the defaults,
-    /// [`default_widget_new_child`](zero_ui::core::widget_base::default_widget_new_child) and
-    /// [`default_widget_new`](zero_ui::core::widget_base::default_widget_new) are used.
+    /// ```
+    /// # fn main() { }
+    /// # use zero_ui::core::widget;
+    /// #[widget($crate::not_empty)]
+    /// pub mod not_empty { }
+    /// ```
+    ///
+    /// In the example above `not_empty` contains the properties and new functions defined in the
+    /// [`implicit_base`](mod@zero_ui::core::widget_base::implicit_base).
     ///
     /// <div style='display:none'>
     pub use zero_ui_core::widget;

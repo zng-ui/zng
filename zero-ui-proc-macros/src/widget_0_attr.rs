@@ -20,7 +20,7 @@ use crate::{
     widget_new::{PropertyValue, When, WhenExprToVar},
 };
 
-pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     // the widget mod declaration.
     let mod_ = parse_macro_input!(input as ItemMod);
 
@@ -116,6 +116,11 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             errors.push("widget mixins do not have a `new` function", fn_.sig.ident.span());
             others.push(syn::Item::Fn(fn_))
         }
+    }
+
+    if is_base {
+        debug_assert!(new_child_fn.is_some());
+        debug_assert!(new_fn.is_some());
     }
 
     // Does some validation of `new_child` and `new` signatures.
@@ -406,7 +411,14 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
 
         // declare new capture properties.
         if let Some((_, new_type)) = &property.type_ {
-            if !mixin && !captures.contains(p_ident) {
+            if mixin {
+                errors.push(
+                    format_args!("capture-only properties cannot be declared in mix-ins"),
+                    p_ident.span(),
+                );
+                skip = true;
+            }
+            if !captures.contains(p_ident) {
                 // new capture properties must be captured by new *new* functions.
                 errors.push(
                     format_args!("property `{}` is declared in widget, but is not captured by the widget", p_ident),
@@ -732,8 +744,9 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
     let mut cfgs = inherits.iter().map(|(c, _)| c);
     let mut inherit_paths = inherits.iter().map(|(_, p)| p);
 
-    if mixin {
-        // mixins don't inherit the implicit_mixin so we go directly to stage_2_declare or to the first inherit.
+    if mixin || is_base {
+        // mixins (and the base parent) don't inherit anything implicit so we go directly to
+        // stage_2_declare or to the first inherit.
         if inherits.is_empty() {
             stage_path = quote!(#crate_core::widget_declare!);
             stage_extra = TokenStream::default();
@@ -756,13 +769,15 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
             }
         }
     } else {
-        // not-mixins inherit from the implicit_mixin first so we call inherit=> for that:
-        stage_path = quote!(#crate_core::widget_base::implicit_mixin!);
+        // not-mixins may inherit from the implicit base parent if they are
+        // not inheriting from any other widget, so we always include the base
+        // data first, the final stage decides if it is needed.
+        stage_path = quote!(#crate_core::widget_base::implicit_base!);
         stage_extra = quote! {
             inherit=>
             cfg { }
             not_cfg { #[cfg(zero_ui_never_set)] }
-            inherit_use { #crate_core::widget_base::implicit_mixin }
+            inherit_use { #crate_core::widget_base::implicit_base }
             inherit {
                 #(
                     #cfgs
@@ -826,6 +841,7 @@ pub fn expand(mixin: bool, args: proc_macro::TokenStream, input: proc_macro::Tok
                     module { #mod_path }
                     ident { #ident }
                     mixin { #mixin }
+                    is_base { #is_base }
 
                     properties_remove {
                         #property_removes

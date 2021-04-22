@@ -155,7 +155,7 @@ pub trait WidgetList: UiNodeList {
 /// ```
 /// # use zero_ui_core::{widget_vec, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let mut widgets = widget_vec![];
@@ -554,7 +554,7 @@ impl UiNodeList for UiNodeVec {
 /// ```
 /// # use zero_ui_core::{widget_vec, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let widgets = widget_vec![
@@ -583,7 +583,7 @@ pub use crate::widget_vec;
 /// ```
 /// # use zero_ui_core::{node_vec, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let widgets = node_vec![
@@ -617,7 +617,7 @@ pub use crate::node_vec;
 /// ```todo
 /// # use zero_ui_core::{widgets, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let items = widgets![
@@ -649,7 +649,7 @@ pub use crate::widgets;
 /// ```todo
 /// # use zero_ui_core::{nodes, UiNode, Widget, WidgetId, NilUiNode};
 /// # use zero_ui_core::widget_base::*;
-/// # fn text(fake: &str) -> impl Widget { default_widget_new(NilUiNode, WidgetId::new_unique())  };
+/// # fn text(fake: &str) -> impl Widget { implicit_base::new(NilUiNode, WidgetId::new_unique())  };
 /// # use text as foo;
 /// # use text as bar;
 /// let items = widgets![

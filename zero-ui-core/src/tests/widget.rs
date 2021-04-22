@@ -653,7 +653,7 @@ pub mod capture_properties_wgt {
             "user-new-child" => "custom new_child (user)",
             o => panic!("unexpected {:?}", o),
         };
-        let node = crate::widget_base::default_widget_new_child();
+        let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
     }
 
@@ -664,7 +664,7 @@ pub mod capture_properties_wgt {
             o => panic!("unexpected {:?}", o),
         };
         let node = trace(node, msg);
-        crate::widget_base::default_widget_new(node, id)
+        crate::widget_base::implicit_base::new(node, id)
     }
 }
 #[test]
@@ -718,7 +718,7 @@ pub mod new_capture_property_wgt {
             ("new_capture-user", 24) => "captured new_capture (user)",
             o => panic!("unexpected {:?}", o),
         };
-        let node = crate::widget_base::default_widget_new_child();
+        let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
     }
 }
@@ -758,7 +758,7 @@ pub mod new_capture_property_named_wgt {
             ("eman", 24) => "captured new_capture (user)",
             o => panic!("unexpected {:?}", o),
         };
-        let node = crate::widget_base::default_widget_new_child();
+        let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
     }
 }
@@ -800,7 +800,7 @@ pub mod captured_property_wgt {
             "capture-user" => "captured capture (user)",
             o => panic!("unexpected {:?}", o),
         };
-        let node = crate::widget_base::default_widget_new_child();
+        let node = crate::widget_base::implicit_base::new_child();
         trace(node, msg)
     }
 }
@@ -1205,51 +1205,31 @@ pub fn when_property_member_indexed_method() {
 /*
 * Inherit override
 */
-#[widget($crate::tests::widget::inherit_override_base_a)]
-pub mod inherit_override_base_a {
+#[widget_mixin($crate::tests::widget::inherit_override_a)]
+pub mod inherit_override_a {
     use super::util::trace;
-    use crate::{NilUiNode, UiNode, Widget, WidgetId};
 
     properties! {
         trace = "base_a::property";
     }
-
-    fn new_child() -> impl UiNode {
-        trace(NilUiNode, "base_a::new_child")
-    }
-
-    fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
-        let child = trace(child, "base_a::new");
-        crate::widget_base::default_widget_new(child, id)
-    }
 }
-#[widget($crate::tests::widget::inherit_override_base_b)]
-pub mod inherit_override_base_b {
+#[widget_mixin($crate::tests::widget::inherit_override_b)]
+pub mod inherit_override_b {
     use super::util::trace;
-    use crate::{NilUiNode, UiNode, Widget, WidgetId};
 
     properties! {
         trace = "base_b::property";
     }
-
-    fn new_child() -> impl UiNode {
-        trace(NilUiNode, "base_b::new_child")
-    }
-
-    fn new(child: impl UiNode, id: WidgetId) -> impl Widget {
-        let child = trace(child, "base_b::new");
-        crate::widget_base::default_widget_new(child, id)
-    }
 }
 #[widget($crate::tests::widget::inherit_override_wgt1)]
 pub mod inherit_override_wgt1 {
-    inherit!(super::inherit_override_base_a);
-    inherit!(super::inherit_override_base_b);
+    inherit!(super::inherit_override_a);
+    inherit!(super::inherit_override_b);
 }
 #[widget($crate::tests::widget::inherit_override_wgt2)]
 pub mod inherit_override_wgt2 {
-    inherit!(super::inherit_override_base_b);
-    inherit!(super::inherit_override_base_a);
+    inherit!(super::inherit_override_b);
+    inherit!(super::inherit_override_a);
 }
 #[test]
 pub fn inherit_override() {
@@ -1257,23 +1237,13 @@ pub fn inherit_override() {
 
     let mut ctx = TestWidgetContext::wait_new();
     wgt.test_init(&mut ctx);
-    assert!(util::traced(&wgt, "base_b::new"));
-    assert!(util::traced(&wgt, "base_b::new_child"));
     assert!(util::traced(&wgt, "base_b::property"));
-
-    assert!(!util::traced(&wgt, "base_a::new"));
-    assert!(!util::traced(&wgt, "base_a::new_child"));
     assert!(!util::traced(&wgt, "base_a::property"));
 
     let mut wgt = inherit_override_wgt2!();
 
     wgt.test_init(&mut ctx);
-    assert!(!util::traced(&wgt, "base_b::new"));
-    assert!(!util::traced(&wgt, "base_b::new_child"));
     assert!(!util::traced(&wgt, "base_b::property"));
-
-    assert!(util::traced(&wgt, "base_a::new"));
-    assert!(util::traced(&wgt, "base_a::new_child"));
     assert!(util::traced(&wgt, "base_a::property"));
 }
 
