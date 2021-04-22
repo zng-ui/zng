@@ -654,7 +654,10 @@ pub fn expand(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut assert_not_captures = TokenStream::new();
     if mixin {
         for p in properties_child.iter().chain(properties.iter()) {
-            let msg = format!("property `{}` is capture-only, only normal properties are allowed in mix-ins", p.ident);
+            let msg = format!(
+                "property `{}` is capture-only, only normal properties are allowed in mix-ins",
+                p.ident
+            );
             let p_mod = ident!("__p_{}", p.ident);
             let cfg = &p.cfg;
             assert_not_captures.extend(quote_spanned!(p.ident.span()=>

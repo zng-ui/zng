@@ -1,4 +1,4 @@
-use zero_ui::core::{widget_mixin, property, var};
+use zero_ui::core::{property, var, widget_mixin};
 
 #[widget_mixin($crate::test1_mixin)]
 pub mod test1_mixin {
@@ -18,7 +18,7 @@ pub mod test2_mixin {
 }
 
 #[property(capture_only)]
-pub fn bar(bar: impl var::IntoVar<bool>) -> ! { }
+pub fn bar(bar: impl var::IntoVar<bool>) -> ! {}
 #[widget_mixin($crate::test3_mixin)]
 pub mod test3_mixin {
     properties! {
@@ -34,4 +34,4 @@ pub mod test_ok_mixin {
     }
 }
 
-fn main() { }
+fn main() {}
