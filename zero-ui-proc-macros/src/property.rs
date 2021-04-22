@@ -246,6 +246,7 @@ mod analysis {
 
         // validate return type.
         let output_assert_data = if args.priority.is_capture_only() {
+            let mut fix = false;
             match &fn_.sig.output {
                 syn::ReturnType::Default => {
                     errors.push(
@@ -254,12 +255,17 @@ mod analysis {
                         // [proc_macro_span](https://github.com/rust-lang/rust/issues/54725) is stable.
                         args.priority.span(),
                     );
+                    fix = true;
                 }
                 syn::ReturnType::Type(_, t) => {
                     if !matches!(&**t, syn::Type::Never(_)) {
                         errors.push("capture_only properties must have return type `!`", t.span());
+                        fix = true;
                     }
                 }
+            }
+            if fix {
+                fn_.sig.output = parse_quote!( -> ! );
             }
 
             None
