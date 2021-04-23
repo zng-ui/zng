@@ -185,11 +185,13 @@ fn test(mut args: Vec<&str>) {
                 &[("RUST_BACKTRACE", "1")],
             );
         }
+    } else if !args.is_empty() {
+        cmd("cargo", &[nightly, "test"], &args);
     } else {
-        test(vec!["--workspace"]);
-        test(vec!["--examples"]);
-        test(vec!["--build"]);
-        test(vec!["--test-crates"]);
+        test(vec![nightly, "--workspace"]);
+        test(vec![nightly, "--examples"]);
+        test(vec![nightly, "--build"]);
+        test(vec![nightly, "--test-crates"]);
     }
 }
 

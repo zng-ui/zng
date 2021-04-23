@@ -28,7 +28,7 @@ pub mod text {
             /// The [`Text`](crate::core::types::Text) value.
             ///
             /// Set to an empty string (`""`).
-            text: impl IntoVar<Text> = "";
+            text { impl IntoVar<Text> } = "";
         }
 
         /// The text font. If not set inherits the `font_family` from the parent widget.
@@ -42,7 +42,7 @@ pub mod text {
         /// The font size. If not set inherits the `font_size` from the parent widget.
         font_size;
         /// The text color. If not set inherits the `text_color` from the parent widget.
-        text_color as color ;
+        text_color as color;
         /// Height of each text line. If not set inherits the `line_height` from the parent widget.
         line_height;
     }
@@ -91,7 +91,7 @@ mod strong {
 
     properties! {
         child {
-            text: impl IntoVar<Text>;
+            text { impl IntoVar<Text> };
         }
     }
 
@@ -117,7 +117,7 @@ mod em {
 
     properties! {
         child {
-            text: impl IntoVar<Text>;
+            text { impl IntoVar<Text> };
         }
     }
 

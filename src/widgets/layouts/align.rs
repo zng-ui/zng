@@ -7,7 +7,7 @@ mod center {
     properties! {
         child {
             #[allowed_in_when = false]
-            content: impl Widget;
+            content { impl Widget };
         }
     }
 

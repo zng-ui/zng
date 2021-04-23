@@ -1214,7 +1214,7 @@ struct ItemProperty {
     pub attrs: Vec<Attribute>,
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
-    pub type_: Option<(Token![:], PropertyType)>,
+    pub type_: Option<(token::Brace, PropertyType)>,
     pub value: Option<(Token![=], PropertyValue)>,
     pub value_span: Span,
     pub semi: Option<Token![;]>,
@@ -1232,33 +1232,15 @@ impl Parse for ItemProperty {
             None
         };
 
-        // : Type [=|;]
+        // { Type }
         let mut type_error = None;
         let mut type_ = None;
-        let mut type_terminator = None;
-        if input.peek(Token![:]) {
-            let colon: Token![:] = input.parse().unwrap();
-            let type_stream = util::parse_soft_group(
-                input,
-                // terminates in the first `=` or `;`
-                |input| PropertyTypeTerm::parse(input).ok(),
-                |input| {
-                    // TODO can we peek next property in some cases?
-                    // we can't do `path = ` because path can be a type
-                    let fork = input.fork();
-                    let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
-                    fork.peek(keyword::when) || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
-                },
-                // skip generics (tokens within `< >`) because
-                // `impl Iterator<Item=u32>` is a valid type.
-                true,
-            );
-
-            let (r, term) = PropertyType::parse_soft_group(type_stream, colon.span());
-            type_terminator = term;
-            match r {
+        if input.peek(token::Brace) {
+            let inner;
+            let brace = braced!(inner in input);
+            match PropertyType::parse_validate(&inner, brace.span) {
                 Ok(t) => {
-                    type_ = Some((colon, t));
+                    type_ = Some((brace, t));
                 }
                 Err(e) => {
                     // we don't return the error right now
@@ -1270,22 +1252,11 @@ impl Parse for ItemProperty {
         }
 
         // = expr [;]
-        let mut value_start_eq = None;
+        let mut value_start_eq: Option<Token![=]> = None;
         let mut value = None;
         let mut value_span = Span::call_site();
         let mut semi = None;
-        if let Some(term) = type_terminator {
-            // if there was a property type, did it terminate
-            // at the start of a value `=` or at the end of a property `;`?
-            match term {
-                PropertyTypeTerm::Eq(eq) => {
-                    value_start_eq = Some(eq);
-                }
-                PropertyTypeTerm::Semi(s) => {
-                    semi = Some(s);
-                }
-            }
-        } else if input.peek(Token![=]) {
+        if input.peek(Token![=]) {
             // if there was no property type are we at the start of a value `=`?
             value_start_eq = Some(input.parse().unwrap());
         } else if input.peek(Token![;]) {
@@ -1377,25 +1348,14 @@ impl ItemProperty {
 
 enum PropertyType {
     /// `{ name: u32 }` OR `{ name: impl IntoVar<u32> }` OR `{ name0: .., name1: .. }`
-    Named(token::Brace, Punctuated<NamedField, Token![,]>),
+    Named(Punctuated<NamedField, Token![,]>),
     /// `impl IntoVar<bool>, impl IntoVar<u32>`
     Unnamed(Punctuated<syn::Type, Token![,]>),
-}
-impl Parse for PropertyType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(token::Brace) {
-            let named;
-            let brace = braced!(named in input);
-            Ok(PropertyType::Named(brace, Punctuated::parse_terminated(&named)?))
-        } else {
-            Ok(PropertyType::Unnamed(Punctuated::parse_terminated(input)?))
-        }
-    }
 }
 impl PropertyType {
     fn fn_input_tokens(&self, property: &Ident) -> TokenStream {
         match self {
-            PropertyType::Named(_, fields) => fields.to_token_stream(),
+            PropertyType::Named(fields) => fields.to_token_stream(),
             PropertyType::Unnamed(unnamed) => {
                 if unnamed.len() == 1 {
                     quote! { #property: #unnamed }
@@ -1407,42 +1367,24 @@ impl PropertyType {
             }
         }
     }
-    fn parse_soft_group(
-        type_stream: Result<(TokenStream, Option<PropertyTypeTerm>), TokenStream>,
-        group_start_span: Span,
-    ) -> (syn::Result<Self>, Option<PropertyTypeTerm>) {
-        match type_stream {
-            Ok((type_stream, term)) => {
-                if type_stream.is_empty() {
-                    // no type tokens
-                    (Err(util::recoverable_err(group_start_span, "expected property type")), term)
+    pub fn parse_validate(input: ParseStream, group_span: Span) -> syn::Result<Self> {
+        if input.is_empty() {
+            Err(util::recoverable_err(group_span, "expected property type"))
+        } else {
+            Self::parse(input).map_err(|e| {
+                if e.to_string() == "expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime" {
+                    util::recoverable_err(e.span(), "expected property type")
                 } else {
-                    (syn::parse2::<PropertyType>(type_stream).map_err(|e| {
-                        if e.to_string() == "expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime" {
-                            util::recoverable_err(e.span(), "expected property type")
-                        } else {
-                            e.set_recoverable()
-                        }
-                    }), term)
+                    e.set_recoverable()
                 }
-            }
-            Err(partial_ty) => {
-                if partial_ty.is_empty() {
-                    // no type tokens
-                    (Err(util::recoverable_err(group_start_span, "expected property type")), None)
-                } else {
-                    // maybe missing next argument type (`,`) or terminator (`=`, `;`)
-                    let last_tt = partial_ty.into_iter().last().unwrap();
-                    let last_span = last_tt.span();
-                    let mut msg = "expected `,`, `=` or `;`";
-                    if let proc_macro2::TokenTree::Punct(p) = last_tt {
-                        if p.as_char() == ',' {
-                            msg = "expected another property arg type";
-                        }
-                    }
-                    (Err(util::recoverable_err(last_span, msg)), None)
-                }
-            }
+            })
+        }
+    }
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        if input.peek(Ident) && input.peek2(Token![:]) && !input.peek3(Token![:]) {
+            Ok(PropertyType::Named(Punctuated::parse_terminated(input)?))
+        } else {
+            Ok(PropertyType::Unnamed(Punctuated::parse_terminated(input)?))
         }
     }
 }

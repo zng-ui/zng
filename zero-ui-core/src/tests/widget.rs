@@ -709,7 +709,7 @@ pub mod new_capture_property_wgt {
 
     properties! {
         #[allowed_in_when = false]
-        new_capture: &'static str, u32 = "new_capture-default", 42;
+        new_capture { &'static str, u32 } = "new_capture-default", 42;
     }
 
     fn new_child(new_capture: (&'static str, u32)) -> impl UiNode {
@@ -746,7 +746,7 @@ pub mod new_capture_property_named_wgt {
 
     properties! {
         #[allowed_in_when = false]
-        new_capture: {
+        new_capture {
             name: &'static str,
             age: u32,
         } = "name", 42;

@@ -2,50 +2,15 @@
     In-place capture_only Declaration
 */ 
 properties! {
-    /// Unnamed now
-    foo: impl IntoVar<u32> = 10;
-    fuz: impl IntoVar<u32>, impl IntoVar<32> = 10, 10;
+    /// 1
+    foo { impl IntoVar<u32> } = 10;
+    foo { impl IntoVar<u32>, impl IntoVar<u32> } = 10, 20;
+    foo { named1: impl IntoVar<u32>, named2: impl IntoVar<u32> } = 10, 20;
 
-    /// Named now
-    bar: {
-        a: u32,
-        b: u32
-    } = 10, 20;
-
-    /// New unnamed #a
-    foo: (impl IntoVar<u32>) = 10;
-    fuz: (impl IntoVar<u32>, impl IntoVar<u32>) = 10, 20;
-    // named stays the same.
-
-    /// New unnamed #b
+    /// 2
     foo(impl IntoVar<u32>) = 10;
-    fuz(impl IntoVar<u32>, impl IntoVar<u32>) = 10, 20;
-    /// New named #b
-    bar {
-        a: u32,
-        b: u32
-    } = 10, 20;
-
-    /// New named #c
+    fuz(impl IntoVar<u32>, impl IntoVar<u32>) = (10, 20);
     fuz(a: impl IntoVar<u32>, b: impl IntoVar<u32>) = 10, 20;
-
-    /// New unnamed #d
-    foo: { impl IntoVar<u32> } = 10;
-    foo: { impl IntoVar<u32>, impl IntoVar<u32> } = 10, 20;
-
-    /// New Radical #a
-    fn new_child(
-        /// Capture Property
-        fuz: (impl IntoVar<u32>, impl IntoVar<32>)
-    ) -> imp UiNode {
-        !
-    }
-    fn new_child(
-        /// Capture Property
-        fuz: (a: impl IntoVar<u32>, b: impl IntoVar<32>)
-    ) -> imp UiNode {
-        !
-    }
 }
 
 /*

@@ -791,7 +791,7 @@ pub mod core {
     /// #
     /// properties! {
     ///     /// Capture-only property `foo` with default value `false`.
-    ///     foo: impl IntoVar<bool> = false;
+    ///     foo { impl IntoVar<bool> } = false;
     /// }
     ///
     /// fn new_child(foo: impl IntoVar<bool>) -> impl UiNode {
