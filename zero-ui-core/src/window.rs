@@ -117,10 +117,13 @@ pub trait HeadlessAppOpenWindowExt {
 
     /// Cause the headless window to think it is focused in the screen.
     fn activate_window(&mut self, window_id: WindowId);
+
+    /// Sends a close request, returns if the window was found and closed.
+    fn close_window(&mut self, window_id: WindowId) -> bool;
 }
 impl HeadlessAppOpenWindowExt for app::HeadlessApp {
     fn open_window(&mut self, new_window: impl FnOnce(&mut AppContext) -> Window + 'static) -> WindowId {
-        let listener = self.with_context(|ctx| ctx.services.req::<crate::window::Windows>().open(new_window));
+        let listener = self.with_context(|ctx| ctx.services.req::<Windows>().open(new_window));
         let mut window_id = None;
         self.update_observed(|_, ctx| {
             if let Some(opened) = listener.updates(ctx.events).first() {
@@ -138,6 +141,33 @@ impl HeadlessAppOpenWindowExt for app::HeadlessApp {
         let event = WindowEvent::Focused(true);
         self.on_window_event(window_id, &event);
         self.update();
+    }
+
+    fn close_window(&mut self, window_id: WindowId) -> bool {
+        let (closing_ls, closed_ls) = self.with_context(|ctx| {
+            let cls = ctx.events.listen::<WindowCloseRequestedEvent>();
+            let cld = ctx.events.listen::<WindowCloseEvent>();
+            (cls, cld)
+        });
+
+        let event = WindowEvent::CloseRequested;
+        self.on_window_event(window_id, &event);
+
+        let mut requested = false;
+        let mut closed = false;
+
+        self.update_observed(|_, ctx| {
+            for a in closing_ls.updates(ctx.events) {
+                requested |= a.window_id == window_id;
+            }
+            for a in closed_ls.updates(ctx.events) {
+                closed |= a.window_id == window_id;
+            }
+        });
+
+        assert_eq!(requested, closed);
+
+        closed
     }
 }
 
@@ -157,11 +187,14 @@ event_args! {
 
     /// [`WindowIsActiveChangedEvent`], [`WindowActivatedEvent`], [`WindowDeactivatedEvent`] args.
     pub struct WindowIsActiveArgs {
-        /// Id of window that was opened or closed.
+        /// Id of window that was activated or deactivated.
         pub window_id: WindowId,
 
         /// If the window was activated in this event.
         pub activated: bool,
+
+        /// If the window was deactivated because it closed.
+        pub closed: bool,
 
         ..
 
@@ -351,14 +384,8 @@ impl AppExtension for WindowManager {
                 if let Some(window) = ctx.services.req::<Windows>().windows.get_mut(&window_id) {
                     window.is_active = *focused;
 
-                    let args = WindowIsActiveArgs::now(window_id, window.is_active);
-                    self.window_is_active_changed.notify(ctx.events, args.clone());
-                    let specif_event = if window.is_active {
-                        &self.window_activated
-                    } else {
-                        &self.window_deactivated
-                    };
-                    specif_event.notify(ctx.events, args);
+                    let args = WindowIsActiveArgs::now(window_id, window.is_active, false);
+                    self.notify_activation(args, ctx.events);
                 }
             }
             WindowEvent::Resized(_) => {
@@ -608,6 +635,10 @@ impl WindowManager {
         for close in self.window_close.updates(ctx.events) {
             if let Some(w) = ctx.services.req::<Windows>().windows.remove(&close.window_id) {
                 w.context.clone().borrow_mut().deinit(ctx);
+                if w.is_active {
+                    let args = WindowIsActiveArgs::now(w.id, false, true);
+                    self.notify_activation(args, ctx.events);
+                }
             }
         }
 
@@ -615,6 +646,18 @@ impl WindowManager {
         if service.shutdown_on_last_close && service.windows.is_empty() {
             ctx.services.req::<AppProcess>().shutdown();
         }
+    }
+
+    fn notify_activation(&self, args: WindowIsActiveArgs, events: &Events) {
+        debug_assert!(!args.closed || (args.closed && !args.activated));
+
+        self.window_is_active_changed.notify(events, args.clone());
+        let specif_event = if args.activated {
+            &self.window_activated
+        } else {
+            &self.window_deactivated
+        };
+        specif_event.notify(events, args);
     }
 }
 

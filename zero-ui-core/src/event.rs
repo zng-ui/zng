@@ -145,8 +145,8 @@ impl<T: 'static> EventChannel<T> {
     }
 }
 impl<T: Clone> EventChannel<T> {
-    pub fn buffered_listener(&self, events: &Events) -> BufferedEventListener<T> {
-        let buffer = BufferedEventListener { queue: Default::default() };
+    pub fn buffered_listener(&self, events: &Events) -> BufEventListener<T> {
+        let buffer = BufEventListener { queue: Default::default() };
         let buffer_ = buffer.clone();
         let self_ = self.clone();
         events.push_buffer(Box::new(move || {
@@ -223,7 +223,7 @@ impl<T: Clone> EventListener<T> {
     ///
     /// Every call to this method creates a new buffer, independent of any previous generated buffers,
     /// the buffer objects can be cloned and clones all point to the same buffer.
-    pub fn make_buffered(&self, events: &Events) -> BufferedEventListener<T> {
+    pub fn make_buffered(&self, events: &Events) -> BufEventListener<T> {
         self.chan.buffered_listener(events)
     }
 }
@@ -307,7 +307,7 @@ impl<T: Clone> EventEmitter<T> {
     /// Create a buffered event listener.
     ///
     /// See [`EventListener::make_buffered`] for more details.
-    pub fn buffered_listener(&self, events: &Events) -> BufferedEventListener<T> {
+    pub fn buffered_listener(&self, events: &Events) -> BufEventListener<T> {
         self.chan.buffered_listener(events)
     }
 }
@@ -320,10 +320,10 @@ impl<T: Clone> EventEmitter<T> {
 /// This `struct` is a refence to the buffer, clones of it point to the same buffer. This `struct`
 /// is not `Send`, you can use a [`Sync::event_receiver`](crate::sync::Sync::event_receiver) for that.
 #[derive(Clone)]
-pub struct BufferedEventListener<T: Clone> {
+pub struct BufEventListener<T: Clone> {
     queue: Rc<RefCell<VecDeque<T>>>,
 }
-impl<T: Clone> BufferedEventListener<T> {
+impl<T: Clone> BufEventListener<T> {
     /// If there are any updates in the buffer.
     #[inline]
     pub fn has_updates(&self) -> bool {
@@ -355,7 +355,7 @@ impl<T: Clone> BufferedEventListener<T> {
     /// Create an empty buffer that will always stay empty.
     #[inline]
     pub fn never() -> Self {
-        BufferedEventListener { queue: Default::default() }
+        BufEventListener { queue: Default::default() }
     }
 }
 
@@ -423,18 +423,38 @@ impl Events {
         }
     }
 
+    /// Creates a buffered event listener if the event is registered in the application.
+    pub fn try_listen_buf<E: Event>(&self) -> Option<BufEventListener<E::Args>> {
+        self.try_listen::<E>().map(|l| l.make_buffered(self))
+    }
+
     /// Creates an event listener.
     ///
     /// # Panics
+    ///
     /// If the event is not registered in the application.
     pub fn listen<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>()
             .unwrap_or_else(|| panic!("event `{}` is required", type_name::<E>()))
     }
 
+    /// Creates a buffered event listener.
+    ///
+    /// # Panics
+    ///
+    /// If the event is not registered in the application.
+    pub fn listen_buf<E: Event>(&self) -> BufEventListener<E::Args> {
+        self.listen::<E>().make_buffered(self)
+    }
+
     /// Creates an event listener or returns [`E::never()`](Event::never).
     pub fn listen_or_never<E: Event>(&self) -> EventListener<E::Args> {
         self.try_listen::<E>().unwrap_or_else(E::never)
+    }
+
+    /// Creates a buffered event listener or returns [`E::never()`](Event::never).
+    pub fn listen_or_never_buf<E: Event>(&self) -> BufEventListener<E::Args> {
+        self.listen_or_never::<E>().make_buffered(self)
     }
 
     pub(super) fn update_id(&self) -> u32 {

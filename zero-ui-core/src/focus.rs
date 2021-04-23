@@ -361,6 +361,7 @@ event! {
 /// Events this extension provides.
 ///
 /// * [FocusChangedEvent]
+/// * [ReturnFocusChangedEvent]
 ///
 /// # Services
 ///
@@ -976,6 +977,7 @@ impl Focus {
         } else if let Some((alt_scope, alt_return)) = self.alt_return.take() {
             r.push(ReturnFocusChangedArgs::now(alt_scope, Some(alt_return), None));
         }
+
         r
     }
 

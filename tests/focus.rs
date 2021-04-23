@@ -1,8 +1,72 @@
 use zero_ui::core::app::HeadlessApp;
+use zero_ui::core::focus::{FocusChangedArgs, FocusChangedCause, ReturnFocusChangedArgs};
 use zero_ui::core::gesture::HeadlessAppGestureExt;
 use zero_ui::core::keyboard::HeadlessAppKeyboardExt;
 use zero_ui::core::window::{HeadlessAppOpenWindowExt, WindowId};
 use zero_ui::prelude::*;
+use zero_ui_core::event::BufEventListener;
+
+#[test]
+pub fn first_and_last_window_events() {
+    let buttons = widgets![button! { content = text("Button 0") }, button! { content = text("Button 1") },];
+
+    let root_id = WidgetId::new_unique();
+    let stack_id = WidgetId::new_unique();
+    let button_0_id = buttons.widget_id(0);
+
+    let mut app = TestApp::new_w(window! {
+        content = v_stack!(id = stack_id; items = buttons);
+        root_id;
+    });
+    let root_path = WidgetPath::new(app.window_id, [root_id]);
+    let button_0_path = WidgetPath::new(app.window_id, [root_id, stack_id, button_0_id]);
+
+    let events = app.take_focus_changed();
+    assert_eq!(2, events.len());
+
+    // "recover" focus to the active window root.
+    assert!(events[0].prev_focus.is_none());
+    assert_eq!(Some(root_path.clone()), events[0].new_focus);
+    assert_eq!(FocusChangedCause::Recovery, events[0].cause);
+    assert!(!events[0].highlight);
+
+    // root is a scope that auto-advanced focus to first focusable child.
+    assert_eq!(Some(root_path), events[1].prev_focus);
+    assert_eq!(Some(button_0_path.clone()), events[1].new_focus);
+    assert_eq!(FocusChangedCause::ScopeGotFocus(false), events[1].cause);
+    assert!(!events[1].highlight);
+
+    let events = app.take_return_focus_changed();
+    assert_eq!(1, events.len());
+
+    // the window remembers is previous focused descendant.
+    assert!(events[0].prev_return.is_none());
+    assert_eq!(root_id, events[0].scope_id);
+    assert_eq!(Some(button_0_path.clone()), events[0].new_return);
+
+    /*
+        Last Events
+    */
+
+    app.set_shutdown_on_last_close(false);
+    app.close_window();
+
+    let events = app.take_focus_changed();
+    assert_eq!(1, events.len());
+
+    // "recover" to focus nothing.
+    assert_eq!(Some(button_0_path.clone()), events[0].prev_focus);
+    assert!(events[0].new_focus.is_none());
+    assert_eq!(FocusChangedCause::Recovery, events[0].cause);
+    assert!(!events[0].highlight);
+
+    let events = app.take_return_focus_changed();
+    assert_eq!(1, events.len());
+
+    // cleanup return focus.
+    assert_eq!(Some(button_0_path), events[0].prev_return);
+    assert!(events[0].new_return.is_none());
+}
 
 #[test]
 pub fn window_tab_cycle_index_auto() {
@@ -821,7 +885,10 @@ pub fn tab_inner_scope_none() {
 
 struct TestApp {
     app: HeadlessApp,
-    window_id: WindowId,
+    pub window_id: WindowId,
+
+    focus_changed: BufEventListener<FocusChangedArgs>,
+    return_focus_changed: BufEventListener<ReturnFocusChangedArgs>,
 }
 impl TestApp {
     pub fn new(content: impl UiNode) -> Self {
@@ -829,8 +896,40 @@ impl TestApp {
     }
     pub fn new_w(window: Window) -> Self {
         let mut app = App::default().run_headless();
+
+        let (focus_changed, return_focus_changed) = app.with_context(|ctx| {
+            let fc = ctx.events.listen_buf::<zero_ui::core::focus::FocusChangedEvent>();
+            let rfc = ctx.events.listen_buf::<zero_ui::core::focus::ReturnFocusChangedEvent>();
+            (fc, rfc)
+        });
+
         let window_id = app.open_window(move |_| window);
-        TestApp { app, window_id }
+        TestApp {
+            app,
+            window_id,
+            focus_changed,
+            return_focus_changed,
+        }
+    }
+
+    pub fn set_shutdown_on_last_close(&mut self, shutdown: bool) {
+        self.app.with_context(|ctx| {
+            let w = ctx.services.req::<zero_ui::core::window::Windows>();
+            w.shutdown_on_last_close = shutdown;
+        });
+    }
+
+    pub fn close_window(&mut self) {
+        let closed = self.app.close_window(self.window_id);
+        assert!(closed);
+    }
+
+    pub fn take_focus_changed(&mut self) -> Vec<FocusChangedArgs> {
+        self.focus_changed.pop_all()
+    }
+
+    pub fn take_return_focus_changed(&mut self) -> Vec<ReturnFocusChangedArgs> {
+        self.return_focus_changed.pop_all()
     }
 
     pub fn focused(&mut self) -> Option<WidgetId> {

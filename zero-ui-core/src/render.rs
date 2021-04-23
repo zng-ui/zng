@@ -1276,13 +1276,25 @@ impl fmt::Display for WidgetPath {
     }
 }
 impl WidgetPath {
-    /// Window the [frame_id](WidgetPath::frame_id) belongs too.
+    /// New custom widget path.
+    ///
+    /// The path is not guaranteed to have ever existed, the [`frame_id`](Self::frame_id) is [`invalid`](FrameId::invalid).
+    pub fn new<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> WidgetPath {
+        WidgetPath {
+            node_id: None,
+            window_id,
+            frame_id: FrameId::invalid(),
+            path: path.into(),
+        }
+    }
+
+    /// Id of the window that contains the widgets.
     #[inline]
     pub fn window_id(&self) -> WindowId {
         self.window_id
     }
 
-    /// The frame of [`window_id`](WidgetPath::window_id) this path was computed.
+    /// Id of the frame from which this path was taken.
     #[inline]
     pub fn frame_id(&self) -> FrameId {
         self.frame_id
