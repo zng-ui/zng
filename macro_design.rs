@@ -14,6 +14,54 @@ properties! {
 }
 
 /*
+    Alt `remove` and `child`
+*/
+// Current:
+#[widget($crate::my_widget)]
+mod my_widget {
+    inherit!(zero_ui::widgets::container);
+
+    properties! {
+        normal_property = 10;
+
+        child { 
+            child_property = 1;
+        }
+
+        remove {
+            padding
+        }
+
+        when self.is_focused {
+            normal_property = 20;
+            child_property = 2;
+        }
+    }
+}
+// New #1:
+#[widget($crate::my_widget)]
+mod my_widget {
+    inherit!(zero_ui::widgets::container);
+
+    properties! {
+        normal_property = 10;
+
+        when self.is_focused {
+            normal_property = 20;
+            child_property = 2; // ?
+        }
+    }
+
+    child_properties! {
+        child_property = 1;
+    }
+
+    remove! {
+        padding
+    }
+}
+
+/*
     Property Default Value
 */
 
