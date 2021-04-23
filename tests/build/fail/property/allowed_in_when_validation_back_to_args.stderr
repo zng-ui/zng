@@ -1,0 +1,8 @@
+error[E0308]: mismatched types
+  --> $DIR/allowed_in_when_validation_back_to_args.rs:14:43
+   |
+14 | pub fn invalid(child: impl UiNode, value: MyType) -> impl UiNode {
+   |                                           ^^^^^^ expected struct `MyType`, found struct `OwnedVar`
+   |
+   = note: expected struct `MyType`
+              found struct `OwnedVar<bool>`

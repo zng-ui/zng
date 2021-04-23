@@ -4,11 +4,10 @@
 
 Things that must be done first because they influence the core API design that is used to do all the rest.
 
-* Implement validation for inherit overrides changing captured properties.
 * Change capture-only in widget declaration to need type tokens in a tt group, improve validation after doing this.
-* What to do with capture-only in mix-ins?
-* Replace the `implicit_mixin` with a `base_widget`?
 * Custom default property values, `#[property(context, default <see macro_design.rs>)]`.
+* Improve property allowed_in_when validation for generics, generate a `new` like call for each
+  argument, instead of all at once.
 * Test `#[cfg(..)]` support in widget declarations.
 * Use something like this [https://docs.rs/crate/xss-probe/0.2.0/source/build.rs] to patch docs.
 * Link property declaration to their source-code point.
