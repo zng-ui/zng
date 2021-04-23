@@ -411,6 +411,12 @@ pub fn expand(mixin: bool, is_base: bool, args: proc_macro::TokenStream, input: 
 
         // declare new capture properties.
         if let Some((_, new_type)) = &property.type_ {
+            if let Some((as_, _)) = &property.alias {
+                errors.push("cannot use alias while naming a new capture-only property", as_.span());
+            } else if property.path.get_ident().is_none() {
+                errors.push("cannot use path while naming a new capture-only property", property.path.span());
+            }
+
             if mixin {
                 errors.push(
                     format_args!("capture-only properties cannot be declared in mix-ins"),
