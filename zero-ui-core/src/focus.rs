@@ -935,53 +935,90 @@ impl Focus {
     #[must_use]
     fn update_returns(&mut self, prev_focus: Option<WidgetPath>, windows: &Windows) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
-        if let Some(focused) = &self.focused {
-            if let Ok(window) = windows.window(focused.window_id()) {
-                if let Some(mut widget) = FrameFocusInfo::new(window.frame_info()).get(focused) {
-                    let mut alt_scope = None;
 
-                    // collect the ALT scope and updates the return focus of every parent scopes that return last focused.
-                    while let Some(scope) = widget.scope() {
-                        let scope_info = scope.focus_info();
-                        let already_in_alt = alt_scope.is_some();
+        if let Some((scope_id, _)) = &self.alt_return {
+            // if we have an `alt_return` check if is still inside the ALT.
 
-                        if !already_in_alt && scope.is_alt_scope() {
-                            alt_scope = Some(scope.info.widget_id());
-                        }
+            let scope_id = *scope_id;
 
-                        if !already_in_alt && scope_info.scope_on_focus() == FocusScopeOnFocus::LastFocused {
-                            // update return focus for the scope if the new `focused` is not inside an inner ALT scope
-                            // and the scope returns last focused.
-                            let prev = self.return_focused.insert(scope.info.widget_id(), focused.clone());
-                            let new = Some(focused.clone());
-                            if prev != new {
-                                r.push(ReturnFocusChangedArgs::now(scope.info.widget_id(), prev, new));
-                            }
-                        }
+            let mut retain_alt = false;
+            if let Some(new_focus) = &self.focused {
+                if new_focus.contains(scope_id) {
+                    retain_alt = true; // just a focus move inside the ALT.
+                }
+            }
 
-                        widget = scope; // continue to parent scope.
-                    }
+            if !retain_alt {
+                let (scope_id, widget_path) = self.alt_return.take().unwrap();
+                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
+            }
+        } else if let Some(new_focus) = &self.focused {
+            // if we don't have an `alt_return` but focused something, check if focus
+            // moved inside an ALT.
 
+            if let Ok(window) = windows.window(new_focus.window_id()) {
+                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(new_focus) {
+                    let alt_scope = if widget.is_alt_scope() {
+                        Some(widget)
+                    } else if let Some(alt_scope) = widget.scopes().find(|s| s.is_alt_scope()) {
+                        Some(alt_scope)
+                    } else {
+                        None
+                    };
                     if let Some(alt_scope) = alt_scope {
-                        if self.alt_return.is_none() {
-                            if let Some(alt_return) = prev_focus {
-                                self.alt_return = Some((alt_scope, alt_return.clone()));
-                                r.push(ReturnFocusChangedArgs::now(alt_scope, None, Some(alt_return)));
-                            }
+                        let scope_id = alt_scope.info.widget_id();
+                        // entered an alt_scope.
+
+                        if let Some(prev) = &prev_focus {
+                            // previous focus is the return.
+                            r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(prev.clone())));
+                            self.alt_return = Some((scope_id, prev.clone()));
+                        } else if let Some(parent) = alt_scope.parent() {
+                            // no previous focus, ALT parent is the return.
+                            let parent_path = parent.info.path();
+                            r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(parent_path.clone())));
+                            self.alt_return = Some((scope_id, parent_path));
                         }
-                    } else if let Some((alt_scope, alt_return)) = self.alt_return.take() {
-                        r.push(ReturnFocusChangedArgs::now(alt_scope, Some(alt_return), None));
                     }
                 }
             }
-        } else if let Some((alt_scope, alt_return)) = self.alt_return.take() {
-            r.push(ReturnFocusChangedArgs::now(alt_scope, Some(alt_return), None));
+        }
+
+        /*
+         *   Update `return_focused`
+         */
+
+        if let Some(new_focus) = &self.focused {
+            if let Ok(window) = windows.window(new_focus.window_id()) {
+                if let Some(widget) = FrameFocusInfo::new(window.frame_info()).get(new_focus) {
+                    if widget.scopes().all(|s| !s.is_alt_scope()) {
+                        // if not inside ALT, update return for each LastFocused parent scopes.
+
+                        for scope in widget
+                            .scopes()
+                            .filter(|s| s.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused)
+                        {
+                            let scope_id = scope.info.widget_id();
+                            let path = widget.info.path();
+                            if let Some(current) = self.return_focused.get_mut(&scope_id) {
+                                if current != &path {
+                                    let prev = std::mem::replace(current, path);
+                                    r.push(ReturnFocusChangedArgs::now(scope_id, Some(prev), Some(current.clone())));
+                                }
+                            } else {
+                                r.push(ReturnFocusChangedArgs::now(scope_id, None, Some(path.clone())));
+                                self.return_focused.insert(scope_id, path);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         r
     }
 
-    /// Cleanup `return_focused` after new `frame`.
+    /// Cleanup `return_focused` and `alt_return` after new `frame`.
     #[must_use]
     fn cleanup_returns(&mut self, frame: FrameFocusInfo) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
