@@ -986,47 +986,92 @@ impl Focus {
     fn cleanup_returns(&mut self, frame: FrameFocusInfo) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
-        for (&scope_id, widget_path) in self.return_focused.iter() {
+        self.return_focused.retain(|&scope_id, widget_path| {
             if widget_path.window_id() != frame.info.window_id() {
-                continue;// only update if from same window?.
+                return true; // retain, not same window.
             }
+
+            let mut retain = false;
 
             if let Some(widget) = frame.get(widget_path) {
-                if let Some(scope) = widget.scope() {
-                    if scope.info.widget_id() == scope_id {
-                        if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
-                            let path = widget.info.path();
-                            if &path != widget_path {
-                                // still return focus but moved inside the scope.
-                                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
-                            }
-                        } else {
-                            // scope does remember return focus anymore.
-                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+                if let Some(scope) = widget.scopes().find(|s| s.info.widget_id() == scope_id) {
+                    if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                        retain = true; // retain, widget still exists in same scope and scope still is LastFocused.
+
+                        let path = widget.info.path();
+                        if &path != widget_path {
+                            // widget moved inside scope.
+                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                            *widget_path = path;
                         }
-                    } else {
-                        // widget not in the same scope.
-                        // TODO
                     }
-                } else {
-                    // widget became the root of the window.
-                    r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+                } else if let Some(scope) = frame.find(scope_id) {
+                    if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                        // widget not inside scope anymore, but scope still exists and is valid.
+                        if let Some(first) = scope.first_tab_descendant() {
+                            // LastFocused goes to the first descendant as fallback.
+                            retain = true;
+
+                            let path = first.info.path();
+                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                            *widget_path = path;
+                        }
+                    }
                 }
-            } else if frame.contains(scope_id) {
-                // widget removed but scope still in frame, definitely not the
-                // return focus for the scope anymore.
+            } else if let Some(parent) = frame.get_or_parent(widget_path) {
+                // widget not in window anymore, but a focusable parent is..
+                if let Some(scope) = parent.scopes().find(|s| s.info.widget_id() == scope_id) {
+                    if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
+                        // ..and the parent is inside the scope, and the scope is still valid.
+                        retain = true;
+
+                        let path = parent.info.path();
+                        r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                        *widget_path = path;
+                    }
+                }
+            }
+
+            if !retain {
                 r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
-            } else {
-                // widget removed but also the scope, could be the entire scope moved
-                // to another window.
-                todo!()
+            }
+            retain
+        });
+
+        let mut retain_alt = true;
+        if let Some((scope_id, widget_path)) = &mut self.alt_return {
+            let scope_id = *scope_id;
+            if widget_path.window_id() == frame.info.window_id() {
+                // we needs to update alt_return
+
+                retain_alt = false; // will retain only if still valid
+
+                if let Some(widget) = frame.get(widget_path) {
+                    if !widget.scopes().any(|s| s.info.widget_id() == scope_id) {
+                        retain_alt = true; // retain, widget still exists outside of the ALT scope.
+
+                        let path = widget.info.path();
+                        if &path != widget_path {
+                            // widget moved outside ALT scope.
+                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
+                        }
+                    }
+                } else if let Some(parent) = frame.get_or_parent(widget_path) {
+                    // widget not in window anymore, but a focusable parent is..
+                    if parent.scopes().any(|s| s.info.widget_id() == scope_id) {
+                        // ..and the parent is not inside the ALT scope.
+                        retain_alt = true;
+
+                        let path = parent.info.path();
+                        r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path.clone())));
+                        *widget_path = path;
+                    }
+                }
             }
         }
-
-        for r in &mut r {
-            if r.new_return.is_none() {
-                r.prev_return = self.return_focused.remove(&r.scope_id);
-            }
+        if !retain_alt {
+            let (scope_id, widget_path) = self.alt_return.take().unwrap();
+            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
         }
 
         r
