@@ -467,6 +467,12 @@ impl AppExtension for FocusManager {
                 self.notify(Some(args), focus, windows, ctx.events);
                 // TODO alt scope focused just before ALT+TAB clears the focus.
             }
+
+            for close in self.windows_activation.updates(ctx.events).iter().filter(|a| a.closed) {
+                for args in focus.cleanup_returns_win_closed(close.window_id) {
+                    self.return_focus_changed.notify(ctx.events, args);
+                }
+            }
         }
     }
 
@@ -1110,6 +1116,34 @@ impl Focus {
             let (scope_id, widget_path) = self.alt_return.take().unwrap();
             r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
         }
+
+        r
+    }
+
+    /// Cleanup `return_focused` and `alt_return` after a window closed.
+    #[must_use]
+    fn cleanup_returns_win_closed(&mut self, window_id: WindowId) -> Vec<ReturnFocusChangedArgs> {
+        let mut r = vec![];
+
+        if self
+            .alt_return
+            .as_ref()
+            .map(|(_, w)| w.window_id() == window_id)
+            .unwrap_or_default()
+        {
+            let (scope_id, widget_path) = self.alt_return.take().unwrap();
+            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path), None));
+        }
+
+        self.return_focused.retain(|&scope_id, widget_path| {
+            let retain = widget_path.window_id() != window_id;
+
+            if !retain {
+                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+            }
+
+            retain
+        });
 
         r
     }
