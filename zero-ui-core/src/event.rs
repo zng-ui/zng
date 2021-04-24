@@ -148,18 +148,23 @@ impl<T: Clone> EventChannel<T> {
     pub fn buffered_listener(&self, events: &Events) -> BufEventListener<T> {
         let buffer = BufEventListener { queue: Default::default() };
         let buffer_ = buffer.clone();
-        let self_ = self.clone();
-        events.push_buffer(Box::new(move || {
+        let me = Rc::clone(&self.r);
+        events.push_buffer(Box::new(move |update_id| {
             // we keep this buffer alive only if there is a copy of it alive out there.
             let retain = Rc::strong_count(&buffer_.queue) > 1;
             if retain {
                 // SAFETY: this is safe because Events requires a mutable reference to apply changes
                 // and is till borrowed as mutable but has finished applying changes.
-                let data = unsafe { &*self_.r.data.get() };
-                if !data.is_empty() {
-                    let mut buf = buffer_.queue.borrow_mut();
-                    for e in data {
-                        buf.push_back(e.clone());
+
+                if me.last_update.get() != update_id {
+                    unsafe { &mut *me.data.get() }.clear();
+                } else {
+                    let data = unsafe { &*me.data.get() };
+                    if !data.is_empty() {
+                        let mut buf = buffer_.queue.borrow_mut();
+                        for e in data {
+                            buf.push_back(e.clone());
+                        }
                     }
                 }
             }
@@ -369,7 +374,8 @@ pub struct Events {
     update_id: u32,
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<Box<dyn FnOnce(u32, &mut UpdateRequest)>>>,
-    buffers: RefCell<Vec<Box<dyn Fn() -> Retain>>>,
+    #[allow(clippy::type_complexity)]
+    buffers: RefCell<Vec<Box<dyn Fn(u32) -> Retain>>>,
     _singleton: SingletonEvents,
 }
 
@@ -465,7 +471,7 @@ impl Events {
         self.pending.borrow_mut().push(change);
     }
 
-    pub(super) fn push_buffer(&self, buffer: Box<dyn Fn() -> Retain>) {
+    pub(super) fn push_buffer(&self, buffer: Box<dyn Fn(u32) -> Retain>) {
         self.buffers.borrow_mut().push(buffer);
     }
 
@@ -480,7 +486,7 @@ impl Events {
             }
             updates.schedule_updates(ups);
 
-            self.buffers.borrow_mut().retain(|b| b());
+            self.buffers.borrow_mut().retain(|b| b(self.update_id));
         }
     }
 }
