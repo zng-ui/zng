@@ -986,10 +986,13 @@ impl Focus {
     fn cleanup_returns(&mut self, frame: FrameFocusInfo) -> Vec<ReturnFocusChangedArgs> {
         let mut r = vec![];
 
-        'map_update: for (&scope_id, widget_path) in self.return_focused.iter() {
+        for (&scope_id, widget_path) in self.return_focused.iter() {
+            if widget_path.window_id() != frame.info.window_id() {
+                continue;// only update if from same window?.
+            }
+
             if let Some(widget) = frame.get(widget_path) {
-                let mut scope_w = widget;
-                while let Some(scope) = scope_w.scope() {
+                if let Some(scope) = widget.scope() {
                     if scope.info.widget_id() == scope_id {
                         if scope.focus_info().scope_on_focus() == FocusScopeOnFocus::LastFocused {
                             let path = widget.info.path();
@@ -997,18 +1000,27 @@ impl Focus {
                                 // still return focus but moved inside the scope.
                                 r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), Some(path)));
                             }
+                        } else {
+                            // scope does remember return focus anymore.
+                            r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
                         }
-
-                        continue 'map_update;
+                    } else {
+                        // widget not in the same scope.
+                        // TODO
                     }
-                    scope_w = scope;
+                } else {
+                    // widget became the root of the window.
+                    r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
                 }
+            } else if frame.contains(scope_id) {
+                // widget removed but scope still in frame, definitely not the
+                // return focus for the scope anymore.
+                r.push(ReturnFocusChangedArgs::now(scope_id, Some(widget_path.clone()), None));
+            } else {
+                // widget removed but also the scope, could be the entire scope moved
+                // to another window.
+                todo!()
             }
-
-            // Did not find the widget, or the widget is not in the scope, or the scope no longer returns focus.
-            //
-            // None in new means we need to remove after return_focused is not borrowed.
-            r.push(ReturnFocusChangedArgs::now(scope_id, None, None));
         }
 
         for r in &mut r {
