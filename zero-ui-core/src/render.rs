@@ -680,10 +680,9 @@ impl FrameBuilder {
     pub fn push_line(
         &mut self,
         bounds: LayoutRect,
-        orientation: LineOrientation,
-        color: &ColorF,
-        style: LineStyle,
-        wavy_line_thickness: f32,
+        orientation: crate::line::LineOrientation,
+        color: RenderColor,
+        style: crate::line::LineStyle,
     ) {
         if self.cancel_widget {
             return;
@@ -693,14 +692,40 @@ impl FrameBuilder {
 
         self.open_widget_display();
 
-        self.display_list.push_line(
-            &self.common_item_properties(bounds),
-            &bounds,
-            wavy_line_thickness,
-            orientation,
-            color,
-            style,
-        );
+        match style.render_command() {
+            RenderLineCommand::Line(style, thickness) => self.display_list.push_line(
+                &self.common_item_properties(bounds),
+                &bounds,
+                thickness,
+                orientation.into(),
+                &color,
+                style,
+            ),
+            RenderLineCommand::Border(style) => {
+                use crate::line::LineOrientation as LO;
+                let widths = match orientation {
+                    LO::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, bounds.size.width),
+                    LO::Horizontal => LayoutSideOffsets::new(bounds.size.height, 0.0, 0.0, 0.0),
+                };
+                let details = BorderDetails::Normal(NormalBorder {
+                    left: BorderSide { color, style },
+                    right: BorderSide {
+                        color: RenderColor::TRANSPARENT,
+                        style: BorderStyle::Hidden,
+                    },
+                    top: BorderSide { color, style },
+                    bottom: BorderSide {
+                        color: RenderColor::TRANSPARENT,
+                        style: BorderStyle::Hidden,
+                    },
+                    radius: BorderRadius::uniform(0.0),
+                    do_aa: false,
+                });
+
+                self.display_list
+                    .push_border(&self.common_item_properties(bounds), bounds, widths, details);
+            }
+        }
     }
 
     /// Push a `color` dot to mark the `offset`.
@@ -734,6 +759,27 @@ impl FrameBuilder {
         self.close_widget_display();
         self.info.set_meta(self.info_id, self.meta);
         (self.display_list.finalize(), self.info.build())
+    }
+}
+
+enum RenderLineCommand {
+    Line(LineStyle, f32),
+    Border(BorderStyle),
+}
+impl crate::line::LineStyle {
+    fn render_command(self) -> RenderLineCommand {
+        use crate::line::LineStyle as LS;
+        use RenderLineCommand::*;
+        match self {
+            LS::Solid => Line(LineStyle::Solid, 0.0),
+            LS::Double => Border(BorderStyle::Double),
+            LS::Dotted => Line(LineStyle::Dotted, 0.0),
+            LS::Dashed => Line(LineStyle::Dashed, 0.0),
+            LS::Groove => Border(BorderStyle::Groove),
+            LS::Ridge => Border(BorderStyle::Ridge),
+            LS::Wavy(thickness) => Line(LineStyle::Wavy, thickness),
+            LS::Hidden => Border(BorderStyle::Hidden),
+        }
     }
 }
 
@@ -1278,7 +1324,7 @@ impl fmt::Display for WidgetPath {
 impl WidgetPath {
     /// New custom widget path.
     ///
-    /// The path is not guaranteed to have ever existed, the [`frame_id`](Self::frame_id) is [`invalid`](FrameId::invalid).
+    /// The path is not guaranteed to have ever existed, the [`frame_id`](Self::frame_id) is `FrameId::invalid`.
     pub fn new<P: Into<Box<[WidgetId]>>>(window_id: WindowId, path: P) -> WidgetPath {
         WidgetPath {
             node_id: None,
@@ -1840,8 +1886,6 @@ mod renderer {
     ///
     /// To convert from [`LayoutSize`](crate::units::LayoutSize) multiply by the pixel scaling factor (dpi)
     /// and then cast to [`i32`].
-    ///
-    /// TODO move this to units?
     pub type RenderSize = webrender::api::units::DeviceIntSize;
 
     /// Init config of a [`Renderer`].

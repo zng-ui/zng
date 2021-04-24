@@ -1,7 +1,4 @@
 use crate::prelude::new_widget::*;
-use webrender_api as w_api;
-
-pub use w_api::LineOrientation;
 
 /// Draws a horizontal or vertical line.
 #[widget($crate::widgets::line_w)]
@@ -34,12 +31,11 @@ pub mod line_w {
     ) -> impl UiNode {
         LineNode {
             bounds: LayoutSize::zero(),
-            render_command: RenderLineCommand::Line(w_api::LineStyle::Solid, 0.0),
             orientation: orientation.into_local(),
             length: length.into_local(),
             width: width.into_local(),
             color: color.into_local(),
-            style: style.into_var(),
+            style: style.into_local(),
         }
     }
 
@@ -50,7 +46,6 @@ pub mod line_w {
         color: C,
         style: S,
 
-        render_command: RenderLineCommand,
         bounds: LayoutSize,
     }
     #[impl_ui_node(none)]
@@ -60,14 +55,14 @@ pub mod line_w {
         L: VarLocal<Length>,
         O: VarLocal<LineOrientation>,
         C: VarLocal<Rgba>,
-        S: Var<LineStyle>,
+        S: VarLocal<LineStyle>,
     {
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.width.init_local(ctx.vars);
             self.length.init_local(ctx.vars);
             self.color.init_local(ctx.vars);
             self.orientation.init_local(ctx.vars);
-            self.render_command = self.style.get(ctx.vars).render_command();
+            self.style.init_local(ctx.vars);
         }
 
         fn update(&mut self, ctx: &mut WidgetContext) {
@@ -80,8 +75,7 @@ pub mod line_w {
             if self.color.update_local(ctx.vars).is_some() {
                 ctx.updates.render();
             }
-            if let Some(style) = self.style.get_new(ctx.vars) {
-                self.render_command = style.render_command();
+            if self.style.update_local(ctx.vars).is_some() {
                 ctx.updates.render();
             }
         }
@@ -106,18 +100,8 @@ pub mod line_w {
             let bounds = LayoutRect::from_size(self.bounds);
             let orientation = *self.orientation.get_local();
             let color = *self.color.get_local();
-            match self.render_command {
-                RenderLineCommand::Line(style, thickness) => frame.push_line(bounds, orientation, &color.into(), style, thickness),
-                RenderLineCommand::Border(style) => {
-                    let widths = match orientation {
-                        LineOrientation::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, self.bounds.width),
-                        LineOrientation::Horizontal => LayoutSideOffsets::new(self.bounds.height, 0.0, 0.0, 0.0),
-                    };
-                    let details = BorderDetails::new_all(BorderSide { color, style });
-
-                    frame.push_border(bounds, widths, details.into());
-                }
-            }
+            let style = *self.style.get_local();
+            frame.push_line(bounds, orientation, color.into(), style);
         }
     }
 }
@@ -131,53 +115,4 @@ pub fn line_w(
     style: impl IntoVar<LineStyle> + 'static,
 ) -> impl Widget {
     line_w! { orientation; length; width; color; style; }
-}
-
-enum RenderLineCommand {
-    Line(w_api::LineStyle, f32),
-    Border(BorderStyle),
-}
-
-/// Represents a line style.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum LineStyle {
-    /// A solid line.
-    Solid,
-    /// Two solid lines in parallel.
-    Double,
-
-    /// Dotted line.
-    Dotted,
-    /// Dashed line.
-    Dashed,
-
-    /// Faux shadow with carved appearance.
-    Groove,
-    /// Faux shadow with extruded appearance.
-    Ridge,
-
-    /// A wavy line, like an error underline.
-    ///
-    /// The wave magnitude is defined by the overall line thickness, the associated value
-    /// here defines the thickness of the wavy line.
-    Wavy(f32),
-
-    /// Fully transparent line.
-    Hidden,
-}
-
-impl LineStyle {
-    fn render_command(self) -> RenderLineCommand {
-        use RenderLineCommand::*;
-        match self {
-            LineStyle::Solid => Line(w_api::LineStyle::Solid, 0.0),
-            LineStyle::Double => Border(BorderStyle::Double),
-            LineStyle::Dotted => Line(w_api::LineStyle::Dotted, 0.0),
-            LineStyle::Dashed => Line(w_api::LineStyle::Dashed, 0.0),
-            LineStyle::Groove => Border(BorderStyle::Groove),
-            LineStyle::Ridge => Border(BorderStyle::Ridge),
-            LineStyle::Wavy(thickness) => Line(w_api::LineStyle::Wavy, thickness),
-            LineStyle::Hidden => Border(BorderStyle::Hidden),
-        }
-    }
 }

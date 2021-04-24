@@ -257,54 +257,6 @@ macro_rules! print_backtrace {
     };
 }
 
-/// Implements From and IntoVar without boilerplate.
-macro_rules! impl_from_and_into_var {
-    ($(
-        $(#[$docs:meta])*
-        fn from $(< $($T:ident  $(: $TConstrain:path)?),+ $(,)?>)? (
-            $($name:ident)? // single ident OR
-            $( ( // tuple deconstruct of
-                $(
-                    $($tuple_names:ident)? // single idents OR
-                    $( ( // another tuple deconstruct of
-                        $($tuple_inner_names:ident ),+ // inner idents
-                    ) )?
-                ),+
-            ) )?
-            : $From:ty) -> $To:ty
-            $convert_block:block
-    )+) => {
-        $(
-            impl $(< $($T $(: $TConstrain)?),+ >)? From<$From> for $To {
-                $(#[$docs])*
-                #[inline]
-                fn from(
-                    $($name)?
-                    $( (
-                        $(
-                            $($tuple_names)?
-                            $( (
-                                $($tuple_inner_names),+
-                            ) )?
-                        ),+
-                    ) )?
-                    : $From) -> Self
-                    $convert_block
-
-            }
-
-            impl $(< $($T $(: $TConstrain + Clone)?),+ >)? $crate::core::var::IntoVar<$To> for $From {
-                type Var = $crate::core::var::OwnedVar<$To>;
-
-                $(#[$docs])*
-                fn into_var(self) -> Self::Var {
-                    $crate::core::var::OwnedVar(self.into())
-                }
-            }
-        )+
-    };
-}
-
 /// Core infrastructure required for creating components and running an app.
 pub mod core {
     /// Expands an `impl` block into a [`UiNode`](crate::core::UiNode) trait implementation.
@@ -1186,6 +1138,7 @@ pub mod prelude {
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         keyboard::{Key, ModifiersState},
+        line::LineOrientation,
         mouse::MouseButton,
         node_vec, nodes,
         render::WidgetPath,
@@ -1277,6 +1230,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::gesture::*;
         #[doc(no_inline)]
+        pub use crate::core::line::*;
+        #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
         pub use crate::core::text::Text;
@@ -1318,6 +1273,8 @@ pub mod prelude {
         pub use crate::core::color::*;
         #[doc(no_inline)]
         pub use crate::core::context::*;
+        #[doc(no_inline)]
+        pub use crate::core::line::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]

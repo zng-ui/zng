@@ -2852,7 +2852,6 @@ dependencies = [
  "serial_test",
  "stderrlog",
  "trybuild",
- "webrender_api",
  "zero-ui-core",
 ]
 

@@ -7,8 +7,8 @@ pub mod focusable_mixin {
     use crate::core::color::rgba;
     use crate::core::units::SideOffsets;
     use crate::core::var::context_var;
+    use crate::core::line::BorderDetails;
     use crate::properties::{
-        border::BorderDetails,
         focus::{focusable, is_focused_hgl},
         foreground_highlight,
     };

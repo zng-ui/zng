@@ -218,7 +218,7 @@ pub fn foreground_highlight(
     child: impl UiNode,
     offsets: impl IntoVar<SideOffsets>,
     widths: impl IntoVar<SideOffsets>,
-    details: impl IntoVar<crate::properties::border::BorderDetails>,
+    details: impl IntoVar<BorderDetails>,
 ) -> impl UiNode {
     let border = crate::properties::border::border(crate::core::FillUiNode, widths, details);
     foreground(child, margin(border, offsets))

@@ -742,7 +742,7 @@ pub type LayoutPoint = wr::LayoutPoint;
 pub struct Size {
     /// *width* in length units.
     pub width: Length,
-    /// *width* in length units.
+    /// *height* in length units.
     pub height: Length,
 }
 impl fmt::Display for Size {
@@ -800,6 +800,111 @@ impl_length_comp_conversions! {
 
 /// Computed [`Size`].
 pub type LayoutSize = wr::LayoutSize;
+
+/// Ellipse in [`Length`] units.
+///
+/// This is very similar to [`Size`] but allows initializing from a single [`Length`].
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Ellipse {
+    /// *width* in length units.
+    pub width: Length,
+    /// *height* in length units.
+    pub height: Length,
+}
+impl fmt::Display for Ellipse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.maybe_circle() {
+            if let Some(p) = f.precision() {
+                write!(f, "{:.p$}", self.width, p = p)
+            } else {
+                write!(f, "{}", self.width)
+            }
+        } else if let Some(p) = f.precision() {
+            write!(f, "{:.p$} × {:.p$}", self.width, self.height, p = p)
+        } else {
+            write!(f, "{} × {}", self.width, self.height)
+        }
+    }
+}
+impl Ellipse {
+    /// New width, height from any [`Length`] unit.
+    pub fn new<W: Into<Length>, H: Into<Length>>(width: W, height: H) -> Self {
+        Ellipse {
+            width: width.into(),
+            height: height.into(),
+        }
+    }
+
+    /// New width and height from the same [`Length`].
+    pub fn new_circular<L: Into<Length>>(width_and_height: L) -> Self {
+        let l = width_and_height.into();
+        Ellipse { width: l, height: l }
+    }
+
+    /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
+    #[inline]
+    pub fn zero() -> Self {
+        Self::new_circular(Length::zero())
+    }
+
+    /// Size that fills the available space.
+    ///
+    /// ***width:*** [`Length::fill`], ***height:*** [`Length::fill`]
+    #[inline]
+    pub fn fill() -> Self {
+        Self::new_circular(Length::fill())
+    }
+
+    /// Returns `(width, height)`.
+    #[inline]
+    pub fn to_tuple(self) -> (Length, Length) {
+        (self.width, self.height)
+    }
+
+    /// Compute the size in a layout context.
+    #[inline]
+    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutEllipse {
+        LayoutEllipse::from_lengths(
+            self.width.to_layout(LayoutLength::new(available_size.width), ctx),
+            self.height.to_layout(LayoutLength::new(available_size.height), ctx),
+        )
+    }
+
+    /// If the [`width`](Self::width) and [`height`](Self::height) are equal.
+    ///
+    /// Note that if the values are relative may still not be a perfect circle.
+    #[inline]
+    pub fn maybe_circle(&self) -> bool {
+        self.width == self.height
+    }
+}
+impl_from_and_into_var! {
+    /// New circular.
+    fn from(all: Length) -> Ellipse {
+        Ellipse::new_circular(all)
+    }
+
+    /// New circular relative length.
+    fn from(percent: FactorPercent) -> Ellipse {
+        Ellipse::new_circular(percent)
+    }
+    /// New circular relative length.
+    fn from(norm: FactorNormal) -> Ellipse {
+        Ellipse::new_circular(norm)
+    }
+
+    /// New circular exact length.
+    fn from(f: f32) -> Ellipse {
+        Ellipse::new_circular(f)
+    }
+    /// New circular exact length.
+    fn from(i: i32) -> Ellipse {
+        Ellipse::new_circular(i)
+    }
+}
+
+/// Computed [`Ellipse`].
+pub type LayoutEllipse = LayoutSize;
 
 /// Spacing in-between grid cells in [`Length`] units.
 #[derive(Debug, Clone)]
