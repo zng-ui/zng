@@ -14,9 +14,6 @@ zero-ui-core = { path = "zero-ui-core" }
 # util
 paste = "1.0.4"
 
-# TODO remove?
-# webrender_api = "0.61.0"
-
 [dev-dependencies]
 bencher = "0.1.5"
 enclose = "1.1.8"

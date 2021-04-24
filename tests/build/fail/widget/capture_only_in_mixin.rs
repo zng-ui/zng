@@ -5,7 +5,7 @@ pub mod test1_mixin {
     use zero_ui::core::var::IntoVar;
 
     properties! {
-        foo: impl IntoVar<bool>
+        foo { impl IntoVar<bool> }
     }
 }
 
@@ -13,7 +13,7 @@ pub mod test1_mixin {
 pub mod test2_mixin {
     properties! {
         #[allowed_in_when = false]
-        foo: bool
+        foo { bool }
     }
 }
 

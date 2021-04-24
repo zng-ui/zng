@@ -12,7 +12,7 @@ pub mod test_widget {
 
     properties! {
         #[allowed_in_when = false]
-        foo: Foo = Foo;
+        foo { Foo } = Foo;
     }
 
     fn new_child(foo: NotFoo) -> NilUiNode {

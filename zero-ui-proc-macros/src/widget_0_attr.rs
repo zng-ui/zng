@@ -1283,7 +1283,6 @@ impl Parse for ItemProperty {
                 |input| {
                     // checks if the next tokens in the stream look like the start
                     // of another ItemProperty.
-                    // TODO can we anticipate `path: T = v;`
                     let fork = input.fork();
                     let _ = util::parse_outer_attrs(&fork, &mut Errors::default());
                     if fork.peek2(Token![=]) {
@@ -1293,6 +1292,7 @@ impl Parse for ItemProperty {
                     } else {
                         fork.peek(keyword::when)
                             || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
+                            || (fork.peek(Ident) && fork.peek2(syn::token::Brace)) // peek capture-only declaration.
                     }
                 },
                 false,
@@ -1371,7 +1371,7 @@ impl PropertyType {
         if input.is_empty() {
             Err(util::recoverable_err(group_span, "expected property type"))
         } else {
-            Self::parse(input).map_err(|e| {
+            Self::parse(input).map_err(move |e| {
                 if e.to_string() == "expected one of: `for`, parentheses, `fn`, `unsafe`, `extern`, identifier, `::`, `<`, square brackets, `*`, `&`, `!`, `impl`, `_`, lifetime" {
                     util::recoverable_err(e.span(), "expected property type")
                 } else {
@@ -1382,9 +1382,21 @@ impl PropertyType {
     }
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(Ident) && input.peek2(Token![:]) && !input.peek3(Token![:]) {
-            Ok(PropertyType::Named(Punctuated::parse_terminated(input)?))
+            let t: Punctuated<NamedField, Token![,]> = Punctuated::parse_terminated(input)?;
+            for t in t.iter() {
+                if let syn::Type::Infer(inf) = &t.ty {
+                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"))
+                }
+            }
+            Ok(PropertyType::Named(t))
         } else {
-            Ok(PropertyType::Unnamed(Punctuated::parse_terminated(input)?))
+            let t = Punctuated::parse_terminated(input)?;
+            for t in t.iter() {
+                if let syn::Type::Infer(inf) = &t {
+                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"))
+                }
+            }
+            Ok(PropertyType::Unnamed(t))
         }
     }
 }

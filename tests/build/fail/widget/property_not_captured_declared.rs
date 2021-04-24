@@ -5,7 +5,7 @@ pub mod test_widget {
     use zero_ui::core::var::IntoVar;
 
     properties! {
-        foo: impl IntoVar<bool>;
+        foo { impl IntoVar<bool> };
     }
 }
 

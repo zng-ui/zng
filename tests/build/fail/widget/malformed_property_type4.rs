@@ -4,7 +4,7 @@ use zero_ui::core::widget;
 pub mod test_widget {
     use zero_ui::core::NilUiNode;
     properties! {
-        foo: bool,
+        foo { bool },
         zero_ui::properties::margin = 10;
     }
 

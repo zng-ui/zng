@@ -6,7 +6,7 @@ pub mod test_widget {
     use zero_ui::core::NilUiNode;
 
     properties! {
-        foo: impl IntoVar<bool>;
+        foo { impl IntoVar<bool> };
     }
 
     fn new_child(foo: impl IntoVar<bool>) -> NilUiNode {

@@ -5,8 +5,8 @@ pub mod base1_widget {
     use zero_ui::core::{var::IntoVar, NilUiNode, UiNode};
 
     properties! {
-        foo: impl IntoVar<bool>;
-        bar: impl IntoVar<bool>;
+        foo { impl IntoVar<bool> };
+        bar { impl IntoVar<bool> };
     }
 
     fn new_child(foo: impl IntoVar<bool>) -> NilUiNode {
