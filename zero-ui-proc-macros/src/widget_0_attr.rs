@@ -6,8 +6,8 @@ use std::{
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::{
-    braced,
     ext::IdentExt,
+    parenthesized,
     parse::{Parse, ParseStream},
     parse2, parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -1214,7 +1214,7 @@ struct ItemProperty {
     pub attrs: Vec<Attribute>,
     pub path: Path,
     pub alias: Option<(Token![as], Ident)>,
-    pub type_: Option<(token::Brace, PropertyType)>,
+    pub type_: Option<(token::Paren, PropertyType)>,
     pub value: Option<(Token![=], PropertyValue)>,
     pub value_span: Span,
     pub semi: Option<Token![;]>,
@@ -1232,15 +1232,15 @@ impl Parse for ItemProperty {
             None
         };
 
-        // { Type }
+        // (Type)
         let mut type_error = None;
         let mut type_ = None;
-        if input.peek(token::Brace) {
+        if input.peek(token::Paren) {
             let inner;
-            let brace = braced!(inner in input);
-            match PropertyType::parse_validate(&inner, brace.span) {
+            let paren = parenthesized!(inner in input);
+            match PropertyType::parse_validate(&inner, paren.span) {
                 Ok(t) => {
-                    type_ = Some((brace, t));
+                    type_ = Some((paren, t));
                 }
                 Err(e) => {
                     // we don't return the error right now
@@ -1292,7 +1292,7 @@ impl Parse for ItemProperty {
                     } else {
                         fork.peek(keyword::when)
                             || (fork.peek(keyword::child) || fork.peek(keyword::remove)) && fork.peek2(syn::token::Brace)
-                            || (fork.peek(Ident) && fork.peek2(syn::token::Brace)) // peek capture-only declaration.
+                        //TODO find the next capture-only declarations only if the parse failed.
                     }
                 },
                 false,
@@ -1385,7 +1385,7 @@ impl PropertyType {
             let t: Punctuated<NamedField, Token![,]> = Punctuated::parse_terminated(input)?;
             for t in t.iter() {
                 if let syn::Type::Infer(inf) = &t.ty {
-                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"))
+                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"));
                 }
             }
             Ok(PropertyType::Named(t))
@@ -1393,7 +1393,7 @@ impl PropertyType {
             let t = Punctuated::parse_terminated(input)?;
             for t in t.iter() {
                 if let syn::Type::Infer(inf) = &t {
-                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"))
+                    return Err(syn::Error::new(inf.span(), "type placeholder `_` is not allowed in property types"));
                 }
             }
             Ok(PropertyType::Unnamed(t))

@@ -29,11 +29,11 @@ pub mod window {
 
     properties! {
         /// Window title.
-        title { impl IntoVar<Text> } = "";
+        title(impl IntoVar<Text>) = "";
 
         /// Window position when it opens.
         #[allowed_in_when = false]
-        start_position { impl Into<StartPosition> } = StartPosition::Default;
+        start_position(impl Into<StartPosition>) = StartPosition::Default;
 
         /// Window position (left, top).
         ///
@@ -69,14 +69,14 @@ pub mod window {
         /// Window auto size to content.
         ///
         /// If enabled overwrites the other sizes with the content size.
-        auto_size { impl IntoVar<AutoSize> } = false;
+        auto_size(impl IntoVar<AutoSize>) = false;
 
         /// Window background color.
         background_color = rgb(0.1, 0.1, 0.1);
 
         /// Unique identifier of the window root widget.
         #[allowed_in_when = false]
-        root_id { WidgetId } = WidgetId::new_unique();
+        root_id(WidgetId) = WidgetId::new_unique();
 
         /// Windows are focus scopes by default.
         focus_scope = true;
@@ -97,20 +97,20 @@ pub mod window {
         ///
         /// Note that the window can still change size, this only disables
         /// the OS window frame controls that change size.
-        resizable { impl IntoVar<bool> } = true;
+        resizable(impl IntoVar<bool>) = true;
 
         /// If the window is visible.
         ///
         /// When set to `false` the window and its *taskbar* icon are not visible, that is different
         /// from a minimized window where the icon is still visible.
-        visible { impl IntoVar<bool> } = true;
+        visible(impl IntoVar<bool>) = true;
 
         /// Extra configuration for the window when run in [headless mode](crate::core::window::WindowMode::is_headless).
         ///
         /// When a window runs in headed mode some values are inferred by window context, such as the scale factor that
         /// is taken from the monitor. In headless mode these values can be configured manually.
         #[allowed_in_when = false]
-        headless_config { WindowHeadlessConfig } = Default::default();
+        headless_config(WindowHeadlessConfig) = Default::default();
 
         remove {
             // replaced with `root_id` to more clearly indicate that it is not the window ID.

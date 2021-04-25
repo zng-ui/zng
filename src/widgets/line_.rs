@@ -7,19 +7,19 @@ pub mod line_w {
 
     properties! {
         /// Line orientation.
-        orientation { impl IntoVar<LineOrientation> } = LineOrientation::Horizontal;
+        orientation(impl IntoVar<LineOrientation>) = LineOrientation::Horizontal;
 
         /// Line color.
-        color { impl IntoVar<Rgba> } = rgb(0, 0, 0);
+        color(impl IntoVar<Rgba>) = rgb(0, 0, 0);
 
         /// Line stroke thickness.
-        width { impl IntoVar<Length> } = 1;
+        width(impl IntoVar<Length>) = 1;
 
         /// Line length.
-        length { impl IntoVar<Length> } = 100.pct();
+        length(impl IntoVar<Length>) = 100.pct();
 
         /// Line style.
-        style { impl IntoVar<LineStyle> } = LineStyle::Solid;
+        style(impl IntoVar<LineStyle>) = LineStyle::Solid;
     }
 
     fn new_child(

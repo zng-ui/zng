@@ -5,9 +5,9 @@ use crate::core::widget_mixin;
 #[widget_mixin($crate::widgets::mixins::focusable_mixin)]
 pub mod focusable_mixin {
     use crate::core::color::rgba;
+    use crate::core::line::BorderDetails;
     use crate::core::units::SideOffsets;
     use crate::core::var::context_var;
-    use crate::core::line::BorderDetails;
     use crate::properties::{
         focus::{focusable, is_focused_hgl},
         foreground_highlight,

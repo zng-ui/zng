@@ -24,7 +24,7 @@ pub mod implicit_base {
     properties! {
         /// Widget id. Set to  an [unique id](WidgetId::new_unique()) by default.
         #[allowed_in_when = false]
-        id { WidgetId } = WidgetId::new_unique();
+        id(WidgetId) = WidgetId::new_unique();
     }
 
     properties! {
