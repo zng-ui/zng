@@ -83,6 +83,23 @@ impl UiNode for Box<dyn UiNode> {
     }
 }
 
+macro_rules! declare_widget_test_calls {
+    ($(
+        $method:ident
+    ),+) => {$(paste::paste! {
+        #[doc = "<span class='stab portability' title='This is supported on `any(test, doc, feature=\"pub_test\")` only'><code>any(test, doc, feature=\"pub_test\")</code></span>"]
+        #[doc = "Run [`UiNode::" $method "`] using the [`TestWidgetContext`]."]
+        #[cfg(any(test, doc, feature = "pub_test"))]
+        fn [<test_ $method>](&mut self, ctx: &mut TestWidgetContext) {
+            // `self` already creates an `widget_context`, we assume, so this
+            // call is for a dummy parent of `self`.
+            ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
+                self.$method(ctx);
+            });
+        }
+    })+};
+}
+
 /// Represents an widget [`UiNode`].
 pub trait Widget: UiNode {
     /// Id of the widget.
@@ -104,22 +121,11 @@ pub trait Widget: UiNode {
         Box::new(self)
     }
 
-    /// Run [`UiNode::init`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
-    fn test_init(&mut self, ctx: &mut TestWidgetContext) {
-        ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
-            self.init(ctx);
-        });
-    }
-
-    /// Run [`UiNode::update`] using the [`TestWidgetContext`].
-    #[cfg(any(test, doc, feature = "pub_test"))]
-    fn test_update(&mut self, ctx: &mut TestWidgetContext) {
-        ctx.widget_context(&mut LazyStateMap::default(), |ctx| {
-            self.update(ctx);
-        });
+    declare_widget_test_calls! {
+        init, deinit, update, update_hp
     }
 }
+
 #[impl_ui_node(delegate = self.as_ref(), delegate_mut = self.as_mut())]
 impl UiNode for Box<dyn Widget> {}
 impl Widget for Box<dyn Widget> {

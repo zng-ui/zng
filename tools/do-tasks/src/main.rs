@@ -88,11 +88,19 @@ fn test(mut args: Vec<&str>) {
             &[("RUST_BACKTRACE", "1")],
         );
     } else if let Some(unit_tests) = take_option(&mut args, &["-u", "--unit"], "<unit-test-name>") {
-        // exclude ./test-crates and integration tests
         for test_name in unit_tests {
             cmd_env(
                 "cargo",
-                &[nightly, "test", "--workspace", "--no-fail-fast", "--all-features", test_name],
+                &[
+                    nightly,
+                    "test",
+                    "--package",
+                    "zero-ui*",
+                    "--lib",
+                    "--no-fail-fast",
+                    "--all-features",
+                    test_name,
+                ],
                 &args,
                 &[("RUST_BACKTRACE", "1")],
             );

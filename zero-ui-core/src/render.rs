@@ -131,6 +131,27 @@ impl FrameBuilder {
         new
     }
 
+    /// [`new`](Self::new) with only the inputs required for renderless mode.
+    pub fn new_renderless(
+        frame_id: FrameId,
+        window_id: WindowId,
+        root_id: WidgetId,
+        root_transform_key: WidgetTransformKey,
+        root_size: LayoutSize,
+        scale_factor: f32,
+    ) -> Self {
+        Self::new(
+            frame_id,
+            window_id,
+            PipelineId(0, 0),
+            None,
+            root_id,
+            root_transform_key,
+            root_size,
+            scale_factor,
+        )
+    }
+
     /// Pixel scale factor used by the renderer.
     ///
     /// All layout values are scaled by this factor in the renderer.

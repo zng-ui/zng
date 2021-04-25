@@ -1,4 +1,6 @@
 //! Tests for `#[widget(..)]` and `#[widget_mixin(..)]` macros.
+//!
+//! Note: Compile error tests are in the integration tests folder: `tests/build/widget` and `tests/build/widget_new`
 
 use self::util::Position;
 use crate::{context::TestWidgetContext, widget, widget_mixin, Widget, WidgetId};

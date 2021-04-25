@@ -265,8 +265,6 @@ impl StateMap {
     /// Sets a state key without value.
     ///
     /// Returns if the state key was already flagged.
-    ///
-    /// Note that there is no *remove* method so this flag is permanent.
     pub fn flag<S: StateKey<Type = ()>>(&mut self, key: S) -> bool {
         self.set(key, ()).is_some()
     }

@@ -1,4 +1,6 @@
 //! Tests for `#[property(..)]` macro.
+//!
+//! Note: Compile error tests are in the integration tests folder: `tests/build/property`
 
 use crate::var::*;
 use crate::{property, UiNode};
