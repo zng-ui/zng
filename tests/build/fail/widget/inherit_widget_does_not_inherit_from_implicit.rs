@@ -7,7 +7,7 @@ pub mod base_wgt {
         remove { id }
 
         #[allowed_in_when = false]
-        root_id { WidgetId } = WidgetId::new_unique();
+        root_id(WidgetId) = WidgetId::new_unique();
     }
 
     fn new(child: impl UiNode, root_id: WidgetId) -> impl Widget {

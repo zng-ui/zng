@@ -6,7 +6,7 @@ pub mod test_widget {
 
     properties! {
         #[allowed_in_when = false]
-        foo { bool };
+        foo(bool);
     }
 
     fn new(child: impl UiNode, id: WidgetId, foo: bool) -> NilUiNode {

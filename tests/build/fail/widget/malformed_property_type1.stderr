@@ -1,8 +1,8 @@
 error: expected property type
- --> $DIR/malformed_property_type1.rs:8:13
+ --> $DIR/malformed_property_type1.rs:8:12
   |
-8 |         foo {} = 10;
-  |             ^^
+8 |         foo() = 10;
+  |            ^^
 
 error: property `foo` is not inherited nor declared by the widget
   --> $DIR/malformed_property_type1.rs:11:18

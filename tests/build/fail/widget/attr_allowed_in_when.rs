@@ -7,19 +7,19 @@ pub mod test_widget {
 
     properties! {
         #[allowed_in_when]
-        foo { bool };
+        foo(bool);
 
         #[allowed_in_when(false)]
-        bar { bool };
+        bar(bool);
 
         #[allowed_in_when: false]
-        baz { bool };
+        baz(bool);
 
         #[allowed_in_when =]
-        qux { bool };
+        qux(bool);
 
         #[allowed_in_when = 0]
-        quux { bool };
+        quux(bool);
 
         margin;
     }

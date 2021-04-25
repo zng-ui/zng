@@ -1,11 +1,11 @@
 error: cannot use alias while naming a new capture-only property
  --> $DIR/capture_only_must_have_ident_name.rs:8:13
   |
-8 |         foo as bar { impl IntoVar<bool> };
+8 |         foo as bar(impl IntoVar<bool>);
   |             ^^
 
 error: cannot use path while naming a new capture-only property
  --> $DIR/capture_only_must_have_ident_name.rs:9:9
   |
-9 |         zero_ui::properties::margin { impl IntoVar<bool> };
+9 |         zero_ui::properties::margin(impl IntoVar<bool>);
   |         ^^^^^^^

@@ -6,10 +6,10 @@ pub mod test_widget {
 
     properties! {
         // #[allowed_in_when = false]
-        foo { &'static str } = "";
+        foo(&'static str) = "";
 
         #[allowed_in_when = false]
-        bar { &'static str } = "bar";
+        bar(&'static str) = "bar";
     }
 
     fn new_child(foo: &'static str, bar: &'static str) -> NilUiNode {

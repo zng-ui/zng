@@ -11,7 +11,7 @@ pub mod test_widget {
     pub struct NotFoo;
 
     properties! {
-        foo { impl IntoVar<Foo> } = Foo;
+        foo(impl IntoVar<Foo>) = Foo;
     }
 
     fn new_child(foo: impl IntoVar<NotFoo>) -> NilUiNode {

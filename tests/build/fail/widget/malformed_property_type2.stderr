@@ -1,8 +1,8 @@
 error: type placeholder `_` is not allowed in property types
- --> $DIR/malformed_property_type2.rs:8:15
+ --> $DIR/malformed_property_type2.rs:8:13
   |
-8 |         foo { _ } = 10;
-  |               ^
+8 |         foo(_) = 10;
+  |             ^
 
 error: property `foo` is not inherited nor declared by the widget
   --> $DIR/malformed_property_type2.rs:11:18

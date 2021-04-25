@@ -1,5 +1,5 @@
 error: unexpected token
- --> $DIR/declared_property_expected_type.rs:6:15
+ --> $DIR/declared_property_expected_type.rs:6:13
   |
-6 |         foo { 10 };
-  |               ^^
+6 |         foo(10);
+  |             ^^

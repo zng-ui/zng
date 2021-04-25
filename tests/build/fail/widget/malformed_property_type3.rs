@@ -5,7 +5,7 @@ pub mod test_widget {
     use zero_ui::core::NilUiNode;
 
     properties! {
-        foo { bool<!?> } = 10;
+        foo(bool<!?>) = 10;
     }
 
     fn new_child(foo: bool) -> NilUiNode {
