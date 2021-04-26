@@ -57,8 +57,9 @@ pub fn wgt_with_mixin_default_values() {
 }
 #[test]
 pub fn wgt_with_mixin_assign_values() {
+    let foo_trace = "foo!";
     let mut default = bar_wgt! {
-        foo_trace = "foo!";
+        foo_trace; // shorthand assign test.
         bar_trace = "bar!";
     };
     default.test_init(&mut TestWidgetContext::wait_new());
