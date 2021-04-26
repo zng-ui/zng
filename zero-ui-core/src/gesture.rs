@@ -693,7 +693,9 @@ impl AppExtension for GestureManager {
                             self.shortcut.notify(ctx.events, s_args);
                             self.pressed_modifier = None;
                         } else if let Ok(mod_gesture) = ModifierGesture::try_from(key) {
-                            self.pressed_modifier = Some(mod_gesture);
+                            if !args.repeat {
+                                self.pressed_modifier = Some(mod_gesture);
+                            }
                         } else {
                             self.pressed_modifier = None;
                         }

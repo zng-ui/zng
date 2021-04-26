@@ -117,6 +117,8 @@ pub trait HeadlessAppOpenWindowExt {
 
     /// Cause the headless window to think it is focused in the screen.
     fn activate_window(&mut self, window_id: WindowId);
+    /// Cause the headless window to think focus moved away from it.
+    fn deactivate_window(&mut self, window_id: WindowId);
 
     /// Sends a close request, returns if the window was found and closed.
     fn close_window(&mut self, window_id: WindowId) -> bool;
@@ -139,6 +141,12 @@ impl HeadlessAppOpenWindowExt for app::HeadlessApp {
 
     fn activate_window(&mut self, window_id: WindowId) {
         let event = WindowEvent::Focused(true);
+        self.on_window_event(window_id, &event);
+        self.update();
+    }
+
+    fn deactivate_window(&mut self, window_id: WindowId) {
+        let event = WindowEvent::Focused(false);
         self.on_window_event(window_id, &event);
         self.update();
     }

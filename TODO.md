@@ -17,7 +17,6 @@ Things that must be done first because they influence the core API design that i
 * Focusable
   * Let focusable know if it is the remembered return focus of a parent scope.
     * There is a property but we haven't used it yet.    
-  * Initial focus closest to mouse click?
   * Focus on the closest existing sibling or parent in case the focused element is deleted.
     * Test this
   * Customizable focus indicators in focusable, (focused/remembered?/return target?/).

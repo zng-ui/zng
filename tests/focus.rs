@@ -883,6 +883,73 @@ pub fn tab_inner_scope_none() {
     assert_eq!(Some(inner_ids[1]), app.focused());
 }
 
+#[test]
+pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
+    let start_focus_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0"); id = start_focus_id; },
+        button! { content = text("Button 1"); },
+    ];
+    let alt_buttons = widgets![
+        button! { content = text("Alt 0"); },
+        button! { content = text("Alt 1"); },
+    ];
+
+    let mut app = TestApp::new(v_stack(widgets![
+        h_stack! {
+            alt_focus_scope = true;
+            items = alt_buttons;
+        },
+        v_stack(buttons)
+    ]));
+
+    // clear
+    app.take_focus_changed();
+    app.take_return_focus_changed();
+    assert_eq!(Some(start_focus_id), app.focused());
+
+    // just an ALT release, no press:
+    app.just_release_alt();
+    assert!(app.take_focus_changed().is_empty());
+}
+
+#[test]
+pub fn window_deactivate_activate() {
+    let expected_id = WidgetId::new_unique();
+    let buttons = widgets![
+        button! { content = text("Button 0"); },
+        button! { content = text("Button 1"); id = expected_id; },
+    ];
+    let alt_buttons = widgets![
+        button! { content = text("Alt 0"); },
+        button! { content = text("Alt 1"); },
+    ];
+
+    let mut app = TestApp::new(v_stack(widgets![
+        h_stack! {
+            alt_focus_scope = true;
+            items = alt_buttons;
+        },
+        v_stack(buttons)
+    ]));
+
+    app.press_tab();
+    assert_eq!(Some(expected_id), app.focused());
+
+    app.deactivate_window();
+    assert_eq!(None, app.focused());
+    app.activate_window();
+    assert_eq!(Some(expected_id), app.focused());
+
+    app.press_alt();
+    assert_ne!(Some(expected_id), app.focused());
+
+    app.deactivate_window();
+    assert_eq!(None, app.focused());
+    app.activate_window();
+    assert_eq!(Some(expected_id), app.focused());
+}
+
 struct TestApp {
     app: HeadlessApp,
     pub window_id: WindowId,
@@ -953,9 +1020,22 @@ impl TestApp {
         self.app.press_key(self.window_id, Key::Escape);
     }
 
+    pub fn just_release_alt(&mut self) {
+        self.app.on_keyboard_input(self.window_id, Key::LAlt, ElementState::Released);
+        self.app.update();
+    }
+
     pub fn focus(&mut self, widget_id: WidgetId) {
         self.app
             .with_context(|ctx| ctx.services.req::<Focus>().focus_widget(widget_id, true));
         self.app.update();
+    }
+
+    pub fn activate_window(&mut self) {
+        self.app.activate_window(self.window_id)
+    }
+
+    pub fn deactivate_window(&mut self) {
+        self.app.deactivate_window(self.window_id)
     }
 }
