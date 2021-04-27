@@ -15,12 +15,9 @@ Things that must be done first because they influence the core API design that i
   - This is a bug in `rustdoc`, opened an issue: [https://github.com/rust-lang/rust/issues/83976]
 
 * Focusable
-  * Let focusable know if it is the remembered return focus of a parent scope.
-    * There is a property but we haven't used it yet.    
-  * Focus on the closest existing sibling or parent in case the focused element is deleted.
-    * Test this
-  * Customizable focus indicators in focusable, (focused/remembered?/return target?/).
-    * ESC hides focus indicator? Use knowledge of how focus was attained to show indicator?
+  * Focus on the closest existing sibling or parent in case the focused element is deleted, needs testing.
+  * ESC hides focus indicator?
+  * Support more then one ALT scopes?
 
 
 * Localization.
