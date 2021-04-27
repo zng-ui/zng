@@ -2,11 +2,16 @@
 //!
 //! The [`FocusManager`] struct is an [app extension](crate::app::AppExtension). It
 //! is included in the [default app](crate::app::App::default) and provides the [`Focus`] service
-//! and the [`FocusChangedEvent`] event.
+//! and focus events.
 //!
 //! # Keyboard Focus
 //!
 //! In a given program only a single widget can receive keyboard input at a time, this widget has the *keyboard focus*.
+//! This is an extension of the operating system own focus manager that controls which window is *active*, receiving
+//! keyboard input.
+//!
+//! You can track the focused widget by listening to the [`FocusChangedEvent`] event or by calling [`focused`](Focus::focused)
+//! in the [`Focus`] service.
 //!
 //! # Navigation
 //!
@@ -15,7 +20,7 @@
 //! that follows the visual order.
 //!
 //! Keyboard navigation behaves different depending on what region of the screen the current focused widget is in, these regions
-//! are called [focus scopes](#-focus-scopes). Every window is a focus scope that can be subdivided further.
+//! are called [focus scopes](#focus-scopes). Every window is a focus scope that can be subdivided further.
 //!
 //! ## Tab Navigation
 //!
@@ -33,11 +38,43 @@
 //!
 //! ## Focus Scopes
 //!
-//! TODO
+//! Focus scopes are widgets that configure how focus navigation happens inside then. They control what happens
+//! when the scope widget is focused, how the navigation flows inside their screen region and even if the navigation
+//! can naturally mode out of their region.
 //!
 //! ### Alt Scopes
 //!
-//! TODO
+//! Alt scopes are specially marked focus scopes that receive focus when the `ALT`
+//! key is pressed or [`focus_alt`](Focus::focus_alt) is called in the [`Focus`] service. The alt scope of a widget
+//! is selected by [`WidgetFocusInfo::alt_scope`].
+//!
+//! Alt scopes remember the previously focused widget as a [return focus](#return-focus). The focus returns to the widget
+//! when the `ESC` key is pressed, or [`escape_alt`](Focus::escape_alt) is called in the [`Focus`] service.
+//!
+//! ### Return Focus
+//!
+//! Focus scopes can be configured to remember the last focused widget inside then, the focus then **returns** to
+//! this widget when the scope receives focus. Alt scopes also remember the widget from which the *alt* focus happened
+//! and can also return focus back to that widget.
+//!
+//! Widgets can keep track of this by listening to the [`ReturnFocusChangedEvent`] event or by calling
+//! [`return_focused`](Focus::return_focused) in the [`Focus`] service. Usually the window root scope remembers
+//! return focus and some widgets, like *text inputs* visually indicate that they will be focused when the window
+//! is focused.
+//!
+//! # Configuring Widgets
+//!
+//! Focusable configuration is set as render metadata using the [`FocusInfoKey`] that is of a value
+//! [`FocusInfoBuilder`]. You can use this type to make a widget focusable or a focus scope and customize
+//! how the focus manager interacts with the widget.
+//!
+//! Note that the main crate already provides properties for configuring focus in widgets, you only need to
+//! set the [`FocusInfoKey`] directly if you are developing your own focus defining properties.
+//!
+//! # Querying
+//!
+//! Focus information exists as metadata associated with a window frame. This metadata can be manually queried by
+//! creating a [`FrameFocusInfo`] or directly from a widget info by using the [`WidgetInfoFocusExt`] extension methods.
 
 use crate::app::{AppExtension, DeviceEvent, DeviceId};
 use crate::context::*;

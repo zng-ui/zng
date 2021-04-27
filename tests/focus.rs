@@ -890,10 +890,7 @@ pub fn dont_focus_alt_when_alt_pressed_before_focusing_window() {
         button! { content = text("Button 0"); id = start_focus_id; },
         button! { content = text("Button 1"); },
     ];
-    let alt_buttons = widgets![
-        button! { content = text("Alt 0"); },
-        button! { content = text("Alt 1"); },
-    ];
+    let alt_buttons = widgets![button! { content = text("Alt 0"); }, button! { content = text("Alt 1"); },];
 
     let mut app = TestApp::new(v_stack(widgets![
         h_stack! {
@@ -920,10 +917,7 @@ pub fn window_deactivate_activate() {
         button! { content = text("Button 0"); },
         button! { content = text("Button 1"); id = expected_id; },
     ];
-    let alt_buttons = widgets![
-        button! { content = text("Alt 0"); },
-        button! { content = text("Alt 1"); },
-    ];
+    let alt_buttons = widgets![button! { content = text("Alt 0"); }, button! { content = text("Alt 1"); },];
 
     let mut app = TestApp::new(v_stack(widgets![
         h_stack! {

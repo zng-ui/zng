@@ -18,6 +18,7 @@ Things that must be done first because they influence the core API design that i
   * Focus on the closest existing sibling or parent in case the focused element is deleted, needs testing.
   * ESC hides focus indicator?
   * Support more then one ALT scopes?
+  * Configurable shortcuts for stuff like `Tab`?
 
 
 * Localization.
