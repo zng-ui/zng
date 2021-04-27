@@ -194,7 +194,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a [`border`](fn@crate::properties::border::border) with extra `offsets` control as a [`foreground`] overlay.
+/// This property draws a [`border`](fn@crate::properties::border) with extra `offsets` control 
+/// as a [`foreground`] overlay. The border has no content.
 ///
 /// # Example
 ///
@@ -221,7 +222,7 @@ pub fn foreground_highlight(
     sides: impl IntoVar<BorderSides>,
     radius: impl IntoVar<BorderRadius>,
 ) -> impl UiNode {
-    let border = crate::properties::border::border(crate::core::FillUiNode, widths, sides, radius);
+    let border = crate::properties::border(crate::core::FillUiNode, widths, sides, radius);
     foreground(child, margin(border, offsets))
 }
 
@@ -276,8 +277,8 @@ pub fn foreground_gradient(child: impl UiNode, axis: impl IntoVar<LinearGradient
 
 /// Clips the widget child to the area of the widget when set to `true`.
 ///
-/// The clip is a simple rectangular area that matches the widget size. Any content rendered
-/// outsize the widget size bounds is clipped.
+/// Any content rendered outside the widget *inner size* bounds is clipped. The clip is
+/// rectangular and can have rounded corners if TODO.
 ///
 /// # Example
 /// ```

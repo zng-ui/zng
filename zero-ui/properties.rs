@@ -9,7 +9,9 @@ pub use layout::*;
 mod visual;
 pub use visual::*;
 
-pub mod border;
+mod border_;
+pub use border_::*;
+
 mod capture_mouse_;
 mod cursor_;
 pub mod drag_move;

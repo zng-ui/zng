@@ -1,10 +1,8 @@
-//! Border property and types.
-
 use crate::prelude::new_property::*;
 
-// TODO refactor how corner radii layout is done.
-
-/// Border property
+/// Draws a border around the widget.
+///
+/// 
 #[property(inner)]
 pub fn border(
     child: impl UiNode,

@@ -1290,8 +1290,6 @@ pub mod prelude {
             widget_mixin, widget_vec, widgets, FillUiNode, UiNode, UiNodeList, Widget, WidgetId, WidgetList, WidgetVec, LAYOUT_ANY_SIZE,
         };
         #[doc(no_inline)]
-        pub use crate::properties::border::{border, *};
-        #[doc(no_inline)]
         pub use crate::properties::events::{self, gesture::*, keyboard::*};
         #[doc(no_inline)]
         pub use crate::properties::filters::*;
