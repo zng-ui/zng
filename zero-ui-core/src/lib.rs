@@ -23,6 +23,7 @@ pub use paste::paste;
 
 pub mod animation;
 pub mod app;
+pub mod border;
 pub mod color;
 pub mod context;
 pub mod debug;
@@ -31,7 +32,6 @@ pub mod focus;
 pub mod gesture;
 pub mod gradient;
 pub mod keyboard;
-pub mod line;
 pub mod mouse;
 pub mod profiler;
 pub mod render;

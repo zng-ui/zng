@@ -4,8 +4,8 @@ use crate::core::widget_mixin;
 /// highlight border.
 #[widget_mixin($crate::widgets::mixins::focusable_mixin)]
 pub mod focusable_mixin {
+    use crate::core::border::{BorderRadius, BorderSides, BorderStyle};
     use crate::core::color::rgba;
-    use crate::core::line::BorderDetails;
     use crate::core::units::SideOffsets;
     use crate::core::var::context_var;
     use crate::properties::{
@@ -16,7 +16,8 @@ pub mod focusable_mixin {
     context_var! {
         pub struct FocusHighlightWidthsVar: SideOffsets = once SideOffsets::new_all(0.5);
         pub struct FocusHighlightOffsetsVar: SideOffsets = once SideOffsets::new_all(1.0);
-        pub struct FocusHighlightDetailsVar: BorderDetails = once BorderDetails::dashed(rgba(200, 200, 200, 1.0));
+        pub struct FocusHighlightSidesVar: BorderSides = once BorderSides::dashed(rgba(200, 200, 200, 1.0));
+        pub struct FocusHighlightRadiusVar: BorderRadius = once BorderRadius::new_all(2.0);
     }
 
     properties! {
@@ -25,17 +26,19 @@ pub mod focusable_mixin {
 
         /// A border overlay that is visible when the widget is focused.
         foreground_highlight as focus_highlight = {
-            widths: SideOffsets::new_all(0.0),
-            offsets: SideOffsets::new_all(0.0),
-            details: FocusHighlightDetailsVar
+            offsets: 0,
+            widths: 0,
+            sides: BorderStyle::Hidden,
+            radius: 0
         };
 
         /// When widget has keyboard focus and highlight is requested.
         when self.is_focused_hgl {
             focus_highlight = {
-                widths: FocusHighlightWidthsVar,
                 offsets: FocusHighlightOffsetsVar,
-                details: FocusHighlightDetailsVar
+                widths: FocusHighlightWidthsVar,
+                sides: FocusHighlightSidesVar,
+                radius: FocusHighlightRadiusVar
             };
         }
     }

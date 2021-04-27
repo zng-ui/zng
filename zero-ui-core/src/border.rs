@@ -2,11 +2,7 @@
 
 use webrender::api as w_api;
 
-use crate::{
-    color::{colors, RenderColor, Rgba},
-    context::LayoutContext,
-    units::{Ellipse, LayoutSize},
-};
+use crate::{color::*, context::LayoutContext, units::*};
 
 /// Orientation of a straight line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -165,6 +161,12 @@ impl From<BorderSide> for w_api::BorderSide {
         }
     }
 }
+impl Default for BorderSide {
+    /// Returns [`hidden`](BorderSide::hidden).
+    fn default() -> Self {
+        Self::hidden()
+    }
+}
 
 /// Radius of each corner of a border defined from [`Ellipse`] values.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -173,29 +175,29 @@ pub struct BorderRadius {
     pub top_left: Ellipse,
     /// Top-right corner.
     pub top_right: Ellipse,
-    /// Bottom-left corner.
-    pub bottom_left: Ellipse,
     /// Bottom-right corner.
     pub bottom_right: Ellipse,
+    /// Bottom-left corner.
+    pub bottom_left: Ellipse,
 }
 impl BorderRadius {
     /// New every corner unique.
-    pub fn new<TL: Into<Ellipse>, TR: Into<Ellipse>, BL: Into<Ellipse>, BR: Into<Ellipse>>(
+    pub fn new<TL: Into<Ellipse>, TR: Into<Ellipse>, BR: Into<Ellipse>, BL: Into<Ellipse>>(
         top_left: TL,
         top_right: TR,
-        bottom_left: BL,
         bottom_right: BR,
+        bottom_left: BL,
     ) -> Self {
         BorderRadius {
             top_left: top_left.into(),
             top_right: top_right.into(),
-            bottom_left: bottom_left.into(),
             bottom_right: bottom_right.into(),
+            bottom_left: bottom_left.into(),
         }
     }
 
     /// New all corners the same.
-    pub fn uniform<E: Into<Ellipse>>(ellipse: E) -> Self {
+    pub fn new_all<E: Into<Ellipse>>(ellipse: E) -> Self {
         let e = ellipse.into();
         BorderRadius {
             top_left: e,
@@ -208,7 +210,7 @@ impl BorderRadius {
     /// No corner radius.
     #[inline]
     pub fn zero() -> Self {
-        Self::uniform(Ellipse::zero())
+        Self::new_all(Ellipse::zero())
     }
 
     /// Compute the radii in a layout context.
@@ -222,13 +224,54 @@ impl BorderRadius {
         }
     }
 }
+impl Default for BorderRadius {
+    /// Returns [`zero`](BorderRadius::zero).
+    fn default() -> Self {
+        Self::zero()
+    }
+}
+impl_from_and_into_var! {
+    /// All corners same.
+    fn from(all: Ellipse) -> BorderRadius {
+        BorderRadius::new_all(all)
+    }
+    /// All corners same length.
+    fn from(all: Length) -> BorderRadius {
+        BorderRadius::new_all(all)
+    }
+
+    /// All corners same relative length.
+    fn from(percent: FactorPercent) -> BorderRadius {
+        BorderRadius::new_all(percent)
+    }
+   /// All corners same relative length.
+    fn from(norm: FactorNormal) -> BorderRadius {
+        BorderRadius::new_all(norm)
+    }
+
+    /// All corners same exact length.
+    fn from(f: f32) -> BorderRadius {
+        BorderRadius::new_all(f)
+    }
+    /// All corners same exact length.
+    fn from(i: i32) -> BorderRadius {
+        BorderRadius::new_all(i)
+    }
+
+    /// (top-left, top-right, bottom-left, bottom-right) corners.
+    fn from<TL: Into<Ellipse>, TR: Into<Ellipse>, BR: Into<Ellipse>, BL: Into<Ellipse>>(
+        (top_left, top_right, bottom_right, bottom_left): (TL, TR, BR, BL)
+    ) -> BorderRadius {
+        BorderRadius::new(top_left, top_right, bottom_right, bottom_left)
+    }
+}
 
 /// Computed [`BorderRadius`].
 pub type LayoutBorderRadius = w_api::BorderRadius;
 
-/// The line style and color for each side of a widget's border, plus the radius of each corner.
+/// The line style and color for each side of a widget's border.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct BorderDetails {
+pub struct BorderSides {
     /// Color and style of the left border.
     pub left: BorderSide,
     /// Color and style of the right border.
@@ -238,48 +281,42 @@ pub struct BorderDetails {
     pub top: BorderSide,
     /// Color and style of the bottom border.
     pub bottom: BorderSide,
-
-    /// Corner radius of each corner.
-    pub radius: BorderRadius,
 }
-impl BorderDetails {
-    /// All sides equal and square corners.
+impl BorderSides {
+    /// All sides equal.
     pub fn new_all<S: Into<BorderSide>>(side: S) -> Self {
         let side = side.into();
-        BorderDetails {
+        BorderSides {
             left: side,
             right: side,
             top: side,
             bottom: side,
-            radius: BorderRadius::zero(),
         }
     }
 
-    /// Top-bottom and left-right equal and square corners.
+    /// Top-bottom and left-right equal.
     pub fn new_dimension<TB: Into<BorderSide>, LR: Into<BorderSide>>(top_bottom: TB, left_right: LR) -> Self {
         let top_bottom = top_bottom.into();
         let left_right = left_right.into();
-        BorderDetails {
+        BorderSides {
             left: left_right,
             right: left_right,
             top: top_bottom,
             bottom: top_bottom,
-            radius: BorderRadius::zero(),
         }
     }
-    /// New top, right, bottom left and square corners.
+    /// New top, right, bottom left.
     pub fn new<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
         top: T,
         right: R,
         bottom: B,
         left: L,
     ) -> Self {
-        BorderDetails {
+        BorderSides {
             left: left.into(),
             right: right.into(),
             top: top.into(),
             bottom: bottom.into(),
-            radius: BorderRadius::zero(),
         }
     }
 
@@ -324,208 +361,86 @@ impl BorderDetails {
     pub fn hidden() -> Self {
         Self::new_all(BorderSide::hidden())
     }
-
-    /// Compute the radii in a layout context and convert the sides to a normal webrender border.
-    #[inline]
-    pub fn to_layout(self, available_size: LayoutSize, ctx: &LayoutContext) -> LayoutBorderDetails {
-        LayoutBorderDetails::Normal(w_api::NormalBorder {
-            left: self.left.into(),
-            right: self.right.into(),
-            top: self.top.into(),
-            bottom: self.bottom.into(),
-            radius: self.radius.to_layout(available_size, ctx),
-            do_aa: true,
-        })
-    }
 }
-
-/// Computed [`BorderDetails`].
-///
-/// You can use [`border_details_none`] to initialize this value.
-pub type LayoutBorderDetails = w_api::BorderDetails;
-
-/// Provides an initial value for [`LayoutBorderDetails`].
-pub fn border_details_none() -> LayoutBorderDetails {
-    let side_none = w_api::BorderSide {
-        color: RenderColor::BLACK,
-        style: w_api::BorderStyle::None,
-    };
-
-    w_api::BorderDetails::Normal(w_api::NormalBorder {
-        left: side_none,
-        right: side_none,
-        top: side_none,
-        bottom: side_none,
-        radius: {
-            w_api::BorderRadius {
-                top_left: LayoutSize::zero(),
-                top_right: LayoutSize::zero(),
-                bottom_left: LayoutSize::zero(),
-                bottom_right: LayoutSize::zero(),
-            }
-        },
-        do_aa: true,
-    })
+impl Default for BorderSides {
+    /// Returns [`hidden`](BorderSides::hidden).
+    fn default() -> Self {
+        Self::hidden()
+    }
 }
 
 impl_from_and_into_var! {
-    /// All sides solid style, same `self` color. Square corners.
-    fn from(color: Rgba) -> BorderDetails {
-        let border_side = BorderSide {
-            color,
-            style: BorderStyle::Solid,
-        };
-        BorderDetails {
-            left: border_side,
-            right: border_side,
-            top: border_side,
-            bottom: border_side,
-            radius: BorderRadius::zero(),
-        }
+    /// Solid color.
+    fn from(color: Rgba) -> BorderSide {
+        BorderSide::solid(color)
+    }
+    /// Solid color.
+    fn from(color: Hsva) -> BorderSide {
+        BorderSide::solid(color)
+    }
+    /// Solid color.
+    fn from(color: Hsla) -> BorderSide {
+        BorderSide::solid(color)
+    }
+    /// All sides solid color.
+    fn from(color: Rgba) -> BorderSides {
+        BorderSides::new_all(color)
+    }
+    /// All sides solid color.
+    fn from(color: Hsva) -> BorderSides {
+        BorderSides::new_all(color)
+    }
+    /// All sides solid color.
+    fn from(color: Hsla) -> BorderSides {
+        BorderSides::new_all(color)
     }
 
-    /// All sides solid style, first color applied to top and bottom,
-    /// second color applied to left and right. Square corners
-    fn from((top_bottom, left_right): (Rgba, Rgba)) -> BorderDetails {
-        let top_bottom = BorderSide {
-            color: top_bottom,
-            style: BorderStyle::Solid,
-        };
-        let left_right = BorderSide {
-            color: left_right,
-            style: BorderStyle::Solid,
-        };
-        BorderDetails {
-            left: left_right,
-            right: left_right,
-            top: top_bottom,
-            bottom: top_bottom,
-            radius: BorderRadius::zero(),
-        }
+    /// Side transparent black with the style.
+    ///
+    /// This is only useful with [`BorderStyle::Hidden`] variant.
+    fn from(style: BorderStyle) -> BorderSide {
+        BorderSide::new(colors::BLACK.transparent(), style)
+    }
+    /// All sides transparent black with the style.
+    ///
+    /// This is only useful with [`BorderStyle::Hidden`] variant.
+    fn from(style: BorderStyle) -> BorderSides {
+        BorderSides::new_all(style)
     }
 
-    /// Each side a color in order, top, right, bottom, left. All sides solid style. Square corners.
-    fn from((top, right, bottom, left): (Rgba, Rgba, Rgba, Rgba)) -> BorderDetails {
-        BorderDetails {
-            top: BorderSide {
-                color: top,
-                style: BorderStyle::Solid,
-            },
-            right: BorderSide {
-                color: right,
-                style: BorderStyle::Solid,
-            },
-            bottom: BorderSide {
-                color: bottom,
-                style: BorderStyle::Solid,
-            },
-            left: BorderSide {
-                color: left,
-                style: BorderStyle::Solid,
-            },
-            radius: BorderRadius::zero()
-        }
+    /// (color, style) side.
+    fn from<C: Into<Rgba>, S: Into<BorderStyle>>((color, style): (C, S)) -> BorderSide {
+        BorderSide::new(color, style)
     }
 
-     /// All sides same color and style. Square corners.
-    fn from((color, style): (Rgba, BorderStyle)) -> BorderDetails {
-        let border_side = BorderSide {
-            color,
-            style,
-        };
-        BorderDetails {
-            left: border_side,
-            right: border_side,
-            top: border_side,
-            bottom: border_side,
-            radius: BorderRadius::zero(),
-        }
+    /// (color, style) sides.
+    fn from<C: Into<Rgba>, S: Into<BorderStyle>>((color, style): (C, S)) -> BorderSides {
+        BorderSides::new_all(BorderSide::new(color, style))
     }
 
-    /// All sides the same style, first color applied to top and bottom,
-    /// second color applied to left and right. Square corners.
-    fn from((top_bottom, left_right, style): (Rgba, Rgba, BorderStyle)) -> BorderDetails {
-        let top_bottom = BorderSide {
-            color: top_bottom,
-            style,
-        };
-        let left_right = BorderSide {
-            color: left_right,
-            style,
-        };
-        BorderDetails {
-            left: left_right,
-            right: left_right,
-            top: top_bottom,
-            bottom: top_bottom,
-            radius: BorderRadius::zero(),
-        }
+    /// (top, right, bottom, left) sides.
+    fn from<T: Into<BorderSide>, R: Into<BorderSide>, B: Into<BorderSide>, L: Into<BorderSide>>(
+        (top, right, bottom, left): (T, R, B, L)
+    ) -> BorderSides {
+        BorderSides::new(top, right, bottom, left)
     }
 
-    /// Each side a color in order, top, right, bottom, left. All sides the same style. Square corners.
-    fn from((top, right, bottom, left, style): (Rgba, Rgba, Rgba, Rgba, BorderStyle)) -> BorderDetails {
-        BorderDetails {
-            top: BorderSide {
-                color: top,
-                style,
-            },
-            right: BorderSide {
-                color: right,
-                style,
-            },
-            bottom: BorderSide {
-                color: bottom,
-                style,
-            },
-            left: BorderSide {
-                color: left,
-                style,
-            },
-            radius: BorderRadius::zero()
-        }
+    /// (top-bottom-color, left-right-color, style) sides.
+    fn from<TB: Into<Rgba>, LR: Into<Rgba>, S: Into<BorderStyle>>((top_bottom, left_right, style): (TB, LR, S)) -> BorderSides {
+        let style = style.into();
+        BorderSides::new_dimension((top_bottom, style), (left_right, style))
     }
 
-    /// First color and style applied to top and bottom,
-    /// second color and style applied to left and right. Square corners.
-    fn from((top_bottom_color, top_bottom_style, left_right_color, left_right_style): (Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {
-        let top_bottom = BorderSide {
-            color: top_bottom_color,
-            style: top_bottom_style,
-        };
-        let left_right = BorderSide {
-            color: left_right_color,
-            style: left_right_style,
-        };
-        BorderDetails {
-            left: left_right,
-            right: left_right,
-            top: top_bottom,
-            bottom: top_bottom,
-            radius: BorderRadius::zero(),
-        }
-    }
-
-    /// Each side a color and style in order, top, right, bottom, left. Square corners.
-    fn from((top_color, top_style, right_color, right_style, bottom_color, bottom_style, left_color, left_style)
-    : (Rgba, BorderStyle, Rgba, BorderStyle, Rgba, BorderStyle, Rgba, BorderStyle)) -> BorderDetails {
-        BorderDetails {
-            top: BorderSide {
-                color: top_color,
-                style: top_style,
-            },
-            right: BorderSide {
-                color: right_color,
-                style: right_style,
-            },
-            bottom: BorderSide {
-                color: bottom_color,
-                style: bottom_style,
-            },
-            left: BorderSide {
-                color: left_color,
-                style: left_style,
-            },
-            radius: BorderRadius::zero()
-        }
+    /// (top-color, right-color, bottom-color, left-color, style) sides.
+    fn from<T: Into<Rgba>, R: Into<Rgba>, B: Into<Rgba>, L: Into<Rgba>, S: Into<BorderStyle>>(
+        (top, right, bottom, left, style): (T, R, B, L, S)
+    ) -> BorderSides {
+        let style = style.into();
+        BorderSides::new(
+            (top, style),
+            (right, style),
+            (bottom, style),
+            (left, style),
+        )
     }
 }

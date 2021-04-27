@@ -836,7 +836,7 @@ impl Ellipse {
     }
 
     /// New width and height from the same [`Length`].
-    pub fn new_circular<L: Into<Length>>(width_and_height: L) -> Self {
+    pub fn new_all<L: Into<Length>>(width_and_height: L) -> Self {
         let l = width_and_height.into();
         Ellipse { width: l, height: l }
     }
@@ -844,7 +844,7 @@ impl Ellipse {
     /// ***width:*** [`Length::zero`], ***height:*** [`Length::zero`]
     #[inline]
     pub fn zero() -> Self {
-        Self::new_circular(Length::zero())
+        Self::new_all(Length::zero())
     }
 
     /// Size that fills the available space.
@@ -852,7 +852,7 @@ impl Ellipse {
     /// ***width:*** [`Length::fill`], ***height:*** [`Length::fill`]
     #[inline]
     pub fn fill() -> Self {
-        Self::new_circular(Length::fill())
+        Self::new_all(Length::fill())
     }
 
     /// Returns `(width, height)`.
@@ -881,25 +881,25 @@ impl Ellipse {
 impl_from_and_into_var! {
     /// New circular.
     fn from(all: Length) -> Ellipse {
-        Ellipse::new_circular(all)
+        Ellipse::new_all(all)
     }
 
     /// New circular relative length.
     fn from(percent: FactorPercent) -> Ellipse {
-        Ellipse::new_circular(percent)
+        Ellipse::new_all(percent)
     }
     /// New circular relative length.
     fn from(norm: FactorNormal) -> Ellipse {
-        Ellipse::new_circular(norm)
+        Ellipse::new_all(norm)
     }
 
     /// New circular exact length.
     fn from(f: f32) -> Ellipse {
-        Ellipse::new_circular(f)
+        Ellipse::new_all(f)
     }
     /// New circular exact length.
     fn from(i: i32) -> Ellipse {
-        Ellipse::new_circular(i)
+        Ellipse::new_all(i)
     }
 }
 

@@ -1129,6 +1129,7 @@ pub mod prelude {
     #[doc(no_inline)]
     pub use crate::core::{
         app::{App, ElementState},
+        border::{BorderSides, BorderStyle, LineOrientation},
         color::{
             self, blur, brightness, colors, contrast, drop_shadow, grayscale, hex, hsl, hsla, hue_rotate, opacity, rgb, rgba, saturate,
             sepia, Rgba,
@@ -1138,7 +1139,6 @@ pub mod prelude {
         gesture::{shortcut, GestureKey, Shortcut, Shortcuts},
         gradient::{stops, ExtendMode, GradientStop, GradientStops},
         keyboard::{Key, ModifiersState},
-        line::LineOrientation,
         mouse::MouseButton,
         node_vec, nodes,
         render::WidgetPath,
@@ -1222,6 +1222,8 @@ pub mod prelude {
         #[doc(no_inline)]
         pub use crate::core::app::ElementState;
         #[doc(no_inline)]
+        pub use crate::core::border::*;
+        #[doc(no_inline)]
         pub use crate::core::color::{self, *};
         #[doc(no_inline)]
         pub use crate::core::context::*;
@@ -1229,8 +1231,6 @@ pub mod prelude {
         pub use crate::core::event::*;
         #[doc(no_inline)]
         pub use crate::core::gesture::*;
-        #[doc(no_inline)]
-        pub use crate::core::line::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]
@@ -1270,11 +1270,11 @@ pub mod prelude {
     /// ```
     pub mod new_widget {
         #[doc(no_inline)]
+        pub use crate::core::border::*;
+        #[doc(no_inline)]
         pub use crate::core::color::*;
         #[doc(no_inline)]
         pub use crate::core::context::*;
-        #[doc(no_inline)]
-        pub use crate::core::line::*;
         #[doc(no_inline)]
         pub use crate::core::render::*;
         #[doc(no_inline)]

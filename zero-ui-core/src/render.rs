@@ -1,9 +1,12 @@
 //! Frame render and metadata API.
 
 use super::color::{RenderColor, RenderFilter};
-use crate::context::LazyStateMap;
 use crate::gradient::{RenderExtendMode, RenderGradientStop};
 use crate::units::*;
+use crate::{
+    border::{BorderSides, LayoutBorderRadius},
+    context::LazyStateMap,
+};
 use crate::{
     window::{CursorIcon, WindowId},
     UiNode, WidgetId,
@@ -590,7 +593,7 @@ impl FrameBuilder {
 
     /// Push a border using [`common_item_properties`](FrameBuilder::common_item_properties).
     #[inline]
-    pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, details: BorderDetails) {
+    pub fn push_border(&mut self, bounds: LayoutRect, widths: LayoutSideOffsets, sides: BorderSides, radius: LayoutBorderRadius) {
         if self.cancel_widget {
             return;
         }
@@ -599,6 +602,15 @@ impl FrameBuilder {
         debug_assert_aligned!(widths, self.pixel_grid());
 
         self.open_widget_display();
+
+        let details = BorderDetails::Normal(NormalBorder {
+            left: sides.left.into(),
+            right: sides.right.into(),
+            top: sides.top.into(),
+            bottom: sides.bottom.into(),
+            radius,
+            do_aa: true,
+        });
 
         self.display_list
             .push_border(&self.common_item_properties(bounds), bounds, widths, details);
@@ -701,9 +713,9 @@ impl FrameBuilder {
     pub fn push_line(
         &mut self,
         bounds: LayoutRect,
-        orientation: crate::line::LineOrientation,
+        orientation: crate::border::LineOrientation,
         color: RenderColor,
-        style: crate::line::LineStyle,
+        style: crate::border::LineStyle,
     ) {
         if self.cancel_widget {
             return;
@@ -723,7 +735,7 @@ impl FrameBuilder {
                 style,
             ),
             RenderLineCommand::Border(style) => {
-                use crate::line::LineOrientation as LO;
+                use crate::border::LineOrientation as LO;
                 let widths = match orientation {
                     LO::Vertical => LayoutSideOffsets::new(0.0, 0.0, 0.0, bounds.size.width),
                     LO::Horizontal => LayoutSideOffsets::new(bounds.size.height, 0.0, 0.0, 0.0),
@@ -787,9 +799,9 @@ enum RenderLineCommand {
     Line(LineStyle, f32),
     Border(BorderStyle),
 }
-impl crate::line::LineStyle {
+impl crate::border::LineStyle {
     fn render_command(self) -> RenderLineCommand {
-        use crate::line::LineStyle as LS;
+        use crate::border::LineStyle as LS;
         use RenderLineCommand::*;
         match self {
             LS::Solid => Line(LineStyle::Solid, 0.0),

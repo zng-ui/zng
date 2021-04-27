@@ -6,32 +6,40 @@ use crate::prelude::new_property::*;
 
 /// Border property
 #[property(inner)]
-pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: impl IntoVar<BorderDetails>) -> impl UiNode {
-    struct BorderNode<T, L, B> {
+pub fn border(
+    child: impl UiNode,
+    widths: impl IntoVar<SideOffsets>,
+    sides: impl IntoVar<BorderSides>,
+    radius: impl IntoVar<BorderRadius>,
+) -> impl UiNode {
+    struct BorderNode<T, L, S, R> {
         child: T,
 
         widths: L,
-        details: B,
+        sides: S,
+        radius: R,
         child_rect: LayoutRect,
 
         final_widths: LayoutSideOffsets,
         final_size: LayoutSize,
-        final_details: LayoutBorderDetails,
+        final_radius: LayoutBorderRadius,
     }
 
     #[impl_ui_node(child)]
-    impl<T, L, B> BorderNode<T, L, B>
+    impl<T, L, S, R> BorderNode<T, L, S, R>
     where
         T: UiNode,
         L: VarLocal<SideOffsets>,
-        B: VarLocal<BorderDetails>,
+        S: VarLocal<BorderSides>,
+        R: VarLocal<BorderRadius>,
     {
         #[UiNode]
         fn init(&mut self, ctx: &mut WidgetContext) {
             self.child.init(ctx);
 
             self.widths.init_local(ctx.vars);
-            self.details.init_local(ctx.vars);
+            self.sides.init_local(ctx.vars);
+            self.radius.init_local(ctx.vars);
         }
 
         #[UiNode]
@@ -41,15 +49,18 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: im
             if self.widths.update_local(ctx.vars).is_some() {
                 ctx.updates.layout()
             }
-            if self.details.update_local(ctx.vars).is_some() {
-                ctx.updates.layout()
+            if self.sides.update_local(ctx.vars).is_some() {
+                ctx.updates.render()
+            }
+            if self.radius.update_local(ctx.vars).is_some() {
+                ctx.updates.layout();
             }
         }
 
         #[UiNode]
         fn measure(&mut self, available_size: LayoutSize, ctx: &mut LayoutContext) -> LayoutSize {
             self.final_widths = self.widths.get_local().to_layout(available_size, ctx);
-            self.final_details = self.details.get_local().to_layout(available_size, ctx);
+            self.final_radius = self.radius.get_local().to_layout(available_size, ctx);
 
             let size_inc = self.size_increment();
             self.child.measure(available_size - size_inc, ctx) + size_inc
@@ -70,7 +81,12 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: im
 
         #[UiNode]
         fn render(&self, frame: &mut FrameBuilder) {
-            frame.push_border(LayoutRect::from_size(self.final_size), self.final_widths, self.final_details);
+            frame.push_border(
+                LayoutRect::from_size(self.final_size),
+                self.final_widths,
+                *self.sides.get_local(),
+                self.final_radius,
+            );
             frame.push_reference_frame(self.child_rect.origin, |frame| self.child.render(frame));
         }
     }
@@ -79,11 +95,12 @@ pub fn border(child: impl UiNode, widths: impl IntoVar<SideOffsets>, details: im
         child,
 
         widths: widths.into_local(),
-        details: details.into_local(),
+        sides: sides.into_local(),
+        radius: radius.into_local(),
 
         child_rect: LayoutRect::zero(),
-        final_details: border_details_none(),
         final_size: LayoutSize::zero(),
         final_widths: LayoutSideOffsets::zero(),
+        final_radius: LayoutBorderRadius::zero(),
     }
 }

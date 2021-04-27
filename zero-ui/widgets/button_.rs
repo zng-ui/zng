@@ -35,7 +35,8 @@ pub mod button {
         /// Button border.
         border = {
             widths: BorderWidthsVar,
-            details: BorderDetailsVar,
+            sides: BorderSidesVar,
+            radius: BorderRadiusVar,
         };
 
         /// Color of text inside the button [`content`](#wp-content).
@@ -56,7 +57,8 @@ pub mod button {
             background_color = BackgroundHoveredVar;
             border = {
                 widths: BorderWidthsHoveredVar,
-                details: BorderDetailsHoveredVar,
+                sides: BorderSidesHoveredVar,
+                radius: BorderRadiusHoveredVar,
             };
         }
 
@@ -65,7 +67,8 @@ pub mod button {
             background_color = BackgroundPressedVar;
             border = {
                 widths: BorderWidthsPressedVar,
-                details: BorderDetailsPressedVar,
+                sides: BorderSidesPressedVar,
+                radius: BorderRadiusPressedVar,
             };
         }
 
@@ -74,7 +77,8 @@ pub mod button {
             background_color = BackgroundDisabledVar;
             border = {
                 widths: BorderWidthsDisabledVar,
-                details: BorderDetailsDisabledVar,
+                sides: BorderSidesDisabledVar,
+                radius: BorderRadiusDisabledVar,
             };
             text_color = TextColorDisabledVar;
         }
@@ -91,10 +95,15 @@ pub mod button {
         pub struct BorderWidthsPressedVar: SideOffsets = once SideOffsets::new_all(1.0);
         pub struct BorderWidthsDisabledVar: SideOffsets = once SideOffsets::new_all(1.0);
 
-        pub struct BorderDetailsVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
-        pub struct BorderDetailsHoveredVar: BorderDetails = once BorderDetails::solid(rgb(0.4, 0.4, 0.4));
-        pub struct BorderDetailsPressedVar: BorderDetails = once BorderDetails::solid(rgb(0.6, 0.6, 0.6));
-        pub struct BorderDetailsDisabledVar: BorderDetails = once BorderDetails::solid(rgb(0.2, 0.2, 0.2));
+        pub struct BorderSidesVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
+        pub struct BorderSidesHoveredVar: BorderSides = once BorderSides::solid(rgb(0.4, 0.4, 0.4));
+        pub struct BorderSidesPressedVar: BorderSides = once BorderSides::solid(rgb(0.6, 0.6, 0.6));
+        pub struct BorderSidesDisabledVar: BorderSides = once BorderSides::solid(rgb(0.2, 0.2, 0.2));
+
+        pub struct BorderRadiusVar: BorderRadius = once BorderRadius::new_all(0.0);
+        pub struct BorderRadiusHoveredVar: BorderRadius = once BorderRadius::new_all(0.0);
+        pub struct BorderRadiusPressedVar: BorderRadius = once BorderRadius::new_all(0.0);
+        pub struct BorderRadiusDisabledVar: BorderRadius = once BorderRadius::new_all(0.0);
 
         pub struct PaddingVar: SideOffsets = once SideOffsets::new(7.0, 15.0, 7.0, 15.0);
     }
