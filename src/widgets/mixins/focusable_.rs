@@ -30,6 +30,7 @@ pub mod focusable_mixin {
             details: FocusHighlightDetailsVar
         };
 
+        /// When widget has keyboard focus and highlight is requested.
         when self.is_focused_hgl {
             focus_highlight = {
                 widths: FocusHighlightWidthsVar,

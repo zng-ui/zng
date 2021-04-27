@@ -34,7 +34,7 @@ pub use input::keyword;
 pub use input::Priority;
 
 mod input {
-    use syn::{parse::*, spanned::Spanned, *};
+    use syn::{parse::*, punctuated::Punctuated, spanned::Spanned, *};
 
     pub mod keyword {
         syn::custom_keyword!(context);
@@ -50,6 +50,7 @@ mod input {
         pub priority: Priority,
         //", allowed_in_when = true"
         pub allowed_in_when: Option<(Token![,], keyword::allowed_in_when, Token![=], LitBool)>,
+        pub default_: Option<(Token![,], Token![default], token::Paren, ArgsDefault)>,
         // trailing comma
         pub comma_token: Option<Token![,]>,
     }
@@ -77,8 +78,43 @@ mod input {
                         None
                     }
                 },
+                default_: {
+                    if input.peek(Token![,]) && input.peek2(Token![default]) {
+                        let comma = input.parse().unwrap();
+                        let default_ = input.parse::<Token![default]>().unwrap();
+
+                        if input.is_empty() {
+                            return Err(syn::Error::new(default_.span(), "expected `default(<default>)`"));
+                        }
+
+                        let inner;
+                        let paren = parenthesized!(inner in input);
+
+                        if inner.is_empty() {
+                            return Err(syn::Error::new(paren.span, "expected default values"));
+                        }
+
+                        Some((comma, default_, paren, inner.parse()?))
+                    } else {
+                        None
+                    }
+                },
                 comma_token: input.parse()?,
             })
+        }
+    }
+
+    pub enum ArgsDefault {
+        Unamed(Punctuated<Expr, Token![,]>),
+        Named(Punctuated<FieldValue, Token![,]>),
+    }
+    impl Parse for ArgsDefault {
+        fn parse(input: ParseStream) -> Result<Self> {
+            if input.peek(Ident) && input.peek2(Token![:]) && !input.peek3(Token![:]) {
+                Ok(ArgsDefault::Named(Punctuated::parse_terminated(input)?))
+            } else {
+                Ok(ArgsDefault::Unamed(Punctuated::parse_terminated(input)?))
+            }
         }
     }
 
@@ -556,22 +592,31 @@ mod analysis {
             },
         };
 
-        let has_default_value = allowed_in_when && matches!(prefix, Prefix::State);
-        let default_value = if has_default_value {
-            let crate_core = util::crate_core();
-            if arg_idents.len() == 1 {
-                quote! {
-                    Self::new(
-                        #crate_core::var::state_var()
-                    )
+        let default_value = if allowed_in_when {
+            if let Some((_, _, _, default_)) = args.default_ {
+                // TODO assert count matches
+                // TODO assert name matches
+                todo!()
+            } else if matches!(prefix, Prefix::State) {
+                if arg_idents.len() == 1 {
+                    let crate_core = util::crate_core();
+                    quote! {
+                        Self::new(
+                            #crate_core::var::state_var()
+                        )
+                    }
+                } else {
+                    // A compile error was generated for this case already.
+                    TokenStream::default()
                 }
             } else {
-                // A compile error was generated for this case already.
                 TokenStream::default()
             }
         } else {
             TokenStream::default()
         };
+
+        let has_default_value = !default_value.is_empty();
 
         let macro_ident = ident!("{}_{}", fn_.sig.ident, util::uuid());
 
