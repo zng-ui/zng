@@ -84,14 +84,14 @@ mod input {
                         let default_ = input.parse::<Token![default]>().unwrap();
 
                         if input.is_empty() {
-                            return Err(syn::Error::new(default_.span(), "expected `default(<default>)`"));
+                            return Err(syn::Error::new(default_.span(), "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`"));
                         }
 
                         let inner;
                         let paren = parenthesized!(inner in input);
 
                         if inner.is_empty() {
-                            return Err(syn::Error::new(paren.span, "expected default values"));
+                            return Err(syn::Error::new(paren.span, "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`"));
                         }
 
                         Some((comma, default_, paren, inner.parse()?))
@@ -592,24 +592,30 @@ mod analysis {
             },
         };
 
-        let default_value = if allowed_in_when {
-            if let Some((_, _, _, default_)) = args.default_ {
-                // TODO assert count matches
-                // TODO assert name matches
-                todo!()
-            } else if matches!(prefix, Prefix::State) {
-                if arg_idents.len() == 1 {
-                    let crate_core = util::crate_core();
+        let default_value = if let Some((_, _, _, default_)) = args.default_ {
+            let property_name = &fn_.sig.ident;
+            match default_ {
+                input::ArgsDefault::Unamed(args) => {
                     quote! {
-                        Self::new(
-                            #crate_core::var::state_var()
-                        )
+                        #property_name::ArgsImpl::new(#args)
                     }
-                } else {
-                    // A compile error was generated for this case already.
-                    TokenStream::default()
+                }
+                input::ArgsDefault::Named(fields) => {
+                    quote! {
+                        #property_name::code_gen! { named_new #property_name, __ArgsImpl { #fields } }
+                    }
+                }
+            }
+        } else if matches!(prefix, Prefix::State) {
+            if arg_idents.len() == 1 {
+                let crate_core = util::crate_core();
+                quote! {
+                    Self::new(
+                        #crate_core::var::state_var()
+                    )
                 }
             } else {
+                // A compile error was generated for this case already.
                 TokenStream::default()
             }
         } else {

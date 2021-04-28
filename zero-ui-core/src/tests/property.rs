@@ -330,3 +330,41 @@ fn sub_pattern_input() {
     let args = sub_pattern_all::ArgsImpl::new(true);
     let _ = sub_pattern_all::set(args, NilUiNode);
 }
+
+mod defaults {
+    use crate::{property, UiNode};
+
+    #[property(context, allowed_in_when = false, default(b: 2567, a: true))]
+    pub fn named(child: impl UiNode, a: bool, b: u32) -> impl UiNode {
+        let _ = (a, b);
+        child
+    }
+
+    #[property(context, allowed_in_when = false, default(true, 2567))]
+    pub fn unnamed(child: impl UiNode, a: bool, b: u32) -> impl UiNode {
+        let _ = (a, b);
+        child
+    }
+}
+
+#[test]
+fn named_default() {
+    use defaults::*;
+
+    let _ = named(NilUiNode, false, 0);
+    let args = named::ArgsImpl::default();
+
+    assert_eq!(&true, args.__a());
+    assert_eq!(&2567, args.__b());
+}
+
+#[test]
+fn unnamed_default() {
+    use defaults::*;
+
+    let _ = unnamed(NilUiNode, false, 0);
+    let args = unnamed::ArgsImpl::default();
+
+    assert_eq!(&true, args.__a());
+    assert_eq!(&2567, args.__b());
+}
