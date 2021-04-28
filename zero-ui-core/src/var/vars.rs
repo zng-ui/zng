@@ -11,6 +11,8 @@ pub struct Vars {
     update_id: u32,
     #[allow(clippy::type_complexity)]
     pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
+    #[allow(clippy::type_complexity)]
+    widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
 }
 impl Vars {
     /// Produces the instance of `Vars`. Only a single
@@ -21,6 +23,7 @@ impl Vars {
             _singleton: SingletonVars::assert_new(),
             update_id: 0,
             pending: Default::default(),
+            widget_clear: Default::default(),
         }
     }
 
@@ -48,23 +51,78 @@ impl Vars {
     }
 
     /// Calls `f` with the context var value.
+    ///
+    /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
     pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
-        let _prev = RestoreOnDrop {
-            prev: C::thread_local_value().replace((value as _, is_new, version)),
-            _c: context_var,
-        };
+        let _ = context_var;
+        let prev = C::thread_local_value().replace((value as _, is_new, version));
+        let _restore = RunOnDrop::new(move || {
+            C::thread_local_value().set(prev);
+        });
 
         f();
 
         // _prev restores the parent reference here on drop
     }
 
-    /// Calls `f` with the `context_var` set from the `other_var`.
+    /// Calls `f` with the context var value.
+    ///
+    /// The value is visible for the duration of `f` and only for the parts of it that are inside the current widget context.
+    ///
+    /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
+    /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+        // SAFETY: `Self::context_var` makes safety assumptions about this code
+        // don't change before studying it.
+
+        let _ = context_var;
+
+        let new = (value as _, is_new, version);
+        let prev = C::thread_local_value().replace(new);
+
+        self.widget_clear.borrow_mut().push(Box::new(move |undo| {
+            if undo {
+                C::thread_local_value().set(prev);
+            } else {
+                C::thread_local_value().set(new);
+            }
+        }));
+
+        let _restore = RunOnDrop::new(move || {
+            C::thread_local_value().set(prev);
+        });
+
+        f();
+    }
+
+    /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
     pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
         self.with_context_var(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+    }
+
+    /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+        self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+    }
+
+    /// Clears widget only context var values, calls `f` and restores widget only context var values.
+    pub(crate) fn with_widget_clear<F: FnOnce()>(&self, f: F) {
+        let wgt_clear = std::mem::take(&mut *self.widget_clear.borrow_mut());
+        for clear in &wgt_clear {
+            clear(true);
+        }
+
+        let _restore = RunOnDrop::new(move || {
+            for clear in &wgt_clear {
+                clear(false);
+            }
+            *self.widget_clear.borrow_mut() = wgt_clear;
+        });
+
+        f();
     }
 
     pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32)>) {
@@ -84,12 +142,16 @@ impl Vars {
     }
 }
 
-struct RestoreOnDrop<C: ContextVar> {
-    prev: (*const C::Type, bool, u32),
-    _c: C,
+struct RunOnDrop<F: FnOnce()>(Option<F>);
+impl<F: FnOnce()> RunOnDrop<F> {
+    fn new(clean: F) -> Self {
+        RunOnDrop(Some(clean))
+    }
 }
-impl<C: ContextVar> Drop for RestoreOnDrop<C> {
+impl<F: FnOnce()> Drop for RunOnDrop<F> {
     fn drop(&mut self) {
-        C::thread_local_value().set(self.prev);
+        if let Some(clean) = self.0.take() {
+            clean();
+        }
     }
 }

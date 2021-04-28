@@ -194,7 +194,7 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 
 /// Foreground highlight border overlay.
 ///
-/// This property draws a [`border`](fn@crate::properties::border) with extra `offsets` control 
+/// This property draws a [`border`](fn@crate::properties::border) with extra `offsets` control
 /// as a [`foreground`] overlay. The border has no content.
 ///
 /// # Example
@@ -207,7 +207,8 @@ pub fn foreground(child: impl UiNode, foreground: impl UiNode) -> impl UiNode {
 ///     foreground_highlight = {
 ///         offsets: 3,
 ///         widths: 1,
-///         details: colors::BLUE
+///         sides: colors::BLUE,
+///         radius: 0
 ///     }
 /// }
 /// # ;

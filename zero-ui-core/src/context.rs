@@ -1102,23 +1102,27 @@ impl<'a> WidgetContext<'a> {
     /// Runs a function `f` within the context of a widget.
     pub fn widget_context(&mut self, widget_id: WidgetId, widget_state: &mut LazyStateMap, f: impl FnOnce(&mut WidgetContext)) {
         self.path.push(widget_id);
-        f(&mut WidgetContext {
-            path: self.path,
 
-            app_state: self.app_state,
-            window_state: self.window_state,
-            widget_state,
-            event_state: self.event_state,
+        self.vars.with_widget_clear(|| {
+            f(&mut WidgetContext {
+                path: self.path,
 
-            vars: self.vars,
-            events: self.events,
-            services: self.services,
-            window_services: self.window_services,
+                app_state: self.app_state,
+                window_state: self.window_state,
+                widget_state,
+                event_state: self.event_state,
 
-            sync: self.sync,
+                vars: self.vars,
+                events: self.events,
+                services: self.services,
+                window_services: self.window_services,
 
-            updates: self.updates,
+                sync: self.sync,
+
+                updates: self.updates,
+            });
         });
+
         self.path.pop();
     }
 }

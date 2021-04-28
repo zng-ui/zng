@@ -2,7 +2,10 @@ use crate::prelude::new_property::*;
 
 /// Draws a border around the widget.
 ///
-/// 
+/// TODO radii clip:
+//
+// https://github.com/servo/servo/blob/0d0cfd030347ab0711b3c0607a9ee07ffe7124cf/components/layout/display_list/border.rs
+// https://github.com/servo/servo/blob/0d0cfd030347ab0711b3c0607a9ee07ffe7124cf/components/layout/display_list/background.rs
 #[property(inner)]
 pub fn border(
     child: impl UiNode,
