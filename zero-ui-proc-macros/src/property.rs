@@ -84,14 +84,20 @@ mod input {
                         let default_ = input.parse::<Token![default]>().unwrap();
 
                         if input.is_empty() {
-                            return Err(syn::Error::new(default_.span(), "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`"));
+                            return Err(syn::Error::new(
+                                default_.span(),
+                                "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`",
+                            ));
                         }
 
                         let inner;
                         let paren = parenthesized!(inner in input);
 
                         if inner.is_empty() {
-                            return Err(syn::Error::new(paren.span, "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`"));
+                            return Err(syn::Error::new(
+                                paren.span,
+                                "expected `default(\"arg1\", ..)` or `default(arg1: \"arg1\", ..)`",
+                            ));
                         }
 
                         Some((comma, default_, paren, inner.parse()?))

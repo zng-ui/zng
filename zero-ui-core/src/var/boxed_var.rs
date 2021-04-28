@@ -6,7 +6,7 @@ pub type BoxedVar<T> = Box<dyn VarObj<T>>;
 impl<T: VarValue> protected::Var for BoxedVar<T> {}
 
 impl<T: VarValue> VarObj<T> for BoxedVar<T> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         self.as_ref().get(vars)
     }
 
@@ -18,7 +18,7 @@ impl<T: VarValue> VarObj<T> for BoxedVar<T> {
         self.as_ref().is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.as_ref().version(vars)
     }
 
@@ -56,7 +56,7 @@ pub type BoxedLocalVar<T> = Box<dyn VarLocal<T>>;
 impl<T: VarValue> protected::Var for BoxedLocalVar<T> {}
 
 impl<T: VarValue> VarObj<T> for BoxedLocalVar<T> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         self.as_ref().get(vars)
     }
 
@@ -68,7 +68,7 @@ impl<T: VarValue> VarObj<T> for BoxedLocalVar<T> {
         self.as_ref().is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.as_ref().version(vars)
     }
 

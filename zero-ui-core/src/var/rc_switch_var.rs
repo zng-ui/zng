@@ -136,7 +136,7 @@ macro_rules! impl_rc_switch_var {
 
         impl<O: VarValue, $($V: VarObj<O>,)+ VI: VarObj<usize>>
         VarObj<O> for $RcSwitchVar<O, $($V,)+ VI> {
-            fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 match *self.0.index.get(vars) {
                     $($n => self.0.vars.$n.get(vars),)+
                     _ => panic!("switch_var index out of range"),
@@ -159,7 +159,7 @@ macro_rules! impl_rc_switch_var {
                     }
             }
 
-            fn version(&self, vars: &Vars) -> u32 {
+            fn version(&self, vars: &VarsRead) -> u32 {
                 let i_ver = self.0.index.version(vars);
                 let var_vers = ($(self.0.vars.$n.version(vars)),+);
 
@@ -373,7 +373,7 @@ impl<O: VarValue, VI: VarObj<usize>> Clone for RcSwitchVar<O, VI> {
     }
 }
 impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         self.0.vars[*self.0.index.get(vars)].get(vars)
     }
 
@@ -389,7 +389,7 @@ impl<O: VarValue, VI: VarObj<usize>> VarObj<O> for RcSwitchVar<O, VI> {
         self.0.vars[*self.0.index.get(vars)].is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         let mut changed = false;
 
         let i_ver = self.0.index.version(vars);

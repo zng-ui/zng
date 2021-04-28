@@ -170,7 +170,7 @@ impl<T: VarValue> Clone for RcVar<T> {
     }
 }
 impl<T: VarValue> VarObj<T> for RcVar<T> {
-    fn get<'a>(&'a self, _: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
         // SAFETY: This is safe because we are bounding the value lifetime with
         // the `Vars` lifetime and we require a mutable reference to `Vars` to
         // modify the value.
@@ -189,7 +189,7 @@ impl<T: VarValue> VarObj<T> for RcVar<T> {
         self.0.last_updated.get() == vars.update_id()
     }
 
-    fn version(&self, _: &Vars) -> u32 {
+    fn version(&self, _: &VarsRead) -> u32 {
         self.0.version.get()
     }
 

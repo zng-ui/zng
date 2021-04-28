@@ -84,7 +84,7 @@ where
     V: Var<I>,
     F: FnMut(&I) -> O + 'static,
 {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         let var_version = Some(self.0.var.version(vars));
         if var_version != self.0.version.get() {
             let value = (&mut *self.0.f.borrow_mut())(self.0.var.get(vars));
@@ -117,7 +117,7 @@ where
         self.0.var.is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.0.var.version(vars)
     }
 

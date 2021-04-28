@@ -97,7 +97,7 @@ mod protected {
 /// Part of [`Var`] that can be boxed.
 pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// References the current value.
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T;
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T;
 
     /// References the current value if it [is new](Self::is_new).
     fn get_new<'a>(&'a self, vars: &'a Vars) -> Option<&'a T>;
@@ -114,7 +114,7 @@ pub trait VarObj<T: VarValue>: protected::Var + 'static {
     /// Version of the current value.
     ///
     /// The version number changes every update where [`set`](Self::set) or [`modify`](Var::modify) are called.
-    fn version(&self, vars: &Vars) -> u32;
+    fn version(&self, vars: &VarsRead) -> u32;
 
     /// If the variable cannot be set.
     ///

@@ -12,7 +12,7 @@ use super::*;
 pub struct OwnedVar<T: VarValue>(pub T);
 impl<T: VarValue> protected::Var for OwnedVar<T> {}
 impl<T: VarValue> VarObj<T> for OwnedVar<T> {
-    fn get<'a>(&'a self, _: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, _: &'a VarsRead) -> &'a T {
         &self.0
     }
 
@@ -24,7 +24,7 @@ impl<T: VarValue> VarObj<T> for OwnedVar<T> {
         false
     }
 
-    fn version(&self, _: &Vars) -> u32 {
+    fn version(&self, _: &VarsRead) -> u32 {
         0
     }
 

@@ -51,7 +51,7 @@ where
     V: Var<I>,
     F: Fn(&I) -> &O + Clone + 'static,
 {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         (self.f)(self.var.get(vars))
     }
 
@@ -63,7 +63,7 @@ where
         self.var.is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.var.version(vars)
     }
 

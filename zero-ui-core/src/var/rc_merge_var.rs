@@ -130,7 +130,7 @@ macro_rules! impl_rc_merge_var {
                 self.0.last_update_id.get().is_none()
             }
 
-            fn update_output(&self, vars: &Vars) {
+            fn update_output(&self, vars: &VarsRead) {
                 let last_update_id = Some(vars.update_id());
                 if self.0.last_update_id.get() != last_update_id {
                     let versions = ($(self.0.vars.$n.version(vars)),+);
@@ -165,7 +165,7 @@ macro_rules! impl_rc_merge_var {
 
         impl<$($I: VarValue,)+ O: VarValue, $($V: VarObj<$I>,)+ F: FnMut($(&$I),+) -> O + 'static>
         VarObj<O> for $RcMergeVar<$($I,)+ O, $($V,)+ F> {
-            fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 self.update_output(vars);
 
                 // SAFETY:
@@ -188,7 +188,7 @@ macro_rules! impl_rc_merge_var {
                 $(self.0.vars.$n.is_new(vars))||+
             }
 
-            fn version(&self, vars: &Vars) -> u32 {
+            fn version(&self, vars: &VarsRead) -> u32 {
                 self.update_output(vars);
                 self.0.output_version.get()
             }

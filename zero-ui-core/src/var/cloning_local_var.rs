@@ -19,7 +19,7 @@ impl<T: VarValue, V: Var<T>> CloningLocalVar<T, V> {
     }
 }
 impl<T: VarValue, V: Var<T>> VarObj<T> for CloningLocalVar<T, V> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         self.var.get(vars)
     }
 
@@ -31,7 +31,7 @@ impl<T: VarValue, V: Var<T>> VarObj<T> for CloningLocalVar<T, V> {
         self.var.is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.var.version(vars)
     }
 

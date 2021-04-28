@@ -1,32 +1,47 @@
 use super::*;
 use crate::context::Updates;
+use std::{fmt, ops::Deref};
 
 singleton_assert!(SingletonVars);
 
-/// Access to application variables.
+/// Read-only access to [`Vars`].
 ///
-/// Only a single instance of this type exists at a time.
-pub struct Vars {
+/// In some contexts variables can be set, so a full [`Vars`] reference if given, in other contexts
+/// variables can only be read, so a [`VarsRead`] reference is given.
+///
+/// [`Vars`] auto-dereferences to to this type
+///
+/// # Examples
+///
+/// You can [`get`](VarsObj::get) a value using a [`VarsRead`] reference.
+///
+/// ```
+/// # use crate::var::{VarObj, VarsRead};
+/// fn read_only(var: &impl VarObj<bool>, vars: &VarsRead) -> bool {
+///     *var.get(vars)
+/// }
+/// ```
+///
+/// And because of auto-dereference you can can the same method using a full [`Vars`] reference.
+///
+/// ```
+/// # use crate::var::{VarObj, Vars};
+/// fn read_write(var: &impl VarObj<bool>, vars: &Vars) -> bool {
+///     *var.get(vars)
+/// }
+/// ```
+pub struct VarsRead {
     _singleton: SingletonVars,
     update_id: u32,
     #[allow(clippy::type_complexity)]
-    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
-    #[allow(clippy::type_complexity)]
     widget_clear: RefCell<Vec<Box<dyn Fn(bool)>>>,
 }
-impl Vars {
-    /// Produces the instance of `Vars`. Only a single
-    /// instance can exist at a time, panics if called
-    /// again before dropping the previous instance.
-    pub fn instance() -> Self {
-        Vars {
-            _singleton: SingletonVars::assert_new(),
-            update_id: 0,
-            pending: Default::default(),
-            widget_clear: Default::default(),
-        }
+impl fmt::Debug for VarsRead {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VarsRead {{ .. }}")
     }
-
+}
+impl VarsRead {
     pub(super) fn update_id(&self) -> u32 {
         self.update_id
     }
@@ -53,7 +68,10 @@ impl Vars {
     /// Calls `f` with the context var value.
     ///
     /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
-    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, version: u32, f: F) {
+        self.with_context_var_impl(context_var, value, false, version, f)
+    }
+    fn with_context_var_impl<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
@@ -74,7 +92,17 @@ impl Vars {
     ///
     /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
     /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
-    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, version: u32, f: F) {
+        self.with_context_var_wgt_only_impl(context_var, value, false, version, f)
+    }
+    fn with_context_var_wgt_only_impl<C: ContextVar, F: FnOnce()>(
+        &self,
+        context_var: C,
+        value: &C::Type,
+        is_new: bool,
+        version: u32,
+        f: F,
+    ) {
         // SAFETY: `Self::context_var` makes safety assumptions about this code
         // don't change before studying it.
 
@@ -100,12 +128,12 @@ impl Vars {
 
     /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
     pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
-        self.with_context_var(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+        self.with_context_var_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
     /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
     pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
-        self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+        self.with_context_var_wgt_only_impl(context_var, other_var.get(self), false, other_var.version(self), f)
     }
 
     /// Clears widget only context var values, calls `f` and restores widget only context var values.
@@ -124,21 +152,84 @@ impl Vars {
 
         f();
     }
+}
+
+/// Access to application variables.
+///
+/// Only a single instance of this type exists at a time.
+pub struct Vars {
+    read: VarsRead,
+    #[allow(clippy::type_complexity)]
+    pending: RefCell<Vec<Box<dyn FnOnce(u32)>>>,
+}
+impl fmt::Debug for Vars {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Vars {{ .. }}")
+    }
+}
+impl Vars {
+    /// Produces the instance of `Vars`. Only a single
+    /// instance can exist at a time, panics if called
+    /// again before dropping the previous instance.
+    pub fn instance() -> Self {
+        Vars {
+            read: VarsRead {
+                _singleton: SingletonVars::assert_new(),
+                update_id: 0,
+                widget_clear: Default::default(),
+            },
+            pending: Default::default(),
+        }
+    }
+
+    /// Calls `f` with the context var value.
+    ///
+    /// The value is visible for the duration of `f`, unless `f` recursive overwrites it again.
+    pub fn with_context_var<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+        self.with_context_var_impl(context_var, value, is_new, version, f)
+    }
+
+    /// Calls `f` with the context var value.
+    ///
+    /// The value is visible for the duration of `f` and only for the parts of it that are inside the current widget context.
+    ///
+    /// The value can be overwritten by a recursive call to [`with_context_var`](Vars::with_context_var) or
+    /// this method, subsequent values from this same widget context are not visible in inner widget contexts.
+    pub fn with_context_var_wgt_only<C: ContextVar, F: FnOnce()>(&self, context_var: C, value: &C::Type, is_new: bool, version: u32, f: F) {
+        self.with_context_var_wgt_only_impl(context_var, value, is_new, version, f)
+    }
+
+    /// Calls [`with_context_var`](Vars::with_context_var) with values from `other_var`.
+    pub fn with_context_bind<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+        self.with_context_var_impl(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+    }
+
+    /// Calls [`with_context_var_wgt_only`](Vars::with_context_var_wgt_only) with values from `other_var`.
+    pub fn with_context_bind_wgt_only<C: ContextVar, F: FnOnce(), V: VarObj<C::Type>>(&self, context_var: C, other_var: &V, f: F) {
+        self.with_context_var_wgt_only(context_var, other_var.get(self), other_var.is_new(self), other_var.version(self), f)
+    }
 
     pub(super) fn push_change(&self, change: Box<dyn FnOnce(u32)>) {
         self.pending.borrow_mut().push(change);
     }
 
     pub(crate) fn apply(&mut self, updates: &mut Updates) {
-        self.update_id = self.update_id.wrapping_add(1);
+        self.read.update_id = self.update_id.wrapping_add(1);
 
         let pending = self.pending.get_mut();
         if !pending.is_empty() {
             for f in pending.drain(..) {
-                f(self.update_id);
+                f(self.read.update_id);
             }
             updates.update();
         }
+    }
+}
+impl Deref for Vars {
+    type Target = VarsRead;
+
+    fn deref(&self) -> &Self::Target {
+        &self.read
     }
 }
 

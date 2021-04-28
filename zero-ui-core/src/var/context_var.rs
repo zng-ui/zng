@@ -34,7 +34,7 @@ impl<C: ContextVar> Default for ContextVarProxy<C> {
     }
 }
 impl<C: ContextVar> VarObj<C::Type> for ContextVarProxy<C> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a C::Type {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a C::Type {
         vars.context_var::<C>().0
     }
 
@@ -51,7 +51,7 @@ impl<C: ContextVar> VarObj<C::Type> for ContextVarProxy<C> {
         vars.context_var::<C>().1
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         vars.context_var::<C>().2
     }
 

@@ -136,7 +136,7 @@ macro_rules! impl_rc_when_var {
         }
 
         impl<O: VarValue, D: VarObj<O>, $($C: VarObj<bool>),+ , $($V: VarObj<O>),+> VarObj<O> for $RcMergeVar<O, D, $($C),+ , $($V),+> {
-            fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+            fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
                 $(
                     if *self.0.conditions.$n.get(vars) {
                         self.0.values.$n.get(vars)
@@ -176,7 +176,7 @@ macro_rules! impl_rc_when_var {
                 )+
                 condition_is_new || self.0.default_value.is_new(vars)
             }
-            fn version(&self, vars: &Vars) -> u32 {
+            fn version(&self, vars: &VarsRead) -> u32 {
                 let mut changed = false;
 
                 $(
@@ -374,7 +374,7 @@ impl<O: VarValue> Clone for RcWhenVar<O> {
 }
 impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
     /// Gets the the first variable with `true` condition or the default variable.
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a O {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a O {
         for (c, v) in self.0.whens.iter() {
             if *c.get(vars) {
                 return v.get(vars);
@@ -428,7 +428,7 @@ impl<O: VarValue> VarObj<O> for RcWhenVar<O> {
     /// Gets the version.
     ///
     /// The version is new when any of the condition and value variables version is new.
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         let mut changed = false;
 
         let dv = self.0.default_.version(vars);

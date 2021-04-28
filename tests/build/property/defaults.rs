@@ -1,4 +1,4 @@
-use zero_ui::core::{property, UiNode, var::IntoVar};
+use zero_ui::core::{property, var::IntoVar, UiNode};
 
 #[property(context, default)]
 pub fn missing_default_parethesis(child: impl UiNode, a: impl IntoVar<bool>, b: impl IntoVar<u32>) -> impl UiNode {

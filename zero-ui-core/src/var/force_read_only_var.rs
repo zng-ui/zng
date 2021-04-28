@@ -15,7 +15,7 @@ impl<T: VarValue, V: Var<T>> Clone for ForceReadOnlyVar<T, V> {
     }
 }
 impl<T: VarValue, V: Var<T>> VarObj<T> for ForceReadOnlyVar<T, V> {
-    fn get<'a>(&'a self, vars: &'a Vars) -> &'a T {
+    fn get<'a>(&'a self, vars: &'a VarsRead) -> &'a T {
         self.0.get(vars)
     }
 
@@ -27,7 +27,7 @@ impl<T: VarValue, V: Var<T>> VarObj<T> for ForceReadOnlyVar<T, V> {
         self.0.is_new(vars)
     }
 
-    fn version(&self, vars: &Vars) -> u32 {
+    fn version(&self, vars: &VarsRead) -> u32 {
         self.0.version(vars)
     }
 
